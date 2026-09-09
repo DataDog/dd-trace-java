@@ -14,7 +14,11 @@ public class UsmMessageFactoryImpl implements UsmMessageFactory {
 
   @Override
   public UsmMessage getRequestMessage(
-      UsmConnection connection, byte[] buffer, int bufferOffset, int len) {
+      UsmConnection connection,
+      byte[] buffer,
+      int bufferOffset,
+      int len
+  ) {
     return new RequestUsmMessage(connection, buffer, bufferOffset, len);
   }
 

@@ -10,14 +10,18 @@ import kotlin.jvm.functions.Function2;
 import kotlinx.coroutines.AbstractCoroutine;
 import kotlinx.coroutines.ThreadContextElement;
 
-/** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
+/**
+ * Manages the Datadog context for coroutines, switching contexts as coroutines switch threads.
+ */
 public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
   private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
-      new CoroutineContext.Key<DatadogThreadContextElement>() {};
+      new CoroutineContext.Key<DatadogThreadContextElement>() {
+  };
 
   public static CoroutineContext addDatadogElement(CoroutineContext coroutineContext) {
     if (coroutineContext.get(DATADOG_KEY) != null) {
-      return coroutineContext; // already added
+      // already added
+      return coroutineContext;
     }
     return coroutineContext.plus(new DatadogThreadContextElement());
   }
@@ -62,7 +66,9 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
 
   @Override
   public void restoreThreadContext(
-      @Nonnull CoroutineContext coroutineContext, Context originalContext) {
+      @Nonnull CoroutineContext coroutineContext,
+      Context originalContext
+  ) {
     context = originalContext.swap();
   }
 
@@ -74,7 +80,9 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
 
   @Override
   public <R> R fold(
-      R initial, @Nonnull Function2<? super R, ? super Element, ? extends R> operation) {
+      R initial,
+      @Nonnull Function2<? super R, ? super Element, ? extends R> operation
+  ) {
     return CoroutineContext.Element.DefaultImpls.fold(this, initial, operation);
   }
 

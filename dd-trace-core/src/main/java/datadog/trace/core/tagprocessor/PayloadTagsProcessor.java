@@ -2,7 +2,6 @@ package datadog.trace.core.tagprocessor;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.TagMap;
@@ -22,10 +21,11 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Post-processor that extracts tags from payload data injected as tags by instrumentations. */
+/**
+ * Post-processor that extracts tags from payload data injected as tags by instrumentations.
+ */
 public final class PayloadTagsProcessor extends TagsPostProcessor {
   private static final Logger log = LoggerFactory.getLogger(PayloadTagsProcessor.class);
-
   private static final String REDACTED = "redacted";
   private static final String BINARY = "<binary>";
   private static final String DD_PAYLOAD_TAGS_INCOMPLETE = "_dd.payload_tags_incomplete";
@@ -37,19 +37,21 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
       redactionRulesByTagPrefix.put(
           ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_REQUEST_TAG,
           new RedactionRules.Builder()
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
-              .addParsedRedactionJsonPaths(config.getCloudRequestPayloadTagging())
-              .build());
+            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
+            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_REQUEST_PAYLOAD_TAGGING)
+            .addParsedRedactionJsonPaths(config.getCloudRequestPayloadTagging())
+            .build()
+      );
     }
     if (config.isCloudResponsePayloadTaggingEnabled()) {
       redactionRulesByTagPrefix.put(
           ConfigDefaults.DEFAULT_TRACE_CLOUD_PAYLOAD_RESPONSE_TAG,
           new RedactionRules.Builder()
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
-              .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
-              .addParsedRedactionJsonPaths(config.getCloudResponsePayloadTagging())
-              .build());
+            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_COMMON_PAYLOAD_TAGGING)
+            .addRedactionJsonPaths(ConfigDefaults.DEFAULT_CLOUD_RESPONSE_PAYLOAD_TAGGING)
+            .addParsedRedactionJsonPaths(config.getCloudResponsePayloadTagging())
+            .build()
+      );
     }
     if (redactionRulesByTagPrefix.isEmpty()) {
       return null;
@@ -64,7 +66,10 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
   final int maxTags;
 
   PayloadTagsProcessor(
-      Map<String, RedactionRules> redactionRulesByTagPrefix, int maxDepth, int maxTags) {
+      Map<String, RedactionRules> redactionRulesByTagPrefix,
+      int maxDepth,
+      int maxTags
+  ) {
     this.redactionRulesByTagPrefix = redactionRulesByTagPrefix;
     this.maxDepth = maxDepth;
     this.maxTags = maxTags;
@@ -72,7 +77,10 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagMap unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks
+  ) {
     int spanMaxTags = maxTags + unsafeTags.size();
     for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
         redactionRulesByTagPrefix.entrySet()) {
@@ -93,13 +101,16 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
             LogCollector.SEND_TELEMETRY,
             "Expected PayloadTagsData for known payload tag '{}', but got '{}'",
             tagPrefix,
-            tagValue);
+            tagValue
+        );
       }
     }
   }
 
   private void collectPayloadTags(
-      PayloadTagsData payloadTagsData, PayloadTagsCollector payloadTagsCollector) {
+      PayloadTagsData payloadTagsData,
+      PayloadTagsCollector payloadTagsCollector
+  ) {
     for (PayloadTagsData.PathAndValue pathAndValue : payloadTagsData.pathAndValues) {
       if (pathAndValue.path.length > maxDepth) {
         continue;
@@ -137,7 +148,6 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
   }
 
   static final class RedactionRules {
-
     public static final class Builder {
       private final List<JsonPath> redactionRules = new ArrayList<>();
 
@@ -181,7 +191,6 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
     private final int maxDepth;
     private final RedactionRules redactionRules;
     private final String tagPrefix;
-
     private final TagMap collectedTags;
 
     public PayloadTagsCollector(
@@ -189,7 +198,8 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
         int maxTags,
         RedactionRules redactionRules,
         String tagPrefix,
-        TagMap collectedTags) {
+        TagMap collectedTags
+    ) {
       this.maxDepth = maxDepth;
       this.maxTags = maxTags;
       this.redactionRules = redactionRules;
@@ -264,7 +274,11 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
     @Override
     public void expandValueFailed(PathCursor path, Exception exception) {
       log.debug(
-          EXCLUDE_TELEMETRY, "Failed to expand value at path '{}'", path.toString(""), exception);
+          EXCLUDE_TELEMETRY,
+          "Failed to expand value at path '{}'",
+          path.toString(""),
+          exception
+      );
     }
   }
 }

@@ -9,7 +9,6 @@ import java.util.Map;
  * access pattern managed by {@link ExposureWriterImpl.ExposureSerializingHandler}.
  */
 public class LRUExposureCache implements ExposureCache {
-
   private final Map<Key, Value> cache;
 
   public LRUExposureCache(final int capacity) {

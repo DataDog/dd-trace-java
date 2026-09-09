@@ -3,7 +3,8 @@ package datadog.metrics.impl;
 import java.util.Arrays;
 
 public final class Utils {
-  private Utils() {}
+  private Utils() {
+  }
 
   static String[] mergeTags(String[] left, String[] right) {
     if (null == right) {

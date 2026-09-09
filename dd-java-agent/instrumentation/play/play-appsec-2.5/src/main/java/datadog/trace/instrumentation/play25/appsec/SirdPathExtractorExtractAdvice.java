@@ -19,7 +19,8 @@ public class SirdPathExtractorExtractAdvice {
   static void after(
       @Advice.Return scala.Option<List<String>> ret,
       @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Thrown(readOnly = false) Throwable t) {
+      @Advice.Thrown(readOnly = false) Throwable t
+  ) {
     if (ret.isEmpty() || t != null) {
       return;
     }
@@ -30,8 +31,10 @@ public class SirdPathExtractorExtractAdvice {
       conv.put(Integer.toString(i), stringList.apply(i));
     }
 
-    t =
-        PathExtractionHelpers.callRequestPathParamsCallback(
-            reqCtx, conv, "sird.PathExtractor#extract");
+    t = PathExtractionHelpers.callRequestPathParamsCallback(
+        reqCtx,
+        conv,
+        "sird.PathExtractor#extract"
+    );
   }
 }

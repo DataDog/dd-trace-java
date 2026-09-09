@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -18,7 +17,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FlagEvaluationPayloadsTest {
-
   private static final long EVAL_MS = 1_760_000_000_000L;
   private static final Map<String, String> CONTEXT = context();
   private static final JsonAdapter<Map<String, Object>> JSON_MAP;
@@ -34,13 +32,11 @@ class FlagEvaluationPayloadsTest {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("region", "us-east-1");
 
-    final Map<String, Object> json =
-        firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(
-                    event("my-flag", "on", "alloc-x", "user-1", 1, attrs)),
-                CONTEXT,
-                1_000_000));
+    final Map<String, Object> json = firstPayload(FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(event("my-flag", "on", "alloc-x", "user-1", 1, attrs)),
+        CONTEXT,
+        1_000_000
+    ));
 
     final Map<String, Object> ev = firstEvent(json);
     assertObjectWithKey(ev.get("variant"), "on");
@@ -56,20 +52,30 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void eventFromFullBucketUsesFlushTimeAndEvaluationBounds() throws Exception {
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "ts-flag", "on", "alloc1", "user-1", null, EVAL_MS, false, emptyMap(), true);
+    final FlagEvaluationAggregator.EvalBucket bucket = new FlagEvaluationAggregator.EvalBucket(
+        "ts-flag",
+        "on",
+        "alloc1",
+        "user-1",
+        null,
+        EVAL_MS,
+        false,
+        emptyMap(),
+        true
+    );
     bucket.merge(EVAL_MS + 10, false);
     final long flushTimeMs = EVAL_MS + 5_000;
 
-    final Map<String, Object> json =
-        firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(
-                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                        bucket, true, true, flushTimeMs)),
-                CONTEXT,
-                1_000_000));
+    final Map<String, Object> json = firstPayload(FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            true,
+            true,
+            flushTimeMs
+        )),
+        CONTEXT,
+        1_000_000
+    ));
 
     final Map<String, Object> ev = firstEvent(json);
     assertEquals((double) flushTimeMs, ((Number) ev.get("timestamp")).doubleValue());
@@ -80,18 +86,28 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void degradedTierEventOmitsTargetingKeyAndContext() throws Exception {
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "dg-flag", "on", "alloc1", null, null, EVAL_MS, false, null, false);
+    final FlagEvaluationAggregator.EvalBucket bucket = new FlagEvaluationAggregator.EvalBucket(
+        "dg-flag",
+        "on",
+        "alloc1",
+        null,
+        null,
+        EVAL_MS,
+        false,
+        null,
+        false
+    );
 
-    final Map<String, Object> json =
-        firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(
-                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                        bucket, false, true, EVAL_MS)),
-                CONTEXT,
-                1_000_000));
+    final Map<String, Object> json = firstPayload(FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            false,
+            true,
+            EVAL_MS
+        )),
+        CONTEXT,
+        1_000_000
+    ));
 
     final Map<String, Object> ev = firstEvent(json);
     assertNull(ev.get("targeting_key"));
@@ -102,26 +118,28 @@ class FlagEvaluationPayloadsTest {
   void fullTierWithObserveFullEvaluationDataTrueEmitsRawTargetingKeyAndContext() throws Exception {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("region", "us-east-1");
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "pii-flag",
-            "on",
-            "alloc1",
-            "jane.doe@datadoghq.com",
-            null,
-            EVAL_MS,
-            false,
-            attrs,
-            true);
+    final FlagEvaluationAggregator.EvalBucket bucket = new FlagEvaluationAggregator.EvalBucket(
+        "pii-flag",
+        "on",
+        "alloc1",
+        "jane.doe@datadoghq.com",
+        null,
+        EVAL_MS,
+        false,
+        attrs,
+        true
+    );
 
-    final Map<String, Object> json =
-        firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(
-                    FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                        bucket, true, true, EVAL_MS)),
-                CONTEXT,
-                1_000_000));
+    final Map<String, Object> json = firstPayload(FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            true,
+            true,
+            EVAL_MS
+        )),
+        CONTEXT,
+        1_000_000
+    ));
 
     final Map<String, Object> ev = firstEvent(json);
     assertEquals("jane.doe@datadoghq.com", ev.get("targeting_key"));
@@ -137,42 +155,45 @@ class FlagEvaluationPayloadsTest {
       throws Exception {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("region", "us-east-1");
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "pii-flag",
-            "on",
-            "alloc1",
-            "jane.doe@datadoghq.com",
-            null,
-            EVAL_MS,
-            false,
-            attrs,
-            false);
+    final FlagEvaluationAggregator.EvalBucket bucket = new FlagEvaluationAggregator.EvalBucket(
+        "pii-flag",
+        "on",
+        "alloc1",
+        "jane.doe@datadoghq.com",
+        null,
+        EVAL_MS,
+        false,
+        attrs,
+        false
+    );
 
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
-            java.util.Collections.singletonList(
-                FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                    bucket, true, false, EVAL_MS)),
-            CONTEXT,
-            1_000_000);
+    final FlagEvaluationPayloads.EncodedPayloads payloads = FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            true,
+            false,
+            EVAL_MS
+        )),
+        CONTEXT,
+        1_000_000
+    );
     final String rawJson =
         new String(payloads.bodies.get(0), java.nio.charset.StandardCharsets.UTF_8);
-
     // The raw wire bytes must carry the hashed key and must not leak the raw PII value or the
     // per-event evaluation context — these are the exact properties system-tests asserts over the
     // wire. (The batch envelope has its own top-level "context" field, so we guard on the nested
     // "evaluation" key instead, which only appears inside a per-event context object.)
-    assertTrue(
-        rawJson.contains(
-            "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b"));
+    assertTrue(rawJson.contains(
+        "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b"
+    ));
     assertFalse(rawJson.contains("jane.doe@datadoghq.com"));
     assertFalse(rawJson.contains("\"evaluation\":"));
 
     final Map<String, Object> ev = firstEvent(parse(payloads.bodies.get(0)));
     assertEquals(
         "sha256_b4698f9b6d186781fa8dc59e533578fa2d8379a46b1cf6db85cda6aa9c99e51b",
-        ev.get("targeting_key"));
+        ev.get("targeting_key")
+    );
     assertFalse(ev.containsKey("context"));
   }
 
@@ -207,12 +228,13 @@ class FlagEvaluationPayloadsTest {
       attrs.put("payload-" + i, repeat('x', 200));
     }
 
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
-            java.util.Collections.singletonList(
-                event("oversized-full", "on", "alloc1", "user-1", 2, attrs)),
-            CONTEXT,
-            512);
+    final FlagEvaluationPayloads.EncodedPayloads payloads = FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(
+            event("oversized-full", "on", "alloc1", "user-1", 2, attrs)
+        ),
+        CONTEXT,
+        512
+    );
 
     assertEquals(1, payloads.bodies.size());
     assertTrue(payloads.bodies.get(0).length <= 512);
@@ -236,18 +258,16 @@ class FlagEvaluationPayloadsTest {
         second.withoutTargetingKeyAndContext();
     assertNotNull(degradedSecond);
 
-    final int firstPayloadSize =
-        FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(first), CONTEXT, 1_000_000)
-            .bodies
-            .get(0)
-            .length;
-    final int degradedPayloadSize =
-        FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(degradedSecond), CONTEXT, 1_000_000)
-            .bodies
-            .get(0)
-            .length;
+    final int firstPayloadSize = FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(first),
+        CONTEXT,
+        1_000_000
+    ).bodies.get(0).length;
+    final int degradedPayloadSize = FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(degradedSecond),
+        CONTEXT,
+        1_000_000
+    ).bodies.get(0).length;
     final int limit = Math.max(firstPayloadSize, degradedPayloadSize);
 
     final FlagEvaluationPayloads.EncodedPayloads payloads =
@@ -265,12 +285,13 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void oversizedDegradedPayloadRowIsDropped() {
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
-            java.util.Collections.singletonList(
-                event(repeat('f', 512), "on", "alloc1", null, 2, emptyMap())),
-            CONTEXT,
-            128);
+    final FlagEvaluationPayloads.EncodedPayloads payloads = FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(
+            event(repeat('f', 512), "on", "alloc1", null, 2, emptyMap())
+        ),
+        CONTEXT,
+        128
+    );
 
     assertTrue(payloads.bodies.isEmpty());
     assertEquals(2, payloads.droppedPayloadLimit);
@@ -279,12 +300,13 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void oversizedFullPayloadRowIsDroppedWhenDegradedRowStillExceedsLimit() {
-    final FlagEvaluationPayloads.EncodedPayloads payloads =
-        FlagEvaluationPayloads.buildPayloads(
-            java.util.Collections.singletonList(
-                event(repeat('f', 512), "on", "alloc1", "user-1", 2, emptyMap())),
-            CONTEXT,
-            128);
+    final FlagEvaluationPayloads.EncodedPayloads payloads = FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(
+            event(repeat('f', 512), "on", "alloc1", "user-1", 2, emptyMap())
+        ),
+        CONTEXT,
+        128
+    );
 
     assertTrue(payloads.bodies.isEmpty());
     assertEquals(2, payloads.droppedPayloadLimit);
@@ -293,24 +315,25 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void errorPayloadSerializesErrorObject() throws Exception {
-    final Map<String, Object> json =
-        firstPayload(
-            FlagEvaluationPayloads.buildPayloads(
-                java.util.Collections.singletonList(
-                    new FlagEvaluationPayloads.FlagEvaluationEvent(
-                        EVAL_MS,
-                        "err-flag",
-                        EVAL_MS,
-                        EVAL_MS,
-                        1,
-                        null,
-                        null,
-                        null,
-                        true,
-                        "type mismatch",
-                        null)),
-                CONTEXT,
-                1_000_000));
+    final Map<String, Object> json = firstPayload(FlagEvaluationPayloads.buildPayloads(
+        java.util.Collections.singletonList(
+            new FlagEvaluationPayloads.FlagEvaluationEvent(
+                EVAL_MS,
+                "err-flag",
+                EVAL_MS,
+                EVAL_MS,
+                1,
+                null,
+                null,
+                null,
+                true,
+                "type mismatch",
+                null
+            )
+        ),
+        CONTEXT,
+        1_000_000
+    ));
 
     final Map<String, Object> ev = firstEvent(json);
     final Map<?, ?> error = (Map<?, ?>) ev.get("error");
@@ -331,9 +354,9 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void requestDtoStoresContextAndEvents() {
-    final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
-        java.util.Collections.singletonList(
-            event("dto-flag", "on", "alloc1", "user-1", 1, emptyMap()));
+    final List<FlagEvaluationPayloads.FlagEvaluationEvent> events = java.util.Collections.singletonList(
+        event("dto-flag", "on", "alloc1", "user-1", 1, emptyMap())
+    );
 
     final FlagEvaluationPayloads.FlagEvaluationsRequest request =
         new FlagEvaluationPayloads.FlagEvaluationsRequest(CONTEXT, events);
@@ -344,20 +367,20 @@ class FlagEvaluationPayloadsTest {
 
   @Test
   void degradingEventWithMissingOptionalFieldsKeepsOptionalObjectsAbsent() {
-    final FlagEvaluationPayloads.FlagEvaluationEvent degraded =
-        new FlagEvaluationPayloads.FlagEvaluationEvent(
-                EVAL_MS,
-                "default-flag",
-                EVAL_MS,
-                EVAL_MS,
-                1,
-                null,
-                null,
-                "user-1",
-                true,
-                null,
-                null)
-            .withoutTargetingKeyAndContext();
+    final FlagEvaluationPayloads.FlagEvaluationEvent degraded = new FlagEvaluationPayloads.FlagEvaluationEvent(
+        EVAL_MS,
+        "default-flag",
+        EVAL_MS,
+        EVAL_MS,
+        1,
+        null,
+        null,
+        "user-1",
+        true,
+        null,
+        null
+    )
+      .withoutTargetingKeyAndContext();
 
     assertNotNull(degraded);
     assertNull(degraded.variant);
@@ -372,9 +395,19 @@ class FlagEvaluationPayloadsTest {
   void emptyOptionalStringsAreTreatedAsAbsentWhenContextIsPresent() {
     final Map<String, Object> attrs = new HashMap<>();
     attrs.put("tier", "gold");
-    final FlagEvaluationPayloads.FlagEvaluationEvent event =
-        new FlagEvaluationPayloads.FlagEvaluationEvent(
-            EVAL_MS, "empty-optionals", EVAL_MS, EVAL_MS, 1, "", "", null, false, "", attrs);
+    final FlagEvaluationPayloads.FlagEvaluationEvent event = new FlagEvaluationPayloads.FlagEvaluationEvent(
+        EVAL_MS,
+        "empty-optionals",
+        EVAL_MS,
+        EVAL_MS,
+        1,
+        "",
+        "",
+        null,
+        false,
+        "",
+        attrs
+    );
 
     assertNull(event.variant);
     assertNull(event.allocation);
@@ -394,7 +427,8 @@ class FlagEvaluationPayloadsTest {
       final String allocation,
       final String targetingKey,
       final long count,
-      final Map<String, Object> attrs) {
+      final Map<String, Object> attrs
+  ) {
     return new FlagEvaluationPayloads.FlagEvaluationEvent(
         EVAL_MS,
         flagKey,
@@ -406,11 +440,13 @@ class FlagEvaluationPayloadsTest {
         targetingKey,
         false,
         null,
-        attrs);
+        attrs
+    );
   }
 
   private static Map<String, Object> firstPayload(
-      final FlagEvaluationPayloads.EncodedPayloads payloads) throws Exception {
+      final FlagEvaluationPayloads.EncodedPayloads payloads
+  ) throws Exception {
     assertEquals(1, payloads.bodies.size());
     return parse(payloads.bodies.get(0));
   }

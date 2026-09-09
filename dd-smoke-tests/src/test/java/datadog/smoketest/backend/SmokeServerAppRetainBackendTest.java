@@ -1,7 +1,6 @@
 package datadog.smoketest.backend;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.smoketest.SmokeServerApp;
 import java.net.URI;
 import java.util.Collections;
@@ -17,19 +16,17 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * Docker.
  */
 class SmokeServerAppRetainBackendTest {
-
   // Non-shared (never registered as an extension) backend that retains across tests and counts
   // clear() calls; declared before the app so it is initialized when the app builder captures it.
   private static final CountingBackend BACKEND = new CountingBackend();
-
   @RegisterExtension
-  static final SmokeServerApp app =
-      SmokeServerApp.named("retain-server")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(BACKEND)
-          .noAgent()
-          .build();
+  static final SmokeServerApp app = SmokeServerApp
+    .named("retain-server")
+    .mainClass("datadog.smoketest.TestServerApp")
+    .args("--server.port=${app.httpPort}")
+    .backend(BACKEND)
+    .noAgent()
+    .build();
 
   @Test
   void ownedRetainingBackendIsNotClearedBeforeTests() {
@@ -38,7 +35,9 @@ class SmokeServerAppRetainBackendTest {
     assertEquals(0, BACKEND.clears.get(), "a retaining owned backend must not be cleared per-test");
   }
 
-  /** An owned (non-shared) backend that retains across tests and counts {@link #clear()} calls. */
+  /**
+   * An owned (non-shared) backend that retains across tests and counts {@link #clear()} calls.
+   */
   private static final class CountingBackend extends AgentBackend {
     final AtomicInteger clears = new AtomicInteger();
 
@@ -80,7 +79,8 @@ class SmokeServerAppRetainBackendTest {
 
     @Override
     public boolean clearsBetweenTests() {
-      return false; // retain across tests
+      // retain across tests
+      return false;
     }
   }
 }

@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CLIENT_PARENT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -29,18 +28,15 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
     }
 
     if (span != null) {
-      final boolean finishSpan =
-          msg instanceof HttpResponse
-              && (!HttpResponseStatus.SWITCHING_PROTOCOLS.equals(((HttpResponse) msg).status())
-                  || "websocket"
-                      .equals(((HttpResponse) msg).headers().get(HttpHeaderNames.UPGRADE)));
+      final boolean finishSpan = msg instanceof HttpResponse
+          && (!HttpResponseStatus.SWITCHING_PROTOCOLS.equals(((HttpResponse) msg).status())
+          || "websocket".equals(((HttpResponse) msg).headers().get(HttpHeaderNames.UPGRADE)));
       if (finishSpan) {
         try (final ContextScope scope = activateSpan(span)) {
           DECORATE.onResponse(span, (HttpResponse) msg);
@@ -53,7 +49,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
         }
       }
     }
-
     // We want the callback in the scope of the parent, not the client span
     try (final ContextScope scope = activateSpan(parent)) {
       ctx.fireChannelRead(msg);
@@ -67,7 +62,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-
     // Set parent context back to maintain the same functionality as getAndSet(parent)
     if (storedContext != null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));
@@ -95,7 +89,6 @@ public class HttpClientResponseTracingHandler extends ChannelInboundHandlerAdapt
     final AgentSpan parent = parentAttr.get();
     final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
-
     // Set parent context back to maintain the same functionality  as getAndSet(parent)
     if (storedContext != null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).set(storedContext.with(parent));

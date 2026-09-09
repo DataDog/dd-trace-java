@@ -13,9 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MethodHandles {
-
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.class);
-
   private final java.lang.invoke.MethodHandles.Lookup lookup =
       java.lang.invoke.MethodHandles.lookup();
   private final ClassLoader classLoader;
@@ -30,34 +28,32 @@ public class MethodHandles {
   }
 
   public MethodHandle privateFieldGetter(Class<?> clazz, String fieldName) {
-    return AccessController.doPrivileged(
-        (PrivilegedAction<MethodHandle>)
-            () -> {
-              try {
-                try {
-                  SecurityManager sm = System.getSecurityManager();
-                  if (sm != null) {
-                    String packageName = clazz.getPackage().getName();
-                    sm.checkPackageAccess(packageName);
-                  }
-                } catch (UnsupportedOperationException e) {
-                  // ignore
-                }
+    return AccessController.doPrivileged((PrivilegedAction<MethodHandle>) () -> {
+      try {
+        try {
+          SecurityManager sm = System.getSecurityManager();
+          if (sm != null) {
+            String packageName = clazz.getPackage().getName();
+            sm.checkPackageAccess(packageName);
+          }
+        } catch (UnsupportedOperationException e) {
+          // ignore
+        }
 
-                Field field = clazz.getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return lookup.unreflectGetter(field);
-
-              } catch (Throwable t) {
-                log.debug(
-                    LogCollector.EXCLUDE_TELEMETRY,
-                    "Could not get private field {} getter from class {}",
-                    fieldName,
-                    clazz.getName(),
-                    t);
-                return null;
-              }
-            });
+        Field field = clazz.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return lookup.unreflectGetter(field);
+      } catch (Throwable t) {
+        log.debug(
+            LogCollector.EXCLUDE_TELEMETRY,
+            "Could not get private field {} getter from class {}",
+            fieldName,
+            clazz.getName(),
+            t
+        );
+        return null;
+      }
+    });
   }
 
   public MethodHandle privateFieldSetter(String className, String fieldName) {
@@ -66,34 +62,32 @@ public class MethodHandles {
   }
 
   public MethodHandle privateFieldSetter(Class<?> clazz, String fieldName) {
-    return AccessController.doPrivileged(
-        (PrivilegedAction<MethodHandle>)
-            () -> {
-              try {
-                try {
-                  SecurityManager sm = System.getSecurityManager();
-                  if (sm != null) {
-                    String packageName = clazz.getPackage().getName();
-                    sm.checkPackageAccess(packageName);
-                  }
-                } catch (UnsupportedOperationException e) {
-                  // ignore
-                }
+    return AccessController.doPrivileged((PrivilegedAction<MethodHandle>) () -> {
+      try {
+        try {
+          SecurityManager sm = System.getSecurityManager();
+          if (sm != null) {
+            String packageName = clazz.getPackage().getName();
+            sm.checkPackageAccess(packageName);
+          }
+        } catch (UnsupportedOperationException e) {
+          // ignore
+        }
 
-                Field field = clazz.getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return lookup.unreflectSetter(field);
-
-              } catch (Throwable t) {
-                log.debug(
-                    LogCollector.EXCLUDE_TELEMETRY,
-                    "Could not get private field {} setter from class {}",
-                    fieldName,
-                    clazz.getName(),
-                    t);
-                return null;
-              }
-            });
+        Field field = clazz.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return lookup.unreflectSetter(field);
+      } catch (Throwable t) {
+        log.debug(
+            LogCollector.EXCLUDE_TELEMETRY,
+            "Could not get private field {} setter from class {}",
+            fieldName,
+            clazz.getName(),
+            t
+        );
+        return null;
+      }
+    });
   }
 
   public MethodHandle constructor(String className, Class<?>... parameterTypes) {
@@ -102,34 +96,32 @@ public class MethodHandles {
   }
 
   public MethodHandle constructor(Class<?> clazz, Class<?>... parameterTypes) {
-    return AccessController.doPrivileged(
-        (PrivilegedAction<MethodHandle>)
-            () -> {
-              try {
-                try {
-                  SecurityManager sm = System.getSecurityManager();
-                  if (sm != null) {
-                    String packageName = clazz.getPackage().getName();
-                    sm.checkPackageAccess(packageName);
-                  }
-                } catch (UnsupportedOperationException e) {
-                  // ignore
-                }
+    return AccessController.doPrivileged((PrivilegedAction<MethodHandle>) () -> {
+      try {
+        try {
+          SecurityManager sm = System.getSecurityManager();
+          if (sm != null) {
+            String packageName = clazz.getPackage().getName();
+            sm.checkPackageAccess(packageName);
+          }
+        } catch (UnsupportedOperationException e) {
+          // ignore
+        }
 
-                Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
-                constructor.setAccessible(true);
-                return lookup.unreflectConstructor(constructor);
-
-              } catch (Throwable t) {
-                log.debug(
-                    LogCollector.EXCLUDE_TELEMETRY,
-                    "Could not get constructor accepting {} from class {}",
-                    Arrays.toString(parameterTypes),
-                    clazz.getName(),
-                    t);
-                return null;
-              }
-            });
+        Constructor<?> constructor = clazz.getDeclaredConstructor(parameterTypes);
+        constructor.setAccessible(true);
+        return lookup.unreflectConstructor(constructor);
+      } catch (Throwable t) {
+        log.debug(
+            LogCollector.EXCLUDE_TELEMETRY,
+            "Could not get constructor accepting {} from class {}",
+            Arrays.toString(parameterTypes),
+            clazz.getName(),
+            t
+        );
+        return null;
+      }
+    });
   }
 
   public MethodHandle method(String className, String methodName, Class<?>... parameterTypes) {
@@ -138,72 +130,68 @@ public class MethodHandles {
   }
 
   public MethodHandle method(Class<?> clazz, String methodName, Class<?>... parameterTypes) {
-    return AccessController.doPrivileged(
-        (PrivilegedAction<MethodHandle>)
-            () -> {
-              try {
-                try {
-                  SecurityManager sm = System.getSecurityManager();
-                  if (sm != null) {
-                    String packageName = clazz.getPackage().getName();
-                    sm.checkPackageAccess(packageName);
-                  }
-                } catch (UnsupportedOperationException e) {
-                  // ignore
-                }
+    return AccessController.doPrivileged((PrivilegedAction<MethodHandle>) () -> {
+      try {
+        try {
+          SecurityManager sm = System.getSecurityManager();
+          if (sm != null) {
+            String packageName = clazz.getPackage().getName();
+            sm.checkPackageAccess(packageName);
+          }
+        } catch (UnsupportedOperationException e) {
+          // ignore
+        }
 
-                Method method = clazz.getDeclaredMethod(methodName, parameterTypes);
-                method.setAccessible(true);
-                return lookup.unreflect(method);
-
-              } catch (Throwable t) {
-                log.debug(
-                    LogCollector.EXCLUDE_TELEMETRY,
-                    "Could not get method {} accepting {} from class {}",
-                    methodName,
-                    Arrays.toString(parameterTypes),
-                    clazz,
-                    t);
-                return null;
-              }
-            });
+        Method method = clazz.getDeclaredMethod(methodName, parameterTypes);
+        method.setAccessible(true);
+        return lookup.unreflect(method);
+      } catch (Throwable t) {
+        log.debug(
+            LogCollector.EXCLUDE_TELEMETRY,
+            "Could not get method {} accepting {} from class {}",
+            methodName,
+            Arrays.toString(parameterTypes),
+            clazz,
+            t
+        );
+        return null;
+      }
+    });
   }
 
   public MethodHandle method(Class<?> clazz, Predicate<Method> filter) {
-    return AccessController.doPrivileged(
-        (PrivilegedAction<MethodHandle>)
-            () -> {
-              try {
-                try {
-                  SecurityManager sm = System.getSecurityManager();
-                  if (sm != null) {
-                    String packageName = clazz.getPackage().getName();
-                    sm.checkPackageAccess(packageName);
-                  }
-                } catch (UnsupportedOperationException e) {
-                  // ignore
-                }
+    return AccessController.doPrivileged((PrivilegedAction<MethodHandle>) () -> {
+      try {
+        try {
+          SecurityManager sm = System.getSecurityManager();
+          if (sm != null) {
+            String packageName = clazz.getPackage().getName();
+            sm.checkPackageAccess(packageName);
+          }
+        } catch (UnsupportedOperationException e) {
+          // ignore
+        }
 
-                Method[] methods = clazz.getDeclaredMethods();
-                for (Method method : methods) {
-                  if (filter.test(method)) {
-                    method.setAccessible(true);
-                    return lookup.unreflect(method);
-                  }
-                }
+        Method[] methods = clazz.getDeclaredMethods();
+        for (Method method : methods) {
+          if (filter.test(method)) {
+            method.setAccessible(true);
+            return lookup.unreflect(method);
+          }
+        }
 
-                log.debug("Could not find desired method in class {}", clazz);
-                return null;
-
-              } catch (Throwable t) {
-                log.debug(
-                    LogCollector.EXCLUDE_TELEMETRY,
-                    "Could not find desired method in class {}",
-                    clazz,
-                    t);
-                return null;
-              }
-            });
+        log.debug("Could not find desired method in class {}", clazz);
+        return null;
+      } catch (Throwable t) {
+        log.debug(
+            LogCollector.EXCLUDE_TELEMETRY,
+            "Could not find desired method in class {}",
+            clazz,
+            t
+        );
+        return null;
+      }
+    });
   }
 
   private Class<?> loadClass(String className) {
@@ -227,7 +215,8 @@ public class MethodHandles {
           "Error while invoking method handle {} with arguments {}",
           handle,
           Arrays.toString(arguments),
-          t);
+          t
+      );
       return null;
     }
   }

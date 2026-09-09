@@ -4,14 +4,12 @@ import static datadog.trace.util.stacktrace.StackWalkerTestUtil.isRunningJDK8Wit
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import java.util.NoSuchElementException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 public class HotSpotStackTraceIteratorTest {
-
   @BeforeAll
   public static void setUp() {
     assumeTrue(isRunningJDK8WithHotSpot());
@@ -43,6 +41,8 @@ public class HotSpotStackTraceIteratorTest {
 
   private HotSpotStackTraceIterator getTestIterator() {
     return new HotSpotStackTraceIterator(
-        new Throwable(), sun.misc.SharedSecrets.getJavaLangAccess());
+        new Throwable(),
+        sun.misc.SharedSecrets.getJavaLangAccess()
+    );
   }
 }

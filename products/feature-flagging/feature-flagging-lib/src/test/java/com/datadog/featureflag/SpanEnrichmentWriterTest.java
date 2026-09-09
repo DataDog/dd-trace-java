@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test;
  * the active root through an injectable resolver so no static tracer is needed).
  */
 class SpanEnrichmentWriterTest {
-
   private static AgentSpan rootSpan() {
     final AgentSpan root = mock(AgentSpan.class);
     when(root.getLocalRootSpan()).thenReturn(root);
@@ -100,7 +98,8 @@ class SpanEnrichmentWriterTest {
     writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
 
     writer.interceptor().onTraceComplete(Collections.singletonList(root));
-    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ=="); // {5} -> 0x05
+    // {5} -> 0x05
+    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ==");
     assertTrue(writer.states().isEmpty(), "flush removes the accumulated state");
   }
 
@@ -111,7 +110,9 @@ class SpanEnrichmentWriterTest {
     final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> root, interceptor -> false);
     writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
     assertTrue(
-        writer.states().isEmpty(), "no accumulation when the interceptor cannot be registered");
+        writer.states().isEmpty(),
+        "no accumulation when the interceptor cannot be registered"
+    );
   }
 
   @Test
@@ -135,8 +136,8 @@ class SpanEnrichmentWriterTest {
   @Test
   void resolveLocalRootLogic() {
     assertNull(SpanEnrichmentWriter.resolveLocalRoot(null));
-
-    final AgentSpan root = rootSpan(); // reports itself as its own local root
+    // reports itself as its own local root
+    final AgentSpan root = rootSpan();
     assertSame(root, SpanEnrichmentWriter.resolveLocalRoot(root));
 
     final AgentSpan child = mock(AgentSpan.class);
@@ -147,7 +148,10 @@ class SpanEnrichmentWriterTest {
     final AgentSpan noLocal = mock(AgentSpan.class);
     when(noLocal.getLocalRootSpan()).thenReturn(null);
     assertSame(
-        noLocal, SpanEnrichmentWriter.resolveLocalRoot(noLocal), "no local root → active span");
+        noLocal,
+        SpanEnrichmentWriter.resolveLocalRoot(noLocal),
+        "no local root → active span"
+    );
   }
 
   @Test
@@ -176,11 +180,9 @@ class SpanEnrichmentWriterTest {
 
   @Test
   void acceptSwallowsResolverErrors() {
-    final SpanEnrichmentWriter writer =
-        new SpanEnrichmentWriter(
-            () -> {
-              throw new RuntimeException("resolver boom");
-            });
+    final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> {
+      throw new RuntimeException("resolver boom");
+    });
     // Must not propagate — enrichment can never break flag evaluation.
     writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
     assertTrue(writer.states().isEmpty());
@@ -189,12 +191,9 @@ class SpanEnrichmentWriterTest {
   @Test
   void registrarErrorIsSwallowedAndNotLatched() {
     final AgentSpan root = rootSpan();
-    final SpanEnrichmentWriter writer =
-        new SpanEnrichmentWriter(
-            () -> root,
-            interceptor -> {
-              throw new RuntimeException("register boom");
-            });
+    final SpanEnrichmentWriter writer = new SpanEnrichmentWriter(() -> root, interceptor -> {
+      throw new RuntimeException("register boom");
+    });
     // Registration throws → swallowed, not latched, and nothing accumulates (never flushable).
     writer.accept(SpanEnrichmentEvent.serialId(5, false, null));
     assertTrue(writer.states().isEmpty());

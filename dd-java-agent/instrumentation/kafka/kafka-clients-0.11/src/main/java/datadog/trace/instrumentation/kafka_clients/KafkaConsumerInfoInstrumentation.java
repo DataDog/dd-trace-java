@@ -15,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -45,8 +44,9 @@ import org.apache.kafka.common.errors.WakeupException;
  */
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public KafkaConsumerInfoInstrumentation() {
     super("kafka", "kafka-0.11");
   }
@@ -58,7 +58,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
+    // < 3.8
+    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"));
   }
 
   @Override
@@ -66,14 +67,20 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
     Map<String, String> contextStores = new HashMap<>();
     contextStores.put(
         "org.apache.kafka.clients.Metadata",
-        "datadog.trace.instrumentation.kafka_common.MetadataState");
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
+    );
     contextStores.put(
-        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+        "org.apache.kafka.clients.consumer.ConsumerRecords",
+        KafkaConsumerInfo.class.getName()
+    );
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
-        KafkaConsumerInfo.class.getName());
+        KafkaConsumerInfo.class.getName()
+    );
     contextStores.put(
-        "org.apache.kafka.clients.consumer.KafkaConsumer", KafkaConsumerInfo.class.getName());
+        "org.apache.kafka.clients.consumer.KafkaConsumer",
+        KafkaConsumerInfo.class.getName()
+    );
     return contextStores;
   }
 
@@ -85,12 +92,12 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator",
-      packageName + ".KafkaConsumerInfo",
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
+        packageName + ".KafkaDecorator",
+        packageName + ".KafkaConsumerInfo",
+        "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+        "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+        "datadog.trace.instrumentation.kafka_common.PendingConfig",
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
     };
   }
 
@@ -98,28 +105,30 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
-            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
-            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdviceNot27");
-
+          .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
+          .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
+          .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdviceNot27"
+    );
     // Note: On some Kafka versions, both constructors will be instrumented. This is OK as we will
     // override the context,
     // and the instrumentation will still work as expected.
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, Map.class))
-            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
-            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
-        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice27");
+          .and(takesArgument(0, Map.class))
+          .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
+          .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$ConstructorAdvice27"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("poll"))
-            .and(takesArguments(1))
-            .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
-        KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice");
+          .and(isPublic())
+          .and(named("poll"))
+          .and(takesArguments(1))
+          .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
+        KafkaConsumerInfoInstrumentation.class.getName() + "$RecordsAdvice"
+    );
   }
 
   public static class ConstructorAdviceNot27 {
@@ -128,7 +137,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         @Advice.This KafkaConsumer consumer,
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
-        @Advice.Argument(0) ConsumerConfig consumerConfig) {
+        @Advice.Argument(0) ConsumerConfig consumerConfig
+    ) {
       String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
       String normalizedConsumerGroup =
           consumerGroup != null && !consumerGroup.isEmpty() ? consumerGroup : null;
@@ -142,30 +152,36 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
 
       KafkaConsumerInfo kafkaConsumerInfo;
       if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo =
-            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
+        kafkaConsumerInfo = new KafkaConsumerInfo(
+            normalizedConsumerGroup,
+            metadata,
+            bootstrapServers
+        );
       } else {
         kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
       }
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
           || kafkaConsumerInfo.getClientMetadata() != null) {
-        InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
-            .put(consumer, kafkaConsumerInfo);
+        InstrumentationContext
+          .get(KafkaConsumer.class, KafkaConsumerInfo.class)
+          .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .put(coordinator, kafkaConsumerInfo);
+          InstrumentationContext
+            .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+            .put(coordinator, kafkaConsumerInfo);
         }
       }
 
       if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .getOrCreate(metadata, MetadataState::new);
+        MetadataState state = InstrumentationContext
+          .get(Metadata.class, MetadataState.class)
+          .getOrCreate(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,
-            KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+            KafkaConfigHelper.extractConsumerConfig(consumerConfig)
+        );
       }
     }
 
@@ -182,7 +198,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         @Advice.This KafkaConsumer consumer,
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
-        @Advice.Argument(0) Map<String, Object> consumerConfig) {
+        @Advice.Argument(0) Map<String, Object> consumerConfig
+    ) {
       Object groupID = consumerConfig.get(ConsumerConfig.GROUP_ID_CONFIG);
       String consumerGroup = groupID instanceof String ? (String) groupID : null;
       String normalizedConsumerGroup =
@@ -195,30 +212,36 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
       KafkaConsumerInfo kafkaConsumerInfo;
       if (Config.get().isDataStreamsEnabled()) {
-        kafkaConsumerInfo =
-            new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
+        kafkaConsumerInfo = new KafkaConsumerInfo(
+            normalizedConsumerGroup,
+            metadata,
+            bootstrapServers
+        );
       } else {
         kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
       }
 
       if (kafkaConsumerInfo.getConsumerGroup() != null
           || kafkaConsumerInfo.getClientMetadata() != null) {
-        InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class)
-            .put(consumer, kafkaConsumerInfo);
+        InstrumentationContext
+          .get(KafkaConsumer.class, KafkaConsumerInfo.class)
+          .put(consumer, kafkaConsumerInfo);
         if (coordinator != null) {
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .put(coordinator, kafkaConsumerInfo);
+          InstrumentationContext
+            .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+            .put(coordinator, kafkaConsumerInfo);
         }
       }
 
       if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .getOrCreate(metadata, MetadataState::new);
+        MetadataState state = InstrumentationContext
+          .get(Metadata.class, MetadataState.class)
+          .getOrCreate(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,
-            KafkaConfigHelper.extractConsumerConfigFromMap(consumerConfig));
+            KafkaConfigHelper.extractConsumerConfigFromMap(consumerConfig)
+        );
       }
     }
 
@@ -244,7 +267,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
         if (consumerMetadata != null) {
           MetadataState metadataState =
-              InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
+              InstrumentationContext
+            .get(Metadata.class, MetadataState.class)
+            .get(consumerMetadata);
           String clusterId = metadataState != null ? metadataState.clusterId : null;
           if (clusterId != null) {
             ClusterIdHolder.set(clusterId);
@@ -264,14 +289,16 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         @Advice.Enter final AgentScope scope,
         @Advice.This KafkaConsumer consumer,
         @Advice.Return ConsumerRecords records,
-        @Advice.Thrown Throwable throwable) {
+        @Advice.Thrown Throwable throwable
+    ) {
       int recordsCount = 0;
       if (records != null) {
         KafkaConsumerInfo kafkaConsumerInfo =
             InstrumentationContext.get(KafkaConsumer.class, KafkaConsumerInfo.class).get(consumer);
         if (kafkaConsumerInfo != null) {
-          InstrumentationContext.get(ConsumerRecords.class, KafkaConsumerInfo.class)
-              .put(records, kafkaConsumerInfo);
+          InstrumentationContext
+            .get(ConsumerRecords.class, KafkaConsumerInfo.class)
+            .put(records, kafkaConsumerInfo);
         }
         recordsCount = records.count();
       }

@@ -6,7 +6,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,7 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class ServletContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ServletContextInstrumentation() {
     super("servlet", "servlet-dispatcher");
   }
@@ -43,18 +44,19 @@ public final class ServletContextInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         returns(named("javax.servlet.RequestDispatcher"))
-            .and(takesArgument(0, String.class))
-            // javax.servlet.ServletContext.getRequestDispatcher
-            // javax.servlet.ServletContext.getNamedDispatcher
-            .and(isPublic()),
-        ServletContextInstrumentation.class.getName() + "$RequestDispatcherTargetAdvice");
+          .and(takesArgument(0, String.class))
+          // javax.servlet.ServletContext.getNamedDispatcher
+          .and(isPublic()),
+        ServletContextInstrumentation.class.getName() + "$RequestDispatcherTargetAdvice"
+    );
   }
 
   public static class RequestDispatcherTargetAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void saveTarget(
         @Advice.Argument(0) final String target,
-        @Advice.Return final RequestDispatcher dispatcher) {
+        @Advice.Return final RequestDispatcher dispatcher
+    ) {
       InstrumentationContext.get(RequestDispatcher.class, String.class).put(dispatcher, target);
     }
   }

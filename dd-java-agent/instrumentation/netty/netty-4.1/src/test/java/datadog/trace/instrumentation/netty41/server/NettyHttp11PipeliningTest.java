@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.agent.test.assertions.TraceMatcher;
 import datadog.trace.api.function.TriFunction;
@@ -67,12 +66,10 @@ import reactor.netty.http.server.HttpServer;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
-
   private static final String FIRST_PATH = "/pipelined/first";
   private static final String SECOND_PATH = "/pipelined/second";
   private static final String THIRD_PATH = "/pipelined/third";
   private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
-
   private final DecodedRequestObserver decodedRequestObserver = new DecodedRequestObserver();
   private final PipeliningHandler handler = new PipeliningHandler();
   private Object appSecSubscriptions;
@@ -82,11 +79,13 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
   protected void configurePipeline(Channel ch) {
     HttpServerCodec codec = new HttpServerCodec();
     ch.pipeline().addLast(codec);
-    ch.pipeline()
-        .addAfter(
-            ch.pipeline().context(codec).name(),
-            "decoded-request-observer",
-            decodedRequestObserver);
+    ch
+      .pipeline()
+      .addAfter(
+          ch.pipeline().context(codec).name(),
+          "decoded-request-observer",
+          decodedRequestObserver
+      );
     ch.pipeline().addLast(new HttpObjectAggregator(65536));
     ch.pipeline().addLast(handler);
   }
@@ -110,7 +109,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
 
       assertTrue(
           handler.awaitAllRequestsReceived(),
-          "server did not receive all pipelined requests before responding");
+          "server did not receive all pipelined requests before responding"
+      );
 
       handler.writeResponses();
 
@@ -123,23 +123,25 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
         SORT_BY_START_TIME,
         serverTrace(FIRST_PATH),
         serverTrace(SECOND_PATH),
-        serverTrace(THIRD_PATH));
+        serverTrace(THIRD_PATH)
+    );
   }
 
   @Test
   void reactorNettyCompletesPipelinedFixedLengthResponses() throws Exception {
     DisposableServer reactorServer =
-        HttpServer.create()
-            .host("localhost")
-            .port(0)
-            .handle(
-                (request, response) -> {
-                  String body = "response " + request.uri();
-                  response.header(CONTENT_LENGTH, Integer.toString(body.getBytes(UTF_8).length));
-                  return Mono.delay(Duration.ofMillis(100))
-                      .then(Mono.defer(() -> response.sendString(Mono.just(body)).then()));
-                })
-            .bindNow();
+        HttpServer
+      .create()
+      .host("localhost")
+      .port(0)
+      .handle((request, response) -> {
+        String body = "response " + request.uri();
+        response.header(CONTENT_LENGTH, Integer.toString(body.getBytes(UTF_8).length));
+        return Mono
+          .delay(Duration.ofMillis(100))
+          .then(Mono.defer(() -> response.sendString(Mono.just(body)).then()));
+      })
+      .bindNow();
 
     try {
       try (Socket socket = new Socket("localhost", reactorServer.port())) {
@@ -156,7 +158,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           SORT_BY_START_TIME,
           serverTrace(FIRST_PATH),
           serverTrace(SECOND_PATH),
-          serverTrace(THIRD_PATH));
+          serverTrace(THIRD_PATH)
+      );
     } finally {
       reactorServer.disposeNow();
     }
@@ -177,14 +180,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       socket.getOutputStream().flush();
 
       assertTrue(
-          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+          blockedRequestSeen.await(5, SECONDS),
+          "server did not block second pipelined request"
+      );
 
       handler.writeResponses();
 
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
-          "second response should be the deferred blocking response");
+          "second response should be the deferred blocking response"
+      );
     }
 
     assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
@@ -202,26 +208,31 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       assertTrue(handler.awaitAllRequestsReceived(), "server did not receive first request");
 
       CountDownLatch blockedRequestSeen = enableAppSecRequestBlockingFor(SECOND_PATH, THIRD_PATH);
-      socket
-          .getOutputStream()
-          .write((request(SECOND_PATH) + request(THIRD_PATH)).getBytes(US_ASCII));
+      socket.getOutputStream().write((request(SECOND_PATH) + request(THIRD_PATH))
+        .getBytes(US_ASCII)
+      );
       socket.getOutputStream().flush();
 
       assertTrue(
-          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+          blockedRequestSeen.await(5, SECONDS),
+          "server did not block second pipelined request"
+      );
       assertTrue(
           decodedRequestObserver.awaitAllRequests(),
-          "server did not decode all three pipelined requests before responding");
+          "server did not decode all three pipelined requests before responding"
+      );
 
       handler.writeResponses();
 
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
-          "second response should be the deferred blocking response");
+          "second response should be the deferred blocking response"
+      );
       assertNull(
           handler.inboundException,
-          "additional pipelined requests should be swallowed by the existing blocking handler");
+          "additional pipelined requests should be swallowed by the existing blocking handler"
+      );
     }
 
     assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
@@ -243,14 +254,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       socket.getOutputStream().flush();
 
       assertTrue(
-          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+          blockedRequestSeen.await(5, SECONDS),
+          "server did not block second pipelined request"
+      );
 
       handler.writeChunkedResponse();
 
       assertEquals("response " + FIRST_PATH, readChunkedHttpResponseBody(socket.getInputStream()));
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
-          "second response should be the deferred blocking response");
+          "second response should be the deferred blocking response"
+      );
     }
 
     assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
@@ -271,22 +285,27 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       socket.getOutputStream().flush();
 
       assertTrue(
-          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+          blockedRequestSeen.await(5, SECONDS),
+          "server did not block second pipelined request"
+      );
 
       handler.writeHeaderOnlyResponseHeaders();
 
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 204 "),
-          "first response should be the header-only response");
+          "first response should be the header-only response"
+      );
       assertFalse(
           writer.waitForTracesMax(1, 1),
-          "header-only response should remain pending before LastHttpContent");
+          "header-only response should remain pending before LastHttpContent"
+      );
 
       handler.writeLastContent();
 
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
-          "second response should be the deferred blocking response");
+          "second response should be the deferred blocking response"
+      );
     }
 
     assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
@@ -307,20 +326,27 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       socket.getOutputStream().flush();
 
       assertTrue(
-          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+          blockedRequestSeen.await(5, SECONDS),
+          "server did not block second pipelined request"
+      );
 
       handler.writeHeadResponse();
 
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 200 "),
-          "first response should be the HEAD response");
+          "first response should be the HEAD response"
+      );
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
-          "second response should be the deferred blocking response");
+          "second response should be the deferred blocking response"
+      );
     }
 
     assertTraces(
-        SORT_BY_START_TIME, serverTrace("HEAD", FIRST_PATH), serverTrace("GET", SECOND_PATH));
+        SORT_BY_START_TIME,
+        serverTrace("HEAD", FIRST_PATH),
+        serverTrace("GET", SECOND_PATH)
+    );
   }
 
   @Test
@@ -337,7 +363,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
 
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 100 "),
-          "first response should be the interim response");
+          "first response should be the interim response"
+      );
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
     }
 
@@ -360,25 +387,28 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       socket.getOutputStream().flush();
 
       assertTrue(
-          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+          blockedRequestSeen.await(5, SECONDS),
+          "server did not block second pipelined request"
+      );
 
       handler.writeEarlyHintsWithTerminatorThenResponse();
 
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 103 "),
-          "first response should be the early hints response");
+          "first response should be the early hints response"
+      );
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
-          "second response should be the deferred blocking response");
+          "second response should be the deferred blocking response"
+      );
     }
 
     assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
-  void blockResponseFunctionOnLaterPipelinedRequestDoesNotOvertakeEarlierResponse()
-      throws Exception {
+  void blockResponseFunctionOnLaterPipelinedRequestDoesNotOvertakeEarlierResponse() throws Exception {
     enableAppSec();
     handler.expectRequests(1);
 
@@ -393,14 +423,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       socket.getOutputStream().flush();
 
       assertTrue(
-          blockedRequestSeen.await(5, SECONDS), "server did not block second pipelined request");
+          blockedRequestSeen.await(5, SECONDS),
+          "server did not block second pipelined request"
+      );
 
       handler.writeResponses();
 
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
       assertTrue(
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
-          "second response should be the deferred blocking response");
+          "second response should be the deferred blocking response"
+      );
     }
 
     assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
@@ -434,8 +467,7 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
         EVENTS.requestMethodUriRaw(),
         new TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>() {
           @Override
-          public Flow<Void> apply(
-              RequestContext requestContext, String method, URIDataAdapter uri) {
+          public Flow<Void> apply(RequestContext requestContext, String method, URIDataAdapter uri) {
             if (!Arrays.asList(blockedPaths).contains(uri.path())) {
               return Flow.ResultFlow.empty();
             }
@@ -447,7 +479,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
               }
             };
           }
-        });
+        }
+    );
     return blockedRequestSeen;
   }
 
@@ -458,14 +491,12 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
     originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
     ActiveSubsystems.APPSEC_ACTIVE = true;
 
-    subscriptions.registerCallback(
-        EVENTS.requestStarted(),
-        new Supplier<Flow<Object>>() {
-          @Override
-          public Flow<Object> get() {
-            return new Flow.ResultFlow<>(new Object());
-          }
-        });
+    subscriptions.registerCallback(EVENTS.requestStarted(), new Supplier<Flow<Object>>() {
+      @Override
+      public Flow<Object> get() {
+        return new Flow.ResultFlow<>(new Object());
+      }
+    });
     return subscriptions;
   }
 
@@ -474,12 +505,12 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
   }
 
   private static TraceMatcher serverTrace(String method, String path) {
-    return trace(
-        span()
-            .root()
-            .operationName(Pattern.compile("netty\\.request"))
-            .resourceName(Pattern.compile(Pattern.quote(method + " " + path)))
-            .type("web"));
+    return trace(span()
+      .root()
+      .operationName(Pattern.compile("netty\\.request"))
+      .resourceName(Pattern.compile(Pattern.quote(method + " " + path)))
+      .type("web")
+    );
   }
 
   @ChannelHandler.Sharable
@@ -505,7 +536,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
 
   @ChannelHandler.Sharable
   private static final class PipeliningHandler
-      extends SimpleChannelInboundHandler<FullHttpRequest> {
+      extends SimpleChannelInboundHandler<FullHttpRequest>
+  {
     private volatile CountDownLatch receivedRequests;
     private final List<String> paths = new ArrayList<>();
     private volatile ChannelHandlerContext context;
@@ -551,13 +583,13 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
         BlockResponseFunction blockResponseFunction =
             requestContext == null ? null : requestContext.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockingResponseCommitted =
-              blockResponseFunction.tryCommitBlockingResponse(
-                  requestContext.getTraceSegment(),
-                  403,
-                  BlockingContentType.NONE,
-                  emptyMap(),
-                  null);
+          blockingResponseCommitted = blockResponseFunction.tryCommitBlockingResponse(
+              requestContext.getTraceSegment(),
+              403,
+              BlockingContentType.NONE,
+              emptyMap(),
+              null
+          );
         }
         if (blockingResponseCommitted && blockResponseFunctionRequestSeen != null) {
           blockResponseFunctionRequestSeen.countDown();
@@ -587,19 +619,16 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         responsePaths = new ArrayList<>(paths);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                for (String path : responsePaths) {
-                  byte[] body = ("response " + path).getBytes(UTF_8);
-                  DefaultFullHttpResponse response =
-                      new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
-                  response.headers().set(CONTENT_LENGTH, body.length);
-                  responseContext.write(response);
-                }
-                responseContext.flush();
-              });
+      responseContext.executor().execute(() -> {
+        for (String path : responsePaths) {
+          byte[] body = ("response " + path).getBytes(UTF_8);
+          DefaultFullHttpResponse response =
+              new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+          response.headers().set(CONTENT_LENGTH, body.length);
+          responseContext.write(response);
+        }
+        responseContext.flush();
+      });
     }
 
     private void writeChunkedResponse() {
@@ -611,18 +640,15 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-                response.headers().set(TRANSFER_ENCODING, CHUNKED);
-                responseContext.write(response);
-                responseContext.write(new DefaultHttpContent(Unpooled.wrappedBuffer(body)));
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
-                responseContext.flush();
-              });
+      responseContext.executor().execute(() -> {
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        response.headers().set(TRANSFER_ENCODING, CHUNKED);
+        responseContext.write(response);
+        responseContext.write(new DefaultHttpContent(Unpooled.wrappedBuffer(body)));
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+        responseContext.flush();
+      });
     }
 
     private void writeHeaderOnlyResponseHeaders() {
@@ -630,14 +656,11 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       if (responseContext == null) {
         throw new IllegalStateException("no request context captured");
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
-                response.headers().set(CONNECTION, KEEP_ALIVE);
-                responseContext.writeAndFlush(response);
-              });
+      responseContext.executor().execute(() -> {
+        DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
+        response.headers().set(CONNECTION, KEEP_ALIVE);
+        responseContext.writeAndFlush(response);
+      });
     }
 
     private void writeLastContent() {
@@ -646,10 +669,10 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
         throw new IllegalStateException("no request context captured");
       }
       responseContext
-          .executor()
-          .execute(
-              () ->
-                  responseContext.writeAndFlush(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER)));
+        .executor()
+        .execute(() -> responseContext.writeAndFlush(
+            new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER)
+        ));
     }
 
     private void writeHeadResponse() {
@@ -661,17 +684,14 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-                response.headers().set(CONTENT_LENGTH, body.length);
-                responseContext.write(response);
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
-                responseContext.flush();
-              });
+      responseContext.executor().execute(() -> {
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
+        response.headers().set(CONTENT_LENGTH, body.length);
+        responseContext.write(response);
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+        responseContext.flush();
+      });
     }
 
     private void writeInterimResponseWithTerminatorThenResponse() {
@@ -683,20 +703,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                responseContext.write(new DefaultHttpResponse(HTTP_1_1, CONTINUE));
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+      responseContext.executor().execute(() -> {
+        responseContext.write(new DefaultHttpResponse(HTTP_1_1, CONTINUE));
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
 
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultFullHttpResponse response =
-                    new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
-                response.headers().set(CONTENT_LENGTH, body.length);
-                responseContext.write(response);
-                responseContext.flush();
-              });
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultFullHttpResponse response =
+            new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+        response.headers().set(CONTENT_LENGTH, body.length);
+        responseContext.write(response);
+        responseContext.flush();
+      });
     }
 
     private void writeEarlyHintsWithTerminatorThenResponse() {
@@ -712,20 +729,17 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
       synchronized (paths) {
         path = paths.get(0);
       }
-      responseContext
-          .executor()
-          .execute(
-              () -> {
-                responseContext.write(new DefaultHttpResponse(HTTP_1_1, status));
-                responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
+      responseContext.executor().execute(() -> {
+        responseContext.write(new DefaultHttpResponse(HTTP_1_1, status));
+        responseContext.write(new DefaultLastHttpContent(Unpooled.EMPTY_BUFFER));
 
-                byte[] body = ("response " + path).getBytes(UTF_8);
-                DefaultFullHttpResponse response =
-                    new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
-                response.headers().set(CONTENT_LENGTH, body.length);
-                responseContext.write(response);
-                responseContext.flush();
-              });
+        byte[] body = ("response " + path).getBytes(UTF_8);
+        DefaultFullHttpResponse response =
+            new DefaultFullHttpResponse(HTTP_1_1, OK, Unpooled.wrappedBuffer(body));
+        response.headers().set(CONTENT_LENGTH, body.length);
+        responseContext.write(response);
+        responseContext.flush();
+      });
     }
   }
 }

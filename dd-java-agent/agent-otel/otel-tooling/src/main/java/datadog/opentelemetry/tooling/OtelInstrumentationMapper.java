@@ -1,7 +1,6 @@
 package datadog.opentelemetry.tooling;
 
 import static datadog.trace.agent.tooling.ExtensionHandler.MAP_LOGGING;
-
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import java.util.ArrayList;
@@ -17,12 +16,12 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.jar.asm.commons.ClassRemapper;
 import net.bytebuddy.jar.asm.commons.Remapper;
 
-/** Maps OpenTelemetry instrumentations to use the Datadog {@link InstrumenterModule} API. */
+/**
+ * Maps OpenTelemetry instrumentations to use the Datadog {@link InstrumenterModule} API.
+ */
 public final class OtelInstrumentationMapper extends ClassRemapper {
-
   private static final Set<String> UNSUPPORTED_TYPES =
-      Collections.singleton(
-          "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
+      Collections.singleton("io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
 
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
@@ -40,7 +39,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
       String name,
       String signature,
       String superName,
-      String[] interfaces) {
+      String[] interfaces
+  ) {
     super.visit(version, access, name, signature, superName, removeUnsupportedTypes(interfaces));
   }
 
@@ -51,7 +51,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
         if (null == filtered) {
           filtered = new ArrayList<>(Arrays.asList(interfaces));
         }
-        filtered.remove(i); // remove unsupported interface
+        // remove unsupported interface
+        filtered.remove(i);
       }
     }
     return null != filtered ? filtered.toArray(new String[0]) : interfaces;
@@ -59,67 +60,88 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
 
   static final class Renamer extends Remapper {
     static final Renamer INSTANCE = new Renamer();
-
-    /** Datadog equivalent of OpenTelemetry instrumentation classes. */
+    /**
+     * Datadog equivalent of OpenTelemetry instrumentation classes.
+     */
     private static final Map<String, String> RENAMED_TYPES = new HashMap<>();
 
     static {
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/instrumentation/InstrumentationModule",
-          Type.getInternalName(OtelInstrumenterModule.class));
+          Type.getInternalName(OtelInstrumenterModule.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/instrumentation/TypeInstrumentation",
-          Type.getInternalName(OtelInstrumenter.class));
+          Type.getInternalName(OtelInstrumenter.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/instrumentation/TypeTransformer",
-          Type.getInternalName(OtelTransformer.class));
+          Type.getInternalName(OtelTransformer.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/extension/matcher/AgentElementMatchers",
-          Type.getInternalName(OtelElementMatchers.class));
+          Type.getInternalName(OtelElementMatchers.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/VirtualFieldMappingsBuilder",
-          Type.getInternalName(OtelInstrumenterModule.VirtualFieldBuilder.class));
+          Type.getInternalName(OtelInstrumenterModule.VirtualFieldBuilder.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/shaded/instrumentation/api/util/VirtualField",
-          Type.getInternalName(ContextStore.class));
+          Type.getInternalName(ContextStore.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/ClassRefBuilder",
-          Type.getInternalName(OtelMuzzleRefBuilder.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/ClassRef",
-          Type.getInternalName(OtelMuzzleRefBuilder.ClassRef.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.ClassRef.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Flag",
-          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$VisibilityFlag",
-          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$MinimumVisibilityFlag",
-          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$ManifestationFlag",
-          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Flag$OwnershipFlag",
-          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.Flag.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/javaagent/tooling/muzzle/references/Source",
-          Type.getInternalName(OtelMuzzleRefBuilder.Source.class));
+          Type.getInternalName(OtelMuzzleRefBuilder.Source.class)
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/instrumentation/CallDepth",
-          "datadog/trace/bootstrap/otel/instrumentation/CallDepth");
+          "datadog/trace/bootstrap/otel/instrumentation/CallDepth"
+      );
       RENAMED_TYPES.put(
           "io/opentelemetry/instrumentation/Java8BytecodeBridge",
-          "datadog/trace/bootstrap/otel/instrumentation/Java8BytecodeBridge");
+          "datadog/trace/bootstrap/otel/instrumentation/Java8BytecodeBridge"
+      );
     }
 
-    /** OpenTelemetry and related packages shaded inside the tracer. */
+    /**
+     * OpenTelemetry and related packages shaded inside the tracer.
+     */
     private static final Map<String, String> RENAMED_PACKAGES = new HashMap<>();
 
     static {
       RENAMED_PACKAGES.put(
-          "io/opentelemetry/javaagent/shaded/io/opentelemetry/", "datadog/trace/bootstrap/otel/");
+          "io/opentelemetry/javaagent/shaded/io/opentelemetry/",
+          "datadog/trace/bootstrap/otel/"
+      );
 
       RENAMED_PACKAGES.put("io/opentelemetry/api/", "datadog/trace/bootstrap/otel/api/");
       RENAMED_PACKAGES.put("io/opentelemetry/context/", "datadog/trace/bootstrap/otel/context/");
@@ -127,20 +149,25 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
 
       RENAMED_PACKAGES.put(
           "io/opentelemetry/instrumentation/api/",
-          "datadog/trace/bootstrap/otel/instrumentation/api/");
+          "datadog/trace/bootstrap/otel/instrumentation/api/"
+      );
       RENAMED_PACKAGES.put(
           "io/opentelemetry/instrumentation/http/",
-          "datadog/trace/bootstrap/otel/instrumentation/http/");
+          "datadog/trace/bootstrap/otel/instrumentation/http/"
+      );
       RENAMED_PACKAGES.put(
           "io/opentelemetry/instrumentation/servlet/",
-          "datadog/trace/bootstrap/otel/instrumentation/servlet/");
+          "datadog/trace/bootstrap/otel/instrumentation/servlet/"
+      );
       RENAMED_PACKAGES.put(
           "io/opentelemetry/instrumentation/internal/",
-          "datadog/trace/bootstrap/otel/instrumentation/internal/");
+          "datadog/trace/bootstrap/otel/instrumentation/internal/"
+      );
 
       RENAMED_PACKAGES.put(
-          "io/opentelemetry/javaagent/bootstrap/", "datadog/trace/bootstrap/otel/instrumentation/");
-
+          "io/opentelemetry/javaagent/bootstrap/",
+          "datadog/trace/bootstrap/otel/instrumentation/"
+      );
       // we want to keep this package unchanged so it matches against any unshaded extensions
       // dropped in at runtime; use replace to stop it being transformed by the shadow plugin
       RENAMED_PACKAGES.put("org|objectweb|asm|".replace('|', '/'), "net/bytebuddy/jar/asm/");

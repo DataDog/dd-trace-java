@@ -10,22 +10,20 @@ import scala.StringContext;
 import scala.collection.Seq;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    helpers = {
-      ScalaJavaConverters.class,
-      ScalaJavaConverters.JavaIterable.class,
-      ScalaJavaConverters.JavaIterator.class
-    })
+@CallSite(spi = IastCallSites.class, helpers = {
+    ScalaJavaConverters.class,
+    ScalaJavaConverters.JavaIterable.class,
+    ScalaJavaConverters.JavaIterator.class
+})
 public class StringContextCallSite {
-
   @CallSite.After("java.lang.String scala.StringContext.s(scala.collection.Seq)")
   @CallSite.After("java.lang.String scala.StringContext.raw(scala.collection.Seq)")
   @Nonnull
   public static String afterInterpolation(
       @CallSite.This @Nonnull final StringContext context,
       @CallSite.Argument final Seq<?> params,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {

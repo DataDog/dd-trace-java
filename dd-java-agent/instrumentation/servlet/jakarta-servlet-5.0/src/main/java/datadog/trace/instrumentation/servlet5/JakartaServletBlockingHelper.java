@@ -23,7 +23,8 @@ public class JakartaServletBlockingHelper {
       int statusCode_,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      String securityResponseId) {
+      String securityResponseId
+  ) {
     int statusCode = BlockingActionHelper.getHttpCode(statusCode_);
     if (!start(resp, statusCode)) {
       return;
@@ -61,8 +62,8 @@ public class JakartaServletBlockingHelper {
       TraceSegment segment,
       HttpServletRequest httpServletRequest,
       HttpServletResponse resp,
-      Flow.Action.RequestBlockingAction rba) {
-
+      Flow.Action.RequestBlockingAction rba
+  ) {
     commitBlockingResponse(
         segment,
         httpServletRequest,
@@ -70,7 +71,8 @@ public class JakartaServletBlockingHelper {
         rba.getStatusCode(),
         rba.getBlockingContentType(),
         rba.getExtraHeaders(),
-        rba.getSecurityResponseId());
+        rba.getSecurityResponseId()
+    );
   }
 
   private static boolean start(HttpServletResponse resp, int statusCode) {

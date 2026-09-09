@@ -3,7 +3,6 @@ package datadog.crashtracking;
 import static datadog.crashtracking.Initializer.PID_PREFIX;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
@@ -52,7 +51,8 @@ public class ConfigManager {
         String runtimeId,
         boolean agentless,
         boolean sendToErrorTracking,
-        boolean extendedInfoEnabled) {
+        boolean extendedInfoEnabled
+    ) {
       this.service = service;
       this.env = env;
       this.version = version;
@@ -155,12 +155,14 @@ public class ConfigManager {
             runtimeId,
             agentless,
             sendToErrorTracking,
-            extendedInfoEnabled);
+            extendedInfoEnabled
+        );
       }
     }
   }
 
-  private ConfigManager() {}
+  private ConfigManager() {
+  }
 
   private static String getBaseName(File file) {
     String filename = file.getName();
@@ -173,10 +175,13 @@ public class ConfigManager {
 
   @VisibleForTesting
   static String getMergedTagsForSerialization(Config config) {
-    return config.getMergedCrashTrackingTags().entrySet().stream()
-        .filter(e -> e.getValue() != null)
-        .map(e -> e.getKey() + ":" + e.getValue())
-        .collect(Collectors.joining(","));
+    return config
+      .getMergedCrashTrackingTags()
+      .entrySet()
+      .stream()
+      .filter(e -> e.getValue() != null)
+      .map(e -> e.getKey() + ":" + e.getValue())
+      .collect(Collectors.joining(","));
   }
 
   private static void writeEntry(BufferedWriter writer, CharSequence key, CharSequence value)
@@ -201,9 +206,9 @@ public class ConfigManager {
     final WellKnownTags wellKnownTags = config.getWellKnownTags();
 
     LOGGER.debug("Writing config file: {}", cfgFile);
-    try (BufferedWriter bw =
-        new BufferedWriter(
-            new OutputStreamWriter(new FileOutputStream(cfgFile), StandardCharsets.UTF_8))) {
+    try (BufferedWriter bw = new BufferedWriter(
+        new OutputStreamWriter(new FileOutputStream(cfgFile), StandardCharsets.UTF_8)
+    )) {
       for (int i = 0; i < additionalEntries.length; i += 2) {
         writeEntry(bw, additionalEntries[i], additionalEntries[i + 1]);
       }
@@ -216,29 +221,25 @@ public class ConfigManager {
       writeEntry(bw, "java_home", SystemProperties.get("java.home"));
       writeEntry(bw, "agentless", Boolean.toString(config.isCrashTrackingAgentless()));
       writeEntry(bw, "upload_to_et", Boolean.toString(config.isCrashTrackingErrorsIntakeEnabled()));
-      writeEntry(
-          bw, "extended_info", Boolean.toString(config.isCrashTrackingExtendedInfoEnabled()));
+      writeEntry(bw, "extended_info", Boolean.toString(config.isCrashTrackingExtendedInfoEnabled()));
 
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  AGENT_THREAD_GROUP,
-                  () -> {
-                    LOGGER.debug("Deleting config file: {}", cfgFile);
-                    cfgFile.delete();
-                  }));
+      Runtime.getRuntime().addShutdownHook(new Thread(AGENT_THREAD_GROUP, () -> {
+        LOGGER.debug("Deleting config file: {}", cfgFile);
+        cfgFile.delete();
+      }));
       LOGGER.debug("Config file written: {}", cfgFile);
     } catch (IOException e) {
       LOGGER.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgFile);
-      cfgFile.delete(); // best-effort cleanup; failure is acceptable here
+      // best-effort cleanup; failure is acceptable here
+      cfgFile.delete();
     }
   }
 
   @Nullable
   public static StoredConfig readConfig(Config config, File scriptFile) {
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(new FileInputStream(scriptFile), StandardCharsets.UTF_8))) {
+    try (final BufferedReader reader = new BufferedReader(
+        new InputStreamReader(new FileInputStream(scriptFile), StandardCharsets.UTF_8)
+    )) {
       final StoredConfig.Builder cfgBuilder = new StoredConfig.Builder(config);
       String line;
       while ((line = reader.readLine()) != null) {

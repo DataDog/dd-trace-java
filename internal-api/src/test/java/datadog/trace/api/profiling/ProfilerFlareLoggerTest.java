@@ -14,7 +14,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.api.flare.TracerFlare;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -38,7 +37,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 
 class ProfilerFlareLoggerTest {
-
   private ProfilerFlareLogger logger;
 
   @BeforeEach
@@ -133,15 +131,16 @@ class ProfilerFlareLoggerTest {
         Arguments.of("Message with {}", new Object[] {"placeholder"}, "placeholder"),
         Arguments.of("Multiple {} and {}", new Object[] {"first", "second"}, "first"),
         Arguments.of("Number: {}", new Object[] {123}, "123"),
-        Arguments.of("Boolean: {}", new Object[] {true}, "true"));
+        Arguments.of("Boolean: {}", new Object[] {true}, "true")
+    );
   }
 
   // Capacity Management Tests
   @Test
   void testCapacityLimitEnforcement() throws Exception {
     int capacity = logger.getMaxReportCapacity();
-
-    assertEquals(2 * 1024 * 1024, capacity); // 2MiB
+    // 2MiB
+    assertEquals(2 * 1024 * 1024, capacity);
   }
 
   @Test
@@ -161,12 +160,10 @@ class ProfilerFlareLoggerTest {
 
     int iterations = logger.getMaxReportCapacity() / largeMessage.length();
     String message = largeMessage.toString();
-
     // We must accept all messages until capacity
     for (int i = 0; i < iterations; i++) {
       assertTrue(logger.log(message));
     }
-
     // Next message should be rejected
     assertFalse(logger.log(message));
   }
@@ -177,7 +174,8 @@ class ProfilerFlareLoggerTest {
     logger.log(testMessage);
 
     int usedCapacity = logger.getUsedReportCapacity();
-    assertTrue(usedCapacity > testMessage.length()); // Should include timestamp and formatting
+    // Should include timestamp and formatting
+    assertTrue(usedCapacity > testMessage.length());
   }
 
   // TracerFlare Integration Tests
@@ -186,7 +184,6 @@ class ProfilerFlareLoggerTest {
     ZipOutputStream mockZip = mock(ZipOutputStream.class);
 
     logger.addReportToFlare(mockZip);
-
     // Should not add any entries for empty logs
     verify(mockZip, never()).putNextEntry(any());
   }
@@ -200,8 +197,11 @@ class ProfilerFlareLoggerTest {
 
     try (MockedStatic<TracerFlare> mockedStatic = mockStatic(TracerFlare.class)) {
       logger.addReportToFlare(mockZip);
-      mockedStatic.verify(
-          () -> TracerFlare.addText(eq(mockZip), eq("profiler_log.txt"), anyString()));
+      mockedStatic.verify(() -> TracerFlare.addText(
+          eq(mockZip),
+          eq("profiler_log.txt"),
+          anyString()
+      ));
     }
   }
 
@@ -212,8 +212,8 @@ class ProfilerFlareLoggerTest {
 
     try (MockedStatic<TracerFlare> mockedStatic = mockStatic(TracerFlare.class)) {
       mockedStatic
-          .when(() -> TracerFlare.addText(any(), any(), any()))
-          .thenThrow(new IOException("Test IO exception"));
+        .when(() -> TracerFlare.addText(any(), any(), any()))
+        .thenThrow(new IOException("Test IO exception"));
 
       assertThrows(IOException.class, () -> logger.addReportToFlare(mockZip));
     }
@@ -229,15 +229,15 @@ class ProfilerFlareLoggerTest {
 
     try (MockedStatic<TracerFlare> mockedStatic = mockStatic(TracerFlare.class)) {
       mockedStatic
-          .when(() -> TracerFlare.addText(any(), any(), any()))
-          .then(
-              invocation -> {
-                String content = invocation.getArgument(2);
-                assertTrue(content.contains("Message 1"));
-                assertTrue(content.contains("Message 2 with arg"));
-                assertTrue(content.contains("\n")); // Should have newlines between messages
-                return null;
-              });
+        .when(() -> TracerFlare.addText(any(), any(), any()))
+        .then(invocation -> {
+          String content = invocation.getArgument(2);
+          assertTrue(content.contains("Message 1"));
+          assertTrue(content.contains("Message 2 with arg"));
+          // Should have newlines between messages
+          assertTrue(content.contains("\n"));
+          return null;
+        });
 
       logger.addReportToFlare(zip);
     }
@@ -275,26 +275,24 @@ class ProfilerFlareLoggerTest {
 
     for (int i = 0; i < threadCount; i++) {
       final int threadId = i;
-      executor.submit(
-          () -> {
-            try {
-              startLatch.await();
-              for (int j = 0; j < messagesPerThread; j++) {
-                if (logger.log("Thread {} message {}", threadId, j)) {
-                  successCount.incrementAndGet();
-                }
-              }
-            } catch (Exception e) {
-              fail("Exception in thread: " + e.getMessage());
-            } finally {
-              doneLatch.countDown();
+      executor.submit(() -> {
+        try {
+          startLatch.await();
+          for (int j = 0; j < messagesPerThread; j++) {
+            if (logger.log("Thread {} message {}", threadId, j)) {
+              successCount.incrementAndGet();
             }
-          });
+          }
+        } catch (Exception e) {
+          fail("Exception in thread: " + e.getMessage());
+        } finally {
+          doneLatch.countDown();
+        }
+      });
     }
 
     startLatch.countDown();
     assertTrue(doneLatch.await(10, TimeUnit.SECONDS));
-
     // At least some messages should succeed
     assertTrue(successCount.get() > 0);
 
@@ -309,20 +307,16 @@ class ProfilerFlareLoggerTest {
 
     for (int i = 0; i < iterations; i++) {
       CountDownLatch latch = new CountDownLatch(2);
-
       // Logger thread
-      executor.submit(
-          () -> {
-            logger.log("Concurrent message");
-            latch.countDown();
-          });
-
+      executor.submit(() -> {
+        logger.log("Concurrent message");
+        latch.countDown();
+      });
       // Cleanup thread
-      executor.submit(
-          () -> {
-            logger.cleanup();
-            latch.countDown();
-          });
+      executor.submit(() -> {
+        logger.cleanup();
+        latch.countDown();
+      });
 
       assertTrue(latch.await(1, TimeUnit.SECONDS));
     }
@@ -398,11 +392,9 @@ class ProfilerFlareLoggerTest {
     while (logger.log(message)) {
       // Keep adding until capacity is hit
     }
-
     // Verify subsequent messages are rejected
     assertFalse(logger.log("Should be rejected: " + message));
     assertFalse(logger.log("Also rejected: " + message));
-
     // After cleanup, should accept messages again
     logger.cleanup();
     assertTrue(logger.log("After cleanup"));

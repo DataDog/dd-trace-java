@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.core.CoreTracer.TraceInterceptors;
@@ -121,7 +120,8 @@ public class TraceInterceptorsTest {
 
     @Override
     public Collection<? extends MutableSpan> onTraceComplete(
-        Collection<? extends MutableSpan> trace) {
+        Collection<? extends MutableSpan> trace
+    ) {
       return trace;
     }
 

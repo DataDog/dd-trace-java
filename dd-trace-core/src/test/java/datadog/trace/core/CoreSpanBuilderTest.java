@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -54,7 +53,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -107,16 +105,14 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     String expectedService = "fakeService";
     String expectedType = "fakeType";
 
-    span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
-                .withServiceName("foo")
-                .withResourceName(expectedResource)
-                .withServiceName(expectedService)
-                .withErrorFlag()
-                .withSpanType(expectedType)
-                .start();
+    span = (DDSpan) tracer
+      .buildSpan("test", expectedName)
+      .withServiceName("foo")
+      .withResourceName(expectedResource)
+      .withServiceName(expectedService)
+      .withErrorFlag()
+      .withSpanType(expectedType)
+      .start();
 
     DDSpanContext spanContext = span.spanContext();
 
@@ -134,13 +130,11 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     "empty tag | empty.tag | ''   "
   })
   void settingNameShouldRemove(String name, String value) {
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "op name")
-                .withTag(name, "tag value")
-                .withTag(name, value)
-                .start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("test", "op name")
+      .withTag(name, "tag value")
+      .withTag(name, value)
+      .start();
 
     assertNull(span.getTags().get(name));
 
@@ -156,13 +150,11 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     long expectedTimestamp = 487517802L * 1000 * 1000L;
     String expectedName = "fakeName";
 
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
-                .withServiceName("foo")
-                .withStartTimestamp(expectedTimestamp)
-                .start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("test", expectedName)
+      .withServiceName("foo")
+      .withStartTimestamp(expectedTimestamp)
+      .start();
 
     assertEquals(expectedTimestamp * 1000L, span.getStartTime());
 
@@ -188,13 +180,11 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     when(mockedContext.getTraceCollector()).thenReturn(tracer.createTraceCollector(DDTraceId.ONE));
     when(mockedContext.getPathwayContext()).thenReturn(NoopPathwayContext.INSTANCE);
 
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", "fakeName")
-                .withServiceName("foo")
-                .asChildOf(mockedContext)
-                .start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("test", "fakeName")
+      .withServiceName("foo")
+      .asChildOf(mockedContext)
+      .start();
 
     DDSpanContext actualSpanContext = span.spanContext();
     assertEquals(expectedParentId, actualSpanContext.getParentId());
@@ -209,13 +199,20 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     "noop parent, diff service | true       | another service | true          "
   })
   void shouldLinkToParentSpanImplicitly(
-      boolean noopParent, String serviceName, boolean expectTopLevel) {
-    try (AgentScope parent =
-        tracer.activateSpan(
-            noopParent
-                ? noopSpan()
-                : tracer.buildSpan("test", "parent").withServiceName("service").start())) {
-      long expectedParentId = noopParent ? DDSpanId.ZERO : parent.span().spanContext().getSpanId();
+      boolean noopParent,
+      String serviceName,
+      boolean expectTopLevel
+  ) {
+    try (AgentScope parent = tracer.activateSpan(
+        noopParent ? noopSpan() : tracer
+          .buildSpan("test", "parent")
+          .withServiceName("service")
+          .start()
+    )) {
+      long expectedParentId = noopParent ? DDSpanId.ZERO : parent
+        .span()
+        .spanContext()
+        .getSpanId();
 
       DDSpan span =
           (DDSpan) tracer.buildSpan("test", "fakeName").withServiceName(serviceName).start();
@@ -238,43 +235,36 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     String expectedBaggageItemKey = "fakeKey";
     String expectedBaggageItemValue = "fakeValue";
 
-    DDSpan parent =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
-                .withServiceName("foo")
-                .withResourceName(expectedParentResourceName)
-                .withSpanType(expectedParentType)
-                .start();
+    DDSpan parent = (DDSpan) tracer
+      .buildSpan("test", expectedName)
+      .withServiceName("foo")
+      .withResourceName(expectedParentResourceName)
+      .withSpanType(expectedParentType)
+      .start();
 
     parent.setBaggageItem(expectedBaggageItemKey, expectedBaggageItemValue);
-
     // ServiceName and SpanType are always set by the parent if they are not present in the child
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
-                .withServiceName(expectedParentServiceName)
-                .asChildOf(parent)
-                .start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("test", expectedName)
+      .withServiceName(expectedParentServiceName)
+      .asChildOf(parent)
+      .start();
 
     assertEquals(expectedName, span.getOperationName());
     assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
     assertEquals(expectedParentServiceName, span.spanContext().getServiceName());
     assertEquals(expectedName, span.spanContext().getResourceName());
     assertNull(span.spanContext().getSpanType());
-    assertTrue(span.isTopLevel()); // service names differ between parent and child
-
+    // service names differ between parent and child
+    assertTrue(span.isTopLevel());
     // ServiceName and SpanType are always overwritten by the child if they are present
-    span =
-        (DDSpan)
-            tracer
-                .buildSpan("test", expectedName)
-                .withServiceName(expectedChildServiceName)
-                .withResourceName(expectedChildResourceName)
-                .withSpanType(expectedChildType)
-                .asChildOf(parent)
-                .start();
+    span = (DDSpan) tracer
+      .buildSpan("test", expectedName)
+      .withServiceName(expectedChildServiceName)
+      .withResourceName(expectedChildResourceName)
+      .withSpanType(expectedChildType)
+      .asChildOf(parent)
+      .start();
 
     assertEquals(expectedName, span.getOperationName());
     assertEquals(expectedBaggageItemValue, span.getBaggageItem(expectedBaggageItemKey));
@@ -292,13 +282,11 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     DDSpan lastSpan = root;
 
     for (int i = 1; i <= 10; i++) {
-      lastSpan =
-          (DDSpan)
-              tracer
-                  .buildSpan("test", "fake_" + i)
-                  .withServiceName("foo")
-                  .asChildOf(lastSpan)
-                  .start();
+      lastSpan = (DDSpan) tracer
+        .buildSpan("test", "fake_" + i)
+        .withServiceName("foo")
+        .asChildOf(lastSpan)
+        .start();
       spans.add(lastSpan);
       lastSpan.finish();
     }
@@ -308,10 +296,10 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertEquals(nbSamples, traceCollector.size());
     assertTrue(traceCollector.getSpans().containsAll(spans));
     DDSpan randomSpan = spans.get((int) (Math.random() * nbSamples));
-    assertTrue(
-        ((PendingTrace) randomSpan.spanContext().getTraceCollector())
-            .getSpans()
-            .containsAll(spans));
+    assertTrue(((PendingTrace) randomSpan.spanContext().getTraceCollector())
+      .getSpans()
+      .containsAll(spans)
+    );
   }
 
   static Stream<ExtractedContext> extractedContextShouldPopulateNewSpanDetailsArguments() {
@@ -325,11 +313,15 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             Collections.<String, String>emptyMap(),
             Collections.<String, Object>emptyMap(),
             null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
+            PropagationTags
+              .factory()
+              .fromHeaderValue(
+                  PropagationTags.HeaderType.DATADOG,
+                  "_dd.p.dm=934086a686-4,_dd.p.anytag=value"
+              ),
             null,
-            DATADOG),
+            DATADOG
+        ),
         new ExtractedContext(
             DDTraceId.from(3),
             4,
@@ -341,14 +333,19 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
             null,
             PropagationTags.factory().empty(),
             null,
-            DATADOG));
+            DATADOG
+        )
+    );
   }
 
   @ParameterizedTest
   @MethodSource("extractedContextShouldPopulateNewSpanDetailsArguments")
   void extractedContextShouldPopulateNewSpanDetails(ExtractedContext extractedContext) {
     Thread thread = Thread.currentThread();
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("test", "op name")
+      .asChildOf(extractedContext)
+      .start();
 
     assertEquals(extractedContext.getTraceId(), span.getTraceId());
     assertEquals(extractedContext.getSpanId(), span.getParentId());
@@ -359,28 +356,35 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertEquals(thread.getName(), span.getTag(THREAD_NAME));
     assertEquals(
         extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG),
-        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG));
+        span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG)
+    );
   }
 
   @Test
   @WithConfig(key = "trace.propagation.behavior.extract", value = "restart")
   void buildContextFromExtractedContextWithRestartBehavior() {
-    ExtractedContext extractedContext =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            2,
-            PrioritySampling.SAMPLER_DROP,
-            null,
-            0,
-            Collections.<String, String>emptyMap(),
-            Collections.<String, Object>emptyMap(),
-            null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
-            null,
-            DATADOG);
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+    ExtractedContext extractedContext = new ExtractedContext(
+        DDTraceId.ONE,
+        2,
+        PrioritySampling.SAMPLER_DROP,
+        null,
+        0,
+        Collections.<String, String>emptyMap(),
+        Collections.<String, Object>emptyMap(),
+        null,
+        PropagationTags
+          .factory()
+          .fromHeaderValue(
+              PropagationTags.HeaderType.DATADOG,
+              "_dd.p.dm=934086a686-4,_dd.p.anytag=value"
+          ),
+        null,
+        DATADOG
+    );
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("test", "op name")
+      .asChildOf(extractedContext)
+      .start();
 
     assertNotEquals(extractedContext.getTraceId(), span.getTraceId());
     assertNotEquals(extractedContext.getSpanId(), span.getParentId());
@@ -393,28 +397,35 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertEquals(extractedContext.getSpanId(), link.spanId());
     assertEquals(
         extractedContext.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C),
-        link.traceState());
+        link.traceState()
+    );
   }
 
   @Test
   @WithConfig(key = "trace.propagation.behavior.extract", value = "ignore")
   void buildContextFromExtractedContextWithIgnoreBehavior() {
-    ExtractedContext extractedContext =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            2,
-            PrioritySampling.SAMPLER_DROP,
-            null,
-            0,
-            Collections.<String, String>emptyMap(),
-            Collections.<String, Object>emptyMap(),
-            null,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
-            null,
-            DATADOG);
-    DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+    ExtractedContext extractedContext = new ExtractedContext(
+        DDTraceId.ONE,
+        2,
+        PrioritySampling.SAMPLER_DROP,
+        null,
+        0,
+        Collections.<String, String>emptyMap(),
+        Collections.<String, Object>emptyMap(),
+        null,
+        PropagationTags
+          .factory()
+          .fromHeaderValue(
+              PropagationTags.HeaderType.DATADOG,
+              "_dd.p.dm=934086a686-4,_dd.p.anytag=value"
+          ),
+        null,
+        DATADOG
+    );
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("test", "op name")
+      .asChildOf(extractedContext)
+      .start();
 
     assertNotEquals(extractedContext.getTraceId(), span.getTraceId());
     assertNotEquals(extractedContext.getSpanId(), span.getParentId());
@@ -429,8 +440,8 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     Object iastData = new Object();
     TagContext tagContext =
         new TagContext()
-            .withRequestContextDataAppSec(appSecData)
-            .withRequestContextDataIast(iastData);
+      .withRequestContextDataAppSec(appSecData)
+      .withRequestContextDataIast(iastData);
 
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
 
@@ -446,8 +457,8 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     Object iastData = new Object();
     TagContext tagContext =
         new TagContext()
-            .withRequestContextDataAppSec(appSecData)
-            .withRequestContextDataIast(iastData);
+      .withRequestContextDataAppSec(appSecData)
+      .withRequestContextDataIast(iastData);
 
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
 
@@ -462,7 +473,10 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     "some origin   | some-origin | [asdf: qwer]"
   })
   void tagContextShouldPopulateDefaultSpanDetails(
-      String scenario, String origin, Map<String, String> tagMap) {
+      String scenario,
+      String origin,
+      Map<String, String> tagMap
+  ) {
     Thread thread = Thread.currentThread();
     TagContext tagContext = new TagContext(origin, TagMap.fromMap(tagMap));
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
@@ -493,7 +507,8 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
         arguments("is:val:id", Collections.singletonMap("is", "val:id")),
         arguments("a:x", Collections.singletonMap("a", "x")),
         arguments("a:a,a:b,a:c", Collections.singletonMap("a", "c")),
-        arguments("a:1,b-c:d", buildStringMap("a", "1", "b-c", "d")));
+        arguments("a:1,b-c:d", buildStringMap("a", "1", "b-c", "d"))
+    );
   }
 
   @TableTest({
@@ -507,7 +522,10 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   void globalSpanTagsPopulatedOnEachSpan(String tagString, Map<String, String> tags) {
     injectSysConfig("dd.trace.span.tags", tagString);
     CoreTracer customTracer = tracerBuilder().writer(writer).build();
-    DDSpan span = (DDSpan) customTracer.buildSpan("test", "op name").withServiceName("foo").start();
+    DDSpan span = (DDSpan) customTracer
+      .buildSpan("test", "op name")
+      .withServiceName("foo")
+      .start();
 
     Map<String, Object> expectedTags = new HashMap<>(tags);
     expectedTags.put(THREAD_NAME, Thread.currentThread().getName());
@@ -528,14 +546,13 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertNull(span1.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
     assertNull(span1.getRequestContext().getData(RequestContextSlot.IAST));
 
-    AgentSpan span2 =
-        tracer
-            .buildSpan("test", "span2")
-            .asChildOf(span1.spanContext())
-            .withRequestContextData(RequestContextSlot.APPSEC, "override")
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
-            .withRequestContextData(RequestContextSlot.IAST, "override")
-            .start();
+    AgentSpan span2 = tracer
+      .buildSpan("test", "span2")
+      .asChildOf(span1.spanContext())
+      .withRequestContextData(RequestContextSlot.APPSEC, "override")
+      .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+      .withRequestContextData(RequestContextSlot.IAST, "override")
+      .start();
 
     assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.APPSEC));
     assertEquals("override", span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
@@ -547,11 +564,10 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
 
   @Test
   void canOverwriteRequestContextDataWithBuilder() {
-    TagContext context =
-        new TagContext()
-            .withCiVisibilityContextData("value")
-            .withRequestContextDataIast("value")
-            .withRequestContextDataAppSec("value");
+    TagContext context = new TagContext()
+      .withCiVisibilityContextData("value")
+      .withRequestContextDataIast("value")
+      .withRequestContextDataAppSec("value");
     AgentSpan span1 = tracer.buildSpan("test", "span1").asChildOf(context).start();
 
     AgentSpan span2 = tracer.buildSpan("test", "span2").asChildOf(span1.spanContext()).start();
@@ -560,14 +576,13 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));
     assertEquals("value", span2.getRequestContext().getData(RequestContextSlot.IAST));
 
-    AgentSpan span3 =
-        tracer
-            .buildSpan("test", "span3")
-            .asChildOf(span2.spanContext())
-            .withRequestContextData(RequestContextSlot.APPSEC, "override")
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
-            .withRequestContextData(RequestContextSlot.IAST, "override")
-            .start();
+    AgentSpan span3 = tracer
+      .buildSpan("test", "span3")
+      .asChildOf(span2.spanContext())
+      .withRequestContextData(RequestContextSlot.APPSEC, "override")
+      .withRequestContextData(RequestContextSlot.CI_VISIBILITY, "override")
+      .withRequestContextData(RequestContextSlot.IAST, "override")
+      .start();
 
     assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.APPSEC));
     assertEquals("override", span3.getRequestContext().getData(RequestContextSlot.CI_VISIBILITY));

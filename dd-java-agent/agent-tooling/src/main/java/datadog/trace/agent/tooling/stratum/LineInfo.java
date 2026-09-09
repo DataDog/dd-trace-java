@@ -17,15 +17,10 @@ package datadog.trace.agent.tooling.stratum;
  */
 public class LineInfo {
   private String fileId;
-
   final int inputStartLine;
-
   final int repeatCount;
-
   final int outputStartLine;
-
   final int outputLineIncrement;
-
   private FileInfo fileInfo;
 
   public LineInfo(
@@ -33,7 +28,8 @@ public class LineInfo {
       int inputStartLine,
       int repeatCount,
       int outputStartLine,
-      int outputLineIncrement) {
+      int outputLineIncrement
+  ) {
     this.fileId = fileId;
     fileInfo = null;
     this.inputStartLine = inputStartLine;
@@ -47,7 +43,8 @@ public class LineInfo {
       int inputStartLine,
       int repeatCount,
       int outputStartLine,
-      int outputLineIncrement) {
+      int outputLineIncrement
+  ) {
     this.fileInfo = fileInfo;
     this.inputStartLine = inputStartLine;
     this.repeatCount = repeatCount;

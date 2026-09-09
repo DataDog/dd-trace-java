@@ -12,13 +12,10 @@ public class Metric {
 
   public enum TypeEnum {
     GAUGE("gauge"),
-
     @com.squareup.moshi.Json(name = "rate")
     RATE("rate"),
-
     @com.squareup.moshi.Json(name = "count")
     COUNT("count");
-
     final String value;
 
     TypeEnum(String v) {

@@ -12,11 +12,8 @@ import java.util.Set;
 
 public final class AgentProxySelector extends ProxySelector {
   public static final ProxySelector INSTANCE = new AgentProxySelector();
-
   private static final List<Proxy> DIRECT = Collections.singletonList(Proxy.NO_PROXY);
-
   private final Set<String> noProxyHosts = Config.get().getNoProxyHosts();
-
   private final ProxySelector defaultProxySelector = ProxySelector.getDefault();
 
   @Override

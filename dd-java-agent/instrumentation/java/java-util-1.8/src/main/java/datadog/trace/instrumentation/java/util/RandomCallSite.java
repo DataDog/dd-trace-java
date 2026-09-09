@@ -11,7 +11,6 @@ import java.util.Random;
 @Sink(VulnerabilityTypes.WEAK_RANDOMNESS)
 @CallSite(spi = IastCallSites.class)
 public class RandomCallSite {
-
   @CallSite.Before("boolean java.util.Random.nextBoolean()")
   @CallSite.Before("int java.util.Random.nextInt()")
   @CallSite.Before("int java.util.Random.nextInt(int)")

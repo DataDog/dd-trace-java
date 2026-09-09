@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,7 +20,9 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  */
 @AutoService(InstrumenterModule.class)
 public class WebApplicationContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public WebApplicationContextInstrumentation() {
     super("spring-web", "spring-path-filter");
   }
@@ -34,17 +35,17 @@ public class WebApplicationContextInstrumentation extends InstrumenterModule.Tra
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.springframework.context.support.AbstractApplicationContext"))
-        .and(implementsInterface(named(hierarchyMarkerType())));
+      .and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
-      packageName + ".PathMatchingHttpServletRequestWrapper",
+        packageName + ".SpringWebHttpServerDecorator",
+        packageName + ".ServletRequestURIAdapter",
+        packageName + ".HandlerMappingResourceNameFilter",
+        packageName + ".HandlerMappingResourceNameFilter$BeanDefinition",
+        packageName + ".PathMatchingHttpServletRequestWrapper"
     };
   }
 
@@ -52,25 +53,29 @@ public class WebApplicationContextInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("postProcessBeanFactory"))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
-        WebApplicationContextInstrumentation.class.getName() + "$FilterInjectingAdvice");
+          .and(named("postProcessBeanFactory"))
+          .and(
+              takesArgument(
+                  0,
+                  named("org.springframework.beans.factory.config.ConfigurableListableBeanFactory")
+              )
+          ),
+        WebApplicationContextInstrumentation.class.getName() + "$FilterInjectingAdvice"
+    );
   }
 
   public static class FilterInjectingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
-        @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
+        @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory
+    ) {
       if (beanFactory instanceof BeanDefinitionRegistry
           && !beanFactory.containsBean("ddDispatcherFilter")) {
-
         ((BeanDefinitionRegistry) beanFactory)
-            .registerBeanDefinition(
-                "ddDispatcherFilter", new HandlerMappingResourceNameFilter.BeanDefinition());
+          .registerBeanDefinition(
+              "ddDispatcherFilter",
+              new HandlerMappingResourceNameFilter.BeanDefinition()
+          );
       }
     }
   }

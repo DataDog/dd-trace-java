@@ -7,15 +7,18 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isMajorJavaVersionAtLeast", "17"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isMajorJavaVersionAtLeast",
+    "17"
+})
 public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.indent(int)")
   public static String afterIndent(
       @CallSite.This final String self,
       @CallSite.Argument final int indentation,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {

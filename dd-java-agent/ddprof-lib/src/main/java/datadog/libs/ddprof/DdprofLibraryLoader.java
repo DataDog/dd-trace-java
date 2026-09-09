@@ -27,18 +27,18 @@ public final class DdprofLibraryLoader {
 
   public abstract static class ComponentHolder<T> {
     private volatile boolean loaded = false;
-
     private T component;
     private Throwable reasonNotLoaded;
-
     private final Supplier<? extends ComponentHolder<T>> initializer;
 
     protected ComponentHolder(T component, Throwable reasonNotLoaded) {
       assert component != null || reasonNotLoaded != null;
       this.component = component;
       this.reasonNotLoaded = reasonNotLoaded;
-      this.initializer = null; // no need to initialize again
-      this.loaded = true; // already loaded
+      // no need to initialize again
+      this.initializer = null;
+      // already loaded
+      this.loaded = true;
     }
 
     protected ComponentHolder(Supplier<? extends ComponentHolder<T>> initializer) {
@@ -104,10 +104,8 @@ public final class DdprofLibraryLoader {
 
   private static final JavaProfilerHolder PROFILER_HOLDER =
       new JavaProfilerHolder(DdprofLibraryLoader::initJavaProfiler);
-
   private static final JVMAccessHolder JVM_ACCESS_HOLDER =
       new JVMAccessHolder(DdprofLibraryLoader::initJVMAccess);
-
   private static final OTelContextHolder OTEL_CONTEXT_HOLDER =
       new OTelContextHolder(DdprofLibraryLoader::initOtelContext);
 
@@ -129,10 +127,10 @@ public final class DdprofLibraryLoader {
     try {
       ConfigProvider configProvider = ConfigProvider.getInstance();
       String scratch = getScratchDir(configProvider);
-      profiler =
-          JavaProfiler.getInstance(
-              configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
-              scratch);
+      profiler = JavaProfiler.getInstance(
+          configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
+          scratch
+      );
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
     } catch (Throwable t) {
@@ -189,7 +187,8 @@ public final class DdprofLibraryLoader {
       if (!Files.exists(scratchPath)) {
         Files.createDirectories(
             scratchPath,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-xr-x")));
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-xr-x"))
+        );
       }
       scratch = scratchPath.toString();
     }

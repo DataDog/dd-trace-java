@@ -13,11 +13,10 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.datadog.jmxfetch.service.ServiceNameProvider;
 
 public class ServiceNameCollectingTraceInterceptor extends AbstractTraceInterceptor
-    implements ServiceNameProvider {
-
+    implements ServiceNameProvider
+{
   public static final ServiceNameCollectingTraceInterceptor INSTANCE =
       new ServiceNameCollectingTraceInterceptor(Priority.SERVICE_NAME_COLLECTING);
-
   /*
    * The other span types all set their own service names, so we ignore them. They should not have JVM
    * runtime metrics applied to their service names.
@@ -26,11 +25,10 @@ public class ServiceNameCollectingTraceInterceptor extends AbstractTraceIntercep
       new HashSet<>(Arrays.asList(DDSpanTypes.HTTP_SERVER, DDSpanTypes.RPC, DDSpanTypes.SOAP));
   private static final int SERVICE_NAME_LIMIT =
       Config.get().getJmxFetchMultipleRuntimeServicesLimit();
-  private static final AtomicIntegerFieldUpdater<ServiceNameCollectingTraceInterceptor>
-      SERVICE_NAMES_SIZE_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(
-              ServiceNameCollectingTraceInterceptor.class, "serviceNamesSize");
-
+  private static final AtomicIntegerFieldUpdater<ServiceNameCollectingTraceInterceptor> SERVICE_NAMES_SIZE_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+      ServiceNameCollectingTraceInterceptor.class,
+      "serviceNamesSize"
+  );
   private volatile int serviceNamesSize = 0;
   private final ConcurrentHashMap<String, Boolean> serviceNames = new ConcurrentHashMap<>();
 
@@ -39,8 +37,7 @@ public class ServiceNameCollectingTraceInterceptor extends AbstractTraceIntercep
   }
 
   @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> trace) {
+  public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
     if (!trace.isEmpty()) {
       MutableSpan rootSpan = trace.iterator().next().getLocalRootSpan();
       if (VALID_ENTRY_SPAN_TYPES.contains(rootSpan.getSpanType())) {

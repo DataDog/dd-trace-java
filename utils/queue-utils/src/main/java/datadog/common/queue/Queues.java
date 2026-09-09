@@ -24,10 +24,10 @@ import org.jctools.queues.varhandle.SpscVarHandleArrayQueue;
  * </ul>
  */
 public final class Queues {
-
   private static final boolean CAN_USE_VARHANDLES = JavaVirtualMachine.isJavaVersionAtLeast(25);
 
-  private Queues() {}
+  private Queues() {
+  }
 
   /**
    * Creates a Multiple Producer, Single Consumer (MPSC) array-backed queue.
@@ -69,7 +69,8 @@ public final class Queues {
    *     blocking consumption
    */
   public static <E> MessagePassingBlockingQueue<E> mpscBlockingConsumerArrayQueue(
-      int requestedCapacity) {
+      int requestedCapacity
+  ) {
     if (CAN_USE_VARHANDLES) {
       return new MpscBlockingConsumerVarHandleArrayQueue<>(requestedCapacity);
     }

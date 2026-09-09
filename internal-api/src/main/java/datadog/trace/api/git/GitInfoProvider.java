@@ -25,7 +25,6 @@ import java.util.function.Predicate;
 import javax.annotation.Nullable;
 
 public class GitInfoProvider {
-
   public static final GitInfoProvider INSTANCE;
 
   static {
@@ -34,9 +33,7 @@ public class GitInfoProvider {
   }
 
   static final String NULL_PATH_STRING = Paths.get("").toAbsolutePath().toString();
-
   private volatile Collection<GitInfoBuilder> builders = Collections.emptyList();
-
   // in regular cases git info has to be built only once,
   // but there is a rare exception:
   // when attaching to a Gradle Daemon,
@@ -46,7 +43,6 @@ public class GitInfoProvider {
   // and having more than 4 builds from different repos running in parallel
   // in the same daemon is unlikely
   private final DDCache<String, GitInfo> gitInfoCache = DDCaches.newFixedSizeCache(4);
-
   // DQH - The lambda in getGitInfo was a hot allocation point, so
   // pulled the lambda into a member variable to avoid constantly allocating.
   final Function<String, GitInfo> buildGitInfoFn = this::buildGitInfo;
@@ -65,37 +61,57 @@ public class GitInfoProvider {
 
   private GitInfo buildGitInfo(String repositoryPath) {
     Evaluator evaluator = new Evaluator(repositoryPath, builders);
-    GitInfo gitInfo =
-        new GitInfo(
-            evaluator.get(
-                gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
-                GitInfoProvider::validateGitRemoteUrl),
-            evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
-            evaluator.get(GitInfo::getTag, Strings::isNotBlank),
-            new CommitInfo(
-                evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
-                new PersonInfo(
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getAuthor().getName(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getAuthor().getEmail(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getAuthor().getIso8601Date(), Strings::isNotBlank)),
-                new PersonInfo(
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getCommitter().getName(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getCommitter().getEmail(), Strings::isNotBlank),
-                    evaluator.getIfCommitShaMatches(
-                        gi -> gi.getCommit().getCommitter().getIso8601Date(), Strings::isNotBlank)),
+    GitInfo gitInfo = new GitInfo(
+        evaluator.get(
+            gi -> GitUtils.filterSensitiveInfo(gi.getRepositoryURL()),
+            GitInfoProvider::validateGitRemoteUrl
+        ),
+        evaluator.get(GitInfo::getBranch, Strings::isNotBlank),
+        evaluator.get(GitInfo::getTag, Strings::isNotBlank),
+        new CommitInfo(
+            evaluator.get(gi1 -> gi1.getCommit().getSha(), Strings::isNotBlank),
+            new PersonInfo(
                 evaluator.getIfCommitShaMatches(
-                    gi -> gi.getCommit().getFullMessage(), Strings::isNotBlank)));
+                    gi -> gi.getCommit().getAuthor().getName(),
+                    Strings::isNotBlank
+                ),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getEmail(),
+                    Strings::isNotBlank
+                ),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getAuthor().getIso8601Date(),
+                    Strings::isNotBlank
+                )
+            ),
+            new PersonInfo(
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getName(),
+                    Strings::isNotBlank
+                ),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getEmail(),
+                    Strings::isNotBlank
+                ),
+                evaluator.getIfCommitShaMatches(
+                    gi -> gi.getCommit().getCommitter().getIso8601Date(),
+                    Strings::isNotBlank
+                )
+            ),
+            evaluator.getIfCommitShaMatches(
+                gi -> gi.getCommit().getFullMessage(),
+                Strings::isNotBlank
+            )
+        )
+    );
 
-    InstrumentationBridge.getMetricCollector()
-        .add(
-            CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH,
-            1,
-            evaluator.shaDiscrepancies.isEmpty() ? GitShaMatch.TRUE : GitShaMatch.FALSE);
+    InstrumentationBridge
+      .getMetricCollector()
+      .add(
+          CiVisibilityCountMetric.GIT_COMMIT_SHA_MATCH,
+          1,
+          evaluator.shaDiscrepancies.isEmpty() ? GitShaMatch.TRUE : GitShaMatch.FALSE
+      );
     for (ShaDiscrepancy mismatch : evaluator.shaDiscrepancies) {
       mismatch.addTelemetry();
     }
@@ -116,26 +132,33 @@ public class GitInfoProvider {
     private ShaDiscrepancy(
         GitProviderExpected expectedGitProvider,
         GitProviderDiscrepant discrepantGitProvider,
-        GitShaDiscrepancyType discrepancyType) {
+        GitShaDiscrepancyType discrepancyType
+    ) {
       this.expectedGitProvider = expectedGitProvider;
       this.discrepantGitProvider = discrepantGitProvider;
       this.discrepancyType = discrepancyType;
     }
 
     private void addTelemetry() {
-      InstrumentationBridge.getMetricCollector()
-          .add(
-              CiVisibilityCountMetric.GIT_COMMIT_SHA_DISCREPANCY,
-              1,
-              expectedGitProvider,
-              discrepantGitProvider,
-              discrepancyType);
+      InstrumentationBridge
+        .getMetricCollector()
+        .add(
+            CiVisibilityCountMetric.GIT_COMMIT_SHA_DISCREPANCY,
+            1,
+            expectedGitProvider,
+            discrepantGitProvider,
+            discrepancyType
+        );
     }
 
     @Override
     public boolean equals(Object obj) {
-      if (this == obj) return true;
-      if (obj == null || getClass() != obj.getClass()) return false;
+      if (this == obj) {
+        return true;
+      }
+      if (obj == null || getClass() != obj.getClass()) {
+        return false;
+      }
       ShaDiscrepancy that = (ShaDiscrepancy) obj;
       return expectedGitProvider.equals(that.expectedGitProvider)
           && discrepantGitProvider.equals(that.discrepantGitProvider)
@@ -181,14 +204,17 @@ public class GitInfoProvider {
      * lower priority, lower-priority info will be ignored.
      */
     private String getIfCommitShaMatches(
-        Function<GitInfo, String> function, Predicate<String> validator) {
+        Function<GitInfo, String> function,
+        Predicate<String> validator
+    ) {
       return get(function, validator, true);
     }
 
     private String get(
         Function<GitInfo, String> function,
         Predicate<String> validator,
-        boolean checkShaIntegrity) {
+        boolean checkShaIntegrity
+    ) {
       String expectedCommitSha = null;
       String expectedRepoUrl = null;
       GitProviderExpected expectedGitProvider = null;
@@ -220,7 +246,11 @@ public class GitInfoProvider {
 
               shaDiscrepancies.add(
                   new ShaDiscrepancy(
-                      expectedGitProvider, e.getKey().providerAsDiscrepant(), discrepancyType));
+                      expectedGitProvider,
+                      e.getKey().providerAsDiscrepant(),
+                      discrepancyType
+                  )
+              );
               continue;
             }
           }

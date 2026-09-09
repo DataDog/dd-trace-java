@@ -12,24 +12,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiVisibilityGradleListenerInjector_8_3 {
-
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(DefaultServiceRegistry.class.getClassLoader());
   private static final MethodHandle REGISTER_SERVICE =
       METHOD_HANDLES.method(DefaultServiceRegistry.class, "register", Action.class);
-
   private static final Logger LOGGER =
       LoggerFactory.getLogger(CiVisibilityGradleListenerInjector_8_3.class);
 
-  /** Performs listener injection for Gradle v8.3 - 8.9 */
+  /**
+   * Performs listener injection for Gradle v8.3 - 8.9
+   */
   public static void injectCiVisibilityGradleListener(
-      DefaultServiceRegistry buildScopeServices, ServiceRegistry... parentServices) {
+      DefaultServiceRegistry buildScopeServices,
+      ServiceRegistry... parentServices
+  ) {
     try {
       ClassLoaderRegistry classLoaderRegistry =
           CiVisibilityGradleListenerInjector_8_3.getClassLoaderRegistry(parentServices);
       Class<?> ciVisibilityGradleListener =
-          CiVisibilityGradleListenerInjector_8_3.loadCiVisibilityGradleListener(
-              classLoaderRegistry);
+          CiVisibilityGradleListenerInjector_8_3.loadCiVisibilityGradleListener(classLoaderRegistry);
       Action<ServiceRegistration> registrationAction =
           serviceRegistration -> serviceRegistration.add(ciVisibilityGradleListener);
       METHOD_HANDLES.invoke(REGISTER_SERVICE, buildScopeServices, registrationAction);
@@ -47,7 +48,8 @@ public class CiVisibilityGradleListenerInjector_8_3 {
       }
     }
     throw new RuntimeException(
-        "Could not find ClassLoaderRegistry service in " + Arrays.toString(serviceRegistries));
+        "Could not find ClassLoaderRegistry service in " + Arrays.toString(serviceRegistries)
+    );
   }
 
   /**
@@ -62,8 +64,8 @@ public class CiVisibilityGradleListenerInjector_8_3 {
   private static Class<?> loadCiVisibilityGradleListener(ClassLoaderRegistry classLoaderRegistry) {
     try {
       return classLoaderRegistry
-          .getPluginsClassLoader()
-          .loadClass("datadog.trace.instrumentation.gradle.CiVisibilityGradleListener");
+        .getPluginsClassLoader()
+        .loadClass("datadog.trace.instrumentation.gradle.CiVisibilityGradleListener");
     } catch (ClassNotFoundException e) {
       throw new RuntimeException("Could not load CI Visibility Gradle Listener", e);
     }

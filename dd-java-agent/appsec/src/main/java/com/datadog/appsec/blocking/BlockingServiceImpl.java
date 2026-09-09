@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 
 public class BlockingServiceImpl implements BlockingService {
   private static final Logger log = LoggerFactory.getLogger(BlockingServiceImpl.class);
-
   private final EventProducerService eventProducer;
   private volatile EventProducerService.DataSubscriberInfo subInfo;
 
@@ -60,7 +59,10 @@ public class BlockingServiceImpl implements BlockingService {
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       return new BlockingDetails(
-          rba.getStatusCode(), rba.getBlockingContentType(), rba.getExtraHeaders());
+          rba.getStatusCode(),
+          rba.getBlockingContentType(),
+          rba.getExtraHeaders()
+      );
     }
     return null;
   }
@@ -69,12 +71,14 @@ public class BlockingServiceImpl implements BlockingService {
   public boolean tryCommitBlockingResponse(
       int statusCode,
       @Nonnull BlockingContentType templateType,
-      @Nonnull Map<String, String> extraHeaders) {
+      @Nonnull Map<String, String> extraHeaders
+  ) {
     log.info(
         "Will try to commit blocking response statusCode={} templateType={} extraHeaders={}",
         statusCode,
         templateType,
-        extraHeaders);
+        extraHeaders
+    );
     RequestContext reqCtx = getRequestContext();
     if (reqCtx == null) {
       return false;
@@ -87,9 +91,13 @@ public class BlockingServiceImpl implements BlockingService {
     }
 
     log.debug("About to call block response function: {}", blockResponseFunction);
-    boolean res =
-        blockResponseFunction.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(), statusCode, templateType, extraHeaders, null);
+    boolean res = blockResponseFunction.tryCommitBlockingResponse(
+        reqCtx.getTraceSegment(),
+        statusCode,
+        templateType,
+        extraHeaders,
+        null
+    );
     if (res) {
       TraceSegment traceSegment = reqCtx.getTraceSegment();
       if (traceSegment != null) {

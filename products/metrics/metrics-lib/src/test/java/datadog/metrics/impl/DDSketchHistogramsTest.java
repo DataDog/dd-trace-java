@@ -3,13 +3,11 @@ package datadog.metrics.impl;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import datadog.metrics.impl.DDSketchHistograms.ExplicitBoundaries;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class DDSketchHistogramsTest {
-
   // boundaries define 4 bins:
   //   bin 0: (-inf, 10]
   //   bin 1: (10,   20]

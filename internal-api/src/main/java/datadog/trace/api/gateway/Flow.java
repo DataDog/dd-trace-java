@@ -21,7 +21,8 @@ public interface Flow<T> {
     class Noop implements Action {
       public static Action INSTANCE = new Noop();
 
-      private Noop() {}
+      private Noop() {
+      }
 
       public boolean isBlocking() {
         return false;
@@ -37,7 +38,8 @@ public interface Flow<T> {
       public RequestBlockingAction(
           int statusCode,
           BlockingContentType blockingContentType,
-          Map<String, String> extraHeaders) {
+          Map<String, String> extraHeaders
+      ) {
         this(statusCode, blockingContentType, extraHeaders, null);
       }
 
@@ -45,7 +47,8 @@ public interface Flow<T> {
           int statusCode,
           BlockingContentType blockingContentType,
           Map<String, String> extraHeaders,
-          String securityResponseId) {
+          String securityResponseId
+      ) {
         this.statusCode = statusCode;
         this.blockingContentType = blockingContentType;
         this.extraHeaders = extraHeaders;
@@ -61,12 +64,16 @@ public interface Flow<T> {
       }
 
       public static RequestBlockingAction forRedirect(
-          int statusCode, String location, String securityResponseId) {
+          int statusCode,
+          String location,
+          String securityResponseId
+      ) {
         return new RequestBlockingAction(
             statusCode,
             BlockingContentType.NONE,
             Collections.singletonMap("Location", location),
-            securityResponseId);
+            securityResponseId
+        );
       }
 
       @Override
@@ -92,9 +99,8 @@ public interface Flow<T> {
     }
   }
 
-  @SuppressFBWarnings(
-      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-      justification = "Not a singleton")
+  @SuppressFBWarnings(value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR", justification = "Not "
+      + "a singleton")
   class ResultFlow<R> implements Flow<R> {
     @SuppressWarnings("rawtypes")
     private static final ResultFlow EMPTY = new ResultFlow<>(null);

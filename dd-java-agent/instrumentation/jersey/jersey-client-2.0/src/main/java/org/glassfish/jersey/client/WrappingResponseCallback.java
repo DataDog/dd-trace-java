@@ -7,7 +7,6 @@ import javax.ws.rs.ProcessingException;
 import org.glassfish.jersey.process.internal.RequestScope;
 
 public final class WrappingResponseCallback implements ResponseCallback {
-
   private final ResponseCallback delegate;
   private final ClientRequest request;
 

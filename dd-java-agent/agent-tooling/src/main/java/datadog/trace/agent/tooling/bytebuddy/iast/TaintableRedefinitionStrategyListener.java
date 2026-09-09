@@ -15,16 +15,16 @@ import org.slf4j.LoggerFactory;
  * <p>This listener will disable the visitor to prevent a failure with the whole redefinition batch.
  */
 public final class TaintableRedefinitionStrategyListener
-    extends AgentBuilder.RedefinitionStrategy.Listener.Adapter {
-
+    extends AgentBuilder.RedefinitionStrategy.Listener.Adapter
+{
   private static final Logger LOGGER =
       LoggerFactory.getLogger(TaintableRedefinitionStrategyListener.class);
   private static final boolean DEBUG = LOGGER.isDebugEnabled();
-
   public static final TaintableRedefinitionStrategyListener INSTANCE =
       new TaintableRedefinitionStrategyListener();
 
-  private TaintableRedefinitionStrategyListener() {}
+  private TaintableRedefinitionStrategyListener() {
+  }
 
   @Override
   @Nonnull
@@ -32,19 +32,24 @@ public final class TaintableRedefinitionStrategyListener
       final int index,
       @Nonnull final List<Class<?>> batch,
       @Nonnull final Throwable throwable,
-      @Nonnull final List<Class<?>> types) {
+      @Nonnull final List<Class<?>> types
+  ) {
     if (TaintableVisitor.ENABLED) {
       if (DEBUG) {
         LOGGER.debug(
-            "Exception while retransforming with the visitor in batch {}, disabling it", index);
+            "Exception while retransforming with the visitor in batch {}, disabling it",
+            index
+        );
       }
       TaintableVisitor.ENABLED = false;
       return Collections.singletonList(batch);
     } else {
       if (DEBUG) {
         LOGGER.debug(
-            "Exception while retransforming after disabling the visitor in batch {}, classes won't be instrumented",
-            index);
+            "Exception while retransforming after disabling the visitor in batch {}, classes "
+            + "won't be instrumented",
+            index
+        );
       }
       return Collections.emptyList();
     }
@@ -52,7 +57,10 @@ public final class TaintableRedefinitionStrategyListener
 
   @Override
   public void onComplete(
-      final int amount, final List<Class<?>> types, final Map<List<Class<?>>, Throwable> failures) {
+      final int amount,
+      final List<Class<?>> types,
+      final Map<List<Class<?>>, Throwable> failures
+  ) {
     if (DEBUG) {
       if (!TaintableVisitor.ENABLED) {
         LOGGER.debug("Retransforming succeeded with a disabled visitor");

@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZEL
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZELCAST_OPERATION;
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZELCAST_SERVICE;
 import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.INSTRUMENTATION_NAME;
-
 import com.hazelcast.core.DistributedObject;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
@@ -17,43 +16,42 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.function.Function;
 
-/** Decorate Hazelcast distributed object span's with relevant contextual information. */
+/**
+ * Decorate Hazelcast distributed object span's with relevant contextual information.
+ */
 public class DistributedObjectDecorator extends ClientDecorator {
-
   public static final DistributedObjectDecorator DECORATE = new DistributedObjectDecorator();
-
   private static final DDCache<Pair<String, String>, String> QUALIFIED_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
-
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service(INSTRUMENTATION_NAME);
-
   private static final Function<Pair<String, String>, String> COMPUTE_QUALIFIED_NAME =
       // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
-      new Function<Pair<String, String>, String>() {
-        @Override
-        public String apply(Pair<String, String> input) {
-          final String service = input.getLeft();
-          final String objectName = input.getRight();
+  new Function<Pair<String, String>, String>() {
+    @Override
+    public String apply(Pair<String, String> input) {
+      final String service = input.getLeft();
+      final String objectName = input.getRight();
 
-          final StringBuilder qualifiedName = new StringBuilder();
-          boolean terminateBracket = false;
+      final StringBuilder qualifiedName = new StringBuilder();
+      boolean terminateBracket = false;
 
-          if (service != null && service.length() > 15 && service.startsWith("hz:impl:")) {
-            // Transform into just the service qualifiedName
-            qualifiedName.append(
-                service, "hz:impl:".length(), service.length() - "Service".length());
-            qualifiedName.append('[');
-            terminateBracket = true;
-          }
+      if (service != null && service.length() > 15 && service.startsWith("hz:impl:")) {
+        // Transform into just the service qualifiedName
+        qualifiedName.append(service, "hz:impl:".length(), service.length() - "Service".length());
+        qualifiedName.append('[');
+        terminateBracket = true;
+      }
 
-          qualifiedName.append(objectName);
+      qualifiedName.append(objectName);
 
-          if (terminateBracket) qualifiedName.append(']');
+      if (terminateBracket) {
+        qualifiedName.append(']');
+      }
 
-          return qualifiedName.toString();
-        }
-      };
+      return qualifiedName.toString();
+    }
+  };
 
   @Override
   protected CharSequence spanType() {
@@ -75,13 +73,18 @@ public class DistributedObjectDecorator extends ClientDecorator {
     return SERVICE_NAME;
   }
 
-  /** Decorate trace based on service execution metadata. */
+  /**
+   * Decorate trace based on service execution metadata.
+   */
   public void onServiceExecution(
-      final AgentSpan span, final DistributedObject object, final String methodName) {
-
-    final String objectName =
-        QUALIFIED_NAME_CACHE.computeIfAbsent(
-            Pair.of(object.getServiceName(), object.getName()), COMPUTE_QUALIFIED_NAME);
+      final AgentSpan span,
+      final DistributedObject object,
+      final String methodName
+  ) {
+    final String objectName = QUALIFIED_NAME_CACHE.computeIfAbsent(
+        Pair.of(object.getServiceName(), object.getName()),
+        COMPUTE_QUALIFIED_NAME
+    );
 
     span.setResourceName(UTF8BytesString.create(String.join(".", objectName, methodName)));
 

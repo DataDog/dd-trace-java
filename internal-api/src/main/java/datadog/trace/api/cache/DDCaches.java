@@ -3,8 +3,8 @@ package datadog.trace.api.cache;
 import java.util.function.ToIntFunction;
 
 public final class DDCaches {
-
-  private DDCaches() {}
+  private DDCaches() {
+  }
 
   /**
    * Creates a cache which cannot grow beyond a fixed capacity. Useful for caching relationships
@@ -60,7 +60,10 @@ public final class DDCaches {
    * @param <V> the value type
    */
   public static <K, V> DDCache<K, V> newFixedSizeWeightedCache(
-      final int capacity, final ToIntFunction<V> weigher, final int maxWeight) {
+      final int capacity,
+      final ToIntFunction<V> weigher,
+      final int maxWeight
+  ) {
     return new FixedSizeWeightedCache<>(capacity, weigher, maxWeight);
   }
 

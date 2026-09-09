@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.trace.api.intake.Intake;
@@ -17,7 +16,6 @@ import okhttp3.RequestBody;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlagEvpPublisherTest {
-
   @Test
   void defaultPublisherRequestsResponseCompression() {
     final BackendApi backendApi = mock(BackendApi.class);
@@ -45,8 +43,13 @@ class FeatureFlagEvpPublisherTest {
     publisher.post("flagevaluation", new TestRequest("value"));
 
     verify(factory).createBackendApi(Intake.EVENT_PLATFORM, false);
-    verify(backendApi)
-        .post(eq("flagevaluation"), any(RequestBody.class), any(), isNull(), eq(false));
+    verify(backendApi).post(
+        eq("flagevaluation"),
+        any(RequestBody.class),
+        any(),
+        isNull(),
+        eq(false)
+    );
   }
 
   @Test
@@ -56,9 +59,10 @@ class FeatureFlagEvpPublisherTest {
         new FeatureFlagEvpPublisher<>(factory, TestRequest.class);
 
     assertFalse(publisher.start());
-    assertThrows(
-        IllegalStateException.class,
-        () -> publisher.post("flagevaluation", FeatureFlagEvpPublisher.utf8Bytes("{}")));
+    assertThrows(IllegalStateException.class, () -> publisher.post(
+        "flagevaluation",
+        FeatureFlagEvpPublisher.utf8Bytes("{}")
+    ));
   }
 
   static class TestRequest {

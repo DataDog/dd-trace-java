@@ -7,7 +7,8 @@ public final class BaseHash {
   private static volatile String baseHashStr;
   private static volatile String lastContainerTagsHash;
 
-  private BaseHash() {}
+  private BaseHash() {
+  }
 
   public static void recalcBaseHash(String containerTagsHash) {
     lastContainerTagsHash = containerTagsHash;
@@ -37,7 +38,8 @@ public final class BaseHash {
         Config.get().getEnv(),
         Config.get().getPrimaryTag(),
         ProcessTags.getTagsForSerialization(),
-        containerTagsHash);
+        containerTagsHash
+    );
   }
 
   private static long calc(
@@ -45,10 +47,13 @@ public final class BaseHash {
       CharSequence env,
       String primaryTag,
       CharSequence processTags,
-      String containerTagsHash) {
+      String containerTagsHash
+  ) {
     long hash = FNV64Hash.generateHash(serviceName.toString(), FNV64Hash.Version.v1);
     hash = FNV64Hash.continueHash(hash, env.toString(), FNV64Hash.Version.v1);
-    if (primaryTag != null) hash = FNV64Hash.continueHash(hash, primaryTag, FNV64Hash.Version.v1);
+    if (primaryTag != null) {
+      hash = FNV64Hash.continueHash(hash, primaryTag, FNV64Hash.Version.v1);
+    }
     if (processTags != null) {
       hash = FNV64Hash.continueHash(hash, processTags.toString(), FNV64Hash.Version.v1);
       if (containerTagsHash != null && !containerTagsHash.isEmpty()) {

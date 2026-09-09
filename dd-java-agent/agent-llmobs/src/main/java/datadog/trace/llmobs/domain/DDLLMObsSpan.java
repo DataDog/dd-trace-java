@@ -29,13 +29,11 @@ import org.slf4j.LoggerFactory;
 
 public class DDLLMObsSpan implements LLMObsSpan {
   private static final String LLM_MESSAGE_UNKNOWN_ROLE = "unknown";
-
   // Well known tags for LLM obs will be prefixed with _ml_obs_(tags|metrics).
   // Prefix for tags
   private static final String LLMOBS_TAG_PREFIX = "_ml_obs_tag.";
   // Prefix for metrics
   private static final String LLMOBS_METRIC_PREFIX = "_ml_obs_metric.";
-
   // internal tags to be prefixed
   private static final String INPUT = LLMOBS_TAG_PREFIX + "input";
   private static final String OUTPUT = LLMOBS_TAG_PREFIX + "output";
@@ -56,19 +54,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
   private static final String SAMPLING_DECISION_TAG_INTERNAL = "sampling_decision";
   private static final String PAGENT_SPAN_ID_TAG_INTERNAL =
       LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
-  private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
-
+  private static final String PAGENT_NAME_TAG_INTERNAL = LLMOBS_TAG_PREFIX
+      + LLMObsTags.PAGENT_NAME;
   private static final String SERVICE = LLMOBS_TAG_PREFIX + "service";
   private static final String VERSION = LLMOBS_TAG_PREFIX + "version";
   private static final String DDTRACE_VERSION = LLMOBS_TAG_PREFIX + "ddtrace.version";
   private static final String ENV = LLMOBS_TAG_PREFIX + "env";
-
   private static final String LLM_OBS_INSTRUMENTATION_NAME = "llmobs";
-
   private static final Logger LOGGER = LoggerFactory.getLogger(DDLLMObsSpan.class);
-
   private static final LLMObsSampler CONFIGURED_SAMPLER = LLMObsSampler.fromConfig();
-
   private final AgentSpan span;
   private final String spanKind;
   private final String mlApp;
@@ -78,7 +72,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
   // agent's APM span keeps children in the same APM trace so the trace-ID gate passes and
   // they inherit agent attribution correctly.
   private final AgentScope standaloneApmScope;
-
   private boolean finished = false;
 
   public DDLLMObsSpan(
@@ -87,7 +80,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       @Nonnull String mlApp,
       String sessionId,
       @Nonnull String serviceName,
-      WellKnownTags wellKnownTags) {
+      WellKnownTags wellKnownTags
+  ) {
     this(kind, spanName, mlApp, sessionId, serviceName, wellKnownTags, null);
   }
 
@@ -98,7 +92,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags,
-      String agentVersion) {
+      String agentVersion
+  ) {
     this(
         kind,
         spanName,
@@ -107,7 +102,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
         serviceName,
         wellKnownTags,
         agentVersion,
-        CONFIGURED_SAMPLER);
+        CONFIGURED_SAMPLER
+    );
   }
 
   DDLLMObsSpan(
@@ -118,25 +114,23 @@ public class DDLLMObsSpan implements LLMObsSpan {
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags,
       String agentVersion,
-      @Nonnull LLMObsSampler sampler) {
-
+      @Nonnull LLMObsSampler sampler
+  ) {
     if (null == spanName || spanName.isEmpty()) {
       spanName = kind;
     }
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(LLM_OBS_INSTRUMENTATION_NAME, spanName)
-            .withServiceName(serviceName)
-            .withSpanType(DDSpanTypes.LLMOBS);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer
+      .get()
+      .buildSpan(LLM_OBS_INSTRUMENTATION_NAME, spanName)
+      .withServiceName(serviceName)
+      .withSpanType(DDSpanTypes.LLMOBS);
 
     span = spanBuilder.start();
-
     // set global dd_tags as base layer so UST and span-level tags can override them
     for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
       span.setTag(LLMOBS_TAG_PREFIX + entry.getKey(), entry.getValue());
     }
-
     // set UST (unified service tags, env, service, version)
     span.setTag(ENV, wellKnownTags.getEnv());
     span.setTag(SERVICE, wellKnownTags.getService());
@@ -162,11 +156,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (null != parent) {
       if (parent.getTraceId() != span.getTraceId()) {
         LOGGER.error(
-            "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
+            "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started "
+            + "span trace_id={}, span_id={}",
             parent.getTraceId(),
             parent.getSpanId(),
             span.getTraceId(),
-            span.getSpanId());
+            span.getSpanId()
+        );
       } else {
         parentSpanID = String.valueOf(parent.getSpanId());
         // Inherit session_id from parent context only when it belongs to the same trace.
@@ -196,7 +192,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
         resolvedParentAgentName = LLMObsContext.currentParentAgentName();
       }
     }
-
     // An agent span is its own descendants' nearest agent ancestor, replacing anything inherited.
     // Use the span name as the initial pagent name; annotateAgentManifest() will update it to the
     // manifest name if one is provided later.
@@ -207,10 +202,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     if (samplingDecision == null || sampleRate == null) {
       sampleRate = sampler.formattedRate();
-      samplingDecision =
-          sampler.sample(span.getTraceId().toLong())
-              ? LLMObsContext.SAMPLING_DECISION_SAMPLED
-              : LLMObsContext.SAMPLING_DECISION_DROPPED;
+      samplingDecision = sampler.sample(span.getTraceId().toLong())
+          ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+          : LLMObsContext.SAMPLING_DECISION_DROPPED;
     }
     span.setTag(LLMOBS_TAG_PREFIX + SAMPLE_RATE_TAG_INTERNAL, sampleRate);
     span.setTag(LLMOBS_TAG_PREFIX + SAMPLING_DECISION_TAG_INTERNAL, samplingDecision);
@@ -230,27 +224,25 @@ public class DDLLMObsSpan implements LLMObsSpan {
         span.setTag(PAGENT_NAME_TAG_INTERNAL, resolvedParentAgentName);
       }
     }
-
     // Propagate the effective sessionId, agent_version, sampling decision and agent attribution
     // to descendant LLMObs spans via the context.
-    scope =
-        LLMObsContext.attach(
-            span.spanContext(),
-            sessionId,
-            resolvedAgentVersion,
-            sampleRate,
-            samplingDecision,
-            resolvedParentAgentSpanId,
-            resolvedParentAgentName);
-
+    scope = LLMObsContext.attach(
+        span.spanContext(),
+        sessionId,
+        resolvedAgentVersion,
+        sampleRate,
+        samplingDecision,
+        resolvedParentAgentSpanId,
+        resolvedParentAgentName
+    );
     // For standalone agent spans (no ambient APM root), activate the underlying APM span so
     // that child LLMObs spans share the same trace ID and pass the trace-ID gate. Without
     // this, children start a fresh APM trace, the gate rejects the agent context, and
     // agent attribution is silently dropped.
-    standaloneApmScope =
-        Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind) && span.getLocalRootSpan() == span
-            ? AgentTracer.activateSpan(span)
-            : null;
+    standaloneApmScope = Tags.LLMOBS_AGENT_SPAN_KIND.equals(kind)
+        && span.getLocalRootSpan() == span
+        ? AgentTracer.activateSpan(span)
+        : null;
   }
 
   @Override
@@ -315,20 +307,18 @@ public class DDLLMObsSpan implements LLMObsSpan {
     boolean hasInput = inputData != null && !inputData.isEmpty();
     boolean hasOutput = outputData != null && !outputData.isEmpty();
     if (Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
-      List<LLMObs.LLMMessage> inputMessages =
-          hasInput
-              ? Collections.singletonList(
-                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData))
-              : null;
-      List<LLMObs.LLMMessage> outputMessages =
-          hasOutput
-              ? Collections.singletonList(
-                  LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData))
-              : null;
+      List<LLMObs.LLMMessage> inputMessages = hasInput
+          ? Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, inputData))
+          : null;
+      List<LLMObs.LLMMessage> outputMessages = hasOutput
+          ? Collections.singletonList(LLMObs.LLMMessage.from(LLM_MESSAGE_UNKNOWN_ROLE, outputData))
+          : null;
       annotateIO(inputMessages, outputMessages);
       if (hasInput || hasOutput) {
         LOGGER.warn(
-            "the span being annotated is an LLM span, it is recommended to use the overload with List<LLMObs.LLMMessage> as arguments");
+            "the span being annotated is an LLM span, it is recommended to use the overload "
+            + "with List<LLMObs.LLMMessage> as arguments"
+        );
       }
       return;
     }
@@ -338,7 +328,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       annotateEmbeddingIO(inputDocuments, outputData);
       if (hasInput) {
         LOGGER.warn(
-            "the span being annotated is an embedding span, it is recommended to use annotateEmbeddingIO");
+            "the span being annotated is an embedding span, it is recommended to use annotateEmbeddingIO"
+        );
       }
       return;
     }
@@ -348,7 +339,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       annotateRetrievalIO(inputData, outputDocuments);
       if (hasOutput) {
         LOGGER.warn(
-            "the span being annotated is a retrieval span, it is recommended to use annotateRetrievalIO");
+            "the span being annotated is a retrieval span, it is recommended to use annotateRetrievalIO"
+        );
       }
       return;
     }
@@ -367,7 +359,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     if (!Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)) {
       LOGGER.warn(
-          "dropping prompt on non-LLM span kind, annotating prompts is only supported for LLM span kinds");
+          "dropping prompt on non-LLM span kind, annotating prompts is only supported for LLM span kinds"
+      );
       return;
     }
 
@@ -395,13 +388,15 @@ public class DDLLMObsSpan implements LLMObsSpan {
     annotatedPrompt.put(
         CONTEXT_VARIABLE_KEYS,
         prompt.getContextVariables() == null
-            ? Collections.singletonList("context")
-            : prompt.getContextVariables());
+        ? Collections.singletonList("context")
+        : prompt.getContextVariables()
+    );
     annotatedPrompt.put(
         QUERY_VARIABLE_KEYS,
         prompt.getQueryVariables() == null
-            ? Collections.singletonList("question")
-            : prompt.getQueryVariables());
+        ? Collections.singletonList("question")
+        : prompt.getQueryVariables()
+    );
 
     span.setTag(INPUT_PROMPT, annotatedPrompt);
     span.setTag(PROMPT_TRACKING_INSTRUMENTATION_METHOD, INSTRUMENTATION_METHOD_ANNOTATED);
@@ -414,20 +409,20 @@ public class DDLLMObsSpan implements LLMObsSpan {
     }
     if (!Tags.LLMOBS_AGENT_SPAN_KIND.equals(spanKind)) {
       LOGGER.warn(
-          "dropping agent manifest on non-agent span kind; annotateAgentManifest is only supported for agent spans");
+          "dropping agent manifest on non-agent span kind; annotateAgentManifest is only "
+          + "supported for agent spans"
+      );
       return;
     }
     // Read existing manifest (may be null on first call)
     Object existing = span.getTag(AGENT_MANIFEST);
     @SuppressWarnings("unchecked")
-    Map<String, Object> base =
-        (existing instanceof Map)
-            ? new LinkedHashMap<>((Map<String, Object>) existing)
-            : new LinkedHashMap<>();
+    Map<String, Object> base = (existing instanceof Map)
+        ? new LinkedHashMap<>((Map<String, Object>) existing)
+        : new LinkedHashMap<>();
     mergeManifest(base, manifest);
     base.put("framework", MANUAL_FRAMEWORK);
     span.setTag(AGENT_MANIFEST, base);
-
     // Sync pagent name to the manifest name so the serializer emits the manifest name in
     // agent_attribution. The manifest name takes priority over the span name set at construction.
     span.setTag(PAGENT_NAME_TAG_INTERNAL, (String) base.get("name"));
@@ -458,10 +453,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     Map<String, Object> modelSettings = manifest.getModelSettings();
     if (modelSettings != null && !modelSettings.isEmpty()) {
       @SuppressWarnings("unchecked")
-      Map<String, Object> existingSettings =
-          (base.get("model_settings") instanceof Map)
-              ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
-              : new LinkedHashMap<>();
+      Map<String, Object> existingSettings = (base.get("model_settings") instanceof Map)
+          ? new LinkedHashMap<>((Map<String, Object>) base.get("model_settings"))
+          : new LinkedHashMap<>();
       existingSettings.putAll(modelSettings);
       base.put("model_settings", existingSettings);
     }
@@ -563,7 +557,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
     } else {
       LOGGER.debug(
           "unexpected instance type for metadata {}, overwriting for now",
-          value.getClass().getName());
+          value.getClass().getName()
+      );
       span.setTag(METADATA, new HashMap<>(metadata));
     }
   }
@@ -698,14 +693,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
     scope.close();
     finished = true;
     boolean isRootSpan = span.getLocalRootSpan() == span;
-    LLMObsMetricCollector.get()
-        .recordSpanFinished(
-            LLM_OBS_INSTRUMENTATION_NAME,
-            spanKind,
-            isRootSpan,
-            false,
-            span.isError(),
-            hasSessionId);
+    LLMObsMetricCollector
+      .get()
+      .recordSpanFinished(
+          LLM_OBS_INSTRUMENTATION_NAME,
+          spanKind,
+          isRootSpan,
+          false,
+          span.isError(),
+          hasSessionId
+      );
   }
 
   @Override

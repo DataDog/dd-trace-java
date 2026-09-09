@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.cics.CicsDecorator.CICS_CLIENT;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.GATEWAY_FLOW_OPERATION;
-
 import com.ibm.connector2.cics.ECIInteraction;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
@@ -20,7 +19,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class JavaGatewayInterfaceInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "com.ibm.ctg.client.JavaGatewayInterface";
@@ -41,7 +42,8 @@ public final class JavaGatewayInterfaceInstrumentation
     public static AgentScope enter(
         @Advice.FieldValue("strAddress") final String strAddress,
         @Advice.FieldValue("iPort") final int port,
-        @Advice.FieldValue("ipGateway") final InetAddress ipGateway) {
+        @Advice.FieldValue("ipGateway") final InetAddress ipGateway
+    ) {
       // Coordinating with ECIInteractionInstrumentation
       final int callDepth = CallDepthThreadLocalMap.getCallDepth(ECIInteraction.class);
       if (callDepth > 0) {
@@ -52,7 +54,6 @@ public final class JavaGatewayInterfaceInstrumentation
         }
         return null;
       }
-
       // Not inside execute() - create a new span
       final AgentSpan span = startSpan(CICS_CLIENT.toString(), GATEWAY_FLOW_OPERATION);
       DECORATE.afterStart(span);
@@ -62,7 +63,9 @@ public final class JavaGatewayInterfaceInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (null == scope) {
         return;
       }

@@ -4,7 +4,6 @@ public enum LoginVersion {
   V1("v1"),
   V2("v2"),
   AUTO(null);
-
   private final String tag;
 
   LoginVersion(final String tag) {

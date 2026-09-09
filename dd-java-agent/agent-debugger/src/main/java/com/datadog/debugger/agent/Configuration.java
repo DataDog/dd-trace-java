@@ -19,8 +19,9 @@ import java.util.stream.Stream;
  * sampling
  */
 public class Configuration {
-
-  /** Stores classes & packages filtering (allow or deny lists) */
+  /**
+   * Stores classes & packages filtering (allow or deny lists)
+   */
   public static class FilterList {
     private final List<String> packagePrefixes;
     private final List<String> classes;
@@ -47,8 +48,12 @@ public class Configuration {
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       FilterList allowList = (FilterList) o;
       return Objects.equals(packagePrefixes, allowList.packagePrefixes)
           && Objects.equals(classes, allowList.classes);
@@ -63,7 +68,6 @@ public class Configuration {
 
   @Json(name = "id")
   private final String service;
-
   private transient List<ProbeDefinition> probes = new ArrayList<>();
   private Collection<MetricProbe> metricProbes = new ArrayList<>();
   private Collection<LogProbe> logProbes = new ArrayList<>();
@@ -83,7 +87,8 @@ public class Configuration {
       List<? extends ProbeDefinition> probes,
       FilterList allowList,
       FilterList denyList,
-      LogProbe.Sampling sampling) {
+      LogProbe.Sampling sampling
+  ) {
     this.service = serviceName;
     this.allowList = allowList;
     this.denyList = denyList;
@@ -144,11 +149,11 @@ public class Configuration {
   }
 
   public List<ProbeDefinition> getDefinitions() {
-    return Stream.of(
-            triggerProbes, metricProbes, logProbes, spanProbes, spanDecorationProbes, probes)
-        .filter(Objects::nonNull)
-        .flatMap(Collection::stream)
-        .collect(Collectors.toList());
+    return Stream
+      .of(triggerProbes, metricProbes, logProbes, spanProbes, spanDecorationProbes, probes)
+      .filter(Objects::nonNull)
+      .flatMap(Collection::stream)
+      .collect(Collectors.toList());
   }
 
   @Generated
@@ -197,13 +202,9 @@ public class Configuration {
 
   public static class Builder {
     private String service = null;
-
     private final List<ProbeDefinition> probes = new ArrayList<>();
-
     private FilterList allowList = null;
-
     private FilterList denyList = null;
-
     private LogProbe.Sampling sampling = null;
 
     public Configuration.Builder setService(String service) {

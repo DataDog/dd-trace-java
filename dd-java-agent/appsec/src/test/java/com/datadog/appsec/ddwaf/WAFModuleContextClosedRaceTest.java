@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.datadog.appsec.config.AppSecModuleConfigurer;
 import com.datadog.appsec.config.TraceSegmentPostProcessor;
 import com.datadog.appsec.event.ChangeableFlow;
@@ -38,12 +37,9 @@ import org.junit.jupiter.api.Test;
  * between the {@code isWafContextClosed()} fast-path check and context creation (APPSEC-69085).
  */
 class WAFModuleContextClosedRaceTest {
-
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
-
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
   private WafBuilder wafBuilder;
   private WAFModule wafModule;
   private DataListener dataListener;
@@ -62,17 +58,18 @@ class WAFModuleContextClosedRaceTest {
     wafModule.setWafBuilder(wafBuilder);
     AppSecModuleConfigurer.SubconfigListener[] captured =
         new AppSecModuleConfigurer.SubconfigListener[1];
-    wafModule.config(
-        new AppSecModuleConfigurer() {
-          @Override
-          public void addSubConfigListener(
-              String key, AppSecModuleConfigurer.SubconfigListener listener) {
-            captured[0] = listener;
-          }
+    wafModule.config(new AppSecModuleConfigurer() {
+      @Override
+      public void addSubConfigListener(
+          String key,
+          AppSecModuleConfigurer.SubconfigListener listener
+      ) {
+        captured[0] = listener;
+      }
 
-          @Override
-          public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {}
-        });
+      @Override
+      public void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor) {}
+    });
     captured[0].onNewSubconfig(null, AppSecModuleConfigurer.Reconfiguration.NOOP);
     dataListener = wafModule.getDataSubscriptions().iterator().next();
   }
@@ -94,13 +91,19 @@ class WAFModuleContextClosedRaceTest {
     GatewayContext gwCtx = new GatewayContext(false);
 
     dataListener.onDataAvailable(
-        flow, reqCtx, MapDataBundle.ofDelegate(Collections.emptyMap()), gwCtx);
+        flow,
+        reqCtx,
+        MapDataBundle.ofDelegate(Collections.emptyMap()),
+        gwCtx
+    );
 
     assertFalse(flow.isBlocking());
     WafMetricCollector.get().prepareMetrics();
-    boolean sawContextClosedRace =
-        WafMetricCollector.get().drain().stream()
-            .anyMatch(m -> "waf.context_closed_race".equals(m.metricName));
+    boolean sawContextClosedRace = WafMetricCollector
+      .get()
+      .drain()
+      .stream()
+      .anyMatch(m -> "waf.context_closed_race".equals(m.metricName));
     assertTrue(sawContextClosedRace, "expected waf.context_closed_race to be reported");
   }
 
@@ -114,7 +117,11 @@ class WAFModuleContextClosedRaceTest {
     GatewayContext gwCtx = new GatewayContext(false, RuleType.LFI);
 
     dataListener.onDataAvailable(
-        flow, reqCtx, MapDataBundle.ofDelegate(Collections.emptyMap()), gwCtx);
+        flow,
+        reqCtx,
+        MapDataBundle.ofDelegate(Collections.emptyMap()),
+        gwCtx
+    );
 
     assertFalse(flow.isBlocking());
     WafMetricCollector.get().prepareMetrics();
@@ -122,12 +129,15 @@ class WAFModuleContextClosedRaceTest {
     // reserved for calls that never attempted eval (e.g. the isWafContextClosed() fast path), so
     // it must not also be reported here - otherwise the same callback is double-counted.
     Collection<WafMetricCollector.WafMetric> metrics = WafMetricCollector.get().drain();
-    boolean sawRaspEval = metrics.stream().anyMatch(m -> "rasp.rule.eval".equals(m.metricName));
+    boolean sawRaspEval = metrics
+      .stream()
+      .anyMatch(m -> "rasp.rule.eval".equals(m.metricName));
     boolean sawRaspSkipped =
-        metrics.stream().anyMatch(m -> "rasp.rule.skipped".equals(m.metricName));
+        metrics
+      .stream()
+      .anyMatch(m -> "rasp.rule.skipped".equals(m.metricName));
     assertTrue(sawRaspEval, "expected rasp.rule.eval to be reported");
-    assertFalse(
-        sawRaspSkipped, "rasp.rule.skipped must not double-count an already-evaluated call");
+    assertFalse(sawRaspSkipped, "rasp.rule.skipped must not double-count an already-evaluated call");
   }
 
   /**
@@ -157,17 +167,26 @@ class WAFModuleContextClosedRaceTest {
     GatewayContext gwCtx = new GatewayContext(false);
 
     dataListener.onDataAvailable(
-        flow, reqCtx, MapDataBundle.ofDelegate(Collections.emptyMap()), gwCtx);
+        flow,
+        reqCtx,
+        MapDataBundle.ofDelegate(Collections.emptyMap()),
+        gwCtx
+    );
 
     assertFalse(flow.isBlocking());
     WafMetricCollector.get().prepareMetrics();
     Collection<WafMetricCollector.WafMetric> metrics = WafMetricCollector.get().drain();
     boolean sawContextClosedRace =
-        metrics.stream().anyMatch(m -> "waf.context_closed_race".equals(m.metricName));
-    boolean sawErrorCode = metrics.stream().anyMatch(m -> "waf.error".equals(m.metricName));
+        metrics
+      .stream()
+      .anyMatch(m -> "waf.context_closed_race".equals(m.metricName));
+    boolean sawErrorCode = metrics
+      .stream()
+      .anyMatch(m -> "waf.error".equals(m.metricName));
     assertTrue(sawContextClosedRace, "expected waf.context_closed_race to be reported");
     assertFalse(
         sawErrorCode,
-        "a benign context-closed race must not be double-counted as a real WAF error");
+        "a benign context-closed race must not be double-counted as a real WAF error"
+    );
   }
 }

@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,7 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class DollarVariableInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   static final String FREEMARKER_CORE = "freemarker.core";
 
   public DollarVariableInstrumentation() {
@@ -53,18 +54,20 @@ public class DollarVariableInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("accept")
-            .and(isMethod())
-            .and(takesArgument(0, named(FREEMARKER_CORE + ".Environment"))),
-        DollarVariableInstrumentation.class.getName() + "$DollarVariableAdvice");
+        named("accept").and(isMethod()).and(
+            takesArgument(0, named(FREEMARKER_CORE + ".Environment"))
+        ),
+        DollarVariableInstrumentation.class.getName() + "$DollarVariableAdvice"
+    );
   }
 
   public static class DollarVariableAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.XSS)
     public static void onEnter(
-        @Advice.Argument(0) final Environment environment, @Advice.This final Object self) {
+        @Advice.Argument(0) final Environment environment,
+        @Advice.This final Object self
+    ) {
       if (environment == null || self == null) {
         return;
       }

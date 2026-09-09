@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public final class Codec extends ClassValue<ValueWriter<?>> {
-
   public static final Codec INSTANCE;
 
   static {
@@ -115,7 +114,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class IntArrayWriter implements ValueWriter<int[]> {
-
     @Override
     public void write(int[] value, Writable packer, EncodingCache encodingCache) {
       packer.startArray(value.length);
@@ -126,7 +124,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class ShortArrayWriter implements ValueWriter<short[]> {
-
     @Override
     public void write(short[] value, Writable packer, EncodingCache encodingCache) {
       packer.startArray(value.length);
@@ -137,7 +134,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class ByteArrayWriter implements ValueWriter<byte[]> {
-
     @Override
     public void write(byte[] value, Writable packer, EncodingCache encodingCache) {
       packer.writeBinary(value, 0, value.length);
@@ -145,7 +141,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class ByteBufferWriter implements ValueWriter<ByteBuffer> {
-
     @Override
     public void write(ByteBuffer buffer, Writable packer, EncodingCache encodingCache) {
       packer.writeBinary(buffer);
@@ -153,7 +148,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class BooleanArrayWriter implements ValueWriter<boolean[]> {
-
     @Override
     public void write(boolean[] value, Writable packer, EncodingCache encodingCache) {
       packer.startArray(value.length);
@@ -164,7 +158,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class DoubleArrayWriter implements ValueWriter<double[]> {
-
     @Override
     public void write(double[] value, Writable packer, EncodingCache encodingCache) {
       packer.startArray(value.length);
@@ -175,7 +168,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class FloatArrayWriter implements ValueWriter<float[]> {
-
     @Override
     public void write(float[] value, Writable packer, EncodingCache encodingCache) {
       packer.startArray(value.length);
@@ -186,7 +178,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class LongArrayWriter implements ValueWriter<long[]> {
-
     @Override
     public void write(long[] value, Writable packer, EncodingCache encodingCache) {
       packer.startArray(value.length);
@@ -197,7 +188,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class CollectionWriter implements ValueWriter<Collection<?>> {
-
     @Override
     public void write(Collection<?> collection, Writable packer, EncodingCache encodingCache) {
       packer.startArray(collection.size());
@@ -208,7 +198,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class ObjectArrayWriter implements ValueWriter<Object[]> {
-
     @Override
     public void write(Object[] array, Writable packer, EncodingCache encodingCache) {
       packer.startArray(array.length);
@@ -219,16 +208,17 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class MapWriter implements ValueWriter<Map<? extends CharSequence, Object>> {
-
     @Override
     public void write(
-        Map<? extends CharSequence, Object> value, Writable packer, EncodingCache encodingCache) {
+        Map<? extends CharSequence, Object> value,
+        Writable packer,
+        EncodingCache encodingCache
+    ) {
       packer.writeMap(value, encodingCache);
     }
   }
 
   private static final class DoubleWriter implements ValueWriter<Double> {
-
     @Override
     public void write(Double value, Writable packer, EncodingCache encodingCache) {
       packer.writeDouble(value);
@@ -236,7 +226,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class BooleanWriter implements ValueWriter<Boolean> {
-
     @Override
     public void write(Boolean value, Writable packer, EncodingCache encodingCache) {
       packer.writeBoolean(value);
@@ -244,7 +233,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class FloatWriter implements ValueWriter<Float> {
-
     @Override
     public void write(Float value, Writable packer, EncodingCache encodingCache) {
       packer.writeFloat(value);
@@ -252,7 +240,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class IntWriter implements ValueWriter<Integer> {
-
     @Override
     public void write(Integer value, Writable packer, EncodingCache encodingCache) {
       packer.writeInt(value);
@@ -260,7 +247,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class ShortWriter implements ValueWriter<Short> {
-
     @Override
     public void write(Short value, Writable packer, EncodingCache encodingCache) {
       packer.writeInt(value);
@@ -268,7 +254,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class LongWriter implements ValueWriter<Long> {
-
     @Override
     public void write(Long value, Writable packer, EncodingCache encodingCache) {
       packer.writeLong(value);
@@ -276,7 +261,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class NumberDoubleWriter implements ValueWriter<Number> {
-
     @Override
     public void write(Number value, Writable packer, EncodingCache encodingCache) {
       packer.writeDouble(value.doubleValue());
@@ -284,7 +268,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class CharSequenceWriter implements ValueWriter<CharSequence> {
-
     public static final CharSequenceWriter INSTANCE = new CharSequenceWriter();
 
     @Override
@@ -294,7 +277,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class CharArrayWriter implements ValueWriter<char[]> {
-
     @Override
     public void write(char[] value, Writable packer, EncodingCache encodingCache) {
       packer.writeString(CharBuffer.wrap(value), null);
@@ -302,7 +284,6 @@ public final class Codec extends ClassValue<ValueWriter<?>> {
   }
 
   private static final class DefaultWriter implements ValueWriter<Object> {
-
     public static final DefaultWriter INSTANCE = new DefaultWriter();
 
     @Override

@@ -1,7 +1,6 @@
 package datadog.smoketest.springboot.controller;
 
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
-
 import datadog.smoketest.springboot.model.Fruit;
 import datadog.smoketest.springboot.repository.FruitRepository;
 import org.springframework.context.annotation.Bean;
@@ -15,19 +14,16 @@ import reactor.core.publisher.Mono;
 public class FruitRouter {
   @Bean
   RouterFunction<ServerResponse> routes(final FruitRepository repository) {
-    return route(
-            RequestPredicates.GET("/fruits"),
-            request ->
-                ServerResponse.ok()
-                    .body(Mono.fromSupplier(() -> repository.findAll()), Fruit.class))
-        .and(
-            route(
-                RequestPredicates.GET("/fruits/{name}"),
-                request ->
-                    ServerResponse.ok()
-                        .body(
-                            Mono.fromSupplier(
-                                () -> repository.findByName(request.pathVariable("name"))),
-                            Fruit.class)));
+    return route(RequestPredicates.GET("/fruits"), request -> ServerResponse
+      .ok()
+      .body(Mono.fromSupplier(() -> repository.findAll()), Fruit.class))
+      .and(
+          route(RequestPredicates.GET("/fruits/{name}"), request -> ServerResponse
+            .ok()
+            .body(
+                Mono.fromSupplier(() -> repository.findByName(request.pathVariable("name"))),
+                Fruit.class
+            ))
+      );
   }
 }

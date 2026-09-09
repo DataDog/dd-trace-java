@@ -3,7 +3,6 @@ package datadog.trace.api.llmobs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -11,7 +10,6 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class LLMObsSamplerTest {
-
   @Test
   void keepsEverythingAtRateOne() {
     LLMObsSampler sampler = new LLMObsSampler(1.0);
@@ -45,16 +43,16 @@ class LLMObsSamplerTest {
 
   @ParameterizedTest
   @CsvSource({
-    "1.0, 1",
-    "0.0, 0",
-    "0.5, 0.5",
-    "0.25, 0.25",
-    "0.1, 0.1",
-    "0.123456, 0.123456",
-    // Beyond 6 digits of precision the rate rounds, matching the _dd.p.ksr format exactly.
-    "0.1234567, 0.123457",
-    "0.0000001, 0",
-    "0.999999, 0.999999",
+      "1.0, 1",
+      "0.0, 0",
+      "0.5, 0.5",
+      "0.25, 0.25",
+      "0.1, 0.1",
+      "0.123456, 0.123456",
+      // Beyond 6 digits of precision the rate rounds, matching the _dd.p.ksr format exactly.
+      "0.1234567, 0.123457",
+      "0.0000001, 0",
+      "0.999999, 0.999999"
   })
   void formatsRateLikeKnuthSamplingRateTag(double rate, String expected) {
     assertEquals(expected, LLMObsSampler.formatRate(rate));
@@ -87,7 +85,8 @@ class LLMObsSamplerTest {
     double observed = (double) kept / iterations;
     assertTrue(
         Math.abs(observed - rate) < 0.02,
-        "expected ~" + rate + " of traces kept but observed " + observed);
+        "expected ~" + rate + " of traces kept but observed " + observed
+    );
   }
 
   @Test

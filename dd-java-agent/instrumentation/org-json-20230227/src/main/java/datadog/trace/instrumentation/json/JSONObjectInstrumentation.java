@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,7 +21,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JSONObjectInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JSONObjectInstrumentation() {
     super("org-json");
   }
@@ -50,18 +51,21 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
     // public JSONObject(JSONTokener x)
     transformer.applyAdvice(
         isConstructor().and(takesArguments(1)).and(takesArgument(0, named("org.json.JSONTokener"))),
-        getClass().getName() + "$ConstructorAdvice");
+        getClass().getName() + "$ConstructorAdvice"
+    );
     // private JSONObject(Map<?, ?> m)
     transformer.applyAdvice(
         isConstructor().and(takesArguments(1)).and(takesArgument(0, Map.class)),
-        getClass().getName() + "$ConstructorAdvice");
+        getClass().getName() + "$ConstructorAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(returns(Object.class))
-            .and(named("opt"))
-            .and(takesArguments(String.class)),
-        packageName + ".OptAdvice");
+          .and(isPublic())
+          .and(returns(Object.class))
+          .and(named("opt"))
+          .and(takesArguments(String.class)),
+        packageName + ".OptAdvice"
+    );
   }
 
   public static class ConstructorAdvice {

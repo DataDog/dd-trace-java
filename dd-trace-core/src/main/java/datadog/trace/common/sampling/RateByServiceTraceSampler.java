@@ -22,16 +22,12 @@ import org.slf4j.LoggerFactory;
  * <p>The configuration of (serviceName,env)->rate is configured by the core agent.
  */
 public class RateByServiceTraceSampler implements Sampler, PrioritySampler, RemoteResponseListener {
-
   private static final Logger log = LoggerFactory.getLogger(RateByServiceTraceSampler.class);
   public static final String SAMPLING_AGENT_RATE = "_dd.agent_psr";
-
   private static final double DEFAULT_RATE = 1.0;
   private static final double MAX_RATE_INCREASE_FACTOR = 2.0;
   static final long RAMP_UP_INTERVAL_NANOS = 1_000_000_000L;
-
   private final TimeSource timeSource;
-
   private volatile RateSamplersByEnvAndService serviceRates = new RateSamplersByEnvAndService();
   private long lastCappedNanos;
 
@@ -50,7 +46,9 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     return true;
   }
 
-  /** If span is a root span, set the span context samplingPriority to keep or drop */
+  /**
+   * If span is a root span, set the span context samplingPriority to keep or drop
+   */
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
     final String serviceName = span.getServiceName();
@@ -64,13 +62,15 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
           PrioritySampling.SAMPLER_KEEP,
           SAMPLING_AGENT_RATE,
           sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
+          SamplingMechanism.AGENT_RATE
+      );
     } else {
       span.setSamplingPriority(
           PrioritySampling.SAMPLER_DROP,
           SAMPLING_AGENT_RATE,
           sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
+          SamplingMechanism.AGENT_RATE
+      );
     }
   }
 
@@ -97,8 +97,7 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
   }
 
   @Override
-  public void onResponse(
-      final String endpoint, final Map<String, Map<String, Number>> responseJson) {
+  public void onResponse(final String endpoint, final Map<String, Map<String, Number>> responseJson) {
     final Map<String, Number> newServiceRates = responseJson.get("rate_by_service");
 
     if (null == newServiceRates) {
@@ -138,8 +137,8 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
       } else {
         double oldRate =
             currentSnapshot
-                .getSampler(envAndService.lowerEnv, envAndService.lowerService)
-                .getSampleRate();
+          .getSampler(envAndService.lowerEnv, envAndService.lowerService)
+          .getSampleRate();
         if (shouldCap(oldRate, rate)) {
           if (canIncrease) {
             rate = cappedRate(oldRate);
@@ -149,13 +148,13 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
           }
         }
         final double effectiveRate = rate;
-        Map<String, RateSampler> serviceRates =
-            updatedEnvServiceRates.computeIfAbsent(
-                envAndService.lowerEnv, env -> new TreeMap<>(String::compareToIgnoreCase));
+        Map<String, RateSampler> serviceRates = updatedEnvServiceRates.computeIfAbsent(envAndService.lowerEnv, env -> new TreeMap<>(
+            String::compareToIgnoreCase
+        ));
 
-        serviceRates.computeIfAbsent(
-            envAndService.lowerService,
-            service -> RateByServiceTraceSampler.createRateSampler(effectiveRate));
+        serviceRates.computeIfAbsent(envAndService.lowerService, service -> RateByServiceTraceSampler.createRateSampler(
+            effectiveRate
+        ));
       }
     }
     if (canIncrease && anyCapped) {
@@ -180,7 +179,6 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
   private static final class RateSamplersByEnvAndService {
     private static final RateSampler DEFAULT_SAMPLER = createRateSampler(DEFAULT_RATE);
-
     private final Map<String, TreeMap<String, RateSampler>> envServiceRates;
     private final RateSampler fallbackSampler;
 
@@ -189,7 +187,9 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     }
 
     RateSamplersByEnvAndService(
-        Map<String, TreeMap<String, RateSampler>> envServiceRates, RateSampler fallbackSampler) {
+        Map<String, TreeMap<String, RateSampler>> envServiceRates,
+        RateSampler fallbackSampler
+    ) {
       this.envServiceRates = envServiceRates;
       this.fallbackSampler = fallbackSampler;
     }
@@ -219,32 +219,27 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
   private static final class EnvAndService {
     private static final DDCache<String, EnvAndService> CACHE = DDCaches.newFixedSizeCache(32);
-
     private static final Function<String, EnvAndService> PARSE =
         new Function<String, EnvAndService>() {
+      @Override
+      public EnvAndService apply(String key) {
+        // "service:,env:"
+        int serviceStart = key.indexOf(':') + 1;
+        int serviceEnd = key.indexOf(',', serviceStart);
+        int envStart = key.indexOf(':', serviceEnd) + 1;
+        int envEnd = key.length();
+        // both empty or at least one invalid
+        if ((serviceStart == serviceEnd && envStart == envEnd)
+            || (serviceStart | serviceEnd | envStart) < 0) {
+          return FALLBACK;
+        }
 
-          @Override
-          public EnvAndService apply(String key) {
-            // "service:,env:"
-            int serviceStart = key.indexOf(':') + 1;
-            int serviceEnd = key.indexOf(',', serviceStart);
-            int envStart = key.indexOf(':', serviceEnd) + 1;
-            int envEnd = key.length();
-
-            // both empty or at least one invalid
-            if ((serviceStart == serviceEnd && envStart == envEnd)
-                || (serviceStart | serviceEnd | envStart) < 0) {
-              return FALLBACK;
-            }
-
-            String service = key.substring(serviceStart, serviceEnd);
-            String env = key.substring(envStart);
-
-            // EnvAndService will toLower the values
-            return new EnvAndService(env, service);
-          }
-        };
-
+        String service = key.substring(serviceStart, serviceEnd);
+        String env = key.substring(envStart);
+        // EnvAndService will toLower the values
+        return new EnvAndService(env, service);
+      }
+    };
     static final EnvAndService FALLBACK = new EnvAndService("", "");
 
     public static EnvAndService fromString(String key) {

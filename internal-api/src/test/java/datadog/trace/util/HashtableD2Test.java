@@ -6,13 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class HashtableD2Test {
-
   @Test
   void pairKeysParticipateInIdentity() {
     Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
@@ -83,14 +81,10 @@ class HashtableD2Test {
   void getOrCreateOnMissBuildsEntryViaCreator() {
     Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
     int[] createCount = {0};
-    PairEntry created =
-        table.getOrCreate(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 100);
-            });
+    PairEntry created = table.getOrCreate("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 100);
+    });
     assertNotNull(created);
     assertEquals("a", created.key1);
     assertEquals(Integer.valueOf(1), created.key2);
@@ -106,14 +100,10 @@ class HashtableD2Test {
     PairEntry seeded = new PairEntry("a", 1, 100);
     table.insert(seeded);
     int[] createCount = {0};
-    PairEntry got =
-        table.getOrCreate(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 999);
-            });
+    PairEntry got = table.getOrCreate("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);

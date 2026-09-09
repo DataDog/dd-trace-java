@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,11 +20,11 @@ import org.jboss.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketFrame;
 
 public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstreamHandler {
-
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
   public WebSocketServerResponseTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
+      final ContextStore<Channel, ChannelTraceContext> contextStore
+  ) {
     this.contextStore = contextStore;
   }
 
@@ -39,13 +38,14 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
       if (traceContext != null) {
         HandlerContext.Sender handlerContext = traceContext.getSenderHandlerContext();
         if (handlerContext != null) {
-
           if (frame instanceof TextWebSocketFrame) {
             // WebSocket Write Text Start
             TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
-            final AgentSpan span =
-                DECORATE.startOutboundFrameSpan(
-                    handlerContext, MESSAGE_TYPE_TEXT, textFrame.getText().length());
+            final AgentSpan span = DECORATE.startOutboundFrameSpan(
+                handlerContext,
+                MESSAGE_TYPE_TEXT,
+                textFrame.getText().length()
+            );
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {
@@ -60,11 +60,11 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
           if (frame instanceof BinaryWebSocketFrame) {
             // WebSocket Write Binary Start
             BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
-            final AgentSpan span =
-                DECORATE.startOutboundFrameSpan(
-                    handlerContext,
-                    MESSAGE_TYPE_BINARY,
-                    binaryFrame.getBinaryData().readableBytes());
+            final AgentSpan span = DECORATE.startOutboundFrameSpan(
+                handlerContext,
+                MESSAGE_TYPE_BINARY,
+                binaryFrame.getBinaryData().readableBytes()
+            );
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {
@@ -79,13 +79,13 @@ public class WebSocketServerResponseTracingHandler extends SimpleChannelDownstre
           if (frame instanceof ContinuationWebSocketFrame) {
             ContinuationWebSocketFrame continuationWebSocketFrame =
                 (ContinuationWebSocketFrame) frame;
-            final AgentSpan span =
-                DECORATE.startOutboundFrameSpan(
-                    handlerContext,
-                    handlerContext.getMessageType(),
-                    MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
-                        ? continuationWebSocketFrame.getText().length()
-                        : continuationWebSocketFrame.getBinaryData().readableBytes());
+            final AgentSpan span = DECORATE.startOutboundFrameSpan(
+                handlerContext,
+                handlerContext.getMessageType(),
+                MESSAGE_TYPE_TEXT.equals(handlerContext.getMessageType())
+                ? continuationWebSocketFrame.getText().length()
+                : continuationWebSocketFrame.getBinaryData().readableBytes()
+            );
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendDownstream(event);
             } finally {

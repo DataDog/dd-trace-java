@@ -18,18 +18,20 @@ public class CloudNamingV0 implements NamingSchema.ForCloud {
   public String operationForRequest(
       @Nonnull final String provider,
       @Nonnull final String cloudService,
-      @Nonnull final String qualifiedOperation) {
+      @Nonnull final String qualifiedOperation
+  ) {
     // only aws sdk is right now implemented
     return "aws.http";
   }
 
   @Override
   public String serviceForRequest(
-      @Nonnull final String provider, @Nullable final String cloudService) {
+      @Nonnull final String provider,
+      @Nullable final String cloudService
+  ) {
     if (!allowInferredServices) {
       return null;
     }
-
     // we only manage aws. Future switch for other cloud providers will be needed in the future
     if (cloudService == null) {
       ServiceNameCollector.get().addService(JAVA_AWS_SDK);

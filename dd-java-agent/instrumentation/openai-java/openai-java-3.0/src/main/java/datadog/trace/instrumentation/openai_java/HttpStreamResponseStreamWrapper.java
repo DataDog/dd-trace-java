@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
-
 import com.openai.core.http.StreamResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -15,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 public final class HttpStreamResponseStreamWrapper<T> implements StreamResponse<T> {
   private static final Logger log = LoggerFactory.getLogger(HttpStreamResponseStreamWrapper.class);
-
   private final AgentSpan span;
   private final BiConsumer<AgentSpan, List<T>> decorate;
   private final List<T> chunks;
@@ -23,7 +21,10 @@ public final class HttpStreamResponseStreamWrapper<T> implements StreamResponse<
   private final AtomicBoolean finished = new AtomicBoolean(false);
 
   HttpStreamResponseStreamWrapper(
-      AgentSpan span, BiConsumer<AgentSpan, List<T>> decorate, StreamResponse<T> parsed) {
+      AgentSpan span,
+      BiConsumer<AgentSpan, List<T>> decorate,
+      StreamResponse<T> parsed
+  ) {
     this.span = span;
     this.decorate = decorate;
     this.parsed = parsed;

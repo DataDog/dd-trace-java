@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "org.springframework.web.reactive.HandlerAdapter";
@@ -33,20 +33,20 @@ public final class HandlerAdapterInstrumentation extends AbstractWebfluxInstrume
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.reactivestreams.Publisher", HandoffContext.class.getName());
+    return Collections.singletonMap("org.reactivestreams.Publisher", HandoffContext.class.getName());
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("handle"))
-            .and(takesArgument(0, named("org.springframework.web.server.ServerWebExchange")))
-            .and(takesArgument(1, named("java.lang.Object")))
-            .and(takesArguments(2)),
+          .and(isPublic())
+          .and(named("handle"))
+          .and(takesArgument(0, named("org.springframework.web.server.ServerWebExchange")))
+          .and(takesArgument(1, named("java.lang.Object")))
+          .and(takesArguments(2)),
         // Cannot reference class directly here because it would lead to class load failure on Java7
-        packageName + ".HandlerAdapterAdvice");
+        packageName + ".HandlerAdapterAdvice"
+    );
   }
 }

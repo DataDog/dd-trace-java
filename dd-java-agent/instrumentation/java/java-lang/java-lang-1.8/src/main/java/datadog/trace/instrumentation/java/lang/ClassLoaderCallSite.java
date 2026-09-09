@@ -11,7 +11,6 @@ import javax.annotation.Nonnull;
 @Sink(VulnerabilityTypes.REFLECTION_INJECTION)
 @CallSite(spi = IastCallSites.class)
 public class ClassLoaderCallSite {
-
   @CallSite.Before("java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String)")
   public static void beforeLoadClass(@CallSite.Argument(0) @Nonnull final String className) {
     final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;

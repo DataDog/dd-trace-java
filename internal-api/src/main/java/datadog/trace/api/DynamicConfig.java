@@ -13,7 +13,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableMap;
 import static datadog.trace.util.ConfigStrings.normalizedHeaderTag;
 import static datadog.trace.util.ConfigStrings.trim;
-
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
@@ -40,16 +39,12 @@ import org.slf4j.LoggerFactory;
  */
 public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static final Logger rootLogger = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-
   static final Function<Map.Entry<String, String>, String> KEY = DynamicConfig::key;
   static final Function<Map.Entry<String, String>, String> VALUE = DynamicConfig::value;
   static final Function<Map.Entry<String, String>, String> LOWER_KEY = DynamicConfig::lowerKey;
   static final Function<Map.Entry<String, String>, String> REQUEST_TAG = DynamicConfig::requestTag;
-  static final Function<Map.Entry<String, String>, String> RESPONSE_TAG =
-      DynamicConfig::responseTag;
-
+  static final Function<Map.Entry<String, String>, String> RESPONSE_TAG = DynamicConfig::responseTag;
   BiFunction<Builder, S, S> snapshotFactory;
-
   S initialSnapshot;
   volatile S currentSnapshot;
 
@@ -57,33 +52,46 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     this.snapshotFactory = snapshotFactory;
   }
 
-  /** Dynamic configuration that uses the default snapshot type. */
+  /**
+   * Dynamic configuration that uses the default snapshot type.
+   */
   public static DynamicConfig<Snapshot>.Builder create() {
     return new DynamicConfig<>(Snapshot::new).new Builder();
   }
 
-  /** Dynamic configuration that wants to add its own state to the snapshot. */
+  /**
+   * Dynamic configuration that wants to add its own state to the snapshot.
+   */
   public static <S extends DynamicConfig.Snapshot> DynamicConfig<S>.Builder create(
-      BiFunction<DynamicConfig<S>.Builder, S, S> snapshotFactory) {
+      BiFunction<DynamicConfig<S>.Builder, S, S> snapshotFactory
+  ) {
     return new DynamicConfig<S>(snapshotFactory).new Builder();
   }
 
-  /** Captures a snapshot of the configuration at the start of a trace. */
+  /**
+   * Captures a snapshot of the configuration at the start of a trace.
+   */
   public S captureTraceConfig() {
     return currentSnapshot;
   }
 
-  /** Start building a new configuration based on its initial state. */
+  /**
+   * Start building a new configuration based on its initial state.
+   */
   public Builder initial() {
     return new Builder(initialSnapshot);
   }
 
-  /** Start building a new configuration based on its current state. */
+  /**
+   * Start building a new configuration based on its current state.
+   */
   public Builder current() {
     return new Builder(currentSnapshot);
   }
 
-  /** Reset the configuration to its initial state. */
+  /**
+   * Reset the configuration to its initial state.
+   */
   public void resetTraceConfig() {
     currentSnapshot = initialSnapshot;
     reportConfigChange(initialSnapshot);
@@ -99,25 +107,22 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     boolean runtimeMetricsEnabled;
     boolean logsInjectionEnabled;
     boolean dataStreamsEnabled;
-
     Map<String, String> serviceMapping;
     Map<String, String> requestHeaderTags;
     Map<String, String> responseHeaderTags;
     Map<String, String> tracingTags;
     Map<String, String> baggageMapping;
-
     List<? extends SpanSamplingRule> spanSamplingRules;
     List<? extends TraceSamplingRule> traceSamplingRules;
     String traceSamplingRulesJson;
     Double traceSampleRate;
-
     Pair<String, CharSequence> preferredServiceNameAndSource;
     List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
 
-    Builder() {}
+    Builder() {
+    }
 
     Builder(Snapshot snapshot) {
-
       this.tracingEnabled = snapshot.tracingEnabled;
       this.runtimeMetricsEnabled = snapshot.runtimeMetricsEnabled;
       this.logsInjectionEnabled = snapshot.logsInjectionEnabled;
@@ -155,7 +160,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setDataStreamsTransactionExtractors(
-        List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors) {
+        List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors
+    ) {
       this.dataStreamsTransactionExtractors = dataStreamsTransactionExtractors;
       return this;
     }
@@ -181,8 +187,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return setBaggageMapping(baggageMapping.entrySet());
     }
 
-    public Builder setServiceMapping(
-        Collection<? extends Map.Entry<String, String>> serviceMapping) {
+    public Builder setServiceMapping(Collection<? extends Map.Entry<String, String>> serviceMapping) {
       this.serviceMapping = cleanMapping(serviceMapping, KEY, VALUE);
       return this;
     }
@@ -193,8 +198,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return this;
     }
 
-    public Builder setBaggageMapping(
-        Collection<? extends Map.Entry<String, String>> baggageMapping) {
+    public Builder setBaggageMapping(Collection<? extends Map.Entry<String, String>> baggageMapping) {
       this.baggageMapping = cleanMapping(baggageMapping, LOWER_KEY, VALUE);
       return this;
     }
@@ -210,7 +214,9 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setTraceSamplingRules(
-        List<? extends TraceSamplingRule> traceSamplingRules, String traceSamplingRulesJson) {
+        List<? extends TraceSamplingRule> traceSamplingRules,
+        String traceSamplingRulesJson
+    ) {
       this.traceSamplingRules = traceSamplingRules;
       this.traceSamplingRulesJson = traceSamplingRulesJson;
       return this;
@@ -227,17 +233,22 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     public Builder setPreferredServiceNameAndSource(
-        String preferredServiceName, CharSequence source) {
+        String preferredServiceName,
+        CharSequence source
+    ) {
       this.preferredServiceNameAndSource = Pair.of(preferredServiceName, source);
       return this;
     }
 
-    /** Overwrites the current configuration with a new snapshot. */
+    /**
+     * Overwrites the current configuration with a new snapshot.
+     */
     public DynamicConfig<S> apply() {
       S oldSnapshot = currentSnapshot;
       S newSnapshot = snapshotFactory.apply(this, oldSnapshot);
       if (null == oldSnapshot) {
-        initialSnapshot = newSnapshot; // captured when constructing the dynamic config
+        // captured when constructing the dynamic config
+        initialSnapshot = newSnapshot;
         currentSnapshot = newSnapshot;
       } else {
         currentSnapshot = newSnapshot;
@@ -250,7 +261,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   static Map<String, String> cleanMapping(
       Collection<? extends Map.Entry<String, String>> mapping,
       Function<Map.Entry<String, String>, String> keyMapper,
-      Function<Map.Entry<String, String>, String> valueMapper) {
+      Function<Map.Entry<String, String>, String> valueMapper
+  ) {
     final Map<String, String> cleanedMapping = new HashMap<>(mapping.size() * 4 / 3);
     for (Map.Entry<String, String> association : mapping) {
       cleanedMapping.put(keyMapper.apply(association), valueMapper.apply(association));
@@ -314,30 +326,27 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
   }
 
-  /** Immutable snapshot of the configuration. */
+  /**
+   * Immutable snapshot of the configuration.
+   */
   public static class Snapshot implements TraceConfig {
     final boolean tracingEnabled;
     final boolean runtimeMetricsEnabled;
     final boolean logsInjectionEnabled;
     final boolean dataStreamsEnabled;
-
     final Map<String, String> serviceMapping;
     final Map<String, String> requestHeaderTags;
     final Map<String, String> responseHeaderTags;
     final Map<String, String> baggageMapping;
-
     final List<? extends SpanSamplingRule> spanSamplingRules;
     final List<? extends TraceSamplingRule> traceSamplingRules;
     final String traceSamplingRulesJson;
-
     final Double traceSampleRate;
     final Map<String, String> tracingTags;
-
     final Pair<String, CharSequence> preferredServiceNameAndSource;
     final List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
-
       this.tracingEnabled = builder.tracingEnabled;
       this.runtimeMetricsEnabled = builder.runtimeMetricsEnabled;
       this.logsInjectionEnabled = builder.logsInjectionEnabled;

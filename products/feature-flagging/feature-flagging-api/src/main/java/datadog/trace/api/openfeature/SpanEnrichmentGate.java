@@ -11,15 +11,17 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
  * (once at class load) read it the same way.
  */
 final class SpanEnrichmentGate {
-
-  private SpanEnrichmentGate() {}
+  private SpanEnrichmentGate() {
+  }
 
   static boolean isEnabled() {
     try {
-      return ConfigProvider.getInstance()
-          .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
+      return ConfigProvider
+        .getInstance()
+        .getBoolean(FeatureFlaggingConfig.EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED, false);
     } catch (final Throwable t) {
-      return false; // never let config reading break construction
+      // never let config reading break construction
+      return false;
     }
   }
 }

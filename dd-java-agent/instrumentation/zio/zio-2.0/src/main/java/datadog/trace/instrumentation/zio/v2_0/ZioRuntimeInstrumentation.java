@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.zio.v2_0;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,8 +19,10 @@ import zio.Supervisor;
 
 @AutoService(InstrumenterModule.class)
 public class ZioRuntimeInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider
+{
   public ZioRuntimeInstrumentation() {
     super("zio.experimental");
   }
@@ -39,7 +40,9 @@ public class ZioRuntimeInstrumentation extends InstrumenterModule.ContextTrackin
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("defaultSupervisor")), getClass().getName() + "$DefaultSupervisor");
+        isMethod().and(named("defaultSupervisor")),
+        getClass().getName() + "$DefaultSupervisor"
+    );
   }
 
   @Override
@@ -55,7 +58,9 @@ public class ZioRuntimeInstrumentation extends InstrumenterModule.ContextTrackin
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
     return Collections.singletonMap(
-        ExcludeFilter.ExcludeType.RUNNABLE, Collections.singletonList("zio.internal.FiberRuntime"));
+        ExcludeFilter.ExcludeType.RUNNABLE,
+        Collections.singletonList("zio.internal.FiberRuntime")
+    );
   }
 
   public static final class DefaultSupervisor {

@@ -48,15 +48,18 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 5)
 @Threads(8)
 public class SQLCommenterDuplicateCommentBenchmark {
-
   // Already-DD-commented SQL (append style, comment at the end). First needle hits at different
   // depths: ddps first (cheap), traceparent-only (scans 8 before the match).
   static final String[] SQL = {
-    "SELECT * FROM foo /*ddps='svc',dde='test',dddbs='mydb',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/",
-    "SELECT * FROM bar WHERE id = 42 /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/",
+      "SELECT * FROM foo /*ddps='svc',dde='test',dddbs='mydb',ddh='h',dddb='n',"
+      + "traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/",
+      "SELECT * FROM bar WHERE id = 42 /*traceparent='00-"
+      + "00000000000000007fffffffffffffff-000000024cb016ea-01'*/"
   };
 
-  /** Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}. */
+  /**
+   * Per-thread cursor so threads don't contend on a shared index under {@code @Threads(8)}.
+   */
   @State(Scope.Thread)
   public static class Cursor {
     int index = 0;

@@ -14,9 +14,10 @@ import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
 import java.util.Map;
 
-/** Helper for creating Moshi instances with the right adapters depending on the context */
+/**
+ * Helper for creating Moshi instances with the right adapters depending on the context
+ */
 public class MoshiHelper {
-
   public static Moshi createMoshiConfig() {
     return createMoshiConfigBuilder().build();
   }
@@ -25,21 +26,24 @@ public class MoshiHelper {
     ProbeCondition.ProbeConditionJsonAdapter probeConditionJsonAdapter =
         new ProbeCondition.ProbeConditionJsonAdapter();
     return new Moshi.Builder()
-        .add(ProbeCondition.class, probeConditionJsonAdapter)
-        .add(DebuggerScript.class, probeConditionJsonAdapter)
-        .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
-        .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
-        .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
-        .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter());
+      .add(ProbeCondition.class, probeConditionJsonAdapter)
+      .add(DebuggerScript.class, probeConditionJsonAdapter)
+      .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+      .add(LogProbe.Segment.class, new LogProbe.Segment.SegmentJsonAdapter())
+      .add(Where.SourceLine[].class, new Where.SourceLineAdapter())
+      .add(ProbeDefinition.Tag[].class, new ProbeDefinition.TagAdapter());
   }
 
   public static Moshi createMoshiSnapshot(Duration captureTimeOut) {
     return new Moshi.Builder()
-        .add(new MoshiSnapshotHelper.SnapshotJsonFactory(captureTimeOut))
-        .add(
-            DebuggerScript.class,
-            new ProbeCondition.ProbeConditionJsonAdapter()) // ProbeDetails in Snapshot
-        .build();
+      .add(new MoshiSnapshotHelper.SnapshotJsonFactory(captureTimeOut))
+      // ProbeDetails in Snapshot
+      .add(
+          // ProbeDetails in Snapshot
+          DebuggerScript.class,
+          new ProbeCondition.ProbeConditionJsonAdapter()
+      )
+      .build();
   }
 
   public static Moshi createMoshiProbeStatus() {
@@ -56,6 +60,8 @@ public class MoshiHelper {
   }
 
   public static Moshi createMoshiWatches() {
-    return new Moshi.Builder().add(ValueScript.class, new ValueScript.ValueScriptAdapter()).build();
+    return new Moshi.Builder()
+      .add(ValueScript.class, new ValueScript.ValueScriptAdapter())
+      .build();
   }
 }

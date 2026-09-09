@@ -6,9 +6,10 @@ import java.util.function.Function;
 
 @SuppressFBWarnings(value = "DM_STRING_CTOR", justification = "Unique instance needs constructor")
 public abstract class URIDataAdapterBase implements URIDataAdapter {
-  /** Unique instance that signifies an uninitialized field, to allow for == comparison */
+  /**
+   * Unique instance that signifies an uninitialized field, to allow for == comparison
+   */
   protected static final String UNINITIALIZED = new String("uninitialized");
-
   private String raw = supportsRaw() ? UNINITIALIZED : null;
 
   @Override

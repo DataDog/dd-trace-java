@@ -14,47 +14,43 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
  * must not be modified to depend on JFR, so that it can be installed before tracing starts.
  */
 public class DatadogProfilingIntegration implements ProfilingContextIntegration {
-
   private static final DatadogProfiler DDPROF = DatadogProfiler.newInstance();
   private static final int SPAN_NAME_INDEX = DDPROF.operationNameOffset();
   private static final int RESOURCE_NAME_INDEX = DDPROF.resourceNameOffset();
   private static final boolean WALLCLOCK_ENABLED =
       DatadogProfilerConfig.isWallClockProfilerEnabled();
-
   private static final boolean IS_ENDPOINT_COLLECTION_ENABLED =
       DatadogProfilerConfig.isEndpointTrackingEnabled();
-
   // don't use Config because it may use ThreadPoolExecutor to initialize itself
   private static final boolean IS_PROFILING_QUEUEING_TIME_ENABLED =
       DatadogProfilerConfig.isQueueTimeEnabled();
+  private final Stateful contextManager = new Stateful() {
+    @Override
+    public void close() {
+      // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
+      // app-managed context, so no separate clearContextValue calls are needed.
+      DDPROF.clearTraceContext();
+    }
 
-  private final Stateful contextManager =
-      new Stateful() {
-        @Override
-        public void close() {
-          // clearTraceContext wipes all custom slots (incl. operation/resource) and reapplies
-          // app-managed context, so no separate clearContextValue calls are needed.
-          DDPROF.clearTraceContext();
-        }
-
-        @Override
-        public void activate(Object context) {
-          if (context instanceof ProfilerContext) {
-            ProfilerContext profilerContext = (ProfilerContext) context;
-            // One native call: trace/span context + operation and resource attributes, then
-            // reapply of app-managed context (setTraceContext resets custom slots).
-            DDPROF.setTraceContext(
-                profilerContext.getRootSpanId(),
-                profilerContext.getSpanId(),
-                profilerContext.getTraceIdHigh(),
-                profilerContext.getTraceIdLow(),
-                SPAN_NAME_INDEX,
-                profilerContext.getOperationName(),
-                RESOURCE_NAME_INDEX,
-                profilerContext.getResourceName());
-          }
-        }
-      };
+    @Override
+    public void activate(Object context) {
+      if (context instanceof ProfilerContext) {
+        ProfilerContext profilerContext = (ProfilerContext) context;
+        // One native call: trace/span context + operation and resource attributes, then
+        // reapply of app-managed context (setTraceContext resets custom slots).
+        DDPROF.setTraceContext(
+            profilerContext.getRootSpanId(),
+            profilerContext.getSpanId(),
+            profilerContext.getTraceIdHigh(),
+            profilerContext.getTraceIdLow(),
+            SPAN_NAME_INDEX,
+            profilerContext.getOperationName(),
+            RESOURCE_NAME_INDEX,
+            profilerContext.getResourceName()
+        );
+      }
+    }
+  };
 
   @Override
   public Stateful newScopeState(ProfilerContext profilerContext) {
@@ -101,7 +97,10 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
       CharSequence operationName = rootSpan.getOperationName();
       if (resourceName != null && operationName != null) {
         DDPROF.recordTraceRoot(
-            rootSpan.getSpanId(), resourceName.toString(), operationName.toString());
+            rootSpan.getSpanId(),
+            resourceName.toString(),
+            operationName.toString()
+        );
       }
     }
   }
@@ -124,7 +123,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
    * we'll create a singleton to avoid returning null and risking NPEs elsewhere.
    */
   private static final class NoOpEndpointTracker implements EndpointTracker {
-
     public static final NoOpEndpointTracker INSTANCE = new NoOpEndpointTracker();
 
     @Override

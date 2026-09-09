@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjec
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
@@ -20,7 +19,9 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 public abstract class AbstractConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.HasMethodAdvice
+{
   public AbstractConnectionInstrumentation(String instrumentationName, String... additionalNames) {
     super(instrumentationName, additionalNames);
   }
@@ -32,28 +33,27 @@ public abstract class AbstractConnectionInstrumentation extends InstrumenterModu
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator",
-    };
+    return new String[] {packageName + ".JDBCDecorator"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("prepare")
-            .and(takesArgument(0, String.class))
-            // Also include CallableStatement, which is a subtype of PreparedStatement
-            .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
-        AbstractConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice");
+          .and(takesArgument(0, String.class))
+          // Also include CallableStatement, which is a subtype of PreparedStatement
+          .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
+        AbstractConnectionInstrumentation.class.getName() + "$ConnectionPrepareAdvice"
+    );
   }
 
   public static class ConnectionPrepareAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void addDBInfo(
         @Advice.This Connection connection,
         @Advice.Argument(0) final String sql,
-        @Advice.Return final PreparedStatement statement) {
+        @Advice.Return final PreparedStatement statement
+    ) {
       ContextStore<Statement, DBQueryInfo> contextStore =
           InstrumentationContext.get(Statement.class, DBQueryInfo.class);
       if (null == contextStore.get(statement)) {

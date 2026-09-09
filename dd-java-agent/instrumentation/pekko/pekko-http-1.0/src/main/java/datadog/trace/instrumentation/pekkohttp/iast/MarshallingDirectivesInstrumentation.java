@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -28,8 +27,9 @@ import org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller;
  */
 @AutoService(InstrumenterModule.class)
 public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public MarshallingDirectivesInstrumentation() {
     super("pekko-http");
   }
@@ -37,48 +37,43 @@ public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Ias
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives$class",
-      "org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives",
+        "org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives$class",
+        "org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives"
     };
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintUnmarshaller",
-    };
+    return new String[] {packageName + ".helpers.TaintUnmarshaller"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isStatic())
-            .and(named("entity"))
-            .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
-            .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives")))
-            .and(
-                takesArgument(
-                    1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
-        MarshallingDirectivesInstrumentation.class.getName()
-            + "$TaintUnmarshallerInputOldScalaAdvice");
+          .and(isStatic())
+          .and(named("entity"))
+          .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
+          .and(takesArguments(2))
+          .and(
+              takesArgument(
+                  0,
+                  named("org.apache.pekko.http.scaladsl.server.directives.MarshallingDirectives")
+              )
+          )
+          .and(takesArgument(1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
+        MarshallingDirectivesInstrumentation.class.getName() + "$TaintUnmarshallerInputOldScalaAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("entity"))
-            .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
-            .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
-        MarshallingDirectivesInstrumentation.class.getName()
-            + "$TaintUnmarshallerInputNewScalaAdvice");
+          .and(not(isStatic()))
+          .and(named("entity"))
+          .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
+          .and(takesArguments(1))
+          .and(takesArgument(1, named("org.apache.pekko.http.scaladsl.unmarshalling.Unmarshaller"))),
+        MarshallingDirectivesInstrumentation.class.getName() + "$TaintUnmarshallerInputNewScalaAdvice"
+    );
   }
 
   static class TaintUnmarshallerInputOldScalaAdvice {

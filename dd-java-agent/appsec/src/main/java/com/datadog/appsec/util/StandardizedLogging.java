@@ -1,7 +1,6 @@
 package com.datadog.appsec.util;
 
 import static com.datadog.appsec.ddwaf.WAFResultData.Rule;
-
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.report.AppSecEvent;
 import com.datadog.ddwaf.Waf;
@@ -11,16 +10,17 @@ import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 public class StandardizedLogging {
-
   private static final Marker CRITICAL = MarkerFactory.getMarker("CRITICAL");
 
-  public static void appSecStartupError(Logger logger, Throwable t) { // C1
+  public static void appSecStartupError(Logger logger, Throwable t) {
+    // C1
     logger.error(
         CRITICAL,
         "AppSec could not start because of an unexpected error. "
-            + "No security activities will be collected. Please contact support at "
-            + "https://docs.datadoghq.com/help/ for help.",
-        t);
+        + "No security activities will be collected. Please contact support at "
+        + "https://docs.datadoghq.com/help/ for help.",
+        t
+    );
   }
 
   /*
@@ -34,20 +34,20 @@ public class StandardizedLogging {
    * This cannot be fully implemented inside the appsec module because some failures
    * may be due to incompatible JVM (e.g. running on Java 7).
    */
-
   // C3
   public static void libddwafCannotBeLoaded(Logger logger, String libc) {
     logger.error(
         CRITICAL,
         "AppSec could not load libddwaf native library, as a result, "
-            + "AppSec could not start. No security activities will be collected. "
-            + "Please contact support at https://docs.datadoghq.com/help/ for help. "
-            + "Host information: operating_system: {}, libc: {}, arch: {}, runtime: {} {}",
+        + "AppSec could not start. No security activities will be collected. "
+        + "Please contact support at https://docs.datadoghq.com/help/ for help. "
+        + "Host information: operating_system: {}, libc: {}, arch: {}, runtime: {} {}",
         SystemProperties.get("os.name"),
         libc,
         SystemProperties.get("os.arch"),
         SystemProperties.get("java.vm.vendor"),
-        SystemProperties.get("java.version"));
+        SystemProperties.get("java.version")
+    );
   }
 
   // C4:
@@ -55,8 +55,9 @@ public class StandardizedLogging {
     logger.error(
         CRITICAL,
         "AppSec could not find the rules file in path {}. "
-            + "AppSec will not run any protections in this application. No security activities will be collected.",
-        filename);
+        + "AppSec will not run any protections in this application. No security activities will be collected.",
+        filename
+    );
   }
 
   public enum RulesInvalidReason {
@@ -66,14 +67,12 @@ public class StandardizedLogging {
         return "invalid JSON file";
       }
     };
-
     //   ALL_RULES_INVALID {
     //      @Override
     //      public String toString() {
     //        return "all the rules are invalid";
     //      }
     //    }
-
     public abstract String toString();
   }
 
@@ -82,9 +81,10 @@ public class StandardizedLogging {
     logger.error(
         CRITICAL,
         "AppSec could not read the rule file {} as it was invalid: {}. "
-            + "AppSec will not run any protections in this application.",
+        + "AppSec will not run any protections in this application.",
         filename,
-        reason);
+        reason
+    );
   }
 
   /*
@@ -94,7 +94,6 @@ public class StandardizedLogging {
    *
    * Cannot be implemented without cooperation from libddwaf
    */
-
   /*
    * D1: Loaded rules:
    *     <for (ruleName,ruleAddresses) in valid_rules:>
@@ -102,7 +101,6 @@ public class StandardizedLogging {
    *
    * Cannot be implemented without cooperation from libddwaf
    */
-
   /*
    * D2: Pushing address <address_name> to the Instrumentation Gateway.
    *
@@ -119,7 +117,6 @@ public class StandardizedLogging {
    * addresses match listeners, not rules: e.g. the WAF has a whole matches a set
    * of addresses, not individual WAF rules.
    */
-
   /*
    * D4: Executing AppSec In-App WAF with parameters: <Parameters_passed_to_the_lib>
    *
@@ -127,7 +124,6 @@ public class StandardizedLogging {
    * dump the parameters after the conversion, but the conversion happens inside
    * the binding, not on this module.
    */
-
   // D5
   public static void inAppWafReturn(Logger logger, Waf.ResultWithData resultWithData) {
     logger.debug("AppSec In-App WAF returned: {}", resultWithData);
@@ -152,7 +148,6 @@ public class StandardizedLogging {
    *
    * Cannot implement: rules are currently only known by libddwaf
    */
-
   /*
    * D8: AppSec Error. Error details: ${Error message and stack trace}
    *
@@ -170,7 +165,6 @@ public class StandardizedLogging {
    * imagine a situation where this should be used rather than a more
    * serious logging entry.
    */
-
   // E1
   public static void attackReportingFailed(Logger logger, Throwable t) {
     logger.warn("AppSec failed to report AppSec events to the agent.", t);
@@ -187,7 +181,10 @@ public class StandardizedLogging {
   public static void _initialConfigSourceAndLibddwafVersion(Logger logger, String source) {
     if (logger.isDebugEnabled()) {
       logger.info(
-          "AppSec initial configuration from {}, libddwaf version: {}", source, Waf.LIB_VERSION);
+          "AppSec initial configuration from {}, libddwaf version: {}",
+          source,
+          Waf.LIB_VERSION
+      );
     }
   }
 
@@ -211,13 +208,11 @@ public class StandardizedLogging {
   }
 
   // I5 implemented together with D6
-
   /**
    * I6: Blocking current transaction (rule: <rule_name>)
    *
    * <p>Not implemented: blocking no implemented
    */
-
   // I7
   public static void attackQueued(Logger logger) {
     // the message is vague or misleading
@@ -228,7 +223,6 @@ public class StandardizedLogging {
   public static void sendingAttackBatch(Logger logger, int batchSize) {
     logger.info("Sending {} AppSec events to the agent", batchSize);
   }
-
   /* I9: Dropping <nb_events> AppSec events because <REASON>
    * REASON in (sending batch is full)
    *
@@ -236,7 +230,6 @@ public class StandardizedLogging {
    * about batches and the number of events they contain.
    * AppSecApi includes a warning about such an event though.
    */
-
   /* I10: Reporting AppSec event batch because of process shutdown.
    *
    * Cannot currently be implemented. Would require shutdown hooks to flush the

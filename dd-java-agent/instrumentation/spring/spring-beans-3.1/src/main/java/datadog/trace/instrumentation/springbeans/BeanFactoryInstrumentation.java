@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -27,7 +26,9 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
  */
 @AutoService(InstrumenterModule.class)
 public class BeanFactoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public BeanFactoryInstrumentation() {
     super("spring-beans");
   }
@@ -51,17 +52,21 @@ public class BeanFactoryInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("registerBeanDefinition"))
-            .and(
-                takesArgument(1, named("org.springframework.beans.factory.config.BeanDefinition"))),
-        BeanFactoryInstrumentation.class.getName() + "$BeanRegisteringAdvice");
+          .and(named("registerBeanDefinition"))
+          .and(takesArgument(1, named("org.springframework.beans.factory.config.BeanDefinition"))),
+        BeanFactoryInstrumentation.class.getName() + "$BeanRegisteringAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("resolveBeanClass"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.beans.factory.support.RootBeanDefinition"))),
-        BeanFactoryInstrumentation.class.getName() + "$BeanResolvingAdvice");
+          .and(named("resolveBeanClass"))
+          .and(
+              takesArgument(
+                  0,
+                  named("org.springframework.beans.factory.support.RootBeanDefinition")
+              )
+          ),
+        BeanFactoryInstrumentation.class.getName() + "$BeanResolvingAdvice"
+    );
   }
 
   public static class BeanRegisteringAdvice {

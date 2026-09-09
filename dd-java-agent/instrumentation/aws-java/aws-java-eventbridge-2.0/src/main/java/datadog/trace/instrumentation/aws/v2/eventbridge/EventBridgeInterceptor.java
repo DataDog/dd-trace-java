@@ -4,7 +4,6 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v2.eventbridge.TextMapInjectAdapter.SETTER;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
@@ -27,11 +26,9 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
   private static final Logger log = LoggerFactory.getLogger(EventBridgeInterceptor.class);
   private static final String DEFAULT_EVENT_BUS_NAME = "default";
   private static final String EVENT_BUS_ARN_PREFIX = "event-bus/";
-
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
-
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore
+    .of(ExecutionAttribute.class)
+    .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
   private static final String START_TIME_KEY = "x-datadog-start-time";
   private static final String RESOURCE_NAME_KEY = "x-datadog-resource-name";
 
@@ -53,25 +50,32 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       }
       if (detailBuilder.charAt(detailBuilder.length() - 1) != '}') {
         log.debug(
-            "Unable to parse detail JSON. Not injecting trace context into EventBridge payload.");
-        modifiedEntries.add(entry); // Add the original entry without modification
+            "Unable to parse detail JSON. Not injecting trace context into EventBridge payload."
+        );
+        // Add the original entry without modification
+        modifiedEntries.add(entry);
         continue;
       }
 
-      String traceContext =
-          getTraceContextToInject(
-              executionAttributes, entry.eventBusName(), entry.detailType(), startTime);
-      detailBuilder.setLength(detailBuilder.length() - 1); // Remove the last bracket
+      String traceContext = getTraceContextToInject(
+          executionAttributes,
+          entry.eventBusName(),
+          entry.detailType(),
+          startTime
+      );
+      // Remove the last bracket
+      detailBuilder.setLength(detailBuilder.length() - 1);
       if (detailBuilder.length() > 1) {
-        detailBuilder.append(", "); // Only add a comma if detail is not empty.
+        // Only add a comma if detail is not empty.
+        detailBuilder.append(", ");
       }
 
       detailBuilder
-          .append('\"')
-          .append(PathwayContext.DATADOG_KEY)
-          .append("\": ")
-          .append(traceContext)
-          .append('}');
+        .append('\"')
+        .append(PathwayContext.DATADOG_KEY)
+        .append("\": ")
+        .append(traceContext)
+        .append('}');
 
       String modifiedDetail = detailBuilder.toString();
       PutEventsRequestEntry modifiedEntry = entry.toBuilder().detail(modifiedDetail).build();
@@ -85,13 +89,13 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       ExecutionAttributes executionAttributes,
       String eventBusName,
       String detailType,
-      long startTime) {
+      long startTime
+  ) {
     Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     String resourceName =
         eventBusName == null || eventBusName.isEmpty() ? DEFAULT_EVENT_BUS_NAME : eventBusName;
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
-
     // Inject context
     if (traceConfig().isDataStreamsEnabled()) {
       DataStreamsTags tags = buildDataStreamsTags(eventBusName, detailType);
@@ -99,20 +103,19 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       context = context.with(dsmContext);
     }
     defaultPropagator().inject(context, jsonBuilder, SETTER);
-
     // Add bus name and start time
     jsonBuilder
-        .append(" \"")
-        .append(START_TIME_KEY)
-        .append("\": \"")
-        .append(startTime)
-        .append("\", ");
+      .append(" \"")
+      .append(START_TIME_KEY)
+      .append("\": \"")
+      .append(startTime)
+      .append("\", ");
     jsonBuilder
-        .append(" \"")
-        .append(RESOURCE_NAME_KEY)
-        .append("\": \"")
-        .append(resourceName)
-        .append('\"');
+      .append(" \"")
+      .append(RESOURCE_NAME_KEY)
+      .append("\": \"")
+      .append(resourceName)
+      .append('\"');
 
     jsonBuilder.append('}');
     return jsonBuilder.toString();
@@ -133,14 +136,14 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
         null,
         null,
         null,
-        null);
+        null
+    );
   }
 
   static String normalizeEventBusName(String eventBusName) {
     if (eventBusName == null || eventBusName.isEmpty()) {
       return DEFAULT_EVENT_BUS_NAME;
     }
-
     // EventBridge ARNs embed the full bus name after "event-bus/", including partner bus paths.
     int arnBusNameStart = eventBusName.indexOf(EVENT_BUS_ARN_PREFIX);
     if (arnBusNameStart >= 0) {

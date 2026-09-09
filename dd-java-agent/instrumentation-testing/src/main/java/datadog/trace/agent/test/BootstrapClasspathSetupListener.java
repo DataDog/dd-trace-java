@@ -1,7 +1,6 @@
 package datadog.trace.agent.test;
 
 import static java.io.File.pathSeparator;
-
 import com.google.common.reflect.ClassPath;
 import datadog.trace.agent.test.utils.ClasspathUtils;
 import datadog.trace.bootstrap.BootstrapProxy;
@@ -41,19 +40,18 @@ import org.junit.platform.launcher.LauncherSessionListener;
  * file) is on the classpath, it will be called and the bootstrap classpath will be patched!
  */
 public class BootstrapClasspathSetupListener implements LauncherSessionListener {
-
   @Override
   public void launcherSessionOpened(LauncherSession session) {
     // this method is only needed to trigger this class' static initializer before JUnit does
     // classpath scanning
   }
 
-  private static final String[] TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES = {
-    "ch.qos.logback.classic.servlet", // this draws javax.servlet deps that are not needed
+  private static final String[] TEST_EXCLUDED_BOOTSTRAP_PACKAGE_PREFIXES =
+      {
+      // this draws javax.servlet deps that are not needed
+      "ch.qos.logback.classic.servlet"
   };
-
   private static final String[] TEST_BOOTSTRAP_PREFIXES;
-
   /**
    * An exact copy of {@link datadog.trace.bootstrap.Constants#BOOTSTRAP_PACKAGE_PREFIXES}.
    *
@@ -61,33 +59,33 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
    * references bootstrap classes (e.g. DatadogClassLoader).
    */
   public static final String[] BOOTSTRAP_PACKAGE_PREFIXES_COPY = {
-    "datadog.slf4j",
-    "datadog.common.filesystem",
-    "datadog.context",
-    "datadog.environment",
-    "datadog.json",
-    "datadog.yaml",
-    "datadog.instrument",
-    "datadog.appsec.api",
-    "datadog.metrics.api",
-    "datadog.trace.api",
-    "datadog.trace.bootstrap",
-    "datadog.trace.config.inversion",
-    "datadog.trace.context",
-    "datadog.trace.instrumentation.api",
-    "datadog.trace.logging",
-    "datadog.trace.util",
+      "datadog.slf4j",
+      "datadog.common.filesystem",
+      "datadog.context",
+      "datadog.environment",
+      "datadog.json",
+      "datadog.yaml",
+      "datadog.instrument",
+      "datadog.appsec.api",
+      "datadog.metrics.api",
+      "datadog.trace.api",
+      "datadog.trace.bootstrap",
+      "datadog.trace.config.inversion",
+      "datadog.trace.context",
+      "datadog.trace.instrumentation.api",
+      "datadog.trace.logging",
+      "datadog.trace.util"
   };
-
   public static final ClassPath TEST_CLASSPATH = computeTestClasspath();
-
   // matches names ending with Test and inner classes (e.g. MyTest$1, MyTest$InnerClass,
   // MyTest$InnerClass$2, etc)
   private static final Pattern TEST_CLASS_PATTERN = Pattern.compile(".*Test(\\$\\w+)*$");
 
   static {
-    TEST_BOOTSTRAP_PREFIXES =
-        Arrays.copyOf(BOOTSTRAP_PACKAGE_PREFIXES_COPY, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 3);
+    TEST_BOOTSTRAP_PREFIXES = Arrays.copyOf(
+        BOOTSTRAP_PACKAGE_PREFIXES_COPY,
+        BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 3
+    );
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = "datadog.logging";
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 1] = "org.slf4j";
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 2] = "ch.qos.logback";
@@ -127,7 +125,10 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
         }
       } catch (final MalformedURLException e) {
         System.err.printf(
-            "Error injecting bootstrap jar: Malformed classpath entry: %s. %s%n", entry, e);
+            "Error injecting bootstrap jar: Malformed classpath entry: %s. %s%n",
+            entry,
+            e
+        );
       }
     }
     return new URLClassLoader(urls.toArray(new URL[0]), null);
@@ -148,14 +149,16 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
     }
     if (!prematureBootstrapClasses.isEmpty()) {
       throw new AssertionError(
-          prematureBootstrapClasses.size()
-              + " classes were loaded before bootstrap classpath was initialized: "
-              + prematureBootstrapClasses);
+              prematureBootstrapClasses.size()
+          + " classes were loaded before bootstrap classpath was initialized: "
+          + prematureBootstrapClasses
+      );
     }
     try {
       final File bootstrapJar = createBootstrapJar();
-      ByteBuddyAgent.getInstrumentation()
-          .appendToBootstrapClassLoaderSearch(new JarFile(bootstrapJar));
+      ByteBuddyAgent.getInstrumentation().appendToBootstrapClassLoaderSearch(
+          new JarFile(bootstrapJar)
+      );
       BootstrapProxy.addBootstrapResource(bootstrapJar.toURI().toURL());
     } catch (final IOException e) {
       throw new RuntimeException(e);
@@ -169,10 +172,10 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
         bootstrapClasses.add(info.getResourceName());
       }
     }
-    URL jar =
-        ClasspathUtils.createJarWithClasses(
-            TestClassShadowingExtension.class.getClassLoader(),
-            bootstrapClasses.toArray(new String[0]));
+    URL jar = ClasspathUtils.createJarWithClasses(
+        TestClassShadowingExtension.class.getClassLoader(),
+        bootstrapClasses.toArray(new String[0])
+    );
     return new File(jar.getFile());
   }
 
@@ -181,7 +184,8 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
         info,
         ClassPath.ClassInfo::getName,
         ClassPath.ClassInfo::getResourceName,
-        ClassPath.ClassInfo::url);
+        ClassPath.ClassInfo::url
+    );
   }
 
   public static boolean isBootstrapClass(final Class<?> clazz) {
@@ -190,14 +194,15 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
             clazz,
             Class::getName,
             BootstrapClasspathSetupListener::classToResourceName,
-            BootstrapClasspathSetupListener::classToUrl);
+            BootstrapClasspathSetupListener::classToUrl
+    );
   }
 
   private static final Map<String, String> CLASS_NAME_TO_RESOURCE_NAME = new HashMap<>();
 
   private static String classToResourceName(final Class<?> clazz) {
-    return CLASS_NAME_TO_RESOURCE_NAME.computeIfAbsent(
-        clazz.getName(), k -> k.replace('.', '/') + ".class");
+    return CLASS_NAME_TO_RESOURCE_NAME.computeIfAbsent(clazz.getName(), k -> k.replace('.', '/')
+        + ".class");
   }
 
   private static URL classToUrl(final Class<?> clazz) {
@@ -209,7 +214,8 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
       final T type,
       final Function<T, String> toName,
       final Function<T, String> toResourceName,
-      final Function<T, URL> toUrl) {
+      final Function<T, URL> toUrl
+  ) {
     String name = toName.apply(type);
     for (String prefix : TEST_BOOTSTRAP_PREFIXES) {
       if (name.startsWith(prefix)) {
@@ -241,6 +247,6 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
   private static boolean isATest(String resourceName, URL url) {
     return url != null
         && (url.getPath().endsWith("test/" + resourceName)
-            || url.getPath().endsWith("Test/" + resourceName));
+        || url.getPath().endsWith("Test/" + resourceName));
   }
 }

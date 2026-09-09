@@ -1,7 +1,6 @@
 package datadog.smoketest.concurrent;
 
 import static java.util.Set.of;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.List;
 import java.util.concurrent.Callable;

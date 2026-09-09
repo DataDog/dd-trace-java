@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.glassfish.grizzly.http.server.AfterServiceListener;

@@ -7,14 +7,12 @@ import java.util.Collection;
 import java.util.Objects;
 
 public class ModuleExecutionResult extends ModuleSignal {
-
   private static final int COVERAGE_ENABLED_FLAG = 1;
   private static final int TEST_SKIPPING_ENABLED_FLAG = 2;
   private static final int EARLY_FLAKE_DETECTION_ENABLED_FLAG = 4;
   private static final int EARLY_FLAKE_DETECTION_FAULTY_FLAG = 8;
   private static final int TEST_MANAGEMENT_ENABLED_FLAG = 16;
   private static final int HAS_FAILED_TEST_REPLAY_TESTS_FLAG = 32;
-
   private final boolean coverageEnabled;
   private final boolean testSkippingEnabled;
   private final boolean earlyFlakeDetectionEnabled;
@@ -34,7 +32,8 @@ public class ModuleExecutionResult extends ModuleSignal {
       boolean testManagementEnabled,
       boolean hasFailedTestReplayTests,
       long testsSkippedTotal,
-      Collection<TestFramework> testFrameworks) {
+      Collection<TestFramework> testFrameworks
+  ) {
     super(sessionId, moduleId);
     this.coverageEnabled = coverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
@@ -106,7 +105,8 @@ public class ModuleExecutionResult extends ModuleSignal {
         testSkippingEnabled,
         hasFailedTestReplayTests,
         testsSkippedTotal,
-        testFrameworks);
+        testFrameworks
+    );
   }
 
   @Override
@@ -191,6 +191,7 @@ public class ModuleExecutionResult extends ModuleSignal {
         testManagementEnabled,
         hasFailedTestReplayTests,
         testsSkippedTotal,
-        testFrameworks);
+        testFrameworks
+    );
   }
 }

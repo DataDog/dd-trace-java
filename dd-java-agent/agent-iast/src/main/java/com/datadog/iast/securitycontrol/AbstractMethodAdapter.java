@@ -6,7 +6,6 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 public class AbstractMethodAdapter extends MethodVisitor {
-
   private static final String HELPER =
       "datadog/trace/api/iast/securitycontrol/SecurityControlHelper";
   private static final String METHOD = "setSecureMarks";
@@ -20,7 +19,8 @@ public class AbstractMethodAdapter extends MethodVisitor {
       final MethodVisitor mv,
       final SecurityControl securityControl,
       final int accessFlags,
-      final Type method) {
+      final Type method
+  ) {
     super(Opcodes.ASM9, mv);
     this.mv = mv;
     this.securityControl = securityControl;

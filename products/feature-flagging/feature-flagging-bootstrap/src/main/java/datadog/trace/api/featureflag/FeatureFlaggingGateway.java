@@ -9,26 +9,25 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 public abstract class FeatureFlaggingGateway {
-
-  public interface ConfigListener extends Consumer<ServerConfiguration> {}
+  public interface ConfigListener extends Consumer<ServerConfiguration> {
+  }
 
   public interface ActivationListener {
     void activate();
   }
 
-  public interface ExposureListener extends Consumer<ExposureEvent> {}
+  public interface ExposureListener extends Consumer<ExposureEvent> {
+  }
 
-  public interface SpanEnrichmentListener extends Consumer<SpanEnrichmentEvent> {}
+  public interface SpanEnrichmentListener extends Consumer<SpanEnrichmentEvent> {
+  }
 
   private static final List<ConfigListener> CONFIG_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<ActivationListener> ACTIVATION_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<ExposureListener> EXPOSURE_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<SpanEnrichmentListener> SPAN_ENRICHMENT_LISTENERS =
       new CopyOnWriteArrayList<>();
-
-  private static final AtomicReference<ServerConfiguration> CURRENT_CONFIG =
-      new AtomicReference<>();
-
+  private static final AtomicReference<ServerConfiguration> CURRENT_CONFIG = new AtomicReference<>();
   /**
    * The active EVP flagevaluation writer. Registered by {@code FlagEvaluationWriterImpl.start()}
    * when the killswitch {@code DD_FLAGGING_EVALUATION_COUNTS_ENABLED} is on (default). Read by
@@ -37,10 +36,10 @@ public abstract class FeatureFlaggingGateway {
    */
   private static final AtomicReference<FlagEvaluationWriter> FLAG_EVAL_WRITER =
       new AtomicReference<>();
-
   private static volatile boolean flagEvalEnqueueEnabled = true;
 
-  private FeatureFlaggingGateway() {}
+  private FeatureFlaggingGateway() {
+  }
 
   public static void addConfigListener(final ConfigListener listener) {
     CONFIG_LISTENERS.add(listener);
@@ -67,7 +66,9 @@ public abstract class FeatureFlaggingGateway {
     ACTIVATION_LISTENERS.remove(listener);
   }
 
-  /** Signals that application code initialized the Datadog OpenFeature provider. */
+  /**
+   * Signals that application code initialized the Datadog OpenFeature provider.
+   */
   public static void activate() {
     ACTIVATION_LISTENERS.forEach(ActivationListener::activate);
   }
@@ -112,7 +113,9 @@ public abstract class FeatureFlaggingGateway {
     return FLAG_EVAL_WRITER.get();
   }
 
-  /** Returns whether EVP flagevaluation hook events may be enqueued. */
+  /**
+   * Returns whether EVP flagevaluation hook events may be enqueued.
+   */
   public static boolean isFlagEvaluationEnqueueEnabled() {
     return flagEvalEnqueueEnabled;
   }

@@ -16,7 +16,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import datadog.communication.BackendApi;
@@ -71,12 +70,10 @@ import org.mockito.ArgumentCaptor;
 import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
-
   private static final String EXPOSURES_ENDPOINT = "/evp_proxy/api/v2/exposures";
   private static final String DIRECT_EXPOSURES_ENDPOINT = "/api/v2/exposures";
   private static final String API_KEY = "test-api-key";
   private static final double TIMEOUT_SECONDS = 5;
-
   private final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
   private Queue<ExposuresRequest> requests;
   private Set<String> failed;
@@ -89,15 +86,10 @@ class ExposureWriterTests {
     failed = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     JsonAdapter<ExposuresRequest> adapter =
         new Moshi.Builder().build().adapter(ExposuresRequest.class);
-    server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h -> {
-                      h.prefix(EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
-                      h.prefix(
-                          DIRECT_EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
-                    }));
+    server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> {
+      h.prefix(EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
+      h.prefix(DIRECT_EXPOSURES_ENDPOINT, api -> handleExposureRequest(api, adapter));
+    }));
     sharedCommunicationObjects = sharedCommunicationObjects(true);
   }
 
@@ -110,9 +102,9 @@ class ExposureWriterTests {
 
   private void handleExposureRequest(HandlerApi api, JsonAdapter<ExposuresRequest> adapter)
       throws Exception {
-    ExposuresRequest exposuresRequest =
-        adapter.fromJson(
-            Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
+    ExposuresRequest exposuresRequest = adapter.fromJson(Okio.buffer(Okio.source(
+        new ByteArrayInputStream(api.getRequest().getBody())
+    )));
     String serviceName = exposuresRequest.context.get("service");
     boolean failForever = "fail-forever".equals(serviceName);
     boolean fail = serviceName.startsWith("fail") && (failed.add(serviceName) || failForever);
@@ -142,14 +134,13 @@ class ExposureWriterTests {
         writer.accept(exposure);
       }
 
-      poll.eventually(
-          () -> {
-            assertFalse(requests.isEmpty());
-            for (ExposuresRequest request : requests) {
-              assertContext(request.context, service, env, version);
-            }
-            assertExposures(allExposures(), exposures);
-          });
+      poll.eventually(() -> {
+        assertFalse(requests.isEmpty());
+        for (ExposuresRequest request : requests) {
+          assertContext(request.context, service, env, version);
+        }
+        assertExposures(allExposures(), exposures);
+      });
     }
   }
 
@@ -159,17 +150,19 @@ class ExposureWriterTests {
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
     when(config.getApiKey()).thenReturn(API_KEY);
     BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    IntakeApi directApi =
-        new IntakeApi(
-            HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
-            API_KEY,
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            new OkHttpClient.Builder().build(),
-            false);
+    IntakeApi directApi = new IntakeApi(
+        HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
+        API_KEY,
+        "123",
+        HttpRetryPolicy.Factory.NEVER_RETRY,
+        new OkHttpClient.Builder().build(),
+        false
+    );
     when(backendApiFactory.createDirectIntakeApi(
-            datadog.trace.api.intake.Intake.EVENT_PLATFORM, true))
-        .thenReturn(directApi);
+        datadog.trace.api.intake.Intake.EVENT_PLATFORM,
+        true
+    ))
+      .thenReturn(directApi);
     FeatureFlagBackendApiFactory exposureBackendApiFactory =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
     List<ExposureEvent> exposures = buildExposures(5);
@@ -181,13 +174,12 @@ class ExposureWriterTests {
         writer.accept(exposure);
       }
 
-      poll.eventually(
-          () -> {
-            assertEquals(DIRECT_EXPOSURES_ENDPOINT, server.getLastRequest().getPath());
-            assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
-            assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
-            assertExposures(allExposures(), exposures);
-          });
+      poll.eventually(() -> {
+        assertEquals(DIRECT_EXPOSURES_ENDPOINT, server.getLastRequest().getPath());
+        assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
+        assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
+        assertExposures(allExposures(), exposures);
+      });
     }
   }
 
@@ -203,22 +195,18 @@ class ExposureWriterTests {
       for (ExposureEvent exposure : exposures) {
         writer.accept(exposure);
       }
-
       // all events are written
       poll.eventually(() -> assertEquals(exposures.size(), allExposures().size()));
-
       // publishing duplicate events
       for (ExposureEvent exposure : exposures) {
         writer.accept(exposure);
       }
-
       // no events are written
-      MILLISECONDS.sleep(300); // wait until a flush happens
+      // wait until a flush happens
+      MILLISECONDS.sleep(300);
       assertEquals(exposures.size(), allExposures().size());
-
       // a new event is generated
       writer.accept(buildExposure());
-
       // oldest event is evicted and the new one is submitted
       poll.eventually(() -> assertEquals(exposures.size() + 1, allExposures().size()));
     }
@@ -240,21 +228,21 @@ class ExposureWriterTests {
       for (int index = 0; index < exposures.size(); index += exposuresPerThread) {
         List<ExposureEvent> partition =
             exposures.subList(index, Math.min(index + exposuresPerThread, exposures.size()));
-        futures.add(
-            executor.submit(
-                () -> {
-                  latch.await();
-                  for (ExposureEvent exposure : partition) {
-                    MILLISECONDS.sleep(random.nextInt(2));
-                    writer.accept(exposure);
-                  }
-                  return true;
-                }));
+        futures.add(executor.submit(() -> {
+          latch.await();
+          for (ExposureEvent exposure : partition) {
+            MILLISECONDS.sleep(random.nextInt(2));
+            writer.accept(exposure);
+          }
+          return true;
+        }));
       }
-      latch.countDown(); // start threads
+      // start threads
+      latch.countDown();
 
       for (Future<Boolean> future : futures) {
-        assertTrue(future.get()); // wait for all threads to finish
+        // wait for all threads to finish
+        assertTrue(future.get());
       }
       poll.eventually(() -> assertExposures(allExposures(), exposures));
     } finally {
@@ -272,8 +260,8 @@ class ExposureWriterTests {
         new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
       writer.init();
       writer.accept(buildExposure());
-
-      MILLISECONDS.sleep(500); // wait for a flush to happen
+      // wait for a flush to happen
+      MILLISECONDS.sleep(500);
       ExposuresRequest found = findRequest(serviceName);
       if (finallyFail) {
         assertNull(found, requests.toString());
@@ -292,8 +280,8 @@ class ExposureWriterTests {
         new ExposureWriterImpl(1 << 4, 100, MILLISECONDS, sharedCommunicationObjects, config)) {
       writer.init();
       writer.accept(buildExposure(singletonMap("invalid", (Object) Double.NaN)));
-
-      MILLISECONDS.sleep(300); // wait for the invalid batch to be dropped
+      // wait for the invalid batch to be dropped
+      MILLISECONDS.sleep(300);
       writer.accept(validExposure);
 
       poll.eventually(() -> assertExposures(allExposures(), singletonList(validExposure)));
@@ -309,13 +297,15 @@ class ExposureWriterTests {
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
     when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY))
-        .thenReturn(proxyApi);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, true))
-        .thenReturn(directApi);
+        Intake.EVENT_PLATFORM,
+        true,
+        HttpRetryPolicy.Factory.NEVER_RETRY
+    ))
+      .thenReturn(proxyApi);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, true)).thenReturn(directApi);
     when(proxyApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
-        .thenThrow(new SocketTimeoutException("ambiguous timeout"))
-        .thenThrow(new ConnectException("definitive refusal"));
+      .thenThrow(new SocketTimeoutException("ambiguous timeout"))
+      .thenThrow(new ConnectException("definitive refusal"));
     final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FeatureFlagEventType.EXPOSURE);
     final List<ExposureEvent> exposures = buildExposures(2);
@@ -325,21 +315,27 @@ class ExposureWriterTests {
       writer.init();
       writer.accept(exposures.get(0));
 
-      poll.eventually(
-          () ->
-              verify(proxyApi)
-                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+      poll.eventually(() -> verify(proxyApi)
+        .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
       MILLISECONDS.sleep(300);
-      verify(proxyApi, times(1))
-          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
-      verify(directApi, never())
-          .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
+      verify(proxyApi, times(1)).post(
+          eq("exposures"),
+          any(RequestBody.class),
+          any(),
+          any(),
+          eq(false)
+      );
+      verify(directApi, never()).post(
+          eq("exposures"),
+          any(RequestBody.class),
+          any(),
+          any(),
+          eq(false)
+      );
 
       writer.accept(exposures.get(1));
-      poll.eventually(
-          () ->
-              verify(directApi)
-                  .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
+      poll.eventually(() -> verify(directApi)
+        .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)));
 
       final ArgumentCaptor<RequestBody> directBody = ArgumentCaptor.forClass(RequestBody.class);
       verify(directApi).post(eq("exposures"), directBody.capture(), any(), any(), eq(false));
@@ -395,14 +391,21 @@ class ExposureWriterTests {
   }
 
   private static void assertContext(
-      Map<String, String> context, String service, String env, String version) {
+      Map<String, String> context,
+      String service,
+      String env,
+      String version
+  ) {
     assertEquals(service == null ? "unknown" : service, context.get("service"));
     assertOptionalContextValue(context, "env", env);
     assertOptionalContextValue(context, "version", version);
   }
 
   private static void assertOptionalContextValue(
-      Map<String, String> context, String key, String value) {
+      Map<String, String> context,
+      String key,
+      String value
+  ) {
     if (value == null) {
       assertFalse(context.containsKey(key));
     } else {
@@ -428,7 +431,9 @@ class ExposureWriterTests {
   }
 
   private static void assertExposures(
-      List<ExposureEvent> receivedExposures, List<ExposureEvent> expectedExposures) {
+      List<ExposureEvent> receivedExposures,
+      List<ExposureEvent> expectedExposures
+  ) {
     assertEquals(expectedExposures.size(), receivedExposures.size());
     TreeSet<ExposureEvent> received = new TreeSet<>(ExposureWriterTests::compare);
     received.addAll(receivedExposures);
@@ -456,15 +461,15 @@ class ExposureWriterTests {
       return result;
     }
 
-    result =
-        compareNullableString(first.variant == null ? null : first.variant.key, second.variant);
+    result = compareNullableString(first.variant == null ? null : first.variant.key, second.variant);
     if (result != 0) {
       return result;
     }
 
-    result =
-        compareNullableString(
-            first.allocation == null ? null : first.allocation.key, second.allocation);
+    result = compareNullableString(
+        first.allocation == null ? null : first.allocation.key,
+        second.allocation
+    );
     if (result != 0) {
       return result;
     }
@@ -476,16 +481,17 @@ class ExposureWriterTests {
 
     Map.Entry<String, Object> firstEntry = firstEntry(first.subject);
     Map.Entry<String, Object> secondEntry = firstEntry(second.subject);
-    result =
-        compareNullableString(
-            firstEntry == null ? null : firstEntry.getKey(),
-            secondEntry == null ? null : secondEntry.getKey());
+    result = compareNullableString(
+        firstEntry == null ? null : firstEntry.getKey(),
+        secondEntry == null ? null : secondEntry.getKey()
+    );
     if (result != 0) {
       return result;
     }
     return compareNullableString(
         firstEntry == null ? null : String.valueOf(firstEntry.getValue()),
-        secondEntry == null ? null : String.valueOf(secondEntry.getValue()));
+        secondEntry == null ? null : String.valueOf(secondEntry.getValue())
+    );
   }
 
   private static int compareNullableString(String first, Flag second) {
@@ -541,6 +547,7 @@ class ExposureWriterTests {
         new Allocation("Allocation_" + id),
         new Flag("Flag_" + id),
         new Variant("Variant_" + id),
-        new Subject("Subject_" + id, attributes));
+        new Subject("Subject_" + id, attributes)
+    );
   }
 }

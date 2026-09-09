@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorat
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -22,7 +21,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class EndpointInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public EndpointInstrumentation(String namespace) {
@@ -43,19 +44,21 @@ public class EndpointInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("onOpen")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))),
-        getClass().getName() + "$CaptureHandshakeSpanAdvice");
+          .and(named("onOpen")
+            .and(takesArguments(2))
+            .and(takesArgument(0, named(namespace + ".websocket.Session")))
+          ),
+        getClass().getName() + "$CaptureHandshakeSpanAdvice"
+    );
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("onClose")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))
-                    .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))),
-        getClass().getName() + "$SessionCloseAdvice");
+          .and(named("onClose")
+            .and(takesArguments(2))
+            .and(takesArgument(0, named(namespace + ".websocket.Session")))
+            .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))
+          ),
+        getClass().getName() + "$SessionCloseAdvice"
+    );
   }
 
   public static class CaptureHandshakeSpanAdvice {
@@ -67,9 +70,9 @@ public class EndpointInstrumentation
         if (Config.get().isWebsocketMessagesInheritSampling()) {
           current.forceSamplingDecision();
         }
-        InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
-            .getOrPut(
-                session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
+        InstrumentationContext
+          .get(Session.class, HandlerContext.Sender.class)
+          .getOrPut(session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
       }
     }
   }
@@ -79,25 +82,28 @@ public class EndpointInstrumentation
     public static AgentScope onEnter(
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
         @Advice.Argument(0) final Session session,
-        @Advice.Argument(1) final CloseReason closeReason) {
+        @Advice.Argument(1) final CloseReason closeReason
+    ) {
       final HandlerContext.Sender sessionState =
           InstrumentationContext.get(Session.class, HandlerContext.Sender.class).remove(session);
       if (sessionState == null) {
         return null;
       }
-      handlerContext =
-          new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
+      handlerContext = new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
 
-      return activateSpan(
-          DECORATE.startInboundCloseSpan(
-              handlerContext, closeReason.getReasonPhrase(), closeReason.getCloseCode().getCode()));
+      return activateSpan(DECORATE.startInboundCloseSpan(
+          handlerContext,
+          closeReason.getReasonPhrase(),
+          closeReason.getCloseCode().getCode()
+      ));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
-        @Advice.Thrown final Throwable thrown) {
+        @Advice.Thrown final Throwable thrown
+    ) {
       if (scope != null) {
         final AgentSpan span = scope.span();
         DECORATE.onError(span, thrown);

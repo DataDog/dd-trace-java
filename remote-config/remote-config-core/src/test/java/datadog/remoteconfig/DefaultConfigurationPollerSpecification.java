@@ -23,7 +23,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import cafe.cryptography.ed25519.Ed25519PrivateKey;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
@@ -79,18 +78,13 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
   private static final Ed25519PrivateKey PRIVATE_KEY =
       Ed25519PrivateKey.generate(new SecureRandom());
   private static final Ed25519PublicKey PUBLIC_KEY = PRIVATE_KEY.derivePublic();
-
   private static final Moshi MOSHI = new Moshi.Builder().build();
-
   private final OkHttpClient okHttpClient = mock(OkHttpClient.class);
   private final AgentTaskScheduler scheduler = mock(AgentTaskScheduler.class);
-
   @SuppressWarnings("unchecked")
   private final AgentTaskScheduler.Scheduled<ConfigurationPoller> scheduled =
       mock(AgentTaskScheduler.Scheduled.class);
-
   private final Call call = mock(Call.class);
-
   private DefaultConfigurationPoller poller;
   private AgentTaskScheduler.Task<ConfigurationPoller> task;
   private Request request;
@@ -99,25 +93,30 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
   private Response buildOKResponse(String bodyStr) {
     ResponseBody body = ResponseBody.create(MediaType.get("application/json"), bodyStr);
     return new Response.Builder()
-        .request(REQUEST)
-        .protocol(Protocol.HTTP_1_1)
-        .message("OK")
-        .body(body)
-        .code(200)
-        .build();
+      .request(REQUEST)
+      .protocol(Protocol.HTTP_1_1)
+      .message("OK")
+      .body(body)
+      .code(200)
+      .build();
   }
 
   @BeforeEach
   void setup() {
     // value derived from the randomly generated keypair, so it cannot be a @WithConfig literal
     injectSysConfig("dd.rc.targets.key", new BigInteger(1, PUBLIC_KEY.toByteArray()).toString(16));
-    poller =
-        new DefaultConfigurationPoller(
-            Config.get(), "0.0.0", "", "", () -> configUrlSupplier.get(), okHttpClient, scheduler);
+    poller = new DefaultConfigurationPoller(
+        Config.get(),
+        "0.0.0",
+        "",
+        "",
+        () -> configUrlSupplier.get(),
+        okHttpClient,
+        scheduler
+    );
   }
 
   // ----- Tests -----
-
   @Test
   void issuesNoRequestIfThereAreNoSubscriptions() {
     start();
@@ -125,10 +124,11 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     task.run(poller);
     verify(okHttpClient, never()).newCall(any());
 
-    poller.addListener(
-        Product.ASM_DD,
-        deserializerThrowing("should not be called"),
-        (configKey, config, hinter) -> {});
+    poller.addListener(Product.ASM_DD, deserializerThrowing("should not be called"), (
+                                                                                         configKey,
+                                                                                         config,
+                                                                                         hinter
+                                                                                     ) -> {});
     poller.removeListeners(Product.ASM_DD);
     task.run(poller);
     verify(okHttpClient, never()).newCall(any());
@@ -211,62 +211,83 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     String activationKey = "datadog/2/ASM_FEATURES/asm_features_activation/config";
     String sampleRateKey = "datadog/2/ASM_FEATURES/api_security/sample_rate";
 
-    String respBody =
-        toJson(
-            map(
-                "client_configs", list(activationKey, sampleRateKey),
-                "roots", list(),
-                "target_files",
-                    list(
-                        map("path", activationKey, "raw", b64("{\"asm\":{\"enabled\":true}}")),
+    String respBody = toJson(
+        map(
+            "client_configs",
+            list(activationKey, sampleRateKey),
+            "roots",
+            list(),
+            "target_files",
+            list(
+                map("path", activationKey, "raw", b64("{\"asm\":{\"enabled\":true}}")),
+                map(
+                    "path",
+                    sampleRateKey,
+                    "raw",
+                    b64("{\"api_security\": {\"request_sample_rate\": 0.1}")
+                )
+            ),
+            "targets",
+            signAndBase64EncodeTargets(
+                map(
+                    "signed",
+                    map(
+                        "expires",
+                        "2022-09-17T12:49:15Z",
+                        "spec_version",
+                        "1.0.0",
+                        "targets",
                         map(
-                            "path",
-                            sampleRateKey,
-                            "raw",
-                            b64("{\"api_security\": {\"request_sample_rate\": 0.1}"))),
-                "targets",
-                    signAndBase64EncodeTargets(
-                        map(
-                            "signed",
+                            activationKey,
                             map(
-                                "expires",
-                                "2022-09-17T12:49:15Z",
-                                "spec_version",
-                                "1.0.0",
-                                "targets",
+                                "custom",
+                                map("v", 1),
+                                "hashes",
                                 map(
-                                    activationKey,
-                                        map(
-                                            "custom", map("v", 1),
-                                            "hashes",
-                                                map(
-                                                    "sha256",
-                                                    "159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db"),
-                                            "length", 24),
-                                    sampleRateKey,
-                                        map(
-                                            "custom", map("v", 1),
-                                            "hashes",
-                                                map(
-                                                    "sha256",
-                                                    "bc898b7eb75d9fd0ddee1c1a556bc3c528dd41382950aa86e48816f792d01494"),
-                                            "length", 45)),
-                                "version",
-                                1)))));
+                                    "sha256",
+                                    "159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db"
+                                ),
+                                "length",
+                                24
+                            ),
+                            sampleRateKey,
+                            map(
+                                "custom",
+                                map("v", 1),
+                                "hashes",
+                                map(
+                                    "sha256",
+                                    "bc898b7eb75d9fd0ddee1c1a556bc3c528dd41382950aa86e48816f792d01494"
+                                ),
+                                "length",
+                                45
+                            )
+                        ),
+                        "version",
+                        1
+                    )
+                )
+            )
+        )
+    );
 
     String noConfigs = withClientConfigs(SAMPLE_RESP_BODY, list());
 
     poller.addListener(
-        Product.ASM_FEATURES, "asm_features_activation", deserializer, activationListener);
+        Product.ASM_FEATURES,
+        "asm_features_activation",
+        deserializer,
+        activationListener
+    );
     poller.addListener(Product.ASM_FEATURES, "api_security", deserializer, sampleRateListener);
     start();
 
     when(deserializer.deserialize(any())).thenReturn(true);
     stubHttp(buildOKResponse(respBody), buildOKResponse(noConfigs));
-
-    task.run(poller); // apply
-    task.run(poller); // remove all configurations
-
+    // apply
+    task.run(poller);
+    // remove all configurations
+    task.run(poller);
     // 2 deserializations on apply; accept called once per run (apply + remove) on each listener
     verify(deserializer, times(2)).deserialize(any());
     verify(activationListener, times(2)).accept(eq(activationKey), any(), any());
@@ -281,53 +302,70 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
       listeners.add(typedListener());
     }
 
-    String respBody =
-        toJson(
-            map(
-                "client_configs",
-                    list(
-                        "datadog/2/ASM_FEATURES/asm_features_activation/config",
-                        "foo/ASM_DD/bar/config",
-                        "foo/ASM/bar/config",
-                        "foo/ASM_DATA/bar/config",
-                        "foo/LIVE_DEBUGGING/bar/config"),
-                "roots", list(),
-                "target_files",
-                    list(
+    String respBody = toJson(
+        map(
+            "client_configs",
+            list(
+                "datadog/2/ASM_FEATURES/asm_features_activation/config",
+                "foo/ASM_DD/bar/config",
+                "foo/ASM/bar/config",
+                "foo/ASM_DATA/bar/config",
+                "foo/LIVE_DEBUGGING/bar/config"
+            ),
+            "roots",
+            list(),
+            "target_files",
+            list(
+                map(
+                    "path",
+                    "datadog/2/ASM_FEATURES/asm_features_activation/config",
+                    "raw",
+                    b64("{\"asm\":{\"enabled\":true}}")
+                ),
+                map("path", "foo/ASM_DD/bar/config", "raw", ""),
+                map("path", "foo/ASM/bar/config", "raw", ""),
+                map("path", "foo/ASM_DATA/bar/config", "raw", ""),
+                map("path", "foo/LIVE_DEBUGGING/bar/config", "raw", "")
+            ),
+            "targets",
+            signAndBase64EncodeTargets(
+                map(
+                    "signed",
+                    map(
+                        "expires",
+                        "2022-09-17T12:49:15Z",
+                        "spec_version",
+                        "1.0.0",
+                        "targets",
                         map(
-                            "path",
                             "datadog/2/ASM_FEATURES/asm_features_activation/config",
-                            "raw",
-                            b64("{\"asm\":{\"enabled\":true}}")),
-                        map("path", "foo/ASM_DD/bar/config", "raw", ""),
-                        map("path", "foo/ASM/bar/config", "raw", ""),
-                        map("path", "foo/ASM_DATA/bar/config", "raw", ""),
-                        map("path", "foo/LIVE_DEBUGGING/bar/config", "raw", "")),
-                "targets",
-                    signAndBase64EncodeTargets(
-                        map(
-                            "signed",
                             map(
-                                "expires",
-                                "2022-09-17T12:49:15Z",
-                                "spec_version",
-                                "1.0.0",
-                                "targets",
+                                "custom",
+                                map("v", 1),
+                                "hashes",
                                 map(
-                                    "datadog/2/ASM_FEATURES/asm_features_activation/config",
-                                        map(
-                                            "custom", map("v", 1),
-                                            "hashes",
-                                                map(
-                                                    "sha256",
-                                                    "159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db"),
-                                            "length", 24),
-                                    "foo/ASM_DD/bar/config", emptyTarget(),
-                                    "foo/ASM/bar/config", emptyTarget(),
-                                    "foo/ASM_DATA/bar/config", emptyTarget(),
-                                    "foo/LIVE_DEBUGGING/bar/config", emptyTarget()),
-                                "version",
-                                1)))));
+                                    "sha256",
+                                    "159658ab85be7207761a4111172b01558394bfc74a1fe1d314f2023f7c656db"
+                                ),
+                                "length",
+                                24
+                            ),
+                            "foo/ASM_DD/bar/config",
+                            emptyTarget(),
+                            "foo/ASM/bar/config",
+                            emptyTarget(),
+                            "foo/ASM_DATA/bar/config",
+                            emptyTarget(),
+                            "foo/LIVE_DEBUGGING/bar/config",
+                            emptyTarget()
+                        ),
+                        "version",
+                        1
+                    )
+                )
+            )
+        )
+    );
 
     poller.addListener(Product.ASM_DD, deserializer, listeners.get(1));
     poller.addListener(Product.ASM, deserializer, listeners.get(2));
@@ -348,18 +386,16 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
   @Test
   void reschedulesIfInstructedToDoSo() throws IOException {
-    poller.addListener(
-        Product.ASM_DD,
-        parseDeserializer(),
-        (configKey, config, hinter) -> {
-          hinter.suggestPollingRate(Duration.ofMillis(124));
-          hinter.suggestPollingRate(Duration.ofMillis(123));
-          hinter.suggestPollingRate(Duration.ofMillis(1230)); // higher is ignored
-        });
+    poller.addListener(Product.ASM_DD, parseDeserializer(), (configKey, config, hinter) -> {
+      hinter.suggestPollingRate(Duration.ofMillis(124));
+      hinter.suggestPollingRate(Duration.ofMillis(123));
+      // higher is ignored
+      hinter.suggestPollingRate(Duration.ofMillis(1230));
+    });
     start();
 
     when(scheduler.scheduleAtFixedRate(any(), eq(poller), eq(123L), eq(123L), eq(MILLISECONDS)))
-        .thenAnswer(invocation -> scheduled);
+      .thenAnswer(invocation -> scheduled);
     stubHttp(buildOKResponse(SAMPLE_RESP_BODY));
     task.run(poller);
 
@@ -388,8 +424,11 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
                 "algorithm",
                 "sha256",
                 "hash",
-                "6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819")),
-        cached.get("hashes"));
+                "6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819"
+            )
+        ),
+        cached.get("hashes")
+    );
     assertEquals(919L, asLong(cached.get("length")));
     assertEquals("employee/ASM_DD/1.recommended.json/config", cached.get("path"));
 
@@ -412,7 +451,8 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     stubHttp(
         buildOKResponse(SAMPLE_RESP_BODY),
         buildOKResponse(noConfigs),
-        buildOKResponse(SAMPLE_RESP_BODY));
+        buildOKResponse(SAMPLE_RESP_BODY)
+    );
     task.run(poller);
     task.run(poller);
     task.run(poller);
@@ -430,28 +470,31 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     errored.put("target_files", list());
     Map<String, Object> targets = decodeTargets(errored.get("targets"));
     asMap(asMap(targets.get("signed")).get("targets"))
-        .remove("employee/ASM_DD/1.recommended.json/config");
+      .remove("employee/ASM_DD/1.recommended.json/config");
     asMap(targets.get("signed")).put("version", 42);
     errored.put("targets", signAndBase64EncodeTargets(targets));
 
     stubHttp(
         buildOKResponse(SAMPLE_RESP_BODY),
         buildOKResponse(toJson(errored)),
-        buildOKResponse(SAMPLE_RESP_BODY));
+        buildOKResponse(SAMPLE_RESP_BODY)
+    );
     task.run(poller);
     task.run(poller);
     task.run(poller);
 
     Map<String, Object> body = parseBody();
-    assertNull(body.get("cached_target_files")); // previous hash should be cleared too
+    // previous hash should be cleared too
+    assertNull(body.get("cached_target_files"));
     Map<String, Object> state = clientState(body);
     assertEquals("foobar", state.get("backend_client_state"));
     assertTrue(asList(state.get("config_states")).isEmpty());
     assertEquals(Boolean.TRUE, state.get("has_error"));
     assertEquals(
         "Told to apply config for employee/ASM_DD/1.recommended.json/config but no corresponding entry "
-            + "exists in targets.targets_signed.targets",
-        state.get("error"));
+        + "exists in targets.targets_signed.targets",
+        state.get("error")
+    );
     assertEquals(1L, asLong(state.get("root_version")));
     assertEquals(23337393L, asLong(state.get("targets_version")));
   }
@@ -466,7 +509,9 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
     Map<String, Object> changed = parseMap(SAMPLE_RESP_BODY);
     List<Object> targetFiles = asList(changed.get("target_files"));
-    byte[] fileDecoded = Base64.getDecoder().decode((String) asMap(targetFiles.get(0)).get("raw"));
+    byte[] fileDecoded = Base64
+      .getDecoder()
+      .decode((String) asMap(targetFiles.get(0)).get("raw"));
     byte[] newFile = Arrays.copyOf(fileDecoded, fileDecoded.length + 1);
     newFile[fileDecoded.length] = '\n';
     asMap(targetFiles.get(0)).put("raw", Base64.getEncoder().encodeToString(newFile));
@@ -480,11 +525,11 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     stubHttp(
         buildOKResponse(SAMPLE_RESP_BODY),
         buildOKResponse(SAMPLE_RESP_BODY),
-        buildOKResponse(toJson(changed)));
+        buildOKResponse(toJson(changed))
+    );
     task.run(poller);
     task.run(poller);
     task.run(poller);
-
     // applied once on the first run (unchanged hash on the second), once again when the hash
     // changed
     verify(listener, times(2)).accept(eq(configKey), notNull(), any());
@@ -501,7 +546,7 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     Map<String, Object> noHashes = parseMap(SAMPLE_RESP_BODY);
     Map<String, Object> targets = decodeTargets(noHashes.get("targets"));
     asMap(asMap(asMap(asMap(targets.get("signed")).get("targets")).get(configKey)).get("hashes"))
-        .remove("sha256");
+      .remove("sha256");
     noHashes.put("targets", signAndBase64EncodeTargets(targets));
 
     stubHttp(buildOKResponse(toJson(noHashes)), buildOKResponse(SAMPLE_RESP_BODY));
@@ -525,7 +570,9 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
     Map<String, Object> badBase64 = parseMap(SAMPLE_RESP_BODY);
     List<Object> targetFiles = asList(badBase64.get("target_files"));
-    byte[] fileDecoded = Base64.getDecoder().decode((String) asMap(targetFiles.get(0)).get("raw"));
+    byte[] fileDecoded = Base64
+      .getDecoder()
+      .decode((String) asMap(targetFiles.get(0)).get("raw"));
     asMap(targetFiles.get(0)).put("raw", Base64.getEncoder().encodeToString(fileDecoded) + "##");
 
     stubHttp(buildOKResponse(toJson(badBase64)), buildOKResponse(SAMPLE_RESP_BODY));
@@ -537,7 +584,8 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     Map<String, Object> state = clientState(parseBody());
     assertEquals(
         "Could not get file contents from remote config, file employee/ASM_DD/1.recommended.json/config",
-        state.get("error"));
+        state.get("error")
+    );
   }
 
   @Test
@@ -564,7 +612,7 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     Map<String, Object> wrongHash = parseMap(SAMPLE_RESP_BODY);
     Map<String, Object> targets = decodeTargets(wrongHash.get("targets"));
     asMap(asMap(asMap(asMap(targets.get("signed")).get("targets")).get(configKey)).get("hashes"))
-        .put("sha256", "0");
+      .put("sha256", "0");
     wrongHash.put("targets", signAndBase64EncodeTargets(targets));
 
     stubHttp(buildOKResponse(toJson(wrongHash)));
@@ -590,14 +638,13 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
   @Test
   void acceptsHttp204AsAResponseToIndicateNoChanges() throws IOException {
-    Response resp =
-        new Response.Builder()
-            .request(REQUEST)
-            .protocol(Protocol.HTTP_1_1)
-            .message("No Content")
-            .body(ResponseBody.create(MediaType.parse("application/json"), ""))
-            .code(204)
-            .build();
+    Response resp = new Response.Builder()
+      .request(REQUEST)
+      .protocol(Protocol.HTTP_1_1)
+      .message("No Content")
+      .body(ResponseBody.create(MediaType.parse("application/json"), ""))
+      .code(204)
+      .build();
     ConfigurationChangesTypedListener<Object> listener = typedListener();
     ConfigurationDeserializer<Object> deserializer = deserializerMock();
 
@@ -623,11 +670,16 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
         buildOKResponse(SAMPLE_RESP_BODY),
         buildOKResponse(SAMPLE_RESP_BODY),
         buildOKResponse(cfgWithoutAsm),
-        buildOKResponse(cfgWithoutAsm));
-    task.run(poller); // accept + commit
-    task.run(poller); // no commit, no change
-    task.run(poller); // remove + commit
-    task.run(poller); // no commit, no change
+        buildOKResponse(cfgWithoutAsm)
+    );
+    // accept + commit
+    task.run(poller);
+    // no commit, no change
+    task.run(poller);
+    // remove + commit
+    task.run(poller);
+    // no commit, no change
+    task.run(poller);
 
     verify(listener, times(1)).accept(any(), notNull(), any());
     verify(listener, times(1)).remove(any(), any());
@@ -645,10 +697,14 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     stubHttp(
         buildOKResponse(SAMPLE_RESP_BODY),
         buildOKResponse(cfgWithoutAsm),
-        buildOKResponse(cfgWithoutAsm));
-    task.run(poller); // accept with non-null config
-    task.run(poller); // unapply (accept with null config)
-    task.run(poller); // nothing more
+        buildOKResponse(cfgWithoutAsm)
+    );
+    // accept with non-null config
+    task.run(poller);
+    // unapply (accept with null config)
+    task.run(poller);
+    // nothing more
+    task.run(poller);
 
     verify(listener, times(1)).accept(any(), notNull(), any());
     verify(listener, times(1)).accept(any(), isNull(), any());
@@ -666,10 +722,15 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     start();
 
     stubHttp(
-        buildOKResponse(SAMPLE_RESP_BODY), // apply first configuration
-        buildOKResponse(multiConfigs), // apply second configuration
-        buildOKResponse(SAMPLE_RESP_BODY), // remove second configuration
-        buildOKResponse(noConfigs)); // remove all configurations
+        // apply first configuration
+        buildOKResponse(SAMPLE_RESP_BODY),
+        // apply second configuration
+        buildOKResponse(multiConfigs),
+        // remove second configuration
+        buildOKResponse(SAMPLE_RESP_BODY),
+        // remove all configurations
+        buildOKResponse(noConfigs)
+    );
     task.run(poller);
     task.run(poller);
     task.run(poller);
@@ -686,31 +747,29 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     String newConfigId = "1ba66cc9-146a-3479-9e66-2b63fd580f48";
     String newConfigKey = "datadog/2/LIVE_DEBUGGING/" + newConfigId + "/config";
 
-    poller.addListener(
-        Product.ASM_DD,
-        parseDeserializer(),
-        (configKey, config, hinter) -> {
-          throw new RuntimeException("throw here");
-        });
-    poller.addListener(
-        Product.LIVE_DEBUGGING, parseDeserializer(), (configKey, config, hinter) -> {});
+    poller.addListener(Product.ASM_DD, parseDeserializer(), (configKey, config, hinter) -> {
+      throw new RuntimeException("throw here");
+    });
+    poller.addListener(Product.LIVE_DEBUGGING, parseDeserializer(), (configKey, config, hinter) -> {});
     start();
 
     Map<String, Object> withExtra = parseMap(SAMPLE_RESP_BODY);
     asList(withExtra.get("client_configs")).add(newConfigKey);
     Map<String, Object> targets = decodeTargets(withExtra.get("targets"));
     asMap(asMap(targets.get("signed")).get("targets"))
-        .put(
-            newConfigKey,
-            map(
-                "custom", map("v", 3),
-                "hashes",
-                    map(
-                        "sha256",
-                        "7a38bf81f383f69433ad6e900d35b3e2385593f76a7b7ab5d4355b8ba41ee24b"),
-                "length", "{\"foo\":\"bar\"}".length()));
+      .put(
+          newConfigKey,
+          map(
+              "custom",
+              map("v", 3),
+              "hashes",
+              map("sha256", "7a38bf81f383f69433ad6e900d35b3e2385593f76a7b7ab5d4355b8ba41ee24b"),
+              "length",
+              "{\"foo\":\"bar\"}".length()
+          )
+      );
     asList(withExtra.get("target_files"))
-        .add(map("path", newConfigKey, "raw", b64("{\"foo\":\"bar\"}")));
+      .add(map("path", newConfigKey, "raw", b64("{\"foo\":\"bar\"}")));
     withExtra.put("targets", signAndBase64EncodeTargets(targets));
 
     stubHttp(buildOKResponse(toJson(withExtra)), buildOKResponse(SAMPLE_RESP_BODY));
@@ -738,37 +797,42 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
         arguments(
             "404 with body",
             new Response.Builder()
-                .request(REQUEST)
-                .protocol(Protocol.HTTP_1_1)
-                .message("Not Found")
-                .code(404)
-                .body(ResponseBody.create(MediaType.get("text/plain"), "not found!"))
-                .build()),
+              .request(REQUEST)
+              .protocol(Protocol.HTTP_1_1)
+              .message("Not Found")
+              .code(404)
+              .body(ResponseBody.create(MediaType.get("text/plain"), "not found!"))
+              .build()
+        ),
         arguments(
             "404 without body",
             new Response.Builder()
-                .request(REQUEST)
-                .protocol(Protocol.HTTP_1_1)
-                .message("Not Found")
-                .code(404)
-                .build()),
+              .request(REQUEST)
+              .protocol(Protocol.HTTP_1_1)
+              .message("Not Found")
+              .code(404)
+              .build()
+        ),
         arguments(
             "success, no body",
             new Response.Builder()
-                .request(REQUEST)
-                .protocol(Protocol.HTTP_1_1)
-                .message("Created")
-                .code(201)
-                .build()),
+              .request(REQUEST)
+              .protocol(Protocol.HTTP_1_1)
+              .message("Created")
+              .code(201)
+              .build()
+        ),
         arguments(
             "not json",
             new Response.Builder()
-                .request(REQUEST)
-                .protocol(Protocol.HTTP_1_1)
-                .message("OK")
-                .body(ResponseBody.create(MediaType.get("text/plain"), SAMPLE_RESP_BODY))
-                .code(200)
-                .build()));
+              .request(REQUEST)
+              .protocol(Protocol.HTTP_1_1)
+              .message("OK")
+              .body(ResponseBody.create(MediaType.get("text/plain"), SAMPLE_RESP_BODY))
+              .code(200)
+              .build()
+        )
+    );
   }
 
   // autoCloseArguments disabled: a body-less okhttp Response throws on close()
@@ -782,7 +846,6 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
     stubHttp(resp);
     task.run(poller);
-
     // a single request is made and no configuration is applied
     verify(okHttpClient, times(1)).newCall(any());
     verifyNoInteractions(listener);
@@ -793,7 +856,10 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
         arguments("targets not a string", "{\"targets\": []}"),
         arguments("targets not base64", "{\"targets\": \"ZZZZ=\"}"),
         arguments(
-            "signed not an object", "{\"targets\": \"" + b64("{\"signed\": \"string\"}") + "\"}"));
+            "signed not an object",
+            "{\"targets\": \"" + b64("{\"signed\": \"string\"}") + "\"}"
+        )
+    );
   }
 
   @ParameterizedTest(name = "body does not satisfy format: {0}")
@@ -816,38 +882,37 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     // not a valid key
     Map<String, Object> notValidKey = parseMap(SAMPLE_RESP_BODY);
     asList(notValidKey.get("client_configs")).set(0, "foobar");
-
     // no file for the given key
     Map<String, Object> noFile = parseMap(SAMPLE_RESP_BODY);
     noFile.put("target_files", list());
-
     // two reportable errors
     Map<String, Object> twoErrors = parseMap(SAMPLE_RESP_BODY);
     twoErrors.put("client_configs", list("foobar", "employee/ASM_DD/1.recommended.json/config"));
     twoErrors.put("target_files", list());
-
     // in target_files, but not targets.signed.targets
     Map<String, Object> notInTargets = parseMap(SAMPLE_RESP_BODY);
     Map<String, Object> targetsNotInTargets = decodeTargets(notInTargets.get("targets"));
     asMap(targetsNotInTargets.get("signed")).put("targets", map());
     notInTargets.put("targets", signAndBase64EncodeTargets(targetsNotInTargets));
-
     // told to apply config that is not subscribed
     Map<String, Object> notSubscribed = parseMap(SAMPLE_RESP_BODY);
     notSubscribed.put(
         "client_configs",
-        list("datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config"));
-
+        list("datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config")
+    );
     // invalid signature
     Map<String, Object> invalidSignature = parseMap(SAMPLE_RESP_BODY);
     Map<String, Object> invalidSigTargets = decodeTargets(invalidSignature.get("targets"));
     asMap(asList(invalidSigTargets.get("signatures")).get(0))
-        .put(
-            "sig",
-            "59a6478aba87d171261e6995faaa8e36c95c3e75436c4e82f11ac625220e13b703ce9b912ee0731415121b5a47aa2abdb398a60656b7701b15e606c6327c880e");
+      .put(
+          "sig",
+          "59a6478aba87d171261e6995faaa8e36c95c3e75436c4e82f11ac625220e13b703ce9b912ee0731415"
+          + "121b5a47aa2abdb398a60656b7701b15e606c6327c880e"
+      );
     invalidSignature.put(
-        "targets", Base64.getEncoder().encodeToString(toJson(invalidSigTargets).getBytes(UTF_8)));
-
+        "targets",
+        Base64.getEncoder().encodeToString(toJson(invalidSigTargets).getBytes(UTF_8))
+    );
     // structurally invalid signature
     Map<String, Object> structurallyInvalid = parseMap(SAMPLE_RESP_BODY);
     Map<String, Object> structurallyInvalidTargets =
@@ -855,45 +920,54 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     asMap(asList(structurallyInvalidTargets.get("signatures")).get(0)).put("sig", repeat("a", 128));
     structurallyInvalid.put(
         "targets",
-        Base64.getEncoder().encodeToString(toJson(structurallyInvalidTargets).getBytes(UTF_8)));
+        Base64.getEncoder().encodeToString(toJson(structurallyInvalidTargets).getBytes(UTF_8))
+    );
 
     return Stream.of(
         arguments("not a valid key", toJson(notValidKey), "Not a valid config key: foobar"),
         arguments(
             "no file for key",
             toJson(noFile),
-            "No content for employee/ASM_DD/1.recommended.json/config"),
+            "No content for employee/ASM_DD/1.recommended.json/config"
+        ),
         arguments(
             "two reportable errors",
             toJson(twoErrors),
             "Failed to apply configuration due to 2 errors:\n (1) Not a valid config key: foobar\n"
-                + " (2) No content for employee/ASM_DD/1.recommended.json/config\n"),
+            + " (2) No content for employee/ASM_DD/1.recommended.json/config\n"
+        ),
         arguments(
             "in target_files but not signed",
             toJson(notInTargets),
-            "Path employee/ASM_DD/1.recommended.json/config is in target_files, but not in targets.signed"),
+            "Path employee/ASM_DD/1.recommended.json/config is in target_files, but not in targets.signed"
+        ),
         arguments(
             "config not subscribed",
             toJson(notSubscribed),
             "Told to handle config key datadog/2/LIVE_DEBUGGING/1ba66cc9-146a-3479-9e66-2b63fd580f48/config,"
-                + " but the product LIVE_DEBUGGING is not being handled"),
+            + " but the product LIVE_DEBUGGING is not being handled"
+        ),
         arguments(
             "invalid signature",
             toJson(invalidSignature),
-            "Signature verification failed for targets.signed. Key id: TEST_KEY_ID"),
+            "Signature verification failed for targets.signed. Key id: TEST_KEY_ID"
+        ),
         arguments(
             "structurally invalid signature",
             toJson(structurallyInvalid),
-            "Error reading signature or canonicalizing targets.signed: Invalid scalar representation"));
+            "Error reading signature or canonicalizing targets.signed: Invalid scalar representation"
+        )
+    );
   }
 
   @ParameterizedTest(name = "reportable errors: {0}")
   @MethodSource("reportableErrorsArguments")
   void reportableErrors(String scenario, String bodyStr, String errorMsg) throws IOException {
-    poller.addListener(
-        Product.ASM_DD,
-        deserializerThrowing("should not be called"),
-        (configKey, config, hinter) -> {});
+    poller.addListener(Product.ASM_DD, deserializerThrowing("should not be called"), (
+                                                                                         configKey,
+                                                                                         config,
+                                                                                         hinter
+                                                                                     ) -> {});
     start();
 
     stubHttp(buildOKResponse(bodyStr), buildOKResponse(SAMPLE_RESP_BODY));
@@ -908,12 +982,9 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
   @Test
   void reportsErrorDuringDeserialization() throws IOException {
-    poller.addListener(
-        Product.ASM_DD,
-        content -> {
-          throw new RuntimeException("my deserializer error");
-        },
-        (configKey, config, hinter) -> {});
+    poller.addListener(Product.ASM_DD, content -> {
+      throw new RuntimeException("my deserializer error");
+    }, (configKey, config, hinter) -> {});
     start();
 
     stubHttp(buildOKResponse(SAMPLE_RESP_BODY), buildOKResponse(SAMPLE_RESP_BODY));
@@ -928,12 +999,9 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
   @Test
   void reportsErrorApplyingConfiguration() throws IOException {
-    poller.addListener(
-        Product.ASM_DD,
-        content -> true,
-        (configKey, config, hinter) -> {
-          throw new RuntimeException("error applying config");
-        });
+    poller.addListener(Product.ASM_DD, content -> true, (configKey, config, hinter) -> {
+      throw new RuntimeException("error applying config");
+    });
     start();
 
     stubHttp(buildOKResponse(SAMPLE_RESP_BODY), buildOKResponse(SAMPLE_RESP_BODY));
@@ -950,18 +1018,21 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
   void theMaxSizeIsExceeded() throws IOException {
     ConfigurationDeserializer<Object> deserializer = deserializerMock();
 
-    poller.addListener(
-        Product.ASM_DD, deserializer, (configKey, config, hinter) -> fail("should not be called"));
+    poller.addListener(Product.ASM_DD, deserializer, (configKey, config, hinter) -> fail(
+        "should not be called"
+    ));
     start();
 
     Map<String, Object> oversized = parseMap(SAMPLE_RESP_BODY);
     asList(oversized.get("target_files"))
-        .add(
-            map(
-                "path",
-                "foo/bar",
-                "raw",
-                repeat("a", (int) Config.get().getRemoteConfigMaxPayloadSizeBytes())));
+      .add(
+          map(
+              "path",
+              "foo/bar",
+              "raw",
+              repeat("a", (int) Config.get().getRemoteConfigMaxPayloadSizeBytes())
+          )
+      );
 
     stubHttp(buildOKResponse(toJson(oversized)));
     task.run(poller);
@@ -1000,22 +1071,24 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     task.run(poller);
 
     verify(listener)
-        .accept(
-            any(),
-            cfgMatches(cfg -> Boolean.TRUE.equals(asMap(cfg.get("asm")).get("enabled"))),
-            any());
+      .accept(
+          any(),
+          cfgMatches(cfg -> Boolean.TRUE.equals(asMap(cfg.get("asm")).get("enabled"))),
+          any()
+      );
   }
 
   @Test
   void distributesFeaturesUponSubscribing() throws IOException {
     ConfigurationChangesTypedListener<Object> listener = typedListener();
 
-    poller.addListener(
-        Product.ASM_FEATURES,
-        deserializerThrowing("should not be called"),
-        (configKey, config, hinter) -> {
-          throw new RuntimeException("should not be called");
-        });
+    poller.addListener(Product.ASM_FEATURES, deserializerThrowing("should not be called"), (
+                                                                                               configKey,
+                                                                                               config,
+                                                                                               hinter
+                                                                                           ) -> {
+      throw new RuntimeException("should not be called");
+    });
     start();
 
     poller.removeListeners(Product.ASM_FEATURES);
@@ -1025,10 +1098,11 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     task.run(poller);
 
     verify(listener)
-        .accept(
-            any(),
-            cfgMatches(cfg -> Boolean.TRUE.equals(asMap(cfg.get("asm")).get("enabled"))),
-            any());
+      .accept(
+          any(),
+          cfgMatches(cfg -> Boolean.TRUE.equals(asMap(cfg.get("asm")).get("enabled"))),
+          any()
+      );
   }
 
   @Test
@@ -1044,31 +1118,29 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     task.run(poller);
 
     verify(listener1)
-        .accept(
-            any(),
-            cfgMatches(cfg -> Boolean.TRUE.equals(asMap(cfg.get("asm")).get("enabled"))),
-            any());
+      .accept(
+          any(),
+          cfgMatches(cfg -> Boolean.TRUE.equals(asMap(cfg.get("asm")).get("enabled"))),
+          any()
+      );
     verify(listener2)
-        .accept(
-            any(),
-            cfgMatches(
-                cfg ->
-                    Double.valueOf(0.1)
-                        .equals(asMap(cfg.get("api_security")).get("request_sample_rate"))),
-            any());
+      .accept(
+          any(),
+          cfgMatches(cfg -> Double
+            .valueOf(0.1)
+            .equals(asMap(cfg.get("api_security")).get("request_sample_rate"))),
+          any()
+      );
   }
 
   @Test
   void errorApplyingFeatures() throws IOException {
     AtomicBoolean called = new AtomicBoolean(false);
 
-    poller.addListener(
-        Product.ASM_FEATURES,
-        content -> true,
-        (configKey, config, hinter) -> {
-          called.set(true);
-          throw new RuntimeException("throws");
-        });
+    poller.addListener(Product.ASM_FEATURES, content -> true, (configKey, config, hinter) -> {
+      called.set(true);
+      throw new RuntimeException("throws");
+    });
     start();
 
     stubHttp(buildOKResponse(FEATURES_RESP_BODY));
@@ -1082,25 +1154,26 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
   void removingFeatureListeners() throws IOException {
     ConfigurationChangesTypedListener<Object> listener = typedListener();
 
-    poller.addListener(
-        Product._UNKNOWN,
-        deserializerThrowing("should not be called"),
-        (configKey, config, hinter) -> {
-          throw new RuntimeException("should not be called");
-        });
+    poller.addListener(Product._UNKNOWN, deserializerThrowing("should not be called"), (
+                                                                                           configKey,
+                                                                                           config,
+                                                                                           hinter
+                                                                                       ) -> {
+      throw new RuntimeException("should not be called");
+    });
     poller.addListener(Product.ASM_FEATURES, content -> null, listener);
     poller.removeListeners(Product.ASM_FEATURES);
     start();
 
     stubHttp(buildOKResponse(FEATURES_RESP_BODY));
     task.run(poller);
-
-    verify(listener, never()).accept(any(), any(), any()); // listener is not called
+    // listener is not called
+    verify(listener, never()).accept(any(), any(), any());
 
     poller.removeListeners(Product._UNKNOWN);
     task.run(poller);
-
-    verify(okHttpClient, times(1)).newCall(any()); // not even a request is made the second time
+    // not even a request is made the second time
+    verify(okHttpClient, times(1)).newCall(any());
   }
 
   @Test
@@ -1126,7 +1199,9 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
         arguments(
             "long min plus one",
             -9223372036854775807L,
-            new byte[] {(byte) 128, 0, 0, 0, 0, 0, 0, 1}));
+            new byte[] {(byte) 128, 0, 0, 0, 0, 0, 0, 1}
+        )
+    );
   }
 
   @ParameterizedTest(name = "check setting of capabilities positive test: {0}")
@@ -1149,26 +1224,27 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
   }
 
   // ----- Helper methods -----
-
   private void start() {
     when(scheduler.scheduleAtFixedRate(
-            any(), eq(poller), eq(0L), eq((long) DEFAULT_POLL_PERIOD), eq(MILLISECONDS)))
-        .thenAnswer(
-            invocation -> {
-              task = invocation.getArgument(0);
-              return scheduled;
-            });
+        any(),
+        eq(poller),
+        eq(0L),
+        eq((long) DEFAULT_POLL_PERIOD),
+        eq(MILLISECONDS)
+    ))
+      .thenAnswer(invocation -> {
+        task = invocation.getArgument(0);
+        return scheduled;
+      });
     poller.start();
     assertNotNull(task);
   }
 
   private void stubHttp(Response... responses) throws IOException {
-    when(okHttpClient.newCall(any(Request.class)))
-        .thenAnswer(
-            invocation -> {
-              request = invocation.getArgument(0);
-              return call;
-            });
+    when(okHttpClient.newCall(any(Request.class))).thenAnswer(invocation -> {
+      request = invocation.getArgument(0);
+      return call;
+    });
     OngoingStubbing<Response> stubbing = when(call.execute());
     for (Response response : responses) {
       stubbing = stubbing.thenReturn(response);
@@ -1227,12 +1303,13 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     Map<String, Object> map = parseMap(SAMPLE_RESP_BODY);
     map.put("client_configs", list());
     Map<String, Object> targets = decodeTargets(map.get("targets"));
-    asMap(
-            asMap(asMap(targets.get("signed")).get("targets"))
-                .get("employee/ASM_DD/1.recommended.json/config"))
-        .put(
-            "hashes",
-            map("sha256", "aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f"));
+    asMap(asMap(asMap(targets.get("signed")).get("targets"))
+      .get("employee/ASM_DD/1.recommended.json/config")
+    )
+      .put(
+          "hashes",
+          map("sha256", "aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f")
+      );
     map.put("targets", signAndBase64EncodeTargets(targets));
     return toJson(map);
   }
@@ -1250,7 +1327,8 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
         "hashes",
         map("sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
         "length",
-        0);
+        0
+    );
   }
 
   private static String signAndBase64EncodeTargets(Map<String, Object> targets) {
@@ -1337,150 +1415,161 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
   private static final String SAMPLE_APPSEC_CONFIG =
       "\n"
-          + "{\n"
-          + "    \"version\": \"2.2\",\n"
-          + "    \"metadata\": {\n"
-          + "        \"rules_version\": \"1.3.1\"\n"
-          + "    },\n"
-          + "    \"rules\": [\n"
-          + "        {\n"
-          + "            \"id\": \"crs-913-110\",\n"
-          + "            \"name\": \"Acunetix\",\n"
-          + "            \"tags\": {\n"
-          + "                \"type\": \"security_scanner\",\n"
-          + "                \"crs_id\": \"913110\",\n"
-          + "                \"category\": \"attack_attempt\"\n"
-          + "            },\n"
-          + "            \"conditions\": [\n"
-          + "                {\n"
-          + "                    \"parameters\": {\n"
-          + "                        \"inputs\": [\n"
-          + "                            {\n"
-          + "                                \"address\": \"server.request.headers.no_cookies\"\n"
-          + "                            }\n"
-          + "                        ],\n"
-          + "                        \"list\": [\n"
-          + "                            \"acunetix-product\"\n"
-          + "                        ]\n"
-          + "                    },\n"
-          + "                    \"operator\": \"phrase_match\"\n"
-          + "                }\n"
-          + "            ],\n"
-          + "            \"transformers\": [\n"
-          + "                \"lowercase\"\n"
-          + "            ]\n"
-          + "        }\n"
-          + "    ]\n"
-          + "}\n";
-
+      + "{\n"
+      + "    \"version\": \"2.2\",\n"
+      + "    \"metadata\": {\n"
+      + "        \"rules_version\": \"1.3.1\"\n"
+      + "    },\n"
+      + "    \"rules\": [\n"
+      + "        {\n"
+      + "            \"id\": \"crs-913-110\",\n"
+      + "            \"name\": \"Acunetix\",\n"
+      + "            \"tags\": {\n"
+      + "                \"type\": \"security_scanner\",\n"
+      + "                \"crs_id\": \"913110\",\n"
+      + "                \"category\": \"attack_attempt\"\n"
+      + "            },\n"
+      + "            \"conditions\": [\n"
+      + "                {\n"
+      + "                    \"parameters\": {\n"
+      + "                        \"inputs\": [\n"
+      + "                            {\n"
+      + "                                \"address\": \"server.request.headers.no_cookies\"\n"
+      + "                            }\n"
+      + "                        ],\n"
+      + "                        \"list\": [\n"
+      + "                            \"acunetix-product\"\n"
+      + "                        ]\n"
+      + "                    },\n"
+      + "                    \"operator\": \"phrase_match\"\n"
+      + "                }\n"
+      + "            ],\n"
+      + "            \"transformers\": [\n"
+      + "                \"lowercase\"\n"
+      + "            ]\n"
+      + "        }\n"
+      + "    ]\n"
+      + "}\n";
   private static final String SAMPLE_TARGETS =
       "\n"
-          + "{\n"
-          + "   \"signatures\" : [\n"
-          + "      {\n"
-          + "         \"keyid\" : \"5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd\",\n"
-          + "         \"sig\" : \"766871ed1acc60ef35f9f24262682283a55e79334f5154486176033b67568aed82fe8139a1f78689b96473537f0a2e55c8365d50bff345ea9ac350d57b90390d\"\n"
-          + "      }\n"
-          + "   ],\n"
-          + "   \"signed\" : {\n"
-          + "      \"_type\" : \"targets\",\n"
-          + "      \"custom\" : {\n"
-          + "         \"opaque_backend_state\" : \"foobar\"\n"
-          + "      },\n"
-          + "      \"expires\" : \"2022-09-17T12:49:15Z\",\n"
-          + "      \"spec_version\" : \"1.0.0\",\n"
-          + "      \"targets\" : {\n"
-          + "         \"employee/ASM_DD/1.recommended.json/config\" : {\n"
-          + "            \"custom\" : {\n"
-          + "               \"v\" : 1\n"
-          + "            },\n"
-          + "            \"hashes\" : {\n"
-          + "               \"sha256\" : \"6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819\"\n"
-          + "            },\n"
-          + "            \"length\" : 919\n"
-          + "         },\n"
-          + "         \"employee/ASM_DD/2.suggested.json/config\" : {\n"
-          + "            \"custom\" : {\n"
-          + "               \"v\" : 1\n"
-          + "            },\n"
-          + "            \"hashes\" : {\n"
-          + "               \"sha256\" : \"6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819\"\n"
-          + "            },\n"
-          + "            \"length\" : 919\n"
-          + "         },\n"
-          + "         \"employee/CWS_DD/2.default.policy/config\" : {\n"
-          + "            \"custom\" : {\n"
-          + "               \"v\" : 2\n"
-          + "            },\n"
-          + "            \"hashes\" : {\n"
-          + "               \"sha256\" : \"2f075fcaa9bdfc96bfc30d5a18711fbebf59d2cb3f3b5258d41ebdc1b1a54569\"\n"
-          + "            },\n"
-          + "            \"length\" : 34805\n"
-          + "         }\n"
-          + "      },\n"
-          + "      \"version\" : 23337393\n"
-          + "   }\n"
-          + "}\n";
-
-  private static final String SAMPLE_RESP_BODY =
-      "{\n"
-          + "   \"client_configs\" : [\n"
-          + "      \"employee/ASM_DD/1.recommended.json/config\"\n"
-          + "   ],\n"
-          + "   \"roots\" : [],\n"
-          + "   \"target_files\" : [\n"
-          + "      {\n"
-          + "         \"path\" : \"employee/ASM_DD/1.recommended.json/config\",\n"
-          + "         \"raw\" : \""
-          + b64(SAMPLE_APPSEC_CONFIG)
-          + "\"\n"
-          + "      },\n"
-          + "      {\n"
-          + "         \"path\" : \"employee/ASM_DD/2.suggested.json/config\",\n"
-          + "         \"raw\" : \""
-          + b64(SAMPLE_APPSEC_CONFIG)
-          + "\"\n"
-          + "      }\n"
-          + "   ],\n"
-          + "   \"targets\" : \""
-          + signAndBase64EncodeTargets(SAMPLE_TARGETS)
-          + "\"\n"
-          + "}\n";
-
-  private static final String FEATURES_RESP_BODY =
-      toJson(
-          map(
-              "client_configs", list("datadog/2/ASM_FEATURES/asm_features_activation/config"),
-              "roots", list(),
-              "target_files",
-                  list(
+      + "{\n"
+      + "   \"signatures\" : [\n"
+      + "      {\n"
+      + "         \"keyid\" : \"5c4ece41241a1bb513f6e3e5df74ab7d5183dfffbd71bfd43127920d880569fd\",\n"
+      + "         \"sig\" : \"766871ed1acc60ef35f9f24262682283a55e79334f5154486176033b67568aed82fe8139a1f78689b96473537f0a2e55c8365d50bff345ea9ac350d57b90390d\"\n"
+      + "      }\n"
+      + "   ],\n"
+      + "   \"signed\" : {\n"
+      + "      \"_type\" : \"targets\",\n"
+      + "      \"custom\" : {\n"
+      + "         \"opaque_backend_state\" : \"foobar\"\n"
+      + "      },\n"
+      + "      \"expires\" : \"2022-09-17T12:49:15Z\",\n"
+      + "      \"spec_version\" : \"1.0.0\",\n"
+      + "      \"targets\" : {\n"
+      + "         \"employee/ASM_DD/1.recommended.json/config\" : {\n"
+      + "            \"custom\" : {\n"
+      + "               \"v\" : 1\n"
+      + "            },\n"
+      + "            \"hashes\" : {\n"
+      + "               \"sha256\" : \"6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819\"\n"
+      + "            },\n"
+      + "            \"length\" : 919\n"
+      + "         },\n"
+      + "         \"employee/ASM_DD/2.suggested.json/config\" : {\n"
+      + "            \"custom\" : {\n"
+      + "               \"v\" : 1\n"
+      + "            },\n"
+      + "            \"hashes\" : {\n"
+      + "               \"sha256\" : \"6302258236e6051216b950583ec7136d946b463c17cbe64384ba5d566324819\"\n"
+      + "            },\n"
+      + "            \"length\" : 919\n"
+      + "         },\n"
+      + "         \"employee/CWS_DD/2.default.policy/config\" : {\n"
+      + "            \"custom\" : {\n"
+      + "               \"v\" : 2\n"
+      + "            },\n"
+      + "            \"hashes\" : {\n"
+      + "               \"sha256\" : \"2f075fcaa9bdfc96bfc30d5a18711fbebf59d2cb3f3b5258d41ebdc1b1a54569\"\n"
+      + "            },\n"
+      + "            \"length\" : 34805\n"
+      + "         }\n"
+      + "      },\n"
+      + "      \"version\" : 23337393\n"
+      + "   }\n"
+      + "}\n";
+  private static final String SAMPLE_RESP_BODY = "{\n"
+      + "   \"client_configs\" : [\n"
+      + "      \"employee/ASM_DD/1.recommended.json/config\"\n"
+      + "   ],\n"
+      + "   \"roots\" : [],\n"
+      + "   \"target_files\" : [\n"
+      + "      {\n"
+      + "         \"path\" : \"employee/ASM_DD/1.recommended.json/config\",\n"
+      + "         \"raw\" : \""
+      + b64(SAMPLE_APPSEC_CONFIG)
+      + "\"\n"
+      + "      },\n"
+      + "      {\n"
+      + "         \"path\" : \"employee/ASM_DD/2.suggested.json/config\",\n"
+      + "         \"raw\" : \""
+      + b64(SAMPLE_APPSEC_CONFIG)
+      + "\"\n"
+      + "      }\n"
+      + "   ],\n"
+      + "   \"targets\" : \""
+      + signAndBase64EncodeTargets(SAMPLE_TARGETS)
+      + "\"\n"
+      + "}\n";
+  private static final String FEATURES_RESP_BODY = toJson(
+      map(
+          "client_configs",
+          list("datadog/2/ASM_FEATURES/asm_features_activation/config"),
+          "roots",
+          list(),
+          "target_files",
+          list(
+              map(
+                  "path",
+                  "datadog/2/ASM_FEATURES/asm_features_activation/config",
+                  "raw",
+                  b64(
+                      "{\\\"asm\\\":{\\\"enabled\\\":true},\\\"api_security\\\":{\\\"request_"
+                      + "sample_rate\\\":0.1}}"
+                  )
+              )
+          ),
+          "targets",
+          signAndBase64EncodeTargets(
+              map(
+                  "signed",
+                  map(
+                      "expires",
+                      "2022-09-17T12:49:15Z",
+                      "spec_version",
+                      "1.0.0",
+                      "targets",
                       map(
-                          "path",
                           "datadog/2/ASM_FEATURES/asm_features_activation/config",
-                          "raw",
-                          b64(
-                              "{\"asm\":{\"enabled\":true},\"api_security\":{\"request_sample_rate\":0.1}}"))),
-              "targets",
-                  signAndBase64EncodeTargets(
-                      map(
-                          "signed",
                           map(
-                              "expires",
-                              "2022-09-17T12:49:15Z",
-                              "spec_version",
-                              "1.0.0",
-                              "targets",
+                              "custom",
+                              map("v", 1),
+                              "hashes",
                               map(
-                                  "datadog/2/ASM_FEATURES/asm_features_activation/config",
-                                  map(
-                                      "custom", map("v", 1),
-                                      "hashes",
-                                          map(
-                                              "sha256",
-                                              "b01cb68f140fbfb7a2bb0ce39a473aa59c33664aca0c871cf07b8f4e09e3e360"),
-                                      "length", 67)),
-                              "version",
-                              23337393)))));
+                                  "sha256",
+                                  "b01cb68f140fbfb7a2bb0ce39a473aa59c33664aca0c871cf07b8f4e09e3e360"
+                              ),
+                              "length",
+                              67
+                          )
+                      ),
+                      "version",
+                      23337393
+                  )
+              )
+          )
+      )
+  );
 
   private static String signAndBase64EncodeTargets(String targetsJson) {
     return signAndBase64EncodeTargets(parseMap(targetsJson));

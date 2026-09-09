@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
@@ -20,8 +19,9 @@ import scala.util.Try;
  * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
  */
 public final class PromiseObjectInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
@@ -32,7 +32,8 @@ public final class PromiseObjectInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("scala$concurrent$impl$Promise$$resolveTry")),
-        getClass().getName() + "$ResolveTry");
+        getClass().getName() + "$ResolveTry"
+    );
   }
 
   public static final class ResolveTry {
@@ -51,7 +52,9 @@ public final class PromiseObjectInstrumentation
       }
     }
 
-    /** CallbackRunnable was removed in scala 2.13 */
+    /**
+     * CallbackRunnable was removed in scala 2.13
+     */
     private static void muzzleCheck(final CallbackRunnable callback) {
       callback.run();
     }

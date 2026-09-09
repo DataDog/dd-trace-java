@@ -9,7 +9,6 @@ package datadog.trace.api.featureflag.flagevaluation;
  * without backpressure.
  */
 public interface FlagEvaluationWriter extends AutoCloseable {
-
   /**
    * Non-blocking enqueue of a flag evaluation event. May silently drop the event if the internal
    * bounded queue is full (best-effort, observable via drop counter).
@@ -26,7 +25,9 @@ public interface FlagEvaluationWriter extends AutoCloseable {
    */
   boolean hasCapacityForEnqueue();
 
-  /** Counts one queue-overflow drop without offering an event. */
+  /**
+   * Counts one queue-overflow drop without offering an event.
+   */
   void countPreQueueOverflow();
 
   /**
@@ -37,10 +38,14 @@ public interface FlagEvaluationWriter extends AutoCloseable {
    */
   void countContextTruncated(String reason);
 
-  /** Starts the background serializing thread. Must be called once after construction. */
+  /**
+   * Starts the background serializing thread. Must be called once after construction.
+   */
   void start();
 
-  /** Stops the background thread and releases resources. */
+  /**
+   * Stops the background thread and releases resources.
+   */
   @Override
   void close();
 }

@@ -6,7 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Metrics for baggage propagation operations. */
+/**
+ * Metrics for baggage propagation operations.
+ */
 public class BaggageMetrics {
   private static final BaggageMetrics INSTANCE = new BaggageMetrics();
   private final AtomicLong extractedCounter = new AtomicLong(0);
@@ -26,33 +28,53 @@ public class BaggageMetrics {
     List<TaggedCounter> counters = new ArrayList<>(5);
     counters.add(
         new TaggedCounter(
-            "context_header_style.extracted", this.extractedCounter, "header_style:baggage"));
+            "context_header_style.extracted",
+            this.extractedCounter,
+            "header_style:baggage"
+        )
+    );
     counters.add(
         new TaggedCounter(
-            "context_header_style.injected", this.injectedCounter, "header_style:baggage"));
+            "context_header_style.injected",
+            this.injectedCounter,
+            "header_style:baggage"
+        )
+    );
     counters.add(
         new TaggedCounter(
-            "context_header_style.malformed", this.malformedCounter, "header_style:baggage"));
+            "context_header_style.malformed",
+            this.malformedCounter,
+            "header_style:baggage"
+        )
+    );
     counters.add(
         new TaggedCounter(
             "context_header.truncated",
             this.truncatedInjectByteCounter,
-            "truncation_reason:baggage_byte_count_exceeded"));
+            "truncation_reason:baggage_byte_count_exceeded"
+        )
+    );
     counters.add(
         new TaggedCounter(
             "context_header.truncated",
             this.truncatedInjectItemCounter,
-            "truncation_reason:baggage_item_count_exceeded"));
+            "truncation_reason:baggage_item_count_exceeded"
+        )
+    );
     counters.add(
         new TaggedCounter(
             "context_header.truncated",
             this.truncatedExtractByteCounter,
-            "truncation_reason:baggage_extract_byte_exceeded"));
+            "truncation_reason:baggage_extract_byte_exceeded"
+        )
+    );
     counters.add(
         new TaggedCounter(
             "context_header.truncated",
             this.truncatedExtractItemCounter,
-            "truncation_reason:baggage_extract_item_exceeded"));
+            "truncation_reason:baggage_extract_item_exceeded"
+        )
+    );
     this.taggedCounters = Collections.unmodifiableList(counters);
   }
 

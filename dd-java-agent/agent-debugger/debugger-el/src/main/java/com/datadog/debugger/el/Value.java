@@ -18,9 +18,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
-/** Represents any value of the expression language */
+/**
+ * Represents any value of the expression language
+ */
 public interface Value<T> {
-  /** A generic undefined value */
+  /**
+   * A generic undefined value
+   */
   static Value<?> undefinedValue() {
     return UndefinedValue.INSTANCE;
   }
@@ -100,7 +104,10 @@ public interface Value<T> {
 
   static CapturedContext.CapturedValue toCapturedSnapshot(String name, Value<?> value) {
     return CapturedContext.CapturedValue.of(
-        name, ValueType.toString(value.getType()), value.getValue());
+        name,
+        ValueType.toString(value.getType()),
+        value.getValue()
+    );
   }
 
   static CapturedContext.CapturedValue toCapturedSnapshot(
@@ -109,7 +116,8 @@ public interface Value<T> {
       int maxReferenceDepth,
       int maxCollectionSize,
       int maxCount,
-      int maxFieldCount) {
+      int maxFieldCount
+  ) {
     return CapturedContext.CapturedValue.of(
         name,
         ValueType.toString(value.getType()),
@@ -117,6 +125,7 @@ public interface Value<T> {
         maxReferenceDepth,
         maxCollectionSize,
         maxCount,
-        maxFieldCount);
+        maxFieldCount
+    );
   }
 }

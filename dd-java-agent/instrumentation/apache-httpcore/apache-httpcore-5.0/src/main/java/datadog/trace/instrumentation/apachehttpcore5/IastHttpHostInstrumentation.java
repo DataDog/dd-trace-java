@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.apachehttpcore5;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,8 +13,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public IastHttpHostInstrumentation() {
     super("httpcore-5", "apache-httpcore-5", "apache-http-core-5");
   }
@@ -28,16 +28,20 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor()
-            .and(takesArguments(String.class, InetAddress.class, String.class, int.class)),
-        IastHttpHostInstrumentation.class.getName() + "$CtorAdvice");
+        isConstructor().and(
+            takesArguments(String.class, InetAddress.class, String.class, int.class)
+        ),
+        IastHttpHostInstrumentation.class.getName() + "$CtorAdvice"
+    );
   }
 
   public static class CtorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterCtor(
-        @Advice.This final Object self, @Advice.Argument(2) final String host) {
+        @Advice.This final Object self,
+        @Advice.Argument(2) final String host
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         module.taintObjectIfTainted(self, host);

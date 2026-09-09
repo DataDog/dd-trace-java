@@ -11,7 +11,6 @@ public class Allocation {
   public final Date endAt;
   public final List<Split> splits;
   public final Boolean doLog;
-
   private final transient Instant preciseStartAt;
   private final transient Instant preciseEndAt;
 
@@ -21,7 +20,8 @@ public class Allocation {
       final Date startAt,
       final Date endAt,
       final List<Split> splits,
-      final Boolean doLog) {
+      final Boolean doLog
+  ) {
     this(
         key,
         rules,
@@ -30,7 +30,8 @@ public class Allocation {
         splits,
         doLog,
         startAt == null ? null : startAt.toInstant(),
-        endAt == null ? null : endAt.toInstant());
+        endAt == null ? null : endAt.toInstant()
+    );
   }
 
   private Allocation(
@@ -41,7 +42,8 @@ public class Allocation {
       final List<Split> splits,
       final Boolean doLog,
       final Instant preciseStartAt,
-      final Instant preciseEndAt) {
+      final Instant preciseEndAt
+  ) {
     this.key = key;
     this.rules = rules;
     this.startAt = startAt;
@@ -58,7 +60,8 @@ public class Allocation {
       final Instant startAt,
       final Instant endAt,
       final List<Split> splits,
-      final Boolean doLog) {
+      final Boolean doLog
+  ) {
     return new Allocation(
         key,
         rules,
@@ -67,7 +70,8 @@ public class Allocation {
         splits,
         doLog,
         startAt,
-        endAt);
+        endAt
+    );
   }
 
   public Instant startAtInstant() {

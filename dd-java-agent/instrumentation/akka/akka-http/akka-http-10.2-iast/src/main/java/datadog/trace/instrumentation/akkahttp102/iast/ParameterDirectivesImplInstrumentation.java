@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.scaladsl.server.Directive;
 import akka.http.scaladsl.server.util.Tupler$;
 import com.google.auto.service.AutoService;
@@ -26,7 +25,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ParameterDirectivesImplInstrumentation() {
     super("akka-http");
   }
@@ -38,9 +39,7 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintParametersFunction",
-    };
+    return new String[] {packageName + ".helpers.TaintParametersFunction"};
   }
 
   @Override
@@ -53,24 +52,25 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("filter"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, String.class))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .and(returns(named("akka.http.scaladsl.server.Directive"))),
-        ParameterDirectivesImplInstrumentation.class.getName() + "$FilterAdvice");
-
+          .and(not(isStatic()))
+          .and(named("filter"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, String.class))
+          .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+          .and(returns(named("akka.http.scaladsl.server.Directive"))),
+        ParameterDirectivesImplInstrumentation.class.getName() + "$FilterAdvice"
+    );
     // requiredFilter not relevant
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("repeatedFilter"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, String.class))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .and(returns(named("akka.http.scaladsl.server.Directive"))),
-        ParameterDirectivesImplInstrumentation.class.getName() + "$RepeatedFilterAdvice");
+          .and(not(isStatic()))
+          .and(named("repeatedFilter"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, String.class))
+          .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+          .and(returns(named("akka.http.scaladsl.server.Directive"))),
+        ParameterDirectivesImplInstrumentation.class.getName() + "$RepeatedFilterAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -79,15 +79,19 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
-        @Advice.Return(readOnly = false) Directive /*<Tuple1<?>>*/ retval,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return(readOnly = false) Directive /*<Tuple1<?>>*/
+        retval,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       try {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        retval =
-            retval.tmap(
-                new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
+        retval = retval.tmap(
+            new TaintParametersFunction(ctx, paramName),
+            Tupler$.MODULE$.forTuple(null)
+        );
       } catch (Exception e) {
-        throw new RuntimeException(e); // propagate so it's logged
+        // propagate so it's logged
+        throw new RuntimeException(e);
       }
     }
   }
@@ -98,15 +102,19 @@ public class ParameterDirectivesImplInstrumentation extends InstrumenterModule.I
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
         @Advice.Argument(0) String paramName,
-        @Advice.Return(readOnly = false) Directive /*<Tuple1<Iterable<?>>>*/ retval,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return(readOnly = false) Directive /*<Tuple1<Iterable<?>>>*/
+        retval,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       try {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-        retval =
-            retval.tmap(
-                new TaintParametersFunction(ctx, paramName), Tupler$.MODULE$.forTuple(null));
+        retval = retval.tmap(
+            new TaintParametersFunction(ctx, paramName),
+            Tupler$.MODULE$.forTuple(null)
+        );
       } catch (Exception e) {
-        throw new RuntimeException(e); // propagate so it's logged
+        // propagate so it's logged
+        throw new RuntimeException(e);
       }
     }
   }

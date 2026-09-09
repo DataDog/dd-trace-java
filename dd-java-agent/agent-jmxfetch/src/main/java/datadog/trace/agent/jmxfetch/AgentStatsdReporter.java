@@ -13,11 +13,11 @@ import org.datadog.jmxfetch.JmxAttribute;
 import org.datadog.jmxfetch.reporter.LoggingErrorHandler;
 import org.datadog.jmxfetch.reporter.Reporter;
 
-/** Based on {@link org.datadog.jmxfetch.reporter.StatsdReporter}. */
+/**
+ * Based on {@link org.datadog.jmxfetch.reporter.StatsdReporter}.
+ */
 public final class AgentStatsdReporter extends Reporter implements TracerFlare.Reporter {
-
   private final StatsDClient statsd;
-
   private volatile Map<String, Double> history;
 
   public AgentStatsdReporter(final StatsDClient statsd) {
@@ -27,7 +27,11 @@ public final class AgentStatsdReporter extends Reporter implements TracerFlare.R
 
   @Override
   protected void sendMetricPoint(
-      final String metricType, final String metricName, final double value, final String[] tags) {
+      final String metricType,
+      final String metricName,
+      final double value,
+      final String[] tags
+  ) {
     Map<String, Double> h = history;
     if (null != h) {
       // preparing for tracer-flare, record JMXFetch metrics as they're reported
@@ -37,7 +41,8 @@ public final class AgentStatsdReporter extends Reporter implements TracerFlare.R
       statsd.count(metricName, (long) value, tags);
     } else if ("histogram".equals(metricType)) {
       statsd.histogram(metricName, value, tags);
-    } else { // JMXFetch treats everything else as a gauge
+    } else {
+      // JMXFetch treats everything else as a gauge
       statsd.gauge(metricName, value, tags);
     }
   }
@@ -47,7 +52,8 @@ public final class AgentStatsdReporter extends Reporter implements TracerFlare.R
       final String serviceCheckName,
       final String status,
       final String message,
-      final String[] tags) {
+      final String[] tags
+  ) {
     statsd.serviceCheck(serviceCheckName, status, message, tags);
   }
 
@@ -58,7 +64,10 @@ public final class AgentStatsdReporter extends Reporter implements TracerFlare.R
 
   @Override
   public void displayMatchingAttributeName(
-      final JmxAttribute jmxAttribute, final int rank, final int limit) {
+      final JmxAttribute jmxAttribute,
+      final int rank,
+      final int limit
+  ) {
     throw new UnsupportedOperationException();
   }
 
@@ -96,7 +105,9 @@ public final class AgentStatsdReporter extends Reporter implements TracerFlare.R
     history = null;
   }
 
-  /** Handler that delegates to the shared statsd connection for error tracking purposes. */
+  /**
+   * Handler that delegates to the shared statsd connection for error tracking purposes.
+   */
   final class ErrorHandler extends LoggingErrorHandler {
     @Override
     public void handle(final Exception error) {

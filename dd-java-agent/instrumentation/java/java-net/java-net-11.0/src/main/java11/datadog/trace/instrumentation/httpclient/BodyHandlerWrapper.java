@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.netty41.server;
 
 import static datadog.trace.instrumentation.netty41.AttributeKeys.PARENT_CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;

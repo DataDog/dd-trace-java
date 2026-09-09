@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -49,7 +48,6 @@ import org.msgpack.core.MessageUnpacker;
 
 @ExtendWith(WithConfigExtension.class)
 class TraceMapperV05PayloadTest {
-
   // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
   @BeforeEach
@@ -76,25 +74,26 @@ class TraceMapperV05PayloadTest {
     // enough space for two traces with distinct string values, plus the header
     int dictionarySize = dictionarySpacePerTrace * 2 + 5;
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize);
-    List<PojoSpan> repeatedTrace =
-        Collections.singletonList(
-            new PojoSpan(
-                UUID.randomUUID().toString(),
-                UUID.randomUUID().toString(),
-                UUID.randomUUID().toString(),
-                DDTraceId.ZERO,
-                DDSpanId.ZERO,
-                DDSpanId.ZERO,
-                10000,
-                100,
-                0,
-                Collections.emptyMap(),
-                Collections.emptyMap(),
-                UUID.randomUUID().toString(),
-                false,
-                PrioritySampling.UNSET,
-                0,
-                null));
+    List<PojoSpan> repeatedTrace = Collections.singletonList(
+        new PojoSpan(
+            UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
+            DDTraceId.ZERO,
+            DDSpanId.ZERO,
+            DDSpanId.ZERO,
+            10000,
+            100,
+            0,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            UUID.randomUUID().toString(),
+            false,
+            PrioritySampling.UNSET,
+            0,
+            null
+        )
+    );
     int traceSize = calculateSize(repeatedTrace);
     // 30KB body
     int bufferSize = 30 << 10;
@@ -119,7 +118,11 @@ class TraceMapperV05PayloadTest {
   @ParameterizedTest(name = "buffer={0} dict={1} traces={2} lowCardinality={3}")
   @MethodSource("dictionaryCompressedTracesWrittenCorrectlyArguments")
   void dictionaryCompressedTracesWrittenCorrectly(
-      int bufferSize, int dictionarySize, int traceCount, boolean lowCardinality) {
+      int bufferSize,
+      int dictionarySize,
+      int traceCount,
+      boolean lowCardinality
+  ) {
     List<List<PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
     TraceMapperV0_5 traceMapper = new TraceMapperV0_5(dictionarySize);
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
@@ -166,7 +169,8 @@ class TraceMapperV05PayloadTest {
         arguments(100 << 10, 10 << 10, 100, false),
         arguments(100 << 10, 100 << 10, 1, false),
         arguments(100 << 10, 100 << 10, 10, false),
-        arguments(100 << 10, 100 << 10, 1000, false));
+        arguments(100 << 10, 100 << 10, 1000, false)
+    );
   }
 
   @Test
@@ -191,7 +195,9 @@ class TraceMapperV05PayloadTest {
               false,
               0,
               0,
-              "origin"));
+              "origin"
+          )
+      );
     }
 
     List<List<PojoSpan>> traces = Collections.singletonList(spans);
@@ -206,11 +212,9 @@ class TraceMapperV05PayloadTest {
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer {
-
     private final List<List<PojoSpan>> expectedTraces;
     private final TraceMapperV0_5 mapper;
     private final PayloadVerifiers.CapturingChannel channel;
-
     private int position = 0;
 
     private PayloadVerifier(List<List<PojoSpan>> traces, TraceMapperV0_5 mapper) {
@@ -299,7 +303,8 @@ class TraceMapperV05PayloadTest {
               Number n = unpackNumber(unpacker, key);
               if (DD_MEASURED.toString().equals(key)) {
                 assertTrue(
-                    (n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured());
+                    (n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured()
+                );
               } else if (DDSpanContext.PRIORITY_SAMPLING_KEY.equals(key)) {
                 // check that priority sampling is only on first and last span
                 if (k == 0 || k == spanCount - 1) {
@@ -317,14 +322,16 @@ class TraceMapperV05PayloadTest {
                     ((Number) expectedSpan.getTag(metric.getKey())).doubleValue(),
                     metric.getValue().doubleValue(),
                     0.001,
-                    metric.getKey());
+                    metric.getKey()
+                );
               } else {
                 // Integer-typed metrics round-trip through msgpack's minimal encoding, so a Long
                 // tag can come back as an Integer (and vice versa). Compare numerically.
                 assertEquals(
                     ((Number) expectedSpan.getTag(metric.getKey())).longValue(),
                     metric.getValue().longValue(),
-                    metric.getKey());
+                    metric.getKey()
+                );
               }
             }
             String type = dictionary[unpacker.unpackInt()];
@@ -335,7 +342,9 @@ class TraceMapperV05PayloadTest {
         fail(e.getMessage());
       } finally {
         assertEquals(
-            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0, processTagsCount);
+            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0,
+            processTagsCount
+        );
         mapper.reset();
         channel.resetForWriting();
       }
@@ -348,16 +357,12 @@ class TraceMapperV05PayloadTest {
 
   private static int calculateSize(List<PojoSpan> trace) {
     AtomicInteger size = new AtomicInteger();
-    MsgPackWriter packer =
-        new MsgPackWriter(
-            new FlushingBuffer(
-                1024,
-                new ByteBufferConsumer() {
-                  @Override
-                  public void accept(int messageCount, ByteBuffer buffer) {
-                    size.set(buffer.limit() - buffer.position());
-                  }
-                }));
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, new ByteBufferConsumer() {
+      @Override
+      public void accept(int messageCount, ByteBuffer buffer) {
+        size.set(buffer.limit() - buffer.position());
+      }
+    }));
     packer.format(trace, new TraceMapperV0_5(1024));
     packer.flush();
     return size.get();

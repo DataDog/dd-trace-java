@@ -1,7 +1,6 @@
 package datadog.trace.llmobs.domain;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsSampler;
@@ -22,9 +21,7 @@ import org.junit.jupiter.api.Test;
 class DDLLMObsSpanSamplingTest {
   private static final String SAMPLE_RATE_TAG = "_ml_obs_tag.sample_rate";
   private static final String SAMPLING_DECISION_TAG = "_ml_obs_tag.sampling_decision";
-
   private static final Field SPAN_FIELD;
-
   private static CoreTracer tracer;
 
   static {
@@ -90,7 +87,8 @@ class DDLLMObsSpanSamplingTest {
           assertEquals(
               rootSpan.getTag(SAMPLE_RATE_TAG),
               childSpan.getTag(SAMPLE_RATE_TAG),
-              "every span in a trace must report the rate the decision was made at");
+              "every span in a trace must report the rate the decision was made at"
+          );
         } finally {
           child.finish();
         }
@@ -125,7 +123,15 @@ class DDLLMObsSpanSamplingTest {
     WellKnownTags tags =
         new WellKnownTags("runtime-id", "hostname", "test", "service", "version", "java");
     return new DDLLMObsSpan(
-        Tags.LLMOBS_LLM_SPAN_KIND, "span", "ml-app", null, "service", tags, null, sampler);
+        Tags.LLMOBS_LLM_SPAN_KIND,
+        "span",
+        "ml-app",
+        null,
+        "service",
+        tags,
+        null,
+        sampler
+    );
   }
 
   private static AgentSpan spanOf(DDLLMObsSpan llmObsSpan) throws IllegalAccessException {

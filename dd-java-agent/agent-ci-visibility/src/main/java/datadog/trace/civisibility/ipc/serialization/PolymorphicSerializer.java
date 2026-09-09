@@ -39,9 +39,10 @@ public class PolymorphicSerializer<ParentType extends SerializableType> {
     }
     throw new IllegalArgumentException(
         "Could not find a static method that accepts ByteBuffer and returns "
-            + type.getName()
-            + "in "
-            + type.getName());
+        + type.getName()
+        + "in "
+        + type.getName()
+    );
   }
 
   @SuppressWarnings("unchecked")

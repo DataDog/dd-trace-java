@@ -39,7 +39,8 @@ public class TaintUnmarshaller<A, B> implements Unmarshaller<A, B> {
 
   @Override
   public <C> Unmarshaller<A, C> transform(
-      Function1<ExecutionContext, Function1<Materializer, Function1<Future<B>, Future<C>>>> f) {
+      Function1<ExecutionContext, Function1<Materializer, Function1<Future<B>, Future<C>>>> f
+  ) {
     return delegate.transform(f);
   }
 
@@ -50,13 +51,15 @@ public class TaintUnmarshaller<A, B> implements Unmarshaller<A, B> {
 
   @Override
   public <C> Unmarshaller<A, C> flatMap(
-      Function1<ExecutionContext, Function1<Materializer, Function1<B, Future<C>>>> f) {
+      Function1<ExecutionContext, Function1<Materializer, Function1<B, Future<C>>>> f
+  ) {
     return delegate.flatMap(f);
   }
 
   @Override
   public <C> Unmarshaller<A, C> recover(
-      Function1<ExecutionContext, Function1<Materializer, PartialFunction<Throwable, C>>> pf) {
+      Function1<ExecutionContext, Function1<Materializer, PartialFunction<Throwable, C>>> pf
+  ) {
     return delegate.recover(pf);
   }
 

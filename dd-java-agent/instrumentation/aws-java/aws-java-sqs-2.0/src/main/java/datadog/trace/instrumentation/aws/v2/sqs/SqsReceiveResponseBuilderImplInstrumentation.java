@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -12,8 +11,9 @@ import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 
 public final class SqsReceiveResponseBuilderImplInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final String BUILDER_IMPL =
       "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse$BuilderImpl";
 
@@ -26,17 +26,19 @@ public final class SqsReceiveResponseBuilderImplInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("build"))
-            .and(takesNoArguments())
-            .and(
-                returns(named("software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse"))),
-        getClass().getName() + "$BuildAdvice");
+          .and(named("build"))
+          .and(takesNoArguments())
+          .and(returns(named("software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse"))),
+        getClass().getName() + "$BuildAdvice"
+    );
   }
 
   public static class BuildAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.This Object builder, @Advice.Return ReceiveMessageResponse response) {
+        @Advice.This Object builder,
+        @Advice.Return ReceiveMessageResponse response
+    ) {
       if (response == null) {
         return;
       }
@@ -46,8 +48,10 @@ public final class SqsReceiveResponseBuilderImplInstrumentation
       if (queueUrl != null) {
         // Complete the handoff from the pre-rebuild response to the final response user code
         // sees.
-        InstrumentationContext.get(ReceiveMessageResponse.class, String.class)
-            .put(response, queueUrl);
+        InstrumentationContext.get(ReceiveMessageResponse.class, String.class).put(
+            response,
+            queueUrl
+        );
       }
     }
   }

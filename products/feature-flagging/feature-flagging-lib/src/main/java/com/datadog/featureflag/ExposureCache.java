@@ -4,7 +4,6 @@ import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import java.util.Objects;
 
 public interface ExposureCache {
-
   boolean add(ExposureEvent event);
 
   Value get(Key key);
@@ -50,7 +49,8 @@ public interface ExposureCache {
         return false;
       }
       final Value value = (Value) o;
-      return Objects.equals(variant, value.variant) && Objects.equals(allocation, value.allocation);
+      return Objects.equals(variant, value.variant)
+          && Objects.equals(allocation, value.allocation);
     }
 
     @Override

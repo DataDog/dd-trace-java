@@ -3,7 +3,6 @@ package datadog.trace.api.logging.intake;
 import java.util.Map;
 
 public class LogsIntake {
-
   private static volatile LogsWriter WRITER;
 
   public static void registerWriter(LogsWriter writer) {

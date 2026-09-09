@@ -7,7 +7,9 @@ import javax.jms.MessageListener;
 import javax.jms.Topic;
 import javax.jms.TopicSubscriber;
 
-/** Wraps a real {@link MessageConsumer} but simulates a JMS 1.0 provider. */
+/**
+ * Wraps a real {@link MessageConsumer} but simulates a JMS 1.0 provider.
+ */
 public class Jms10TopicSubscriber implements TopicSubscriber {
   private final MessageConsumer delegate;
   private final Topic topic;

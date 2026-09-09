@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.quartz.QuartzDecorator.SCHEDULED_CAL
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,8 +21,9 @@ import org.quartz.JobExecutionContext;
 
 @AutoService(InstrumenterModule.class)
 public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public QuartzSchedulingInstrumentation() {
     super("quartz");
   }
@@ -42,10 +42,11 @@ public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tr
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("execute"))
-            .and(takesArgument(0, named("org.quartz.JobExecutionContext"))),
-        QuartzSchedulingInstrumentation.class.getName() + "$QuartzSchedulingAdvice");
+          .and(isPublic())
+          .and(named("execute"))
+          .and(takesArgument(0, named("org.quartz.JobExecutionContext"))),
+        QuartzSchedulingInstrumentation.class.getName() + "$QuartzSchedulingAdvice"
+    );
   }
 
   @Override
@@ -65,7 +66,9 @@ public final class QuartzSchedulingInstrumentation extends InstrumenterModule.Tr
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       final AgentSpan span = scope.span();
       if (throwable != null) {
         DECORATE.onError(span, throwable);

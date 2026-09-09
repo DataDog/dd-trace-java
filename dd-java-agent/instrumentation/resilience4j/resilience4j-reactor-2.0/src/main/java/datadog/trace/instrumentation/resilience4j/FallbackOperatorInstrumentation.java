@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
@@ -14,8 +13,9 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
 
 public class FallbackOperatorInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "io.github.resilience4j.reactor.ReactorOperatorFallbackDecorator";
@@ -25,24 +25,26 @@ public class FallbackOperatorInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("decorate"))
-            .and(
-                takesArgument(0, named("java.util.function.UnaryOperator"))
-                    .and(returns(named("java.util.function.Function")))),
-        FallbackOperatorInstrumentation.class.getName() + "$DecorateAdvice");
+          .and(named("decorate"))
+          .and(takesArgument(0, named("java.util.function.UnaryOperator"))
+            .and(returns(named("java.util.function.Function")))
+          ),
+        FallbackOperatorInstrumentation.class.getName() + "$DecorateAdvice"
+    );
   }
 
   public static class DecorateAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
-
-      result =
-          ReactorHelper.wrapFunction(
-              result,
-              ReactorHelper.putIfAbsentInto(
-                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
+        @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result
+    ) {
+      result = ReactorHelper.wrapFunction(
+          result,
+          ReactorHelper.putIfAbsentInto(InstrumentationContext.get(
+              Publisher.class,
+              HandoffContext.class
+          ))
+      );
     }
 
     // 2.0.0+

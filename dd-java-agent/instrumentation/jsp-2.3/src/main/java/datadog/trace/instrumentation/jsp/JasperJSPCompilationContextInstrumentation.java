@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_COMPILE;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_HTTP_SERVLET;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import org.apache.jasper.JspCompilationContext;
 
 @AutoService(InstrumenterModule.class)
 public final class JasperJSPCompilationContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JasperJSPCompilationContextInstrumentation() {
     super("jsp", "jsp-compile");
   }
@@ -32,21 +32,18 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JSPDecorator",
-    };
+    return new String[] {packageName + ".JSPDecorator"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("compile").and(takesArguments(0)).and(isPublic()),
-        JasperJSPCompilationContextInstrumentation.class.getName()
-            + "$JasperJspCompilationContext");
+        JasperJSPCompilationContextInstrumentation.class.getName() + "$JasperJspCompilationContext"
+    );
   }
 
   public static class JasperJspCompilationContext {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter() {
       final AgentSpan span = startSpan(JSP_HTTP_SERVLET.toString(), JSP_COMPILE);
@@ -58,10 +55,10 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
     public static void stopSpan(
         @Advice.This final JspCompilationContext jspCompilationContext,
         @Advice.Enter final AgentScope scope,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       DECORATE.onCompile(scope, jspCompilationContext);
       // ^ Decorate on return because additional properties are available
-
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();

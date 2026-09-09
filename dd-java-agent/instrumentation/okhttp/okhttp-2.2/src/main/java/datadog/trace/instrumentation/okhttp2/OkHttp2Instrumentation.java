@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.okhttp2;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.OkHttpClient;
@@ -12,7 +11,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class OkHttp2Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public OkHttp2Instrumentation() {
     super("okhttp", "okhttp-2");
   }
@@ -25,17 +26,19 @@ public class OkHttp2Instrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RequestBuilderInjectAdapter",
-      packageName + ".OkHttpClientDecorator",
-      packageName + ".TracingInterceptor",
-      packageName + ".AppSecInterceptor",
+        packageName + ".RequestBuilderInjectAdapter",
+        packageName + ".OkHttpClientDecorator",
+        packageName + ".TracingInterceptor",
+        packageName + ".AppSecInterceptor"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), OkHttp2Instrumentation.class.getName() + "$OkHttp2ClientAdvice");
+        isConstructor(),
+        OkHttp2Instrumentation.class.getName() + "$OkHttp2ClientAdvice"
+    );
   }
 
   public static class OkHttp2ClientAdvice {

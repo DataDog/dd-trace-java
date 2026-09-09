@@ -28,10 +28,22 @@ final class TagValue extends TagElement {
     }
     if (encoding == Encoding.W3C) {
       return valueCache.computeIfAbsent(
-          s, start, end, TagValue::hashW3C, TagValue::compareW3C, TagValue::produceW3C);
+          s,
+          start,
+          end,
+          TagValue::hashW3C,
+          TagValue::compareW3C,
+          TagValue::produceW3C
+      );
     } else {
       return valueCache.computeIfAbsent(
-          s, start, end, TagValue::hashDD, TagValue::compareDD, TagValue::produceDD);
+          s,
+          start,
+          end,
+          TagValue::hashDD,
+          TagValue::compareDD,
+          TagValue::produceDD
+      );
     }
   }
 
@@ -67,7 +79,12 @@ final class TagValue extends TagElement {
   }
 
   private static boolean compare(
-      CharConverter converter, CharSequence s, int start, int end, TagValue tagValue) {
+      CharConverter converter,
+      CharSequence s,
+      int start,
+      int end,
+      TagValue tagValue
+  ) {
     end = Integer.min(s.length(), end);
     if (start < 0 || end < 0 || end - start != tagValue.length()) {
       return false;
@@ -118,10 +135,9 @@ final class TagValue extends TagElement {
   TagValue(Encoding encoding, int hash, CharSequence s, int start, int end) {
     this.source = encoding.ordinal();
     this.hash = hash;
-    values[source] =
-        (start == 0 && end == s.length())
-            ? s
-            : new StringBuilder(end - start).append(s, start, end).toString();
+    values[source] = (start == 0 && end == s.length())
+        ? s
+        : new StringBuilder(end - start).append(s, start, end).toString();
   }
 
   CharSequence forType(Encoding encoding) {
@@ -150,23 +166,35 @@ final class TagValue extends TagElement {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     TagValue ov = (TagValue) o;
-    if (hash != ov.hash) return false;
+    if (hash != ov.hash) {
+      return false;
+    }
     CharSequence cst = values[source];
     CharSequence cso = ov.values[ov.source];
     int len = cst.length();
-    if (len != cso.length()) return false;
+    if (len != cso.length()) {
+      return false;
+    }
     if (source == ov.source) {
       for (int i = 0; i < len; i++) {
-        if (cst.charAt(i) != cso.charAt(i)) return false;
+        if (cst.charAt(i) != cso.charAt(i)) {
+          return false;
+        }
       }
     } else {
       CharConverter cct = source == DD_SOURCE ? TagValue::identity : TagValue::convertW3CtoDD;
       CharConverter cco = ov.source == DD_SOURCE ? TagValue::identity : TagValue::convertW3CtoDD;
       for (int i = 0; i < len; i++) {
-        if (cct.convert(cst.charAt(i)) != cco.convert(cso.charAt(i))) return false;
+        if (cct.convert(cst.charAt(i)) != cco.convert(cso.charAt(i))) {
+          return false;
+        }
       }
     }
     return true;

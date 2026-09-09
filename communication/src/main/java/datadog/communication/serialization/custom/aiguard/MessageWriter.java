@@ -8,10 +8,12 @@ import datadog.trace.util.Strings;
 import java.util.List;
 
 public class MessageWriter implements ValueWriter<AIGuard.Message> {
-
   @Override
   public void write(
-      final AIGuard.Message value, final Writable writable, final EncodingCache encodingCache) {
+      final AIGuard.Message value,
+      final Writable writable,
+      final EncodingCache encodingCache
+  ) {
     final int[] size = {0};
     final boolean hasRole = isNotBlank(value.getRole(), size);
     final boolean hasToolCallId = isNotBlank(value.getToolCallId(), size);
@@ -37,7 +39,8 @@ public class MessageWriter implements ValueWriter<AIGuard.Message> {
       final String key,
       final List<AIGuard.ContentPart> contentParts,
       final Writable writable,
-      final EncodingCache encodingCache) {
+      final EncodingCache encodingCache
+  ) {
     writable.writeString(key, encodingCache);
     writable.startArray(contentParts.size());
 
@@ -64,7 +67,8 @@ public class MessageWriter implements ValueWriter<AIGuard.Message> {
       final String key,
       final String value,
       final Writable writable,
-      final EncodingCache encodingCache) {
+      final EncodingCache encodingCache
+  ) {
     if (present) {
       writable.writeString(key, encodingCache);
       writable.writeString(value, encodingCache);
@@ -76,7 +80,8 @@ public class MessageWriter implements ValueWriter<AIGuard.Message> {
       final String key,
       final List<AIGuard.ToolCall> values,
       final Writable writable,
-      final EncodingCache encodingCache) {
+      final EncodingCache encodingCache
+  ) {
     if (present) {
       writable.writeString(key, encodingCache);
       writable.writeObject(values, encodingCache);

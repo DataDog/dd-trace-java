@@ -4,7 +4,6 @@ import static com.squareup.moshi.JsonReader.Token.BEGIN_ARRAY;
 import static com.squareup.moshi.JsonReader.Token.END_ARRAY;
 import static com.squareup.moshi.JsonReader.Token.NUMBER;
 import static com.squareup.moshi.JsonReader.Token.STRING;
-
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ContainsExpression;
 import com.datadog.debugger.el.expressions.StringPredicateExpression;
@@ -19,39 +18,39 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.BiFunction;
 
-/** Converts json representation to object model */
+/**
+ * Converts json representation to object model
+ */
 public class JsonToExpressionConverter {
-
-  private static final Set<String> PREDICATE_FUNCTIONS =
-      new HashSet<>(
-          Arrays.asList(
-              "not",
-              "==",
-              "eq",
-              "!=",
-              "neq",
-              "ne",
-              ">=",
-              "ge",
-              ">",
-              "gt",
-              "<=",
-              "le",
-              "<",
-              "lt",
-              "or",
-              "and",
-              "hasAny",
-              "any",
-              "hasAll",
-              "all",
-              "isEmpty",
-              "startsWith",
-              "endsWith",
-              "contains",
-              "matches",
-              "instanceof",
-              "isDefined"));
+  private static final Set<String> PREDICATE_FUNCTIONS = new HashSet<>(Arrays.asList(
+      "not",
+      "==",
+      "eq",
+      "!=",
+      "neq",
+      "ne",
+      ">=",
+      "ge",
+      ">",
+      "gt",
+      "<=",
+      "le",
+      "<",
+      "lt",
+      "or",
+      "and",
+      "hasAny",
+      "any",
+      "hasAll",
+      "all",
+      "isEmpty",
+      "startsWith",
+      "endsWith",
+      "contains",
+      "matches",
+      "instanceof",
+      "isDefined"
+  ));
 
   @FunctionalInterface
   interface BinaryPredicateExpressionFunction<T extends Expression> {
@@ -79,7 +78,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token == BEGIN_ARRAY || token == STRING || token == NUMBER) {
             throw new UnsupportedOperationException(
-                "Operation 'not' expects a predicate as its argument");
+                "Operation 'not' expects a predicate as its argument"
+            );
           }
           return DSL.not(createPredicate(reader));
         }
@@ -89,7 +89,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'eq' expects the arguments to be defined as array");
+                "Operation 'eq' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createBinaryValuePredicate(reader, DSL::eq);
@@ -103,7 +104,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'ne' expects the arguments to be defined as array");
+                "Operation 'ne' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = DSL.not(createBinaryValuePredicate(reader, DSL::eq));
@@ -116,7 +118,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'ge' expects the arguments to be defined as array");
+                "Operation 'ge' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createBinaryValuePredicate(reader, DSL::ge);
@@ -129,7 +132,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'gt' expects the arguments to be defined as array");
+                "Operation 'gt' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createBinaryValuePredicate(reader, DSL::gt);
@@ -142,7 +146,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'le' expects the arguments to be defined as array");
+                "Operation 'le' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createBinaryValuePredicate(reader, DSL::le);
@@ -155,7 +160,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'lt' expects the arguments to be defined as array");
+                "Operation 'lt' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createBinaryValuePredicate(reader, DSL::lt);
@@ -167,7 +173,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'instanceof' expects the arguments to be defined as array");
+                "Operation 'instanceof' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createBinaryValuePredicate(reader, DSL::instanceOf);
@@ -179,7 +186,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'or' expects the arguments to be defined as array");
+                "Operation 'or' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createCompositeLogicalPredicate(reader, DSL::or);
@@ -191,7 +199,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'and' expects the arguments to be defined as array");
+                "Operation 'and' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createCompositeLogicalPredicate(reader, DSL::and);
@@ -204,7 +213,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'hasAny' expects the arguments to be defined as array");
+                "Operation 'hasAny' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createHasAnyPredicate(reader);
@@ -217,7 +227,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'hasAll' expects the arguments to be defined as array");
+                "Operation 'hasAll' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           BooleanExpression expr = createHasAllPredicate(reader);
@@ -229,7 +240,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token == BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'isEmpty' expects exactly one value argument");
+                "Operation 'isEmpty' expects exactly one value argument"
+            );
           }
           return DSL.isEmpty(asValueExpression(reader));
         }
@@ -238,7 +250,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token == BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'isUndefined' expects exactly one value argument");
+                "Operation 'isUndefined' expects exactly one value argument"
+            );
           }
           return DSL.isDefined(asValueExpression(reader));
         }
@@ -255,7 +268,8 @@ public class JsonToExpressionConverter {
           JsonReader.Token token = reader.peek();
           if (token != BEGIN_ARRAY) {
             throw new UnsupportedOperationException(
-                "Operation 'contains' expects the arguments to be defined as array");
+                "Operation 'contains' expects the arguments to be defined as array"
+            );
           }
           reader.beginArray();
           ContainsExpression expr =
@@ -285,20 +299,23 @@ public class JsonToExpressionConverter {
   }
 
   public static BooleanExpression createBinaryValuePredicate(
-      JsonReader reader, BinaryPredicateExpressionFunction<ValueExpression<?>> function)
-      throws IOException {
+      JsonReader reader,
+      BinaryPredicateExpressionFunction<ValueExpression<?>> function
+  ) throws IOException {
     return function.apply(asValueExpression(reader), asValueExpression(reader));
   }
 
   public static BooleanExpression createBinaryLogicalPredicate(
-      JsonReader reader, BinaryPredicateExpressionFunction<BooleanExpression> function)
-      throws IOException {
+      JsonReader reader,
+      BinaryPredicateExpressionFunction<BooleanExpression> function
+  ) throws IOException {
     return function.apply(createPredicate(reader), createPredicate(reader));
   }
 
   public static BooleanExpression createCompositeLogicalPredicate(
-      JsonReader reader, CompositePredicateExpressionFunction<BooleanExpression> function)
-      throws IOException {
+      JsonReader reader,
+      CompositePredicateExpressionFunction<BooleanExpression> function
+  ) throws IOException {
     List<BooleanExpression> expressions = new ArrayList<>(2);
     while (reader.hasNext() && reader.peek() != END_ARRAY) {
       expressions.add(createPredicate(reader));
@@ -344,7 +361,8 @@ public class JsonToExpressionConverter {
                   JsonReader.Token token = reader.peek();
                   if (token != STRING) {
                     throw new UnsupportedOperationException(
-                        "Operation 'ref' expect exactly one textual argument");
+                        "Operation 'ref' expect exactly one textual argument"
+                    );
                   }
                   return DSL.ref(reader.nextString());
                 }
@@ -359,7 +377,8 @@ public class JsonToExpressionConverter {
                     return DSL.getMember(target, name);
                   }
                   throw new UnsupportedOperationException(
-                      "Operation 'getmember' expects the arguments to be defined as array");
+                      "Operation 'getmember' expects the arguments to be defined as array"
+                  );
                 }
               case "index":
                 {
@@ -372,7 +391,8 @@ public class JsonToExpressionConverter {
                     return DSL.index(target, key);
                   }
                   throw new UnsupportedOperationException(
-                      "Operation 'index' expects the arguments to be defined as array");
+                      "Operation 'index' expects the arguments to be defined as array"
+                  );
                 }
               case "filter":
                 {
@@ -384,7 +404,8 @@ public class JsonToExpressionConverter {
                     return filter;
                   }
                   throw new UnsupportedOperationException(
-                      "Operation 'filter' expects the arguments to be defined as array");
+                      "Operation 'filter' expects the arguments to be defined as array"
+                  );
                 }
               case "len":
               case "count":
@@ -392,7 +413,8 @@ public class JsonToExpressionConverter {
                   JsonReader.Token token = reader.peek();
                   if (token == BEGIN_ARRAY || token == NUMBER) {
                     throw new UnsupportedOperationException(
-                        "Operation 'len' expect exactly one textual or object argument");
+                        "Operation 'len' expect exactly one textual or object argument"
+                    );
                   }
                   return DSL.len(asValueExpression(reader));
                 }
@@ -408,7 +430,8 @@ public class JsonToExpressionConverter {
                     return DSL.subString(target, startIndex, endIndex);
                   }
                   throw new UnsupportedOperationException(
-                      "Operation 'substring' expects the arguments to be defined as array");
+                      "Operation 'substring' expects the arguments to be defined as array"
+                  );
                 }
               default:
                 throw new UnsupportedOperationException("Invalid value definition: " + fieldName);
@@ -429,18 +452,20 @@ public class JsonToExpressionConverter {
         }
       default:
         throw new UnsupportedOperationException(
-            "Invalid value definition, not supported token: " + currentToken);
+            "Invalid value definition, not supported token: " + currentToken
+        );
     }
   }
 
   private static StringPredicateExpression createStringPredicateExpression(
       JsonReader reader,
-      BiFunction<ValueExpression<?>, StringValue, StringPredicateExpression> predicateFunc)
-      throws IOException {
+      BiFunction<ValueExpression<?>, StringValue, StringPredicateExpression> predicateFunc
+  ) throws IOException {
     JsonReader.Token token = reader.peek();
     if (token != BEGIN_ARRAY) {
       throw new UnsupportedOperationException(
-          "Operation 'startsWith' expects the arguments to be defined as array");
+          "Operation 'startsWith' expects the arguments to be defined as array"
+      );
     }
     reader.beginArray();
     ValueExpression<?> source = asValueExpression(reader);

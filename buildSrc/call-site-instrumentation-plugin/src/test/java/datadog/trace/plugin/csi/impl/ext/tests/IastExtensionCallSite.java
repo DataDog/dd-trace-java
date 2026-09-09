@@ -8,23 +8,24 @@ import javax.servlet.http.HttpServletRequest;
 
 @CallSite(spi = IastCallSites.class)
 public class IastExtensionCallSite {
-
   @Source(SourceTypes.REQUEST_HEADER_NAME)
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang.String)")
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getHeader(java.lang."
+      + "String)")
   public static String afterGetHeader(
       @CallSite.This final HttpServletRequest self,
       @CallSite.Argument final String headerName,
-      @CallSite.Return final String headerValue) {
+      @CallSite.Return final String headerValue
+  ) {
     return headerValue;
   }
 
   @Source(SourceTypes.REQUEST_BODY)
-  @CallSite.After(
-      "javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequest.getInputStream()")
+  @CallSite.After("javax.servlet.ServletInputStream javax.servlet.http.HttpServletRequest."
+      + "getInputStream()")
   public static ServletInputStream afterGetInputStream(
       @CallSite.This final HttpServletRequest self,
-      @CallSite.Return final ServletInputStream stream) {
+      @CallSite.Return final ServletInputStream stream
+  ) {
     return stream;
   }
 
@@ -32,7 +33,8 @@ public class IastExtensionCallSite {
   @CallSite.After("java.io.BufferedReader javax.servlet.ServletRequest.getReader()")
   public static BufferedReader afterGetReader(
       @CallSite.This final ServletRequest self,
-      @CallSite.Return final BufferedReader bufferedReader) {
+      @CallSite.Return final BufferedReader bufferedReader
+  ) {
     return bufferedReader;
   }
 }

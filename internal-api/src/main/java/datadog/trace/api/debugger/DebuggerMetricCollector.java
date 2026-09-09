@@ -10,7 +10,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 public class DebuggerMetricCollector
-    implements MetricCollector<DebuggerMetricCollector.DebuggerMetric> {
+    implements MetricCollector<DebuggerMetricCollector.DebuggerMetric>
+{
   private static final DebuggerMetricCollector INSTANCE = new DebuggerMetricCollector();
 
   interface Reason {
@@ -19,9 +20,7 @@ public class DebuggerMetricCollector
 
   public enum DroppedReason implements Reason {
     QUEUE_FULL("reason:queueFull"),
-    PAYLOAD_TOO_LARGE("reason:payloadTooLarge"),
-    ;
-
+    PAYLOAD_TOO_LARGE("reason:payloadTooLarge");
     private final String tag;
 
     DroppedReason(String tag) {
@@ -36,9 +35,7 @@ public class DebuggerMetricCollector
 
   public enum SkippedReason implements Reason {
     RATE_LIMIT("reason:rateLimitProbe"),
-    EVALUATION_TIME_OUT("reason:evaluationTimeOut"),
-    ;
-
+    EVALUATION_TIME_OUT("reason:evaluationTimeOut");
     private final String tag;
 
     SkippedReason(String tag) {
@@ -62,7 +59,8 @@ public class DebuggerMetricCollector
     return INSTANCE;
   }
 
-  private DebuggerMetricCollector() {}
+  private DebuggerMetricCollector() {
+  }
 
   public void recordEventDropped(DroppedReason reason) {
     eventDroppedCounters.incrementAndGet(reason.ordinal());
@@ -79,7 +77,10 @@ public class DebuggerMetricCollector
   }
 
   private <E extends Enum<E> & Reason> void addCounterMetric(
-      AtomicLongArray counters, String name, E[] enumValues) {
+      AtomicLongArray counters,
+      String name,
+      E[] enumValues
+  ) {
     for (E enumValue : enumValues) {
       // get and reset
       long value = counters.getAndSet(enumValue.ordinal(), 0);
@@ -100,7 +101,6 @@ public class DebuggerMetricCollector
   }
 
   public static class DebuggerMetric extends MetricCollector.Metric {
-
     private static final String NAMESPACE = "live_debugger";
 
     public DebuggerMetric(String metricName, long value, String... tags) {

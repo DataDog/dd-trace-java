@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.akkahttp.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import akka.http.javadsl.model.ContentType;
 import akka.http.javadsl.model.MediaType;
 import akka.http.javadsl.model.MediaTypes;
@@ -44,12 +43,10 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 public class UnmarshallerHelpers {
-
   public static final int MAX_CONVERSION_DEPTH = 10;
   static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
   private static final Logger log = LoggerFactory.getLogger(UnmarshallerHelpers.class);
-
   private static final MediaType APPLICATION_X_WWW_FORM_URLENCODED;
 
   static {
@@ -63,21 +60,22 @@ public class UnmarshallerHelpers {
     APPLICATION_X_WWW_FORM_URLENCODED = t;
   }
 
-  private UnmarshallerHelpers() {}
+  private UnmarshallerHelpers() {
+  }
 
-  public static Unmarshaller<HttpEntity, akka.http.scaladsl.model.FormData>
-      transformUrlEncodedUnmarshaller(
-          Unmarshaller<HttpEntity, akka.http.scaladsl.model.FormData> original) {
+  public static Unmarshaller<HttpEntity, akka.http.scaladsl.model.FormData> transformUrlEncodedUnmarshaller(
+      Unmarshaller<HttpEntity, akka.http.scaladsl.model.FormData> original
+  ) {
     JFunction1<akka.http.scaladsl.model.FormData, akka.http.scaladsl.model.FormData> mapf =
         formData -> {
-          try {
-            handleFormData(formData);
-          } catch (Exception e) {
-            handleException(e, "transformUrlEncodedMarshaller");
-          }
+      try {
+        handleFormData(formData);
+      } catch (Exception e) {
+        handleException(e, "transformUrlEncodedMarshaller");
+      }
 
-          return formData;
-        };
+      return formData;
+    };
 
     return original.map(mapf);
   }
@@ -116,7 +114,6 @@ public class UnmarshallerHelpers {
     if (conv.isEmpty()) {
       return;
     }
-
     // callback execution
     executeCallback(reqCtx, callback, conv, "urlEncodedFormDataUnmarshaller");
   }
@@ -125,7 +122,8 @@ public class UnmarshallerHelpers {
       RequestContext reqCtx,
       BiFunction<RequestContext, Object, Flow<Void>> callback,
       Object conv,
-      String details) {
+      String details
+  ) {
     Flow<Void> flow = callback.apply(reqCtx, conv);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
@@ -139,54 +137,52 @@ public class UnmarshallerHelpers {
 
   public static Unmarshaller transformMultipartFormDataUnmarshaller(Unmarshaller original) {
     JFunction1<
-            akka.http.scaladsl.model.Multipart.FormData,
-            akka.http.scaladsl.model.Multipart.FormData>
-        mapf =
-            t -> {
-              if (!(t instanceof akka.http.scaladsl.model.Multipart$FormData$Strict)) {
-                // data not loaded yet...
-                // it's not practical to wrap the object
-                // rely on instrumentation on toStrict
-                return t;
-              }
+        akka.http.scaladsl.model.Multipart.FormData,
+        akka.http.scaladsl.model.Multipart.FormData> mapf =
+        t -> {
+      if (!(t instanceof akka.http.scaladsl.model.Multipart$FormData$Strict)) {
+        // data not loaded yet...
+        // it's not practical to wrap the object
+        // rely on instrumentation on toStrict
+        return t;
+      }
 
-              try {
-                handleMultipartStrictFormData(
-                    (akka.http.scaladsl.model.Multipart$FormData$Strict) t);
-              } catch (Exception e) {
-                handleException(e, "Error in handleMultipartStrictFormData");
-              }
+      try {
+        handleMultipartStrictFormData((akka.http.scaladsl.model.Multipart$FormData$Strict) t);
+      } catch (Exception e) {
+        handleException(e, "Error in handleMultipartStrictFormData");
+      }
 
-              return t;
-            };
+      return t;
+    };
 
     return original.map(mapf);
   }
 
-  public static scala.concurrent.Future<akka.http.scaladsl.model.Multipart$FormData$Strict>
-      transformMultiPartFormDataToStrictFuture(
-          scala.concurrent.Future<akka.http.scaladsl.model.Multipart$FormData$Strict> future,
-          Materializer materializer) {
+  public static scala.concurrent.Future<akka.http.scaladsl.model.Multipart$FormData$Strict> transformMultiPartFormDataToStrictFuture(
+      scala.concurrent.Future<akka.http.scaladsl.model.Multipart$FormData$Strict> future,
+      Materializer materializer
+  ) {
     JFunction1<
-            akka.http.scaladsl.model.Multipart$FormData$Strict,
-            akka.http.scaladsl.model.Multipart$FormData$Strict>
-        mapf =
-            t -> {
-              try {
-                AgentSpan span = activeSpan();
-                if (span != null && !isStrictFormOngoing(span)) {
-                  handleMultipartStrictFormData(t);
-                }
-              } catch (Exception e) {
-                handleException(e, "Error in transformMultiPartFormDataToStrictFuture");
-              }
-              return t;
-            };
+        akka.http.scaladsl.model.Multipart$FormData$Strict,
+        akka.http.scaladsl.model.Multipart$FormData$Strict> mapf =
+        t -> {
+      try {
+        AgentSpan span = activeSpan();
+        if (span != null && !isStrictFormOngoing(span)) {
+          handleMultipartStrictFormData(t);
+        }
+      } catch (Exception e) {
+        handleException(e, "Error in transformMultiPartFormDataToStrictFuture");
+      }
+      return t;
+    };
     return future.map(mapf, materializer.executionContext());
   }
 
   private static void handleMultipartStrictFormData(
-      akka.http.scaladsl.model.Multipart$FormData$Strict st) {
+      akka.http.scaladsl.model.Multipart$FormData$Strict st
+  ) {
     AgentSpan span = activeSpan();
     RequestContext reqCtx;
     if (span == null
@@ -217,11 +213,10 @@ public class UnmarshallerHelpers {
         filenames.add(filenameOpt.get());
       }
 
-      boolean needsEntity =
-          bodyCallback != null
-              || (filesContent != null
-                  && filenameOpt.isPresent()
-                  && filesContent.size() < MAX_FILES_TO_INSPECT);
+      boolean needsEntity = bodyCallback != null
+          || (filesContent != null
+          && filenameOpt.isPresent()
+          && filesContent.size() < MAX_FILES_TO_INSPECT);
       if (!needsEntity) {
         continue;
       }
@@ -241,11 +236,9 @@ public class UnmarshallerHelpers {
           conv.put(name, curStrings);
         }
 
-        String s =
-            sentity
-                .getData()
-                .decodeString(
-                    Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
+        String s = sentity
+          .getData()
+          .decodeString(Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
         curStrings.add(s);
       }
 
@@ -253,9 +246,11 @@ public class UnmarshallerHelpers {
           && filenameOpt.isPresent()
           && filesContent.size() < MAX_FILES_TO_INSPECT) {
         byte[] bytes = sentity.getData().take(MAX_CONTENT_BYTES).toArray();
-        filesContent.add(
-            MultipartContentDecoder.decodeBytes(
-                bytes, bytes.length, entity.getContentType().toString()));
+        filesContent.add(MultipartContentDecoder.decodeBytes(
+            bytes,
+            bytes.length,
+            entity.getContentType().toString()
+        ));
       }
     }
 
@@ -264,11 +259,11 @@ public class UnmarshallerHelpers {
       Flow<Void> flow = bodyCallback.apply(reqCtx, conv);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        pendingBlock =
-            tryBlock(
-                reqCtx,
-                (Flow.Action.RequestBlockingAction) action,
-                "multipartFormDataUnmarshaller");
+        pendingBlock = tryBlock(
+            reqCtx,
+            (Flow.Action.RequestBlockingAction) action,
+            "multipartFormDataUnmarshaller"
+        );
       }
     }
 
@@ -277,8 +272,11 @@ public class UnmarshallerHelpers {
       if (pendingBlock == null) {
         Flow.Action action = flow.getAction();
         if (action instanceof Flow.Action.RequestBlockingAction) {
-          pendingBlock =
-              tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
+          pendingBlock = tryBlock(
+              reqCtx,
+              (Flow.Action.RequestBlockingAction) action,
+              "multipart file upload"
+          );
         }
       }
     }
@@ -287,11 +285,11 @@ public class UnmarshallerHelpers {
       Flow<Void> flow = contentCallback.apply(reqCtx, filesContent);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        pendingBlock =
-            tryBlock(
-                reqCtx,
-                (Flow.Action.RequestBlockingAction) action,
-                "multipart file upload content");
+        pendingBlock = tryBlock(
+            reqCtx,
+            (Flow.Action.RequestBlockingAction) action,
+            "multipart file upload content"
+        );
       }
     }
 
@@ -301,58 +299,59 @@ public class UnmarshallerHelpers {
   }
 
   public static Unmarshaller<HttpEntity, String> transformStringUnmarshaller(
-      Unmarshaller<HttpEntity, String> original) {
+      Unmarshaller<HttpEntity, String> original
+  ) {
     Unmarshaller.EnhancedUnmarshaller<HttpEntity, String> enhancedOriginal =
         new Unmarshaller.EnhancedUnmarshaller<>(original);
     JFunction2<HttpEntity, String, String> f2 =
         (entity, str) -> {
-          try {
-            AgentSpan agentSpan = activeSpan();
-            if (agentSpan == null || isStrictFormOngoing(agentSpan)) {
-              return str;
-            }
-
-            ContentType contentType = entity.getContentType();
-            MediaType mediaType = contentType.mediaType();
-            if (mediaType != MediaTypes.APPLICATION_JSON
-                && mediaType != MediaTypes.MULTIPART_FORM_DATA
-                && mediaType != APPLICATION_X_WWW_FORM_URLENCODED) {
-              handleArbitraryPostData(str, "HttpEntity -> String unmarshaller");
-            }
-          } catch (Exception e) {
-            handleException(e, "Error in transformStringUnmarshaller");
-          }
-
+      try {
+        AgentSpan agentSpan = activeSpan();
+        if (agentSpan == null || isStrictFormOngoing(agentSpan)) {
           return str;
-        };
+        }
+
+        ContentType contentType = entity.getContentType();
+        MediaType mediaType = contentType.mediaType();
+        if (mediaType != MediaTypes.APPLICATION_JSON
+            && mediaType != MediaTypes.MULTIPART_FORM_DATA
+            && mediaType != APPLICATION_X_WWW_FORM_URLENCODED) {
+          handleArbitraryPostData(str, "HttpEntity -> String unmarshaller");
+        }
+      } catch (Exception e) {
+        handleException(e, "Error in transformStringUnmarshaller");
+      }
+
+      return str;
+    };
 
     return enhancedOriginal.mapWithInput(f2);
   }
 
   public static akka.http.javadsl.unmarshalling.Unmarshaller transformJacksonUnmarshaller(
-      akka.http.javadsl.unmarshalling.Unmarshaller original) {
-    return original.thenApply(
-        ret -> {
-          try {
-            handleArbitraryPostData(ret, "jackson unmarshaller");
-          } catch (Exception e) {
-            handleException(e, "Error in transformJacksonUnmarshaller");
-          }
-          return ret;
-        });
+      akka.http.javadsl.unmarshalling.Unmarshaller original
+  ) {
+    return original.thenApply(ret -> {
+      try {
+        handleArbitraryPostData(ret, "jackson unmarshaller");
+      } catch (Exception e) {
+        handleException(e, "Error in transformJacksonUnmarshaller");
+      }
+      return ret;
+    });
   }
 
   public static Unmarshaller transformArbitrarySprayUnmarshaller(Unmarshaller original) {
     JFunction1<Object, Object> f =
         ret -> {
-          Object conv = tryConvertingScalaContainers(ret, MAX_CONVERSION_DEPTH);
-          try {
-            handleArbitraryPostData(conv, "spray unmarshaller");
-          } catch (Exception e) {
-            handleException(e, "Error in transformArbitrarySprayUnmarshaller");
-          }
-          return ret;
-        };
+      Object conv = tryConvertingScalaContainers(ret, MAX_CONVERSION_DEPTH);
+      try {
+        handleArbitraryPostData(conv, "spray unmarshaller");
+      } catch (Exception e) {
+        handleException(e, "Error in transformArbitrarySprayUnmarshaller");
+      }
+      return ret;
+    };
     return original.map(f);
   }
 
@@ -380,33 +379,34 @@ public class UnmarshallerHelpers {
   private static boolean isStrictFormOngoing(AgentSpan agentSpan) {
     synchronized (STRICT_FORM_SERIALIZATION_ONGOING) {
       return STRICT_FORM_SERIALIZATION_ONGOING.getOrDefault(
-          agentSpan.getRequestContext(), Boolean.FALSE);
+          agentSpan.getRequestContext(),
+          Boolean.FALSE
+      );
     }
   }
 
   private static JFunction1<StrictForm, StrictForm> STRICT_FORM_DATA_POST_TRANSF =
       sf -> {
-        try {
-          handleStrictFormData(sf);
-        } catch (Exception e) {
-          handleException(e, "Error in transformStrictFromUnmarshaller");
-        }
-        // we do not remove the span from STRICT_FORM_SERIALIZATION_ONGOING,
-        // as the string unmarshaller can still run afterwards. This way, the
-        // advice will still be skipped
-        return sf;
-      };
+    try {
+      handleStrictFormData(sf);
+    } catch (Exception e) {
+      handleException(e, "Error in transformStrictFromUnmarshaller");
+    }
+    // we do not remove the span from STRICT_FORM_SERIALIZATION_ONGOING,
+    // as the string unmarshaller can still run afterwards. This way, the
+    // advice will still be skipped
+    return sf;
+  };
 
   public static class UnmarkStrictFormOngoingOnUnsupportedException
-      extends JavaPartialFunction<Throwable, StrictForm> {
+      extends JavaPartialFunction<Throwable, StrictForm>
+  {
     public static final PartialFunction<Throwable, StrictForm> INSTANCE =
         new UnmarkStrictFormOngoingOnUnsupportedException();
 
     @Override
     public StrictForm apply(Throwable x, boolean isCheck) throws Exception {
-      if (!(x
-          instanceof
-          akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException)) {
+      if (!(x instanceof akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException)) {
         throw noMatch();
       }
       if (isCheck) {
@@ -422,28 +422,28 @@ public class UnmarshallerHelpers {
   }
 
   public static Unmarshaller<HttpEntity, StrictForm> transformStrictFormUnmarshaller(
-      Unmarshaller<HttpEntity, StrictForm> original) {
-    JFunction1<ExecutionContext, Function1<Materializer, Function1<HttpEntity, Future<StrictForm>>>>
-        wrappedBeforeF =
-            ec -> {
-              JFunction1<Materializer, Function1<HttpEntity, Future<StrictForm>>> g =
-                  mat -> {
-                    JFunction1<HttpEntity, Future<StrictForm>> h =
-                        entity -> {
-                          AgentSpan agentSpan = activeSpan();
-                          if (agentSpan != null) {
-                            markStrictFormOngoing(agentSpan);
-                          }
+      Unmarshaller<HttpEntity, StrictForm> original
+  ) {
+    JFunction1<ExecutionContext, Function1<Materializer, Function1<HttpEntity, Future<StrictForm>>>> wrappedBeforeF =
+        ec -> {
+      JFunction1<Materializer, Function1<HttpEntity, Future<StrictForm>>> g =
+          mat -> {
+        JFunction1<HttpEntity, Future<StrictForm>> h =
+            entity -> {
+          AgentSpan agentSpan = activeSpan();
+          if (agentSpan != null) {
+            markStrictFormOngoing(agentSpan);
+          }
 
-                          Future<StrictForm> resFut = original.apply(entity, ec, mat);
-                          return resFut
-                              .recover(UnmarkStrictFormOngoingOnUnsupportedException.INSTANCE, ec)
-                              .map(STRICT_FORM_DATA_POST_TRANSF, ec);
-                        };
-                    return h;
-                  };
-              return g;
-            };
+          Future<StrictForm> resFut = original.apply(entity, ec, mat);
+          return resFut
+            .recover(UnmarkStrictFormOngoingOnUnsupportedException.INSTANCE, ec)
+            .map(STRICT_FORM_DATA_POST_TRANSF, ec);
+        };
+        return h;
+      };
+      return g;
+    };
     Unmarshaller<HttpEntity, StrictForm> wrapped =
         Unmarshaller$.MODULE$.withMaterializer(wrappedBeforeF);
 
@@ -488,8 +488,7 @@ public class UnmarshallerHelpers {
 
       if (strictFieldValue instanceof String) {
         strings.add((String) strictFieldValue);
-      } else if (strictFieldValue
-          instanceof akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) {
+      } else if (strictFieldValue instanceof akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) {
         akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict bodyPart =
             (akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) strictFieldValue;
         Optional<String> filenameOpt = bodyPart.getFilename();
@@ -501,16 +500,16 @@ public class UnmarshallerHelpers {
             && filenameOpt.isPresent()
             && filesContent.size() < MAX_FILES_TO_INSPECT) {
           byte[] bytes = sentity.getData().take(MAX_CONTENT_BYTES).toArray();
-          filesContent.add(
-              MultipartContentDecoder.decodeBytes(
-                  bytes, bytes.length, sentity.contentType().toString()));
+          filesContent.add(MultipartContentDecoder.decodeBytes(
+              bytes,
+              bytes.length,
+              sentity.contentType().toString()
+          ));
         }
         if (bodyCb != null) {
-          String s =
-              sentity
-                  .getData()
-                  .decodeString(
-                      Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
+          String s = sentity
+            .getData()
+            .decodeString(Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
           strings.add(s);
         }
       }
@@ -539,8 +538,11 @@ public class UnmarshallerHelpers {
       if (pendingBlock == null) {
         Flow.Action action = flow.getAction();
         if (action instanceof Flow.Action.RequestBlockingAction) {
-          pendingBlock =
-              tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
+          pendingBlock = tryBlock(
+              reqCtx,
+              (Flow.Action.RequestBlockingAction) action,
+              "multipart file upload"
+          );
         }
       }
     }
@@ -549,11 +551,11 @@ public class UnmarshallerHelpers {
       Flow<Void> flow = contentCb.apply(reqCtx, filesContent);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        pendingBlock =
-            tryBlock(
-                reqCtx,
-                (Flow.Action.RequestBlockingAction) action,
-                "multipart file upload content");
+        pendingBlock = tryBlock(
+            reqCtx,
+            (Flow.Action.RequestBlockingAction) action,
+            "multipart file upload content"
+        );
       }
     }
 
@@ -602,13 +604,15 @@ public class UnmarshallerHelpers {
     if (callback == null) {
       return;
     }
-
     // callback execution
     executeCallback(reqCtx, callback, o, source);
   }
 
   private static BlockingException tryBlock(
-      RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
+      RequestContext reqCtx,
+      Flow.Action.RequestBlockingAction rba,
+      String details
+  ) {
     BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
     if (brf == null) {
       return null;

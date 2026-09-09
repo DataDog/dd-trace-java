@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIMEOUT;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -34,7 +33,10 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
   }
 
   public FinishAsyncDispatchListener(
-      final ContextScope scope, AtomicBoolean activated, boolean doOnResponse) {
+      final ContextScope scope,
+      AtomicBoolean activated,
+      boolean doOnResponse
+  ) {
     this.scope = scope;
     this.span = AgentSpan.fromContext(scope.context());
     this.activated = activated;
@@ -91,7 +93,9 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
     }
   }
 
-  /** Transfer the listener over to the new context. */
+  /**
+   * Transfer the listener over to the new context.
+   */
   @Override
   public void onStartAsync(final AsyncEvent event) throws IOException {
     event.getAsyncContext().addListener(this);

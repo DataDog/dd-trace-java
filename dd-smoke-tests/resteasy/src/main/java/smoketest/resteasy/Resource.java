@@ -21,8 +21,8 @@ import javax.ws.rs.core.Response;
 
 @Path("/hello")
 public class Resource {
-
-  public Resource() {}
+  public Resource() {
+  }
 
   @GET
   @Produces(MediaType.TEXT_PLAIN)

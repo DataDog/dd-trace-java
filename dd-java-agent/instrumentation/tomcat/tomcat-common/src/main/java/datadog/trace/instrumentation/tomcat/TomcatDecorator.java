@@ -16,9 +16,9 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 public class TomcatDecorator
-    extends HttpServerDecorator<Request, Request, Response, org.apache.coyote.Request> {
+    extends HttpServerDecorator<Request, Request, Response, org.apache.coyote.Request>
+{
   public static final CharSequence TOMCAT_SERVER = UTF8BytesString.create("tomcat-server");
-
   public static final TomcatDecorator DECORATE = new TomcatDecorator();
   public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
@@ -99,7 +99,8 @@ public class TomcatDecorator
       final AgentSpan span,
       final Request connection,
       final Request request,
-      final Context parentContext) {
+      final Context parentContext
+  ) {
     if (request != null) {
       String contextPath = request.getContextPath();
       String servletPath = request.getServletPath();
@@ -111,7 +112,6 @@ public class TomcatDecorator
       if (null != servletPath && !servletPath.isEmpty()) {
         span.setTag("servlet.path", servletPath);
       }
-
       // Used by AsyncContextInstrumentation because the context path may be reset
       // by the time the async context is dispatched.
       request.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, contextPath);
@@ -144,7 +144,9 @@ public class TomcatDecorator
 
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
-      final Request request, Request connection) {
+      final Request request,
+      Request connection
+  ) {
     return new TomcatBlockResponseFunction(request);
   }
 
@@ -161,7 +163,8 @@ public class TomcatDecorator
         int statusCode,
         BlockingContentType bct,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       return TomcatBlockingHelper.commitBlockingResponse(
           segment,
           request,
@@ -169,7 +172,8 @@ public class TomcatDecorator
           statusCode,
           bct,
           extraHeaders,
-          securityResponseId);
+          securityResponseId
+      );
     }
   }
 }

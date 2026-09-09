@@ -15,7 +15,6 @@ import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 
 public final class MemoryJavaFileManager extends ForwardingJavaFileManager<JavaFileManager> {
-
   private Map<String, byte[]> classBytes;
 
   public MemoryJavaFileManager(JavaFileManager fileManager) {
@@ -53,8 +52,8 @@ public final class MemoryJavaFileManager extends ForwardingJavaFileManager<JavaF
       JavaFileManager.Location location,
       String className,
       JavaFileObject.Kind kind,
-      FileObject sibling)
-      throws IOException {
+      FileObject sibling
+  ) throws IOException {
     if (kind == JavaFileObject.Kind.CLASS) {
       return new ClassOutputBuffer(className);
     } else {
@@ -62,11 +61,13 @@ public final class MemoryJavaFileManager extends ForwardingJavaFileManager<JavaF
     }
   }
 
-  /** A file object used to represent Java source coming from a string. */
-
-  /** A file object that stores Java bytecode into the classBytes map. */
+  /**
+   * A file object used to represent Java source coming from a string.
+   */
+  /**
+   * A file object that stores Java bytecode into the classBytes map.
+   */
   private class ClassOutputBuffer extends SimpleJavaFileObject {
-
     private final String name;
 
     ClassOutputBuffer(String name) {
@@ -77,7 +78,6 @@ public final class MemoryJavaFileManager extends ForwardingJavaFileManager<JavaF
     @Override
     public OutputStream openOutputStream() {
       return new FilterOutputStream(new ByteArrayOutputStream()) {
-
         @Override
         public void close() throws IOException {
           out.close();

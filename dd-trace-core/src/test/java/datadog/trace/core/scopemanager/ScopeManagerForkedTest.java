@@ -22,7 +22,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
@@ -63,7 +62,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class ScopeManagerForkedTest extends DDCoreJavaSpecification {
-
   enum EVENT {
     ACTIVATE,
     CLOSE
@@ -168,10 +166,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertSame(childScope, scopeManager.active());
     assertEquals(
         parentScope.span().spanContext().getSpanId(),
-        ((DDSpan) childScope.span()).spanContext().getParentId());
+        ((DDSpan) childScope.span()).spanContext().getParentId()
+    );
     assertSame(
         parentScope.span().spanContext().getTraceCollector(),
-        childScope.span().spanContext().getTraceCollector());
+        childScope.span().spanContext().getTraceCollector()
+    );
 
     childScope.close();
 
@@ -293,16 +293,13 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
     parentScope.close();
     parentSpan.finish();
-
     // parent span is finished, but trace is not reported
     assertNull(scopeManager.active());
     assertFalse(spanFinished(childSpan));
     assertTrue(spanFinished(parentSpan));
     assertTrue(writer.isEmpty());
-
     // activating the continuation
     ContextScope newScope = continuation.resume();
-
     // the continued scope becomes active and span state doesn't change
     assertInstanceOf(ContinuableScope.class, newScope);
     assertTrue(tracer.isAsyncPropagationEnabled());
@@ -313,7 +310,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertFalse(spanFinished(childSpan));
     assertTrue(spanFinished(parentSpan));
     assertTrue(writer.isEmpty());
-
     // creating and activating a second continuation
     ContextContinuation newContinuation = tracer.captureActiveSpan();
     newScope.close();
@@ -321,7 +317,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     secondContinuedScope.close();
     childSpan.finish();
     writer.waitForTraces(1);
-
     // spans are all finished and trace is reported
     assertNull(scopeManager.active());
     assertTrue(spanFinished(childSpan));
@@ -340,14 +335,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     span.finish();
 
     ContextScope newScope = continuation.resume();
-
     // the continuation sets the active scope
     assertInstanceOf(ContinuableScope.class, newScope);
     assertNotSame(scope, newScope);
     assertSame(newScope, scopeManager.active());
     assertTrue(spanFinished(span));
     assertTrue(writer.isEmpty());
-
     // creating a new child span under a continued scope
     AgentSpan childSpan = tracer.buildSpan("test", "child").start();
     AgentScope childScope = tracer.activateSpan(childSpan);
@@ -358,7 +351,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
     scopeManager.active().close();
     writer.waitForTraces(1);
-
     // the child has the correct parent
     assertNull(scopeManager.active());
     assertTrue(spanFinished(childSpan));
@@ -381,14 +373,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     clearInvocations(profilingContext);
 
     AgentScope scope2 = scopeManager.activateSpan(span);
-
     // Activating the same span multiple times does not create a new scope
     assertEvents(Arrays.asList(ACTIVATE));
     verify(profilingContext, never()).newScopeState(any());
     clearInvocations(profilingContext);
 
     scope2.close();
-
     // Closing a scope once that has been activated multiple times does not close
     assertEvents(Arrays.asList(ACTIVATE));
     verify(localState, never()).close();
@@ -463,7 +453,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   void closingScopeOutOfOrderComplex() {
     // Events are checked twice in each case to ensure a call to
     // scopeManager.active() or tracer.activeSpan() doesn't change the count
-
     AgentSpan firstSpan = tracer.buildSpan("test", "foo").start();
     AgentScope firstScope = tracer.activateSpan(firstSpan);
 
@@ -539,7 +528,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertEvents(Arrays.asList(ACTIVATE));
 
     AgentScope scope2 = scopeManager.activateSpan(span);
-
     // Activating the same span multiple times does not create a new scope
     assertEvents(Arrays.asList(ACTIVATE));
     clearInvocations(profilingContext);
@@ -557,7 +545,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     clearInvocations(profilingContext);
 
     scope2.close();
-
     // Closing a scope once that has been activated multiple times does not close
     assertEvents(Arrays.asList(ACTIVATE, ACTIVATE));
     verifyNoMoreInteractions(profilingContext);
@@ -565,7 +552,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
     thirdScope.close();
     thirdSpan.finish();
-
     // Closing scope above multiple activated scope does not close it
     assertEvents(Arrays.asList(ACTIVATE, ACTIVATE, CLOSE, ACTIVATE));
     verifyNoMoreInteractions(profilingContext);
@@ -617,17 +603,14 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     AgentScope scope = tracer.activateSpan(span);
     scope.close();
     span.finish();
-
     // exception is thrown in same thread
     assertTrue(interceptor.lastTrace.contains(span));
-
     // scopeManager in good state
     assertNull(scopeManager.active());
     assertTrue(spanFinished(span));
     assertEquals(0, scopeManager.scopeStack().depth());
     assertEquals(1, writer.size());
     assertSame(span, writer.get(0).get(0));
-
     // completing another scope lifecycle
     AgentSpan span2 = tracer.buildSpan("test", "test").start();
     AgentScope scope2 = tracer.activateSpan(span2);
@@ -638,7 +621,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     scope2.close();
     span2.finish();
     writer.waitForTraces(1);
-
     // second lifecycle gets reported
     assertNull(scopeManager.active());
     assertTrue(spanFinished(span2));
@@ -648,9 +630,8 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void
-      exceptionThrownInTraceInterceptorDoesNotLeaveScopeManagerInBadStateWhenReportingThroughPendingTraceBuffer()
-          throws Exception {
+  void exceptionThrownInTraceInterceptorDoesNotLeaveScopeManagerInBadStateWhenReportingThroughPendingTraceBuffer()
+      throws Exception {
     ExceptionThrowingInterceptor interceptor = new ExceptionThrowingInterceptor();
     tracer.addTraceInterceptor(interceptor);
 
@@ -665,19 +646,16 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertTrue(spanFinished(span));
     assertEquals(0, scopeManager.scopeStack().depth());
     assertTrue(writer.isEmpty());
-
     // wait for root span to be reported from PendingTraceBuffer
     writer.waitForTraces(1);
 
     assertTrue(interceptor.lastTrace.contains(span));
-
     // scopeManager in good state
     assertNull(scopeManager.active());
     assertTrue(spanFinished(span));
     assertEquals(0, scopeManager.scopeStack().depth());
     assertEquals(1, writer.size());
     assertSame(span, writer.get(0).get(0));
-
     // completing another async scope lifecycle
     AgentSpan span2 = tracer.buildSpan("test", "test").start();
     AgentScope scope2 = tracer.activateSpan(span2);
@@ -691,7 +669,6 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     span2.finish();
 
     writer.waitForTraces(2);
-
     // second lifecycle gets reported as well
     assertNull(scopeManager.active());
     assertTrue(spanFinished(span2));
@@ -715,24 +692,20 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     continuation.get().hold();
 
     AtomicInteger iteration = new AtomicInteger(0);
-    ThreadUtils.runConcurrently(
-        8,
-        512,
-        () -> {
-          int iter = iteration.incrementAndGet();
-          if ((iter & 1) != 0) {
-            Thread.sleep(1);
-          }
-          ContextScope s = continuation.get().resume();
-          assertSame(s, scopeManager.active());
-          if ((iter & 2) != 0) {
-            Thread.sleep(1);
-          }
-          s.close();
-        });
+    ThreadUtils.runConcurrently(8, 512, () -> {
+      int iter = iteration.incrementAndGet();
+      if ((iter & 1) != 0) {
+        Thread.sleep(1);
+      }
+      ContextScope s = continuation.get().resume();
+      assertSame(s, scopeManager.active());
+      if ((iter & 2) != 0) {
+        Thread.sleep(1);
+      }
+      s.close();
+    });
 
     long duration = System.nanoTime() - start;
-
     // Since we can't rely on that nothing gets written to the tracer for verification,
     // we only check for empty if we are faster than the flush interval
     if (duration < sendDelayNanos) {
@@ -808,7 +781,9 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     "both exceptions    | true                | true          "
   })
   void misbehavingScopeListenerShouldNotAffectOthers(
-      boolean activationException, boolean closeException) {
+      boolean activationException,
+      boolean closeException
+  ) {
     ExceptionThrowingScopeListener exceptionThrowingScopeListener =
         new ExceptionThrowingScopeListener();
     exceptionThrowingScopeListener.throwOnScopeActivated = activationException;
@@ -835,7 +810,9 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
     assertEvents(Arrays.asList(ACTIVATE, ACTIVATE, CLOSE, ACTIVATE));
     assertEquals(
-        Arrays.asList(ACTIVATE, ACTIVATE, CLOSE, ACTIVATE), secondEventCountingListener.events);
+        Arrays.asList(ACTIVATE, ACTIVATE, CLOSE, ACTIVATE),
+        secondEventCountingListener.events
+    );
 
     continuableScope.close();
     span.finish();
@@ -843,7 +820,8 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     assertEvents(Arrays.asList(ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE));
     assertEquals(
         Arrays.asList(ACTIVATE, ACTIVATE, CLOSE, ACTIVATE, CLOSE),
-        secondEventCountingListener.events);
+        secondEventCountingListener.events
+    );
   }
 
   @Test
@@ -851,37 +829,34 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     int numThreads = 5;
     int numTasks = 20;
     ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-
     // usage of an instrumented executor results in scopestack initialisation but not scope creation
-    executor.submit(() -> assertNull(scopeManager.active())).get();
+    executor
+      .submit(() -> assertNull(scopeManager.active()))
+      .get();
     // the listener is not notified
     verify(profilingContext, never()).onAttach();
     clearInvocations(profilingContext);
-
     // scopes activate on threads
     AgentSpan span = tracer.buildSpan("test", "foo").start();
     Future<?>[] futures = new Future[numTasks];
     for (int i = 0; i < numTasks; i++) {
       final int taskIndex = i;
-      futures[i] =
-          executor.submit(
-              () -> {
-                AgentScope scope = tracer.activateSpan(span);
-                AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
-                AgentScope childScope = tracer.activateSpan(child);
-                try {
-                  Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                  Thread.currentThread().interrupt();
-                }
-                childScope.close();
-                scope.close();
-              });
+      futures[i] = executor.submit(() -> {
+        AgentScope scope = tracer.activateSpan(span);
+        AgentSpan child = tracer.buildSpan("test", "foo" + taskIndex).start();
+        AgentScope childScope = tracer.activateSpan(child);
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException ignored) {
+          Thread.currentThread().interrupt();
+        }
+        childScope.close();
+        scope.close();
+      });
     }
     for (Future<?> future : futures) {
       future.get();
     }
-
     // the activation notifies the listener whenever the stack becomes non-empty
     verify(profilingContext, times(numTasks)).onAttach();
 
@@ -1088,15 +1063,15 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   void captureViaContextContinuationAPIHoldsTrace() throws Exception {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     AgentScope scope = tracer.activateSpan(span);
-
     // Context.current().capture() routes through ContinuableScopeManager.capture(Context)
     ContextContinuation continuation = Context.current().capture();
 
     scope.close();
     span.finish();
-    assertTrue(writer.isEmpty()); // trace held pending continuation
-
-    continuation.release(); // delegates to cancel(), unblocks trace reporting
+    // trace held pending continuation
+    assertTrue(writer.isEmpty());
+    // delegates to cancel(), unblocks trace reporting
+    continuation.release();
     writer.waitForTraces(1);
     assertFalse(writer.isEmpty());
   }
@@ -1110,8 +1085,8 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     span.finish();
 
     assertNull(scopeManager.active());
-    assertTrue(writer.isEmpty()); // trace held by continuation
-
+    // trace held by continuation
+    assertTrue(writer.isEmpty());
     // resume() delegates to activate()
     ContextScope resumedScope = continuation.resume();
     assertSame(span, scopeManager.active().span());
@@ -1129,10 +1104,10 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
     ContextContinuation continuation = tracer.captureActiveSpan();
     scope.close();
     span.finish();
-
-    assertTrue(writer.isEmpty()); // trace held by continuation
-
-    continuation.release(); // delegates to cancel()
+    // trace held by continuation
+    assertTrue(writer.isEmpty());
+    // delegates to cancel()
+    continuation.release();
     writer.waitForTraces(1);
     assertFalse(writer.isEmpty());
   }
@@ -1141,13 +1116,12 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
   void captureContextWithoutSpanUsesNoopTraceCollector() {
     ContextKey<String> key = ContextKey.named("test-key");
     Context ctx = Context.root().with(key, "value");
-    assertDoesNotThrow(
-        () -> {
-          // NoopAgentTraceCollector handles capture/release without throwing
-          try (ContextScope scope = ctx.attach()) {
-            Context.current().capture().release();
-          }
-        });
+    assertDoesNotThrow(() -> {
+      // NoopAgentTraceCollector handles capture/release without throwing
+      try (ContextScope scope = ctx.attach()) {
+        Context.current().capture().release();
+      }
+    });
   }
 
   private boolean spanFinished(AgentSpan span) {
@@ -1225,7 +1199,8 @@ class ScopeManagerForkedTest extends DDCoreJavaSpecification {
 
     @Override
     public Collection<? extends MutableSpan> onTraceComplete(
-        Collection<? extends MutableSpan> trace) {
+        Collection<? extends MutableSpan> trace
+    ) {
       lastTrace = trace;
       if (shouldThrowException) {
         throw new RuntimeException("Always throws exception");

@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -33,11 +32,14 @@ import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Obtain template and matrix variables for RequestMappingInfoHandlerMapping. */
+/**
+ * Obtain template and matrix variables for RequestMappingInfoHandlerMapping.
+ */
 @AutoService(InstrumenterModule.class)
 public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private Advice.PostProcessor.Factory postProcessorFactory;
 
   public TemplateAndMatrixVariablesInstrumentation() {
@@ -68,22 +70,24 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isProtected())
-            .and(named("handleMatch"))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.web.servlet.mvc.method.RequestMappingInfo")))
-            .and(takesArgument(1, String.class))
-            .and(takesArgument(2, named("javax.servlet.http.HttpServletRequest")))
-            .and(takesArguments(3)),
-        TemplateAndMatrixVariablesInstrumentation.class.getName() + "$HandleMatchAdvice");
+          .and(isProtected())
+          .and(named("handleMatch"))
+          .and(
+              takesArgument(
+                  0,
+                  named("org.springframework.web.servlet.mvc.method.RequestMappingInfo")
+              )
+          )
+          .and(takesArgument(1, String.class))
+          .and(takesArgument(2, named("javax.servlet.http.HttpServletRequest")))
+          .and(takesArguments(3)),
+        TemplateAndMatrixVariablesInstrumentation.class.getName() + "$HandleMatchAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".PairList",
-    };
+    return new String[] {packageName + ".PairList"};
   }
 
   @Override
@@ -102,15 +106,16 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
     @Source(SourceTypes.REQUEST_MATRIX_PARAMETER)
     public static void after(
         @Advice.Argument(2) final HttpServletRequest req,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }
       // hacky, but APM instrumentation causes the instrumented method to be called twice
-      if (req.getClass()
-          .getName()
-          .equals(
-              "datadog.trace.instrumentation.springweb.PathMatchingHttpServletRequestWrapper")) {
+      if (req
+        .getClass()
+        .getName()
+        .equals("datadog.trace.instrumentation.springweb.PathMatchingHttpServletRequestWrapper")) {
         return;
       }
 
@@ -129,11 +134,10 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
       if (reqCtx == null) {
         return;
       }
-
-      { // appsec
+      {
+        // appsec
         Object appSecRequestContext = reqCtx.getData(RequestContextSlot.APPSEC);
         if (appSecRequestContext != null) {
-
           // merge the uri template and matrix variables
           Map<String, Object> map = null;
           if (templateVars instanceof Map) {
@@ -157,7 +161,9 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
           }
 
           if (map != null && !map.isEmpty()) {
-            CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+            CallbackProvider cbp = AgentTracer
+              .get()
+              .getCallbackProvider(RequestContextSlot.APPSEC);
             BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
                 cbp.getCallback(EVENTS.requestPathParams());
             if (callback != null) {
@@ -169,16 +175,16 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                 if (brf != null) {
                   brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
                 }
-                t =
-                    new BlockingException(
-                        "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
+                t = new BlockingException(
+                    "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)"
+                );
               }
             }
           }
         }
       }
-
-      { // iast
+      {
+        // iast
         IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
         if (iastRequestContext != null) {
           PropagationModule module = InstrumentationBridge.PROPAGATION;
@@ -188,10 +194,15 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                 String parameterName = e.getKey();
                 String value = e.getValue();
                 if (parameterName == null || value == null) {
-                  continue; // should not happen
+                  // should not happen
+                  continue;
                 }
                 module.taintString(
-                    iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+                    iastRequestContext,
+                    value,
+                    SourceTypes.REQUEST_PATH_PARAMETER,
+                    parameterName
+                );
               }
             }
 
@@ -211,7 +222,8 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                         iastRequestContext,
                         innerKey,
                         SourceTypes.REQUEST_MATRIX_PARAMETER,
-                        parameterName);
+                        parameterName
+                    );
                   }
                   Iterable<String> innerValues = ie.getValue();
                   if (innerValues != null) {
@@ -220,7 +232,8 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
                           iastRequestContext,
                           iv,
                           SourceTypes.REQUEST_MATRIX_PARAMETER,
-                          parameterName);
+                          parameterName
+                      );
                     }
                   }
                 }

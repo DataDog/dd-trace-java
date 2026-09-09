@@ -8,7 +8,10 @@ public class BlockingDetails {
   public final Map<String, String> extraHeaders;
 
   public BlockingDetails(
-      int statusCode, BlockingContentType blockingContentType, Map<String, String> extraHeaders) {
+      int statusCode,
+      BlockingContentType blockingContentType,
+      Map<String, String> extraHeaders
+  ) {
     this.statusCode = statusCode;
     this.blockingContentType = blockingContentType;
     this.extraHeaders = extraHeaders;

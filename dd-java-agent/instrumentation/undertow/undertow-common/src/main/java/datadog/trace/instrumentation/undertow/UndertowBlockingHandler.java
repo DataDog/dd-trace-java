@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.gateway.Flow;
@@ -27,13 +26,13 @@ public class UndertowBlockingHandler implements HttpHandler {
   public static final UndertowBlockingHandler INSTANCE = new UndertowBlockingHandler();
   private static final Logger log = LoggerFactory.getLogger(UndertowBlockingHandler.class);
   private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
-
   public static final AttachmentKey<Flow.Action.RequestBlockingAction> REQUEST_BLOCKING_DATA =
       AttachmentKey.create(Flow.Action.RequestBlockingAction.class);
   public static final AttachmentKey<TraceSegment> TRACE_SEGMENT =
       AttachmentKey.create(TraceSegment.class);
 
-  private UndertowBlockingHandler() {}
+  private UndertowBlockingHandler() {
+  }
 
   @Override
   public void handleRequest(HttpServerExchange exchange) {
@@ -42,7 +41,9 @@ public class UndertowBlockingHandler implements HttpHandler {
   }
 
   private static void commitBlockingResponse(
-      HttpServerExchange xchg, Flow.Action.RequestBlockingAction rba) {
+      HttpServerExchange xchg,
+      Flow.Action.RequestBlockingAction rba
+  ) {
     if (xchg.isResponseStarted()) {
       log.warn("response already committed, we can't change it");
       return;
@@ -76,13 +77,13 @@ public class UndertowBlockingHandler implements HttpHandler {
       }
 
       segment.effectivelyBlocked();
-
       // blocking response to avoid having the intercepted caller and its callers interfere
       // even if this is an IO thread...
       // The async alternative at this level would be to set a write listener and call
       // resumeWrites()
       StreamSinkChannel responseChannel = xchg.getResponseChannel();
-      long deadline = System.nanoTime() + 500 * 1000 * 1000; // 500 ms
+      // 500 ms
+      long deadline = System.nanoTime() + 500 * 1000 * 1000;
       boolean finished = false;
       while (true) {
         if (buffer.hasRemaining()) {
@@ -120,10 +121,11 @@ public class UndertowBlockingHandler implements HttpHandler {
   private static void markAsEffectivelyBlocked(HttpServerExchange xchg) {
     ContextContinuation continuation = xchg.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
     if (continuation != null) {
-      AgentSpan.fromContext(continuation.context())
-          .getRequestContext()
-          .getTraceSegment()
-          .effectivelyBlocked();
+      AgentSpan
+        .fromContext(continuation.context())
+        .getRequestContext()
+        .getTraceSegment()
+        .effectivelyBlocked();
     }
   }
 }

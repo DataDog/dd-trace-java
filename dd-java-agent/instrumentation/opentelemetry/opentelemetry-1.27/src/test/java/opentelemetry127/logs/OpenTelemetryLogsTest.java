@@ -5,7 +5,6 @@ import static io.opentelemetry.api.common.AttributeKey.doubleKey;
 import static io.opentelemetry.api.common.AttributeKey.longKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.logs.data.OtelLogRecordProcessor;
@@ -29,7 +28,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 @WithConfig(key = "logs.otel.enabled", value = "true")
 class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
-
   private final LogsReader logsReader = new LogsReader();
 
   @BeforeEach
@@ -39,9 +37,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
   }
 
   @ParameterizedTest
-  @EnumSource(
-      value = Severity.class,
-      names = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"})
+  @EnumSource(value = Severity.class, names = {"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"})
   void testSeverity(Severity severity) {
     LoggerProvider loggerProvider = GlobalOpenTelemetry.get().getLogsBridge();
     Logger logger = loggerProvider.get("test-severity");
@@ -62,11 +58,11 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
     Logger logger = GlobalOpenTelemetry.get().getLogsBridge().get("test-severity-text");
 
     logger
-        .logRecordBuilder()
-        .setBody("message")
-        .setSeverity(Severity.INFO)
-        .setSeverityText("custom-level")
-        .emit();
+      .logRecordBuilder()
+      .setBody("message")
+      .setSeverity(Severity.INFO)
+      .setSeverityText("custom-level")
+      .emit();
 
     OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
@@ -81,13 +77,13 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
     Logger logger = GlobalOpenTelemetry.get().getLogsBridge().get("test-attributes");
 
     logger
-        .logRecordBuilder()
-        .setBody("attributed message")
-        .setAttribute(stringKey("str.key"), "str-value")
-        .setAttribute(longKey("long.key"), 42L)
-        .setAttribute(booleanKey("bool.key"), true)
-        .setAttribute(doubleKey("double.key"), 1.5)
-        .emit();
+      .logRecordBuilder()
+      .setBody("attributed message")
+      .setAttribute(stringKey("str.key"), "str-value")
+      .setAttribute(longKey("long.key"), 42L)
+      .setAttribute(booleanKey("bool.key"), true)
+      .setAttribute(doubleKey("double.key"), 1.5)
+      .emit();
 
     OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
@@ -111,18 +107,17 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
     loggerA.logRecordBuilder().setBody("a-2").setSeverity(Severity.DEBUG).emit();
 
     OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
-
     // logs are sorted by scope name, so all scope-a logs come before scope-b logs
     assertEquals(3, logsReader.logs.size());
 
-    List<CapturedLog> scopeALogs =
-        logsReader.logs.stream()
-            .filter(l -> "scope-a".equals(l.scopeName))
-            .collect(Collectors.toList());
-    List<CapturedLog> scopeBLogs =
-        logsReader.logs.stream()
-            .filter(l -> "scope-b".equals(l.scopeName))
-            .collect(Collectors.toList());
+    List<CapturedLog> scopeALogs = logsReader.logs
+      .stream()
+      .filter(l -> "scope-a".equals(l.scopeName))
+      .collect(Collectors.toList());
+    List<CapturedLog> scopeBLogs = logsReader.logs
+      .stream()
+      .filter(l -> "scope-b".equals(l.scopeName))
+      .collect(Collectors.toList());
 
     assertEquals(2, scopeALogs.size());
     assertEquals("a-1", scopeALogs.get(0).body);
@@ -144,7 +139,8 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
         int severityNumber,
         String severityText,
         String body,
-        Map<String, Object> attributes) {
+        Map<String, Object> attributes
+    ) {
       this.scopeName = scopeName;
       this.severityNumber = severityNumber;
       this.severityText = severityText;
@@ -177,7 +173,9 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
               logRecord.severityNumber,
               logRecord.severityText,
               logRecord.body,
-              new HashMap<>(currentAttributes)));
+              new HashMap<>(currentAttributes)
+          )
+      );
       currentAttributes.clear();
     }
   }

@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.is
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.hasParameters;
 import static net.bytebuddy.matcher.ElementMatchers.whereAny;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class AddingSpanAttributesInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public AddingSpanAttributesInstrumentation() {
     super("opentelemetry-annotations", "opentelemetry-annotations-1.26");
   }
@@ -40,10 +40,11 @@ public class AddingSpanAttributesInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      this.packageName + ".WithSpanDecorator",
-      this.packageName + ".WithSpanDecorator$1", // Switch over enum generated class
-      "datadog.opentelemetry.shim.trace.OtelConventions",
-      "datadog.opentelemetry.shim.trace.OtelConventions$1",
+        this.packageName + ".WithSpanDecorator",
+        // Switch over enum generated class
+        this.packageName + ".WithSpanDecorator$1",
+        "datadog.opentelemetry.shim.trace.OtelConventions",
+        "datadog.opentelemetry.shim.trace.OtelConventions$1"
     };
   }
 
@@ -51,13 +52,14 @@ public class AddingSpanAttributesInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     ElementMatcher.Junction<MethodDescription> annotatedMethodMatcher =
         isAnnotatedWith(named(hierarchyMarkerType()));
-    ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher =
-        hasParameters(
-            whereAny(
-                isAnnotatedWith(
-                    named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))));
+    ElementMatcher.Junction<MethodDescription> annotatedParametersMatcher = hasParameters(
+        whereAny(
+            isAnnotatedWith(named("io.opentelemetry.instrumentation.annotations.SpanAttribute"))
+        )
+    );
     transformer.applyAdvice(
         annotatedMethodMatcher.and(annotatedParametersMatcher),
-        this.packageName + ".AddingSpanAttributesAdvice");
+        this.packageName + ".AddingSpanAttributesAdvice"
+    );
   }
 }

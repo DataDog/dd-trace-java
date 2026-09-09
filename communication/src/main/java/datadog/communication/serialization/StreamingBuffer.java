@@ -3,7 +3,6 @@ package datadog.communication.serialization;
 import java.nio.ByteBuffer;
 
 public interface StreamingBuffer {
-
   int capacity();
 
   boolean isDirty();

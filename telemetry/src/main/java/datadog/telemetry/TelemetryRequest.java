@@ -26,12 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryRequest {
-
   private static final Logger log = LoggerFactory.getLogger(TelemetryRequest.class);
-
   static final String API_VERSION = "v2";
   static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-
   private final EventSource eventSource;
   private final EventSink eventSink;
   private final long messageBytesSoftLimit;
@@ -44,7 +41,8 @@ public class TelemetryRequest {
       EventSink eventSink,
       long messageBytesSoftLimit,
       RequestType requestType,
-      boolean debug) {
+      boolean debug
+  ) {
     this.eventSource = eventSource;
     this.eventSink = eventSink;
     this.messageBytesSoftLimit = messageBytesSoftLimit;
@@ -57,15 +55,14 @@ public class TelemetryRequest {
   public Request.Builder httpRequest() {
     long bodySize = requestBody.endRequest();
 
-    Request.Builder builder =
-        new Request.Builder()
-            .addHeader("Content-Type", String.valueOf(JSON))
-            .addHeader("Content-Length", String.valueOf(bodySize))
-            .addHeader("DD-Telemetry-API-Version", API_VERSION)
-            .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
-            .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
-            .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
-            .post(requestBody);
+    Request.Builder builder = new Request.Builder()
+      .addHeader("Content-Type", String.valueOf(JSON))
+      .addHeader("Content-Length", String.valueOf(bodySize))
+      .addHeader("DD-Telemetry-API-Version", API_VERSION)
+      .addHeader("DD-Telemetry-Request-Type", String.valueOf(this.requestType))
+      .addHeader("DD-Client-Library-Language", DDTags.LANGUAGE_TAG_VALUE)
+      .addHeader("DD-Client-Library-Version", TracerVersion.TRACER_VERSION)
+      .post(requestBody);
 
     final String containerId = ContainerInfo.get().getContainerId();
     if (containerId != null) {
@@ -115,7 +112,8 @@ public class TelemetryRequest {
       requestBody.writeProducts(
           InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED,
           InstrumenterConfig.get().isProfilingEnabled(),
-          Config.get().isDynamicInstrumentationEnabled());
+          Config.get().isDynamicInstrumentationEnabled()
+      );
     } catch (IOException e) {
       throw new TelemetryRequestBody.SerializationException("products", e);
     }

@@ -4,15 +4,15 @@ import static datadog.trace.api.DDTags.ERROR_MSG;
 import static io.opentracing.log.Fields.ERROR_OBJECT;
 import static io.opentracing.log.Fields.EVENT;
 import static io.opentracing.log.Fields.MESSAGE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The default implementation of the LogHandler. */
+/**
+ * The default implementation of the LogHandler.
+ */
 public class DefaultLogHandler implements LogHandler {
-
   private static final Logger log = LoggerFactory.getLogger(DefaultLogHandler.class);
 
   @Override
@@ -23,7 +23,10 @@ public class DefaultLogHandler implements LogHandler {
 
   @Override
   public void log(
-      final long timestampMicroseconds, final Map<String, ?> fields, final AgentSpan span) {
+      final long timestampMicroseconds,
+      final Map<String, ?> fields,
+      final AgentSpan span
+  ) {
     extractError(fields, span);
     log.debug("`log` method is not implemented. Doing nothing");
   }

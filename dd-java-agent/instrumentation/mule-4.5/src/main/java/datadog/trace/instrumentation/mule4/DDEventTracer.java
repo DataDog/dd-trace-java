@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.mule4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.mule4.MuleDecorator.DECORATE;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
@@ -28,17 +27,18 @@ import org.mule.runtime.tracer.customization.impl.provider.LazyInitialSpanInfo;
  * ones.
  */
 public class DDEventTracer implements EventTracer<CoreEvent> {
-  /** Holds the link between mule event context <-> ddSpan */
+  /**
+   * Holds the link between mule event context <-> ddSpan
+   */
   private final ContextStore<EventContext, SpanState> eventContextStore;
-
   private final ContextStore<InitialSpanInfo, Component> componentContextStore;
-
   private final EventTracer<CoreEvent> delegate;
 
   public DDEventTracer(
       ContextStore<EventContext, SpanState> eventContextStore,
       ContextStore<InitialSpanInfo, Component> componentContextStore,
-      EventTracer<CoreEvent> delegate) {
+      EventTracer<CoreEvent> delegate
+  ) {
     this.eventContextStore = eventContextStore;
     this.componentContextStore = componentContextStore;
     this.delegate = delegate;
@@ -83,7 +83,9 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
     }
 
     eventContextStore.put(
-        eventContext, new SpanState(spanToLink, previousState).withSpanContextSpan(span));
+        eventContext,
+        new SpanState(spanToLink, previousState).withSpanContextSpan(span)
+    );
   }
 
   private void handleNewSpan(CoreEvent event, InitialSpanInfo spanInfo) {
@@ -156,7 +158,9 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
 
   @Override
   public void injectDistributedTraceContext(
-      EventContext eventContext, DistributedTraceContextGetter distributedTraceContextGetter) {
+      EventContext eventContext,
+      DistributedTraceContextGetter distributedTraceContextGetter
+  ) {
     // TODO: we do not use it today since we've our injectors. However it can be handy in case we do
     // not support some connectors
     delegate.injectDistributedTraceContext(eventContext, distributedTraceContextGetter);
@@ -164,7 +168,10 @@ public class DDEventTracer implements EventTracer<CoreEvent> {
 
   @Override
   public void recordErrorAtCurrentSpan(
-      CoreEvent event, Supplier<Error> errorSupplier, boolean isErrorEscapingCurrentSpan) {
+      CoreEvent event,
+      Supplier<Error> errorSupplier,
+      boolean isErrorEscapingCurrentSpan
+  ) {
     try {
       delegate.recordErrorAtCurrentSpan(event, errorSupplier, isErrorEscapingCurrentSpan);
     } finally {

@@ -11,7 +11,6 @@ import java.util.Collection;
 import java.util.Set;
 
 public class SetValue implements CollectionValue<Object>, ValueExpression<SetValue> {
-
   private final Object setHolder;
 
   public SetValue(Object object) {
@@ -41,7 +40,8 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
         return ((Set<?>) setHolder).isEmpty();
       }
       throw new UnsupportedOperationException(
-          "Unsupported Set class: " + setHolder.getClass().getTypeName());
+          "Unsupported Set class: " + setHolder.getClass().getTypeName()
+      );
     } else if (setHolder instanceof Value) {
       Value<?> val = (Value<?>) setHolder;
       return val.isNull() || val.isUndefined();
@@ -56,7 +56,8 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
         return ((Set<?>) setHolder).size();
       }
       throw new UnsupportedOperationException(
-          "Unsupported Set class: " + setHolder.getClass().getTypeName());
+          "Unsupported Set class: " + setHolder.getClass().getTypeName()
+      );
     } else if (setHolder == Value.nullValue()) {
       return 0;
     }
@@ -79,7 +80,8 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
         return Value.of(set.contains(key), ValueType.BOOLEAN);
       }
       throw new UnsupportedOperationException(
-          "Unsupported Set class: " + setHolder.getClass().getTypeName());
+          "Unsupported Set class: " + setHolder.getClass().getTypeName()
+      );
     }
     // the result will be either Value.nullValue() or Value.undefinedValue() depending on the holder
     // value
@@ -97,10 +99,12 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
           return ((Set<?>) setHolder).contains(val.getValue());
         }
         throw new UnsupportedOperationException(
-            "Unsupported value class: " + val.getValue().getClass().getTypeName());
+            "Unsupported value class: " + val.getValue().getClass().getTypeName()
+        );
       }
       throw new UnsupportedOperationException(
-          "Unsupported Set class: " + setHolder.getClass().getTypeName());
+          "Unsupported Set class: " + setHolder.getClass().getTypeName()
+      );
     }
     return false;
   }

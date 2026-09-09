@@ -16,27 +16,29 @@ import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import jdk.jfr.EventType;
 
 public class JFREventContextIntegration implements ProfilingContextIntegration {
-
   public JFREventContextIntegration() {
     ExcludedVersions.checkVersionExclusion();
     // Note: Loading CheckpointEvent when JFRCheckpointer is loaded is important because it also
     // loads JFR classes - which may not be present on some JVMs
     EventType.getEventType(EndpointEvent.class);
-    isEndpointCollectionEnabled =
-        ConfigProvider.getInstance()
-            .getBoolean(
-                ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
-                ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
-    isTimelineEventsEnabled =
-        ConfigProvider.getInstance()
-            .getBoolean(
-                ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
-                ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT);
-    isQueueTimeEnabled =
-        ConfigProvider.getInstance()
-            .getBoolean(
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+    isEndpointCollectionEnabled = ConfigProvider
+      .getInstance()
+      .getBoolean(
+          ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
+          ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT
+      );
+    isTimelineEventsEnabled = ConfigProvider
+      .getInstance()
+      .getBoolean(
+          ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED,
+          ProfilingConfig.PROFILING_TIMELINE_EVENTS_ENABLED_DEFAULT
+      );
+    isQueueTimeEnabled = ConfigProvider
+      .getInstance()
+      .getBoolean(
+          ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+          ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT
+      );
   }
 
   // native image process will enable context integration immediately - the value will get
@@ -62,7 +64,8 @@ public class JFREventContextIntegration implements ProfilingContextIntegration {
     return new TimelineEvent(
         profilerContext.getRootSpanId(),
         profilerContext.getSpanId(),
-        String.valueOf(profilerContext.getOperationName()));
+        String.valueOf(profilerContext.getOperationName())
+    );
   }
 
   @Override

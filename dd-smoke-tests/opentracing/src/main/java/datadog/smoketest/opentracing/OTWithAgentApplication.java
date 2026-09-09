@@ -8,7 +8,6 @@ import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 
 public class OTWithAgentApplication {
-
   public static void main(final String[] args) throws InterruptedException {
     final Tracer tracer = GlobalTracer.get();
 
@@ -23,7 +22,6 @@ public class OTWithAgentApplication {
     }
 
     span.finish();
-
     // Allow trace to be reported.
     Thread.sleep(1000);
   }

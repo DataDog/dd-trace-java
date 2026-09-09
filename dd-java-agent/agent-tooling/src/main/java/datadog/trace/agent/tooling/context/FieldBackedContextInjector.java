@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
-
 import datadog.instrument.fieldinject.GlobalObjectStore;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.api.InstrumenterConfig;
@@ -31,56 +30,51 @@ import net.bytebuddy.pool.TypePool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Injects fields and accessors so the class can act as a surrogate {@link ContextStore}. */
+/**
+ * Injects fields and accessors so the class can act as a surrogate {@link ContextStore}.
+ */
 public final class FieldBackedContextInjector implements AsmVisitorWrapper {
-
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextInjector.class);
-
   static final String FIELD_BACKED_CONTEXT_ACCESSOR_CLASS =
       getInternalName(FieldBackedContextAccessor.class.getName());
-
   static final String CONTEXT_STORE_ACCESS_PREFIX = "__datadogContext$";
-
   static final String GETTER_METHOD = "$get$" + CONTEXT_STORE_ACCESS_PREFIX;
   static final String GETTER_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.getType(Object.class), Type.INT_TYPE);
-
   static final String PUTTER_METHOD = "$put$" + CONTEXT_STORE_ACCESS_PREFIX;
   static final String PUTTER_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.VOID_TYPE, Type.INT_TYPE, Type.getType(Object.class));
-
-  static final String WEAK_REDIRECT_CLASS =
-      getInternalName(
-          (InstrumenterConfig.get().isRuntimeContextMapPerStore()
-                  ? WeakMapPerStore.class
-                  : GlobalObjectStore.class)
-              .getName());
-
-  static final String WEAK_GET_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(
-          Type.getType(Object.class), Type.getType(Object.class), Type.INT_TYPE);
-
-  static final String WEAK_PUT_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(
-          Type.VOID_TYPE, Type.getType(Object.class), Type.INT_TYPE, Type.getType(Object.class));
-
+  static final String WEAK_REDIRECT_CLASS = getInternalName((InstrumenterConfig
+    .get()
+    .isRuntimeContextMapPerStore()
+      ? WeakMapPerStore.class
+      : GlobalObjectStore.class)
+    .getName()
+  );
+  static final String WEAK_GET_METHOD_DESCRIPTOR = Type.getMethodDescriptor(
+      Type.getType(Object.class),
+      Type.getType(Object.class),
+      Type.INT_TYPE
+  );
+  static final String WEAK_PUT_METHOD_DESCRIPTOR = Type.getMethodDescriptor(
+      Type.VOID_TYPE,
+      Type.getType(Object.class),
+      Type.INT_TYPE,
+      Type.getType(Object.class)
+  );
   static final String IS_ASSIGNABLE_FROM_METHOD = "isAssignableFrom";
   static final String IS_ASSIGNABLE_FROM_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.BOOLEAN_TYPE, Type.getType(Class.class));
-
   static final String OBJECT_DESCRIPTOR = Type.getDescriptor(Object.class);
-
   public static final Type EXPECTED_SUPER_STORE_TYPE =
       Type.getType(FieldBackedContextAccessor.class);
-
-  /** Keeps track of injection requests for the class being transformed by the current thread. */
+  /**
+   * Keeps track of injection requests for the class being transformed by the current thread.
+   */
   static final ThreadLocal<Pair<String, BitSet>> INJECTED_STORE_IDS = new ThreadLocal<>();
-
   final boolean serialVersionUIDFieldInjection =
       InstrumenterConfig.get().isSerialVersionUIDFieldInjection();
-
   final boolean isMemoizingEnabled = InstrumenterConfig.get().isResolverMemoizingEnabled();
-
   final String keyClassName;
   final String contextClassName;
 
@@ -108,18 +102,15 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       final FieldList<FieldDescription.InDefinedShape> fields,
       final MethodList<?> methods,
       final int writerFlags,
-      final int readerFlags) {
+      final int readerFlags
+  ) {
     return new ClassVisitor(Opcodes.ASM9, classVisitor) {
-
       private final boolean frames =
           implementationContext.getClassFileVersion().isAtLeast(ClassFileVersion.JAVA_V6);
-
       private String storeFieldName;
-
       private boolean foundField;
       private boolean foundGetter;
       private boolean foundPutter;
-
       private SerialVersionUIDInjector serialVersionUIDInjector;
 
       @Override
@@ -129,8 +120,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           final String name,
           String signature,
           final String superName,
-          String[] interfaces) {
-
+          String[] interfaces
+      ) {
         // keep track of all injection requests for the class currently being transformed
         // because we need to switch between them in the generated getter/putter methods
         int storeId = injectContextStore(name, keyClassName, contextClassName);
@@ -164,7 +155,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           final String name,
           final String descriptor,
           final String signature,
-          final Object value) {
+          final Object value
+      ) {
         if (name.startsWith(CONTEXT_STORE_ACCESS_PREFIX)) {
           if (storeFieldName.equals(name)) {
             foundField = true;
@@ -181,7 +173,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           final String name,
           final String descriptor,
           final String signature,
-          final String[] exceptions) {
+          final String[] exceptions
+      ) {
         if (name.equals(GETTER_METHOD)) {
           foundGetter = true;
         } else if (name.equals(PUTTER_METHOD)) {
@@ -194,7 +187,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
       @Override
       public void visitInnerClass(
-          final String name, final String outerName, final String innerName, final int access) {
+          final String name,
+          final String outerName,
+          final String innerName,
+          final int access
+      ) {
         if (serialVersionUIDInjector != null) {
           serialVersionUIDInjector.visitInnerClass(name, outerName, innerName, access);
         }
@@ -212,15 +209,15 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         if (null != injectedStoreIds) {
           if (!foundGetter || !foundPutter) {
             BitSet weakStoreIds = new BitSet();
-
             // check hierarchy to see if we might need to delegate to the superclass
             boolean hasSuperStores;
             if (isMemoizingEnabled) {
               hasSuperStores = MemoizedMatchers.hasSuperStores(instrumentedType, weakStoreIds);
             } else {
-              hasSuperStores =
-                  ShouldInjectFieldsState.hasInjectedField(
-                      instrumentedType.getSuperClass(), weakStoreIds);
+              hasSuperStores = ShouldInjectFieldsState.hasInjectedField(
+                  instrumentedType.getSuperClass(),
+                  weakStoreIds
+              );
             }
 
             if (!foundGetter) {
@@ -252,11 +249,15 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
             storeFieldName,
             OBJECT_DESCRIPTOR,
             null,
-            null);
+            null
+        );
       }
 
       private void addStoreGetter(
-          final BitSet injectedStoreIds, final boolean hasSuperStores, final BitSet weakStoreIds) {
+          final BitSet injectedStoreIds,
+          final boolean hasSuperStores,
+          final BitSet weakStoreIds
+      ) {
         final MethodVisitor mv =
             cv.visitMethod(Opcodes.ACC_PUBLIC, GETTER_METHOD, GETTER_METHOD_DESCRIPTOR, null, null);
 
@@ -264,12 +265,10 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
         String instrumentedName = instrumentedType.getInternalName();
         boolean hasMoreStores = hasSuperStores || !weakStoreIds.isEmpty();
-
         // if...else... blocks for stores injected into this class
         int injectedStoreId = injectedStoreIds.nextSetBit(0);
         while (injectedStoreId >= 0) {
           int nextStoreId = injectedStoreIds.nextSetBit(injectedStoreId + 1);
-
           // optimization: if we know the superclass hierarchy doesn't have any context store
           // (injected or weak-map) then we can skip the id check and go straight to the field
           Label nextStoreLabel = null;
@@ -284,7 +283,6 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           }
           injectedStoreId = nextStoreId;
         }
-
         // if...else... blocks for weak stores between this class and last injected superclass
         int weakStoreId = weakStoreIds.nextSetBit(0);
         while (weakStoreId >= 0) {
@@ -296,13 +294,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           beginNextStore(mv, nextStoreLabel);
           weakStoreId = nextStoreId;
         }
-
         // else... delegate to superclass - but be prepared to fall back to weak-map
         if (hasMoreStores) {
           Label fallbackStoreLabel = new Label();
 
           String superName = instrumentedType.getSuperClass().asErasure().getInternalName();
-
           // check superclass has expected type before calling
           mv.visitLdcInsn(EXPECTED_SUPER_STORE_TYPE);
           mv.visitLdcInsn(Type.getObjectType(superName));
@@ -311,11 +307,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
               "java/lang/Class",
               IS_ASSIGNABLE_FROM_METHOD,
               IS_ASSIGNABLE_FROM_METHOD_DESCRIPTOR,
-              false);
+              false
+          );
           mv.visitJumpInsn(Opcodes.IFEQ, fallbackStoreLabel);
 
           invokeSuperGet(mv, superName);
-
           // superclass has not been field-injected, fall back to weak-map
           beginNextStore(mv, fallbackStoreLabel);
 
@@ -327,7 +323,10 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       }
 
       private void addStorePutter(
-          final BitSet injectedStoreIds, final boolean hasSuperStores, final BitSet weakStoreIds) {
+          final BitSet injectedStoreIds,
+          final boolean hasSuperStores,
+          final BitSet weakStoreIds
+      ) {
         final MethodVisitor mv =
             cv.visitMethod(Opcodes.ACC_PUBLIC, PUTTER_METHOD, PUTTER_METHOD_DESCRIPTOR, null, null);
 
@@ -335,12 +334,10 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
 
         String instrumentedName = instrumentedType.getInternalName();
         boolean hasMoreStores = hasSuperStores || !weakStoreIds.isEmpty();
-
         // if...else... blocks for stores injected into this class
         int injectedStoreId = injectedStoreIds.nextSetBit(0);
         while (injectedStoreId >= 0) {
           int nextStoreId = injectedStoreIds.nextSetBit(injectedStoreId + 1);
-
           // optimization: if we know the superclass hierarchy doesn't have any context store
           // (injected or weak-map) then we can skip the id check and go straight to the field
           Label nextStoreLabel = null;
@@ -355,7 +352,6 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           }
           injectedStoreId = nextStoreId;
         }
-
         // if...else... blocks for weak stores between this class and last injected superclass
         int weakStoreId = weakStoreIds.nextSetBit(0);
         while (weakStoreId >= 0) {
@@ -367,13 +363,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
           beginNextStore(mv, nextStoreLabel);
           weakStoreId = nextStoreId;
         }
-
         // else... delegate to superclass - but be prepared to fall back to weak-map
         if (hasMoreStores) {
           Label fallbackStoreLabel = new Label();
 
           String superName = instrumentedType.getSuperClass().asErasure().getInternalName();
-
           // check superclass has expected type before calling
           mv.visitLdcInsn(EXPECTED_SUPER_STORE_TYPE);
           mv.visitLdcInsn(Type.getObjectType(superName));
@@ -382,11 +376,11 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
               "java/lang/Class",
               IS_ASSIGNABLE_FROM_METHOD,
               IS_ASSIGNABLE_FROM_METHOD_DESCRIPTOR,
-              false);
+              false
+          );
           mv.visitJumpInsn(Opcodes.IFEQ, fallbackStoreLabel);
 
           invokeSuperPut(mv, superName);
-
           // superclass has not been field-injected, fall back to weak-map
           beginNextStore(mv, fallbackStoreLabel);
 
@@ -421,25 +415,33 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
       }
 
       private void getStoreField(
-          final MethodVisitor mv, final String instrumentedName, final int injectedStoreId) {
+          final MethodVisitor mv,
+          final String instrumentedName,
+          final int injectedStoreId
+      ) {
         mv.visitIntInsn(Opcodes.ALOAD, 0);
         mv.visitFieldInsn(
             Opcodes.GETFIELD,
             instrumentedName,
             CONTEXT_STORE_ACCESS_PREFIX + injectedStoreId,
-            OBJECT_DESCRIPTOR);
+            OBJECT_DESCRIPTOR
+        );
         mv.visitInsn(Opcodes.ARETURN);
       }
 
       private void putStoreField(
-          final MethodVisitor mv, final String instrumentedName, final int injectedStoreId) {
+          final MethodVisitor mv,
+          final String instrumentedName,
+          final int injectedStoreId
+      ) {
         mv.visitIntInsn(Opcodes.ALOAD, 0);
         mv.visitIntInsn(Opcodes.ALOAD, 2);
         mv.visitFieldInsn(
             Opcodes.PUTFIELD,
             instrumentedName,
             CONTEXT_STORE_ACCESS_PREFIX + injectedStoreId,
-            OBJECT_DESCRIPTOR);
+            OBJECT_DESCRIPTOR
+        );
         mv.visitInsn(Opcodes.RETURN);
       }
 
@@ -447,7 +449,12 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ALOAD, 0);
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, WEAK_REDIRECT_CLASS, "get", WEAK_GET_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESTATIC,
+            WEAK_REDIRECT_CLASS,
+            "get",
+            WEAK_GET_METHOD_DESCRIPTOR,
+            false
+        );
         mv.visitInsn(Opcodes.ARETURN);
       }
 
@@ -456,7 +463,12 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitIntInsn(Opcodes.ALOAD, 2);
         mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, WEAK_REDIRECT_CLASS, "put", WEAK_PUT_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESTATIC,
+            WEAK_REDIRECT_CLASS,
+            "put",
+            WEAK_PUT_METHOD_DESCRIPTOR,
+            false
+        );
         mv.visitInsn(Opcodes.RETURN);
       }
 
@@ -464,7 +476,12 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ALOAD, 0);
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitMethodInsn(
-            Opcodes.INVOKESPECIAL, superName, GETTER_METHOD, GETTER_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESPECIAL,
+            superName,
+            GETTER_METHOD,
+            GETTER_METHOD_DESCRIPTOR,
+            false
+        );
         mv.visitInsn(Opcodes.ARETURN);
       }
 
@@ -473,17 +490,26 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
         mv.visitIntInsn(Opcodes.ILOAD, 1);
         mv.visitIntInsn(Opcodes.ALOAD, 2);
         mv.visitMethodInsn(
-            Opcodes.INVOKESPECIAL, superName, PUTTER_METHOD, PUTTER_METHOD_DESCRIPTOR, false);
+            Opcodes.INVOKESPECIAL,
+            superName,
+            PUTTER_METHOD,
+            PUTTER_METHOD_DESCRIPTOR,
+            false
+        );
         mv.visitInsn(Opcodes.RETURN);
       }
     };
   }
 
-  /** Requests injection of a context store for a key and context. */
+  /**
+   * Requests injection of a context store for a key and context.
+   */
   static int injectContextStore(
-      final String target, final String keyClassName, final String contextClassName) {
+      final String target,
+      final String keyClassName,
+      final String contextClassName
+  ) {
     int storeId = getContextStoreId(keyClassName, contextClassName);
-
     // collect a new set of store ids every time we see a new target
     Pair<String, BitSet> injectedStoreIds = INJECTED_STORE_IDS.get();
     if (null == injectedStoreIds || !target.equals(injectedStoreIds.getLeft())) {
@@ -495,7 +521,9 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
     return storeId;
   }
 
-  /** Returns all context store injection requests for the class being transformed. */
+  /**
+   * Returns all context store injection requests for the class being transformed.
+   */
   static BitSet getInjectedContextStores() {
     Pair<String, BitSet> injectedStoreIds = INJECTED_STORE_IDS.get();
     if (null != injectedStoreIds) {
@@ -507,13 +535,16 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   }
 
   private static final class SerialVersionUIDInjector
-      extends datadog.trace.agent.tooling.context.asm.SerialVersionUIDAdder {
+      extends datadog.trace.agent.tooling.context.asm.SerialVersionUIDAdder
+  {
     public SerialVersionUIDInjector() {
       super(Opcodes.ASM8, null);
     }
 
     public void injectSerialVersionUID(
-        final TypeDescription instrumentedType, final ClassVisitor transformer) {
+        final TypeDescription instrumentedType,
+        final ClassVisitor transformer
+    ) {
       if (!hasSVUID()) {
         try {
           transformer.visitField(
@@ -521,7 +552,8 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
               "serialVersionUID",
               "J",
               null,
-              computeSVUID());
+              computeSVUID()
+          );
         } catch (final Exception e) {
           log.debug("Failed to add serialVersionUID to {}", instrumentedType.getName(), e);
         }

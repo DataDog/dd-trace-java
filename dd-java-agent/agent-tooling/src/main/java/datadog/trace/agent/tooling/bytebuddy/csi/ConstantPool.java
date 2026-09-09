@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 import javax.annotation.Nonnull;
 
 public class ConstantPool {
-
   public static final int CONSTANT_CLASS_TAG = 7;
   public static final int CONSTANT_FIELDREF_TAG = 9;
   public static final int CONSTANT_METHODREF_TAG = 10;
@@ -21,9 +20,7 @@ public class ConstantPool {
   public static final int CONSTANT_INVOKE_DYNAMIC_TAG = 18;
   public static final int CONSTANT_MODULE_TAG = 19;
   public static final int CONSTANT_PACKAGE_TAG = 20;
-
   private static final int CONSTANT_POOL_START = 8;
-
   private final byte[] classBuffer;
   private final int[] offsets;
   private final int count;
@@ -93,7 +90,8 @@ public class ConstantPool {
   public int getType(final int index) {
     final int offset = offsets[index] - 1;
     if (offset < 0) {
-      return -1; // can happen for long and double (they take two spots in the constant pool)
+      // can happen for long and double (they take two spots in the constant pool)
+      return -1;
     }
     return classBuffer[offset];
   }
@@ -116,14 +114,12 @@ public class ConstantPool {
       if ((currentByte & 0x80) == 0) {
         charBuffer[strLength++] = (char) (currentByte & 0x7F);
       } else if ((currentByte & 0xE0) == 0xC0) {
-        charBuffer[strLength++] =
-            (char) (((currentByte & 0x1F) << 6) + (classBuffer[currentOffset++] & 0x3F));
+        charBuffer[strLength++] = (char) (((currentByte & 0x1F) << 6)
+            + (classBuffer[currentOffset++] & 0x3F));
       } else {
-        charBuffer[strLength++] =
-            (char)
-                (((currentByte & 0xF) << 12)
-                    + ((classBuffer[currentOffset++] & 0x3F) << 6)
-                    + (classBuffer[currentOffset++] & 0x3F));
+        charBuffer[strLength++] = (char) (((currentByte & 0xF) << 12)
+            + ((classBuffer[currentOffset++] & 0x3F) << 6)
+            + (classBuffer[currentOffset++] & 0x3F));
       }
     }
     return new String(charBuffer, 0, strLength);

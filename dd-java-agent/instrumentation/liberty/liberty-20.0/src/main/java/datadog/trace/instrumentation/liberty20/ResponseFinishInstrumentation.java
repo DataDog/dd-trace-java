@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.wsspi.webcontainer.WebContainerRequestState;
@@ -28,8 +27,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ResponseFinishInstrumentation() {
     super("liberty");
   }
@@ -37,12 +37,12 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".LibertyDecorator",
-      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
-      packageName + ".RequestURIDataAdapter",
+        packageName + ".HttpServletExtractAdapter",
+        packageName + ".HttpServletExtractAdapter$Request",
+        packageName + ".HttpServletExtractAdapter$Response",
+        packageName + ".LibertyDecorator",
+        packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
+        packageName + ".RequestURIDataAdapter"
     };
   }
 
@@ -55,10 +55,12 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("finish").and(takesNoArguments()),
-        ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice");
+        ResponseFinishInstrumentation.class.getName() + "$ResponseFinishAdvice"
+    );
     transformer.applyAdvice(
         named("closeResponseOutput").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
-        ResponseFinishInstrumentation.class.getName() + "$SetCompletedAdvice");
+        ResponseFinishInstrumentation.class.getName() + "$SetCompletedAdvice"
+    );
   }
 
   /**
@@ -105,8 +107,7 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.This SRTServletResponse resp, @Advice.Enter Context context) {
+    public static void stopSpan(@Advice.This SRTServletResponse resp, @Advice.Enter Context context) {
       if (context == null) {
         return;
       }

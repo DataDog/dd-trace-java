@@ -11,7 +11,8 @@ import javax.servlet.http.HttpServletResponse;
 public class XmlServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
+      throws ServletException,
+      IOException {
     resp.setContentType("text/xml");
     resp.getWriter().print("<response><head></head></response>");
   }

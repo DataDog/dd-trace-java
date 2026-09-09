@@ -9,7 +9,6 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
  */
 public enum IsUnsupportedCI implements TagValue {
   TRUE;
-
   @Override
   public String asString() {
     return "is_unsupported_ci:true";

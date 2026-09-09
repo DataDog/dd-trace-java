@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
-
 import datadog.environment.OperatingSystem;
 import datadog.smoketest.profiling.CodeHotspotsApplication;
 import datadog.smoketest.profiling.GenerativeStackTraces;
@@ -54,11 +53,11 @@ import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 
 @DisabledOnJ9
 public final class CodeHotspotsTest {
-  private static final int TEST_CASE_TIMEOUT = 5; // seconds
+  // seconds
+  private static final int TEST_CASE_TIMEOUT = 5;
   private static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
   private static final IAttribute<String> OPERATION =
       attr("_dd.trace.operation", "operation", "operation", PLAIN_TEXT);
-
   private static final Path LOG_FILE_BASE =
       Paths.get(buildDirectory(), "reports", "testProcess." + CodeHotspotsTest.class.getName());
 
@@ -66,13 +65,14 @@ public final class CodeHotspotsTest {
   static void setupAll() throws Exception {
     assumeFalse(
         OperatingSystem.isMacOs() || System.getenv("TEST_LIBDDPROF") == null,
-        "Test skipped. Set TEST_LIBDDPROF env variable to point to MacOS version of libjavaProfiler.so, and rerun.");
+        "Test skipped. Set TEST_LIBDDPROF env variable to point to MacOS version of "
+        + "libjavaProfiler.so, and rerun."
+    );
     Files.createDirectories(LOG_FILE_BASE);
   }
 
   private Path logFilePath = null;
   private Path dumpDir = null;
-
   private int timeout;
 
   @BeforeEach
@@ -89,14 +89,15 @@ public final class CodeHotspotsTest {
     if (timeoutQuotient > 1) {
       System.out.println(
           "===> Timeout scaled by "
-              + timeoutQuotient
-              + " to "
-              + timeout
-              + "s (load = "
-              + load
-              + ", cores = "
-              + cores
-              + ")");
+          + timeoutQuotient
+          + " to "
+          + timeout
+          + "s (load = "
+          + load
+          + ", cores = "
+          + cores
+          + ")"
+      );
     }
   }
 
@@ -107,44 +108,46 @@ public final class CodeHotspotsTest {
     System.out.println("===\n");
   }
 
-  @ParameterizedTest(
-      name = "Test reactive app (mean service time = {0}, arrival rate = {1} tasks/s)")
+  @ParameterizedTest(name = "Test reactive app (mean service time = {0}, arrival rate = {1} "
+      + "tasks/s)")
   @MethodSource("reactiveTestParams")
   @Disabled
-  void testReactive(Duration meanServiceTime, int arrivalRate, double minCoverage)
-      throws Exception {
+  void testReactive(Duration meanServiceTime, int arrivalRate, double minCoverage) throws Exception {
     System.out.println(
         "=== Test reactive app (mean service time = "
-            + meanServiceTime
-            + ", arrival rate = "
-            + arrivalRate
-            + " tasks/s)");
-    int interval = 10; // milliseconds
+        + meanServiceTime
+        + ", arrival rate = "
+        + arrivalRate
+        + " tasks/s)"
+    );
+    // milliseconds
+    int interval = 10;
     int workers = 2;
-    Process targetProcess =
-        createProcessBuilder(
-                CodeHotspotsApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                "reactive",
-                Integer.toString(workers),
-                Long.toString(meanServiceTime.toNanos()),
-                Long.toString(arrivalRate),
-                Integer.toString(timeout))
-            .start();
+    Process targetProcess = createProcessBuilder(
+        CodeHotspotsApplication.class.getName(),
+        0,
+        timeout * 2,
+        interval,
+        interval,
+        dumpDir,
+        logFilePath,
+        "reactive",
+        Integer.toString(workers),
+        Long.toString(meanServiceTime.toNanos()),
+        Long.toString(arrivalRate),
+        Integer.toString(timeout)
+    )
+      .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     long serviceRate = (long) (workers * 1_000_000_000d) / meanServiceTime.toNanos();
     double idleness = Math.max(0d, (serviceRate - arrivalRate) / (double) serviceRate);
 
-    Files.walk(dumpDir)
-        .filter(Files::isRegularFile)
-        .map(Path::toFile)
-        .forEach(f -> validateJfr(f, idleness, minCoverage));
+    Files
+      .walk(dumpDir)
+      .filter(Files::isRegularFile)
+      .map(Path::toFile)
+      .forEach(f -> validateJfr(f, idleness, minCoverage));
   }
 
   private static Stream<Arguments> reactiveTestParams() {
@@ -154,7 +157,8 @@ public final class CodeHotspotsTest {
         Arguments.of(Duration.of(100, ChronoUnit.MICROS), 5000, 0.2d),
         Arguments.of(Duration.ofMillis(100), 50, 0.8d),
         Arguments.of(Duration.ofMillis(1), 50, 0.3d),
-        Arguments.of(Duration.of(100, ChronoUnit.MICROS), 50, 0.15d));
+        Arguments.of(Duration.of(100, ChronoUnit.MICROS), 50, 0.15d)
+    );
   }
 
   @Test
@@ -162,28 +166,31 @@ public final class CodeHotspotsTest {
   @Flaky
   void testBatch() throws Exception {
     System.out.println("Test batch app");
-    int meanServiceTimeSecs = 1; // seconds
+    // seconds
+    int meanServiceTimeSecs = 1;
     long meanServiceTimeNs = TimeUnit.SECONDS.toNanos(meanServiceTimeSecs);
-    int interval = 10; // milliseconds
-    Process targetProcess =
-        createProcessBuilder(
-                CodeHotspotsApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                "batch",
-                Long.toString(meanServiceTimeNs),
-                Integer.toString(timeout))
-            .start();
+    // milliseconds
+    int interval = 10;
+    Process targetProcess = createProcessBuilder(
+        CodeHotspotsApplication.class.getName(),
+        0,
+        timeout * 2,
+        interval,
+        interval,
+        dumpDir,
+        logFilePath,
+        "batch",
+        Long.toString(meanServiceTimeNs),
+        Integer.toString(timeout)
+    )
+      .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
-    Files.walk(dumpDir)
-        .filter(Files::isRegularFile)
-        .map(Path::toFile)
-        .forEach(f -> validateJfr(f, 0, 0.9));
+    Files
+      .walk(dumpDir)
+      .filter(Files::isRegularFile)
+      .map(Path::toFile)
+      .forEach(f -> validateJfr(f, 0, 0.9));
   }
 
   @Test
@@ -191,31 +198,35 @@ public final class CodeHotspotsTest {
   @Flaky
   void testSaturatedFanout() throws Exception {
     System.out.println("Test saturated parallel processing");
-    int meanServiceTimeSecs = 1; // seconds
+    // seconds
+    int meanServiceTimeSecs = 1;
     long meanServiceTimeNs = TimeUnit.SECONDS.toNanos(meanServiceTimeSecs);
-    int interval = 10; // milliseconds
-    int workers =
-        Runtime.getRuntime().availableProcessors() * 2; // more workers than available cores
-    Process targetProcess =
-        createProcessBuilder(
-                CodeHotspotsApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                "fanout",
-                Integer.toString(workers),
-                Long.toString(meanServiceTimeNs),
-                Integer.toString(timeout))
-            .start();
+    // milliseconds
+    int interval = 10;
+    // more workers than available cores
+    int // more workers than available cores
+    workers = Runtime.getRuntime().availableProcessors() * 2;
+    Process targetProcess = createProcessBuilder(
+        CodeHotspotsApplication.class.getName(),
+        0,
+        timeout * 2,
+        interval,
+        interval,
+        dumpDir,
+        logFilePath,
+        "fanout",
+        Integer.toString(workers),
+        Long.toString(meanServiceTimeNs),
+        Integer.toString(timeout)
+    )
+      .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
-    Files.walk(dumpDir)
-        .filter(Files::isRegularFile)
-        .map(Path::toFile)
-        .forEach(f -> validateJfr(f, 0, 0.8));
+    Files
+      .walk(dumpDir)
+      .filter(Files::isRegularFile)
+      .map(Path::toFile)
+      .forEach(f -> validateJfr(f, 0, 0.8));
   }
 
   @ParameterizedTest
@@ -223,24 +234,26 @@ public final class CodeHotspotsTest {
   @Flaky
   void testNativeLibrary(String libraryName) throws Exception {
     System.out.println("Test " + libraryName);
-    int interval = 10; // milliseconds
-    Process targetProcess =
-        createProcessBuilder(
-                NativeLibrariesApplication.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                libraryName)
-            .start();
+    // milliseconds
+    int interval = 10;
+    Process targetProcess = createProcessBuilder(
+        NativeLibrariesApplication.class.getName(),
+        0,
+        timeout * 2,
+        interval,
+        interval,
+        dumpDir,
+        logFilePath,
+        libraryName
+    )
+      .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
-    Files.walk(dumpDir)
-        .filter(Files::isRegularFile)
-        .map(Path::toFile)
-        .forEach(CodeHotspotsTest::hasCpuEvents);
+    Files
+      .walk(dumpDir)
+      .filter(Files::isRegularFile)
+      .map(Path::toFile)
+      .forEach(CodeHotspotsTest::hasCpuEvents);
   }
 
   @Flaky
@@ -266,26 +279,28 @@ public final class CodeHotspotsTest {
 
   private void runTestGenerativeStackTraces(String mode, int depth) throws Exception {
     System.out.println("Test depth=" + depth + " with mode: " + mode);
-    int interval = 10; // milliseconds
-    Process targetProcess =
-        createProcessBuilder(
-                GenerativeStackTraces.class.getName(),
-                0,
-                timeout * 2,
-                interval,
-                interval,
-                dumpDir,
-                logFilePath,
-                String.valueOf(depth),
-                "1000",
-                mode)
-            .start();
+    // milliseconds
+    int interval = 10;
+    Process targetProcess = createProcessBuilder(
+        GenerativeStackTraces.class.getName(),
+        0,
+        timeout * 2,
+        interval,
+        interval,
+        dumpDir,
+        logFilePath,
+        String.valueOf(depth),
+        "1000",
+        mode
+    )
+      .start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
-    Files.walk(dumpDir)
-        .filter(Files::isRegularFile)
-        .map(Path::toFile)
-        .forEach(CodeHotspotsTest::hasCpuEvents);
+    Files
+      .walk(dumpDir)
+      .filter(Files::isRegularFile)
+      .map(Path::toFile)
+      .forEach(CodeHotspotsTest::hasCpuEvents);
   }
 
   private static void hasCpuEvents(File f) {
@@ -314,7 +329,6 @@ public final class CodeHotspotsTest {
       //      IItemCollection cpu = events.apply(ItemFilters.type("datadog.ExecutionSample"));
       assertTrue(wallclock.hasItems(), "No datadog.MethodSample events found from " + f.getName());
       //      assertTrue(cpu.hasItems());
-
       validateStats(wallclock, idleness, minCoverage);
     } catch (Exception e) {
       fail(e);
@@ -347,23 +361,23 @@ public final class CodeHotspotsTest {
         } else {
           qualifiedSamples++;
           spanSampleCnt
-              .computeIfAbsent(Long.toString(spanId), k -> new AtomicLong(0))
-              .incrementAndGet();
+            .computeIfAbsent(Long.toString(spanId), k -> new AtomicLong(0))
+            .incrementAndGet();
           operationSampleCnt
-              .computeIfAbsent(operationName, k -> new AtomicLong(0))
-              .incrementAndGet();
+            .computeIfAbsent(operationName, k -> new AtomicLong(0))
+            .incrementAndGet();
         }
       }
     }
-    spanSampleCnt.values().stream()
-        .map(AtomicLong::get)
-        .forEach(
-            v -> {
-              summaryStats.addValue(v);
-              p99.increment(v);
-              p50.increment(v);
-            });
-
+    spanSampleCnt
+      .values()
+      .stream()
+      .map(AtomicLong::get)
+      .forEach(v -> {
+        summaryStats.addValue(v);
+        p99.increment(v);
+        p50.increment(v);
+      });
     /*
      Qualified samples are scaled according to 'idleness' -
      If the system is idle the workers will be waiting for input (preferably, outside any context) and as such
@@ -381,12 +395,12 @@ public final class CodeHotspotsTest {
     System.out.println("  P99     : " + p99.getResult());
 
     assertTrue(coverage >= minCoverage, "Expected coverage: " + coverage + " >= " + minCoverage);
-
     // span names defined in CodeHotspotsApplication
     assertFalse(operationSampleCnt.isEmpty(), "no operation names");
     assertTrue(operationSampleCnt.size() <= 2, "too many operation names");
     assertTrue(
         operationSampleCnt.get("top") != null || operationSampleCnt.get("work_item") != null,
-        "wrong operation names: " + operationSampleCnt.keySet());
+        "wrong operation names: " + operationSampleCnt.keySet()
+    );
   }
 }

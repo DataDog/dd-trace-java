@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -21,9 +20,9 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType,
-        Instrumenter.ForConfiguredType,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForConfiguredType,
+    Instrumenter.HasMethodAdvice
+{
   public AkkaForkJoinPoolInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }
@@ -47,11 +46,11 @@ public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Co
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(namedOneOf("externalPush", "fullExternalPush")),
-        getClass().getName() + "$ExternalPush");
+        getClass().getName() + "$ExternalPush"
+    );
   }
 
   public static final class ExternalPush {
-
     @Advice.OnMethodEnter
     public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
@@ -61,7 +60,9 @@ public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Co
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static <T> void cleanup(
-        @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
+        @Advice.Argument(0) ForkJoinTask<T> task,
+        @Advice.Thrown Throwable thrown
+    ) {
       if (null != thrown) {
         cancelTask(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
       }

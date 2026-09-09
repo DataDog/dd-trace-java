@@ -9,10 +9,11 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class IastServiceImpl extends IastServiceGrpc.IastServiceImplBase {
-
   @Override
   public void serverSideRequestForgery(
-      final Request request, final StreamObserver<Response> responseObserver) {
+      final Request request,
+      final StreamObserver<Response> responseObserver
+  ) {
     if (request.getType() != Type.URL) {
       responseObserver.onError(new IllegalArgumentException("Invalid type for request"));
     } else {

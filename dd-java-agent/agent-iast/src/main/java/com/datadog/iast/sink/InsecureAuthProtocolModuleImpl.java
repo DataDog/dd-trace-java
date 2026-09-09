@@ -11,8 +11,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public class InsecureAuthProtocolModuleImpl extends SinkModuleBase
-    implements InsecureAuthProtocolModule {
-
+    implements InsecureAuthProtocolModule
+{
   private static final String BASIC = "Basic";
   private static final String DIGEST = "Digest";
 

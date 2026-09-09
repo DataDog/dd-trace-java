@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -16,14 +15,13 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.Transaction;
 
 public final class TransactionInstrumentation extends AbstractHibernateInstrumentation {
-
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.hibernate.engine.transaction.spi.AbstractTransactionImpl",
-      "org.hibernate.engine.transaction.internal.jta.CMTTransaction",
-      "org.hibernate.engine.transaction.internal.jdbc.JdbcTransaction",
-      "org.hibernate.engine.transaction.internal.jta.JtaTransaction"
+        "org.hibernate.engine.transaction.spi.AbstractTransactionImpl",
+        "org.hibernate.engine.transaction.internal.jta.CMTTransaction",
+        "org.hibernate.engine.transaction.internal.jdbc.JdbcTransaction",
+        "org.hibernate.engine.transaction.internal.jta.JtaTransaction"
     };
   }
 
@@ -41,27 +39,31 @@ public final class TransactionInstrumentation extends AbstractHibernateInstrumen
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("commit")).and(takesArguments(0)),
-        TransactionInstrumentation.class.getName() + "$TransactionCommitAdvice");
+        TransactionInstrumentation.class.getName() + "$TransactionCommitAdvice"
+    );
   }
 
   public static class TransactionCommitAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startCommit(@Advice.This final Transaction transaction) {
-
       final ContextStore<Transaction, SessionState> contextStore =
           InstrumentationContext.get(Transaction.class, SessionState.class);
 
       return SessionMethodUtils.startScopeFrom(
-          contextStore, transaction, "hibernate.transaction.commit", null, true);
+          contextStore,
+          transaction,
+          "hibernate.transaction.commit",
+          null,
+          true
+      );
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endCommit(
         @Advice.This final Transaction transaction,
         @Advice.Enter final SessionState state,
-        @Advice.Thrown final Throwable throwable) {
-
+        @Advice.Thrown final Throwable throwable
+    ) {
       SessionMethodUtils.closeScope(state, throwable, null, true);
     }
 

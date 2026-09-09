@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.tomcat;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,7 +15,9 @@ import org.apache.tomcat.websocket.server.WsHandshakeRequest;
 
 @AutoService(InstrumenterModule.class)
 public class WsHttpUpgradeHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public WsHttpUpgradeHandlerInstrumentation() {
     super("tomcat", "tomcat-websocket", "websocket");
   }
@@ -29,7 +30,9 @@ public class WsHttpUpgradeHandlerInstrumentation extends InstrumenterModule.Trac
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.apache.tomcat.websocket.server.WsHandshakeRequest", AgentSpan.class.getName());
+        "org.apache.tomcat.websocket.server.WsHandshakeRequest",
+        AgentSpan.class.getName()
+    );
   }
 
   @Override
@@ -45,7 +48,8 @@ public class WsHttpUpgradeHandlerInstrumentation extends InstrumenterModule.Trac
   public static class CaptureHandshakeSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(
-        @Advice.FieldValue("handshakeRequest") final WsHandshakeRequest request) {
+        @Advice.FieldValue("handshakeRequest") final WsHandshakeRequest request
+    ) {
       final AgentSpan span =
           InstrumentationContext.get(WsHandshakeRequest.class, AgentSpan.class).get(request);
       return span != null ? activateSpan(span) : null;

@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,9 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class HttpClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HttpClientInstrumentation() {
     super("java-http-client");
   }
@@ -45,19 +44,19 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("java.net.")
-        .or(nameStartsWith("jdk.internal."))
-        .and(not(named("jdk.internal.net.http.HttpClientFacade")))
-        .and(extendsClass(named("java.net.http.HttpClient")));
+      .or(nameStartsWith("jdk.internal."))
+      .and(not(named("jdk.internal.net.http.HttpClientFacade")))
+      .and(extendsClass(named("java.net.http.HttpClient")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BodyHandlerWrapper",
-      packageName + ".BodyHandlerWrapper$BodySubscriberWrapper",
-      packageName + ".CompletableFutureWrapper",
-      packageName + ".JavaNetClientDecorator",
-      packageName + ".ResponseConsumer"
+        packageName + ".BodyHandlerWrapper",
+        packageName + ".BodyHandlerWrapper$BodySubscriberWrapper",
+        packageName + ".CompletableFutureWrapper",
+        packageName + ".JavaNetClientDecorator",
+        packageName + ".ResponseConsumer"
     };
   }
 
@@ -65,18 +64,20 @@ public class HttpClientInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("send"))
-            .and(isPublic())
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("java.net.http.HttpRequest"))),
-        packageName + ".SendAdvice");
+          .and(named("send"))
+          .and(isPublic())
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("java.net.http.HttpRequest"))),
+        packageName + ".SendAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("sendAsync"))
-            .and(isPublic())
-            .and(takesArgument(0, named("java.net.http.HttpRequest")))
-            .and(takesArgument(1, named("java.net.http.HttpResponse$BodyHandler"))),
-        packageName + ".SendAsyncAdvice");
+          .and(named("sendAsync"))
+          .and(isPublic())
+          .and(takesArgument(0, named("java.net.http.HttpRequest")))
+          .and(takesArgument(1, named("java.net.http.HttpResponse$BodyHandler"))),
+        packageName + ".SendAsyncAdvice"
+    );
   }
 }

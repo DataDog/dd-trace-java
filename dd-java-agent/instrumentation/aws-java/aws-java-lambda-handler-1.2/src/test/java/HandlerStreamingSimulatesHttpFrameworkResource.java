@@ -12,7 +12,6 @@ import java.io.OutputStream;
  * the Lambda invocation span is active.
  */
 public class HandlerStreamingSimulatesHttpFrameworkResource implements RequestStreamHandler {
-
   @Override
   public void handleRequest(InputStream inputStream, OutputStream outputStream, Context context)
       throws IOException {

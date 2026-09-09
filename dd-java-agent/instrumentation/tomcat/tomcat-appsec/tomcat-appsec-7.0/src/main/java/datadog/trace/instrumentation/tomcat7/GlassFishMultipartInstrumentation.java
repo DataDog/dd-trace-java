@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -31,8 +30,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public GlassFishMultipartInstrumentation() {
     super("tomcat");
   }
@@ -49,25 +49,24 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.tomcat7.GlassFishBlockingHelper",
-    };
+    return new String[] {"datadog.trace.instrumentation.tomcat7.GlassFishBlockingHelper"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getParts").and(takesArguments(0)).and(isPublic()),
-        getClass().getName() + "$GetPartsAdvice");
+        getClass().getName() + "$GetPartsAdvice"
+    );
   }
 
   public static class GetPartsAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return(readOnly = false) Collection<?> parts,
         @Advice.Thrown Throwable t,
-        @Advice.FieldValue("request") org.apache.catalina.Request catRequest) {
+        @Advice.FieldValue("request") org.apache.catalina.Request catRequest
+    ) {
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
@@ -91,7 +90,12 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
       }
 
       if (GlassFishBlockingHelper.processPartsAndBlock(
-          parts, reqCtx, catRequest, filenamesCb, contentCb)) {
+          parts,
+          reqCtx,
+          catRequest,
+          filenamesCb,
+          contentCb
+      )) {
         parts = Collections.emptyList();
       }
     }

@@ -21,7 +21,8 @@ public final class ThreadSupport {
   static final MethodHandle NEW_VIRTUAL_THREAD_PER_TASK_EXECUTOR_MH =
       findNewVirtualThreadPerTaskExecutorMethodHandle();
 
-  private ThreadSupport() {}
+  private ThreadSupport() {
+  }
 
   /**
    * Provides the best identifier available for the current {@link Thread}. Uses {@code
@@ -106,8 +107,9 @@ public final class ThreadSupport {
   private static MethodHandle findThreadIdMethodHandle() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
       try {
-        return MethodHandles.lookup()
-            .findVirtual(Thread.class, "threadId", MethodType.methodType(long.class));
+        return MethodHandles
+          .lookup()
+          .findVirtual(Thread.class, "threadId", MethodType.methodType(long.class));
       } catch (Throwable ignored) {
         return null;
       }
@@ -118,8 +120,9 @@ public final class ThreadSupport {
   private static MethodHandle findIsVirtualMethodHandle() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
       try {
-        return MethodHandles.lookup()
-            .findVirtual(Thread.class, "isVirtual", MethodType.methodType(boolean.class));
+        return MethodHandles
+          .lookup()
+          .findVirtual(Thread.class, "isVirtual", MethodType.methodType(boolean.class));
       } catch (Throwable ignored) {
       }
     }
@@ -129,11 +132,13 @@ public final class ThreadSupport {
   private static MethodHandle findNewVirtualThreadPerTaskExecutorMethodHandle() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
       try {
-        return MethodHandles.lookup()
-            .findStatic(
-                Executors.class,
-                "newVirtualThreadPerTaskExecutor",
-                MethodType.methodType(ExecutorService.class));
+        return MethodHandles
+          .lookup()
+          .findStatic(
+              Executors.class,
+              "newVirtualThreadPerTaskExecutor",
+              MethodType.methodType(ExecutorService.class)
+          );
       } catch (Throwable ignored) {
       }
     }

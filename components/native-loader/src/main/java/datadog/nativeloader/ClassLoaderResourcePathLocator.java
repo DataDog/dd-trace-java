@@ -3,7 +3,9 @@ package datadog.nativeloader;
 import java.net.URL;
 import java.util.Objects;
 
-/** ClassLoaderResourcePathLocator locates library paths inside a {@link ClassLoader} */
+/**
+ * ClassLoaderResourcePathLocator locates library paths inside a {@link ClassLoader}
+ */
 final class ClassLoaderResourcePathLocator implements PathLocator {
   private final ClassLoader classLoader;
   private final String baseResource;
@@ -15,8 +17,11 @@ final class ClassLoaderResourcePathLocator implements PathLocator {
 
   @Override
   public URL locate(String optionalComponent, String path) {
-    return this.classLoader.getResource(
-        PathUtils.concatPath(optionalComponent, this.baseResource, path));
+    return this.classLoader.getResource(PathUtils.concatPath(
+        optionalComponent,
+        this.baseResource,
+        path
+    ));
   }
 
   @Override
@@ -26,7 +31,9 @@ final class ClassLoaderResourcePathLocator implements PathLocator {
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof ClassLoaderResourcePathLocator)) return false;
+    if (!(obj instanceof ClassLoaderResourcePathLocator)) {
+      return false;
+    }
 
     ClassLoaderResourcePathLocator that = (ClassLoaderResourcePathLocator) obj;
     return this.classLoader.equals(that.classLoader)

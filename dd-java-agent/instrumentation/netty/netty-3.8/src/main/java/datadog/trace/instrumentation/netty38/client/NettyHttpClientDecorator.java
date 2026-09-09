@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty38.client;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
-
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpClientDecorator;
@@ -12,14 +11,11 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 
 public class NettyHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
   public static final CharSequence NETTY_CLIENT = UTF8BytesString.create("netty-client");
-
   public static final NettyHttpClientDecorator DECORATE = new NettyHttpClientDecorator("http://");
   public static final NettyHttpClientDecorator DECORATE_SECURE =
       new NettyHttpClientDecorator("https://");
-
   public static final CharSequence NETTY_CLIENT_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
-
   private final String uriPrefix;
 
   public NettyHttpClientDecorator(String uriPrefix) {

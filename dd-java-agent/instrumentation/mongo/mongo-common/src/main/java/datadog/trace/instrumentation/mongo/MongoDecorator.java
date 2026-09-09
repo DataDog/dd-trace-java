@@ -19,7 +19,8 @@ import org.bson.BsonDocumentReader;
 import org.bson.ByteBuf;
 
 public abstract class MongoDecorator
-    extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent> {
+    extends DBTypeProcessingDatabaseClientDecorator<CommandStartedEvent>
+{
   private static final String DB_TYPE =
       SpanNaming.instance().namingSchema().database().normalizedName("mongo");
   private static final String SERVICE_NAME =
@@ -68,14 +69,17 @@ public abstract class MongoDecorator
   }
 
   public final void onStatement(
-      @Nonnull final AgentSpan span, @Nonnull final BsonDocument statement) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final BsonDocument statement
+  ) {
     onStatement(span, statement, null);
   }
 
   public final void onStatement(
       @Nonnull final AgentSpan span,
       @Nonnull final BsonDocument statement,
-      @Nullable ContextStore<BsonDocument, ByteBuf> byteBufAccessor) {
+      @Nullable ContextStore<BsonDocument, ByteBuf> byteBufAccessor
+  ) {
     // scrub the Mongo command so that parameters are removed from the string
     span.setResourceName(scrub(statement, byteBufAccessor));
   }
@@ -107,7 +111,8 @@ public abstract class MongoDecorator
 
   private String scrub(
       @Nonnull final BsonDocument origin,
-      @Nullable ContextStore<BsonDocument, ByteBuf> byteBufAccessor) {
+      @Nullable ContextStore<BsonDocument, ByteBuf> byteBufAccessor
+  ) {
     try (BsonScrubber scrubber = newScrubber()) {
       ByteBuf byteBuf = byteBufAccessor != null ? byteBufAccessor.get(origin) : null;
       if (null == byteBuf) {

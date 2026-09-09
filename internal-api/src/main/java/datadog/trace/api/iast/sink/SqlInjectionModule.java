@@ -4,7 +4,6 @@ import datadog.trace.api.iast.IastModule;
 import javax.annotation.Nullable;
 
 public interface SqlInjectionModule extends IastModule {
-
   String DATABASE_PARAMETER = "DATABASE";
 
   void onJdbcQuery(@Nullable String sql);

@@ -8,16 +8,15 @@ import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 
 public class SpringWebfluxHttpClientDecorator
-    extends HttpClientDecorator<ClientRequest, ClientResponse> {
+    extends HttpClientDecorator<ClientRequest, ClientResponse>
+{
   public static final CharSequence SPRING_WEBFLUX_CLIENT =
       UTF8BytesString.create("spring-webflux-client");
   public static final CharSequence CANCELLED = UTF8BytesString.create("cancelled");
   public static final CharSequence CANCELLED_MESSAGE =
       UTF8BytesString.create("The subscription was cancelled");
-
   public static final SpringWebfluxHttpClientDecorator DECORATE =
       new SpringWebfluxHttpClientDecorator();
-
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   public void onCancel(final AgentSpan span) {

@@ -7,7 +7,6 @@ import org.jboss.resteasy.plugins.server.vertx.VertxJaxrsServer;
 import org.jboss.resteasy.plugins.server.vertx.VertxResteasyDeployment;
 
 public class MainVerticle {
-
   public static void main(String[] args) {
     VertxOptions options = new VertxOptions();
     options.setEventLoopPoolSize(1);

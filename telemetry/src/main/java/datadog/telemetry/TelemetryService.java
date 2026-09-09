@@ -18,43 +18,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetryService {
-
   private static final Logger log = LoggerFactory.getLogger(TelemetryService.class);
-
   private static final long DEFAULT_MESSAGE_BYTES_SOFT_LIMIT = Math.round(5 * 1024 * 1024 * 0.75);
-
   private final TelemetryRouter telemetryRouter;
   private final BlockingQueue<ConfigSetting> configurations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Integration> integrations = new LinkedBlockingQueue<>();
   private final BlockingQueue<Dependency> dependencies = new LinkedBlockingQueue<>();
-  private final BlockingQueue<Metric> metrics =
-      new LinkedBlockingQueue<>(1024); // recommended capacity?
-
+  private final BlockingQueue<Metric> // recommended capacity?
+  // recommended capacity?
+  metrics = new LinkedBlockingQueue<>(1024);
   private final BlockingQueue<LogMessage> logMessages = new LinkedBlockingQueue<>(1024);
-
   private final BlockingQueue<DistributionSeries> distributionSeries =
       new LinkedBlockingQueue<>(1024);
-
   private final BlockingQueue<ProductChange> productChanges = new LinkedBlockingQueue<>();
-
   private final ExtendedHeartbeatData extendedHeartbeatData = new ExtendedHeartbeatData();
-
   private final BlockingQueue<Endpoint> endpoints = new LinkedBlockingQueue<>();
-
-  private final EventSource.Queued eventSource =
-      new EventSource.Queued(
-          configurations,
-          integrations,
-          dependencies,
-          metrics,
-          distributionSeries,
-          logMessages,
-          productChanges,
-          endpoints);
-
+  private final EventSource.Queued eventSource = new EventSource.Queued(
+      configurations,
+      integrations,
+      dependencies,
+      metrics,
+      distributionSeries,
+      logMessages,
+      productChanges,
+      endpoints
+  );
   private final long messageBytesSoftLimit;
   private final boolean debug;
-
   /*
    * Keep track of Open Tracing and Open Telemetry integrations activation as they are mutually exclusive.
    */
@@ -66,10 +56,14 @@ public class TelemetryService {
       TelemetryClient agentClient,
       TelemetryClient intakeClient,
       boolean useIntakeClientByDefault,
-      boolean debug) {
-    TelemetryRouter telemetryRouter =
-        new TelemetryRouter(
-            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault);
+      boolean debug
+  ) {
+    TelemetryRouter telemetryRouter = new TelemetryRouter(
+        ddAgentFeaturesDiscovery,
+        agentClient,
+        intakeClient,
+        useIntakeClientByDefault
+    );
     return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
@@ -82,7 +76,8 @@ public class TelemetryService {
   TelemetryService(
       final TelemetryRouter telemetryRouter,
       final long messageBytesSoftLimit,
-      final boolean debug) {
+      final boolean debug
+  ) {
     this.telemetryRouter = telemetryRouter;
     this.openTracingIntegrationEnabled = false;
     this.openTelemetryIntegrationEnabled = false;
@@ -142,13 +137,13 @@ public class TelemetryService {
   }
 
   public void sendAppClosingEvent() {
-    TelemetryRequest telemetryRequest =
-        new TelemetryRequest(
-            this.eventSource,
-            EventSink.NOOP,
-            messageBytesSoftLimit,
-            RequestType.APP_CLOSING,
-            debug);
+    TelemetryRequest telemetryRequest = new TelemetryRequest(
+        this.eventSource,
+        EventSink.NOOP,
+        messageBytesSoftLimit,
+        RequestType.APP_CLOSING,
+        debug
+    );
     if (telemetryRouter.sendRequest(telemetryRequest) != TelemetryClient.Result.SUCCESS) {
       log.warn("Couldn't send app-closing event!");
     }
@@ -167,7 +162,8 @@ public class TelemetryService {
       eventSource = this.eventSource;
     } else {
       log.debug(
-          "Sending buffered telemetry events that couldn't have been sent on previous attempt");
+          "Sending buffered telemetry events that couldn't have been sent on previous attempt"
+      );
       eventSource = bufferedEvents;
     }
     // use a buffer as a sink, so we can retry on the next attempt in case of a request failure
@@ -175,9 +171,13 @@ public class TelemetryService {
     eventSink = bufferedEvents;
 
     log.debug("Preparing app-started request");
-    TelemetryRequest request =
-        new TelemetryRequest(
-            eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_STARTED, debug);
+    TelemetryRequest request = new TelemetryRequest(
+        eventSource,
+        eventSink,
+        messageBytesSoftLimit,
+        RequestType.APP_STARTED,
+        debug
+    );
 
     request.writeProducts();
     request.writeConfigurations();
@@ -205,22 +205,32 @@ public class TelemetryService {
       eventSink = bufferedEvents;
     } else {
       log.debug(
-          "Sending buffered telemetry events that couldn't have been sent on previous attempt");
+          "Sending buffered telemetry events that couldn't have been sent on previous attempt"
+      );
       eventSource = bufferedEvents;
-      eventSink = EventSink.NOOP; // TODO collect metrics for unsent events
+      // TODO collect metrics for unsent events
+      eventSink = EventSink.NOOP;
     }
     TelemetryRequest request;
     boolean isMoreDataAvailable = false;
     if (eventSource.isEmpty()) {
       log.debug("Preparing app-heartbeat request");
-      request =
-          new TelemetryRequest(
-              eventSource, eventSink, messageBytesSoftLimit, RequestType.APP_HEARTBEAT, debug);
+      request = new TelemetryRequest(
+          eventSource,
+          eventSink,
+          messageBytesSoftLimit,
+          RequestType.APP_HEARTBEAT,
+          debug
+      );
     } else {
       log.debug("Preparing message-batch request");
-      request =
-          new TelemetryRequest(
-              eventSource, eventSink, messageBytesSoftLimit, RequestType.MESSAGE_BATCH, debug);
+      request = new TelemetryRequest(
+          eventSource,
+          eventSink,
+          messageBytesSoftLimit,
+          RequestType.MESSAGE_BATCH,
+          debug
+      );
       request.writeHeartbeat();
       request.writeConfigurations();
       request.writeIntegrations();
@@ -254,13 +264,13 @@ public class TelemetryService {
   public boolean sendExtendedHeartbeat() {
     log.debug("Preparing message-batch request");
     EventSource extendedHeartbeatDataSnapshot = extendedHeartbeatData.snapshot();
-    TelemetryRequest request =
-        new TelemetryRequest(
-            extendedHeartbeatDataSnapshot,
-            EventSink.NOOP,
-            messageBytesSoftLimit,
-            RequestType.APP_EXTENDED_HEARTBEAT,
-            debug);
+    TelemetryRequest request = new TelemetryRequest(
+        extendedHeartbeatDataSnapshot,
+        EventSink.NOOP,
+        messageBytesSoftLimit,
+        RequestType.APP_EXTENDED_HEARTBEAT,
+        debug
+    );
     request.writeConfigurations();
     request.writeDependencies();
     request.writeIntegrations();
@@ -274,6 +284,8 @@ public class TelemetryService {
 
   void warnAboutExclusiveIntegrations() {
     log.warn(
-        "Both OpenTracing and OpenTelemetry integrations are enabled but mutually exclusive. Tracing performance can be degraded.");
+        "Both OpenTracing and OpenTelemetry integrations are enabled but mutually "
+        + "exclusive. Tracing performance can be degraded."
+    );
   }
 }

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,8 +16,10 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider
+{
   public JettyServerInstrumentation() {
     super("jetty");
   }
@@ -31,16 +32,16 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      packageName + ".JettyServerAdvice",
-      packageName + ".JettyServerAdvice$ContextTrackingAdvice",
-      packageName + ".JettyServerAdvice$HandleAdvice",
-      packageName + ".JettyServerAdvice$ResetAdvice",
-      packageName + ".JettyRunnableWrapper"
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".JettyDecorator",
+        packageName + ".RequestURIDataAdapter",
+        packageName + ".JettyServerAdvice",
+        packageName + ".JettyServerAdvice$ContextTrackingAdvice",
+        packageName + ".JettyServerAdvice$HandleAdvice",
+        packageName + ".JettyServerAdvice$ResetAdvice",
+        packageName + ".JettyRunnableWrapper"
     };
   }
 
@@ -50,9 +51,12 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         named("onRequest").and(takesArguments(1)),
         packageName + ".JettyServerAdvice$HandleAdvice",
         // note this is last while it should be first because this instrumentation advices on exit
-        packageName + ".JettyServerAdvice$ContextTrackingAdvice");
+        packageName + ".JettyServerAdvice$ContextTrackingAdvice"
+    );
     transformer.applyAdvice(
-        named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
+        named("recycle").and(takesNoArguments()),
+        packageName + ".JettyServerAdvice$ResetAdvice"
+    );
   }
 
   @Override
@@ -65,6 +69,8 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
             "org.eclipse.jetty.io.ManagedSelector",
             "org.eclipse.jetty.util.thread.TimerScheduler",
             "org.eclipse.jetty.util.thread.TimerScheduler$SimpleTask",
-            "org.eclipse.jetty.util.thread.SerializedInvoker$NamedRunnable"));
+            "org.eclipse.jetty.util.thread.SerializedInvoker$NamedRunnable"
+        )
+    );
   }
 }

@@ -9,13 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LoggingWriter implements Writer {
-
   private static final Logger log = LoggerFactory.getLogger(LoggingWriter.class);
-  private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER =
-      new Moshi.Builder()
-          .add(DDSpanJsonAdapter.buildFactory(false))
-          .build()
-          .adapter(Types.newParameterizedType(List.class, DDSpan.class));
+  private static final JsonAdapter<List<DDSpan>> TRACE_ADAPTER = new Moshi.Builder()
+    .add(DDSpanJsonAdapter.buildFactory(false))
+    .build()
+    .adapter(Types.newParameterizedType(List.class, DDSpan.class));
 
   @Override
   public void write(final List<DDSpan> trace) {

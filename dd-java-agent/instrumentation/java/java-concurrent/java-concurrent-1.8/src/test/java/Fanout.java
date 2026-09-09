@@ -1,5 +1,4 @@
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.api.Trace;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -8,7 +7,6 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class Fanout {
-
   private final Executor executor;
   private final int tasks;
   private final boolean traceChild;
@@ -21,12 +19,12 @@ public class Fanout {
 
   public void execute() {
     try {
-      Stream<CompletableFuture<?>> futures =
-          IntStream.range(0, tasks)
-              .mapToObj(
-                  i ->
-                      CompletableFuture.runAsync(
-                          traceChild ? this::tracedWork : this::untracedWork, executor));
+      Stream<CompletableFuture<?>> futures = IntStream
+        .range(0, tasks)
+        .mapToObj(i -> CompletableFuture.runAsync(
+            traceChild ? this::tracedWork : this::untracedWork,
+            executor
+        ));
       // Wait for those threads to finish work
       CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).get();
     } catch (InterruptedException | ExecutionException e) {
@@ -36,14 +34,11 @@ public class Fanout {
 
   public void executeTwoLevels() {
     try {
-      Stream<CompletableFuture<?>> futures =
-          IntStream.range(0, tasks)
-              .mapToObj(
-                  i ->
-                      CompletableFuture.runAsync(
-                              traceChild ? this::tracedWork : this::untracedWork, executor)
-                          .thenRunAsync(
-                              traceChild ? this::tracedWork : this::untracedWork, executor));
+      Stream<CompletableFuture<?>> futures = IntStream
+        .range(0, tasks)
+        .mapToObj(i -> CompletableFuture
+          .runAsync(traceChild ? this::tracedWork : this::untracedWork, executor)
+          .thenRunAsync(traceChild ? this::tracedWork : this::untracedWork, executor));
       // Wait for those threads to finish work
       CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).get();
     } catch (InterruptedException | ExecutionException e) {

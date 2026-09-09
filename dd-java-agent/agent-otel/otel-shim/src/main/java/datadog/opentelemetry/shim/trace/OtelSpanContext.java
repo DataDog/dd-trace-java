@@ -16,7 +16,11 @@ public class OtelSpanContext implements SpanContext {
   private String spanId;
 
   public OtelSpanContext(
-      AgentSpanContext delegate, boolean sampled, boolean remote, TraceState traceState) {
+      AgentSpanContext delegate,
+      boolean sampled,
+      boolean remote,
+      TraceState traceState
+  ) {
     this.delegate = delegate;
     this.sampled = sampled;
     this.remote = remote;

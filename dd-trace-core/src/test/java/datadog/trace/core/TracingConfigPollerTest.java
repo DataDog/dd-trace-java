@@ -10,7 +10,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.metrics.api.Monitoring;
@@ -32,10 +31,10 @@ import org.tabletest.junit.TableTest;
 
 @Timeout(10)
 public class TracingConfigPollerTest extends DDCoreJavaSpecification {
-
   @Test
   void mergeLibConfigsWithNullAndNonNullValues() {
-    TracingConfigPoller.LibConfig config1 = new TracingConfigPoller.LibConfig(); // all nulls
+    // all nulls
+    TracingConfigPoller.LibConfig config1 = new TracingConfigPoller.LibConfig();
     TracingConfigPoller.LibConfig config2 = new TracingConfigPoller.LibConfig();
     config2.tracingEnabled = true;
     config2.debugEnabled = false;
@@ -86,7 +85,11 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     "wildcard org level   | *            | *       |              | 1               "
   })
   void configPriorityCalculation(
-      String service, String env, String clusterName, int expectedPriority) {
+      String service,
+      String env,
+      String clusterName,
+      int expectedPriority
+  ) {
     TracingConfigPoller.ConfigOverrides configOverrides = new TracingConfigPoller.ConfigOverrides();
     if (service != null || env != null) {
       configOverrides.serviceTarget = new TracingConfigPoller.ServiceTarget();
@@ -114,17 +117,20 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              // capture config updater for further testing
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
-        .when(poller)
-        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+    doAnswer(inv -> {
+      // capture config updater for further testing
+      capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+      return null;
+    })
+      .when(poller)
+      .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
     CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+        CoreTracer
+      .builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build();
     unclosedTracers.add(tracer);
 
     try {
@@ -138,60 +144,65 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       updater.accept(
           orgKey,
           ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"*\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"tracing_service_mapping\": [{\n"
-                  + "      \"from_key\": \"org-service\",\n"
-                  + "      \"to_name\": \"org-mapped\"\n"
-                  + "    }],\n"
-                  + "    \"tracing_sampling_rate\": 0.7\n"
-                  + "  }\n"
-                  + "}")
-              .getBytes(StandardCharsets.UTF_8),
-          null);
+          + "  \"service_target\": {\n"
+          + "    \"service\": \"*\",\n"
+          + "    \"env\": \"*\"\n"
+          + "  },\n"
+          + "  \"lib_config\": {\n"
+          + "    \"tracing_service_mapping\": [{\n"
+          + "      \"from_key\": \"org-service\",\n"
+          + "      \"to_name\": \"org-mapped\"\n"
+          + "    }],\n"
+          + "    \"tracing_sampling_rate\": 0.7\n"
+          + "  }\n"
+          + "}")
+            .getBytes(StandardCharsets.UTF_8),
+          null
+      );
       // Add service level config (priority 4) - should override service mapping and add header tags
       updater.accept(
           serviceKey,
           ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"test-service\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"tracing_service_mapping\": [{\n"
-                  + "      \"from_key\": \"service-specific\",\n"
-                  + "      \"to_name\": \"service-mapped\"\n"
-                  + "    }],\n"
-                  + "    \"tracing_header_tags\": [{\n"
-                  + "      \"header\": \"X-Custom-Header\",\n"
-                  + "      \"tag_name\": \"custom.header\"\n"
-                  + "    }],\n"
-                  + "    \"tracing_sampling_rate\": 1.3,\n"
-                  + "    \"data_streams_transaction_extractors\": [{\n"
-                  + "      \"name\": \"test\",\n"
-                  + "      \"type\": \"unknown\",\n"
-                  + "      \"value\": \"value\"\n"
-                  + "    }]\n"
-                  + "  }\n"
-                  + "}")
-              .getBytes(StandardCharsets.UTF_8),
-          null);
+          + "  \"service_target\": {\n"
+          + "    \"service\": \"test-service\",\n"
+          + "    \"env\": \"*\"\n"
+          + "  },\n"
+          + "  \"lib_config\": {\n"
+          + "    \"tracing_service_mapping\": [{\n"
+          + "      \"from_key\": \"service-specific\",\n"
+          + "      \"to_name\": \"service-mapped\"\n"
+          + "    }],\n"
+          + "    \"tracing_header_tags\": [{\n"
+          + "      \"header\": \"X-Custom-Header\",\n"
+          + "      \"tag_name\": \"custom.header\"\n"
+          + "    }],\n"
+          + "    \"tracing_sampling_rate\": 1.3,\n"
+          + "    \"data_streams_transaction_extractors\": [{\n"
+          + "      \"name\": \"test\",\n"
+          + "      \"type\": \"unknown\",\n"
+          + "      \"value\": \"value\"\n"
+          + "    }]\n"
+          + "  }\n"
+          + "}")
+            .getBytes(StandardCharsets.UTF_8),
+          null
+      );
       // Commit both configs
       updater.commit(null);
       // Service level config should take precedence due to higher priority (4 vs 1)
       assertEquals(
           Collections.singletonMap("service-specific", "service-mapped"),
-          tracer.captureTraceConfig().getServiceMapping());
+          tracer.captureTraceConfig().getServiceMapping()
+      );
       assertEquals(1.0, tracer.captureTraceConfig().getTraceSampleRate());
       assertEquals(
           Collections.singletonMap("x-custom-header", "custom.header"),
-          tracer.captureTraceConfig().getRequestHeaderTags());
+          tracer.captureTraceConfig().getRequestHeaderTags()
+      );
       assertEquals(
           Collections.singletonMap("x-custom-header", "custom.header"),
-          tracer.captureTraceConfig().getResponseHeaderTags());
+          tracer.captureTraceConfig().getResponseHeaderTags()
+      );
       List<DataStreamsTransactionExtractor> extractors =
           tracer.captureTraceConfig().getDataStreamsTransactionExtractors();
       assertEquals(1, extractors.size());
@@ -204,7 +215,8 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       // Should fall back to org level config
       assertEquals(
           Collections.singletonMap("org-service", "org-mapped"),
-          tracer.captureTraceConfig().getServiceMapping());
+          tracer.captureTraceConfig().getServiceMapping()
+      );
       assertEquals(0.7, tracer.captureTraceConfig().getTraceSampleRate());
       assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getRequestHeaderTags());
       assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getResponseHeaderTags());
@@ -229,17 +241,20 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     SharedCommunicationObjects sco = createScoWithPoller(poller);
 
     ProductListener[] capturedUpdater = {null};
-    doAnswer(
-            inv -> {
-              // capture config updater for further testing
-              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
-              return null;
-            })
-        .when(poller)
-        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+    doAnswer(inv -> {
+      // capture config updater for further testing
+      capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+      return null;
+    })
+      .when(poller)
+      .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
 
     CoreTracer tracer =
-        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+        CoreTracer
+      .builder()
+      .sharedCommunicationObjects(sco)
+      .pollForTracingConfiguration()
+      .build();
     unclosedTracers.add(tracer);
 
     try {
@@ -252,30 +267,32 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       updater.accept(
           orgConfig1Key,
           ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"*\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"tracing_enabled\": true\n"
-                  + "  }\n"
-                  + "}")
-              .getBytes(StandardCharsets.UTF_8),
-          null);
+          + "  \"service_target\": {\n"
+          + "    \"service\": \"*\",\n"
+          + "    \"env\": \"*\"\n"
+          + "  },\n"
+          + "  \"lib_config\": {\n"
+          + "    \"tracing_enabled\": true\n"
+          + "  }\n"
+          + "}")
+            .getBytes(StandardCharsets.UTF_8),
+          null
+      );
       // Add second org level config with DataStreams enabled
       updater.accept(
           orgConfig2Key,
           ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"*\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"data_streams_enabled\": true\n"
-                  + "  }\n"
-                  + "}")
-              .getBytes(StandardCharsets.UTF_8),
-          null);
+          + "  \"service_target\": {\n"
+          + "    \"service\": \"*\",\n"
+          + "    \"env\": \"*\"\n"
+          + "  },\n"
+          + "  \"lib_config\": {\n"
+          + "    \"data_streams_enabled\": true\n"
+          + "  }\n"
+          + "}")
+            .getBytes(StandardCharsets.UTF_8),
+          null
+      );
       // Commit both configs
       updater.commit(null);
       // Both org level configs should be merged, with data streams enabled

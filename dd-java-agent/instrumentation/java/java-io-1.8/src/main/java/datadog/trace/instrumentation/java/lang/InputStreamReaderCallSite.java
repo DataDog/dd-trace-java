@@ -11,13 +11,13 @@ import javax.annotation.Nonnull;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class InputStreamReaderCallSite {
-
   @CallSite.After("void java.io.InputStreamReader.<init>(java.io.InputStream)")
-  @CallSite.After(
-      "void java.io.InputStreamReader.<init>(java.io.InputStream, java.nio.charset.Charset)")
+  @CallSite.After("void java.io.InputStreamReader.<init>(java.io.InputStream, java.nio.charset."
+      + "Charset)")
   public static InputStreamReader afterInit(
       @CallSite.AllArguments @Nonnull final Object[] params,
-      @CallSite.Return @Nonnull final InputStreamReader result) {
+      @CallSite.Return @Nonnull final InputStreamReader result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

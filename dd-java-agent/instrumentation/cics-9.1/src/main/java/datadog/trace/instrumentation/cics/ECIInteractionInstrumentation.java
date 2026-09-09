@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.cics.CicsDecorator.CICS_CLIENT;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.ECI_EXECUTE_OPERATION;
-
 import com.ibm.connector2.cics.ECIInteraction;
 import com.ibm.connector2.cics.ECIInteractionSpec;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,7 +15,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 public final class ECIInteractionInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.ibm.connector2.cics.ECIInteraction";
@@ -46,7 +47,9 @@ public final class ECIInteractionInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(ECIInteraction.class);
 
       if (null != scope) {

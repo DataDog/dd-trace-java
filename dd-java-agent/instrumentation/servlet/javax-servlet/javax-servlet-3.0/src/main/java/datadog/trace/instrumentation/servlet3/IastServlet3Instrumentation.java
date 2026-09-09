@@ -7,7 +7,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public IastServlet3Instrumentation() {
     super("servlet", "servlet-3");
   }
@@ -42,7 +43,7 @@ public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("javax.servlet.http.HttpServlet"))
-        .or(implementsInterface(named("javax.servlet.FilterChain")));
+      .or(implementsInterface(named("javax.servlet.FilterChain")));
   }
 
   @Override
@@ -54,10 +55,11 @@ public final class IastServlet3Instrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("doFilter", "service")
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
-        packageName + ".IastServlet3Advice");
+          .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+          .and(isPublic()),
+        packageName + ".IastServlet3Advice"
+    );
   }
 
   @Override

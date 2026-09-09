@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.appsec.ddwaf.WafInitialization;
 import com.datadog.ddwaf.Waf;
 import com.datadog.ddwaf.WafBuilder;
@@ -33,12 +32,9 @@ import org.junit.jupiter.api.Test;
  * WafContext} on already-closed requests (APPSEC-69085).
  */
 class AppSecRequestContextWafContextRaceTest {
-
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
-
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
   private WafBuilder wafBuilder;
   private WafHandle wafHandle;
 
@@ -97,7 +93,6 @@ class AppSecRequestContextWafContextRaceTest {
     ctx.closeWafContext();
     assertTrue(ctx.isWafContextClosed());
     assertFalse(created.isOnline());
-
     // A late/async caller must not resurrect a brand-new orphaned context.
     WafContext afterClose = ctx.getOrCreateWafContext(wafHandle, false, false);
     assertNull(afterClose);
@@ -107,11 +102,9 @@ class AppSecRequestContextWafContextRaceTest {
   @Test
   void closeBeforeFirstUsePreventsLaterCreation() {
     AppSecRequestContext ctx = new AppSecRequestContext();
-
     // Close before the WAF ever ran for this request (e.g. an early-blocked request).
     ctx.closeWafContext();
     assertTrue(ctx.isWafContextClosed());
-
     // A late/async caller must not create a brand-new orphaned context after close.
     WafContext afterClose = ctx.getOrCreateWafContext(wafHandle, false, false);
     assertNull(afterClose);
@@ -123,18 +116,15 @@ class AppSecRequestContextWafContextRaceTest {
     AppSecRequestContext ctx = new AppSecRequestContext();
     WafContext created = ctx.getOrCreateWafContext(wafHandle, false, false);
     assertNotNull(created);
-
     // API Security has sampled this request and asked to keep the context open for later
     // schema-extraction post-processing (see ApiSecuritySamplerImpl#preSampleRequest).
     ctx.setKeepOpenForApiSecurityPostProcessing(true);
-
     // The generic fallback close (CoreTracer#onRootSpanPublished) must not tear down the WAF
     // context while API Security post-processing is still pending, or schema extraction would
     // run against an already-closed context.
     ctx.close();
     assertFalse(ctx.isWafContextClosed());
     assertTrue(created.isOnline());
-
     // AppSecSpanPostProcessor#process's finally block: post-processing is done, now really close.
     ctx.setKeepOpenForApiSecurityPostProcessing(false);
     ctx.closeWafContext();
@@ -164,23 +154,18 @@ class AppSecRequestContextWafContextRaceTest {
         observed.add(original);
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
-        Future<?> closer =
-            pool.submit(
-                () -> {
-                  barrier.await();
-                  ctx.closeWafContext();
-                  return null;
-                });
-        Future<WafContext> creator =
-            pool.submit(
-                () -> {
-                  barrier.await();
-                  return ctx.getOrCreateWafContext(wafHandle, false, false);
-                });
+        Future<?> closer = pool.submit(() -> {
+          barrier.await();
+          ctx.closeWafContext();
+          return null;
+        });
+        Future<WafContext> creator = pool.submit(() -> {
+          barrier.await();
+          return ctx.getOrCreateWafContext(wafHandle, false, false);
+        });
 
         closer.get();
         WafContext late = creator.get();
-
         // Never a freshly created second context: only the original or null.
         if (late != null) {
           assertSame(original, late, "getOrCreateWafContext resurrected a new orphan context");
@@ -190,7 +175,6 @@ class AppSecRequestContextWafContextRaceTest {
     } finally {
       pool.shutdownNow();
     }
-
     // Global invariant: every created context was eventually closed - no orphan left online.
     for (WafContext context : observed) {
       assertFalse(context.isOnline(), "orphaned WafContext left online (never closed)");

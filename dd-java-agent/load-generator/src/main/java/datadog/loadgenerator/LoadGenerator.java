@@ -13,43 +13,26 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Command(
-    mixinStandardHelpOptions = true,
-    description = "Generates traces and spans at a specified rate")
+@Command(mixinStandardHelpOptions = true, description = "Generates traces and spans at a "
+    + "specified rate")
 public class LoadGenerator implements Callable<Integer> {
   @Option(names = "--rate", required = true, description = "rate, per second, to generate traces")
   private int rate;
-
-  @Option(
-      names = "--threads",
-      defaultValue = "6",
-      description = "Number of trace-generating threads (default: ${DEFAULT-VALUE})")
+  @Option(names = "--threads", defaultValue = "6", description = "Number of trace-generating "
+      + "threads (default: ${DEFAULT-VALUE})")
   private int threads;
-
-  @Option(
-      names = "--width",
-      defaultValue = "2",
-      description = "Number of spans directly below the root (default: ${DEFAULT-VALUE})")
+  @Option(names = "--width", defaultValue = "2", description = "Number of spans directly below "
+      + "the root (default: ${DEFAULT-VALUE})")
   private int width;
-
-  @Option(
-      names = "--depth",
-      defaultValue = "3",
-      description = "Total spans deep per trace, including parent (default: ${DEFAULT-VALUE})")
+  @Option(names = "--depth", defaultValue = "3", description = "Total spans deep per trace, "
+      + "including parent (default: ${DEFAULT-VALUE})")
   private int depth;
-
-  @Option(
-      names = "--warmup",
-      defaultValue = "5",
-      description = "Time, in seconds, to ramp up to target rate (default: ${DEFAULT-VALUE})")
+  @Option(names = "--warmup", defaultValue = "5", description = "Time, in seconds, to ramp up to "
+      + "target rate (default: ${DEFAULT-VALUE})")
   private int warmupPeriod;
-
-  @Option(
-      names = "--print-interval",
-      defaultValue = "20",
-      description = "Interval, in seconds, to print statistics (default: ${DEFAULT-VALUE})")
+  @Option(names = "--print-interval", defaultValue = "20", description = "Interval, in seconds, "
+      + "to print statistics (default: ${DEFAULT-VALUE})")
   private int printInterval;
-
   private RateLimiter rateLimiter;
   private final AtomicLong tracesSent = new AtomicLong();
 
@@ -77,7 +60,8 @@ public class LoadGenerator implements Callable<Integer> {
           (currentTracesSent - tracesAtLastReport) / ((intervalEnd - intervalStart) / 1000d);
 
       System.out.println(
-          "Total Traces Sent: " + currentTracesSent + ", Rate this interval: " + currentRate);
+          "Total Traces Sent: " + currentTracesSent + ", Rate this interval: " + currentRate
+      );
       intervalStart = System.currentTimeMillis();
       tracesAtLastReport = currentTracesSent;
     }
@@ -89,7 +73,6 @@ public class LoadGenerator implements Callable<Integer> {
   }
 
   private class Worker implements Runnable {
-
     @Override
     public void run() {
       final Tracer tracer = GlobalTracer.get();

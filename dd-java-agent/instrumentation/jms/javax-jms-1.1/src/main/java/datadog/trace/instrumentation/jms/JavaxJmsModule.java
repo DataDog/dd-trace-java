@@ -32,12 +32,12 @@ public class JavaxJmsModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JMSDecorator",
-      packageName + ".MessageExtractAdapter",
-      packageName + ".MessageExtractAdapter$1",
-      packageName + ".MessageInjectAdapter",
-      packageName + ".DatadogMessageListener",
-      packageName + ".JMSLogger"
+        packageName + ".JMSDecorator",
+        packageName + ".MessageExtractAdapter",
+        packageName + ".MessageExtractAdapter$1",
+        packageName + ".MessageInjectAdapter",
+        packageName + ".DatadogMessageListener",
+        packageName + ".JMSLogger"
     };
   }
 
@@ -58,6 +58,7 @@ public class JavaxJmsModule extends InstrumenterModule.Tracing {
         new JMSMessageProducerInstrumentation(namespace),
         new MDBMessageConsumerInstrumentation(namespace),
         new MessageInstrumentation(namespace),
-        new SessionInstrumentation(namespace));
+        new SessionInstrumentation(namespace)
+    );
   }
 }

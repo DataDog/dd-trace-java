@@ -12,8 +12,7 @@ public final class BinaryExpression implements BooleanExpression {
   protected final BooleanExpression right;
   private final BinaryOperator operator;
 
-  public BinaryExpression(
-      BooleanExpression left, BooleanExpression right, BinaryOperator operator) {
+  public BinaryExpression(BooleanExpression left, BooleanExpression right, BinaryOperator operator) {
     this.left = left == null ? BooleanExpression.FALSE : left;
     this.right = right == null ? BooleanExpression.FALSE : right;
     this.operator = operator;

@@ -5,7 +5,6 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIM
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,7 +19,6 @@ import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 
 class SubscriptionTest extends AbstractInstrumentationTest {
-
   @Test
   void maybeSubscriptionPropagatesParentSpan() throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(1);
@@ -28,11 +26,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (AgentScope scope = activateSpan(parent)) {
       Maybe<Connection> connection = Maybe.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -42,7 +39,9 @@ class SubscriptionTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
+            span().childOfPrevious().operationName("Connection.query")
+        )
+    );
   }
 
   @Test
@@ -52,11 +51,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (AgentScope scope = activateSpan(parent)) {
       Single<Connection> connection = Single.create(emitter -> emitter.onSuccess(new Connection()));
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -66,7 +64,9 @@ class SubscriptionTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
+            span().childOfPrevious().operationName("Connection.query")
+        )
+    );
   }
 
   @Test
@@ -76,11 +76,10 @@ class SubscriptionTest extends AbstractInstrumentationTest {
     AgentSpan parent = startSpan("test", "parent");
     try (AgentScope scope = activateSpan(parent)) {
       Completable action = Completable.create(emitter -> emitter.onComplete());
-      action.subscribe(
-          () -> {
-            new Connection().query();
-            latch.countDown();
-          });
+      action.subscribe(() -> {
+        new Connection().query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -90,7 +89,9 @@ class SubscriptionTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
+            span().childOfPrevious().operationName("Connection.query")
+        )
+    );
   }
 
   @Test
@@ -99,17 +100,14 @@ class SubscriptionTest extends AbstractInstrumentationTest {
 
     AgentSpan parent = startSpan("test", "parent");
     try (AgentScope scope = activateSpan(parent)) {
-      Observable<Connection> connection =
-          Observable.create(
-              emitter -> {
-                emitter.onNext(new Connection());
-                emitter.onComplete();
-              });
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      Observable<Connection> connection = Observable.create(emitter -> {
+        emitter.onNext(new Connection());
+        emitter.onComplete();
+      });
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -119,7 +117,9 @@ class SubscriptionTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
+            span().childOfPrevious().operationName("Connection.query")
+        )
+    );
   }
 
   @Test
@@ -128,18 +128,14 @@ class SubscriptionTest extends AbstractInstrumentationTest {
 
     AgentSpan parent = startSpan("test", "parent");
     try (AgentScope scope = activateSpan(parent)) {
-      Flowable<Connection> connection =
-          Flowable.create(
-              emitter -> {
-                emitter.onNext(new Connection());
-                emitter.onComplete();
-              },
-              BackpressureStrategy.BUFFER);
-      connection.subscribe(
-          c -> {
-            c.query();
-            latch.countDown();
-          });
+      Flowable<Connection> connection = Flowable.create(emitter -> {
+        emitter.onNext(new Connection());
+        emitter.onComplete();
+      }, BackpressureStrategy.BUFFER);
+      connection.subscribe(c -> {
+        c.query();
+        latch.countDown();
+      });
     } finally {
       parent.finish();
     }
@@ -149,7 +145,9 @@ class SubscriptionTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span().root().operationName("parent"),
-            span().childOfPrevious().operationName("Connection.query")));
+            span().childOfPrevious().operationName("Connection.query")
+        )
+    );
   }
 
   static class Connection {

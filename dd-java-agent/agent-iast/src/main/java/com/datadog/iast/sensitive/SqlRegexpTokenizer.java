@@ -1,7 +1,6 @@
 package com.datadog.iast.sensitive;
 
 import static datadog.trace.api.iast.sink.SqlInjectionModule.DATABASE_PARAMETER;
-
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.util.Ranged;
 import com.google.re2j.Matcher;
@@ -17,12 +16,12 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
-
   private static final String STRING_LITERAL = "'(?:''|[^'])*'";
   private static final String ORACLE_ESCAPED_LITERAL = buildOracleEscapedLiteral();
   // $$ or $tag$ where tag is a SQL identifier
   private static final String POSTGRESQL_ESCAPED_LITERAL = "\\$(?:[a-zA-Z_]\\w*)?\\$";
-  private static final String MYSQL_STRING_LITERAL = "\"(?:\\\"|[^\"])*\"|'(?:\\'|[^'])*'";
+  private static final String MYSQL_STRING_LITERAL =
+      "\"(?:\\\"|[^\"])*\"|'(?:\\'|[^'])*'";
   private static final String LINE_COMMENT = "--.*$";
   private static final String BLOCK_COMMENT = "/\\*[\\s\\S]*\\*/";
   private static final String EXPONENT = "(?:E[-+]?\\d+[fd]?)?";
@@ -30,28 +29,27 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
   private static final String DECIMAL_NUMBER = "\\d*\\.\\d+";
   private static final String HEX_NUMBER = "x'[0-9a-f]+'|0x[0-9a-f]+";
   private static final String BIN_NUMBER = "b'[0-9a-f]+'|0b[0-9a-f]+";
-  private static final String NUMERIC_LITERAL =
-      String.format(
-          "[-+]?(?:%s)",
-          String.join(
-              "|", HEX_NUMBER, BIN_NUMBER, DECIMAL_NUMBER + EXPONENT, INTEGER_NUMBER + EXPONENT));
-
+  private static final String NUMERIC_LITERAL = String.format(
+      "[-+]?(?:%s)",
+      String.join("|", HEX_NUMBER, BIN_NUMBER, DECIMAL_NUMBER + EXPONENT, INTEGER_NUMBER
+      + EXPONENT)
+  );
   private static final Map<Dialect, Pattern> PATTERNS = new ConcurrentHashMap<>();
-
   private final String sql;
   private final Matcher matcher;
   private int searchFrom;
-  @Nullable private Ranged current;
+  @Nullable
+  private Ranged current;
   // Lazily built (Postgres only): every "$tag$" occurrence indexed by tag, so the matching close
   // can be located with a binary search instead of an O(n) scan per opener.
-  @Nullable private Map<String, int[]> dollarTagPositions;
+  @Nullable
+  private Map<String, int[]> dollarTagPositions;
 
   public SqlRegexpTokenizer(final Evidence evidence) {
     this.sql = evidence.getValue();
-    this.matcher =
-        PATTERNS
-            .computeIfAbsent(Dialect.fromEvidence(evidence), Dialect::buildPattern)
-            .matcher(sql);
+    this.matcher = PATTERNS
+      .computeIfAbsent(Dialect.fromEvidence(evidence), Dialect::buildPattern)
+      .matcher(sql);
   }
 
   @Override
@@ -160,7 +158,9 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
       }
       if (end < length && sql.charAt(end) == '$') {
         final String tag = sql.substring(i, end + 1);
-        positions.computeIfAbsent(tag, k -> new ArrayList<>()).add(i);
+        positions
+          .computeIfAbsent(tag, k -> new ArrayList<>())
+          .add(i);
       }
     }
     final Map<String, int[]> result = new HashMap<>(positions.size() * 2);
@@ -216,34 +216,34 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
   }
 
   private enum Dialect {
-    ORACLE(
-        "oracle"::equalsIgnoreCase,
-        () ->
-            buildPattern(
-                NUMERIC_LITERAL,
-                ORACLE_ESCAPED_LITERAL,
-                STRING_LITERAL,
-                LINE_COMMENT,
-                BLOCK_COMMENT)),
-    POSTGRESQL(
-        "postgresql"::equalsIgnoreCase,
-        () ->
-            buildPattern(
-                NUMERIC_LITERAL,
-                POSTGRESQL_ESCAPED_LITERAL,
-                STRING_LITERAL,
-                LINE_COMMENT,
-                BLOCK_COMMENT)),
-
-    MYSQL(
-        "mysql"::equalsIgnoreCase,
-        () -> buildPattern(NUMERIC_LITERAL, MYSQL_STRING_LITERAL, LINE_COMMENT, BLOCK_COMMENT)),
+    ORACLE("oracle"::equalsIgnoreCase, () -> buildPattern(
+        NUMERIC_LITERAL,
+        ORACLE_ESCAPED_LITERAL,
+        STRING_LITERAL,
+        LINE_COMMENT,
+        BLOCK_COMMENT
+    )),
+    POSTGRESQL("postgresql"::equalsIgnoreCase, () -> buildPattern(
+        NUMERIC_LITERAL,
+        POSTGRESQL_ESCAPED_LITERAL,
+        STRING_LITERAL,
+        LINE_COMMENT,
+        BLOCK_COMMENT
+    )),
+    MYSQL("mysql"::equalsIgnoreCase, () -> buildPattern(
+        NUMERIC_LITERAL,
+        MYSQL_STRING_LITERAL,
+        LINE_COMMENT,
+        BLOCK_COMMENT
+    )),
     MARIADB("mariadb"::equalsIgnoreCase, MYSQL::buildPattern),
     SQLITE("sqlite"::equalsIgnoreCase, MYSQL::buildPattern),
-    ANSI(
-        dialect -> true,
-        () -> buildPattern(NUMERIC_LITERAL, STRING_LITERAL, LINE_COMMENT, BLOCK_COMMENT));
-
+    ANSI(dialect -> true, () -> buildPattern(
+        NUMERIC_LITERAL,
+        STRING_LITERAL,
+        LINE_COMMENT,
+        BLOCK_COMMENT
+    ));
     private final Predicate<String> dialect;
     private final Supplier<Pattern> pattern;
 
@@ -270,7 +270,9 @@ public class SqlRegexpTokenizer implements SensitiveHandler.Tokenizer {
 
     private static Pattern buildPattern(final String... patterns) {
       return Pattern.compile(
-          String.join("|", patterns), Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+          String.join("|", patterns),
+          Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
+      );
     }
   }
 }

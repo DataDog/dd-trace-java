@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.websocket.jsr256;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_BINARY;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -53,10 +52,9 @@ public class TracingOutputStream extends OutputStream {
   @Override
   public void close() throws IOException {
     final boolean doTrace = CallDepthThreadLocalMap.incrementCallDepth(HandlerContext.class) == 0;
-    try (final ContextScope ignored =
-        handlerContext.getWebsocketSpan() != null
-            ? activateSpan(handlerContext.getWebsocketSpan())
-            : null) {
+    try (final ContextScope ignored = handlerContext.getWebsocketSpan() != null
+        ? activateSpan(handlerContext.getWebsocketSpan())
+        : null) {
       delegate.close();
     } finally {
       if (doTrace) {

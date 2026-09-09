@@ -57,9 +57,11 @@ public class OSGiApplication {
       bundle.start();
     }
 
-    ServiceTracker publisherTracker =
-        new ServiceTracker(
-            frameworkContext, "datadog.smoketest.osgi.messaging.PublisherSupport", null);
+    ServiceTracker publisherTracker = new ServiceTracker(
+        frameworkContext,
+        "datadog.smoketest.osgi.messaging.PublisherSupport",
+        null
+    );
     publisherTracker.open();
 
     Object publisher = publisherTracker.waitForService(1_000);
@@ -69,7 +71,6 @@ public class OSGiApplication {
     framework.stop();
 
     framework.waitForStop(1_000);
-
     // XXX: Knopflerfish will leave some dangling non-daemon thread and prevent shutdown here.
     System.exit(0);
   }

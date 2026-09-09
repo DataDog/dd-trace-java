@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,7 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class ConcurrentHashtableD2Test {
-
   @Test
   void pairKeysParticipateInIdentity() {
     ConcurrentHashtable.D2<String, Integer, PairEntry> table =
@@ -36,14 +34,10 @@ class ConcurrentHashtableD2Test {
     ConcurrentHashtable.D2<String, Integer, PairEntry> table =
         ConcurrentHashtable.D2.createBounded(PairEntry.class, 8);
     int[] createCount = {0};
-    PairEntry created =
-        table.tryGetOrCreateOrNull(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2);
-            });
+    PairEntry created = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2);
+    });
     assertNotNull(created);
     assertEquals("a", created.key1);
     assertEquals(Integer.valueOf(1), created.key2);
@@ -58,14 +52,10 @@ class ConcurrentHashtableD2Test {
         ConcurrentHashtable.D2.createBounded(PairEntry.class, 8);
     PairEntry seeded = table.tryGetOrCreateOrNull("a", 1, PairEntry::new);
     int[] createCount = {0};
-    PairEntry got =
-        table.tryGetOrCreateOrNull(
-            "a",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2);
-            });
+    PairEntry got = table.tryGetOrCreateOrNull("a", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
@@ -108,24 +98,19 @@ class ConcurrentHashtableD2Test {
 
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(
-                    "shared",
-                    42,
-                    (k1, k2) -> {
-                      createCount.incrementAndGet();
-                      return new PairEntry(k1, k2);
-                    });
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull("shared", 42, (k1, k2) -> {
+          createCount.incrementAndGet();
+          return new PairEntry(k1, k2);
+        });
+      });
       workers[i].start();
     }
     ready.await();
@@ -174,18 +159,16 @@ class ConcurrentHashtableD2Test {
     for (int i = 0; i < threads; i++) {
       final String k1 = k1s[i];
       final Integer k2 = k2s[i];
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(k1, k2, PairEntry::new);
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull(k1, k2, PairEntry::new);
+      });
       workers[i].start();
     }
     ready.await();
@@ -246,7 +229,8 @@ class ConcurrentHashtableD2Test {
     for (int i = 0; i < 10; i++) {
       table.tryGetOrCreateOrNull("k", i, PairEntry::new);
     }
-    boolean removed = table.removeIf(e -> e.key2 % 2 == 0); // removes key2 0,2,4,6,8
+    // removes key2 0,2,4,6,8
+    boolean removed = table.removeIf(e -> e.key2 % 2 == 0);
     assertTrue(removed);
     assertEquals(5, table.size());
     Set<String> seen = new HashSet<>();
@@ -325,16 +309,11 @@ class ConcurrentHashtableD2Test {
     ConcurrentHashtable.D2<String, Integer, PairEntry> table =
         ConcurrentHashtable.D2.createBounded(PairEntry.class, 1);
     PairEntry a = table.tryGetOrCreateOrNull("a", 1, PairEntry::new);
-    Maybe<PairEntry> got =
-        table.tryGetOrCreateOrEvict(
-            "a",
-            1,
-            (k1, k2) -> {
-              throw new AssertionError("creator must not run on a hit");
-            },
-            e -> {
-              throw new AssertionError("evictable must not run on a hit");
-            });
+    Maybe<PairEntry> got = table.tryGetOrCreateOrEvict("a", 1, (k1, k2) -> {
+      throw new AssertionError("creator must not run on a hit");
+    }, e -> {
+      throw new AssertionError("evictable must not run on a hit");
+    });
     assertSame(a, got.getOrNull());
     assertEquals(1, table.size());
   }
@@ -373,17 +352,14 @@ class ConcurrentHashtableD2Test {
         ConcurrentHashtable.D2.createBounded(PairEntry.class, 1);
     table.tryGetOrCreateOrNull("old", 1, PairEntry::new);
 
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            table.tryGetOrCreateOrEvictOrNull(
-                "new",
-                2,
-                (k1, k2) -> {
-                  throw new RuntimeException("boom");
-                },
-                e -> true));
-
+    assertThrows(RuntimeException.class, () -> table.tryGetOrCreateOrEvictOrNull(
+        "new",
+        2,
+          (k1, k2) -> {
+            throw new RuntimeException("boom");
+          },
+        e -> true
+    ));
     // Eviction already happened before the creator threw: the table is left one entry smaller,
     // not corrupted or double-booked.
     assertEquals(0, table.size());

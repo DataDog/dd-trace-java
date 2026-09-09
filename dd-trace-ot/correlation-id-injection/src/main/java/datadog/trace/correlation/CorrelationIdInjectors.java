@@ -5,11 +5,14 @@ import de.thetaphi.forbiddenapis.SuppressForbidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Helper class to enable correlation identifier injection. */
+/**
+ * Helper class to enable correlation identifier injection.
+ */
 public final class CorrelationIdInjectors {
   private static final Logger log = LoggerFactory.getLogger(CorrelationIdInjectors.class);
 
-  private CorrelationIdInjectors() {}
+  private CorrelationIdInjectors() {
+  }
 
   /**
    * Register any applicable correlation identifier injectors.
@@ -46,9 +49,9 @@ public final class CorrelationIdInjectors {
     LOG4J("org.apache.log4j.MDC", "datadog.trace.correlation.Log4jCorrelationIdInjector"),
     LOG4J2(
         "org.apache.logging.log4j.ThreadContext",
-        "datadog.trace.correlation.Log4j2CorrelationIdInjector"),
+        "datadog.trace.correlation.Log4j2CorrelationIdInjector"
+    ),
     SLF4J_AND_LOGBACK("org.slf4j.MDC", "datadog.trace.correlation.Slf4jCorrelationIdInjector");
-
     private final String mdcClassName;
     private final String injectorClassName;
 

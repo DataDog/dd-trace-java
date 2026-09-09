@@ -24,7 +24,6 @@ public class ChannelTraceContext {
   HttpHeaders requestHeaders;
   boolean analyzedResponse;
   boolean blockedResponse;
-
   HandlerContext.Sender senderHandlerContext;
   HandlerContext.Receiver receiverHandlerContext;
 

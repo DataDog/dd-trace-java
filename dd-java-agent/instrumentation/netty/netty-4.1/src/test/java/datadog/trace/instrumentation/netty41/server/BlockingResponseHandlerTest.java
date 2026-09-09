@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.instrumentation.netty41.ServerRequestContext;
@@ -28,18 +27,22 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class BlockingResponseHandlerTest {
-
   @Test
   void removesResponseFunctionHandlersWhenResponseTracingIsUnavailable() {
     EmbeddedChannel channel = new EmbeddedChannel();
     ServerRequestContext serverContext = ServerRequestContext.add(channel, Context.root(), null);
-    BlockingResponseHandler blockingHandler =
-        new BlockingResponseHandler(
-            null, 403, BlockingContentType.NONE, emptyMap(), null, serverContext);
+    BlockingResponseHandler blockingHandler = new BlockingResponseHandler(
+        null,
+        403,
+        BlockingContentType.NONE,
+        emptyMap(),
+        null,
+        serverContext
+    );
     channel
-        .pipeline()
-        .addLast(BEFORE_BLOCKING_HANDLER_NAME, new ChannelInboundHandlerAdapter())
-        .addLast(HANDLER_NAME, blockingHandler);
+      .pipeline()
+      .addLast(BEFORE_BLOCKING_HANDLER_NAME, new ChannelInboundHandlerAdapter())
+      .addLast(HANDLER_NAME, blockingHandler);
     FullHttpRequest request = new DefaultFullHttpRequest(HTTP_1_1, GET, "/");
 
     assertTrue(channel.writeInbound(request));
@@ -61,9 +64,13 @@ class BlockingResponseHandlerTest {
     NettyBlockResponseFunction responseFunction =
         new NettyBlockResponseFunction(channel.pipeline(), request, null);
 
-    assertFalse(
-        responseFunction.tryCommitBlockingResponse(
-            null, 403, BlockingContentType.NONE, emptyMap(), null));
+    assertFalse(responseFunction.tryCommitBlockingResponse(
+        null,
+        403,
+        BlockingContentType.NONE,
+        emptyMap(),
+        null
+    ));
 
     assertSame(existingBeforeBlockingHandler, channel.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME));
     assertNull(channel.pipeline().get(HANDLER_NAME));
@@ -82,37 +89,33 @@ class BlockingResponseHandlerTest {
     try {
       eventLoopGroup.register(channel).sync();
       AtomicReference<ServerRequestContext> serverContext = new AtomicReference<>();
-      channel
-          .eventLoop()
-          .submit(
-              () -> {
-                channel
-                    .pipeline()
-                    .addLast(HttpServerRequestTracingHandler.INSTANCE)
-                    .addLast(HttpServerResponseTracingHandler.INSTANCE);
-                ServerRequestContext.add(channel, Context.root(), null);
-                serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
-              })
-          .sync();
+      channel.eventLoop().submit(() -> {
+        channel
+          .pipeline()
+          .addLast(HttpServerRequestTracingHandler.INSTANCE)
+          .addLast(HttpServerResponseTracingHandler.INSTANCE);
+        ServerRequestContext.add(channel, Context.root(), null);
+        serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
+      }).sync();
 
-      Future<?> blockingTask =
-          channel
-              .eventLoop()
-              .submit(
-                  () -> {
-                    eventLoopTaskStarted.countDown();
-                    if (!releaseEventLoop.await(5, SECONDS)) {
-                      throw new AssertionError("event loop was not released");
-                    }
-                    return null;
-                  });
+      Future<?> blockingTask = channel.eventLoop().submit(() -> {
+        eventLoopTaskStarted.countDown();
+        if (!releaseEventLoop.await(5, SECONDS)) {
+          throw new AssertionError("event loop was not released");
+        }
+        return null;
+      });
       assertTrue(eventLoopTaskStarted.await(5, SECONDS), "event loop task did not start");
 
       NettyBlockResponseFunction responseFunction =
           new NettyBlockResponseFunction(channel.pipeline(), request, serverContext.get());
-      assertTrue(
-          responseFunction.tryCommitBlockingResponse(
-              null, 403, BlockingContentType.NONE, emptyMap(), null));
+      assertTrue(responseFunction.tryCommitBlockingResponse(
+          null,
+          403,
+          BlockingContentType.NONE,
+          emptyMap(),
+          null
+      ));
       request.release();
 
       assertNull(channel.pipeline().get(BEFORE_BLOCKING_HANDLER_NAME));
@@ -146,40 +149,36 @@ class BlockingResponseHandlerTest {
     try {
       eventLoopGroup.register(channel).sync();
       AtomicReference<ServerRequestContext> serverContext = new AtomicReference<>();
-      channel
-          .eventLoop()
-          .submit(
-              () -> {
-                channel
-                    .pipeline()
-                    .addLast(HttpServerRequestTracingHandler.INSTANCE)
-                    .addLast(HttpServerResponseTracingHandler.INSTANCE);
-                serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
-              })
-          .sync();
+      channel.eventLoop().submit(() -> {
+        channel
+          .pipeline()
+          .addLast(HttpServerRequestTracingHandler.INSTANCE)
+          .addLast(HttpServerResponseTracingHandler.INSTANCE);
+        serverContext.set(ServerRequestContext.add(channel, Context.root(), null));
+      }).sync();
 
-      Future<?> blockingTask =
-          channel
-              .eventLoop()
-              .submit(
-                  () -> {
-                    eventLoopTaskStarted.countDown();
-                    if (!releaseEventLoop.await(5, SECONDS)) {
-                      throw new AssertionError("event loop was not released");
-                    }
-                    return null;
-                  });
+      Future<?> blockingTask = channel.eventLoop().submit(() -> {
+        eventLoopTaskStarted.countDown();
+        if (!releaseEventLoop.await(5, SECONDS)) {
+          throw new AssertionError("event loop was not released");
+        }
+        return null;
+      });
       assertTrue(eventLoopTaskStarted.await(5, SECONDS), "event loop task did not start");
 
       Future<?> completionTask =
           channel
-              .eventLoop()
-              .submit(() -> ServerRequestContext.remove(channel, serverContext.get()));
+        .eventLoop()
+        .submit(() -> ServerRequestContext.remove(channel, serverContext.get()));
       NettyBlockResponseFunction responseFunction =
           new NettyBlockResponseFunction(channel.pipeline(), request, serverContext.get());
-      assertTrue(
-          responseFunction.tryCommitBlockingResponse(
-              null, 403, BlockingContentType.NONE, emptyMap(), null));
+      assertTrue(responseFunction.tryCommitBlockingResponse(
+          null,
+          403,
+          BlockingContentType.NONE,
+          emptyMap(),
+          null
+      ));
       request.release();
 
       releaseEventLoop.countDown();

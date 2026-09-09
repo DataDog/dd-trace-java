@@ -4,7 +4,6 @@ import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.SOAP;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.HTTP_CLIENT_SPLIT_BY_DOMAIN;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -21,17 +20,16 @@ import org.apache.axis2.context.MessageContext;
 
 public class AxisMessageDecorator extends BaseDecorator {
   public static final AxisMessageDecorator DECORATE = new AxisMessageDecorator();
-
   public static final CharSequence AXIS2 = UTF8BytesString.create("axis2");
   public static final CharSequence AXIS2_MESSAGE = UTF8BytesString.create("axis2.message");
   public static final CharSequence AXIS2_TRANSPORT = UTF8BytesString.create("axis2.transport");
   public static final String AXIS2_CONTINUATION_KEY = "dd.trace.axis2.continuation";
   public static final String AXIS2_ASYNC_SPAN_KEY = "dd.trace.axis2.asyncSpan";
-
   private static final DDCache<String, UTF8BytesString> SOAP_ACTIONS =
       DDCaches.newFixedSizeCache(32);
 
-  private AxisMessageDecorator() {}
+  private AxisMessageDecorator() {
+  }
 
   @Override
   protected String[] instrumentationNames() {
@@ -50,7 +48,8 @@ public class AxisMessageDecorator extends BaseDecorator {
 
   public boolean shouldTrace(final MessageContext message) {
     if (message.isServerSide() && null == message.getOperationContext()) {
-      return false; // ignore server messages without an associated operation
+      // ignore server messages without an associated operation
+      return false;
     }
     return null != activeSpan() && null != soapAction(message);
   }
@@ -69,10 +68,14 @@ public class AxisMessageDecorator extends BaseDecorator {
       // messages)
       if (localRoot != null
           && localRoot.getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
-        localRoot.setResourceName(
-            soapAction,
-            ResourceNamePriorities
-                .HTTP_FRAMEWORK_ROUTE); // reusing this since functionally equivalent
+        // reusing this since functionally equivalent
+        localRoot
+          // reusing this since functionally equivalent
+          .setResourceName(
+              // reusing this since functionally equivalent
+              soapAction,
+              ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE
+          );
       }
     }
   }

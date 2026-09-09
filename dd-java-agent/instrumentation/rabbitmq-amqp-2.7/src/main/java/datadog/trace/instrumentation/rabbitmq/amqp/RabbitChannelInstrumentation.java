@@ -30,7 +30,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isSetter;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
@@ -56,8 +55,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public RabbitChannelInstrumentation() {
     super("amqp", "rabbitmq");
   }
@@ -70,16 +70,16 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        // Class is added to ignores trie, but it's not final so just being safe
-        .and(not(extendsClass(named("reactor.rabbitmq.ChannelProxy"))));
+      // Class is added to ignores trie, but it's not final so just being safe
+      .and(not(extendsClass(named("reactor.rabbitmq.ChannelProxy"))));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RabbitDecorator",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TracedDelegatingConsumer",
+        packageName + ".RabbitDecorator",
+        packageName + ".TextMapInjectAdapter",
+        packageName + ".TracedDelegatingConsumer"
     };
   }
 
@@ -88,42 +88,44 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
     // We want the advice applied in a specific order.
     transformer.applyAdvice(
         isMethod()
-            .and(
-                not(
-                    isGetter()
-                        .or(isSetter())
-                        .or(nameEndsWith("Listener"))
-                        .or(nameEndsWith("Listeners"))
-                        .or(
-                            namedOneOf(
-                                "processAsync",
-                                "open",
-                                "close",
-                                "abort",
-                                "basicGet",
-                                "basicPublish"))))
-            .and(isPublic())
-            .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
-        RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice");
+          .and(
+              not(isGetter()
+                .or(isSetter())
+                .or(nameEndsWith("Listener"))
+                .or(nameEndsWith("Listeners"))
+                .or(
+                    namedOneOf("processAsync", "open", "close", "abort", "basicGet", "basicPublish")
+                )
+              )
+          )
+          .and(isPublic())
+          .and(canThrow(IOException.class).or(canThrow(InterruptedException.class))),
+        RabbitChannelInstrumentation.class.getName() + "$ChannelMethodAdvice"
+    );
     transformer.applyAdvices(
         isMethod().and(named("basicPublish")).and(takesArguments(6)),
         RabbitChannelInstrumentation.class.getName() + "$ChannelPublishAdvice",
-        RabbitChannelInstrumentation.class.getName() + "$ChannelPublishContextPropagationAdvice");
+        RabbitChannelInstrumentation.class.getName() + "$ChannelPublishContextPropagationAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("basicGet")).and(takesArgument(0, String.class)),
-        RabbitChannelInstrumentation.class.getName() + "$ChannelGetAdvice");
+        RabbitChannelInstrumentation.class.getName() + "$ChannelGetAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("basicConsume"))
-            .and(takesArgument(0, String.class))
-            .and(takesArgument(6, named("com.rabbitmq.client.Consumer"))),
-        RabbitChannelInstrumentation.class.getName() + "$ChannelConsumeAdvice");
+          .and(named("basicConsume"))
+          .and(takesArgument(0, String.class))
+          .and(takesArgument(6, named("com.rabbitmq.client.Consumer"))),
+        RabbitChannelInstrumentation.class.getName() + "$ChannelConsumeAdvice"
+    );
   }
 
   public static class ChannelMethodAdvice {
     @Advice.OnMethodEnter
     public static AgentScope onEnter(
-        @Advice.This final Channel channel, @Advice.Origin("Channel.#m") final String method) {
+        @Advice.This final Channel channel,
+        @Advice.Origin("Channel.#m") final String method
+    ) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       if (callDepth > 0) {
         return null;
@@ -141,7 +143,9 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
@@ -160,7 +164,8 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final String exchange,
         @Advice.Argument(1) final String routingKey,
         @Advice.Argument(4) final AMQP.BasicProperties props,
-        @Advice.Argument(5) final byte[] body) {
+        @Advice.Argument(5) final byte[] body
+    ) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       if (callDepth > 0) {
         return null;
@@ -185,7 +190,9 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
@@ -204,14 +211,19 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final String exchange,
         @Advice.Argument(1) final String routingKey,
         @Advice.Argument(value = 4, readOnly = false) AMQP.BasicProperties props,
-        @Advice.Argument(5) final byte[] body) {
+        @Advice.Argument(5) final byte[] body
+    ) {
       AgentSpan span = activeSpan();
-      if (span == null) return;
+      if (span == null) {
+        return;
+      }
       Config config = Config.get();
       final boolean isDefaultExchange = exchange == null || exchange.isEmpty();
       final String destination = isDefaultExchange ? routingKey : exchange;
       if (!config.isRabbitPropagationEnabled()
-          || config.isRabbitPropagationDisabledForDestination(destination)) return;
+          || config.isRabbitPropagationDisabledForDestination(destination)) {
+        return;
+      }
       // This is the internal behavior when props are null.  We're just doing it earlier now.
       if (props == null) {
         props = MessageProperties.MINIMAL_BASIC;
@@ -231,22 +243,22 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       }
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
-      props =
-          new AMQP.BasicProperties(
-              props.getContentType(),
-              props.getContentEncoding(),
-              headers,
-              props.getDeliveryMode(),
-              props.getPriority(),
-              props.getCorrelationId(),
-              props.getReplyTo(),
-              props.getExpiration(),
-              props.getMessageId(),
-              props.getTimestamp(),
-              props.getType(),
-              props.getUserId(),
-              props.getAppId(),
-              props.getClusterId());
+      props = new AMQP.BasicProperties(
+          props.getContentType(),
+          props.getContentEncoding(),
+          headers,
+          props.getDeliveryMode(),
+          props.getPriority(),
+          props.getCorrelationId(),
+          props.getReplyTo(),
+          props.getExpiration(),
+          props.getMessageId(),
+          props.getTimestamp(),
+          props.getType(),
+          props.getUserId(),
+          props.getAppId(),
+          props.getClusterId()
+      );
     }
   }
 
@@ -254,8 +266,8 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter
     public static long takeTimestamp(
         @Advice.Local("placeholderScope") AgentScope placeholderScope,
-        @Advice.Local("callDepth") int callDepth) {
-
+        @Advice.Local("callDepth") int callDepth
+    ) {
       callDepth = CallDepthThreadLocalMap.incrementCallDepth(Channel.class);
       // Don't want RabbitCommandInstrumentation to mess up our actual parent span.
       placeholderScope = activateSpan(noopSpan());
@@ -270,23 +282,24 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
         @Advice.Local("placeholderScope") final AgentScope placeholderScope,
         @Advice.Local("callDepth") final int callDepth,
         @Advice.Return final GetResponse response,
-        @Advice.Thrown final Throwable throwable) {
-      placeholderScope.close(); // noop span, so no need to finish.
+        @Advice.Thrown final Throwable throwable
+    ) {
+      // noop span, so no need to finish.
+      placeholderScope.close();
       if (callDepth > 0) {
         return;
       }
       final Connection connection = channel.getConnection();
       final Config config = Config.get();
-      final boolean propagate =
-          config.isRabbitPropagationEnabled()
-              && !config.isRabbitPropagationDisabledForDestination(queue);
-      final AgentScope scope =
-          RabbitDecorator.startReceivingSpan(
-              propagate,
-              spanStartMillis,
-              null != response ? response.getProps() : null,
-              null != response ? response.getBody() : null,
-              queue);
+      final boolean propagate = config.isRabbitPropagationEnabled()
+          && !config.isRabbitPropagationDisabledForDestination(queue);
+      final AgentScope scope = RabbitDecorator.startReceivingSpan(
+          propagate,
+          spanStartMillis,
+          null != response ? response.getProps() : null,
+          null != response ? response.getBody() : null,
+          queue
+      );
       final AgentSpan span = scope.span();
       CONSUMER_DECORATE.setPeerPort(span, connection.getPort());
       CONSUMER_DECORATE.onGet(span, queue);
@@ -302,7 +315,8 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrapConsumer(
         @Advice.Argument(0) final String queue,
-        @Advice.Argument(value = 6, readOnly = false) Consumer consumer) {
+        @Advice.Argument(value = 6, readOnly = false) Consumer consumer
+    ) {
       // We have to save off the queue name here because it isn't available to the consumer later.
       if (consumer != null && !(consumer instanceof TracedDelegatingConsumer)) {
         consumer = CLIENT_DECORATE.wrapConsumer(queue, consumer);

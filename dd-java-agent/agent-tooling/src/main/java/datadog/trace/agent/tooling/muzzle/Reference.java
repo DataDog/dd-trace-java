@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import static java.util.Arrays.asList;
-
 import datadog.trace.util.Strings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -14,7 +13,9 @@ import java.util.Set;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
-/** An immutable reference to a jvm class. */
+/**
+ * An immutable reference to a jvm class.
+ */
 public class Reference {
   public final String[] sources;
   public final int flags;
@@ -31,7 +32,8 @@ public class Reference {
       final String superName,
       final String[] interfaces,
       final Field[] fields,
-      final Method[] methods) {
+      final Method[] methods
+  ) {
     this.sources = sources;
     this.flags = flags;
     this.className = className;
@@ -58,7 +60,8 @@ public class Reference {
         null != this.superName ? this.superName : anotherReference.superName,
         Reference.merge(interfaces, anotherReference.interfaces),
         mergeFields(fields, anotherReference.fields),
-        mergeMethods(methods, anotherReference.methods));
+        mergeMethods(methods, anotherReference.methods)
+    );
   }
 
   @Override
@@ -103,8 +106,7 @@ public class Reference {
     public final String name;
     public final String fieldType;
 
-    public Field(
-        final String[] sources, final int flags, final String name, final String fieldType) {
+    public Field(final String[] sources, final int flags, final String name, final String fieldType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -120,7 +122,8 @@ public class Reference {
           Reference.merge(sources, anotherField.sources),
           mergeFlags(flags, anotherField.flags),
           name,
-          fieldType);
+          fieldType
+      );
     }
 
     @Override
@@ -150,7 +153,11 @@ public class Reference {
     public final String methodType;
 
     public Method(
-        final String[] sources, final int flags, final String name, final String methodType) {
+        final String[] sources,
+        final int flags,
+        final String name,
+        final String methodType
+    ) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -165,7 +172,8 @@ public class Reference {
           Reference.merge(sources, anotherMethod.sources),
           mergeFlags(flags, anotherMethod.flags),
           name,
-          methodType);
+          methodType
+      );
     }
 
     @Override
@@ -195,7 +203,9 @@ public class Reference {
    * source-code locations of the instrumentation which caused the mismatch.
    */
   public abstract static class Mismatch {
-    /** Instrumentation sources which caused the mismatch. */
+    /**
+     * Instrumentation sources which caused the mismatch.
+     */
     private final String[] mismatchSources;
 
     Mismatch(final String[] mismatchSources) {
@@ -211,7 +221,9 @@ public class Reference {
       }
     }
 
-    /** Human-readable string describing the mismatch. */
+    /**
+     * Human-readable string describing the mismatch.
+     */
     abstract String getMismatchDetails();
 
     public static class MissingClass extends Mismatch {
@@ -237,7 +249,8 @@ public class Reference {
           final String[] sources,
           final String classMethodOrFieldDesc,
           final int expectedFlag,
-          final int foundAccess) {
+          final int foundAccess
+      ) {
         super(sources);
         this.classMethodOrFieldDesc = classMethodOrFieldDesc;
         this.expectedFlag = expectedFlag;
@@ -263,7 +276,8 @@ public class Reference {
           final String[] sources,
           final String className,
           final String fieldName,
-          final String fieldDesc) {
+          final String fieldDesc
+      ) {
         super(sources);
         this.className = className;
         this.fieldName = fieldName;
@@ -285,7 +299,8 @@ public class Reference {
           final String[] sources,
           final String className,
           final String method,
-          final String methodType) {
+          final String methodType
+      ) {
         super(sources);
         this.className = className;
         this.method = method;
@@ -298,7 +313,9 @@ public class Reference {
       }
     }
 
-    /** Fallback mismatch in case an unexpected exception occurs during reference checking. */
+    /**
+     * Fallback mismatch in case an unexpected exception occurs during reference checking.
+     */
     public static class ReferenceCheckError extends Mismatch {
       private final Exception referenceCheckException;
       private final Reference referenceBeingChecked;
@@ -307,7 +324,8 @@ public class Reference {
       public ReferenceCheckError(
           final Exception referenceCheckException,
           final Reference referenceBeingChecked,
-          final String location) {
+          final String location
+      ) {
         super(new String[0]);
         this.referenceCheckException = referenceCheckException;
         this.referenceBeingChecked = referenceBeingChecked;
@@ -367,7 +385,8 @@ public class Reference {
         final String[] sources,
         final int fieldFlags,
         final String fieldName,
-        final Type fieldType) {
+        final Type fieldType
+    ) {
       return withField(sources, fieldFlags, fieldName, getDescriptor(fieldType));
     }
 
@@ -375,7 +394,8 @@ public class Reference {
         final String[] sources,
         final int fieldFlags,
         final String fieldName,
-        final String fieldType) {
+        final String fieldType
+    ) {
       final Field field = new Field(sources, fieldFlags, fieldName, fieldType);
       final int existingIndex = fields.indexOf(field);
       if (existingIndex == -1) {
@@ -391,13 +411,15 @@ public class Reference {
         final int methodFlags,
         final String methodName,
         final Type returnType,
-        final Type... parameterTypes) {
+        final Type... parameterTypes
+    ) {
       return withMethod(
           sources,
           methodFlags,
           methodName,
           getDescriptor(returnType),
-          getDescriptors(parameterTypes));
+          getDescriptors(parameterTypes)
+      );
     }
 
     public Builder withMethod(
@@ -405,7 +427,8 @@ public class Reference {
         final int methodFlags,
         final String methodName,
         final String returnType,
-        final String... parameterTypes) {
+        final String... parameterTypes
+    ) {
       StringBuilder methodType = new StringBuilder().append('(');
       for (String parameterType : parameterTypes) {
         methodType.append(parameterType);
@@ -429,10 +452,13 @@ public class Reference {
           null != superName ? Strings.getClassName(superName) : null,
           interfaces.toArray(new String[interfaces.size()]),
           fields.toArray(new Field[fields.size()]),
-          methods.toArray(new Method[methods.size()]));
+          methods.toArray(new Method[methods.size()])
+      );
     }
 
-    /** Builds a reference that checks the next spec if the current spec doesn't match. */
+    /**
+     * Builds a reference that checks the next spec if the current spec doesn't match.
+     */
     public Builder or() {
       return new OrBuilder(build());
     }

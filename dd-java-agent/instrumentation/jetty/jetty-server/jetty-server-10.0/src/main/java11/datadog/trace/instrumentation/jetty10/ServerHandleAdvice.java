@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty10;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,12 +15,11 @@ class ServerHandleAdvice {
   static ContextScope onEnter(
       @Advice.Argument(0) HttpChannel channel,
       @Advice.Local("request") Request req,
-      @Advice.Local("agentSpan") AgentSpan span) {
+      @Advice.Local("agentSpan") AgentSpan span
+  ) {
     req = channel.getRequest();
-
     // First check if there's an existing context in the request (from main server span)
     Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-
     // same logic as in Servlet3Advice. We need to activate/finish the dispatch span here
     // because we don't know if a servlet is going to be called and therefore whether
     // Servlet3Advice will have an opportunity to run.
@@ -37,7 +35,6 @@ class ServerHandleAdvice {
       // the root span, stored in DD_CONTEXT_ATTRIBUTE.
       // req.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
       span = (AgentSpan) dispatchSpan;
-
       // If we have an existing context, create a new context with the dispatch span
       // Otherwise just attach the dispatch span
       if (existingContext instanceof Context) {
@@ -56,7 +53,8 @@ class ServerHandleAdvice {
       @Advice.Enter final ContextScope scope,
       @Advice.Local("request") Request req,
       @Advice.Local("agentSpan") AgentSpan span,
-      @Advice.Thrown Throwable t) {
+      @Advice.Thrown Throwable t
+  ) {
     if (scope == null) {
       return;
     }

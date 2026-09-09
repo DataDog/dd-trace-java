@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.cu
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static scala.concurrent.impl.Promise.Transformation;
-
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
@@ -20,8 +19,9 @@ import scala.util.Try;
  * with a {@code Promise}, then we capture the active span when the {@code Try} is resolved.
  */
 public final class PromiseObjectInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
@@ -32,7 +32,8 @@ public final class PromiseObjectInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("scala$concurrent$impl$Promise$$resolve")),
-        getClass().getName() + "$Resolve");
+        getClass().getName() + "$Resolve"
+    );
   }
 
   public static final class Resolve {
@@ -51,7 +52,9 @@ public final class PromiseObjectInstrumentation
       }
     }
 
-    /** Promise.Transformation was introduced in scala 2.13 */
+    /**
+     * Promise.Transformation was introduced in scala 2.13
+     */
     private static void muzzleCheck(final Transformation callback) {
       callback.submitWithValue(null);
     }

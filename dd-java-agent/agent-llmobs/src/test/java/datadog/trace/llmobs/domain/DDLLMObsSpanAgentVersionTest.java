@@ -3,7 +3,6 @@ package datadog.trace.llmobs.domain;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsTags;
@@ -25,10 +24,8 @@ import org.junit.jupiter.api.Test;
  */
 class DDLLMObsSpanAgentVersionTest {
   private static final String AGENT_VERSION_TAG = "_ml_obs_tag." + LLMObsTags.AGENT_VERSION;
-
   private static final Field SPAN_FIELD;
   private static final Field STANDALONE_APM_SCOPE_FIELD;
-
   private static CoreTracer tracer;
 
   static {
@@ -112,7 +109,8 @@ class DDLLMObsSpanAgentVersionTest {
           assertEquals(
               "v2",
               spanOf(child).getTag(AGENT_VERSION_TAG),
-              "child of the nested agent must inherit the nested agent's own version, not the outer one");
+              "child of the nested agent must inherit the nested agent's own version, not the outer one"
+          );
         } finally {
           child.finish();
         }
@@ -160,14 +158,16 @@ class DDLLMObsSpanAgentVersionTest {
         assertNotEquals(
             spanOf(agent).getTraceId(),
             spanOf(child).getTraceId(),
-            "sanity: traces must differ for this scenario to be meaningful");
+            "sanity: traces must differ for this scenario to be meaningful"
+        );
         assertNull(spanOf(child).getTag(AGENT_VERSION_TAG));
 
         DDLLMObsSpan grandchild = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "llm1", null);
         try {
           assertNull(
               spanOf(grandchild).getTag(AGENT_VERSION_TAG),
-              "the stale agent_version must not leak transitively into a grandchild either");
+              "the stale agent_version must not leak transitively into a grandchild either"
+          );
         } finally {
           grandchild.finish();
         }

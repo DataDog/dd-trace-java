@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.lang;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -13,15 +12,16 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isFullDetection"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isFullDetection"
+})
 public class StringFullDetectionCallSite {
-
   @CallSite.After("void java.lang.String.<init>(byte[])")
   public static String afterByteArrayCtor(
       @CallSite.AllArguments @Nonnull final Object[] params,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -40,7 +40,8 @@ public class StringFullDetectionCallSite {
   @CallSite.After("void java.lang.String.<init>(byte[], java.nio.charset.Charset)")
   public static String afterByteArrayCtor2(
       @CallSite.AllArguments @Nonnull final Object[] params,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -60,7 +61,8 @@ public class StringFullDetectionCallSite {
   @CallSite.After("void java.lang.String.<init>(byte[], int, int)")
   public static String afterByteArrayCtor3(
       @CallSite.AllArguments @Nonnull final Object[] params,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -79,7 +81,8 @@ public class StringFullDetectionCallSite {
   @CallSite.After("void java.lang.String.<init>(byte[], int, int, java.nio.charset.Charset)")
   public static String afterByteArrayCtor4(
       @CallSite.AllArguments @Nonnull final Object[] params,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -98,7 +101,9 @@ public class StringFullDetectionCallSite {
 
   @CallSite.After("byte[] java.lang.String.getBytes()")
   public static byte[] afterGetBytes(
-      @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final byte[] result) {
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Return @Nonnull final byte[] result
+  ) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -114,7 +119,8 @@ public class StringFullDetectionCallSite {
   public static byte[] afterGetBytes(
       @CallSite.This @Nonnull final String self,
       @CallSite.Argument @Nullable final String encoding,
-      @CallSite.Return @Nonnull final byte[] result) {
+      @CallSite.Return @Nonnull final byte[] result
+  ) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -130,7 +136,8 @@ public class StringFullDetectionCallSite {
   public static byte[] afterGetBytes(
       @CallSite.This @Nonnull final String self,
       @CallSite.Argument @Nullable final Charset encoding,
-      @CallSite.Return @Nonnull final byte[] result) {
+      @CallSite.Return @Nonnull final byte[] result
+  ) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -144,7 +151,9 @@ public class StringFullDetectionCallSite {
 
   @CallSite.After("char[] java.lang.String.toCharArray()")
   public static char[] afterToCharArray(
-      @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final char[] result) {
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Return @Nonnull final char[] result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

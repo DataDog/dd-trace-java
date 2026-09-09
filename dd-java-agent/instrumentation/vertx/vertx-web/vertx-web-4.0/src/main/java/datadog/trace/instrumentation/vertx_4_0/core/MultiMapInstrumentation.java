@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.vertx_4_0.server.VertxVersionMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,8 +29,9 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice
+{
   private final String className = MultiMapInstrumentation.class.getName();
 
   public MultiMapInstrumentation() {
@@ -60,16 +60,20 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("get")).and(matcherForGetAdvice()),
-        className + "$GetAdvice");
+        className + "$GetAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("getAll")).and(matcherForGetAdvice()),
-        className + "$GetAllAdvice");
+        className + "$GetAllAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesNoArguments()),
-        className + "$EntriesAdvice");
+        className + "$EntriesAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesNoArguments()),
-        className + "$NamesAdvice");
+        className + "$NamesAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -80,7 +84,8 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
         @Advice.Return final String result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -100,7 +105,8 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
         @Advice.Return final Collection<String> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -121,7 +127,8 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -149,7 +156,8 @@ public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
     public static void afterNames(
         @Advice.This final Object self,
         @Advice.Return final Set<String> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

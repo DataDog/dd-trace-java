@@ -8,13 +8,11 @@ import org.slf4j.LoggerFactory;
 
 public final class DebuggerConfigBridge {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerConfigBridge.class);
-
   private static DebuggerConfigUpdate DEFERRED_UPDATE;
   private static volatile DebuggerConfigUpdater UPDATER;
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static fields")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal static holder; class lock guards private static fields")
   public static synchronized void updateConfig(DebuggerConfigUpdate update) {
     if (!update.hasUpdates()) {
       LOGGER.debug("No config update detected, skipping");
@@ -29,9 +27,8 @@ public final class DebuggerConfigBridge {
     }
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification = "Agent-internal static holder; class lock guards private static fields")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal static holder; class lock guards private static fields")
   public static synchronized void setUpdater(@Nonnull DebuggerConfigUpdater updater) {
     UPDATER = updater;
     if (DEFERRED_UPDATE != null && DEFERRED_UPDATE.hasUpdates()) {

@@ -2,7 +2,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,10 +15,10 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 public class StartWithAgentTest {
-
-  private static final Pattern WARNING_PATTERN =
-      Pattern.compile(
-          "^Warning: Version [^ ]+ of dd-java-agent is not compatible with Java [^ ]+ found at [^ ]+ and is effectively disabled\\.$");
+  private static final Pattern WARNING_PATTERN = Pattern.compile(
+      "^Warning: Version [^ ]+ of dd-java-agent is not compatible with Java [^ ]+ found "
+      + "at [^ ]+ and is effectively disabled\\\\.$"
+  );
   private static final String UPGRADE_MESSAGE = "Please upgrade your Java version to 8+";
 
   @Test
@@ -32,12 +31,17 @@ public class StartWithAgentTest {
     logProcessOutput(output, errors);
     assertEquals(0, exitCode, "Command failed with unexpected exit code");
     assertTrue(
-        output.contains(expectedMessage), "Output does not contain '" + expectedMessage + "'");
+        output.contains(expectedMessage),
+        "Output does not contain '" + expectedMessage + "'"
+    );
     assertTrue(
         errors.stream().anyMatch(WARNING_PATTERN.asPredicate()),
-        "Output does not contain line matching '" + WARNING_PATTERN + "'");
+        "Output does not contain line matching '" + WARNING_PATTERN + "'"
+    );
     assertTrue(
-        errors.contains(UPGRADE_MESSAGE), "Output does not contain '" + UPGRADE_MESSAGE + "'");
+        errors.contains(UPGRADE_MESSAGE),
+        "Output does not contain '" + UPGRADE_MESSAGE + "'"
+    );
   }
 
   @Test
@@ -51,7 +55,8 @@ public class StartWithAgentTest {
   }
 
   private static void ensureThatApplicationStartsWithoutWarning(String version)
-      throws InterruptedException, IOException {
+      throws InterruptedException,
+      IOException {
     String expectedMessage = "Woho! Started on Java " + version;
     Process process =
         startAndWaitForJvmWithAgentForJava("JAVA_" + version + "_HOME", expectedMessage);
@@ -61,13 +66,17 @@ public class StartWithAgentTest {
     logProcessOutput(output, errors);
     assertEquals(0, exitCode, "Command failed with unexpected exit code");
     assertTrue(
-        output.contains(expectedMessage), "Output does not contain '" + expectedMessage + "'");
+        output.contains(expectedMessage),
+        "Output does not contain '" + expectedMessage + "'"
+    );
     assertFalse(
         errors.stream().anyMatch(WARNING_PATTERN.asPredicate()),
-        "Output contains unexpected line matching '" + WARNING_PATTERN + "'");
+        "Output contains unexpected line matching '" + WARNING_PATTERN + "'"
+    );
     assertFalse(
         errors.contains(UPGRADE_MESSAGE),
-        "Output contains unexpected line '" + UPGRADE_MESSAGE + "'");
+        "Output contains unexpected line '" + UPGRADE_MESSAGE + "'"
+    );
   }
 
   private static Process startAndWaitForJvmWithAgentForJava(String javaHomeEnv, String message)
@@ -100,8 +109,8 @@ public class StartWithAgentTest {
 
   private static List<String> getLines(InputStream inputStream) {
     return new BufferedReader(new InputStreamReader(inputStream))
-        .lines()
-        .collect(Collectors.toList());
+      .lines()
+      .collect(Collectors.toList());
   }
 
   private static void logProcessOutput(List<String> output, List<String> errors) {

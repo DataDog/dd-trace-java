@@ -12,7 +12,6 @@ import static datadog.trace.instrumentation.finatra.FinatraDecorator.FINATRA_CON
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import com.twitter.finagle.http.Request;
 import com.twitter.finagle.http.Response;
@@ -29,7 +28,9 @@ import scala.Some;
 
 @AutoService(InstrumenterModule.class)
 public class FinatraInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public FinatraInstrumentation() {
     super("finatra");
   }
@@ -53,10 +54,11 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("handleMatch"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("com.twitter.finagle.http.Request"))),
-        FinatraInstrumentation.class.getName() + "$RouteAdvice");
+          .and(named("handleMatch"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("com.twitter.finagle.http.Request"))),
+        FinatraInstrumentation.class.getName() + "$RouteAdvice"
+    );
   }
 
   public static class RouteAdvice {
@@ -64,8 +66,8 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
     public static ContextScope nameSpan(
         @Advice.Argument(0) final Request request,
         @Advice.FieldValue("path") final String path,
-        @Advice.FieldValue("clazz") final Class clazz) {
-
+        @Advice.FieldValue("clazz") final Class clazz
+    ) {
       // Update the parent "netty.request" if present
       final AgentSpan parent = activeSpan();
       if (parent != null) {
@@ -85,8 +87,8 @@ public class FinatraInstrumentation extends InstrumenterModule.Tracing
     public static void setupCallback(
         @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Return final Some<Future<Response>> responseOption) {
-
+        @Advice.Return final Some<Future<Response>> responseOption
+    ) {
       if (scope == null) {
         return;
       }

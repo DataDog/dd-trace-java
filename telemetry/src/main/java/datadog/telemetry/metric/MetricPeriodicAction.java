@@ -43,11 +43,11 @@ public abstract class MetricPeriodicAction implements TelemetryRunnable.Telemetr
 
   private Metric convertToTelemetryMetric(MetricCollector.Metric raw) {
     return new Metric()
-        .namespace(raw.namespace)
-        .metric(raw.metricName)
-        .type(typeFromValue(raw.type))
-        .common(raw.common)
-        .tags(raw.tags);
+      .namespace(raw.namespace)
+      .metric(raw.metricName)
+      .type(typeFromValue(raw.type))
+      .common(raw.common)
+      .tags(raw.tags);
   }
 
   private static Metric.TypeEnum typeFromValue(String value) {
@@ -60,23 +60,25 @@ public abstract class MetricPeriodicAction implements TelemetryRunnable.Telemetr
   }
 
   private Collection<DistributionSeries> toDistributionSeries(
-      Collection<MetricCollector.DistributionSeriesPoint> rawDistributionSeriesPoints) {
+      Collection<MetricCollector.DistributionSeriesPoint> rawDistributionSeriesPoints
+  ) {
     Map<MetricCollector.DistributionSeriesPoint, DistributionSeries> distributionSeries =
         new HashMap<>();
     for (MetricCollector.DistributionSeriesPoint point : rawDistributionSeriesPoints) {
-      distributionSeries
-          .computeIfAbsent(point, this::convertToDistributionSeries)
-          .addPoint(point.value);
+      distributionSeries.computeIfAbsent(point, this::convertToDistributionSeries).addPoint(
+          point.value
+      );
     }
     return distributionSeries.values();
   }
 
   private DistributionSeries convertToDistributionSeries(
-      MetricCollector.DistributionSeriesPoint point) {
+      MetricCollector.DistributionSeriesPoint point
+  ) {
     return new DistributionSeries()
-        .namespace(point.namespace)
-        .metric(point.metricName)
-        .common(point.common)
-        .tags(point.tags);
+      .namespace(point.namespace)
+      .metric(point.metricName)
+      .common(point.common)
+      .tags(point.tags);
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.core.scopemanager.ContinuableScope.ITERATION;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import java.util.ArrayDeque;
@@ -11,12 +10,11 @@ import java.util.ArrayDeque;
  * cleanup() is called to ensure the invariant
  */
 final class ScopeStack {
-
   private final ProfilingContextIntegration profilingContextIntegration;
-  private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>(); // previous scopes
-
-  ContinuableScope top; // current scope
-
+  // previous scopes
+  private final ArrayDeque<ContinuableScope> stack = new ArrayDeque<>();
+  // current scope
+  ContinuableScope top;
   // set by background task when a root iteration scope remains unclosed for too long
   volatile ContinuableScope overdueRootScope;
 
@@ -24,11 +22,14 @@ final class ScopeStack {
     this.profilingContextIntegration = profilingContextIntegration;
   }
 
-  /** Restore a shallow stack for async propagation purposes. */
+  /**
+   * Restore a shallow stack for async propagation purposes.
+   */
   ScopeStack(
       ProfilingContextIntegration profilingContextIntegration,
       ContinuableScope parent,
-      ContinuableScope active) {
+      ContinuableScope active
+  ) {
     this(profilingContextIntegration);
     if (parent != null) {
       stack.push(parent);
@@ -45,7 +46,9 @@ final class ScopeStack {
     return stack.peek();
   }
 
-  /** Removes and closes all scopes up to the nearest live scope */
+  /**
+   * Removes and closes all scopes up to the nearest live scope
+   */
   void cleanup() {
     ContinuableScope curScope = top;
     boolean changedTop = false;
@@ -72,7 +75,9 @@ final class ScopeStack {
     }
   }
 
-  /** Marks a new scope as current, pushing the previous onto the stack */
+  /**
+   * Marks a new scope as current, pushing the previous onto the stack
+   */
   void push(final ContinuableScope scope) {
     scope.beforeActivated();
     if (top != null) {
@@ -84,7 +89,9 @@ final class ScopeStack {
     scope.afterActivated();
   }
 
-  /** Fast check to see if the expectedScope is on top */
+  /**
+   * Fast check to see if the expectedScope is on top
+   */
   boolean checkTop(final ContinuableScope expectedScope) {
     return expectedScope.equals(top);
   }
@@ -117,10 +124,13 @@ final class ScopeStack {
         }
       }
     }
-    return false; // we didn't find the expected scope
+    // we didn't find the expected scope
+    return false;
   }
 
-  /** Returns the current depth, including the top scope */
+  /**
+   * Returns the current depth, including the top scope
+   */
   int depth() {
     return top != null ? 1 + stack.size() : 0;
   }
@@ -131,7 +141,9 @@ final class ScopeStack {
     top = null;
   }
 
-  /** Notifies profiler that this thread has a context now */
+  /**
+   * Notifies profiler that this thread has a context now
+   */
   private void onBecomeNonEmpty() {
     try {
       profilingContextIntegration.onAttach();
@@ -140,7 +152,9 @@ final class ScopeStack {
     }
   }
 
-  /** Notifies profiler that this thread no longer has a context */
+  /**
+   * Notifies profiler that this thread no longer has a context
+   */
   private void onBecomeEmpty() {
     try {
       profilingContextIntegration.onDetach();

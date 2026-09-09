@@ -1,20 +1,16 @@
 package datadog.trace.api.featureflag.config;
 
 public class FeatureFlaggingConfig {
-
   public static final String CONFIGURATION_SOURCE_AGENTLESS = "agentless";
   public static final String CONFIGURATION_SOURCE_REMOTE_CONFIG = "remote_config";
-
   private static final Resolution DISABLED_RESOLUTION = new Resolution(false, null);
   private static final Resolution AGENTLESS_CONFIGURATION =
       new Resolution(true, CONFIGURATION_SOURCE_AGENTLESS);
   private static final Resolution REMOTE_CONFIG_CONFIGURATION =
       new Resolution(true, CONFIGURATION_SOURCE_REMOTE_CONFIG);
-
   public static final String FEATURE_FLAGS_ENABLED = "feature.flags.enabled";
   public static final String EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED =
       "experimental.flagging.provider.enabled";
-
   /**
    * Opt-in gate for APM span enrichment with feature-flag evaluation metadata. DISTINCT from {@link
    * #FEATURE_FLAGS_ENABLED} and OFF by default — enabling the provider does not enable span
@@ -22,7 +18,6 @@ public class FeatureFlaggingConfig {
    */
   public static final String EXPERIMENTAL_SPAN_ENRICHMENT_ENABLED =
       "experimental.flagging.provider.span.enrichment.enabled";
-
   /**
    * Killswitch for the EVP {@code flagevaluation} emission path. Default: enabled. Disabling it
    * turns off EVP flag-evaluation counts while leaving the OTel {@code feature_flag.evaluations}
@@ -30,7 +25,6 @@ public class FeatureFlaggingConfig {
    */
   public static final String FLAGGING_EVALUATION_COUNTS_ENABLED =
       "flagging.evaluation.counts.enabled";
-
   public static final String FEATURE_FLAGS_CONFIGURATION_SOURCE =
       "feature.flags.configuration.source";
   public static final String FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL =
@@ -43,7 +37,8 @@ public class FeatureFlaggingConfig {
   public static Resolution resolveConfiguration(
       final Boolean providerEnabled,
       final String explicitSource,
-      final Boolean legacyProviderEnabled) {
+      final Boolean legacyProviderEnabled
+  ) {
     final String normalizedSource = normalizeConfigurationSource(explicitSource);
     if (Boolean.FALSE.equals(providerEnabled)) {
       return new Resolution(false, normalizedSource);
@@ -96,5 +91,6 @@ public class FeatureFlaggingConfig {
     }
   }
 
-  private FeatureFlaggingConfig() {}
+  private FeatureFlaggingConfig() {
+  }
 }

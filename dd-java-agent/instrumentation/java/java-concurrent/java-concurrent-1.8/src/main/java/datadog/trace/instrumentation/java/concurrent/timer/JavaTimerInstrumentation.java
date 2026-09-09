@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -18,7 +17,10 @@ import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 
 public class JavaTimerInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "java.util.Timer";
@@ -28,14 +30,15 @@ public class JavaTimerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPrivate())
-            .and(
-                named("sched")
-                    .and(takesArguments(3))
-                    .and(takesArgument(0, named("java.util.TimerTask")))
-                    .and(takesArgument(1, long.class))
-                    .and(takesArgument(2, long.class))),
-        getClass().getName() + "$TimerScheduleAdvice");
+          .and(isPrivate())
+          .and(named("sched")
+            .and(takesArguments(3))
+            .and(takesArgument(0, named("java.util.TimerTask")))
+            .and(takesArgument(1, long.class))
+            .and(takesArgument(2, long.class))
+          ),
+        getClass().getName() + "$TimerScheduleAdvice"
+    );
   }
 
   public static final class TimerScheduleAdvice {

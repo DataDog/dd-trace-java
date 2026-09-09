@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.agent.tooling.csi.CallSites;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification;
@@ -30,8 +29,8 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Type;
 
 class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
-
-  static class NonCallSite {}
+  static class NonCallSite {
+  }
 
   @Test
   void testSpecificationBuilderForNonCallSite() {
@@ -45,7 +44,8 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = WithSpiClass.Spi.class)
   static class WithSpiClass {
-    interface Spi {}
+    interface Spi {
+    }
   }
 
   @Test
@@ -57,16 +57,21 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
         specificationBuilder.build(advice).orElseThrow(RuntimeException::new);
 
     assertEquals(
-        Arrays.asList(Type.getType(WithSpiClass.Spi.class)), Arrays.asList(result.getSpi()));
+        Arrays.asList(Type.getType(WithSpiClass.Spi.class)),
+        Arrays.asList(result.getSpi())
+    );
   }
 
-  @CallSite(
-      spi = CallSites.class,
-      helpers = {HelpersAdvice.SampleHelper1.class, HelpersAdvice.SampleHelper2.class})
+  @CallSite(spi = CallSites.class, helpers = {
+      HelpersAdvice.SampleHelper1.class,
+      HelpersAdvice.SampleHelper2.class
+  })
   static class HelpersAdvice {
-    static class SampleHelper1 {}
+    static class SampleHelper1 {
+    }
 
-    static class SampleHelper2 {}
+    static class SampleHelper2 {
+    }
   }
 
   @Test
@@ -78,22 +83,22 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
         specificationBuilder.build(advice).orElseThrow(RuntimeException::new);
 
     List<Type> helpers = Arrays.asList(result.getHelpers());
-    assertTrue(
-        helpers.containsAll(
-            Arrays.asList(
-                Type.getType(HelpersAdvice.class),
-                Type.getType(HelpersAdvice.SampleHelper1.class),
-                Type.getType(HelpersAdvice.SampleHelper2.class))));
+    assertTrue(helpers.containsAll(Arrays.asList(
+        Type.getType(HelpersAdvice.class),
+        Type.getType(HelpersAdvice.SampleHelper1.class),
+        Type.getType(HelpersAdvice.SampleHelper2.class)
+    )));
   }
 
   @CallSite(spi = CallSites.class)
   static class BeforeAdvice {
-    @CallSite.Before(
-        "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+    @CallSite.Before("java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang."
+        + "String)")
     static void before(
         @CallSite.This String self,
         @CallSite.Argument String regexp,
-        @CallSite.Argument String replacement) {}
+        @CallSite.Argument String replacement
+    ) {}
   }
 
   @Test
@@ -109,10 +114,12 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertNotNull(beforeSpec);
     assertEquals(
         "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
-        beforeSpec.getAdvice().getMethodType().getDescriptor());
+        beforeSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
         "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)",
-        beforeSpec.getSignature());
+        beforeSpec.getSignature()
+    );
     assertNotNull(beforeSpec.findThis());
     assertNull(beforeSpec.findReturn());
     assertNull(beforeSpec.findAllArguments());
@@ -123,12 +130,13 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class AroundAdvice {
-    @CallSite.Around(
-        "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+    @CallSite.Around("java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang."
+        + "String)")
     static String around(
         @CallSite.This String self,
         @CallSite.Argument String regexp,
-        @CallSite.Argument String replacement) {
+        @CallSite.Argument String replacement
+    ) {
       return self.replaceAll(regexp, replacement);
     }
   }
@@ -146,10 +154,12 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertNotNull(aroundSpec);
     assertEquals(
         "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
-        aroundSpec.getAdvice().getMethodType().getDescriptor());
+        aroundSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
         "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)",
-        aroundSpec.getSignature());
+        aroundSpec.getSignature()
+    );
     assertNotNull(aroundSpec.findThis());
     assertNull(aroundSpec.findReturn());
     assertNull(aroundSpec.findAllArguments());
@@ -160,13 +170,14 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class AfterAdvice {
-    @CallSite.After(
-        "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+    @CallSite.After("java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang."
+        + "String)")
     static String after(
         @CallSite.This String self,
         @CallSite.Argument String regexp,
         @CallSite.Argument String replacement,
-        @CallSite.Return String result) {
+        @CallSite.Return String result
+    ) {
       return result;
     }
   }
@@ -184,10 +195,12 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertNotNull(afterSpec);
     assertEquals(
         "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
-        afterSpec.getAdvice().getMethodType().getDescriptor());
+        afterSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
         "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)",
-        afterSpec.getSignature());
+        afterSpec.getSignature()
+    );
     assertNotNull(afterSpec.findThis());
     assertNotNull(afterSpec.findReturn());
     assertNull(afterSpec.findAllArguments());
@@ -198,11 +211,12 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class AllArgsAdvice {
-    @CallSite.Around(
-        "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+    @CallSite.Around("java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang."
+        + "String)")
     static String allArgs(
         @CallSite.AllArguments(includeThis = true) Object[] arguments,
-        @CallSite.Return String result) {
+        @CallSite.Return String result
+    ) {
       return result;
     }
   }
@@ -220,10 +234,12 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertNotNull(allArgsSpec);
     assertEquals(
         "([Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;",
-        allArgsSpec.getAdvice().getMethodType().getDescriptor());
+        allArgsSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
         "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)",
-        allArgsSpec.getSignature());
+        allArgsSpec.getSignature()
+    );
     assertNull(allArgsSpec.findThis());
     assertNotNull(allArgsSpec.findReturn());
     AllArgsSpecification allArguments = allArgsSpec.findAllArguments();
@@ -236,12 +252,13 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class InvokeDynamicBeforeAdvice {
-    @CallSite.After(
-        value =
-            "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-        invokeDynamic = true)
+    @CallSite.After(value = "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory."
+        + "makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, "
+        + "java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])", invokeDynamic = true)
     static String invokeDynamic(
-        @CallSite.AllArguments Object[] arguments, @CallSite.Return String result) {
+        @CallSite.AllArguments Object[] arguments,
+        @CallSite.Return String result
+    ) {
       return result;
     }
   }
@@ -259,10 +276,14 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertNotNull(invokeDynamicSpec);
     assertEquals(
         "([Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;",
-        invokeDynamicSpec.getAdvice().getMethodType().getDescriptor());
+        invokeDynamicSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
-        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-        invokeDynamicSpec.getSignature());
+        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory."
+        + "makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, "
+        + "java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
+        invokeDynamicSpec.getSignature()
+    );
     assertNull(invokeDynamicSpec.findThis());
     assertNotNull(invokeDynamicSpec.findReturn());
     AllArgsSpecification allArguments = invokeDynamicSpec.findAllArguments();
@@ -275,16 +296,16 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class InvokeDynamicAroundAdvice {
-    @CallSite.Around(
-        value =
-            "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-        invokeDynamic = true)
+    @CallSite.Around(value = "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory."
+        + "makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, "
+        + "java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])", invokeDynamic = true)
     static java.lang.invoke.CallSite invokeDynamic(
         @CallSite.Argument MethodHandles.Lookup lookup,
         @CallSite.Argument String name,
         @CallSite.Argument MethodType concatType,
         @CallSite.Argument String recipe,
-        @CallSite.Argument Object... constants) {
+        @CallSite.Argument Object... constants
+    ) {
       return null;
     }
   }
@@ -302,11 +323,17 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
         (AroundSpecification) findAdvice(result, "invokeDynamic");
     assertNotNull(invokeDynamicSpec);
     assertEquals(
-        "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;",
-        invokeDynamicSpec.getAdvice().getMethodType().getDescriptor());
+        "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;"
+        + "Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)"
+        + "Ljava/lang/invoke/CallSite;",
+        invokeDynamicSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
-        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-        invokeDynamicSpec.getSignature());
+        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory."
+        + "makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, "
+        + "java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
+        invokeDynamicSpec.getSignature()
+    );
     assertNull(invokeDynamicSpec.findThis());
     assertNull(invokeDynamicSpec.findReturn());
     assertNull(invokeDynamicSpec.findAllArguments());
@@ -317,14 +344,14 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class TestInvokeDynamicConstants {
-    @CallSite.After(
-        value =
-            "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-        invokeDynamic = true)
+    @CallSite.After(value = "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory."
+        + "makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, "
+        + "java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])", invokeDynamic = true)
     static String after(
         @CallSite.AllArguments Object[] parameter,
         @CallSite.InvokeDynamicConstants Object[] constants,
-        @CallSite.Return String value) {
+        @CallSite.Return String value
+    ) {
       return value;
     }
   }
@@ -342,10 +369,14 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertNotNull(inheritedSpec);
     assertEquals(
         "([Ljava/lang/Object;[Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/String;",
-        inheritedSpec.getAdvice().getMethodType().getDescriptor());
+        inheritedSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
-        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-        inheritedSpec.getSignature());
+        "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory."
+        + "makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, "
+        + "java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
+        inheritedSpec.getSignature()
+    );
     assertNull(inheritedSpec.findThis());
     assertNotNull(inheritedSpec.findReturn());
     assertNotNull(inheritedSpec.findInvokeDynamicConstants());
@@ -355,10 +386,9 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class TestBeforeArray {
-
     @CallSite.BeforeArray({
-      @CallSite.Before("java.util.Map javax.servlet.ServletRequest.getParameterMap()"),
-      @CallSite.Before("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
+        @CallSite.Before("java.util.Map javax.servlet.ServletRequest.getParameterMap()"),
+        @CallSite.Before("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
     })
     static void before(@CallSite.This ServletRequest request) {}
   }
@@ -377,11 +407,17 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     for (AdviceSpecification spec : list) {
       assertInstanceOf(BeforeSpecification.class, spec);
       assertEquals(
-          "(Ljavax/servlet/ServletRequest;)V", spec.getAdvice().getMethodType().getDescriptor());
+          "(Ljavax/servlet/ServletRequest;)V",
+          spec.getAdvice().getMethodType().getDescriptor()
+      );
       assertTrue(
-          spec.getSignature().equals("java.util.Map javax.servlet.ServletRequest.getParameterMap()")
-              || spec.getSignature()
-                  .equals("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()"));
+              spec.getSignature().equals(
+                  "java.util.Map javax.servlet.ServletRequest.getParameterMap()"
+              )
+          || spec
+                .getSignature()
+                .equals("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
+      );
       assertNotNull(spec.findThis());
       assertNull(spec.findReturn());
       assertNull(spec.findAllArguments());
@@ -393,10 +429,9 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class TestAroundArray {
-
     @CallSite.AroundArray({
-      @CallSite.Around("java.util.Map javax.servlet.ServletRequest.getParameterMap()"),
-      @CallSite.Around("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
+        @CallSite.Around("java.util.Map javax.servlet.ServletRequest.getParameterMap()"),
+        @CallSite.Around("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
     })
     static Map around(@CallSite.This ServletRequest request) {
       return request.getParameterMap();
@@ -418,11 +453,16 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
       assertInstanceOf(AroundSpecification.class, spec);
       assertEquals(
           "(Ljavax/servlet/ServletRequest;)Ljava/util/Map;",
-          spec.getAdvice().getMethodType().getDescriptor());
+          spec.getAdvice().getMethodType().getDescriptor()
+      );
       assertTrue(
-          spec.getSignature().equals("java.util.Map javax.servlet.ServletRequest.getParameterMap()")
-              || spec.getSignature()
-                  .equals("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()"));
+              spec.getSignature().equals(
+                  "java.util.Map javax.servlet.ServletRequest.getParameterMap()"
+              )
+          || spec
+                .getSignature()
+                .equals("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
+      );
       assertNotNull(spec.findThis());
       assertNull(spec.findReturn());
       assertNull(spec.findAllArguments());
@@ -434,10 +474,9 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class TestAfterArray {
-
     @CallSite.AfterArray({
-      @CallSite.After("java.util.Map javax.servlet.ServletRequest.getParameterMap()"),
-      @CallSite.After("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
+        @CallSite.After("java.util.Map javax.servlet.ServletRequest.getParameterMap()"),
+        @CallSite.After("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
     })
     static Map after(@CallSite.This ServletRequest request, @CallSite.Return Map parameters) {
       return parameters;
@@ -459,11 +498,16 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
       assertInstanceOf(AfterSpecification.class, spec);
       assertEquals(
           "(Ljavax/servlet/ServletRequest;Ljava/util/Map;)Ljava/util/Map;",
-          spec.getAdvice().getMethodType().getDescriptor());
+          spec.getAdvice().getMethodType().getDescriptor()
+      );
       assertTrue(
-          spec.getSignature().equals("java.util.Map javax.servlet.ServletRequest.getParameterMap()")
-              || spec.getSignature()
-                  .equals("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()"));
+              spec.getSignature().equals(
+                  "java.util.Map javax.servlet.ServletRequest.getParameterMap()"
+              )
+          || spec
+                .getSignature()
+                .equals("java.util.Map javax.servlet.ServletRequestWrapper.getParameterMap()")
+      );
       assertNotNull(spec.findThis());
       assertNotNull(spec.findReturn());
       assertNull(spec.findAllArguments());
@@ -475,12 +519,13 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
 
   @CallSite(spi = CallSites.class)
   static class TestInheritedMethod {
-    @CallSite.After(
-        "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
+    @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java."
+        + "lang.String)")
     static String after(
         @CallSite.This ServletRequest request,
         @CallSite.Argument String parameter,
-        @CallSite.Return String value) {
+        @CallSite.Return String value
+    ) {
       return value;
     }
   }
@@ -498,10 +543,12 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertNotNull(inheritedSpec);
     assertEquals(
         "(Ljavax/servlet/ServletRequest;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
-        inheritedSpec.getAdvice().getMethodType().getDescriptor());
+        inheritedSpec.getAdvice().getMethodType().getDescriptor()
+    );
     assertEquals(
         "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)",
-        inheritedSpec.getSignature());
+        inheritedSpec.getSignature()
+    );
     assertNotNull(inheritedSpec.findThis());
     assertNotNull(inheritedSpec.findReturn());
     assertNull(inheritedSpec.findAllArguments());
@@ -516,20 +563,19 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     }
   }
 
-  @CallSite(
-      spi = CallSites.class,
-      enabled = {
-        "datadog.trace.plugin.csi.impl.AsmSpecificationBuilderTest$IsEnabled",
-        "isEnabled",
-        "true"
-      })
+  @CallSite(spi = CallSites.class, enabled = {
+      "datadog.trace.plugin.csi.impl.AsmSpecificationBuilderTest$IsEnabled",
+      "isEnabled",
+      "true"
+  })
   static class TestEnablement {
-    @CallSite.After(
-        "java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java.lang.String)")
+    @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getParameter(java."
+        + "lang.String)")
     static String after(
         @CallSite.This ServletRequest request,
         @CallSite.Argument String parameter,
-        @CallSite.Return String value) {
+        @CallSite.Return String value
+    ) {
       return value;
     }
   }
@@ -548,7 +594,8 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     assertEquals("isEnabled", result.getEnabled().getMethod().getMethodName());
     assertEquals(
         Type.getMethodType(Types.BOOLEAN, Types.STRING),
-        result.getEnabled().getMethod().getMethodType());
+        result.getEnabled().getMethod().getMethodType()
+    );
     assertEquals(Arrays.asList("true"), result.getEnabled().getArguments());
   }
 
@@ -558,8 +605,9 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
     @CallSite.Around("java.lang.StringBuffer java.lang.StringBuffer.append(java.lang.Object)")
     @Nonnull
     static Appendable aroundAppend(
-        @CallSite.This @Nullable Appendable self, @CallSite.Argument(0) @Nullable Object param)
-        throws Throwable {
+        @CallSite.This @Nullable Appendable self,
+        @CallSite.Argument(0) @Nullable Object param
+    ) throws Throwable {
       return self.append(param.toString());
     }
   }
@@ -577,13 +625,18 @@ class AsmSpecificationBuilderTest extends BaseCsiPluginTest {
   }
 
   private static List<Integer> getArguments(AdviceSpecification advice) {
-    return advice.getArguments().map(arg -> arg.getIndex()).collect(Collectors.toList());
+    return advice
+      .getArguments()
+      .map(arg -> arg.getIndex())
+      .collect(Collectors.toList());
   }
 
   private static AdviceSpecification findAdvice(CallSiteSpecification result, String name) {
-    return result.getAdvices().stream()
-        .filter(it -> it.getAdvice().getMethodName().equals(name))
-        .findFirst()
-        .orElse(null);
+    return result
+      .getAdvices()
+      .stream()
+      .filter(it -> it.getAdvice().getMethodName().equals(name))
+      .findFirst()
+      .orElse(null);
   }
 }

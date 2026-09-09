@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,8 +17,9 @@ import scala.concurrent.impl.CallbackRunnable;
 import scala.util.Try;
 
 public final class CallbackRunnableInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "scala.concurrent.impl.CallbackRunnable";
@@ -30,10 +30,14 @@ public final class CallbackRunnableInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformer.applyAdvice(isMethod().and(named("run")), getClass().getName() + "$Run");
     transformer.applyAdvice(
-        isMethod().and(named("executeWithValue")), getClass().getName() + "$ExecuteWithValue");
+        isMethod().and(named("executeWithValue")),
+        getClass().getName() + "$ExecuteWithValue"
+    );
   }
 
-  /** Capture the scope when the promise is created */
+  /**
+   * Capture the scope when the promise is created
+   */
   public static final class Construct {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T> void onConstruct(@Advice.This CallbackRunnable<T> task) {
@@ -44,8 +48,10 @@ public final class CallbackRunnableInstrumentation
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> ContextScope before(@Advice.This CallbackRunnable<T> task) {
-      return PromiseHelper.runWithContext(
-          InstrumentationContext.get(CallbackRunnable.class, State.class).get(task));
+      return PromiseHelper.runWithContext(InstrumentationContext
+        .get(CallbackRunnable.class, State.class)
+        .get(task)
+      );
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
@@ -57,19 +63,21 @@ public final class CallbackRunnableInstrumentation
   public static final class ExecuteWithValue {
     @Advice.OnMethodEnter
     public static <T> void beforeExecute(
-        @Advice.This CallbackRunnable<T> task, @Advice.Argument(value = 0) Try<T> resolved) {
+        @Advice.This CallbackRunnable<T> task,
+        @Advice.Argument(value = 0) Try<T> resolved
+    ) {
       // About to enter an ExecutionContext so capture the Scope if necessary
       ContextStore<CallbackRunnable, State> contextStore =
           InstrumentationContext.get(CallbackRunnable.class, State.class);
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
-        state =
-            PromiseHelper.executeCaptureContext(
-                InstrumentationContext.get(Try.class, Context.class),
-                resolved,
-                contextStore,
-                task,
-                state);
+        state = PromiseHelper.executeCaptureContext(
+            InstrumentationContext.get(Try.class, Context.class),
+            resolved,
+            contextStore,
+            task,
+            state
+        );
       }
       // If nothing else has been picked up, then try to pick up the current Scope
       if (null == state) {

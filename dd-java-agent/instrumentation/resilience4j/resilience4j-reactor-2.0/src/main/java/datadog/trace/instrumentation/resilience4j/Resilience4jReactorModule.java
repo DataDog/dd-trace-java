@@ -15,7 +15,6 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class Resilience4jReactorModule extends InstrumenterModule.Tracing {
-
   public Resilience4jReactorModule() {
     super("resilience4j-reactor");
   }
@@ -23,18 +22,17 @@ public class Resilience4jReactorModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".Resilience4jSpan",
-      packageName + ".Resilience4jSpanDecorator",
-      packageName + ".CircuitBreakerDecorator",
-      packageName + ".RetryDecorator",
-      packageName + ".ReactorHelper",
+        packageName + ".Resilience4jSpan",
+        packageName + ".Resilience4jSpanDecorator",
+        packageName + ".CircuitBreakerDecorator",
+        packageName + ".RetryDecorator",
+        packageName + ".ReactorHelper"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap(
-        "org.reactivestreams.Publisher", HandoffContext.class.getName());
+    return Collections.singletonMap("org.reactivestreams.Publisher", HandoffContext.class.getName());
   }
 
   @Override
@@ -42,6 +40,7 @@ public class Resilience4jReactorModule extends InstrumenterModule.Tracing {
     return Arrays.asList(
         new CircuitBreakerOperatorInstrumentation(),
         new FallbackOperatorInstrumentation(),
-        new RetryOperatorInstrumentation());
+        new RetryOperatorInstrumentation()
+    );
   }
 }

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.lang.invoke;
 
 import static java.lang.invoke.MethodType.methodType;
 import static java.lang.invoke.StringConcatFactory.makeConcatWithConstants;
-
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -22,29 +21,28 @@ import org.slf4j.LoggerFactory;
 
 @SuppressForbidden
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isMajorJavaVersionAtLeast", "9"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isMajorJavaVersionAtLeast",
+    "9"
+})
 public class StringConcatFactoryCallSite {
-
   private static final Logger LOG = LoggerFactory.getLogger(StringConcatFactoryCallSite.class);
-
   private static final char TAG_ARG = '\u0001';
   private static final char TAG_CONST = '\u0002';
   private static final int NULL_STR_LENGTH = "null".length();
   private static final MethodHandle INSTRUMENTATION_BRIDGE = instrumentationBridgeMethod();
 
-  @CallSite.Around(
-      value =
-          "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory.makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])",
-      invokeDynamic = true)
+  @CallSite.Around(value = "java.lang.invoke.CallSite java.lang.invoke.StringConcatFactory."
+      + "makeConcatWithConstants(java.lang.invoke.MethodHandles$Lookup, java.lang.String, "
+      + "java.lang.invoke.MethodType, java.lang.String, java.lang.Object[])", invokeDynamic = true)
   public static java.lang.invoke.CallSite aroundMakeConcatWithConstants(
       @CallSite.Argument final MethodHandles.Lookup lookup,
       @CallSite.Argument final String name,
       @CallSite.Argument final MethodType concatType,
       @CallSite.Argument final String recipe,
-      @CallSite.Argument final Object... constants)
-      throws StringConcatException {
+      @CallSite.Argument final Object... constants
+  ) throws StringConcatException {
     if (INSTRUMENTATION_BRIDGE == null) {
       return makeConcatWithConstants(lookup, name, concatType, recipe, constants);
     }
@@ -56,18 +54,25 @@ public class StringConcatFactoryCallSite {
       if (!(callSite instanceof ConstantCallSite)) {
         // should not happen but better be prepared
         throw new IllegalArgumentException(
-            "Expected ConstantCallSite, received " + callSite.getClass());
+            "Expected ConstantCallSite, received " + callSite.getClass()
+        );
       }
-      MethodHandle target =
-          MethodHandles.insertArguments(
-              INSTRUMENTATION_BRIDGE, 2, recipe, constants, preprocessRecipe(recipe, constants));
+      MethodHandle target = MethodHandles.insertArguments(
+          INSTRUMENTATION_BRIDGE,
+          2,
+          recipe,
+          constants,
+          preprocessRecipe(recipe, constants)
+      );
       target = target.asCollector(1, String[].class, concatType.parameterCount());
       target = MethodHandles.foldArguments(target, callSite.getTarget());
       target = MethodHandles.filterArguments(target, 0, toStringMethods);
       return new ConstantCallSite(target);
     } catch (Throwable e) {
       LOG.error(
-          "Failed to instrument makeConcatWithConstants, reverting to default concat logic", e);
+          "Failed to instrument makeConcatWithConstants, reverting to default concat logic",
+          e
+      );
       return makeConcatWithConstants(lookup, name, concatType, recipe, constants);
     }
   }
@@ -77,7 +82,8 @@ public class StringConcatFactoryCallSite {
       final String[] arguments,
       final String recipe,
       final Object[] constants,
-      final int[] recipeOffsets) {
+      final int[] recipeOffsets
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -144,7 +150,9 @@ public class StringConcatFactoryCallSite {
   }
 
   private static MethodType lookupToStringConverters(
-      final MethodType concatType, final MethodHandle[] toStringMethods) {
+      final MethodType concatType,
+      final MethodHandle[] toStringMethods
+  ) {
     MethodType result = concatType;
     for (int i = 0; i < result.parameterCount(); i++) {
       final Class<?> type = result.parameterType(i);
@@ -185,11 +193,14 @@ public class StringConcatFactoryCallSite {
               String[].class,
               String.class,
               Object[].class,
-              int[].class));
+              int[].class
+          )
+      );
     } catch (Throwable e) {
       LOG.error(
           "Failed to fetch instrumentation bridge method handle, no invocations will be instrumented",
-          e);
+          e
+      );
       return null;
     }
   }

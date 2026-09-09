@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.json;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,8 +13,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JSONTokenerInstrumentation() {
     super("org-json");
   }
@@ -34,7 +34,8 @@ public class JSONTokenerInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArguments(Reader.class)),
-        getClass().getName() + "$ConstructorAdvice");
+        getClass().getName() + "$ConstructorAdvice"
+    );
   }
 
   public static class ConstructorAdvice {

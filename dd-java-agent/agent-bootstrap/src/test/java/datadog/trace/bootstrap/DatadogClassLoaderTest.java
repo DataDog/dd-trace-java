@@ -3,7 +3,6 @@ package datadog.trace.bootstrap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -50,34 +49,30 @@ class DatadogClassLoaderTest {
     Object lock2 = classLoadingLock(ddLoader, className2);
     Phaser threadHoldLockPhase = new Phaser(2);
     Phaser acquireLockFromMainThreadPhase = new Phaser(2);
-
     // when
-    Thread thread1 =
-        new Thread() {
-          @Override
-          public void run() {
-            synchronized (lock1) {
-              threadHoldLockPhase.arrive();
-              acquireLockFromMainThreadPhase.arriveAndAwaitAdvance();
-            }
-          }
-        };
+    Thread thread1 = new Thread() {
+      @Override
+      public void run() {
+        synchronized (lock1) {
+          threadHoldLockPhase.arrive();
+          acquireLockFromMainThreadPhase.arriveAndAwaitAdvance();
+        }
+      }
+    };
     thread1.start();
 
-    Thread thread2 =
-        new Thread() {
-          @Override
-          public void run() {
-            threadHoldLockPhase.arriveAndAwaitAdvance();
-            synchronized (lock2) {
-              acquireLockFromMainThreadPhase.arrive();
-            }
-          }
-        };
+    Thread thread2 = new Thread() {
+      @Override
+      public void run() {
+        threadHoldLockPhase.arriveAndAwaitAdvance();
+        synchronized (lock2) {
+          acquireLockFromMainThreadPhase.arrive();
+        }
+      }
+    };
     thread2.start();
     thread1.join();
     thread2.join();
-
     // then — reaching this point means no deadlock occurred
   }
 
@@ -85,17 +80,14 @@ class DatadogClassLoaderTest {
   void agentClassloaderSuccessfullyLoadsClassesConcurrently() throws Exception {
     // given
     DatadogClassLoader ddLoader = new DatadogClassLoader(testJarLocation, null);
-
     // when
     ExecutorService executorService = Executors.newCachedThreadPool();
     List<Future<Void>> futures = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
-      futures.add(
-          executorService.submit(
-              () -> {
-                ddLoader.loadClass("a.A");
-                return null;
-              }));
+      futures.add(executorService.submit(() -> {
+        ddLoader.loadClass("a.A");
+        return null;
+      }));
     }
     for (Future<Void> future : futures) {
       try {
@@ -107,7 +99,6 @@ class DatadogClassLoaderTest {
         throw ex;
       }
     }
-
     // then — no exception thrown
   }
 
@@ -115,16 +106,12 @@ class DatadogClassLoaderTest {
   void loadNestedClassesAndCallGetEnclosingClass() throws Exception {
     // given
     DatadogClassLoader ddLoader = new DatadogClassLoader(nestedTestJarLocation, null);
-
     // when
     Class<?> klass = ddLoader.loadClass("p.EnclosingClass$StaticInnerClass");
-
     // then
     assertEquals("StaticInnerClass", klass.getSimpleName());
-
     // when
     Class<?> enclosing = klass.getEnclosingClass();
-
     // then
     assertEquals("EnclosingClass", enclosing.getSimpleName());
   }
@@ -149,7 +136,8 @@ class DatadogClassLoaderTest {
     File spacedJar = new File(spacedDir, "testjar-jdk8");
     Files.copy(
         new File("src/test/resources/classloader-test-jar/testjar-jdk8").toPath(),
-        spacedJar.toPath());
+        spacedJar.toPath()
+    );
 
     URL spacedJarUrl = spacedJar.toURI().toURL();
     DatadogClassLoader ddLoader = new DatadogClassLoader(spacedJarUrl, null);
@@ -158,14 +146,11 @@ class DatadogClassLoaderTest {
     assertNotNull(resource, "findResource should locate a/A.class in the test jar");
 
     String expectedPrefix = "jar:" + spacedJarUrl + "!/";
-    assertTrue(
-        resource.toString().startsWith(expectedPrefix),
-        () ->
-            "resource URL ("
-                + resource
-                + ") should start with the agent jar URL prefix ("
-                + expectedPrefix
-                + ") — pre-fix code derives the prefix from JarFile.getName(),"
-                + " which leaves the space unencoded and on Windows produces a malformed URL.");
+    assertTrue(resource.toString().startsWith(expectedPrefix), () -> "resource URL ("
+        + resource
+        + ") should start with the agent jar URL prefix ("
+        + expectedPrefix
+        + ") — pre-fix code derives the prefix from JarFile.getName(),"
+        + " which leaves the space unencoded and on Windows produces a malformed URL.");
   }
 }

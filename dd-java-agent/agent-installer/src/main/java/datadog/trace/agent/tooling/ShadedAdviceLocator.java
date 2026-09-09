@@ -3,7 +3,9 @@ package datadog.trace.agent.tooling;
 import java.io.IOException;
 import net.bytebuddy.dynamic.ClassFileLocator;
 
-/** Locates and shades class-file resources from the advice class-loader. */
+/**
+ * Locates and shades class-file resources from the advice class-loader.
+ */
 public final class ShadedAdviceLocator implements ClassFileLocator {
   private final ClassFileLocator adviceLocator;
   private final AdviceShader adviceShader;

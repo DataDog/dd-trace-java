@@ -3,7 +3,6 @@ package datadog.trace.core.datastreams;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import com.datadoghq.sketch.ddsketch.encoding.ByteArrayInput;
 import com.datadoghq.sketch.ddsketch.encoding.GrowingByteArrayOutput;
 import com.datadoghq.sketch.ddsketch.encoding.VarEncodingHelper;
@@ -27,9 +26,7 @@ public class DefaultPathwayContext implements PathwayContext {
   private static final Logger log = LoggerFactory.getLogger(DefaultPathwayContext.class);
   private final TimeSource timeSource;
   private final String serviceNameOverride;
-  private final GrowingByteArrayOutput outputBuffer =
-      GrowingByteArrayOutput.withInitialCapacity(20);
-
+  private final GrowingByteArrayOutput outputBuffer = GrowingByteArrayOutput.withInitialCapacity(20);
   // pathwayStartNanos is nanoseconds since epoch
   // Nano ticks is necessary because time differences should use a monotonically increasing clock
   // ticks is not comparable across JVMs
@@ -55,7 +52,8 @@ public class DefaultPathwayContext implements PathwayContext {
       long pathwayStartNanoTicks,
       long edgeStartNanoTicks,
       long hash,
-      String serviceNameOverride) {
+      String serviceNameOverride
+  ) {
     this(timeSource, serviceNameOverride);
     this.pathwayStartNanos = pathwayStartNanos;
     this.pathwayStartNanoTicks = pathwayStartNanoTicks;
@@ -76,12 +74,13 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal pathway object; instances do not escape to application code that could "
+      + "synchronize on the monitor.")
   public synchronized void setCheckpoint(
-      DataStreamsContext context, Consumer<StatsPoint> pointConsumer) {
+      DataStreamsContext context,
+      Consumer<StatsPoint> pointConsumer
+  ) {
     long startNanos = timeSource.getCurrentTimeNanos();
     long nanoTicks = timeSource.getNanoTicks();
 
@@ -93,8 +92,9 @@ public class DefaultPathwayContext implements PathwayContext {
         edgeStartNanoTicks = nanoTicks;
       } else {
         pathwayStartNanos = MILLISECONDS.toNanos(defaultTimestamp);
-        pathwayStartNanoTicks =
-            nanoTicks - MILLISECONDS.toNanos(timeSource.getCurrentTimeMillis() - defaultTimestamp);
+        pathwayStartNanoTicks = nanoTicks - MILLISECONDS.toNanos(
+            timeSource.getCurrentTimeMillis() - defaultTimestamp
+        );
         edgeStartNanoTicks = pathwayStartNanoTicks;
       }
 
@@ -102,7 +102,6 @@ public class DefaultPathwayContext implements PathwayContext {
       started = true;
       log.debug("Started {}", this);
     }
-
     // generate node hash
     long nodeHash = context.tags().getHash();
     // loop protection - a node should not be chosen as parent
@@ -117,26 +116,26 @@ public class DefaultPathwayContext implements PathwayContext {
     }
 
     long newHash = generatePathwayHash(nodeHash, hash);
-    long aggregationHash =
-        FNV64Hash.continueHash(
-            context.tags().getAggregationHash(),
-            DataStreamsTags.longToBytes(newHash),
-            FNV64Hash.Version.v1);
+    long aggregationHash = FNV64Hash.continueHash(
+        context.tags().getAggregationHash(),
+        DataStreamsTags.longToBytes(newHash),
+        FNV64Hash.Version.v1
+    );
 
     long pathwayLatencyNano = nanoTicks - pathwayStartNanoTicks;
     long edgeLatencyNano = nanoTicks - edgeStartNanoTicks;
 
-    StatsPoint point =
-        new StatsPoint(
-            context.tags(),
-            newHash,
-            hash,
-            aggregationHash,
-            startNanos,
-            pathwayLatencyNano,
-            edgeLatencyNano,
-            context.payloadSizeBytes(),
-            serviceNameOverride);
+    StatsPoint point = new StatsPoint(
+        context.tags(),
+        newHash,
+        hash,
+        aggregationHash,
+        startNanos,
+        pathwayLatencyNano,
+        edgeLatencyNano,
+        context.payloadSizeBytes(),
+        serviceNameOverride
+    );
     edgeStartNanoTicks = nanoTicks;
     hash = newHash;
 
@@ -154,10 +153,9 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal pathway object; instances do not escape to application code that could "
+      + "synchronize on the monitor.")
   public synchronized String encode() throws IOException {
     if (!started) {
       throw new IllegalStateException("Context must be started to encode");
@@ -171,7 +169,7 @@ public class DefaultPathwayContext implements PathwayContext {
 
     long edgeStartMillis =
         pathwayStartMillis
-            + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
+        + TimeUnit.NANOSECONDS.toMillis(edgeStartNanoTicks - pathwayStartNanoTicks);
 
     VarEncodingHelper.encodeSignedVarLong(outputBuffer, edgeStartMillis);
     byte[] base64 = Base64.getEncoder().encode(outputBuffer.trimmedCopy());
@@ -179,10 +177,9 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   @Override
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal pathway object; instances do not escape to application code that could synchronize on the monitor.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal pathway object; instances do not escape to application code that could "
+      + "synchronize on the monitor.")
   public synchronized String toString() {
     if (started) {
       return "PathwayContext[ Hash "
@@ -223,9 +220,12 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   static <C> DefaultPathwayContext extract(
-      C carrier, CarrierVisitor<C> getter, TimeSource timeSource, String serviceNameOverride) {
-    PathwayContextExtractor extractor =
-        new PathwayContextExtractor(timeSource, serviceNameOverride);
+      C carrier,
+      CarrierVisitor<C> getter,
+      TimeSource timeSource,
+      String serviceNameOverride
+  ) {
+    PathwayContextExtractor extractor = new PathwayContextExtractor(timeSource, serviceNameOverride);
     getter.forEachKeyValue(carrier, extractor);
     if (extractor.extractedContext == null) {
       log.debug("No context extracted");
@@ -236,7 +236,10 @@ public class DefaultPathwayContext implements PathwayContext {
   }
 
   protected static DefaultPathwayContext decode(
-      TimeSource timeSource, String serviceNameOverride, String base64) throws IOException {
+      TimeSource timeSource,
+      String serviceNameOverride,
+      String base64
+  ) throws IOException {
     byte[] base64Bytes = base64.getBytes(UTF_8);
     byte[] bytes = Base64.getDecoder().decode(base64Bytes);
     ByteArrayInput input = ByteArrayInput.wrap(bytes);
@@ -245,7 +248,6 @@ public class DefaultPathwayContext implements PathwayContext {
 
     long pathwayStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
     long pathwayStartNanos = TimeUnit.MILLISECONDS.toNanos(pathwayStartMillis);
-
     // Convert the start time to the current JVM's nano clock
     long nowNanos = timeSource.getCurrentTimeNanos();
     long nanosSinceStart = nowNanos - pathwayStartNanos;
@@ -254,7 +256,8 @@ public class DefaultPathwayContext implements PathwayContext {
 
     long edgeStartMillis = VarEncodingHelper.decodeSignedVarLong(input);
     long edgeStartNanoTicks =
-        pathwayStartNanoTicks + TimeUnit.MILLISECONDS.toNanos(edgeStartMillis - pathwayStartMillis);
+        pathwayStartNanoTicks
+        + TimeUnit.MILLISECONDS.toNanos(edgeStartMillis - pathwayStartMillis);
 
     return new DefaultPathwayContext(
         timeSource,
@@ -262,7 +265,8 @@ public class DefaultPathwayContext implements PathwayContext {
         pathwayStartNanoTicks,
         edgeStartNanoTicks,
         hash,
-        serviceNameOverride);
+        serviceNameOverride
+    );
   }
 
   private long generatePathwayHash(long nodeHash, long parentHash) {

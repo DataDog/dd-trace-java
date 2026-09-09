@@ -7,7 +7,8 @@ import io.undertow.util.HeaderValues;
 import java.util.Iterator;
 
 public abstract class UndertowExtractAdapter
-    implements AgentPropagation.ContextVisitor<HttpServerExchange> {
+    implements AgentPropagation.ContextVisitor<HttpServerExchange>
+{
   abstract HeaderMap getHeaders(HttpServerExchange exchange);
 
   @Override

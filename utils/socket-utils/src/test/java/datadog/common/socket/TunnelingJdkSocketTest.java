@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.condition.JRE.JAVA_16;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 
 public class TunnelingJdkSocketTest {
-
   private static final AtomicBoolean isServerRunning = new AtomicBoolean(false);
 
   @Test
@@ -48,8 +46,9 @@ public class TunnelingJdkSocketTest {
     assertFalse(clientSocket.isClosed());
     assertFalse(clientSocket.isInputShutdown());
     assertFalse(clientSocket.isOutputShutdown());
-    assertThrows(
-        SocketException.class, () -> clientSocket.connect(new InetSocketAddress("localhost", 0)));
+    assertThrows(SocketException.class, () -> clientSocket.connect(
+        new InetSocketAddress("localhost", 0)
+    ));
 
     clientSocket.close();
 
@@ -136,7 +135,6 @@ public class TunnelingJdkSocketTest {
     clientSocket.setSoTimeout(newTimeout);
     assertEquals(newTimeout, clientSocket.getSoTimeout());
     assertTimeoutPreemptively(Duration.ofMillis(testTimeout), () -> inputStream.read());
-
     // The socket should block indefinitely when timeout is set to 0, per
     // https://docs.oracle.com/en/java/javase/16/docs/api//java.base/java/net/Socket.html#setSoTimeout(int).
     int infiniteTimeout = 0;
@@ -176,18 +174,20 @@ public class TunnelingJdkSocketTest {
     assertEquals(newBufferSize, clientSocket.getStreamBufferSize());
 
     int invalidBufferSize = -1;
-    assertThrows(
-        IllegalArgumentException.class, () -> clientSocket.setSendBufferSize(invalidBufferSize));
-    assertThrows(
-        IllegalArgumentException.class, () -> clientSocket.setReceiveBufferSize(invalidBufferSize));
+    assertThrows(IllegalArgumentException.class, () -> clientSocket.setSendBufferSize(
+        invalidBufferSize
+    ));
+    assertThrows(IllegalArgumentException.class, () -> clientSocket.setReceiveBufferSize(
+        invalidBufferSize
+    ));
 
     clientSocket.close();
-    assertThrows(
-        SocketException.class,
-        () -> clientSocket.setSendBufferSize(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE));
-    assertThrows(
-        SocketException.class,
-        () -> clientSocket.setReceiveBufferSize(TunnelingJdkSocket.DEFAULT_BUFFER_SIZE));
+    assertThrows(SocketException.class, () -> clientSocket.setSendBufferSize(
+        TunnelingJdkSocket.DEFAULT_BUFFER_SIZE
+    ));
+    assertThrows(SocketException.class, () -> clientSocket.setReceiveBufferSize(
+        TunnelingJdkSocket.DEFAULT_BUFFER_SIZE
+    ));
     assertThrows(SocketException.class, clientSocket::getSendBufferSize);
     assertThrows(SocketException.class, clientSocket::getReceiveBufferSize);
     assertThrows(SocketException.class, clientSocket::getStreamBufferSize);
@@ -236,25 +236,22 @@ public class TunnelingJdkSocketTest {
   }
 
   private static void startServer(UnixDomainSocketAddress socketAddress) {
-    Thread serverThread =
-        new Thread(
-            () -> {
-              try (ServerSocketChannel serverChannel =
-                  ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
-                serverChannel.bind(socketAddress);
-                isServerRunning.set(true);
+    Thread serverThread = new Thread(() -> {
+      try (ServerSocketChannel serverChannel = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
+        serverChannel.bind(socketAddress);
+        isServerRunning.set(true);
 
-                synchronized (isServerRunning) {
-                  isServerRunning.notifyAll();
-                }
+        synchronized (isServerRunning) {
+          isServerRunning.notifyAll();
+        }
 
-                while (isServerRunning.get()) {
-                  SocketChannel clientChannel = serverChannel.accept();
-                }
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+        while (isServerRunning.get()) {
+          SocketChannel clientChannel = serverChannel.accept();
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
     serverThread.start();
 
     synchronized (isServerRunning) {

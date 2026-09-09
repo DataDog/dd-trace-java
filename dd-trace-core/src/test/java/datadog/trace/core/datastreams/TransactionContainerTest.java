@@ -2,14 +2,12 @@ package datadog.trace.core.datastreams;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.api.datastreams.TransactionInfoTestBridge;
 import datadog.trace.core.DDCoreJavaSpecification;
 import org.junit.jupiter.api.Test;
 
 public class TransactionContainerTest extends DDCoreJavaSpecification {
-
   private static final byte[] EXPECTED_CONTAINER_DATA =
       new byte[] {1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 49, 2, 0, 0, 0, 0, 0, 0, 0, 2, 1, 50};
 

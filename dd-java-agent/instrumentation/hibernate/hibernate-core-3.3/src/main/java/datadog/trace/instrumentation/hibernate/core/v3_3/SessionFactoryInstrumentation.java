@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.hibernate.HibernateDecorator.HIBERNA
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -43,20 +42,20 @@ public final class SessionFactoryInstrumentation extends AbstractHibernateInstru
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("openSession", "openStatelessSession"))
-            .and(takesArguments(0))
-            .and(
-                returns(
-                    namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession")
-                        .or(hasInterface(named("org.hibernate.Session"))))),
-        SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice");
+          .and(namedOneOf("openSession", "openStatelessSession"))
+          .and(takesArguments(0))
+          .and(
+              returns(namedOneOf("org.hibernate.Session", "org.hibernate.StatelessSession")
+                .or(hasInterface(named("org.hibernate.Session")))
+              )
+          ),
+        SessionFactoryInstrumentation.class.getName() + "$SessionFactoryAdvice"
+    );
   }
 
   public static class SessionFactoryAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final Object session) {
-
       final AgentSpan span = startSpan("java-hibernate", HIBERNATE_SESSION);
       DECORATOR.afterStart(span);
       DECORATOR.onConnection(span, session);
@@ -80,7 +79,8 @@ public final class SessionFactoryInstrumentation extends AbstractHibernateInstru
         // Not in 4.0
         final Validatable validatable,
         // Not before 3.3.0.GA
-        final JBossTransactionManagerLookup lookup) {
+        final JBossTransactionManagerLookup lookup
+    ) {
       validatable.validate();
       lookup.getUserTransactionName();
     }

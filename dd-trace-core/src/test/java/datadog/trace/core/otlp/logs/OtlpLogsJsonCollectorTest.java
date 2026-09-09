@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.json.JsonMapper;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -34,8 +33,10 @@ import org.junit.jupiter.api.Test;
  * timestamps, and integer severity/flags.
  */
 class OtlpLogsJsonCollectorTest {
-
-  private static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
+  private static final CoreTracer TRACER = CoreTracer
+    .builder()
+    .writer(new LoggingWriter())
+    .build();
   private static final OtelInstrumentationScope SCOPE =
       new OtelInstrumentationScope("test.logger", null, null);
 
@@ -100,19 +101,12 @@ class OtlpLogsJsonCollectorTest {
   @Test
   void collectionAfterFailedAttributeWriteIsStillWellFormed() throws IOException {
     OtlpLogsJsonCollector collector = OtlpLogsJsonCollector.INSTANCE;
-
     // open the attributes array on the shared/reused collector, then blow up before it's closed
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            collector.collectLogs(
-                (visitor, interval) -> {
-                  OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(SCOPE);
-                  scoped.visitAttribute(STRING_ATTRIBUTE, "service.name", "svc");
-                  throw new RuntimeException("boom");
-                },
-                0));
-
+    assertThrows(RuntimeException.class, () -> collector.collectLogs((visitor, interval) -> {
+      OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(SCOPE);
+      scoped.visitAttribute(STRING_ATTRIBUTE, "service.name", "svc");
+      throw new RuntimeException("boom");
+    }, 0));
     // a subsequent, successful collection must still emit a well-formed attributes array
     OtlpLogRecord record = logRecord("tagged", null, null);
     Map<String, Object> parsed =
@@ -125,7 +119,6 @@ class OtlpLogsJsonCollectorTest {
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
-
   private static OtlpLogRecord logRecord(String body, AgentSpanContext ctx, String eventName) {
     return new OtlpLogRecord(
         SCOPE,
@@ -136,20 +129,19 @@ class OtlpLogsJsonCollectorTest {
         body,
         emptyMap(),
         ctx,
-        eventName);
+        eventName
+    );
   }
 
   private static OtlpPayload collect(OtlpLogRecord record, Map<String, Object> attrs) {
     OtlpLogsJsonCollector collector = OtlpLogsJsonCollector.INSTANCE;
-    return collector.collectLogs(
-        (visitor, interval) -> {
-          OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(SCOPE);
-          for (Map.Entry<String, Object> attr : attrs.entrySet()) {
-            scoped.visitAttribute(STRING_ATTRIBUTE, attr.getKey(), attr.getValue());
-          }
-          scoped.visitLogRecord(record);
-        },
-        0);
+    return collector.collectLogs((visitor, interval) -> {
+      OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(SCOPE);
+      for (Map.Entry<String, Object> attr : attrs.entrySet()) {
+        scoped.visitAttribute(STRING_ATTRIBUTE, attr.getKey(), attr.getValue());
+      }
+      scoped.visitLogRecord(record);
+    }, 0);
   }
 
   @SuppressWarnings("unchecked")

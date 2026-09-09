@@ -14,7 +14,8 @@ public class KafkaConsumerInstrumentationHelper {
 
   public static String extractClusterId(
       KafkaConsumerInfo kafkaConsumerInfo,
-      ContextStore<Metadata, MetadataState> metadataContextStore) {
+      ContextStore<Metadata, MetadataState> metadataContextStore
+  ) {
     if (kafkaConsumerInfo != null) {
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
       if (consumerMetadata != null) {

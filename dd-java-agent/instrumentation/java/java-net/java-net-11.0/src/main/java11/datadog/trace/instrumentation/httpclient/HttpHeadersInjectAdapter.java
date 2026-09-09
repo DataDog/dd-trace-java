@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.function.BiPredicate;
 
 public class HttpHeadersInjectAdapter implements CarrierSetter<Map<String, List<String>>> {
-
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
   public static final BiPredicate<String, String> KEEP = HttpHeadersInjectAdapter::keep;
 

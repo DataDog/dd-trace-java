@@ -1,8 +1,11 @@
 package datadog.trace.bootstrap;
 
-/** Instrumentation Context API */
+/**
+ * Instrumentation Context API
+ */
 public class InstrumentationContext {
-  private InstrumentationContext() {}
+  private InstrumentationContext() {
+  }
 
   /**
    * Find a {@link ContextStore} instance for given key class and context class.
@@ -21,13 +24,14 @@ public class InstrumentationContext {
    * @param <C> context class
    * @return The instance of context store for given arguments.
    */
-  public static <K, C> ContextStore<K, C> get(
-      final Class<K> keyClass, final Class<C> contextClass) {
+  public static <K, C> ContextStore<K, C> get(final Class<K> keyClass, final Class<C> contextClass) {
     throw new RuntimeException(
+
         "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)."
-            + " If you get this exception, this method has not been rewritten."
-            + " Ensure instrumentation class has a contextStore method and the call to InstrumentationContext.get happens directly in an instrumentation Advice class."
-            + " See how_instrumentations_work.md for details.");
+        + " If you get this exception, this method has not been rewritten."
+        + " Ensure instrumentation class has a contextStore method and the call to InstrumentationContext.get happens directly in an instrumentation Advice class."
+        + " See how_instrumentations_work.md for details."
+    );
   }
 
   /**
@@ -38,9 +42,11 @@ public class InstrumentationContext {
    */
   public static <K, C> ContextStore<K, C> get(final String keyClass, final String contextClass) {
     throw new RuntimeException(
+
         "Calls to this method will be rewritten by Instrumentation Context Provider (e.g. FieldBackedProvider)."
-            + " If you get this exception, this method has not been rewritten."
-            + " Ensure instrumentation class has a contextStore method and the call to InstrumentationContext.get happens directly in an instrumentation Advice class."
-            + " See how_instrumentations_work.md for details.");
+        + " If you get this exception, this method has not been rewritten."
+        + " Ensure instrumentation class has a contextStore method and the call to InstrumentationContext.get happens directly in an instrumentation Advice class."
+        + " See how_instrumentations_work.md for details."
+    );
   }
 }

@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.javadsl.model.HttpHeader;
 import akka.http.scaladsl.model.headers.Cookie;
 import akka.http.scaladsl.model.headers.HttpCookiePair;
@@ -33,7 +32,9 @@ import scala.collection.immutable.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public CookieHeaderInstrumentation() {
     super("akka-http");
   }
@@ -47,11 +48,12 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("cookies"))
-            .and(returns(named("scala.collection.immutable.Seq")))
-            .and(takesArguments(0)),
-        CookieHeaderInstrumentation.class.getName() + "$TaintAllCookiesAdvice");
+          .and(not(isStatic()))
+          .and(named("cookies"))
+          .and(returns(named("scala.collection.immutable.Seq")))
+          .and(takesArguments(0)),
+        CookieHeaderInstrumentation.class.getName() + "$TaintAllCookiesAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -61,7 +63,8 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
     static void after(
         @Advice.This HttpHeader cookie,
         @Advice.Return Seq<HttpCookiePair> cookiePairs,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || cookiePairs == null || cookiePairs.isEmpty()) {
         return;

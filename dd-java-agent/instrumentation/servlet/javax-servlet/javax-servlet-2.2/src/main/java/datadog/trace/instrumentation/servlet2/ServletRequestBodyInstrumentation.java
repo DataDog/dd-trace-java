@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -42,7 +41,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ServletRequestBodyInstrumentation() {
     super("servlet-request-body");
   }
@@ -66,33 +67,35 @@ public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        // ignore wrappers that ship with servlet-api
-        .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
-        .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
+      // ignore wrappers that ship with servlet-api
+      .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
+      .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getInputStream")
-            .and(takesNoArguments())
-            .and(returns(named("javax.servlet.ServletInputStream")))
-            .and(isPublic()),
-        getClass().getName() + "$HttpServletGetInputStreamAdvice");
+          .and(takesNoArguments())
+          .and(returns(named("javax.servlet.ServletInputStream")))
+          .and(isPublic()),
+        getClass().getName() + "$HttpServletGetInputStreamAdvice"
+    );
     transformer.applyAdvice(
         named("getReader")
-            .and(takesNoArguments())
-            .and(returns(named("java.io.BufferedReader")))
-            .and(isPublic()),
-        getClass().getName() + "$HttpServletGetReaderAdvice");
+          .and(takesNoArguments())
+          .and(returns(named("java.io.BufferedReader")))
+          .and(isPublic()),
+        getClass().getName() + "$HttpServletGetReaderAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
-      "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
-      "datadog.trace.instrumentation.servlet2.ServletInputStreamWrapper"
+        "datadog.trace.instrumentation.servlet.BufferedReaderWrapper",
+        "datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper",
+        "datadog.trace.instrumentation.servlet2.ServletInputStreamWrapper"
     };
   }
 
@@ -109,7 +112,8 @@ public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.This final HttpServletRequest req,
         @Advice.Return(readOnly = false) ServletInputStream is,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (is == null) {
         return;
       }
@@ -163,7 +167,8 @@ public class ServletRequestBodyInstrumentation extends InstrumenterModule.AppSec
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
         @Advice.This final HttpServletRequest req,
-        @Advice.Return(readOnly = false) BufferedReader reader) {
+        @Advice.Return(readOnly = false) BufferedReader reader
+    ) {
       if (reader == null) {
         return;
       }

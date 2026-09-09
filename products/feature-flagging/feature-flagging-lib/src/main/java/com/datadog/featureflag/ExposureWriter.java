@@ -7,7 +7,6 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway.ExposureListener;
  * Implementations should use a background thread to perform these operations asynchronously.
  */
 public interface ExposureWriter extends AutoCloseable, ExposureListener {
-
   void init();
 
   void close();

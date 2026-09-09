@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.agent.SourceFileTrackingTransformer.MAX_QUEUE_SIZE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static utils.TestClassFileHelper.getClassFileBytes;
-
 import com.datadog.debugger.probe.LogProbe;
 import datadog.trace.api.Config;
 import java.lang.instrument.IllegalClassFormatException;
@@ -21,7 +20,8 @@ class SourceFileTrackingTransformerTest {
     TestHelper.setFieldInConfig(
         Config.get(),
         "debuggerThirdPartyExcludes",
-        new HashSet<>(Arrays.asList("com.datadog.debugger.agent")));
+        new HashSet<>(Arrays.asList("com.datadog.debugger.agent"))
+    );
     try {
       ClassesToRetransformFinder finder = new ClassesToRetransformFinder();
       SourceFileTrackingTransformer sourceFileTrackingTransformer =
@@ -32,7 +32,8 @@ class SourceFileTrackingTransformerTest {
           getInternalName(TopLevelHelper.class),
           null,
           null,
-          getClassFileBytes(TopLevelHelper.class));
+          getClassFileBytes(TopLevelHelper.class)
+      );
       List<Class<?>> changedClasses =
           finder.getAllLoadedChangedClasses(new Class[] {TopLevelHelper.class}, comparer);
       assertEquals(1, changedClasses.size());
@@ -42,17 +43,22 @@ class SourceFileTrackingTransformerTest {
           getInternalName(MyTopLevelClass.class),
           null,
           null,
-          getClassFileBytes(MyTopLevelClass.class));
+          getClassFileBytes(MyTopLevelClass.class)
+      );
       sourceFileTrackingTransformer.flush();
-      changedClasses =
-          finder.getAllLoadedChangedClasses(
-              new Class[] {TopLevelHelper.class, MyTopLevelClass.class}, comparer);
+      changedClasses = finder.getAllLoadedChangedClasses(
+          new Class[] {TopLevelHelper.class, MyTopLevelClass.class},
+          comparer
+      );
       assertEquals(2, changedClasses.size());
       assertEquals(TopLevelHelper.class, changedClasses.get(0));
       assertEquals(MyTopLevelClass.class, changedClasses.get(1));
     } finally {
       TestHelper.setFieldInConfig(
-          Config.get(), "debuggerThirdPartyExcludes", Collections.emptySet());
+          Config.get(),
+          "debuggerThirdPartyExcludes",
+          Collections.emptySet()
+      );
     }
   }
 
@@ -61,7 +67,8 @@ class SourceFileTrackingTransformerTest {
     TestHelper.setFieldInConfig(
         Config.get(),
         "debuggerThirdPartyExcludes",
-        new HashSet<>(Arrays.asList("com.datadog.debugger.agent")));
+        new HashSet<>(Arrays.asList("com.datadog.debugger.agent"))
+    );
     try {
       ClassesToRetransformFinder finder = new ClassesToRetransformFinder();
       SourceFileTrackingTransformer sourceFileTrackingTransformer =
@@ -72,7 +79,8 @@ class SourceFileTrackingTransformerTest {
           getInternalName(InnerHelper.class),
           null,
           null,
-          getClassFileBytes(InnerHelper.class));
+          getClassFileBytes(InnerHelper.class)
+      );
       sourceFileTrackingTransformer.flush();
       List<Class<?>> changedClasses =
           finder.getAllLoadedChangedClasses(new Class[] {InnerHelper.class}, comparer);
@@ -83,27 +91,34 @@ class SourceFileTrackingTransformerTest {
           getInternalName(InnerHelper.MyInner.class),
           null,
           null,
-          getClassFileBytes(InnerHelper.MyInner.class));
+          getClassFileBytes(InnerHelper.MyInner.class)
+      );
       sourceFileTrackingTransformer.transform(
           null,
           getInternalName(InnerHelper.MySecondInner.class),
           null,
           null,
-          getClassFileBytes(InnerHelper.MySecondInner.class));
+          getClassFileBytes(InnerHelper.MySecondInner.class)
+      );
       sourceFileTrackingTransformer.flush();
-      changedClasses =
-          finder.getAllLoadedChangedClasses(
-              new Class[] {
-                InnerHelper.class, InnerHelper.MyInner.class, InnerHelper.MySecondInner.class
-              },
-              comparer);
+      changedClasses = finder.getAllLoadedChangedClasses(
+          new Class[] {
+          InnerHelper.class,
+          InnerHelper.MyInner.class,
+          InnerHelper.MySecondInner.class
+          },
+          comparer
+      );
       assertEquals(3, changedClasses.size());
       assertEquals(InnerHelper.class, changedClasses.get(0));
       assertEquals(InnerHelper.MyInner.class, changedClasses.get(1));
       assertEquals(InnerHelper.MySecondInner.class, changedClasses.get(2));
     } finally {
       TestHelper.setFieldInConfig(
-          Config.get(), "debuggerThirdPartyExcludes", Collections.emptySet());
+          Config.get(),
+          "debuggerThirdPartyExcludes",
+          Collections.emptySet()
+      );
     }
   }
 
@@ -115,7 +130,10 @@ class SourceFileTrackingTransformerTest {
     ConfigurationComparer comparer = createComparer("TopLevelHelper.java");
     byte[] classFileBytes = getClassFileBytes(TopLevelHelper.class);
     replaceInByteArray(
-        classFileBytes, "TopLevelHelper.java".getBytes(), "TopLevelHelper.cloj".getBytes());
+        classFileBytes,
+        "TopLevelHelper.java".getBytes(),
+        "TopLevelHelper.cloj".getBytes()
+    );
     sourceFileTrackingTransformer.transform(null, "", null, null, classFileBytes);
     sourceFileTrackingTransformer.flush();
     List<Class<?>> changedClasses =
@@ -134,7 +152,8 @@ class SourceFileTrackingTransformerTest {
         getInternalName(TopLevelHelper.class),
         null,
         null,
-        getClassFileBytes(TopLevelHelper.class));
+        getClassFileBytes(TopLevelHelper.class)
+    );
     sourceFileTrackingTransformer.flush();
     assertEquals(0, finder.getClassNamesBySourceFile().size());
   }
@@ -150,7 +169,8 @@ class SourceFileTrackingTransformerTest {
           getInternalName(TopLevelHelper.class),
           null,
           null,
-          getClassFileBytes(TopLevelHelper.class));
+          getClassFileBytes(TopLevelHelper.class)
+      );
     }
     assertEquals(MAX_QUEUE_SIZE, sourceFileTrackingTransformer.getQueueSize());
   }
@@ -163,21 +183,23 @@ class SourceFileTrackingTransformerTest {
         if (oldIdx == oldBytes.length) {
           // Found the oldBytes, replace with newBytes
           System.arraycopy(newBytes, 0, buffer, i - oldIdx + 1, newBytes.length);
-          oldIdx = 0; // Reset for next search
+          // Reset for next search
+          oldIdx = 0;
         }
       } else {
-        oldIdx = 0; // Reset if current byte does not match
+        // Reset if current byte does not match
+        oldIdx = 0;
       }
     }
   }
 
   private ConfigurationComparer createComparer(String sourceFile) {
     Configuration emptyConfig = Configuration.builder().setService("service-name").build();
-    Configuration newConfig =
-        Configuration.builder()
-            .setService("service-name")
-            .add(new LogProbe.Builder().probeId("", 1).where(sourceFile, 42).build())
-            .build();
+    Configuration newConfig = Configuration
+      .builder()
+      .setService("service-name")
+      .add(new LogProbe.Builder().probeId("", 1).where(sourceFile, 42).build())
+      .build();
     return new ConfigurationComparer(emptyConfig, newConfig, new HashMap<>());
   }
 

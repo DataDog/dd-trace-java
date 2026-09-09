@@ -14,7 +14,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
@@ -59,8 +58,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class AgentlessConfigurationSourceTest {
   private static final String CONFIG_PATH = "/api/v2/feature-flagging/config/rules-based/server";
-
-  @Mock private FeatureFlaggingGateway.ConfigListener listener;
+  @Mock
+  private FeatureFlaggingGateway.ConfigListener listener;
 
   @AfterEach
   void cleanup() {
@@ -73,60 +72,65 @@ class AgentlessConfigurationSourceTest {
     final Config config = config("datad0g.com", "staging env");
 
     assertEquals(
-        "https://ufc-server.ff-cdn.datad0g.com/api/v2/feature-flagging/config/rules-based/server?dd_env=staging%20env",
-        AgentlessConfigurationSource.endpoint(config).toString());
+        "https://ufc-server.ff-cdn.datad0g.com/api/v2/feature-flagging/config/rules-"
+        + "based/server?dd_env=staging%20env",
+        AgentlessConfigurationSource.endpoint(config).toString()
+    );
   }
 
   @Test
   void derivesDatadogUfcCdnEndpointWithoutEnv() {
     assertEquals(
         "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server",
-        AgentlessConfigurationSource.endpoint(config("datadoghq.com", "")).toString());
+        AgentlessConfigurationSource.endpoint(config("datadoghq.com", "")).toString()
+    );
     assertEquals(
         "https://ufc-server.ff-cdn.datadoghq.com/api/v2/feature-flagging/config/rules-based/server",
-        AgentlessConfigurationSource.endpoint(config("datadoghq.com", null)).toString());
+        AgentlessConfigurationSource.endpoint(config("datadoghq.com", null)).toString()
+    );
   }
 
   @Test
   void appendsRulesBasedServerPathToConfiguredAgentlessBaseUrl() {
     final Config config = config();
     lenient()
-        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
-        .thenReturn("http://mock-backend:8080");
+      .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+      .thenReturn("http://mock-backend:8080");
 
     assertEquals(
         "http://mock-backend:8080/api/v2/feature-flagging/config/rules-based/server",
-        AgentlessConfigurationSource.endpoint(config).toString());
+        AgentlessConfigurationSource.endpoint(config).toString()
+    );
   }
 
   @Test
   void usesConfiguredAgentlessEndpointWithPathUnchanged() {
     final Config config = config();
     lenient()
-        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
-        .thenReturn("http://mock-backend:8080/custom/ufc?tenant=test");
+      .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+      .thenReturn("http://mock-backend:8080/custom/ufc?tenant=test");
 
     assertEquals(
         "http://mock-backend:8080/custom/ufc?tenant=test",
-        AgentlessConfigurationSource.endpoint(config).toString());
+        AgentlessConfigurationSource.endpoint(config).toString()
+    );
   }
 
   @Test
   void rejectsInvalidConfiguredAgentlessBaseUrl() {
     final Config config = config();
     lenient()
-        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
-        .thenReturn("not a URL");
+      .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+      .thenReturn("not a URL");
 
-    assertThrows(
-        IllegalArgumentException.class, () -> AgentlessConfigurationSource.endpoint(config));
+    assertThrows(IllegalArgumentException.class, () -> AgentlessConfigurationSource.endpoint(config));
   }
 
   @Test
   void rejectsInvalidDatadogUfcCdnEndpoint() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> AgentlessConfigurationSource.endpoint(config("datadoghq.com:bad", "")));
+    assertThrows(IllegalArgumentException.class, () -> AgentlessConfigurationSource.endpoint(
+        config("datadoghq.com:bad", "")
+    ));
   }
 
   @Test
@@ -139,17 +143,10 @@ class AgentlessConfigurationSourceTest {
 
   @Test
   void realHttpClientDoesNotSendApiKeyOverHttp() throws Exception {
-    try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.get(
-                            CONFIG_PATH,
-                            api ->
-                                api.getResponse()
-                                    .addHeader("ETag", "etag-b")
-                                    .send(emptyConfig()))))) {
+    try (JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.get(CONFIG_PATH, api -> api
+      .getResponse()
+      .addHeader("ETag", "etag-b")
+      .send(emptyConfig()))))) {
       final OkHttpClient httpClient = new OkHttpClient.Builder().build();
       final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
           new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient);
@@ -191,8 +188,8 @@ class AgentlessConfigurationSourceTest {
         scriptedClient(requests, delay -> {}, () -> 1.0, response(200, "etag-a", emptyConfig()));
     final Config config = config();
     lenient()
-        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
-        .thenReturn("https://flags.example.test/custom/ufc");
+      .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+      .thenReturn("https://flags.example.test/custom/ufc");
     final HttpUrl endpoint = HttpUrl.get("https://flags.example.test/custom/ufc");
 
     client.fetch(endpoint, config, null);
@@ -218,31 +215,29 @@ class AgentlessConfigurationSourceTest {
     final byte[] truncatedConfig = Arrays.copyOf(compressedConfig, compressedConfig.length - 8);
     final AtomicInteger responses = new AtomicInteger();
     try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.get(
-                            CONFIG_PATH,
-                            api -> {
-                              final boolean firstResponse = responses.getAndIncrement() == 0;
-                              final byte[] body =
-                                  firstResponse ? compressedConfig : truncatedConfig;
-                              api.getResponse()
-                                  .addHeader("Content-Encoding", "gzip")
-                                  .addHeader("ETag", firstResponse ? "etag-good" : "etag-bad")
-                                  .sendWithType("application/json", body);
-                            })))) {
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.get(CONFIG_PATH, api -> {
+      final boolean firstResponse = responses.getAndIncrement() == 0;
+      final byte[] body = firstResponse ? compressedConfig : truncatedConfig;
+      api
+        .getResponse()
+        .addHeader("Content-Encoding", "gzip")
+        .addHeader("ETag", firstResponse ? "etag-good" : "etag-bad")
+        .sendWithType("application/json", body);
+    })))) {
       final HttpUrl endpoint = HttpUrl.get(server.getAddress().resolve(CONFIG_PATH));
       final OkHttpClient httpClient = new OkHttpClient.Builder().build();
-      final AgentlessConfigurationSource service =
-          new AgentlessConfigurationSource(
-              endpoint,
-              config(),
+      final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+          endpoint,
+          config(),
+          30_000,
+          new AgentlessConfigurationSource.OkHttpUfcHttpClient(
+              httpClient,
               30_000,
-              new AgentlessConfigurationSource.OkHttpUfcHttpClient(
-                  httpClient, 30_000, delay -> {}, () -> 1.0),
-              Executors.newSingleThreadScheduledExecutor());
+                delay -> {},
+              () -> 1.0
+          ),
+          Executors.newSingleThreadScheduledExecutor()
+      );
       final ArgumentCaptor<ServerConfiguration> configuration =
           ArgumentCaptor.forClass(ServerConfiguration.class);
       FeatureFlaggingGateway.addConfigListener(listener);
@@ -270,18 +265,18 @@ class AgentlessConfigurationSourceTest {
     final String largeConfig = largeConfig(flagCount);
     assertTrue(largeConfig.getBytes(UTF_8).length > 500_000);
 
-    try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s -> s.handlers(h -> h.get(CONFIG_PATH, api -> api.getResponse().send(largeConfig))))) {
+    try (JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.get(CONFIG_PATH, api -> api
+      .getResponse()
+      .send(largeConfig))))) {
       final HttpUrl endpoint = HttpUrl.get(server.getAddress().resolve(CONFIG_PATH));
       final OkHttpClient httpClient = new OkHttpClient.Builder().build();
-      final AgentlessConfigurationSource service =
-          new AgentlessConfigurationSource(
-              endpoint,
-              config(),
-              30_000,
-              new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient),
-              Executors.newSingleThreadScheduledExecutor());
+      final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+          endpoint,
+          config(),
+          30_000,
+          new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient),
+          Executors.newSingleThreadScheduledExecutor()
+      );
       final ArgumentCaptor<ServerConfiguration> configuration =
           ArgumentCaptor.forClass(ServerConfiguration.class);
       FeatureFlaggingGateway.addConfigListener(listener);
@@ -301,17 +296,10 @@ class AgentlessConfigurationSourceTest {
 
   @Test
   void realHttpClientAllowsMissingEtagAndEmptyResponseBody() throws Exception {
-    try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.get(
-                            CONFIG_PATH,
-                            api ->
-                                api.getResponse()
-                                    .status(HttpURLConnection.HTTP_NO_CONTENT)
-                                    .send())))) {
+    try (JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.get(CONFIG_PATH, api -> api
+      .getResponse()
+      .status(HttpURLConnection.HTTP_NO_CONTENT)
+      .send())))) {
       final OkHttpClient httpClient = new OkHttpClient.Builder().build();
       final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
           new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient);
@@ -337,13 +325,12 @@ class AgentlessConfigurationSourceTest {
     final Call call = mock(Call.class);
     final HttpUrl endpoint = HttpUrl.get("http://localhost");
     final okhttp3.Request request = new okhttp3.Request.Builder().url(endpoint).build();
-    final Response okHttpResponse =
-        new Response.Builder()
-            .request(request)
-            .protocol(Protocol.HTTP_1_1)
-            .code(HttpURLConnection.HTTP_OK)
-            .message("OK")
-            .build();
+    final Response okHttpResponse = new Response.Builder()
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .code(HttpURLConnection.HTTP_OK)
+      .message("OK")
+      .build();
     when(httpClient.newCall(any())).thenReturn(call);
     when(call.execute()).thenReturn(okHttpResponse);
     final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
@@ -362,34 +349,28 @@ class AgentlessConfigurationSourceTest {
     final CountDownLatch requestStarted = new CountDownLatch(1);
     final CountDownLatch releaseRequest = new CountDownLatch(1);
     try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.get(
-                            CONFIG_PATH,
-                            api -> {
-                              requestStarted.countDown();
-                              assertTrue(releaseRequest.await(1, TimeUnit.SECONDS));
-                              api.getResponse().send(emptyConfig());
-                            })))) {
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.get(CONFIG_PATH, api -> {
+      requestStarted.countDown();
+      assertTrue(releaseRequest.await(1, TimeUnit.SECONDS));
+      api.getResponse().send(emptyConfig());
+    })))) {
       final OkHttpClient httpClient = new OkHttpClient.Builder().build();
       final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
           new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient);
       final ExecutorService runner = Executors.newSingleThreadExecutor();
 
       try {
-        final Future<AgentlessConfigurationSource.UfcHttpResponse> response =
-            runner.submit(
-                () ->
-                    client.fetch(
-                        HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)), config(), null));
+        final Future<AgentlessConfigurationSource.UfcHttpResponse> response = runner.submit(() -> client.fetch(
+            HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)),
+            config(),
+            null
+        ));
         assertTrue(requestStarted.await(1, TimeUnit.SECONDS));
-        assertThrows(
-            IllegalStateException.class,
-            () ->
-                client.fetch(
-                    HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)), config(), null));
+        assertThrows(IllegalStateException.class, () -> client.fetch(
+            HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)),
+            config(),
+            null
+        ));
 
         client.cancel();
 
@@ -407,11 +388,9 @@ class AgentlessConfigurationSourceTest {
 
   @Test
   void realHttpClientCancellationBeforeFetchPreventsRequest() throws Exception {
-    try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h -> h.get(CONFIG_PATH, api -> api.getResponse().send(emptyConfig()))))) {
+    try (JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.get(CONFIG_PATH, api -> api
+      .getResponse()
+      .send(emptyConfig()))))) {
       final OkHttpClient httpClient = new OkHttpClient.Builder().build();
       final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
           new AgentlessConfigurationSource.OkHttpUfcHttpClient(httpClient);
@@ -419,11 +398,11 @@ class AgentlessConfigurationSourceTest {
       try {
         client.cancel();
 
-        assertThrows(
-            IOException.class,
-            () ->
-                client.fetch(
-                    HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)), config(), null));
+        assertThrows(IOException.class, () -> client.fetch(
+            HttpUrl.get(server.getAddress().resolve(CONFIG_PATH)),
+            config(),
+            null
+        ));
       } finally {
         httpClient.dispatcher().executorService().shutdownNow();
         httpClient.connectionPool().evictAll();
@@ -434,21 +413,18 @@ class AgentlessConfigurationSourceTest {
   @Test
   void realHttpClientTimesOutDelayedResponse() throws Exception {
     try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.get(
-                            CONFIG_PATH,
-                            api -> {
-                              TimeUnit.MILLISECONDS.sleep(500);
-                              api.getResponse().send(emptyConfig());
-                            })))) {
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.get(CONFIG_PATH, api -> {
+      TimeUnit.MILLISECONDS.sleep(500);
+      api.getResponse().send(emptyConfig());
+    })))) {
       final HttpUrl endpoint = HttpUrl.get(server.getAddress().resolve(CONFIG_PATH));
       final OkHttpClient httpClient = OkHttpUtils.buildHttpClient(endpoint, 50);
-      final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-          new AgentlessConfigurationSource.OkHttpUfcHttpClient(
-              httpClient, 30_000, delay -> {}, () -> 1.0);
+      final AgentlessConfigurationSource.OkHttpUfcHttpClient client = new AgentlessConfigurationSource.OkHttpUfcHttpClient(
+          httpClient,
+          30_000,
+            delay -> {},
+          () -> 1.0
+      );
 
       try {
         assertThrows(IOException.class, () -> client.fetch(endpoint, config(), null));
@@ -479,14 +455,14 @@ class AgentlessConfigurationSourceTest {
 
   @Test
   void customEndpointRequiresJsonApiAndKeepsLastKnownGoodOnRawUfc() throws Exception {
-    final FakeClient client =
-        new FakeClient(
-            response(200, "etag-good", emptyConfig()),
-            response(200, "etag-raw", emptyConfigAttributes()));
+    final FakeClient client = new FakeClient(
+        response(200, "etag-good", emptyConfig()),
+        response(200, "etag-raw", emptyConfigAttributes())
+    );
     final Config config = config();
     lenient()
-        .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
-        .thenReturn("http://custom-backend/custom/ufc");
+      .when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl())
+      .thenReturn("http://custom-backend/custom/ufc");
     final AgentlessConfigurationSource service = service(client, config);
     final ArgumentCaptor<ServerConfiguration> configuration =
         ArgumentCaptor.forClass(ServerConfiguration.class);
@@ -517,11 +493,11 @@ class AgentlessConfigurationSourceTest {
 
   @Test
   void successfulResponseWithoutEtagClearsPreviousEtag() throws Exception {
-    final FakeClient client =
-        new FakeClient(
-            response(200, "etag-a", emptyConfig()),
-            response(200, null, emptyConfig()),
-            response(304, null, null));
+    final FakeClient client = new FakeClient(
+        response(200, "etag-a", emptyConfig()),
+        response(200, null, emptyConfig()),
+        response(304, null, null)
+    );
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -566,12 +542,14 @@ class AgentlessConfigurationSourceTest {
   void failedGatewayDispatchDoesNotAdvanceEtag() throws Exception {
     final FakeClient client =
         new FakeClient(
-            response(200, "etag-a", emptyConfig()), response(200, "etag-b", emptyConfig()));
+            response(200, "etag-a", emptyConfig()),
+            response(200, "etag-b", emptyConfig())
+    );
     final AgentlessConfigurationSource service = service(client);
     final FeatureFlaggingGateway.ConfigListener failingListener =
         configuration -> {
-          throw new IllegalStateException("listener rejected configuration");
-        };
+      throw new IllegalStateException("listener rejected configuration");
+    };
     FeatureFlaggingGateway.addConfigListener(failingListener);
 
     try {
@@ -588,12 +566,12 @@ class AgentlessConfigurationSourceTest {
 
   @Test
   void keepsLastKnownGoodOnAuthFailureAndMalformedPayload() throws Exception {
-    final FakeClient client =
-        new FakeClient(
-            response(200, "etag-good", emptyConfig()),
-            response(401, null, null),
-            response(200, null, "{not-json}"),
-            response(200, null, "{\"flags\":[]}"));
+    final FakeClient client = new FakeClient(
+        response(200, "etag-good", emptyConfig()),
+        response(401, null, null),
+        response(200, null, "{not-json}"),
+        response(200, null, "{\"flags\":[]}")
+    );
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -610,18 +588,21 @@ class AgentlessConfigurationSourceTest {
 
   @Test
   void rejectsForbiddenNonOkMissingBodyAndNullConfiguration() throws Exception {
-    final FakeClient client =
-        new FakeClient(
-            response(403, null, null),
-            response(404, null, null),
-            response(600, null, null),
-            response(200, null, null),
-            response(200, null, "null"),
-            response(200, null, jsonApiResponse("other-configuration", emptyConfigAttributes())),
-            response(200, null, "{\"data\":null}"),
-            response(
-                200, null, "{\"data\":{\"id\":\"1\",\"type\":\"universal-flag-configuration\"}}"),
-            response(200, null, emptyConfigAttributes()));
+    final FakeClient client = new FakeClient(
+        response(403, null, null),
+        response(404, null, null),
+        response(600, null, null),
+        response(200, null, null),
+        response(200, null, "null"),
+        response(200, null, jsonApiResponse("other-configuration", emptyConfigAttributes())),
+        response(200, null, "{\"data\":null}"),
+        response(
+            200,
+            null,
+            "{\\\"data\\\":{\\\"id\\\":\\\"1\\\",\\\"type\\\":\\\"universal-flag-" + "configuration\\\"}}"
+        ),
+        response(200, null, emptyConfigAttributes())
+    );
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -643,27 +624,29 @@ class AgentlessConfigurationSourceTest {
     final RatelimitedLogger ratelimitedLogger = mock(RatelimitedLogger.class);
     final FakeClient client = new FakeClient(response(401, null, null), response(403, null, null));
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    final AgentlessConfigurationSource service =
-        new AgentlessConfigurationSource(
-            HttpUrl.get("http://localhost" + CONFIG_PATH),
-            config(),
-            30_000,
-            client,
-            executor,
-            ratelimitedLogger);
+    final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config(),
+        30_000,
+        client,
+        executor,
+        ratelimitedLogger
+    );
 
     try {
       assertFalse(service.pollOnce());
       assertFalse(service.pollOnce());
 
       verify(ratelimitedLogger)
-          .warn(
-              "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
-              HttpURLConnection.HTTP_UNAUTHORIZED);
+        .warn(
+            "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
+            HttpURLConnection.HTTP_UNAUTHORIZED
+        );
       verify(ratelimitedLogger)
-          .warn(
-              "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
-              HttpURLConnection.HTTP_FORBIDDEN);
+        .warn(
+            "Feature Flagging agentless endpoint returned HTTP {}; verify endpoint authentication",
+            HttpURLConnection.HTTP_FORBIDDEN
+        );
     } finally {
       service.close();
     }
@@ -672,14 +655,14 @@ class AgentlessConfigurationSourceTest {
   @Test
   void retriesTimeoutBeforeApplyingConfig() throws Exception {
     final List<okhttp3.Request> requests = new ArrayList<>();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests,
-            delay -> {},
-            () -> 1.0,
-            new SocketTimeoutException("slow HTTP configuration source"),
-            new SocketTimeoutException("slow HTTP configuration source"),
-            response(200, "etag-a", emptyConfig()));
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+          delay -> {},
+        () -> 1.0,
+        new SocketTimeoutException("slow HTTP configuration source"),
+        new SocketTimeoutException("slow HTTP configuration source"),
+        response(200, "etag-a", emptyConfig())
+    );
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -692,15 +675,15 @@ class AgentlessConfigurationSourceTest {
   @Test
   void retriesClientTimeoutAndRateLimitStatusBeforeApplyingConfig() throws Exception {
     final List<okhttp3.Request> requests = new ArrayList<>();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests,
-            delay -> {},
-            () -> 1.0,
-            response(408, null, null),
-            response(200, "etag-a", emptyConfig()),
-            response(429, null, null),
-            response(200, "etag-b", emptyConfig()));
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+          delay -> {},
+        () -> 1.0,
+        response(408, null, null),
+        response(200, "etag-a", emptyConfig()),
+        response(429, null, null),
+        response(200, "etag-b", emptyConfig())
+    );
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -714,9 +697,13 @@ class AgentlessConfigurationSourceTest {
   @Test
   void retriesServerErrorThenKeepsColdStateOnNotModified() throws Exception {
     final List<okhttp3.Request> requests = new ArrayList<>();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests, delay -> {}, () -> 1.0, response(500, null, null), response(304, null, null));
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+          delay -> {},
+        () -> 1.0,
+        response(500, null, null),
+        response(304, null, null)
+    );
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -730,23 +717,23 @@ class AgentlessConfigurationSourceTest {
   void warnsRateLimitedAfterRetryableFailuresAreExhausted() throws Exception {
     final RatelimitedLogger ratelimitedLogger = mock(RatelimitedLogger.class);
     final List<okhttp3.Request> requests = new ArrayList<>();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests,
-            delay -> {},
-            () -> 1.0,
-            response(503, null, null),
-            response(503, null, null),
-            response(503, null, null));
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+          delay -> {},
+        () -> 1.0,
+        response(503, null, null),
+        response(503, null, null),
+        response(503, null, null)
+    );
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    final AgentlessConfigurationSource service =
-        new AgentlessConfigurationSource(
-            HttpUrl.get("http://localhost" + CONFIG_PATH),
-            config(),
-            30_000,
-            client,
-            executor,
-            ratelimitedLogger);
+    final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config(),
+        30_000,
+        client,
+        executor,
+        ratelimitedLogger
+    );
     FeatureFlaggingGateway.addConfigListener(listener);
 
     try {
@@ -754,8 +741,7 @@ class AgentlessConfigurationSourceTest {
 
       assertEquals(3, requests.size());
       verify(ratelimitedLogger)
-          .warn(
-              "Feature Flagging agentless endpoint failed after {} attempts with HTTP {}", 3, 503);
+        .warn("Feature Flagging agentless endpoint failed after {} attempts with HTTP {}", 3, 503);
       verifyNoInteractions(listener);
     } finally {
       service.close();
@@ -768,23 +754,23 @@ class AgentlessConfigurationSourceTest {
     final SocketTimeoutException finalFailure =
         new SocketTimeoutException("slow HTTP configuration source");
     final List<okhttp3.Request> requests = new ArrayList<>();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests,
-            delay -> {},
-            () -> 1.0,
-            new SocketTimeoutException("slow HTTP configuration source"),
-            new SocketTimeoutException("slow HTTP configuration source"),
-            finalFailure);
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+          delay -> {},
+        () -> 1.0,
+        new SocketTimeoutException("slow HTTP configuration source"),
+        new SocketTimeoutException("slow HTTP configuration source"),
+        finalFailure
+    );
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    final AgentlessConfigurationSource service =
-        new AgentlessConfigurationSource(
-            HttpUrl.get("http://localhost" + CONFIG_PATH),
-            config(),
-            30_000,
-            client,
-            executor,
-            ratelimitedLogger);
+    final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config(),
+        30_000,
+        client,
+        executor,
+        ratelimitedLogger
+    );
     FeatureFlaggingGateway.addConfigListener(listener);
 
     try {
@@ -792,10 +778,11 @@ class AgentlessConfigurationSourceTest {
 
       assertEquals(3, requests.size());
       verify(ratelimitedLogger)
-          .warn(
-              "Feature Flagging agentless endpoint request failed after {} attempts",
-              3,
-              finalFailure);
+        .warn(
+            "Feature Flagging agentless endpoint request failed after {} attempts",
+            3,
+            finalFailure
+        );
       verifyNoInteractions(listener);
     } finally {
       service.close();
@@ -806,14 +793,14 @@ class AgentlessConfigurationSourceTest {
   void usesIntervalAwareRetryBackoff() throws Exception {
     final List<Long> delays = new ArrayList<>();
     final List<okhttp3.Request> requests = new ArrayList<>();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests,
-            delays::add,
-            () -> 1.0,
-            response(503, null, null),
-            new SocketTimeoutException("slow HTTP configuration source"),
-            response(200, "etag-a", emptyConfig()));
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+        delays::add,
+        () -> 1.0,
+        response(503, null, null),
+        new SocketTimeoutException("slow HTTP configuration source"),
+        response(200, "etag-a", emptyConfig())
+    );
     final AgentlessConfigurationSource service = service(client);
     FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -862,9 +849,11 @@ class AgentlessConfigurationSourceTest {
     assertEquals(10_000, AgentlessConfigurationSource.retryDelayMillis(600_000, 1, 1.0));
     assertEquals(30_000, AgentlessConfigurationSource.retryDelayMillis(600_000, 2, 1.0));
     assertEquals(6_000, AgentlessConfigurationSource.retryDelayMillis(30_000, 1, 1.2));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> AgentlessConfigurationSource.retryDelayMillis(30_000, 3, 1.0));
+    assertThrows(IllegalArgumentException.class, () -> AgentlessConfigurationSource.retryDelayMillis(
+        30_000,
+        3,
+        1.0
+    ));
   }
 
   @Test
@@ -894,13 +883,13 @@ class AgentlessConfigurationSourceTest {
   @Test
   void initCompletesFirstPollAndCloseCancelsScheduledFuture() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
-    final AgentlessConfigurationSource service =
-        new AgentlessConfigurationSource(
-            HttpUrl.get("http://localhost" + CONFIG_PATH),
-            config(),
-            60_000,
-            client,
-            Executors.newSingleThreadScheduledExecutor());
+    final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config(),
+        60_000,
+        client,
+        Executors.newSingleThreadScheduledExecutor()
+    );
     FeatureFlaggingGateway.addConfigListener(listener);
 
     service.init();
@@ -913,20 +902,20 @@ class AgentlessConfigurationSourceTest {
   @Test
   void initCompletesInitialRetryCycleBeforeReturning() throws Exception {
     final List<okhttp3.Request> requests = new ArrayList<>();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests,
-            delay -> {},
-            () -> 1.0,
-            response(500, null, null),
-            response(200, "etag-a", emptyConfig()));
-    final AgentlessConfigurationSource service =
-        new AgentlessConfigurationSource(
-            HttpUrl.get("http://localhost" + CONFIG_PATH),
-            config(),
-            60_000,
-            client,
-            Executors.newSingleThreadScheduledExecutor());
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+          delay -> {},
+        () -> 1.0,
+        response(500, null, null),
+        response(200, "etag-a", emptyConfig())
+    );
+    final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config(),
+        60_000,
+        client,
+        Executors.newSingleThreadScheduledExecutor()
+    );
     FeatureFlaggingGateway.addConfigListener(listener);
 
     try {
@@ -956,26 +945,28 @@ class AgentlessConfigurationSourceTest {
   void scheduledPollContinuesAfterListenerRuntimeException() throws Exception {
     final FakeClient client =
         new FakeClient(
-            response(200, "etag-a", emptyConfig()), response(200, "etag-b", emptyConfig()));
-    final AgentlessConfigurationSource service =
-        new AgentlessConfigurationSource(
-            HttpUrl.get("http://localhost" + CONFIG_PATH),
-            config(),
-            10,
-            client,
-            Executors.newSingleThreadScheduledExecutor());
+            response(200, "etag-a", emptyConfig()),
+            response(200, "etag-b", emptyConfig())
+    );
+    final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config(),
+        10,
+        client,
+        Executors.newSingleThreadScheduledExecutor()
+    );
     final AtomicInteger listenerCalls = new AtomicInteger();
     // Wait on the listener rather than on FakeClient.calls: the call counter is incremented when
     // a request starts, so it reaches 2 before the second configuration has been applied.
     final CountDownLatch listenerNotified = new CountDownLatch(2);
     final FeatureFlaggingGateway.ConfigListener flakyListener =
         configuration -> {
-          final int call = listenerCalls.incrementAndGet();
-          listenerNotified.countDown();
-          if (call == 1) {
-            throw new IllegalStateException("listener rejected first configuration");
-          }
-        };
+      final int call = listenerCalls.incrementAndGet();
+      listenerNotified.countDown();
+      if (call == 1) {
+        throw new IllegalStateException("listener rejected first configuration");
+      }
+    };
     FeatureFlaggingGateway.addConfigListener(flakyListener);
 
     try {
@@ -1045,19 +1036,23 @@ class AgentlessConfigurationSourceTest {
     final CountDownLatch backoffStarted = new CountDownLatch(1);
     final List<okhttp3.Request> requests = new ArrayList<>();
     final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-        scriptedClient(
-            requests,
-            delay -> {
-              backoffStarted.countDown();
-              TimeUnit.MINUTES.sleep(1);
-            },
-            () -> 1.0,
-            new SocketTimeoutException("slow HTTP configuration source"),
-            response(200, "etag-a", emptyConfig()));
-    final AgentlessConfigurationSource service =
-        new AgentlessConfigurationSource(
-            HttpUrl.get("http://localhost" + CONFIG_PATH), config(), 30_000, client, executor);
+    final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+        requests,
+          delay -> {
+            backoffStarted.countDown();
+            TimeUnit.MINUTES.sleep(1);
+          },
+        () -> 1.0,
+        new SocketTimeoutException("slow HTTP configuration source"),
+        response(200, "etag-a", emptyConfig())
+    );
+    final AgentlessConfigurationSource service = new AgentlessConfigurationSource(
+        HttpUrl.get("http://localhost" + CONFIG_PATH),
+        config(),
+        30_000,
+        client,
+        executor
+    );
     final ExecutorService runner = Executors.newSingleThreadExecutor();
 
     try {
@@ -1101,17 +1096,17 @@ class AgentlessConfigurationSourceTest {
     @Test
     void preservesSystemTestSourceTransitionsAndLastKnownGoodState() throws Exception {
       final List<okhttp3.Request> requests = new ArrayList<>();
-      final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
-          scriptedClient(
-              requests,
-              delay -> {},
-              () -> 1.0,
-              response(200, "etag-a", emptyConfig()),
-              response(304, "etag-must-not-replace-a", null),
-              response(509, null, null),
-              response(200, "etag-b", emptyConfig()),
-              response(200, "etag-c", "{not-json}"),
-              response(401, null, null));
+      final AgentlessConfigurationSource.OkHttpUfcHttpClient client = scriptedClient(
+          requests,
+            delay -> {},
+          () -> 1.0,
+          response(200, "etag-a", emptyConfig()),
+          response(304, "etag-must-not-replace-a", null),
+          response(509, null, null),
+          response(200, "etag-b", emptyConfig()),
+          response(200, "etag-c", "{not-json}"),
+          response(401, null, null)
+      );
       final AgentlessConfigurationSource service = service(client);
       FeatureFlaggingGateway.addConfigListener(listener);
 
@@ -1131,70 +1126,77 @@ class AgentlessConfigurationSourceTest {
   }
 
   private static AgentlessConfigurationSource service(
-      final AgentlessConfigurationSource.UfcHttpClient client) {
+      final AgentlessConfigurationSource.UfcHttpClient client
+  ) {
     return new AgentlessConfigurationSource(
         HttpUrl.get("http://localhost" + CONFIG_PATH),
         config(),
         30_000,
         client,
-        Executors.newSingleThreadScheduledExecutor());
+        Executors.newSingleThreadScheduledExecutor()
+    );
   }
 
-  private static AgentlessConfigurationSource service(
-      final FakeClient client, final Config config) {
+  private static AgentlessConfigurationSource service(final FakeClient client, final Config config) {
     return new AgentlessConfigurationSource(
         HttpUrl.get("http://localhost" + CONFIG_PATH),
         config,
         30_000,
         client,
-        Executors.newSingleThreadScheduledExecutor());
+        Executors.newSingleThreadScheduledExecutor()
+    );
   }
 
   private static AgentlessConfigurationSource.OkHttpUfcHttpClient scriptedClient(
       final List<okhttp3.Request> requests,
       final AgentlessConfigurationSource.RetrySleeper retrySleeper,
       final java.util.function.DoubleSupplier jitter,
-      final Object... outcomes)
-      throws IOException {
+      final Object... outcomes
+  ) throws IOException {
     final BlockingQueue<Object> scriptedOutcomes = new LinkedBlockingQueue<>();
     scriptedOutcomes.addAll(Arrays.asList(outcomes));
     final OkHttpClient httpClient = mock(OkHttpClient.class);
-    when(httpClient.newCall(any()))
-        .thenAnswer(
-            invocation -> {
-              final okhttp3.Request request = invocation.getArgument(0);
-              requests.add(request);
-              final Object outcome = scriptedOutcomes.remove();
-              final Call call = mock(Call.class);
-              when(call.execute())
-                  .thenAnswer(
-                      ignored -> {
-                        if (outcome instanceof IOException) {
-                          throw (IOException) outcome;
-                        }
-                        return okHttpResponse(
-                            request, (AgentlessConfigurationSource.UfcHttpResponse) outcome);
-                      });
-              return call;
-            });
+    when(httpClient.newCall(any())).thenAnswer(invocation -> {
+      final okhttp3.Request request = invocation.getArgument(0);
+      requests.add(request);
+      final Object outcome = scriptedOutcomes.remove();
+      final Call call = mock(Call.class);
+      when(call.execute()).thenAnswer(ignored -> {
+        if (outcome instanceof IOException) {
+          throw (IOException) outcome;
+        }
+        return okHttpResponse(request, (AgentlessConfigurationSource.UfcHttpResponse) outcome);
+      });
+      return call;
+    });
     return new AgentlessConfigurationSource.OkHttpUfcHttpClient(
-        httpClient, 30_000, retrySleeper, jitter);
+        httpClient,
+        30_000,
+        retrySleeper,
+        jitter
+    );
   }
 
   private static AgentlessConfigurationSource.AgentlessRetryPolicy retryPolicy(
-      final AtomicBoolean cancelled) {
+      final AtomicBoolean cancelled
+  ) {
     return new AgentlessConfigurationSource.AgentlessRetryPolicy(
-        cancelled, 30_000, delay -> {}, () -> 1.0);
+        cancelled,
+        30_000,
+          delay -> {},
+        () -> 1.0
+    );
   }
 
   private static Response okHttpResponse(
-      final okhttp3.Request request, final AgentlessConfigurationSource.UfcHttpResponse response) {
-    final Response.Builder builder =
-        new Response.Builder()
-            .request(request)
-            .protocol(Protocol.HTTP_1_1)
-            .code(response.status)
-            .message(Integer.toString(response.status));
+      final okhttp3.Request request,
+      final AgentlessConfigurationSource.UfcHttpResponse response
+  ) {
+    final Response.Builder builder = new Response.Builder()
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .code(response.status)
+      .message(Integer.toString(response.status));
     if (response.etag != null) {
       builder.header("ETag", response.etag);
     }
@@ -1210,12 +1212,10 @@ class AgentlessConfigurationSourceTest {
 
   private static Config config(final String site, final String env) {
     final Config config = mock(Config.class);
-    lenient()
-        .when(config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds())
-        .thenReturn(30);
-    lenient()
-        .when(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds())
-        .thenReturn(5);
+    lenient().when(config.getFeatureFlaggingConfigurationSourcePollIntervalSeconds()).thenReturn(30);
+    lenient().when(config.getFeatureFlaggingConfigurationSourceRequestTimeoutSeconds()).thenReturn(
+        5
+    );
     lenient().when(config.getFeatureFlaggingConfigurationSourceAgentlessBaseUrl()).thenReturn(null);
     lenient().when(config.getApiKey()).thenReturn("test-api-key");
     lenient().when(config.getSite()).thenReturn(site);
@@ -1224,9 +1224,15 @@ class AgentlessConfigurationSourceTest {
   }
 
   private static AgentlessConfigurationSource.UfcHttpResponse response(
-      final int status, final String etag, final String body) {
+      final int status,
+      final String etag,
+      final String body
+  ) {
     return new AgentlessConfigurationSource.UfcHttpResponse(
-        status, etag, body == null ? null : body.getBytes(UTF_8));
+        status,
+        etag,
+        body == null ? null : body.getBytes(UTF_8)
+    );
   }
 
   private static String emptyConfig() {
@@ -1253,24 +1259,26 @@ class AgentlessConfigurationSourceTest {
   }
 
   private static String largeConfig(final int flagCount) {
-    final StringBuilder json =
-        new StringBuilder(
-            "{\"createdAt\":\"2026-07-15T19:57:07.219869778Z\","
-                + "\"environment\":{\"name\":\"Large Test\"},"
-                + "\"flags\":{");
+    final StringBuilder json = new StringBuilder(
+        "{\"createdAt\":\"2026-07-15T19:57:07.219869778Z\","
+        + "\"environment\":{\"name\":\"Large Test\"},"
+        + "\"flags\":{"
+    );
     for (int index = 0; index < flagCount; index++) {
       if (index > 0) {
         json.append(',');
       }
       final String flagKey = "large-flag-" + index;
-      json.append('"')
-          .append(flagKey)
-          .append("\":{\"key\":\"")
-          .append(flagKey)
-          .append(
-              "\",\"enabled\":true,\"variationType\":\"STRING\","
-                  + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
-                  + "\"allocations\":[]}");
+      json
+        .append('"')
+        .append(flagKey)
+        .append("\":{\"key\":\"")
+        .append(flagKey)
+        .append(
+            "\",\"enabled\":true,\"variationType\":\"STRING\","
+            + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
+            + "\"allocations\":[]}"
+        );
     }
     return jsonApiResponse("universal-flag-configuration", json.append("}}").toString());
   }
@@ -1314,7 +1322,10 @@ class AgentlessConfigurationSourceTest {
 
     @Override
     public AgentlessConfigurationSource.UfcHttpResponse fetch(
-        final HttpUrl endpoint, final Config config, final String etag) throws IOException {
+        final HttpUrl endpoint,
+        final Config config,
+        final String etag
+    ) throws IOException {
       calls.incrementAndGet();
       requests.add(new Request(etag));
       if (requestStarted != null) {

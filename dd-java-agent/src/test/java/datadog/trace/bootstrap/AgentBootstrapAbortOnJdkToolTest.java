@@ -2,7 +2,6 @@ package datadog.trace.bootstrap;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,7 +9,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class AgentBootstrapAbortOnJdkToolTest {
-
   private String savedModuleMain;
   private String savedJavaCommand;
 
@@ -52,90 +50,155 @@ class AgentBootstrapAbortOnJdkToolTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        // Standard JDK 9+ module-based tools
-        "java.base", // keytool
-        "jdk.compiler", // javac
-        "jdk.jartool", // jar
-        "jdk.javadoc", // javadoc
-        "jdk.jcmd", // jcmd
-        "jdk.jconsole", // jconsole
-        "jdk.jshell", // jshell
-        "jdk.jfr", // jfr (JDK 9+)
-        // OpenJ9 / Semeru 11+ module-based tools
-        "openj9.dtfj", // jextract, jpackcore
-        "openj9.dtfjview", // jdmpview
-        "openj9.traceformat", // traceformat
-      })
+  @ValueSource(strings = {
+      // Standard JDK 9+ module-based tools
+      // keytool
+      "java.base",
+      // javac
+      "jdk.compiler",
+      // jar
+      "jdk.jartool",
+      // javadoc
+      "jdk.javadoc",
+      // jcmd
+      "jdk.jcmd",
+      // jconsole
+      "jdk.jconsole",
+      // jshell
+      "jdk.jshell",
+      // jfr (JDK 9+)
+      "jdk.jfr",
+      // OpenJ9 / Semeru 11+ module-based tools
+      // jextract, jpackcore
+      "openj9.dtfj",
+      // jdmpview
+      "openj9.dtfjview",
+      // traceformat
+      "openj9.traceformat"
+  })
   void isJdkToolByModuleMain(String moduleMain) {
     System.setProperty("jdk.module.main", moduleMain);
     assertTrue(AgentBootstrap.isJdkTool());
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        // IBM J9 JDK 8 specific tool main classes
-        "com.ibm.crypto.tools.KeyTool", // keytool
-        "com.ibm.security.krb5.internal.tools.Kinit", // kinit
-        "com.ibm.security.krb5.internal.tools.Klist", // klist
-        "com.ibm.security.krb5.internal.tools.Ktab", // ktab
-        "com.ibm.jvm.dtfjview.DTFJView", // jdmpview
-        "com.ibm.jvm.j9.dump.extract.Main", // jextract
-        "com.ibm.gsk.ikeyman.Ikeyman", // ikeyman
-        "com.ibm.gsk.ikeyman.ikeycmd", // ikeycmd
-        "com.ibm.CosNaming.TransientNameServer", // tnameserv
-        "com.ibm.idl.toJavaPortable.Compile", // idlj
-        // OpenJ9 / Semeru 8 specific tool main classes (OpenJ9 reimplementation of HotSpot tools)
-        "openj9.tools.attach.diagnostics.tools.Jcmd", // jcmd
-        "openj9.tools.attach.diagnostics.tools.Jps", // jps
-        "openj9.tools.attach.diagnostics.tools.Jstat", // jstat
-        "openj9.tools.attach.diagnostics.tools.Jmap", // jmap
-        "openj9.tools.attach.diagnostics.tools.Jstack", // jstack
-        "com.ibm.jvm.TraceFormat", // traceformat
-        // Standard JDK 8 tool main classes (Corretto 8 / OpenJDK 8)
-        "sun.tools.jar.Main", // jar
-        "com.sun.tools.javac.Main", // javac
-        "com.sun.tools.javadoc.Main", // javadoc
-        "com.sun.tools.javap.Main", // javap
-        "com.sun.tools.javah.Main", // javah
-        "sun.security.tools.keytool.Main", // keytool
-        "sun.security.tools.jarsigner.Main", // jarsigner
-        "sun.security.tools.policytool.PolicyTool", // policytool
-        "com.sun.tools.example.debug.tty.TTY", // jdb
-        "com.sun.tools.jdeps.Main", // jdeps
-        "sun.rmi.rmic.Main", // rmic
-        "sun.rmi.registry.RegistryImpl", // rmiregistry
-        "sun.rmi.server.Activation", // rmid
-        "com.sun.tools.extcheck.Main", // extcheck
-        "sun.tools.serialver.SerialVer", // serialver
-        "sun.tools.native2ascii.Main", // native2ascii
-        "com.sun.tools.internal.ws.WsGen", // wsgen
-        "com.sun.tools.internal.ws.WsImport", // wsimport
-        "com.sun.tools.internal.xjc.Driver", // xjc
-        "com.sun.tools.internal.jxc.SchemaGenerator", // schemagen
-        "com.sun.tools.script.shell.Main", // jrunscript
-        "sun.tools.jconsole.JConsole", // jconsole
-        "sun.applet.Main", // appletviewer
-        "com.sun.corba.se.impl.naming.cosnaming.TransientNameServer", // tnameserv
-        "com.sun.tools.corba.se.idl.toJavaPortable.Compile", // idlj
-        "com.sun.corba.se.impl.activation.ORBD", // orbd
-        "com.sun.corba.se.impl.activation.ServerTool", // servertool
-        "sun.tools.jps.Jps", // jps
-        "sun.tools.jstack.JStack", // jstack
-        "sun.tools.jmap.JMap", // jmap
-        "sun.tools.jinfo.JInfo", // jinfo
-        "com.sun.tools.hat.Main", // jhat
-        "sun.tools.jstat.Jstat", // jstat
-        "sun.tools.jstatd.Jstatd", // jstatd
-        "sun.tools.jcmd.JCmd", // jcmd
-        "jdk.jfr.internal.tool.Main", // jfr (OpenJDK 8u262+ backport)
-        "sun.jvm.hotspot.jdi.SADebugServer", // jsadebugd
-        "jdk.nashorn.tools.Shell", // jjs (Nashorn JS shell, JDK 8)
-        "sun.jvm.hotspot.HSDB", // hsdb (HotSpot SA GUI debugger, JDK 8)
-        "sun.jvm.hotspot.CLHSDB", // clhsdb (HotSpot SA command-line debugger, JDK 8)
-      })
+  @ValueSource(strings = {
+      // IBM J9 JDK 8 specific tool main classes
+      // keytool
+      "com.ibm.crypto.tools.KeyTool",
+      // kinit
+      "com.ibm.security.krb5.internal.tools.Kinit",
+      // klist
+      "com.ibm.security.krb5.internal.tools.Klist",
+      // ktab
+      "com.ibm.security.krb5.internal.tools.Ktab",
+      // jdmpview
+      "com.ibm.jvm.dtfjview.DTFJView",
+      // jextract
+      "com.ibm.jvm.j9.dump.extract.Main",
+      // ikeyman
+      "com.ibm.gsk.ikeyman.Ikeyman",
+      // ikeycmd
+      "com.ibm.gsk.ikeyman.ikeycmd",
+      // tnameserv
+      "com.ibm.CosNaming.TransientNameServer",
+      // idlj
+      "com.ibm.idl.toJavaPortable.Compile",
+      // OpenJ9 / Semeru 8 specific tool main classes (OpenJ9 reimplementation of HotSpot tools)
+      // jcmd
+      "openj9.tools.attach.diagnostics.tools.Jcmd",
+      // jps
+      "openj9.tools.attach.diagnostics.tools.Jps",
+      // jstat
+      "openj9.tools.attach.diagnostics.tools.Jstat",
+      // jmap
+      "openj9.tools.attach.diagnostics.tools.Jmap",
+      // jstack
+      "openj9.tools.attach.diagnostics.tools.Jstack",
+      // traceformat
+      "com.ibm.jvm.TraceFormat",
+      // Standard JDK 8 tool main classes (Corretto 8 / OpenJDK 8)
+      // jar
+      "sun.tools.jar.Main",
+      // javac
+      "com.sun.tools.javac.Main",
+      // javadoc
+      "com.sun.tools.javadoc.Main",
+      // javap
+      "com.sun.tools.javap.Main",
+      // javah
+      "com.sun.tools.javah.Main",
+      // keytool
+      "sun.security.tools.keytool.Main",
+      // jarsigner
+      "sun.security.tools.jarsigner.Main",
+      // policytool
+      "sun.security.tools.policytool.PolicyTool",
+      // jdb
+      "com.sun.tools.example.debug.tty.TTY",
+      // jdeps
+      "com.sun.tools.jdeps.Main",
+      // rmic
+      "sun.rmi.rmic.Main",
+      // rmiregistry
+      "sun.rmi.registry.RegistryImpl",
+      // rmid
+      "sun.rmi.server.Activation",
+      // extcheck
+      "com.sun.tools.extcheck.Main",
+      // serialver
+      "sun.tools.serialver.SerialVer",
+      // native2ascii
+      "sun.tools.native2ascii.Main",
+      // wsgen
+      "com.sun.tools.internal.ws.WsGen",
+      // wsimport
+      "com.sun.tools.internal.ws.WsImport",
+      // xjc
+      "com.sun.tools.internal.xjc.Driver",
+      // schemagen
+      "com.sun.tools.internal.jxc.SchemaGenerator",
+      // jrunscript
+      "com.sun.tools.script.shell.Main",
+      // jconsole
+      "sun.tools.jconsole.JConsole",
+      // appletviewer
+      "sun.applet.Main",
+      // tnameserv
+      "com.sun.corba.se.impl.naming.cosnaming.TransientNameServer",
+      // idlj
+      "com.sun.tools.corba.se.idl.toJavaPortable.Compile",
+      // orbd
+      "com.sun.corba.se.impl.activation.ORBD",
+      // servertool
+      "com.sun.corba.se.impl.activation.ServerTool",
+      // jps
+      "sun.tools.jps.Jps",
+      // jstack
+      "sun.tools.jstack.JStack",
+      // jmap
+      "sun.tools.jmap.JMap",
+      // jinfo
+      "sun.tools.jinfo.JInfo",
+      // jhat
+      "com.sun.tools.hat.Main",
+      // jstat
+      "sun.tools.jstat.Jstat",
+      // jstatd
+      "sun.tools.jstatd.Jstatd",
+      // jcmd
+      "sun.tools.jcmd.JCmd",
+      // jfr (OpenJDK 8u262+ backport)
+      "jdk.jfr.internal.tool.Main",
+      // jsadebugd
+      "sun.jvm.hotspot.jdi.SADebugServer",
+      // jjs (Nashorn JS shell, JDK 8)
+      "jdk.nashorn.tools.Shell",
+      // hsdb (HotSpot SA GUI debugger, JDK 8)
+      "sun.jvm.hotspot.HSDB",
+      // clhsdb (HotSpot SA command-line debugger, JDK 8)
+      "sun.jvm.hotspot.CLHSDB"
+  })
   void isJdkToolByCommand(String mainClass) {
     System.setProperty("sun.java.command", mainClass);
     assertTrue(AgentBootstrap.isJdkTool());

@@ -5,29 +5,21 @@ import datadog.crashtracking.buildid.BuildInfo;
 import java.util.Objects;
 
 public final class StackFrame {
-
   public final String path;
   public final Integer line;
   public final String function;
-
   @Json(name = "type")
   public final String frameType;
-
   @Json(name = "build_id")
   public final String buildId;
-
   @Json(name = "build_id_type")
   public final BuildInfo.BuildIdType buildIdType;
-
   @Json(name = "file_type")
   public final BuildInfo.FileType fileType;
-
   @Json(name = "ip")
   public final String ip;
-
   @Json(name = "symbol_address")
   public final String symbolAddress;
-
   @Json(name = "relative_address")
   public String relativeAddress;
 
@@ -41,7 +33,8 @@ public final class StackFrame {
       BuildInfo.FileType fileType,
       String ip,
       String symbolAddress,
-      String relativeAddress) {
+      String relativeAddress
+  ) {
     this.path = path;
     this.line = line;
     this.function = function;
@@ -87,6 +80,7 @@ public final class StackFrame {
         fileType,
         ip,
         symbolAddress,
-        relativeAddress);
+        relativeAddress
+    );
   }
 }

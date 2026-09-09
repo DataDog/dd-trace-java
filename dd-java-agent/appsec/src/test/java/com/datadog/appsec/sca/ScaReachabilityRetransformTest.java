@@ -8,7 +8,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import java.io.StringReader;
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -29,13 +28,16 @@ import org.junit.jupiter.api.Test;
  * class before any removal.
  */
 class ScaReachabilityRetransformTest {
-
-  /** Dummy class used as the retransform target in tests. */
+  /**
+   * Dummy class used as the retransform target in tests.
+   */
   public static class Target {
     public void method() {}
   }
 
-  /** Second dummy class, distinct from {@link Target}, used to simulate a mixed batch. */
+  /**
+   * Second dummy class, distinct from {@link Target}, used to simulate a mixed batch.
+   */
   public static class Other {
     public void method() {}
   }
@@ -51,19 +53,20 @@ class ScaReachabilityRetransformTest {
     when(instr.getAllLoadedClasses()).thenReturn(new Class<?>[] {Target.class, Target.class});
     when(instr.isModifiableClass(Target.class)).thenReturn(true);
 
-    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
+    ScaCveDatabase db =
+        ScaCveDatabase.parse(new StringReader("{\\\"version\\\":1," + "\\\"entries\\\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
     t.pendingRetransformNames.add(internalName);
 
     t.performPendingRetransforms();
-
     // Both entries must reach retransformClasses: with the old remove() approach only the first
     // matched (length 1). With contains()+removeAll() both are collected (length 2).
     // Mockito expands varargs as individual arguments, so verify with two explicit entries.
     verify(instr).retransformClasses(Target.class, Target.class);
     assertTrue(
         t.pendingRetransformNames.isEmpty(),
-        "internal name must be removed from the pending set after retransform");
+        "internal name must be removed from the pending set after retransform"
+    );
   }
 
   @Test
@@ -75,7 +78,8 @@ class ScaReachabilityRetransformTest {
     when(instr.isModifiableClass(Target.class)).thenReturn(true);
     doThrow(new RuntimeException("retransform failed")).when(instr).retransformClasses(any());
 
-    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
+    ScaCveDatabase db =
+        ScaCveDatabase.parse(new StringReader("{\\\"version\\\":1," + "\\\"entries\\\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
     t.pendingRetransformNames.add(internalName);
 
@@ -85,7 +89,8 @@ class ScaReachabilityRetransformTest {
         2,
         t.pendingRetransform.size(),
         "the failing batch of 2 must be bisected into 2 singleton batches for the next"
-            + " heartbeat retry");
+        + " heartbeat retry"
+    );
   }
 
   @Test
@@ -99,14 +104,17 @@ class ScaReachabilityRetransformTest {
     when(instr.isModifiableClass(Target.class)).thenReturn(true);
     doThrow(new RuntimeException("retransform failed")).when(instr).retransformClasses(any());
 
-    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
+    ScaCveDatabase db =
+        ScaCveDatabase.parse(new StringReader("{\\\"version\\\":1," + "\\\"entries\\\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
     t.pendingRetransform.add(new ArrayList<>(Collections.singletonList(Target.class)));
 
     t.performPendingRetransforms();
 
     assertTrue(
-        t.pendingRetransform.isEmpty(), "class must be dropped (not re-queued) after one failure");
+        t.pendingRetransform.isEmpty(),
+        "class must be dropped (not re-queued) after one failure"
+    );
   }
 
   @Test
@@ -114,7 +122,8 @@ class ScaReachabilityRetransformTest {
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.isModifiableClass(Target.class)).thenReturn(true);
 
-    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
+    ScaCveDatabase db =
+        ScaCveDatabase.parse(new StringReader("{\\\"version\\\":1," + "\\\"entries\\\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
 
     t.pendingRetransform.add(new ArrayList<>(Collections.singletonList(Target.class)));
@@ -138,32 +147,34 @@ class ScaReachabilityRetransformTest {
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.isModifiableClass(poison)).thenReturn(true);
     when(instr.isModifiableClass(healthy)).thenReturn(true);
-    doAnswer(
-            invocation -> {
-              // Mockito flattens the varargs invocation, so getArguments() yields the individual
-              // Class<?> elements rather than the backing array.
-              for (Object arg : invocation.getArguments()) {
-                if (arg == poison) {
-                  throw new RuntimeException("retransform failed");
-                }
-              }
-              return null;
-            })
-        .when(instr)
-        .retransformClasses(any());
+    doAnswer(invocation -> {
+      // Mockito flattens the varargs invocation, so getArguments() yields the individual
+      // Class<?> elements rather than the backing array.
+      for (Object arg : invocation.getArguments()) {
+        if (arg == poison) {
+          throw new RuntimeException("retransform failed");
+        }
+      }
+      return null;
+    })
+      .when(instr)
+      .retransformClasses(any());
 
-    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
+    ScaCveDatabase db =
+        ScaCveDatabase.parse(new StringReader("{\\\"version\\\":1," + "\\\"entries\\\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
     t.pendingRetransform.add(new ArrayList<>(Arrays.asList(poison, healthy)));
-
-    t.performPendingRetransforms(); // batch of 2 fails, bisects into [poison] and [healthy]
-    t.performPendingRetransforms(); // [healthy] succeeds alone; [poison] fails alone and is dropped
+    // batch of 2 fails, bisects into [poison] and [healthy]
+    t.performPendingRetransforms();
+    // [healthy] succeeds alone; [poison] fails alone and is dropped
+    t.performPendingRetransforms();
 
     verify(instr).retransformClasses(healthy);
     assertTrue(
         t.pendingRetransform.isEmpty(),
         "healthy class must be successfully retransformed and the poison class dropped, leaving"
-            + " nothing queued");
+        + " nothing queued"
+    );
   }
 
   @Test
@@ -178,7 +189,8 @@ class ScaReachabilityRetransformTest {
     when(instr.getAllLoadedClasses()).thenReturn(new Class<?>[] {Target.class});
     when(instr.isModifiableClass(Target.class)).thenReturn(false);
 
-    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
+    ScaCveDatabase db =
+        ScaCveDatabase.parse(new StringReader("{\\\"version\\\":1," + "\\\"entries\\\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
     t.pendingRetransformNames.add(internalName);
 
@@ -186,10 +198,12 @@ class ScaReachabilityRetransformTest {
 
     assertTrue(
         t.pendingRetransformNames.isEmpty(),
-        "non-modifiable class must be removed from pendingRetransformNames");
+        "non-modifiable class must be removed from pendingRetransformNames"
+    );
     assertTrue(
         t.pendingRetransform.isEmpty(),
-        "non-modifiable class must not be re-queued in pendingRetransform");
+        "non-modifiable class must not be re-queued in pendingRetransform"
+    );
   }
 
   @Test
@@ -203,14 +217,13 @@ class ScaReachabilityRetransformTest {
     String internalName = Target.class.getName().replace('.', '/');
     // com.example:lib never resolves as a dependency in the test classpath, so processClass()
     // always takes the hasUnresolvedMethodLevelSymbols branch where the cap logic lives.
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-dedup\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + internalName
-            + "\",\"method\":\"method\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-dedup\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + internalName
+        + "\",\"method\":\"method\"}]"
+        + "}]}";
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
 
     Instrumentation instr = mock(Instrumentation.class);
@@ -219,25 +232,25 @@ class ScaReachabilityRetransformTest {
     when(instr.isModifiableClass(Target.class)).thenReturn(true);
 
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
-
     // The mocked Instrumentation does not run the JVM retransform machinery, so it never calls
     // back into transform(). Do it by hand, once per retransformed Class<?>, exactly as the real
     // JVM would within a single retransformClasses() call.
-    doAnswer(
-            invocation -> {
-              for (Object arg : invocation.getArguments()) {
-                Class<?> c = (Class<?>) arg;
-                t.transform(
-                    null,
-                    c.getName().replace('.', '/'),
-                    c, // classBeingRedefined != null → retransform path → processClass()
-                    c.getProtectionDomain(),
-                    ScaBytecodeTestUtils.bytecodeOf(c));
-              }
-              return null;
-            })
-        .when(instr)
-        .retransformClasses(any());
+    doAnswer(invocation -> {
+      for (Object arg : invocation.getArguments()) {
+        Class<?> c = (Class<?>) arg;
+        t.transform(
+            null,
+            c.getName().replace('.', '/'),
+            // classBeingRedefined != null → retransform path → processClass()
+            c,
+            c.getProtectionDomain(),
+            ScaBytecodeTestUtils.bytecodeOf(c)
+        );
+      }
+      return null;
+    })
+      .when(instr)
+      .retransformClasses(any());
 
     t.pendingRetransformNames.add(internalName);
 
@@ -248,9 +261,11 @@ class ScaReachabilityRetransformTest {
         Integer.valueOf(1),
         t.unresolvedAttemptCounts.get(internalName),
         "two loaded copies of the same class name retransformed in one heartbeat must consume a"
-            + " single unresolved-retry attempt, not one each");
+        + " single unresolved-retry attempt, not one each"
+    );
     assertTrue(
         t.pendingRetransformNames.contains(internalName),
-        "the class is still well within the cap, so it must be re-queued for the next heartbeat");
+        "the class is still well within the cap, so it must be re-queued for the next heartbeat"
+    );
   }
 }

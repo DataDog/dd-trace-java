@@ -1,7 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
@@ -40,7 +39,7 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
     }
     if (memberValue != null
         && (memberValue == Redaction.REDACTED_VALUE
-            || Redaction.isRedactedType(memberValue.getClass().getTypeName()))) {
+        || Redaction.isRedactedType(memberValue.getClass().getTypeName()))) {
       ExpressionHelper.throwRedactedException(this);
     }
     checkTimeout(evalContext.getTimeoutChecker(), this);
@@ -50,8 +49,12 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     GetMemberExpression that = (GetMemberExpression) o;
     return Objects.equals(target, that.target) && Objects.equals(memberName, that.memberName);
   }
@@ -65,7 +68,13 @@ public class GetMemberExpression implements ValueExpression<Value<?>> {
   @Generated
   @Override
   public String toString() {
-    return "GetMemberExpression{" + "target=" + target + ", memberName='" + memberName + '\'' + '}';
+    return "GetMemberExpression{"
+        + "target="
+        + target
+        + ", memberName='"
+        + memberName
+        + '\''
+        + '}';
   }
 
   public ValueExpression<?> getTarget() {

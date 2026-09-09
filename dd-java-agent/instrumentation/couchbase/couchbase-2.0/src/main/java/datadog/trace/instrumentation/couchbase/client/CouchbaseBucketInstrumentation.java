@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.couchbase.client.java.CouchbaseCluster;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,8 +15,9 @@ import rx.Observable;
 
 @AutoService(InstrumenterModule.class)
 public class CouchbaseBucketInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public CouchbaseBucketInstrumentation() {
     super("couchbase");
   }
@@ -25,21 +25,21 @@ public class CouchbaseBucketInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "com.couchbase.client.java.bucket.DefaultAsyncBucketManager",
-      "com.couchbase.client.java.CouchbaseAsyncBucket"
+        "com.couchbase.client.java.bucket.DefaultAsyncBucketManager",
+        "com.couchbase.client.java.CouchbaseAsyncBucket"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "rx.DDTracingUtil",
-      "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
-      "datadog.trace.instrumentation.rxjava.TracedSubscriber",
-      "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
-      packageName + ".CouchbaseClientDecorator",
-      packageName + ".CouchbaseOnSubscribe",
-      packageName + ".CouchbaseOnSubscribe$1"
+        "rx.DDTracingUtil",
+        "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
+        "datadog.trace.instrumentation.rxjava.TracedSubscriber",
+        "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
+        packageName + ".CouchbaseClientDecorator",
+        packageName + ".CouchbaseOnSubscribe",
+        packageName + ".CouchbaseOnSubscribe$1"
     };
   }
 
@@ -47,11 +47,11 @@ public class CouchbaseBucketInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named("rx.Observable"))),
-        CouchbaseBucketInstrumentation.class.getName() + "$CouchbaseClientAdvice");
+        CouchbaseBucketInstrumentation.class.getName() + "$CouchbaseClientAdvice"
+    );
   }
 
   public static class CouchbaseClientAdvice {
-
     @Advice.OnMethodEnter
     public static int trackCallDepth() {
       return CallDepthThreadLocalMap.incrementCallDepth(CouchbaseCluster.class);
@@ -62,7 +62,8 @@ public class CouchbaseBucketInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final int callDepth,
         @Advice.Origin final Method method,
         @Advice.FieldValue("bucket") final String bucket,
-        @Advice.Return(readOnly = false) Observable result) {
+        @Advice.Return(readOnly = false) Observable result
+    ) {
       if (callDepth > 0) {
         return;
       }

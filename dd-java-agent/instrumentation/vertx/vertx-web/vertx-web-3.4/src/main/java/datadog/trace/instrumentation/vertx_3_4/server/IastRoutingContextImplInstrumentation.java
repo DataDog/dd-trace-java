@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher.VIRTUAL_HOST_HANDLER;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -27,8 +26,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private final String className = IastRoutingContextImplInstrumentation.class.getName();
 
   public IastRoutingContextImplInstrumentation() {
@@ -50,10 +50,12 @@ public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Ia
     transformer.applyAdvice(named("cookies").and(takesArguments(0)), className + "$CookiesAdvice");
     transformer.applyAdvice(
         named("getCookie").and(takesArguments(1)).and(takesArgument(0, String.class)),
-        className + "$GetCookieAdvice");
+        className + "$GetCookieAdvice"
+    );
     transformer.applyAdvice(
         named("reroute").and(takesArguments(2)).and(takesArgument(1, String.class)),
-        className + "$RerouteAdvice");
+        className + "$RerouteAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -61,7 +63,9 @@ public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Ia
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onCookies(
-        @Advice.Return final Set<Object> cookies, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Set<Object> cookies,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null && cookies != null && !cookies.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -77,7 +81,9 @@ public class IastRoutingContextImplInstrumentation extends InstrumenterModule.Ia
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onGetCookie(
-        @Advice.Return final Object cookie, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object cookie,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

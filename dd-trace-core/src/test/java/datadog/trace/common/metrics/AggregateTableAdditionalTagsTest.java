@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
@@ -16,7 +15,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class AggregateTableAdditionalTagsTest {
-
   @BeforeAll
   static void initAgentMeter() {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
@@ -51,7 +49,6 @@ class AggregateTableAdditionalTagsTest {
   }
 
   // ---------- helpers ----------
-
   private static AdditionalTagsSchema schemaFor(String... names) {
     return AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList(names)));
   }
@@ -79,6 +76,7 @@ class AggregateTableAdditionalTagsTest {
         null,
         null,
         values,
-        0L);
+        0L
+    );
   }
 }

@@ -8,10 +8,12 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/** A class to filter out classes based on their package name. */
+/**
+ * A class to filter out classes based on their package name.
+ */
 public class ClassNameFiltering implements ClassNameFilter {
-  private static final Pattern LAMBDA_PROXY_CLASS_PATTERN = Pattern.compile(".*\\$\\$Lambda.*/.*");
-
+  private static final Pattern LAMBDA_PROXY_CLASS_PATTERN =
+      Pattern.compile(".*\\\\$\\\\$Lambda." + "*/.*");
   private final ClassNameTrie includeTrie;
   private final ClassNameTrie excludeTrie;
   private final ClassNameTrie shadingTrie;
@@ -20,7 +22,8 @@ public class ClassNameFiltering implements ClassNameFilter {
     this(
         ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(config),
         ThirdPartyLibraries.INSTANCE.getThirdPartyExcludes(config),
-        ThirdPartyLibraries.INSTANCE.getShadingIdentifiers(config));
+        ThirdPartyLibraries.INSTANCE.getShadingIdentifiers(config)
+    );
   }
 
   public ClassNameFiltering(Set<String> excludes) {
@@ -28,7 +31,10 @@ public class ClassNameFiltering implements ClassNameFilter {
   }
 
   public ClassNameFiltering(
-      Set<String> excludes, Set<String> includes, Set<String> shadingIdentifiers) {
+      Set<String> excludes,
+      Set<String> includes,
+      Set<String> shadingIdentifiers
+  ) {
     ClassNameTrie.Builder excludeBuilder = new ClassNameTrie.Builder();
     excludes.forEach(s -> excludeBuilder.put(s + "*", 1));
     this.excludeTrie = excludeBuilder.buildTrie();
@@ -45,12 +51,13 @@ public class ClassNameFiltering implements ClassNameFilter {
     int shadedIdx = shadedIndexOf(className);
     shadedIdx = Math.max(shadedIdx, 0);
     return (includeTrie.apply(className, shadedIdx) < 0
-            && excludeTrie.apply(className, shadedIdx) > 0)
+        && excludeTrie.apply(className, shadedIdx) > 0)
         || isLambdaProxyClass(className);
   }
 
   static boolean isLambdaProxyClass(String className) {
-    return className.contains("Lambda") && LAMBDA_PROXY_CLASS_PATTERN.matcher(className).matches();
+    return className.contains("Lambda")
+        && LAMBDA_PROXY_CLASS_PATTERN.matcher(className).matches();
   }
 
   int shadedIndexOf(String className) {
@@ -68,6 +75,9 @@ public class ClassNameFiltering implements ClassNameFilter {
 
   public static ClassNameFiltering allowAll() {
     return new ClassNameFiltering(
-        Collections.emptySet(), Collections.emptySet(), Collections.emptySet());
+        Collections.emptySet(),
+        Collections.emptySet(),
+        Collections.emptySet()
+    );
   }
 }

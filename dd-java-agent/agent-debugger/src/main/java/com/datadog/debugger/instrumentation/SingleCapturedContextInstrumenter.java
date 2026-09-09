@@ -11,7 +11,6 @@ import static org.objectweb.asm.Type.INT_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
-
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
@@ -26,7 +25,9 @@ import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Specialized version of {@link CapturedContextInstrumenter} for single probe */
+/**
+ * Specialized version of {@link CapturedContextInstrumenter} for single probe
+ */
 public class SingleCapturedContextInstrumenter extends CapturedContextInstrumenter {
   private static final Logger LOGGER =
       LoggerFactory.getLogger(SingleCapturedContextInstrumenter.class);
@@ -41,7 +42,8 @@ public class SingleCapturedContextInstrumenter extends CapturedContextInstrument
       List<Integer> probeIndices,
       boolean captureSnapshot,
       boolean captureEntry,
-      Limits limits) {
+      Limits limits
+  ) {
     super(definition, methodInfo, diagnostics, probeIndices, captureSnapshot, captureEntry, limits);
     this.captureSnapshot = captureSnapshot;
     this.captureEntry = captureEntry;
@@ -60,7 +62,8 @@ public class SingleCapturedContextInstrumenter extends CapturedContextInstrument
         "isReadyToCapture",
         Type.BOOLEAN_TYPE,
         CLASS_TYPE,
-        Type.INT_TYPE);
+        Type.INT_TYPE
+    );
     // stack [boolean]
   }
 
@@ -70,7 +73,8 @@ public class SingleCapturedContextInstrumenter extends CapturedContextInstrument
       Snapshot.Kind snapshotKind,
       AbstractInsnNode endLabel,
       int timestampVar,
-      String methodLocation) {
+      String methodLocation
+  ) {
     // stack []
     insnList.add(collectCapturedContext(snapshotKind, endLabel));
     // stack: [capturedcontext]
@@ -95,13 +99,17 @@ public class SingleCapturedContextInstrumenter extends CapturedContextInstrument
         CLASS_TYPE,
         LONG_TYPE,
         METHOD_LOCATION_TYPE,
-        Type.INT_TYPE);
+        Type.INT_TYPE
+    );
     // stack []
   }
 
   @Override
   protected void addEvalContextAndCommitCall(
-      Where.SourceLine sourceLine, InsnList insnList, LabelNode beforeLabel) {
+      Where.SourceLine sourceLine,
+      InsnList insnList,
+      LabelNode beforeLabel
+  ) {
     insnList.add(collectCapturedContext(Snapshot.Kind.BEFORE, beforeLabel));
     // stack [capturedcontext]
     ldc(insnList, Type.getObjectType(classNode.name));
@@ -118,7 +126,8 @@ public class SingleCapturedContextInstrumenter extends CapturedContextInstrument
         CAPTURED_CONTEXT_TYPE,
         CLASS_TYPE,
         INT_TYPE,
-        INT_TYPE);
+        INT_TYPE
+    );
     // stack []
   }
 
@@ -135,7 +144,8 @@ public class SingleCapturedContextInstrumenter extends CapturedContextInstrument
         CAPTURED_CONTEXT_TYPE,
         CAPTURED_CONTEXT_TYPE,
         getType(List.class),
-        INT_TYPE);
+        INT_TYPE
+    );
     // stack []
   }
 }

@@ -3,7 +3,6 @@ package com.datadog.iast;
 import static datadog.trace.api.ProductActivation.FULLY_ENABLED;
 import static datadog.trace.api.iast.IastContext.Mode.GLOBAL;
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
-
 import com.datadog.iast.overhead.OverheadController;
 import com.datadog.iast.propagation.CodecModuleImpl;
 import com.datadog.iast.propagation.PropagationModuleImpl;
@@ -70,12 +69,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class IastSystem {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(IastSystem.class);
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public static boolean DEBUG = false;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public static Verbosity VERBOSITY = Verbosity.OFF;
 
@@ -94,7 +90,8 @@ public class IastSystem {
   public static void start(
       @Nullable final Instrumentation instrumentation,
       final SubscriptionService ss,
-      @Nullable OverheadController overheadController) {
+      @Nullable OverheadController overheadController
+  ) {
     final Config config = Config.get();
     final ProductActivation iast = config.getIastActivation();
     final ProductActivation appSec = config.getAppSecActivation();
@@ -112,17 +109,21 @@ public class IastSystem {
     final boolean globalContext = config.getIastContextMode() == GLOBAL;
     final IastContext.Provider contextProvider = contextProvider(iast, globalContext);
     if (overheadController == null) {
-      overheadController =
-          OverheadController.build(
-              globalContext ? UNLIMITED : config.getIastRequestSampling(),
-              config.getIastMaxConcurrentRequests(),
-              globalContext,
-              AgentTaskScheduler.get());
+      overheadController = OverheadController.build(
+          globalContext ? UNLIMITED : config.getIastRequestSampling(),
+          config.getIastMaxConcurrentRequests(),
+          globalContext,
+          AgentTaskScheduler.get()
+      );
     }
     IastContext.Provider.register(contextProvider);
-    final Dependencies dependencies =
-        new Dependencies(
-            config, reporter, overheadController, StackWalkerFactory.INSTANCE, contextProvider);
+    final Dependencies dependencies = new Dependencies(
+        config,
+        reporter,
+        overheadController,
+        StackWalkerFactory.INSTANCE,
+        contextProvider
+    );
     final boolean addTelemetry = config.getIastTelemetryVerbosity() != Verbosity.OFF;
     iastModules(iast, dependencies).forEach(InstrumentationBridge::registerIastModule);
     registerRequestStartedCallback(ss, addTelemetry, dependencies);
@@ -148,7 +149,9 @@ public class IastSystem {
   }
 
   private static IastContext.Provider contextProvider(
-      final ProductActivation iast, final boolean global) {
+      final ProductActivation iast,
+      final boolean global
+  ) {
     if (iast != FULLY_ENABLED) {
       return new IastOptOutContext.Provider();
     } else {
@@ -157,39 +160,41 @@ public class IastSystem {
   }
 
   private static Stream<IastModule> iastModules(
-      final ProductActivation iast, final Dependencies dependencies) {
-    Stream<Class<? extends IastModule>> modules =
-        Stream.of(
-            StringModuleImpl.class,
-            CodecModuleImpl.class,
-            SqlInjectionModuleImpl.class,
-            PathTraversalModuleImpl.class,
-            CommandInjectionModuleImpl.class,
-            WeakCipherModuleImpl.class,
-            WeakHashModuleImpl.class,
-            LdapInjectionModuleImpl.class,
-            PropagationModuleImpl.class,
-            HttpResponseHeaderModuleImpl.class,
-            HstsMissingHeaderModuleImpl.class,
-            InsecureCookieModuleImpl.class,
-            NoHttpOnlyCookieModuleImpl.class,
-            XContentTypeModuleImpl.class,
-            NoSameSiteCookieModuleImpl.class,
-            SsrfModuleImpl.class,
-            UnvalidatedRedirectModuleImpl.class,
-            WeakRandomnessModuleImpl.class,
-            XPathInjectionModuleImpl.class,
-            TrustBoundaryViolationModuleImpl.class,
-            XssModuleImpl.class,
-            StacktraceLeakModuleImpl.class,
-            HeaderInjectionModuleImpl.class,
-            ApplicationModuleImpl.class,
-            HardcodedSecretModuleImpl.class,
-            InsecureAuthProtocolModuleImpl.class,
-            ReflectionInjectionModuleImpl.class,
-            UntrustedDeserializationModuleImpl.class,
-            EmailInjectionModuleImpl.class,
-            CodeInjectionModuleImpl.class);
+      final ProductActivation iast,
+      final Dependencies dependencies
+  ) {
+    Stream<Class<? extends IastModule>> modules = Stream.of(
+        StringModuleImpl.class,
+        CodecModuleImpl.class,
+        SqlInjectionModuleImpl.class,
+        PathTraversalModuleImpl.class,
+        CommandInjectionModuleImpl.class,
+        WeakCipherModuleImpl.class,
+        WeakHashModuleImpl.class,
+        LdapInjectionModuleImpl.class,
+        PropagationModuleImpl.class,
+        HttpResponseHeaderModuleImpl.class,
+        HstsMissingHeaderModuleImpl.class,
+        InsecureCookieModuleImpl.class,
+        NoHttpOnlyCookieModuleImpl.class,
+        XContentTypeModuleImpl.class,
+        NoSameSiteCookieModuleImpl.class,
+        SsrfModuleImpl.class,
+        UnvalidatedRedirectModuleImpl.class,
+        WeakRandomnessModuleImpl.class,
+        XPathInjectionModuleImpl.class,
+        TrustBoundaryViolationModuleImpl.class,
+        XssModuleImpl.class,
+        StacktraceLeakModuleImpl.class,
+        HeaderInjectionModuleImpl.class,
+        ApplicationModuleImpl.class,
+        HardcodedSecretModuleImpl.class,
+        InsecureAuthProtocolModuleImpl.class,
+        ReflectionInjectionModuleImpl.class,
+        UntrustedDeserializationModuleImpl.class,
+        EmailInjectionModuleImpl.class,
+        CodeInjectionModuleImpl.class
+    );
     if (iast != FULLY_ENABLED) {
       modules = modules.filter(IastSystem::isOptOut);
     }
@@ -207,7 +212,9 @@ public class IastSystem {
 
   @SuppressWarnings("unchecked")
   private static <M extends IastModule> M newIastModule(
-      final Dependencies dependencies, final Class<M> type) {
+      final Dependencies dependencies,
+      final Class<M> type
+  ) {
     try {
       for (final Constructor<?> ctor : type.getDeclaredConstructors()) {
         switch (ctor.getParameterCount()) {
@@ -225,22 +232,28 @@ public class IastSystem {
       // should never happen and be caught on IAST tests
       throw new UndeclaredThrowableException(
           e,
-          "Modules should have either default constructor or take only one param of type Dependencies");
+          "Modules should have either default constructor or take only one param of type Dependencies"
+      );
     }
   }
 
   private static void registerRequestStartedCallback(
-      final SubscriptionService ss, final boolean addTelemetry, final Dependencies dependencies) {
+      final SubscriptionService ss,
+      final boolean addTelemetry,
+      final Dependencies dependencies
+  ) {
     final EventType<Supplier<Flow<Object>>> event = Events.get().requestStarted();
-    final Supplier<Flow<Object>> handler =
-        addTelemetry
-            ? new TelemetryRequestStartedHandler(dependencies)
-            : new RequestStartedHandler(dependencies);
+    final Supplier<Flow<Object>> handler = addTelemetry
+        ? new TelemetryRequestStartedHandler(dependencies)
+        : new RequestStartedHandler(dependencies);
     ss.registerCallback(event, handler);
   }
 
   private static void registerRequestEndedCallback(
-      final SubscriptionService ss, final boolean addTelemetry, final Dependencies dependencies) {
+      final SubscriptionService ss,
+      final boolean addTelemetry,
+      final Dependencies dependencies
+  ) {
     final EventType<BiFunction<RequestContext, IGSpanInfo, Flow<Void>>> event =
         Events.get().requestEnded();
     final RequestEndedHandler handler = new RequestEndedHandler(dependencies);

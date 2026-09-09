@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.smoketest.backend.AgentBackend;
 import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -32,7 +31,6 @@ import okhttp3.Response;
  */
 public final class SmokeServerApp extends AbstractSmokeApp {
   private static final String HTTP_PORT_PLACEHOLDER = "${app.httpPort}";
-
   private final int httpPort;
   private final OkHttpClient httpClient = new OkHttpClient();
 
@@ -119,7 +117,8 @@ public final class SmokeServerApp extends AbstractSmokeApp {
     }
     if (!process.isAlive()) {
       throw new IllegalStateException(
-          "App '" + name() + "' exited with value " + process.exitValue() + " " + when);
+          "App '" + name() + "' exited with value " + process.exitValue() + " " + when
+      );
     }
   }
 

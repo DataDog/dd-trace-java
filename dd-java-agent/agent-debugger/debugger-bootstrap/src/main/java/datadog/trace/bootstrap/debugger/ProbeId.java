@@ -4,10 +4,10 @@ import datadog.trace.util.RandomUtils;
 
 public class ProbeId {
   private static final String ID_SEPARATOR = ":";
-
   private final String id;
   private final int version;
-  private final String encoded; // store as string uuid:version
+  // store as string uuid:version
+  private final String encoded;
 
   // decode a probe id from a string with format uuid:version
   public static ProbeId from(String encodedId) {
@@ -16,7 +16,10 @@ public class ProbeId {
       throw new IllegalArgumentException("Invalid probe id: " + encodedId);
     }
     return new ProbeId(
-        encodedId.substring(0, idx), Integer.parseInt(encodedId.substring(idx + 1)), encodedId);
+        encodedId.substring(0, idx),
+        Integer.parseInt(encodedId.substring(idx + 1)),
+        encodedId
+    );
   }
 
   public ProbeId(String id, int version) {
@@ -52,12 +55,18 @@ public class ProbeId {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     ProbeId probeId = (ProbeId) o;
 
-    if (version != probeId.version) return false;
+    if (version != probeId.version) {
+      return false;
+    }
     return id.equals(probeId.id);
   }
 

@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.util.List;
 
 public class ConventionBasedResourceResolver implements ResourceResolver {
-
   private final FileSystem fileSystem;
   private final List<String> resourceFolderNames;
 

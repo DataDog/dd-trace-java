@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.pekkohttp.iast;
 
 import static datadog.trace.instrumentation.pekkohttp.iast.TraitMethodMatchers.isTraitDirectiveMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,7 +21,9 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  */
 @AutoService(InstrumenterModule.class)
 public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public CookieDirectivesInstrumentation() {
     super("pekko-http");
   }
@@ -30,17 +31,17 @@ public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      // "org.apache.pekko.http.scaladsl.server.directives.CookieDirectives$class", // scala 2.11
-      "org.apache.pekko.http.scaladsl.server.directives.CookieDirectives", // scala 2.12+ (default
-      // methods)
+        // "org.apache.pekko.http.scaladsl.server.directives.CookieDirectives$class", // scala 2.11
+    // scala 2.12+ (default
+        "org.apache.pekko.http.scaladsl.server.directives.CookieDirectives"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".helpers.TaintCookieFunction",
-      packageName + ".helpers.TaintOptionalCookieFunction",
+        packageName + ".helpers.TaintCookieFunction",
+        packageName + ".helpers.TaintOptionalCookieFunction"
     };
   }
 
@@ -49,10 +50,12 @@ public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
     String traitName = "org.apache.pekko.http.scaladsl.server.directives.CookieDirectives";
     transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "cookie", "java.lang.String"),
-        CookieDirectivesInstrumentation.class.getName() + "$TaintCookieAdvice");
+        CookieDirectivesInstrumentation.class.getName() + "$TaintCookieAdvice"
+    );
     transformer.applyAdvice(
         isTraitDirectiveMethod(traitName, "optionalCookie", "java.lang.String"),
-        CookieDirectivesInstrumentation.class.getName() + "$TaintOptionalCookieAdvice");
+        CookieDirectivesInstrumentation.class.getName() + "$TaintOptionalCookieAdvice"
+    );
   }
 
   static class TaintCookieAdvice {
@@ -67,8 +70,10 @@ public class CookieDirectivesInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive =
-          directive.tmap(TaintOptionalCookieFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+      directive = directive.tmap(
+          TaintOptionalCookieFunction.INSTANCE,
+          Tupler$.MODULE$.forTuple(null)
+      );
     }
   }
 }

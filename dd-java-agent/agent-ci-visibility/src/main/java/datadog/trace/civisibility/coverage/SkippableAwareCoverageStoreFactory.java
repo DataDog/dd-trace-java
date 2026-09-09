@@ -18,7 +18,9 @@ public class SkippableAwareCoverageStoreFactory implements CoverageStore.Factory
   private final CoverageStore.Factory delegate;
 
   public SkippableAwareCoverageStoreFactory(
-      Collection<TestIdentifier> skippableTests, CoverageStore.Factory delegate) {
+      Collection<TestIdentifier> skippableTests,
+      CoverageStore.Factory delegate
+  ) {
     this.skippableTests = skippableTests;
     this.delegate = delegate;
   }

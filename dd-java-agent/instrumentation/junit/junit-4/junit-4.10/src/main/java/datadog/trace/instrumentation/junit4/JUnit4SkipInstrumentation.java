@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -28,8 +27,9 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit4SkipInstrumentation() {
     super("ci-visibility", "junit-4");
   }
@@ -38,7 +38,7 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
   public boolean isEnabled() {
     return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -49,18 +49,18 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()))
-        // ITR skipping for Cucumber is done in a dedicated instrumentation
-        .and(not(extendsClass(named("io.cucumber.junit.FeatureRunner"))));
+      // ITR skipping for Cucumber is done in a dedicated instrumentation
+      .and(not(extendsClass(named("io.cucumber.junit.FeatureRunner"))));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4TracingListener",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".SkippedByDatadog",
+        packageName + ".JUnit4Utils",
+        packageName + ".TracingListener",
+        packageName + ".JUnit4TracingListener"
     };
   }
 
@@ -68,9 +68,10 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("runChild")
-            .and(takesArguments(2))
-            .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
-        JUnit4SkipInstrumentation.class.getName() + "$JUnit4SkipInstrumentationAdvice");
+          .and(takesArguments(2))
+          .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
+        JUnit4SkipInstrumentation.class.getName() + "$JUnit4SkipInstrumentationAdvice"
+    );
   }
 
   public static class JUnit4SkipInstrumentationAdvice {
@@ -80,7 +81,8 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
     public static Boolean runChild(
         @Advice.This ParentRunner<?> runner,
         @Advice.Argument(0) Object child,
-        @Advice.Argument(1) RunNotifier notifier) {
+        @Advice.Argument(1) RunNotifier notifier
+    ) {
       Description description = JUnit4Utils.getDescription(runner, child);
       if (description == null || !description.isTest()) {
         return null;
@@ -95,8 +97,8 @@ public class JUnit4SkipInstrumentation extends InstrumenterModule.CiVisibility
       TestIdentifier test = JUnit4Utils.toTestIdentifier(description);
       SkipReason skipReason =
           TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.JUNIT4)
-              .skipReason(test);
+        .get(TestFrameworkInstrumentation.JUNIT4)
+        .skipReason(test);
       if (skipReason == null) {
         return null;
       }

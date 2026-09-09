@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.PLAY_WS_REQUEST;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,8 +21,8 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope methodEnter(
         @Advice.Argument(0) final Request request,
-        @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler) {
-
+        @Advice.Argument(value = 1, readOnly = false) AsyncHandler asyncHandler
+    ) {
       final AgentSpan span = startSpan("play-ws", PLAY_WS_REQUEST);
 
       DECORATE.afterStart(span);
@@ -41,7 +40,9 @@ public class PlayWSClientInstrumentation extends BasePlayWSClientInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

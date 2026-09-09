@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.micronaut.v2_0;
 
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_ATTRIBUTE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpVersion;
 import io.micronaut.http.MediaTypeConverter;
@@ -13,7 +12,8 @@ public class WriteDefaultErrorResponseAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void beginRequest(
       @Advice.Argument(1) final NettyHttpRequest nettyHttpRequest,
-      @Advice.Argument(2) final Throwable cause) {
+      @Advice.Argument(2) final Throwable cause
+  ) {
     AgentSpan span = nettyHttpRequest.getAttribute(SPAN_ATTRIBUTE, AgentSpan.class).orElse(null);
     if (null == span) {
       return;

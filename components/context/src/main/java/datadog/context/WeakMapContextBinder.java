@@ -3,14 +3,14 @@ package datadog.context;
 import static datadog.context.Context.root;
 import static java.util.Collections.synchronizedMap;
 import static java.util.Objects.requireNonNull;
-
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/** {@link ContextBinder} that uses a global weak map of carriers to contexts. */
+/**
+ * {@link ContextBinder} that uses a global weak map of carriers to contexts.
+ */
 final class WeakMapContextBinder implements ContextBinder {
   static final ContextBinder INSTANCE = new WeakMapContextBinder();
-
   private static final Map<Object, Context> TRACKED = synchronizedMap(new WeakHashMap<>());
 
   @Override

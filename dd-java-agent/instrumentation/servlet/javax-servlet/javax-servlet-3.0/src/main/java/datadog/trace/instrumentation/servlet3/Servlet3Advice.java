@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_FIN_DISP_LIST_SPAN_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
@@ -28,7 +27,6 @@ import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
 
 public class Servlet3Advice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
@@ -36,7 +34,8 @@ public class Servlet3Advice {
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
       @Advice.Local("contextScope") ContextScope scope,
-      @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper) {
+      @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper
+  ) {
     final boolean invalidRequest =
         !(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse);
     if (invalidRequest) {
@@ -51,13 +50,16 @@ public class Servlet3Advice {
       if (maybeRumWrapper instanceof RumControllableResponse) {
         rumServletWrapper = (RumControllableResponse) maybeRumWrapper;
       } else {
-        rumServletWrapper =
-            new RumHttpServletResponseWrapper(httpServletRequest, (HttpServletResponse) response);
+        rumServletWrapper = new RumHttpServletResponseWrapper(
+            httpServletRequest,
+            (HttpServletResponse) response
+        );
         httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
         response = (ServletResponse) rumServletWrapper;
-        request =
-            new RumHttpServletRequestWrapper(
-                httpServletRequest, (HttpServletResponse) rumServletWrapper);
+        request = new RumHttpServletRequestWrapper(
+            httpServletRequest,
+            (HttpServletResponse) rumServletWrapper
+        );
       }
     }
 
@@ -66,7 +68,8 @@ public class Servlet3Advice {
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
       request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
-      isDispatch = true; // local default is false;
+      // local default is false;
+      isDispatch = true;
       // Activate the dispatch span as the request span so it can be finished with the request.
       // We don't want to create a new servlet.request span since this is internal processing.
       AgentSpan castDispatchSpan = (AgentSpan) dispatchSpan;
@@ -107,16 +110,25 @@ public class Servlet3Advice {
 
     httpServletRequest.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+        CorrelationIdentifier.getTraceIdKey(),
+        CorrelationIdentifier.getTraceId()
+    );
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        CorrelationIdentifier.getSpanIdKey(),
+        CorrelationIdentifier.getSpanId()
+    );
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {
       ServletBlockingHelper.commitBlockingResponse(
-          span.getRequestContext().getTraceSegment(), httpServletRequest, httpServletResponse, rba);
+          span.getRequestContext().getTraceSegment(),
+          httpServletRequest,
+          httpServletResponse,
+          rba
+      );
       span.getRequestContext().getTraceSegment().effectivelyBlocked();
-      return true; // skip method body
+      // skip method body
+      return true;
     }
 
     return false;
@@ -130,7 +142,8 @@ public class Servlet3Advice {
       @Advice.Local("isDispatch") boolean isDispatch,
       @Advice.Local("finishSpan") boolean finishSpan,
       @Advice.Local("rumServletWrapper") RumControllableResponse rumServletWrapper,
-      @Advice.Thrown final Throwable throwable) {
+      @Advice.Thrown final Throwable throwable
+  ) {
     if (rumServletWrapper != null) {
       rumServletWrapper.commit();
     }
@@ -180,13 +193,15 @@ public class Servlet3Advice {
             finishSpanManually = true;
           }
         }
-      } else { // not async
+      } else {
+        // not async
         // Finish the span manually since finishSpanOnClose was false
         if (throwable == null) {
           if (!isDispatch) {
             DECORATE.onResponse(span, resp);
           }
-        } else { // has thrown
+        } else {
+          // has thrown
           if (!isDispatch) {
             // We don't want to put the status on the dispatch span.
             // (It might be wrong/different from the server span with an exception handler.)
@@ -206,7 +221,8 @@ public class Servlet3Advice {
     }
     scope.close();
     if (finishSpanManually) {
-      span.finish(); // Finish the span manually since finishSpanOnClose was false
+      // Finish the span manually since finishSpanOnClose was false
+      span.finish();
     }
   }
 }

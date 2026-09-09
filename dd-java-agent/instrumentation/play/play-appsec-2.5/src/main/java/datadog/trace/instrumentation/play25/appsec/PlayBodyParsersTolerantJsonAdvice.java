@@ -11,8 +11,9 @@ import play.core.Execution;
 public class PlayBodyParsersTolerantJsonAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   static void after(@Advice.Return(readOnly = false) BodyParser<JsValue> parser) {
-    parser =
-        parser.map(
-            BodyParserHelpers.getHandleJsonF(), Execution.Implicits$.MODULE$.internalContext());
+    parser = parser.map(
+        BodyParserHelpers.getHandleJsonF(),
+        Execution.Implicits$.MODULE$.internalContext()
+    );
   }
 }

@@ -10,13 +10,17 @@ import datadog.context.ContextContinuation;
  * mount/unmount.
  */
 public final class VirtualThreadState {
-  /** The virtual thread's saved context (scope stack snapshot). */
+  /**
+   * The virtual thread's saved context (scope stack snapshot).
+   */
   private Context context;
-
-  /** Prevents the enclosing context scope from completing before the virtual thread finishes. */
+  /**
+   * Prevents the enclosing context scope from completing before the virtual thread finishes.
+   */
   private final ContextContinuation continuation;
-
-  /** The carrier thread's saved context, set between mount and unmount. */
+  /**
+   * The carrier thread's saved context, set between mount and unmount.
+   */
   private Context previousContext;
 
   public VirtualThreadState(Context context, ContextContinuation continuation) {
@@ -24,12 +28,16 @@ public final class VirtualThreadState {
     this.continuation = continuation;
   }
 
-  /** Called on mount: swaps the virtual thread's context into the carrier thread. */
+  /**
+   * Called on mount: swaps the virtual thread's context into the carrier thread.
+   */
   public void onMount() {
     this.previousContext = this.context.swap();
   }
 
-  /** Called on unmount: restores the carrier thread's original context. */
+  /**
+   * Called on unmount: restores the carrier thread's original context.
+   */
   public void onUnmount() {
     if (this.previousContext != null) {
       this.context = this.previousContext.swap();
@@ -37,7 +45,9 @@ public final class VirtualThreadState {
     }
   }
 
-  /** Called on termination: releases the trace continuation. */
+  /**
+   * Called on termination: releases the trace continuation.
+   */
   public void onTerminate() {
     if (this.continuation != null) {
       this.continuation.release();

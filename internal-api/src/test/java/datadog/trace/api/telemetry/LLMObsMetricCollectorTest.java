@@ -2,7 +2,6 @@ package datadog.trace.api.telemetry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,33 +48,34 @@ class LLMObsMetricCollectorTest {
       assertEquals(1L, metric.value);
     }
     assertEquals(
-        new HashSet<>(
-            Arrays.asList(
-                new HashSet<>(
-                    Arrays.asList(
-                        "integration:openai",
-                        "span_kind:llm",
-                        "is_root_span:1",
-                        "autoinstrumented:1",
-                        "error:0",
-                        "has_session_id:0")),
-                new HashSet<>(
-                    Arrays.asList(
-                        "integration:openai",
-                        "span_kind:llm",
-                        "is_root_span:0",
-                        "autoinstrumented:1",
-                        "error:0",
-                        "has_session_id:1")),
-                new HashSet<>(
-                    Arrays.asList(
-                        "integration:anthropic",
-                        "span_kind:embedding",
-                        "is_root_span:1",
-                        "autoinstrumented:0",
-                        "error:1",
-                        "has_session_id:0")))),
-        tagSets(metrics));
+        new HashSet<>(Arrays.asList(
+            new HashSet<>(Arrays.asList(
+                "integration:openai",
+                "span_kind:llm",
+                "is_root_span:1",
+                "autoinstrumented:1",
+                "error:0",
+                "has_session_id:0"
+            )),
+            new HashSet<>(Arrays.asList(
+                "integration:openai",
+                "span_kind:llm",
+                "is_root_span:0",
+                "autoinstrumented:1",
+                "error:0",
+                "has_session_id:1"
+            )),
+            new HashSet<>(Arrays.asList(
+                "integration:anthropic",
+                "span_kind:embedding",
+                "is_root_span:1",
+                "autoinstrumented:0",
+                "error:1",
+                "has_session_id:0"
+            ))
+        )),
+        tagSets(metrics)
+    );
   }
 
   @Test
@@ -150,14 +150,16 @@ class LLMObsMetricCollectorTest {
   }
 
   private static List<LLMObsMetricCollector.LLMObsMetric> sorted(
-      Collection<LLMObsMetricCollector.LLMObsMetric> metrics) {
+      Collection<LLMObsMetricCollector.LLMObsMetric> metrics
+  ) {
     List<LLMObsMetricCollector.LLMObsMetric> sorted = new ArrayList<>(metrics);
     sorted.sort((a, b) -> Long.compare(a.value.longValue(), b.value.longValue()));
     return sorted;
   }
 
   private static HashSet<HashSet<String>> tagSets(
-      Collection<LLMObsMetricCollector.LLMObsMetric> metrics) {
+      Collection<LLMObsMetricCollector.LLMObsMetric> metrics
+  ) {
     HashSet<HashSet<String>> tagSets = new HashSet<>();
     for (LLMObsMetricCollector.LLMObsMetric metric : metrics) {
       tagSets.add(new HashSet<>(metric.tags));

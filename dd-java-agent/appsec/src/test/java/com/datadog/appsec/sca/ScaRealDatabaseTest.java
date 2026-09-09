@@ -3,7 +3,6 @@ package com.datadog.appsec.sca;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
  * </ul>
  */
 class ScaRealDatabaseTest {
-
   @Test
   void junrarLocalFolderExtractorMethodsAreIndexed() {
     ScaCveDatabase db = ScaCveDatabase.load();
@@ -27,15 +25,19 @@ class ScaRealDatabaseTest {
     assertNotNull(entries, "LocalFolderExtractor must be indexed (junrar GHSA-hf5p)");
     assertFalse(entries.isEmpty());
     assertTrue(
-        entries.stream()
-            .flatMap(e -> e.symbols().stream())
-            .anyMatch(s -> "createDirectory".equals(s.method())),
-        "createDirectory must be a tracked method");
+        entries
+          .stream()
+          .flatMap(e -> e.symbols().stream())
+          .anyMatch(s -> "createDirectory".equals(s.method())),
+        "createDirectory must be a tracked method"
+    );
     assertTrue(
-        entries.stream()
-            .flatMap(e -> e.symbols().stream())
-            .anyMatch(s -> "createFile".equals(s.method())),
-        "createFile must be a tracked method");
+        entries
+          .stream()
+          .flatMap(e -> e.symbols().stream())
+          .anyMatch(s -> "createFile".equals(s.method())),
+        "createFile must be a tracked method"
+    );
   }
 
   @Test
@@ -46,10 +48,12 @@ class ScaRealDatabaseTest {
     assertNotNull(entries, "zserio Array must be indexed (zserio-runtime GHSA-cwq5)");
     assertFalse(entries.isEmpty());
     assertTrue(
-        entries.stream()
-            .flatMap(e -> e.symbols().stream())
-            .anyMatch(s -> "read".equals(s.method())),
-        "read must be a tracked method");
+        entries
+          .stream()
+          .flatMap(e -> e.symbols().stream())
+          .anyMatch(s -> "read".equals(s.method())),
+        "read must be a tracked method"
+    );
   }
 
   @Test
@@ -61,10 +65,12 @@ class ScaRealDatabaseTest {
     assertNotNull(entries, "ChunkedInputFilter must be indexed (tomcat-embed-core GHSA-563x)");
     assertFalse(entries.isEmpty());
     assertTrue(
-        entries.stream()
-            .flatMap(e -> e.symbols().stream())
-            .anyMatch(s -> "parseChunkHeader".equals(s.method())),
-        "parseChunkHeader must be a tracked method");
+        entries
+          .stream()
+          .flatMap(e -> e.symbols().stream())
+          .anyMatch(s -> "parseChunkHeader".equals(s.method())),
+        "parseChunkHeader must be a tracked method"
+    );
   }
 
   @Test
@@ -72,22 +78,25 @@ class ScaRealDatabaseTest {
     ScaCveDatabase db = ScaCveDatabase.load();
 
     String[] classes = {
-      "com/github/junrar/LocalFolderExtractor",
-      "zserio/runtime/array/Array",
-      "zserio/runtime/io/ByteArrayBitStreamReader",
-      "org/apache/coyote/http11/filters/ChunkedInputFilter",
+        "com/github/junrar/LocalFolderExtractor",
+        "zserio/runtime/array/Array",
+        "zserio/runtime/io/ByteArrayBitStreamReader",
+        "org/apache/coyote/http11/filters/ChunkedInputFilter"
     };
     for (String className : classes) {
       List<ScaEntry> entries = db.entriesForClass(className);
-      if (entries == null) continue;
+      if (entries == null) {
+        continue;
+      }
       for (ScaEntry entry : entries) {
         for (ScaSymbol symbol : entry.symbols()) {
           assertNotNull(
               symbol.method(),
               "All symbols must be method-level - found null method for "
-                  + symbol.className()
-                  + " in entry "
-                  + entry.vulnId());
+              + symbol.className()
+              + " in entry "
+              + entry.vulnId()
+          );
         }
       }
     }

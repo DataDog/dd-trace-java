@@ -7,11 +7,12 @@ import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public final class DisabledDataStreamsMonitoring extends NoopDataStreamsMonitoring
-    implements DataStreamsMonitoring {
-
+    implements DataStreamsMonitoring
+{
   public static final DisabledDataStreamsMonitoring INSTANCE = new DisabledDataStreamsMonitoring();
 
-  private DisabledDataStreamsMonitoring() {}
+  private DisabledDataStreamsMonitoring() {
+  }
 
   @Override
   public void start() {}

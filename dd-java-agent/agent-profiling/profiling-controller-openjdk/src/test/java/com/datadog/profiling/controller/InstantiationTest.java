@@ -4,7 +4,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRI
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import com.datadog.profiling.agent.CompositeController;
 import com.datadog.profiling.controller.openjdk.OpenJdkController;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -12,7 +11,6 @@ import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 public class InstantiationTest {
-
   /**
    * We assume that tests for this module are run only on JVMs that support JFR. Ideally we would
    * want to have a conditional annotation to this, but currently it is somewhat hard to do well,
@@ -27,7 +25,11 @@ public class InstantiationTest {
       assertEquals(
           1,
           ((CompositeController) controller)
-              .getControllers().stream().filter(c -> c instanceof OpenJdkController).count());
+            .getControllers()
+            .stream()
+            .filter(c -> c instanceof OpenJdkController)
+            .count()
+      );
     } else {
       assertInstanceOf(OpenJdkController.class, controller);
     }

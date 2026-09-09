@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
-
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -25,13 +24,15 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 @AppliesOn(CONTEXT_TRACKING)
 public class ProducerContextPropagationAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(
       @Advice.FieldValue("metadata") Metadata metadata,
-      @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
+      @Advice.Argument(value = 0, readOnly = false) ProducerRecord record
+  ) {
     AgentSpan span = activeSpan();
-    if (span == null) return;
+    if (span == null) {
+      return;
+    }
     MetadataState metadataState =
         InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
     String clusterId = metadataState != null ? metadataState.clusterId : null;
@@ -55,14 +56,14 @@ public class ProducerContextPropagationAdvice {
       }
     } catch (final IllegalStateException e) {
       // headers must be read-only from reused record. try again with new one.
-      record =
-          new ProducerRecord<>(
-              record.topic(),
-              record.partition(),
-              record.timestamp(),
-              record.key(),
-              record.value(),
-              record.headers());
+      record = new ProducerRecord<>(
+          record.topic(),
+          record.partition(),
+          record.timestamp(),
+          record.key(),
+          record.value(),
+          record.headers()
+      );
 
       defaultPropagator().inject(span, record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())

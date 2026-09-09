@@ -8,26 +8,24 @@ import java.util.concurrent.TimeUnit;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 public class TestDatabases implements Closeable {
-
   private final PostgreSQLContainer pgsql;
   private final Map<String, TestDBInfo> dbInfos;
 
   private TestDatabases(String dbName) {
     Map<String, TestDBInfo> infos = new HashMap<>();
-    pgsql =
-        new PostgreSQLContainer("postgres:16-alpine")
-            .withDatabaseName(dbName)
-            .withUsername("postgres")
-            .withPassword("postgres");
+    pgsql = new PostgreSQLContainer("postgres:16-alpine")
+      .withDatabaseName(dbName)
+      .withUsername("postgres")
+      .withPassword("postgres");
     pgsql.start();
-    TestDBInfo info =
-        new TestDBInfo(
-            pgsql.getUsername(),
-            pgsql.getPassword(),
-            pgsql.getHost(),
-            pgsql.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT),
-            "postgresql",
-            dbName);
+    TestDBInfo info = new TestDBInfo(
+        pgsql.getUsername(),
+        pgsql.getPassword(),
+        pgsql.getHost(),
+        pgsql.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT),
+        "postgresql",
+        dbName
+    );
     PortUtils.waitForPortToOpen(info.host, info.port, 5, TimeUnit.SECONDS);
     infos.put("postgresql", info);
     dbInfos = Collections.unmodifiableMap(infos);
@@ -58,7 +56,13 @@ public class TestDatabases implements Closeable {
     private final String uri;
 
     public TestDBInfo(
-        String user, String password, String host, Integer port, String type, String dbName) {
+        String user,
+        String password,
+        String host,
+        Integer port,
+        String type,
+        String dbName
+    ) {
       this.user = user;
       this.password = password;
       this.host = host;

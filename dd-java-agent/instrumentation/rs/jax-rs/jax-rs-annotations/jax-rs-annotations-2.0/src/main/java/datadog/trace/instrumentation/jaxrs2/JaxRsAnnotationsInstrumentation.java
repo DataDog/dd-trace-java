@@ -15,7 +15,6 @@ import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DEC
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_CONTROLLER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -36,8 +35,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String JAX_ENDPOINT_OPERATION_NAME = "jax-rs.request";
 
   public JaxRsAnnotationsInstrumentation() {
@@ -53,7 +53,8 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
     ret.add("javax.ws.rs.OPTIONS");
     ret.add("javax.ws.rs.POST");
     ret.add("javax.ws.rs.PUT");
-    ret.add("javax.ws.rs.PATCH"); // come with 2.1 spec
+    // come with 2.1 spec
+    ret.add("javax.ws.rs.PATCH");
     ret.add("io.dropwizard.jersey.PATCH");
     ret.addAll(InstrumenterConfig.get().getAdditionalJaxRsAnnotations());
     return ret;
@@ -77,33 +78,32 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(
-        declaresAnnotation(named(hierarchyMarkerType()))
-            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
+    return hasSuperType(declaresAnnotation(named(hierarchyMarkerType()))
+      .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType()))))
+    );
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsAnnotationsDecorator",
-    };
+    return new String[] {packageName + ".JaxRsAnnotationsDecorator"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(hasSuperMethod(isAnnotatedWith(namedOneOf(getJaxRsAnnotations())))),
-        JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice");
+        JaxRsAnnotationsInstrumentation.class.getName() + "$JaxRsAnnotationsAdvice"
+    );
   }
 
   public static class JaxRsAnnotationsAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameSpan(
         @Advice.This final Object target,
         @Advice.Origin final Method method,
         @Advice.AllArguments final Object[] args,
-        @Advice.Local("asyncResponse") AsyncResponse asyncResponse) {
+        @Advice.Local("asyncResponse") AsyncResponse asyncResponse
+    ) {
       ContextStore<AsyncResponse, AgentSpan> contextStore = null;
       for (final Object arg : args) {
         if (arg instanceof AsyncResponse) {
@@ -121,7 +121,6 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
           break;
         }
       }
-
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
@@ -143,7 +142,8 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
     public static void stopSpan(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Local("asyncResponse") final AsyncResponse asyncResponse) {
+        @Advice.Local("asyncResponse") final AsyncResponse asyncResponse
+    ) {
       if (scope == null) {
         return;
       }

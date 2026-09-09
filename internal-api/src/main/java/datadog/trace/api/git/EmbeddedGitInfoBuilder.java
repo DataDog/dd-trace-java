@@ -12,25 +12,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
-
   private static final Logger log = LoggerFactory.getLogger(EmbeddedGitInfoBuilder.class);
-
   private final List<String> resourceNames;
 
   public EmbeddedGitInfoBuilder() {
     // Order is important here, from the most reliable sources to the least reliable ones
-    this(
-        Arrays.asList(
-            // Spring boot fat jars and wars should have the git.properties file in the following
-            // specific paths, guaranteeing that it's not coming from a dependency
-            "BOOT-INF/classes/datadog_git.properties",
-            "BOOT-INF/classes/git.properties",
-            "WEB-INF/classes/datadog_git.properties",
-            "WEB-INF/classes/git.properties",
-            // If we can't find the files above, probably because we're not in a spring context, we
-            // can look at the root of the classpath. Since it could be tainted by dependencies,
-            // we're looking for a specific datadog_git.properties file.
-            "datadog_git.properties"));
+    this(Arrays
+      .asList(
+          // Spring boot fat jars and wars should have the git.properties file in the following
+          // specific paths, guaranteeing that it's not coming from a dependency
+          "BOOT-INF/classes/datadog_git.properties",
+          "BOOT-INF/classes/git.properties",
+          "WEB-INF/classes/datadog_git.properties",
+          "WEB-INF/classes/git.properties",
+          // If we can't find the files above, probably because we're not in a spring context, we
+          // can look at the root of the classpath. Since it could be tainted by dependencies,
+          // we're looking for a specific datadog_git.properties file.
+          "datadog_git.properties"
+      )
+    );
   }
 
   EmbeddedGitInfoBuilder(List<String> resourceNames) {
@@ -79,12 +79,16 @@ public class EmbeddedGitInfoBuilder implements GitInfoBuilder {
             new PersonInfo(
                 gitProperties.getProperty("git.commit.user.name"),
                 gitProperties.getProperty("git.commit.user.email"),
-                authorTime),
+                authorTime
+            ),
             new PersonInfo(
                 gitProperties.getProperty("git.commit.user.name"),
                 gitProperties.getProperty("git.commit.user.email"),
-                committerTime),
-            gitProperties.getProperty("git.commit.message.full")));
+                committerTime
+            ),
+            gitProperties.getProperty("git.commit.message.full")
+        )
+    );
   }
 
   @Override

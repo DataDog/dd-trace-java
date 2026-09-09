@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.NumericValue;
@@ -51,7 +50,8 @@ class ExpressionTest {
     return Stream.of(
         Arguments.of(new BooleanValue(true, ValueType.BOOLEAN), true),
         Arguments.of(new NumericValue(15.8d, ValueType.DOUBLE), 15.8d),
-        Arguments.of(new StringValue("Hello world"), "Hello world"));
+        Arguments.of(new StringValue("Hello world"), "Hello world")
+    );
   }
 
   @Test
@@ -85,8 +85,11 @@ class ExpressionTest {
             when(
                 and(
                     eq(getMember(ref("this"), "strField"), value("foo")),
-                    gt(ref("@duration"), value(0))))));
-    assertEquals(
-        "len(list[idx].map)", print(len(getMember(index(ref("list"), ref("idx")), "map"))));
+                    gt(ref("@duration"), value(0))
+                )
+            )
+        )
+    );
+    assertEquals("len(list[idx].map)", print(len(getMember(index(ref("list"), ref("idx")), "map"))));
   }
 }

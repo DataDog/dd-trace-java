@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty40.server;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.internal.TraceSegment;
@@ -27,13 +26,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NettyHttpServerDecorator
-    extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
+    extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders>
+{
   public static final CharSequence NETTY = UTF8BytesString.create("netty");
   public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");
-
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
-  private static final CharSequence NETTY_REQUEST =
-      UTF8BytesString.create(DECORATE.operationName());
+  private static final CharSequence NETTY_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -67,17 +65,16 @@ public class NettyHttpServerDecorator
 
   @Override
   protected URIDataAdapter url(final HttpRequest request) {
-    return URIDataAdapterBase.fromURI(
-        request.getUri(),
-        uri -> {
-          if ((uri.getHost() == null || uri.getHost().equals(""))
-              && request.headers().contains(HOST)) {
-            return URIDataAdapterBase.fromURI(
-                "http://" + request.headers().get(HOST) + request.getUri(),
-                URIDefaultDataAdapter::new);
-          }
-          return new URIDefaultDataAdapter(uri);
-        });
+    return URIDataAdapterBase.fromURI(request.getUri(), uri -> {
+      if ((uri.getHost() == null || uri.getHost().equals(""))
+          && request.headers().contains(HOST)) {
+        return URIDataAdapterBase.fromURI(
+            "http://" + request.headers().get(HOST) + request.getUri(),
+            URIDefaultDataAdapter::new
+        );
+      }
+      return new URIDefaultDataAdapter(uri);
+    });
   }
 
   @Override
@@ -110,7 +107,9 @@ public class NettyHttpServerDecorator
 
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
-      HttpRequest httpRequest, Channel channel) {
+      HttpRequest httpRequest,
+      Channel channel
+  ) {
     return new NettyBlockResponseFunction(channel.pipeline(), httpRequest);
   }
 
@@ -130,26 +129,37 @@ public class NettyHttpServerDecorator
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       ChannelHandler handlerBefore = pipeline.get(HttpServerTracingHandler.class);
       if (handlerBefore == null) {
         handlerBefore = pipeline.get(HttpServerRequestTracingHandler.class);
         if (handlerBefore == null) {
           log.warn(
-              "Can't block without an HttpServerTracingHandler or HttpServerRequestTracingHandler in the pipeline");
+              "Can't block without an HttpServerTracingHandler or HttpServerRequestTracingHandler in the pipeline"
+          );
           return false;
         }
       }
 
       try {
         pipeline
-            .addAfter(
-                handlerBefore.getClass().getName(),
-                "blocking_handler",
-                new BlockingResponseHandler(
-                    segment, statusCode, templateType, extraHeaders, securityResponseId))
-            .addBefore(
-                "blocking_handler", "before_blocking_handler", new ChannelInboundHandlerAdapter());
+          .addAfter(
+              handlerBefore.getClass().getName(),
+              "blocking_handler",
+              new BlockingResponseHandler(
+                  segment,
+                  statusCode,
+                  templateType,
+                  extraHeaders,
+                  securityResponseId
+              )
+          )
+          .addBefore(
+              "blocking_handler",
+              "before_blocking_handler",
+              new ChannelInboundHandlerAdapter()
+          );
       } catch (RuntimeException rte) {
         log.warn("Failed adding blocking handler", rte);
         return false;

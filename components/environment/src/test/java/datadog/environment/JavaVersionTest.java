@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.of;
-
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -44,7 +43,8 @@ class JavaVersionTest {
         of("16.0.1", 16, 0, 1),
         of("11.0.9.1+1", 11, 0, 9),
         of("11.0.6+10", 11, 0, 6),
-        of("17.0.4-x", 17, 0, 4));
+        of("17.0.4-x", 17, 0, 4)
+    );
   }
 
   @ParameterizedTest(name = "[{index}] {0} parsed as {1}.{2}.{3}")
@@ -91,7 +91,8 @@ class JavaVersionTest {
         of("11.0.18+8", 11, 0, 17),
         of("11.0.17", 11, 0, 17),
         of("1.8.0_352", 8, 0, 352),
-        of("1.8.0_362", 8, 0, 352));
+        of("1.8.0_362", 8, 0, 352)
+    );
   }
 
   @ParameterizedTest(name = "[{index}] {0} is at least {1}.{2}.{3}")

@@ -3,7 +3,8 @@ package datadog.trace.instrumentation.liberty20;
 import com.ibm.ws.classloading.internal.ThreadContextClassLoader;
 
 public class BundleNameHelper {
-  private BundleNameHelper() {}
+  private BundleNameHelper() {
+  }
 
   public static String extractDeploymentName(final ThreadContextClassLoader classLoader) {
     final String id = classLoader.getKey();

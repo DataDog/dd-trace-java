@@ -4,9 +4,10 @@ import datadog.trace.api.DDTraceId;
 import java.util.List;
 import java.util.Map;
 
-/** This interface represent an individual LLM Obs span. */
+/**
+ * This interface represent an individual LLM Obs span.
+ */
 public interface LLMObsSpan {
-
   /**
    * Annotate the span with inputs and outputs for LLM spans
    *
@@ -188,7 +189,9 @@ public interface LLMObsSpan {
    */
   void addThrowable(Throwable throwable);
 
-  /** Finishes (closes) a span */
+  /**
+   * Finishes (closes) a span
+   */
   void finish();
 
   /**

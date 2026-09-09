@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.amazonaws.handlers.RequestHandler2;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,10 +13,14 @@ import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-/** AWS SDK v1 instrumentation */
+/**
+ * AWS SDK v1 instrumentation
+ */
 @AutoService(InstrumenterModule.class)
 public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final String INSTRUMENTATION_NAME = "aws-sdk";
 
   public SqsClientInstrumentation() {
@@ -33,20 +36,24 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("newRequestHandler2Chain")),
-        SqsClientInstrumentation.class.getName() + "$HandlerChainAdvice");
+        SqsClientInstrumentation.class.getName() + "$HandlerChainAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SqsInterceptor", packageName + ".MessageAttributeInjector"
+        packageName + ".SqsInterceptor",
+        packageName + ".MessageAttributeInjector"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context");
+        "com.amazonaws.AmazonWebServiceRequest",
+        "datadog.context.Context"
+    );
   }
 
   public static class HandlerChainAdvice {
@@ -56,13 +63,16 @@ public final class SqsClientInstrumentation extends InstrumenterModule.Tracing
           || Config.get().isSqsInjectDatadogAttributeEnabled()) {
         for (RequestHandler2 interceptor : handlers) {
           if (interceptor instanceof SqsInterceptor) {
-            return; // list already has our interceptor, return to builder
+            // list already has our interceptor, return to builder
+            return;
           }
         }
         handlers.add(
-            new SqsInterceptor(
-                InstrumentationContext.get(
-                    "com.amazonaws.AmazonWebServiceRequest", "datadog.context.Context")));
+            new SqsInterceptor(InstrumentationContext.get(
+                "com.amazonaws.AmazonWebServiceRequest",
+                "datadog.context.Context"
+            ))
+        );
       }
     }
   }

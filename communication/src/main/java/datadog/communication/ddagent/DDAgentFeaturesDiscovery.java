@@ -9,7 +9,6 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableSet;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -34,43 +33,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DDAgentFeaturesDiscovery implements DroppingPolicy {
-
   private static final Logger log = LoggerFactory.getLogger(DDAgentFeaturesDiscovery.class);
-
-  private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
-
+  private static final JsonAdapter<Map<String, Object>> RESPONSE_ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
   // Currently all the endpoints that we probe expect a msgpack body of an array of arrays, v3/v4
   // arbitrary size and v5 two elements, so let's give them a two element array of empty arrays
-  private static final byte[] PROBE_MESSAGE = {
-    (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
-  };
-
+  private static final byte[] PROBE_MESSAGE =
+      {(byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY};
   public static final String V03_ENDPOINT = "v0.3/traces";
   public static final String V04_ENDPOINT = "v0.4/traces";
   public static final String V05_ENDPOINT = "v0.5/traces";
   public static final String V1_ENDPOINT = "v1.0/traces";
-
   public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
   public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
-
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
-
   public static final String V2_EVP_PROXY_ENDPOINT = "evp_proxy/v2/";
   public static final String V4_EVP_PROXY_ENDPOINT = "evp_proxy/v4/";
-
   public static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
-
   public static final String DEBUGGER_ENDPOINT_V1 = "debugger/v1/input";
   public static final String DEBUGGER_ENDPOINT_V2 = "debugger/v2/input";
   public static final String DEBUGGER_DIAGNOSTICS_ENDPOINT = "debugger/v1/diagnostics";
-
   public static final String TELEMETRY_PROXY_ENDPOINT = "telemetry/proxy/";
-
   private static final long MIN_FEATURE_DISCOVERY_INTERVAL_MILLIS = 60 * 1000;
-
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
@@ -113,7 +98,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       HttpUrl agentUrl,
       ProtocolVersion protocolVersion,
       boolean metricsEnabled,
-      boolean ignoreAgentVersionForStats) {
+      boolean ignoreAgentVersionForStats
+  ) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
@@ -123,12 +109,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     this.discoveryState = new State();
   }
 
-  /** Run feature discovery, unconditionally. */
+  /**
+   * Run feature discovery, unconditionally.
+   */
   public void discover() {
     discoverIfOutdated(0);
   }
 
-  /** Run feature discovery, if it was not run recently. */
+  /**
+   * Run feature discovery, if it was not run recently.
+   */
   public void discoverIfOutdated() {
     discoverIfOutdated(getFeaturesDiscoveryMinDelayMillis());
   }
@@ -155,8 +145,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      final Request request =
-          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
+      final Request request = prepareRequest(agentBaseUrl.resolve("info"), emptyMap())
+        .get()
+        .build();
       try (Response response = client.newCall(request).execute()) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
@@ -173,7 +164,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         // sending metrics to 7.26.0, which has a bug in reporting metric origin
         newState.metricsEndpoint = null;
       }
-
       // don't want to rewire the traces pipeline
       if (null == newState.traceEndpoint) {
         newState.traceEndpoint = probeTracesEndpoint(newState, protocolVersion.endpointsToProbe());
@@ -185,7 +175,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsClientSideStats={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, logEndpoint={}, snapshotEndpoint={}, diagnosticsEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, "
+          + "supportsClientSideStats={}, supportsLongRunning={}, dataStreamsEndpoint={}, "
+          + "configEndpoint={}, logEndpoint={}, snapshotEndpoint={}, diagnosticsEndpoint={}, "
+          + "evpProxyEndpoint={}, telemetryProxyEndpoint={}",
           newState.traceEndpoint,
           newState.metricsEndpoint,
           newState.supportsDropping,
@@ -197,19 +190,19 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           newState.debuggerSnapshotEndpoint,
           newState.debuggerDiagnosticsEndpoint,
           newState.evpProxyEndpoint,
-          newState.telemetryProxyEndpoint);
+          newState.telemetryProxyEndpoint
+      );
     }
   }
 
   private String probeTracesEndpoint(State newState, List<String> endpoints) {
     for (String candidate : endpoints) {
-      try (Response response =
-          client
-              .newCall(
-                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
-                      .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
-                      .build())
-              .execute()) {
+      try (Response response = client
+        .newCall(prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
+          .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
+          .build()
+        )
+        .execute()) {
         if (response.code() != 404) {
           newState.state = response.header(DATADOG_AGENT_STATE);
           return candidate;
@@ -256,7 +249,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           }
         }
       }
-
       // This is done outside of the loop to set metricsEndpoint to null if not found
       newState.metricsEndpoint = foundMetricsEndpoint;
 
@@ -297,26 +289,24 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-      newState.supportsLongRunning =
-          Boolean.TRUE.equals(map.getOrDefault("long_running_spans", false));
+      newState.supportsLongRunning = Boolean.TRUE.equals(map.getOrDefault(
+          "long_running_spans",
+          false
+      ));
 
       if (metricsEnabled) {
         Object canDrop = map.get("client_drop_p0s");
-        newState.supportsDropping =
-            null != canDrop
-                && ("true".equalsIgnoreCase(String.valueOf(canDrop))
-                    || Boolean.TRUE.equals(canDrop));
+        newState.supportsDropping = null != canDrop
+            && ("true".equalsIgnoreCase(String.valueOf(canDrop)) || Boolean.TRUE.equals(canDrop));
 
-        newState.supportsClientSideStats =
-            newState.supportsDropping
-                && (ignoreAgentVersionForStats
-                    || !AgentVersion.isVersionBelow(newState.version, 7, 65, 0));
+        newState.supportsClientSideStats = newState.supportsDropping
+            && (ignoreAgentVersionForStats
+            || !AgentVersion.isVersionBelow(newState.version, 7, 65, 0));
 
         Object peer_tags = map.get("peer_tags");
-        newState.peerTags =
-            peer_tags instanceof List
-                ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
-                : emptySet();
+        newState.peerTags = peer_tags instanceof List
+            ? unmodifiableSet(new HashSet<>((List<String>) peer_tags))
+            : emptySet();
       }
       Object opm = map.get("org_prop_marker");
       newState.orgPropagationMarker = (opm instanceof String) ? (String) opm : null;
@@ -324,7 +314,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         newState.state = Strings.sha256(response);
       } catch (Throwable ex) {
         log.debug(
-            "Failed to hash trace agent /info response. Will probe {}", newState.traceEndpoint, ex);
+            "Failed to hash trace agent /info response. Will probe {}",
+            newState.traceEndpoint,
+            ex
+        );
       }
       return true;
     } catch (Throwable error) {

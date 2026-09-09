@@ -16,19 +16,24 @@ public class InstrumentationErrors {
 
   private static volatile boolean detailed;
 
-  /** Record an error occurred without any detail about it. */
+  /**
+   * Record an error occurred without any detail about it.
+   */
   public static void recordError() {
     COUNTER.incrementAndGet();
   }
 
-  /** Record an error occurred, including its stack trace. */
+  /**
+   * Record an error occurred, including its stack trace.
+   */
   public static Throwable recordError(Throwable error) {
     COUNTER.incrementAndGet();
     StringWriter detail = new StringWriter();
     error.printStackTrace(new PrintWriter(detail));
     Detailed.ERRORS.add(detail.toString());
     detailed = true;
-    return error; // keep throwable at top of the stack
+    // keep throwable at top of the stack
+    return error;
   }
 
   @VisibleForTesting
@@ -51,7 +56,9 @@ public class InstrumentationErrors {
    * @return a human-readable description of the errors recorded so far
    */
   public static String describeErrors() {
-    StringBuilder buf = new StringBuilder().append(COUNTER.get()).append(" instrumentation errors");
+    StringBuilder buf = new StringBuilder()
+      .append(COUNTER.get())
+      .append(" instrumentation errors");
     if (detailed) {
       for (String error : Detailed.ERRORS) {
         buf.append("\n---\n").append(error);

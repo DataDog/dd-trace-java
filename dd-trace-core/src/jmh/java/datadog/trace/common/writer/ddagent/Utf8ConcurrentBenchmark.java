@@ -3,7 +3,6 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.trace.common.writer.ddagent.Utf8Workload.NUM_LOOKUPS;
 import static datadog.trace.common.writer.ddagent.Utf8Workload.nextTag;
 import static datadog.trace.common.writer.ddagent.Utf8Workload.nextValue;
-
 import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import org.openjdk.jmh.annotations.Benchmark;

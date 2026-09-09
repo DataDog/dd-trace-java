@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.trace.api.Config;
@@ -24,7 +23,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class PollerRequestFactoryTest extends DDJavaSpecification {
-
   static final String TRACER_VERSION = "v1.2.3";
   static final String CONTAINER_ID = "456";
   static final String ENTITY_ID = "32423";
@@ -34,31 +32,37 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
   @WithConfig(key = "service", value = "Service Name")
   @WithConfig(key = "env", value = "PROD")
   @WithConfig(key = "tags", value = "version:1.0.0-SNAPSHOT")
-  @WithConfig(
-      key = "trace.global.tags",
-      value =
-          Tags.GIT_REPOSITORY_URL
-              + ":https://github.com/DataDog/dd-trace-java,"
-              + Tags.GIT_COMMIT_SHA
-              + ":1234")
+  @WithConfig(key = "trace.global.tags", value = Tags.GIT_REPOSITORY_URL
+      + ":https://github.com/DataDog/dd-trace-java,"
+      + Tags.GIT_COMMIT_SHA
+      + ":1234")
   void remoteConfigRequestFieldsBeenSanitized() {
-    PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+    PollerRequestFactory factory = new PollerRequestFactory(
+        Config.get(),
+        TRACER_VERSION,
+        CONTAINER_ID,
+        ENTITY_ID,
+        INVALID_REMOTE_CONFIG_URL,
+        null
+    );
 
-    RemoteConfigRequest request =
-        factory.buildRemoteConfigRequest(
-            Collections.singletonList("ASM"), null, null, 0, ServiceNameCollector.get());
+    RemoteConfigRequest request = factory.buildRemoteConfigRequest(
+        Collections.singletonList("ASM"),
+        null,
+        null,
+        0,
+        ServiceNameCollector.get()
+    );
 
     RemoteConfigRequest.ClientInfo.TracerInfo tracerInfo = request.getClient().getTracerInfo();
     assertEquals("service_name", tracerInfo.getServiceName());
     assertEquals("prod", tracerInfo.getServiceEnv());
     assertEquals("1.0.0-snapshot", tracerInfo.getServiceVersion());
     assertTrue(tracerInfo.getTags().contains("env:PROD"));
-    assertTrue(
-        tracerInfo
-            .getTags()
-            .contains(Tags.GIT_REPOSITORY_URL + ":https://github.com/DataDog/dd-trace-java"));
+    assertTrue(tracerInfo
+      .getTags()
+      .contains(Tags.GIT_REPOSITORY_URL + ":https://github.com/DataDog/dd-trace-java")
+    );
     assertTrue(tracerInfo.getTags().contains(Tags.GIT_COMMIT_SHA + ":1234"));
   }
 
@@ -71,13 +75,22 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
     ServiceNameCollector extraServicesProvider = ServiceNameCollector.get();
     extraServicesProvider.clear();
     extraServicesProvider.addService(extraService);
-    PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+    PollerRequestFactory factory = new PollerRequestFactory(
+        Config.get(),
+        TRACER_VERSION,
+        CONTAINER_ID,
+        ENTITY_ID,
+        INVALID_REMOTE_CONFIG_URL,
+        null
+    );
 
-    RemoteConfigRequest request =
-        factory.buildRemoteConfigRequest(
-            Collections.singletonList("ASM"), null, null, 0, extraServicesProvider);
+    RemoteConfigRequest request = factory.buildRemoteConfigRequest(
+        Collections.singletonList("ASM"),
+        null,
+        null,
+        0,
+        extraServicesProvider
+    );
 
     assertTrue(request.getClient().getTracerInfo().getExtraServices().contains(extraService));
   }
@@ -89,13 +102,22 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
       injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false");
     }
     ProcessTags.reset(Config.get());
-    PollerRequestFactory factory =
-        new PollerRequestFactory(
-            Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
+    PollerRequestFactory factory = new PollerRequestFactory(
+        Config.get(),
+        TRACER_VERSION,
+        CONTAINER_ID,
+        ENTITY_ID,
+        INVALID_REMOTE_CONFIG_URL,
+        null
+    );
 
-    RemoteConfigRequest request =
-        factory.buildRemoteConfigRequest(
-            Collections.singletonList("ASM"), null, null, 0, ServiceNameCollector.get());
+    RemoteConfigRequest request = factory.buildRemoteConfigRequest(
+        Collections.singletonList("ASM"),
+        null,
+        null,
+        0,
+        ServiceNameCollector.get()
+    );
     String json = new Moshi.Builder().build().adapter(RemoteConfigRequest.class).toJson(request);
 
     List<String> processTags = request.getClient().getTracerInfo().getProcessTags();
@@ -118,6 +140,10 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
       return null;
     }
     Pattern pattern = Pattern.compile(regex);
-    return tags.stream().filter(tag -> pattern.matcher(tag).find()).findFirst().orElse(null);
+    return tags
+      .stream()
+      .filter(tag -> pattern.matcher(tag).find())
+      .findFirst()
+      .orElse(null);
   }
 }

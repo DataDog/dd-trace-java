@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.RMI
 import static datadog.trace.bootstrap.instrumentation.rmi.RmiClientDecorator.RMI_INVOKE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,16 +23,17 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class RmiClientInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public RmiClientInstrumentation() {
     super("rmi", "rmi-client");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -45,10 +45,11 @@ public final class RmiClientInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("invoke"))
-            .and(takesArgument(0, named("java.rmi.Remote")))
-            .and(takesArgument(1, named("java.lang.reflect.Method"))),
-        getClass().getName() + "$RmiClientAdvice");
+          .and(named("invoke"))
+          .and(takesArgument(0, named("java.rmi.Remote")))
+          .and(takesArgument(1, named("java.lang.reflect.Method"))),
+        getClass().getName() + "$RmiClientAdvice"
+    );
   }
 
   public static class RmiClientAdvice {
@@ -65,7 +66,9 @@ public final class RmiClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

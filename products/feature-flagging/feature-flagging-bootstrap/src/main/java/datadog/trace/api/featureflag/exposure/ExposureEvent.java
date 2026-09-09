@@ -13,7 +13,8 @@ public class ExposureEvent {
       final Allocation allocation,
       final Flag flag,
       final Variant variant,
-      final Subject subject) {
+      final Subject subject
+  ) {
     this.timestamp = timestamp;
     this.allocation = allocation;
     this.flag = flag;

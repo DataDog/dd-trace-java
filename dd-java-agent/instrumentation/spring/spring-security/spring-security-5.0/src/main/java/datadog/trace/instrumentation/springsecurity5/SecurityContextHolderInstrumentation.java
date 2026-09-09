@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import org.springframework.security.core.context.SecurityContext;
 
 @AutoService(InstrumenterModule.class)
 public class SecurityContextHolderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public SecurityContextHolderInstrumentation() {
     super("spring-security");
   }
@@ -38,8 +38,8 @@ public class SecurityContextHolderInstrumentation extends InstrumenterModule.App
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.springsecurity5.SpringSecurityUserEventDecorator",
-      "datadog.trace.instrumentation.springsecurity5.AppSecDeferredContext"
+        "datadog.trace.instrumentation.springsecurity5.SpringSecurityUserEventDecorator",
+        "datadog.trace.instrumentation.springsecurity5.AppSecDeferredContext"
     };
   }
 
@@ -47,20 +47,19 @@ public class SecurityContextHolderInstrumentation extends InstrumenterModule.App
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("setContext"))
-            .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0, named("org.springframework.security.core.context.SecurityContext")))
-            .and(isPublic()),
-        getClass().getName() + "$SetSecurityContextAdvice");
+          .and(named("setContext"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.springframework.security.core.context.SecurityContext")))
+          .and(isPublic()),
+        getClass().getName() + "$SetSecurityContextAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("setDeferredContext")).and(takesArguments(1)).and(isPublic()),
-        getClass().getName() + "$SetDeferredSecurityContextAdvice");
+        getClass().getName() + "$SetDeferredSecurityContextAdvice"
+    );
   }
 
   public static class SetSecurityContextAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final SecurityContext context) {
       if (context == null) {
@@ -74,10 +73,10 @@ public class SecurityContextHolderInstrumentation extends InstrumenterModule.App
   }
 
   public static class SetDeferredSecurityContextAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
-        @Advice.Argument(value = 0, readOnly = false) Supplier<SecurityContext> deferred) {
+        @Advice.Argument(value = 0, readOnly = false) Supplier<SecurityContext> deferred
+    ) {
       if (deferred == null) {
         return;
       }

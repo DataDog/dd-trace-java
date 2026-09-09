@@ -5,7 +5,6 @@ import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
@@ -17,9 +16,10 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Verifies that AI Guard traces are kept regardless of APM/ASM configuration. */
+/**
+ * Verifies that AI Guard traces are kept regardless of APM/ASM configuration.
+ */
 public class AIGuardSamplingTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -68,7 +68,9 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
     assertDecisionMakerIsAiGuard(span);
   }
 
-  /** _dd.p.ts alone (without AI_GUARD_KEEP) must not bypass the sampler. */
+  /**
+   * _dd.p.ts alone (without AI_GUARD_KEEP) must not bypass the sampler.
+   */
   @Test
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @WithConfig(key = APPSEC_ENABLED, value = "true")
@@ -77,7 +79,6 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
     span.setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.AI_GUARD);
     span.finish();
     writer.waitForTraces(1);
-
     // _dd.p.ts alone must not force-keep the trace; only AI_GUARD_KEEP does that.
     assertNotEquals(USER_KEEP, (int) span.getSamplingPriority());
   }
@@ -93,7 +94,6 @@ public class AIGuardSamplingTest extends DDCoreJavaSpecification {
     DDSpan first = (DDSpan) tracer.buildSpan("datadog", "op").start();
     first.finish();
     writer.waitForTraces(1);
-
     // AI Guard trace must still be force-kept even though the rate-limit slot is gone
     DDSpan aiGuard = (DDSpan) tracer.buildSpan("datadog", "op").start();
     aiGuard.setTag(Tags.AI_GUARD_KEEP, true);

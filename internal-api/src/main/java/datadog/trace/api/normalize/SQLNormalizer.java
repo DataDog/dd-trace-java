@@ -1,7 +1,6 @@
 package datadog.trace.api.normalize;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -17,15 +16,12 @@ import org.slf4j.LoggerFactory;
  * trace agent.
  */
 public final class SQLNormalizer {
-
   private static final Logger log = LoggerFactory.getLogger(SQLNormalizer.class);
-
   private static final BitSet NUMERIC_LITERAL_PREFIX = new BitSet();
   private static final BitSet SPLITTERS = new BitSet();
 
   static {
-    for (byte symbol :
-        new byte[] {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+', '.'}) {
+    for (byte symbol : new byte[] {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+', '.'}) {
       int unsigned = symbol & 0xFF;
       NUMERIC_LITERAL_PREFIX.set(unsigned);
     }
@@ -97,7 +93,7 @@ public final class SQLNormalizer {
   private static boolean isNumericLiteralPrefix(byte[] utf8, int start) {
     return NUMERIC_LITERAL_PREFIX.get(utf8[start] & 0xFF)
         // preserve single line comment (--) prefixes
-        && !(utf8[start + 1] == '-' && utf8[start] == '-');
+    && !(utf8[start + 1] == '-' && utf8[start] == '-');
   }
 
   private static boolean isSplitter(byte symbol) {

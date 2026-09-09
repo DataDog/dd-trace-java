@@ -10,9 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestInitialDirContextSuite implements DirContextSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestInitialDirContextSuite.class);
-
   private final InitialDirContext ctx;
 
   public TestInitialDirContextSuite(final InitialDirContext ctx) {
@@ -21,7 +19,10 @@ public class TestInitialDirContextSuite implements DirContextSuite {
 
   @Override
   public NamingEnumeration<SearchResult> search(
-      final String name, final String filter, final SearchControls cons) throws NamingException {
+      final String name,
+      final String filter,
+      final SearchControls cons
+  ) throws NamingException {
     LOGGER.debug("Before InitialDirContext search {} {} {}", name, filter, cons);
     final NamingEnumeration<SearchResult> result = ctx.search(name, filter, cons);
     LOGGER.debug("After InitialDirContext search {}", result);
@@ -30,7 +31,10 @@ public class TestInitialDirContextSuite implements DirContextSuite {
 
   @Override
   public NamingEnumeration<SearchResult> search(
-      final Name name, final String filter, final SearchControls cons) throws NamingException {
+      final Name name,
+      final String filter,
+      final SearchControls cons
+  ) throws NamingException {
     LOGGER.debug("Before InitialDirContext search {} {} {}", name, filter, cons);
     final NamingEnumeration<SearchResult> result = ctx.search(name, filter, cons);
     LOGGER.debug("After InitialDirContext search {}", result);
@@ -39,8 +43,11 @@ public class TestInitialDirContextSuite implements DirContextSuite {
 
   @Override
   public NamingEnumeration<SearchResult> search(
-      final String name, final String filter, final Object[] args, final SearchControls cons)
-      throws NamingException {
+      final String name,
+      final String filter,
+      final Object[] args,
+      final SearchControls cons
+  ) throws NamingException {
     LOGGER.debug("Before InitialDirContext search {} {} {} {}", name, filter, args, cons);
     final NamingEnumeration<SearchResult> result = ctx.search(name, filter, args, cons);
     LOGGER.debug("After InitialDirContext search {}", result);
@@ -49,8 +56,11 @@ public class TestInitialDirContextSuite implements DirContextSuite {
 
   @Override
   public NamingEnumeration<SearchResult> search(
-      final Name name, final String filter, final Object[] args, final SearchControls cons)
-      throws NamingException {
+      final Name name,
+      final String filter,
+      final Object[] args,
+      final SearchControls cons
+  ) throws NamingException {
     LOGGER.debug("Before InitialDirContext search {} {} {} {}", name, filter, args, cons);
     final NamingEnumeration<SearchResult> result = ctx.search(name, filter, args, cons);
     LOGGER.debug("After InitialDirContext search {}", result);

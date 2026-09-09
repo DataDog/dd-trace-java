@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-
 import com.amazon.sqs.javamessaging.ProviderConfiguration;
 import com.amazon.sqs.javamessaging.SQSConnectionFactory;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -85,17 +84,19 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
       String queueUrl = createQueue(client);
       writer.clear();
 
-      TraceUtils.runUnderTrace(
-          "parent",
-          () -> {
-            client.sendMessage(
-                SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
-            return null;
-          });
+      TraceUtils.runUnderTrace("parent", () -> {
+        client.sendMessage(SendMessageRequest
+          .builder()
+          .queueUrl(queueUrl)
+          .messageBody("sometext")
+          .build()
+        );
+        return null;
+      });
       List<Message> messages =
           client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+        .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+        .messages();
       messages.forEach(message -> {});
 
       DDSpan sendSpan = assertSqsSendReceiveTraces(queueUrl);
@@ -103,13 +104,13 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
       String awsTraceHeader = messages.get(0).attributesAsStrings().get("AWSTraceHeader");
       assertNotNull(awsTraceHeader);
-      assertTrue(
-          awsTraceHeader.matches(
-              "Root=1-[0-9a-f]{8}-00000000"
-                  + sendSpan.getTraceId().toHexStringPadded(16)
-                  + ";Parent="
-                  + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
-                  + ";Sampled=1"));
+      assertTrue(awsTraceHeader.matches(
+          "Root=1-[0-9a-f]{8}-00000000"
+          + sendSpan.getTraceId().toHexStringPadded(16)
+          + ";Parent="
+          + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
+          + ";Sampled=1"
+      ));
     }
   }
 
@@ -120,12 +121,16 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
       String queueUrl = createQueue(client);
       writer.clear();
 
-      client.sendMessage(
-          SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
+      client.sendMessage(SendMessageRequest
+        .builder()
+        .queueUrl(queueUrl)
+        .messageBody("sometext")
+        .build()
+      );
       List<Message> messages =
           client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+        .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+        .messages();
 
       assertEquals(1, messages.size());
       assertFalse(messages.get(0).messageAttributes().containsKey("_datadog"));
@@ -138,28 +143,35 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
       String queueUrl = createQueue(client);
       writer.clear();
 
-      TraceUtils.runUnderTrace(
-          "parent",
-          () -> {
-            client.sendMessage(
-                SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
-            return null;
-          });
+      TraceUtils.runUnderTrace("parent", () -> {
+        client.sendMessage(SendMessageRequest
+          .builder()
+          .queueUrl(queueUrl)
+          .messageBody("sometext")
+          .build()
+        );
+        return null;
+      });
       List<Message> messages =
           client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+        .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+        .messages();
       messages.forEach(message -> {});
 
       DDSpan sendSpan = assertSqsSendReceiveTraces(queueUrl);
-      MessageAttributeValue datadogAttribute = messages.get(0).messageAttributes().get("_datadog");
+      MessageAttributeValue datadogAttribute = messages
+        .get(0)
+        .messageAttributes()
+        .get("_datadog");
       assertNotNull(datadogAttribute);
       assertEquals("String", datadogAttribute.dataType());
       assertTrue(datadogAttribute.stringValue().contains("\"x-datadog-trace-id\""));
       assertTrue(datadogAttribute.stringValue().contains(sendSpan.getTraceId().toString()));
       assertTrue(datadogAttribute.stringValue().contains("\"x-datadog-parent-id\""));
-      assertTrue(
-          datadogAttribute.stringValue().contains(Long.toUnsignedString(sendSpan.getSpanId())));
+      assertTrue(datadogAttribute
+        .stringValue()
+        .contains(Long.toUnsignedString(sendSpan.getSpanId()))
+      );
     }
   }
 
@@ -168,22 +180,26 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
     assumeFalse(isDataStreamsEnabled());
 
     writer.clear();
-    Message message =
-        Message.builder()
-            .messageAttributes(
-                Collections.singletonMap(
-                    "_datadog",
-                    MessageAttributeValue.builder()
-                        .dataType("String")
-                        .stringValue(
-                            "{\"x-datadog-trace-id\": \"4948377316357291421\", "
-                                + "\"x-datadog-parent-id\": \"6746998015037429512\", "
-                                + "\"x-datadog-sampling-priority\": \"1\"}")
-                        .build()))
-            .build();
-    List<Message> messages =
-        new TracingList(
-            Collections.singletonList(message), expectedQueueUrl("somequeue"), requestId());
+    Message message = Message
+      .builder()
+      .messageAttributes(Collections.singletonMap(
+          "_datadog",
+          MessageAttributeValue
+            .builder()
+            .dataType("String")
+            .stringValue(
+                "{\"x-datadog-trace-id\": \"4948377316357291421\", "
+                + "\"x-datadog-parent-id\": \"6746998015037429512\", "
+                + "\"x-datadog-sampling-priority\": \"1\"}"
+            )
+            .build()
+      ))
+      .build();
+    List<Message> messages = new TracingList(
+        Collections.singletonList(message),
+        expectedQueueUrl("somequeue"),
+        requestId()
+    );
 
     messages.forEach(ignored -> {});
 
@@ -194,16 +210,16 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
   void traceDetailsPropagatedViaEmbeddedSqsMessageAttributeBinary() throws Exception {
     assumeFalse(isDataStreamsEnabled());
 
-    assertEmbeddedBinaryHeader(
-        UTF_8.encode(
-            "{\"x-datadog-trace-id\":\"4948377316357291421\","
-                + "\"x-datadog-parent-id\":\"6746998015037429512\","
-                + "\"x-datadog-sampling-priority\":\"1\"}"));
-    assertEmbeddedBinaryHeader(
-        UTF_8.encode(
-            "eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9n"
-                + "LXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmct"
-                + "cHJpb3JpdHkiOiIxIn0="));
+    assertEmbeddedBinaryHeader(UTF_8.encode(
+        "{\"x-datadog-trace-id\":\"4948377316357291421\","
+        + "\"x-datadog-parent-id\":\"6746998015037429512\","
+        + "\"x-datadog-sampling-priority\":\"1\"}"
+    ));
+    assertEmbeddedBinaryHeader(UTF_8.encode(
+        "eyJ4LWRhdGFkb2ctdHJhY2UtaWQiOiI0OTQ4Mzc3MzE2MzU3MjkxNDIxIiwieC1kYXRhZG9n"
+        + "LXBhcmVudC1pZCI6IjY3NDY5OTgwMTUwMzc0Mjk1MTIiLCJ4LWRhdGFkb2ctc2FtcGxpbmct"
+        + "cHJpb3JpdHkiOiIxIn0="
+    ));
   }
 
   @Test
@@ -223,25 +239,24 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
       writer.clear();
 
-      MessageAttributeValue datadogAttribute =
-          MessageAttributeValue.builder()
-              .dataType("Binary")
-              .binaryValue(SdkBytes.fromUtf8String("hello world"))
-              .build();
+      MessageAttributeValue datadogAttribute = MessageAttributeValue
+        .builder()
+        .dataType("Binary")
+        .binaryValue(SdkBytes.fromUtf8String("hello world"))
+        .build();
 
       try {
         connection.start();
-        TraceUtils.runUnderTrace(
-            "parent",
-            () -> {
-              client.sendMessage(
-                  SendMessageRequest.builder()
-                      .queueUrl(queueUrl)
-                      .messageBody("sometext")
-                      .messageAttributes(Collections.singletonMap("_datadog", datadogAttribute))
-                      .build());
-              return null;
-            });
+        TraceUtils.runUnderTrace("parent", () -> {
+          client.sendMessage(SendMessageRequest
+            .builder()
+            .queueUrl(queueUrl)
+            .messageBody("sometext")
+            .messageAttributes(Collections.singletonMap("_datadog", datadogAttribute))
+            .build()
+          );
+          return null;
+        });
         javax.jms.Message message = consumer.receive();
         consumer.receiveNoWait();
 
@@ -263,7 +278,8 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
             Tags.SPAN_KIND_CLIENT,
             "SendMessage",
             parentSpan.getSpanId(),
-            queueUrl);
+            queueUrl
+        );
         assertEquals(parentSpan.getTraceId(), sendSpan.getTraceId());
 
         assertAwsSpan(
@@ -275,7 +291,8 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
             Tags.SPAN_KIND_CONSUMER,
             "ReceiveMessage",
             sendSpan.getSpanId(),
-            queueUrl);
+            queueUrl
+        );
         assertEquals(sendSpan.getTraceId(), receiveSpan.getTraceId());
 
         assertAwsSpan(
@@ -287,7 +304,8 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
             Tags.SPAN_KIND_CLIENT,
             "DeleteMessage",
             0,
-            queueUrl);
+            queueUrl
+        );
 
         assertNotNull(jmsSpan);
         assertEquals(expectedJmsService(), jmsSpan.getServiceName());
@@ -301,15 +319,16 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
         String expectedTraceProperty =
             "X-Amzn-Trace-Id".toLowerCase(Locale.ENGLISH).replace("-", "__dash__");
-        assertTrue(
-            message
-                .getStringProperty(expectedTraceProperty)
-                .matches(
-                    "Root=1-[0-9a-f]{8}-00000000"
-                        + sendSpan.getTraceId().toHexStringPadded(16)
-                        + ";Parent="
-                        + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
-                        + ";Sampled=1"));
+        assertTrue(message
+          .getStringProperty(expectedTraceProperty)
+          .matches(
+              "Root=1-[0-9a-f]{8}-00000000"
+              + sendSpan.getTraceId().toHexStringPadded(16)
+              + ";Parent="
+              + DDSpanId.toHexStringPadded(sendSpan.getSpanId())
+              + ";Sampled=1"
+          )
+        );
         assertFalse(message.propertyExists("_datadog"));
       } finally {
         session.close();
@@ -327,17 +346,18 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
   }
 
   private SqsClient newClient() {
-    return SqsClient.builder()
-        .region(Region.EU_CENTRAL_1)
-        .endpointOverride(endpoint)
-        .credentialsProvider(CREDENTIALS_PROVIDER)
-        .build();
+    return SqsClient
+      .builder()
+      .region(Region.EU_CENTRAL_1)
+      .endpointOverride(endpoint)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build();
   }
 
   private static String createQueue(SqsClient client) {
     return client
-        .createQueue(CreateQueueRequest.builder().queueName(queueName()).build())
-        .queueUrl();
+      .createQueue(CreateQueueRequest.builder().queueName(queueName()).build())
+      .queueUrl();
   }
 
   private static String queueName() {
@@ -364,7 +384,8 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
         Tags.SPAN_KIND_CLIENT,
         "SendMessage",
         parentSpan.getSpanId(),
-        queueUrl);
+        queueUrl
+    );
     assertEquals(parentSpan.getTraceId(), sendSpan.getTraceId());
 
     assertAwsSpan(
@@ -376,7 +397,8 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
         Tags.SPAN_KIND_CONSUMER,
         "ReceiveMessage",
         sendSpan.getSpanId(),
-        queueUrl);
+        queueUrl
+    );
     assertEquals(sendSpan.getTraceId(), receiveSpan.getTraceId());
 
     return sendSpan;
@@ -384,19 +406,22 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
 
   private void assertEmbeddedBinaryHeader(ByteBuffer headerValue) throws Exception {
     writer.clear();
-    Message message =
-        Message.builder()
-            .messageAttributes(
-                Collections.singletonMap(
-                    "_datadog",
-                    MessageAttributeValue.builder()
-                        .dataType("Binary")
-                        .binaryValue(SdkBytes.fromByteBuffer(headerValue))
-                        .build()))
-            .build();
-    List<Message> messages =
-        new TracingList(
-            Collections.singletonList(message), expectedQueueUrl("somequeue"), requestId());
+    Message message = Message
+      .builder()
+      .messageAttributes(Collections.singletonMap(
+          "_datadog",
+          MessageAttributeValue
+            .builder()
+            .dataType("Binary")
+            .binaryValue(SdkBytes.fromByteBuffer(headerValue))
+            .build()
+      ))
+      .build();
+    List<Message> messages = new TracingList(
+        Collections.singletonList(message),
+        expectedQueueUrl("somequeue"),
+        requestId()
+    );
 
     messages.forEach(ignored -> {});
 
@@ -418,7 +443,8 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
         Tags.SPAN_KIND_CONSUMER,
         "ReceiveMessage",
         6746998015037429512L,
-        expectedQueueUrl(queueName));
+        expectedQueueUrl(queueName)
+    );
     assertEquals(4948377316357291421L, receiveSpan.getTraceId().toLong());
   }
 
@@ -437,7 +463,8 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
       String spanKind,
       String awsOperation,
       long parentId,
-      String queueUrl) {
+      String queueUrl
+  ) {
     assertNotNull(span);
     assertEquals(serviceName, span.getServiceName());
     assertEquals(operationName, span.getOperationName().toString());
@@ -494,12 +521,12 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
   }
 
   private static String expectedJmsService() {
-    String service =
-        SpanNaming.instance()
-            .namingSchema()
-            .messaging()
-            .inboundService("jms", Config.get().isJmsLegacyTracingEnabled())
-            .get();
+    String service = SpanNaming
+      .instance()
+      .namingSchema()
+      .messaging()
+      .inboundService("jms", Config.get().isJmsLegacyTracingEnabled())
+      .get();
     return service == null ? Config.get().getServiceName() : service;
   }
 
@@ -525,7 +552,8 @@ abstract class SqsClientV0TestBase extends SqsClientTestBase {
 }
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
-class SqsClientV0Test extends SqsClientV0TestBase {}
+class SqsClientV0Test extends SqsClientV0TestBase {
+}
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "true")
 class SqsClientV0DataStreamsTest extends SqsClientV0TestBase {
@@ -537,7 +565,8 @@ class SqsClientV0DataStreamsTest extends SqsClientV0TestBase {
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
 @WithConfig(key = TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
-class SqsClientV0ContextSwapForkedTest extends SqsClientV0TestBase {}
+class SqsClientV0ContextSwapForkedTest extends SqsClientV0TestBase {
+}
 
 @WithConfig(key = TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA, value = "v1")
 abstract class SqsClientV1TestBase extends SqsClientTestBase {
@@ -560,7 +589,8 @@ abstract class SqsClientV1TestBase extends SqsClientTestBase {
 }
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
-class SqsClientV1ForkedTest extends SqsClientV1TestBase {}
+class SqsClientV1ForkedTest extends SqsClientV1TestBase {
+}
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "true")
 class SqsClientV1DataStreamsForkedTest extends SqsClientV1TestBase {
@@ -604,32 +634,33 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
 
   @Test
   void syncReceiveActivatesConsumerSpanForUserHandlerIteration() throws Exception {
-    try (SqsClient client =
-        SqsClient.builder()
-            .region(Region.EU_CENTRAL_1)
-            .endpointOverride(endpoint)
-            .credentialsProvider(CREDENTIALS_PROVIDER)
-            .build()) {
+    try (SqsClient client = SqsClient
+      .builder()
+      .region(Region.EU_CENTRAL_1)
+      .endpointOverride(endpoint)
+      .credentialsProvider(CREDENTIALS_PROVIDER)
+      .build()) {
       String queueUrl =
           client
-              .createQueue(CreateQueueRequest.builder().queueName("somequeue").build())
-              .queueUrl();
+        .createQueue(CreateQueueRequest.builder().queueName("somequeue").build())
+        .queueUrl();
       writer.clear();
 
-      TraceUtils.runUnderTrace(
-          "parent",
-          () -> {
-            client.sendMessage(
-                SendMessageRequest.builder().queueUrl(queueUrl).messageBody("sometext").build());
-            return null;
-          });
-
+      TraceUtils.runUnderTrace("parent", () -> {
+        client.sendMessage(SendMessageRequest
+          .builder()
+          .queueUrl(queueUrl)
+          .messageBody("sometext")
+          .build()
+        );
+        return null;
+      });
       // The sync AWS SDK receive pipeline rebuilds the immutable response before user code sees it.
       // Iterating the copied message list must still activate the consumer span for user handlers.
       List<Message> messages =
           client
-              .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
-              .messages();
+        .receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build())
+        .messages();
       messages.forEach(message -> TraceUtils.runUnderTrace("handler", () -> null));
 
       assertEquals(1, messages.size());
@@ -652,7 +683,8 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
           DDSpanTypes.HTTP_CLIENT,
           Tags.SPAN_KIND_CLIENT,
           "SendMessage",
-          parentSpan.getSpanId());
+          parentSpan.getSpanId()
+      );
       assertEquals(parentSpan.getTraceId(), sendSpan.getTraceId());
 
       assertAwsSpan(
@@ -663,7 +695,8 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
           DDSpanTypes.MESSAGE_CONSUMER,
           Tags.SPAN_KIND_CONSUMER,
           "ReceiveMessage",
-          sendSpan.getSpanId());
+          sendSpan.getSpanId()
+      );
       assertEquals(sendSpan.getTraceId(), receiveSpan.getTraceId());
 
       assertTestSpan(handlerSpan, receiveSpan.getSpanId());
@@ -693,7 +726,8 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
       String spanType,
       String spanKind,
       String awsOperation,
-      long parentId) {
+      long parentId
+  ) {
     assertNotNull(span);
     assertEquals(serviceName, span.getServiceName());
     assertEquals(operationName, span.getOperationName().toString());
@@ -759,10 +793,12 @@ abstract class SqsClientV0ReceiveIterationTestBase extends SqsClientReceiveItera
 }
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
-class SqsClientV0ReceiveIterationTest extends SqsClientV0ReceiveIterationTestBase {}
+class SqsClientV0ReceiveIterationTest extends SqsClientV0ReceiveIterationTestBase {
+}
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "true")
-class SqsClientV0DataStreamsReceiveIterationTest extends SqsClientV0ReceiveIterationTestBase {}
+class SqsClientV0DataStreamsReceiveIterationTest extends SqsClientV0ReceiveIterationTestBase {
+}
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
 @WithConfig(key = TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, value = "false")
@@ -794,8 +830,9 @@ abstract class SqsClientV1ReceiveIterationTestBase extends SqsClientReceiveItera
 }
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "false")
-class SqsClientV1ReceiveIterationForkedTest extends SqsClientV1ReceiveIterationTestBase {}
+class SqsClientV1ReceiveIterationForkedTest extends SqsClientV1ReceiveIterationTestBase {
+}
 
 @WithConfig(key = GeneralConfig.DATA_STREAMS_ENABLED, value = "true")
-class SqsClientV1DataStreamsReceiveIterationForkedTest
-    extends SqsClientV1ReceiveIterationTestBase {}
+class SqsClientV1DataStreamsReceiveIterationForkedTest extends SqsClientV1ReceiveIterationTestBase {
+}

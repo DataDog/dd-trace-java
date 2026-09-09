@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DISPATCHER_HANDLE_HANDLER;
-
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -21,7 +20,6 @@ import reactor.core.publisher.Mono;
  * Webflux span.
  */
 public class DispatcherHandlerAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(@Advice.Argument(0) final ServerWebExchange exchange) {
     // Unfortunately Netty EventLoop is not instrumented well enough to attribute all work to the
@@ -46,13 +44,15 @@ public class DispatcherHandlerAdvice {
       @Advice.Enter final AgentScope scope,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final ServerWebExchange exchange,
-      @Advice.Return(readOnly = false) Mono<Void> mono) {
+      @Advice.Return(readOnly = false) Mono<Void> mono
+  ) {
     if (throwable == null && mono != null) {
       final AgentSpan span = scope.span();
       final Consumer finisher = new AdviceUtils.MonoSpanFinisher(span);
       mono = mono.doOnError(finisher).doFinally(finisher);
-      InstrumentationContext.get(Publisher.class, HandoffContext.class)
-          .put(mono, HandoffContext.anyThread(span));
+      InstrumentationContext
+        .get(Publisher.class, HandoffContext.class)
+        .put(mono, HandoffContext.anyThread(span));
     }
     scope.close();
     // span finished in MonoSpanFinisher

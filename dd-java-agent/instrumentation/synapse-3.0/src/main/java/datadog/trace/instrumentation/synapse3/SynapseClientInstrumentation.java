@@ -15,7 +15,6 @@ import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNA
 import static datadog.trace.instrumentation.synapse3.TargetRequestInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -32,8 +31,9 @@ import org.apache.synapse.transport.passthru.TargetContext;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public SynapseClientInstrumentation() {
     super("synapse3-client", "synapse3");
   }
@@ -46,7 +46,8 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TargetRequestInjectAdapter", packageName + ".SynapseClientDecorator",
+        packageName + ".TargetRequestInjectAdapter",
+        packageName + ".SynapseClientDecorator"
     };
   }
 
@@ -54,27 +55,30 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("requestReady"))
-            .and(takesArgument(0, named("org.apache.http.nio.NHttpClientConnection"))),
+          .and(named("requestReady"))
+          .and(takesArgument(0, named("org.apache.http.nio.NHttpClientConnection"))),
         getClass().getName() + "$ClientRequestAdvice",
-        getClass().getName() + "$ClientRequestContextPropagationAdvice");
+        getClass().getName() + "$ClientRequestContextPropagationAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("responseReceived"))
-            .and(takesArgument(0, named("org.apache.http.nio.NHttpClientConnection"))),
-        getClass().getName() + "$ClientResponseAdvice");
+          .and(named("responseReceived"))
+          .and(takesArgument(0, named("org.apache.http.nio.NHttpClientConnection"))),
+        getClass().getName() + "$ClientResponseAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("closed", "exception", "timeout"))
-            .and(takesArgument(0, named("org.apache.http.nio.NHttpClientConnection"))),
-        getClass().getName() + "$ClientErrorResponseAdvice");
+          .and(namedOneOf("closed", "exception", "timeout"))
+          .and(takesArgument(0, named("org.apache.http.nio.NHttpClientConnection"))),
+        getClass().getName() + "$ClientErrorResponseAdvice"
+    );
   }
 
   public static final class ClientRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(
-        @Advice.Argument(0) final NHttpClientConnection connection) {
-
+        @Advice.Argument(0) final NHttpClientConnection connection
+    ) {
       // check for parent span propagated by SynapsePassthruInstrumentation
       AgentSpan parentSpan = null;
       MessageContext message = TargetContext.get(connection).getRequestMsgCtx();
@@ -95,7 +99,6 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
       DECORATE.afterStart(span);
 
       Context context = currentContext().with(span);
-
       // capture context to be finished by one of the various client response advices
       connection.getContext().setAttribute(SYNAPSE_CONTEXT_KEY, context);
 
@@ -105,11 +108,11 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void requestSubmitted(
         @Advice.Argument(0) final NHttpClientConnection connection,
-        @Advice.Enter final ContextScope scope) {
+        @Advice.Enter final ContextScope scope
+    ) {
       // populate span using details from the submitted HttpRequest (resolved URI, etc.)
       AgentSpan span = spanFromContext(scope.context());
       DECORATE.onRequest(span, TargetContext.getRequest(connection).getRequest());
-
       // set peer info from the connection since request URIs are relative paths
       if (connection instanceof HttpInetConnection) {
         HttpInetConnection inetConn = (HttpInetConnection) connection;
@@ -135,7 +138,8 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
   public static final class ClientResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
-        @Advice.Argument(0) final NHttpClientConnection connection) {
+        @Advice.Argument(0) final NHttpClientConnection connection
+    ) {
       // don't remove stored context here because the response callback may run multiple times
       Context context = (Context) connection.getContext().getAttribute(SYNAPSE_CONTEXT_KEY);
       if (null != context) {
@@ -148,7 +152,8 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     public static void responseReceived(
         @Advice.Argument(0) final NHttpClientConnection connection,
         @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable error) {
+        @Advice.Thrown final Throwable error
+    ) {
       if (null == scope) {
         return;
       }
@@ -184,7 +189,8 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void errorResponse(
         @Advice.Argument(0) final NHttpClientConnection connection,
-        @Advice.Argument(value = 1, optional = true) final Object error) {
+        @Advice.Argument(value = 1, optional = true) final Object error
+    ) {
       // check and remove context so it won't be finished twice
       Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
       AgentSpan span = spanFromContext(context);

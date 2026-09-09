@@ -3,7 +3,6 @@ package com.datadog.appsec.util;
 import static com.datadog.appsec.ddwaf.WAFModule.MAX_DEPTH;
 import static com.datadog.appsec.ddwaf.WAFModule.MAX_ELEMENTS;
 import static com.datadog.appsec.ddwaf.WAFModule.MAX_STRING_SIZE;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.JsonReader;
@@ -19,7 +18,6 @@ import javax.annotation.Nullable;
 import okio.Okio;
 
 public interface BodyParser {
-
   Object parse(State state, InputStream inputStream);
 
   static BodyParser forJson() {
@@ -45,7 +43,6 @@ public interface BodyParser {
   }
 
   class JsonParser implements BodyParser {
-
     private static final BodyParser INSTANCE = new JsonParser();
 
     @Override
@@ -59,7 +56,6 @@ public interface BodyParser {
     }
 
     private static final class BoundedObjectAdapter extends JsonAdapter<Object> {
-
       private final State state;
 
       public BoundedObjectAdapter(final State state) {
@@ -113,8 +109,7 @@ public interface BodyParser {
         }
       }
 
-      private Map<String, Object> readObject(final JsonReader r, final int depth)
-          throws IOException {
+      private Map<String, Object> readObject(final JsonReader r, final int depth) throws IOException {
         Map<String, Object> map = new LinkedHashMap<>();
         r.beginObject();
         while (r.hasNext()) {

@@ -5,7 +5,8 @@ public class Person {
   private int age;
   private boolean adult;
 
-  public Person() {}
+  public Person() {
+  }
 
   public Person(String name, int age) {
     this.name = name;

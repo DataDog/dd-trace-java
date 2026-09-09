@@ -4,7 +4,6 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 public interface Histogram {
-
   double getCount();
 
   boolean isEmpty();

@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty76.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,8 +24,9 @@ import org.eclipse.jetty.server.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyCommitResponseInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JettyCommitResponseInstrumentation() {
     super("jetty");
   }
@@ -39,23 +39,23 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".JettyDecorator",
+        packageName + ".RequestURIDataAdapter",
+        "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+        "datadog.trace.instrumentation.jetty.JettyBlockingHelper"
     };
   }
 
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {
-      new Reference.Builder("org.eclipse.jetty.server.AbstractHttpConnection")
-          .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "commitResponse", "V", "Z")
-          .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "completeResponse", "V")
-          .build(),
+        new Reference.Builder("org.eclipse.jetty.server.AbstractHttpConnection")
+      .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "commitResponse", "V", "Z")
+      .withMethod(new String[0], Reference.EXPECTS_NON_STATIC, "completeResponse", "V")
+      .build()
     };
   }
 
@@ -63,15 +63,17 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("commitResponse")
-            .and(takesArguments(1))
-            .and(takesArgument(0, boolean.class))
-            .or(named("completeResponse").and(takesArguments(0))),
-        JettyCommitResponseInstrumentation.class.getName() + "$CommitResponseAdvice");
+          .and(takesArguments(1))
+          .and(takesArgument(0, boolean.class))
+          .or(named("completeResponse").and(takesArguments(0))),
+        JettyCommitResponseInstrumentation.class.getName() + "$CommitResponseAdvice"
+    );
   }
 
   static class CommitResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-    static boolean /* skip */ before(@Advice.This AbstractHttpConnection connection) {
+    static boolean /* skip */
+    before(@Advice.This AbstractHttpConnection connection) {
       Generator generator = connection.getGenerator();
       if (generator.isCommitted()) {
         return false;
@@ -99,9 +101,12 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
         return false;
       }
 
-      Flow<Void> flow =
-          DECORATE.callIGCallbackResponseAndHeaders(
-              span, resp, resp.getStatus(), ExtractAdapter.Response.GETTER);
+      Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+          span,
+          resp,
+          resp.getStatus(),
+          ExtractAdapter.Response.GETTER
+      );
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;

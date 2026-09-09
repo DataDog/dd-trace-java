@@ -7,7 +7,6 @@ import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageAttributeInjector.SETTER;
-
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.RequestHandler2;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
@@ -27,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 
 public class SqsInterceptor extends RequestHandler2 {
-
   private final ContextStore<AmazonWebServiceRequest, Context> contextStore;
 
   public SqsInterceptor(ContextStore<AmazonWebServiceRequest, Context> contextStore) {
@@ -40,8 +38,9 @@ public class SqsInterceptor extends RequestHandler2 {
       SendMessageRequest smRequest = (SendMessageRequest) request;
 
       String queueUrl = smRequest.getQueueUrl();
-      if (queueUrl == null) return request;
-
+      if (queueUrl == null) {
+        return request;
+      }
       // making a copy of the MessageAttributes before modifying them because they can be stored in
       // a kind of ImmutableMap
       Map<String, MessageAttributeValue> messageAttributes =
@@ -57,7 +56,9 @@ public class SqsInterceptor extends RequestHandler2 {
       SendMessageBatchRequest smbRequest = (SendMessageBatchRequest) request;
 
       String queueUrl = smbRequest.getQueueUrl();
-      if (queueUrl == null) return request;
+      if (queueUrl == null) {
+        return request;
+      }
 
       Context context = newContext(request, queueUrl);
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {

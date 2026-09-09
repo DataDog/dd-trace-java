@@ -2,7 +2,6 @@ package com.datadog.debugger.el;
 
 import static com.datadog.debugger.agent.CapturedSnapshotTest.getFields;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
@@ -40,37 +39,38 @@ public class ELIntegrationSanityTest {
 
   @Test
   void extractAfterEl() throws IllegalAccessException {
-    JsonSnapshotSerializer serializer =
-        new JsonSnapshotSerializer(); // Mockito.spy(new JsonSnapshotSerializer());
+    // Mockito.spy(new JsonSnapshotSerializer());
+    JsonSnapshotSerializer // Mockito.spy(new JsonSnapshotSerializer());
+    serializer = new JsonSnapshotSerializer();
     DebuggerContext.initValueSerializer(serializer);
     Person p = new Person();
     // set the limit not to follow references to fields
     Limits initialLimits = new Limits(2, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
     // create new captured context
     CapturedContext capturedContext = new CapturedContext();
-    CapturedContext.CapturedValue thisValue =
-        CapturedContext.CapturedValue.of(
-            "this",
-            Person.class.getName(),
-            p,
-            initialLimits.maxReferenceDepth,
-            initialLimits.maxCollectionSize,
-            initialLimits.maxLength,
-            initialLimits.maxFieldCount);
+    CapturedContext.CapturedValue thisValue = CapturedContext.CapturedValue.of(
+        "this",
+        Person.class.getName(),
+        p,
+        initialLimits.maxReferenceDepth,
+        initialLimits.maxCollectionSize,
+        initialLimits.maxLength,
+        initialLimits.maxFieldCount
+    );
     capturedContext.addArguments(new CapturedContext.CapturedValue[] {thisValue});
-
     // '.name.value' is not present in the snapshot - it needs to be retrieved via reflection
-    Value<?> val =
-        DSL.getMember(DSL.ref("name"), "value")
-            .evaluate(
-                new EvalContext(
-                    capturedContext, TimeoutChecker.create(Config.get(), Duration.ofMillis(1000))));
+    Value<?> val = DSL
+      .getMember(DSL.ref("name"), "value")
+      .evaluate(
+          new EvalContext(
+              capturedContext,
+              TimeoutChecker.create(Config.get(), Duration.ofMillis(1000))
+          )
+      );
     // make sure the nested field was properly resolved
     assertEquals(p.name.value, val.getValue());
-
     // freeze the captured context
     capturedContext.freeze(TimeoutChecker.create(Config.get(), Duration.of(1, ChronoUnit.SECONDS)));
-
     // after freezing the original value is removed and only the serialized json representation
     // remains
     Map<String, CapturedContext.CapturedValue> thisFields =

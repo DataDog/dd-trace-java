@@ -51,28 +51,24 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 public final class ScaReachabilityTransformer implements ClassFileTransformer {
-
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
   private static final Pattern PATH_SEPARATOR = Pattern.compile(Pattern.quote(File.pathSeparator));
-
   /**
    * Maximum number of retransform attempts for a class whose watched artifact never resolves as a
    * dependency. Beyond this cap the class is given up on, so that a permanently unresolvable
    * artifact (e.g. embedded Tomcat) cannot re-queue itself forever and cause unbounded {@link
    * Instrumentation#retransformClasses} calls. See APPSEC-69734.
    */
-  @VisibleForTesting static final int MAX_UNRESOLVED_RETRIES = 5;
-
+  @VisibleForTesting
+  static final int MAX_UNRESOLVED_RETRIES = 5;
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
-
   /**
    * Cache: JAR URI → resolved dependencies. URI is used instead of URL to avoid DNS lookups in
    * equals/hashCode (DMI_COLLECTION_OF_URLS). Only non-empty results are cached to allow retries.
    */
   @VisibleForTesting
   final ConcurrentHashMap<URI, List<Dependency>> jarCache = new ConcurrentHashMap<>();
-
   /**
    * Cache: artifact name → classpath-resolved {@link Dependency}. Stores the full dependency (name
    * + version) so that the resolved {@code dep.name} — which may be an artifactId-only name like
@@ -83,7 +79,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    */
   @VisibleForTesting
   final ConcurrentHashMap<String, Dependency> classpathArtifactCache = new ConcurrentHashMap<>();
-
   /**
    * Batches of classes whose bytecode needs (re)transformation for method-level symbol injection:
    *
@@ -100,10 +95,11 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    */
   @VisibleForTesting
   final ConcurrentLinkedQueue<List<Class<?>>> pendingRetransform = new ConcurrentLinkedQueue<>();
-
-  /** Class names (internal format) queued for deferred retransformation by name lookup. */
-  @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
-
+  /**
+   * Class names (internal format) queued for deferred retransformation by name lookup.
+   */
+  @VisibleForTesting
+  final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
   /**
    * Class name (internal format) → number of retransform attempts already spent on a class whose
    * watched artifact could not be resolved. Capped by {@link #MAX_UNRESOLVED_RETRIES}.
@@ -119,7 +115,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    */
   @VisibleForTesting
   final ConcurrentHashMap<String, Integer> unresolvedAttemptCounts = new ConcurrentHashMap<>();
-
   /**
    * Class names (internal format) whose unresolved-retry attempt has already been counted during
    * the current heartbeat. A single {@link #performPendingRetransforms()} call retransforms every
@@ -131,7 +126,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * concurrently with itself, and {@code processClass()} is invoked synchronously from within its
    * {@code retransformClasses()} calls.
    */
-  @VisibleForTesting final Set<String> countedThisHeartbeat = new HashSet<>();
+  @VisibleForTesting
+  final Set<String> countedThisHeartbeat = new HashSet<>();
 
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
@@ -141,20 +137,19 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // ---------------------------------------------------------------------------
   // ClassFileTransformer
   // ---------------------------------------------------------------------------
-
   @Override
   public byte[] transform(
       ClassLoader loader,
       String className,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
-      byte[] classfileBuffer) {
+      byte[] classfileBuffer
+  ) {
     try {
       // Filter array types (e.g. "[Ljava/sql/PreparedStatement;").
       if (className == null || className.charAt(0) == '[') {
         return null;
       }
-
       // JDK/bootstrap classes (protectionDomain == null) are skipped - they are loaded regardless
       // of which library is present and are not reliable reachability indicators.
       if (protectionDomain == null) {
@@ -168,7 +163,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
       CodeSource codeSource = protectionDomain.getCodeSource();
       if (codeSource == null) {
-        return null; // runtime-generated class (dynamic proxy, lambda, etc.)
+        // runtime-generated class (dynamic proxy, lambda, etc.)
+        return null;
       }
       URL location = codeSource.getLocation();
       if (location == null) {
@@ -181,7 +177,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         pendingRetransformNames.add(className);
         return null;
       }
-
       // Retransform triggered by performPendingRetransforms() after version resolution succeeds:
       // inject method-level callbacks into the bytecode and return the modified bytes.
       return processClass(className, location, entries, classfileBuffer);
@@ -202,10 +197,13 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * version resolution failed (no bytecode change needed; will be retried on the next heartbeat).
    */
   private byte[] processClass(
-      String className, URL jarUrl, List<ScaEntry> entries, byte[] classfileBuffer) {
+      String className,
+      URL jarUrl,
+      List<ScaEntry> entries,
+      byte[] classfileBuffer
+  ) {
     // Cache-only: processClass() runs under JVM retransform locks; no fresh JAR I/O here.
     List<Dependency> classJarDeps = resolveDependenciesFromCache(jarUrl);
-
     // Collect method-level callbacks to inject, keyed by method name
     Map<String, List<MethodCallbackSpec>> methodCallbacks = new HashMap<>();
     boolean hasUnresolvedMethodLevelSymbols = false;
@@ -249,10 +247,16 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
           dotClassName = Strings.getClassName(className);
         }
         methodCallbacks
-            .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
-            .add(
-                new MethodCallbackSpec(
-                    entry.vulnId(), depName, version, dotClassName, symbol.method()));
+          .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
+          .add(
+              new MethodCallbackSpec(
+                  entry.vulnId(),
+                  depName,
+                  version,
+                  dotClassName,
+                  symbol.method()
+              )
+          );
       }
     }
 
@@ -284,9 +288,10 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         // never re-queued, so this logs at most once per class.
         log.debug(
             "SCA Reachability: giving up resolving unresolved artifact(s) for class {} after {}"
-                + " heartbeats",
+            + " heartbeats",
             className,
-            attempts);
+            attempts
+        );
       }
     }
 
@@ -299,7 +304,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // ---------------------------------------------------------------------------
   // Startup scan for already-loaded classes
   // ---------------------------------------------------------------------------
-
   /**
    * Checks classes already loaded before this transformer was registered.
    *
@@ -363,7 +367,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     countedThisHeartbeat.clear();
 
     if (instrumentation == null) {
-      return; // no-op when instrumentation is unavailable (e.g. in unit tests)
+      // no-op when instrumentation is unavailable (e.g. in unit tests)
+      return;
     }
     // Drain the batch queue (from checkAlreadyLoadedClasses and prior bisections), dropping any
     // classes that are no longer modifiable from within each batch while preserving the rest of
@@ -376,7 +381,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         batches.add(batch);
       }
     }
-
     // Resolve any classes queued by name (from processClass timing failures) into their own
     // batch. Use contains+removeAll instead of remove inside the loop: the same class may be
     // loaded by multiple classloaders (e.g. Spring Boot LaunchedURLClassLoader creates more than
@@ -406,7 +410,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     if (batches.isEmpty()) {
       return;
     }
-
     // Pre-warm caches before retransformClasses() acquires JVM locks — no JAR I/O inside the
     // callback.
     // Two paths in processClass() can trigger fresh JAR I/O under locks:
@@ -440,7 +443,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         }
       }
     }
-
     // Each batch is retransformed independently: a failure in one batch never affects another,
     // and a failing multi-class batch is bisected rather than dropped as a whole.
     for (List<Class<?>> b : batches) {
@@ -462,25 +464,29 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     try {
       instrumentation.retransformClasses(batch.toArray(new Class<?>[0]));
       log.debug(
-          "SCA Reachability: retransformed {} class(es) for method-level detection", batch.size());
+          "SCA Reachability: retransformed {} class(es) for method-level detection",
+          batch.size()
+      );
     } catch (Throwable t) {
       log.debug(
           "SCA Reachability: retransformClasses failed for a batch of {} class(es)",
           batch.size(),
-          t);
+          t
+      );
       if (batch.size() == 1) {
         log.debug(
-            "SCA Reachability: giving up retransforming {} after a failed attempt as a singleton"
-                + " batch",
-            batch.get(0).getName());
+            "SCA Reachability: giving up retransforming {} after a failed attempt as a singleton" + " batch",
+            batch.get(0).getName()
+        );
       } else {
         int mid = batch.size() / 2;
         pendingRetransform.add(new ArrayList<>(batch.subList(0, mid)));
         pendingRetransform.add(new ArrayList<>(batch.subList(mid, batch.size())));
         log.debug(
             "SCA Reachability: bisecting failing batch of {} class(es) into two halves for the"
-                + " next heartbeat",
-            batch.size());
+            + " next heartbeat",
+            batch.size()
+        );
       }
     }
   }
@@ -488,7 +494,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // ---------------------------------------------------------------------------
   // Internal matching logic
   // ---------------------------------------------------------------------------
-
   /**
    * Resolves the {@link Dependency} for {@code artifactName} (groupId:artifactId format), returning
    * the matched dependency object — which may have an artifactId-only {@code name} for JARs without
@@ -512,7 +517,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
     dep = findArtifactInClasspath(artifactName);
     if (dep != null) {
-      classpathArtifactCache.put(artifactName, dep); // only cache hits; misses are retried
+      // only cache hits; misses are retried
+      classpathArtifactCache.put(artifactName, dep);
     }
     return dep;
   }
@@ -570,7 +576,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   private Dependency findArtifactInClasspath(String artifactName) {
     // Use URI (not URL) to avoid DNS lookups in equals/hashCode (DMI_COLLECTION_OF_URLS)
     Set<URI> scanned = new HashSet<>();
-
     // AgentThreadFactory sets context classloader to null on agent threads, so a URLClassLoader
     // chain walk would never execute here. Scan java.class.path directly — this covers both Java 8
     // and Java 9+ for standard deployments. OSGi / multi-tenant apps and Spring Boot fat JARs with
@@ -640,9 +645,13 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   }
 
   private static URL locationOf(ProtectionDomain pd) {
-    if (pd == null) return null;
+    if (pd == null) {
+      return null;
+    }
     CodeSource cs = pd.getCodeSource();
-    if (cs == null) return null;
+    if (cs == null) {
+      return null;
+    }
     return cs.getLocation();
   }
 }

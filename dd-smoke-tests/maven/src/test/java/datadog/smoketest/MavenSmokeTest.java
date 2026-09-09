@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestFQN;
@@ -50,18 +49,13 @@ import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverterSources;
 
-@DisabledIf(
-    value = "disabledOnIbm8",
-    disabledReason = "IBM8 has flaky AES-GCM TLS failures when downloading Maven artifacts")
+@DisabledIf(value = "disabledOnIbm8", disabledReason = "IBM8 has flaky AES-GCM TLS failures when "
+    + "downloading Maven artifacts")
 @TypeConverterSources(CiVisibilityTableTestConverters.class)
 class MavenSmokeTest extends CiVisibilitySmokeTest {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class);
-
   private static final String LATEST_MAVEN_VERSION = getLatestMavenVersion();
-
   private static final String TEST_SERVICE_NAME = "test-maven-service";
-
   private static final int DEPENDENCIES_DOWNLOAD_TIMEOUT_SECS = 120;
   private static final int PROCESS_TIMEOUT_SECS = 60;
   private static final int DEPENDENCIES_DOWNLOAD_RETRIES = 5;
@@ -70,8 +64,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     return JavaVirtualMachine.isIbm8();
   }
 
-  @TempDir Path projectHome;
-
+  @TempDir
+  Path projectHome;
   static final MockBackend mockBackend = new MockBackend();
 
   @BeforeEach
@@ -86,21 +80,66 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   @TableTest({
-    "scenario                   | projectName                                       | mavenVersion                 | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                                | minSupportedJavaVersion",
-    "succeed-base               | test_successful_maven_run                         | {3.5.4, 3.6.3, 3.8.8, 3.9.9} | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "succeed-surefire-3.0.0-j8  | test_successful_maven_run_surefire_3_0_0          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "succeed-surefire-3.0.0-j17 | test_successful_maven_run_surefire_3_0_0          | latest                       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     ",
-    "succeed-surefire-3.5.0-j8  | test_successful_maven_run_surefire_3_5_0          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "succeed-surefire-3.5.0-j17 | test_successful_maven_run_surefire_3_5_0          | latest                       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     ",
-    "succeed-builtin-coverage   | test_successful_maven_run_builtin_coverage        | 3.9.9                        | 5              | 1                 | true          | true          | false        | false          | []                                                               | 8                      ",
-    "succeed-jacoco-argline     | test_successful_maven_run_with_jacoco_and_argline | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "succeed-cucumber           | test_successful_maven_run_with_cucumber           | 3.9.9                        | 4              | 1                 | true          | false         | false        | true           | []                                                               | 8                      ",
-    "failed-flaky-retries       | test_failed_maven_run_flaky_retries               | 3.9.9                        | 8              | 5                 | false         | false         | true         | true           | []                                                               | 8                      ",
-    "cucumber-suite-flaky       | test_maven_run_cucumber_suite_flaky_retries       | 3.9.9                        | 8              | 5                 | false         | false         | true         | false          | []                                                               | 17                     ",
-    "succeed-junit-platform     | test_successful_maven_run_junit_platform_runner   | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | []                                                               | 8                      ",
-    "succeed-arg-line-property  | test_successful_maven_run_with_arg_line_property  | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | [\"-DargLine='-Dmy-custom-property=provided-via-command-line'\"] | 8                      ",
-    "succeed-multi-forks-j8     | test_successful_maven_run_multiple_forks          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "succeed-multi-forks-j17    | test_successful_maven_run_multiple_forks          | latest                       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     "
+    "scenario                   | projectName                                       |  ",
+    "mavenVersion                 | expectedEvents | expectedCoverages | expectSuccess ",
+    "| testsSkipping | flakyRetries | jacocoCoverage | commandLineParams               ",
+    "                                 | minSupportedJavaVersion                        ",
+    "succeed-base               | test_successful_maven_run                         |  ",
+    "{3.5.4, 3.6.3, 3.8.8, 3.9.9} | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 8                                              ",
+    "succeed-surefire-3.0.0-j8  | test_successful_maven_run_surefire_3_0_0          |  ",
+    "3.9.9                        | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 8                                              ",
+    "succeed-surefire-3.0.0-j17 | test_successful_maven_run_surefire_3_0_0          |  ",
+    "latest                       | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 17                                             ",
+    "succeed-surefire-3.5.0-j8  | test_successful_maven_run_surefire_3_5_0          |  ",
+    "3.9.9                        | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 8                                              ",
+    "succeed-surefire-3.5.0-j17 | test_successful_maven_run_surefire_3_5_0          |  ",
+    "latest                       | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 17                                             ",
+    "succeed-builtin-coverage   | test_successful_maven_run_builtin_coverage        |  ",
+    "3.9.9                        | 5              | 1                 | true          ",
+    "| true          | false        | false          | []                              ",
+    "                                 | 8                                              ",
+    "succeed-jacoco-argline     | test_successful_maven_run_with_jacoco_and_argline |  ",
+    "3.9.9                        | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 8                                              ",
+    "succeed-cucumber           | test_successful_maven_run_with_cucumber           |  ",
+    "3.9.9                        | 4              | 1                 | true          ",
+    "| false         | false        | true           | []                              ",
+    "                                 | 8                                              ",
+    "failed-flaky-retries       | test_failed_maven_run_flaky_retries               |  ",
+    "3.9.9                        | 8              | 5                 | false         ",
+    "| false         | true         | true           | []                              ",
+    "                                 | 8                                              ",
+    "cucumber-suite-flaky       | test_maven_run_cucumber_suite_flaky_retries       |  ",
+    "3.9.9                        | 8              | 5                 | false         ",
+    "| false         | true         | false          | []                              ",
+    "                                 | 17                                             ",
+    "succeed-junit-platform     | test_successful_maven_run_junit_platform_runner   |  ",
+    "3.9.9                        | 4              | 0                 | true          ",
+    "| false         | false        | false          | []                              ",
+    "                                 | 8                                              ",
+    "succeed-arg-line-property  | test_successful_maven_run_with_arg_line_property  |  ",
+    "3.9.9                        | 4              | 0                 | true          ",
+    "| false         | false        | false          | [\\\"-DargLine='-Dmy-custom-    ",
+    "property=provided-via-command-line'\\\"] | 8                                      ",
+    "succeed-multi-forks-j8     | test_successful_maven_run_multiple_forks          |  ",
+    "3.9.9                        | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 8                                              ",
+    "succeed-multi-forks-j17    | test_successful_maven_run_multiple_forks          |  ",
+    "latest                       | 5              | 1                 | true          ",
+    "| true          | false        | true           | []                              ",
+    "                                 | 17                                             "
   })
   @ParameterizedTest
   void testMavenRun(
@@ -113,13 +152,14 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       boolean flakyRetries,
       boolean jacocoCoverage,
       List<String> commandLineParams,
-      int minSupportedJavaVersion)
-      throws Exception {
+      int minSupportedJavaVersion
+  ) throws Exception {
     mavenVersion = resolveLatestMaven(mavenVersion);
     System.out.println("Starting: " + projectName + " " + mavenVersion);
     assumeTrue(
         JavaVirtualMachine.isJavaVersionAtLeast(minSupportedJavaVersion),
-        "Current JVM is not compatible with minimum required version " + minSupportedJavaVersion);
+        "Current JVM is not compatible with minimum required version " + minSupportedJavaVersion
+    );
 
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);
@@ -129,38 +169,40 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenFlakyTest(
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "datadog.smoke.TestFailed",
-        "test_failed");
+        "test_failed"
+    );
     mockBackend.givenFlakyTest(
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "classpath:datadog/smoke/basic_arithmetic.feature:Basic Arithmetic",
-        "Basic Arithmetic - Addition"); // cucumber.junit-platform.naming-strategy=long
+        // cucumber.junit-platform.naming-strategy=long
+        "Basic Arithmetic - Addition"
+    );
 
     mockBackend.givenTestsSkipping(testsSkipping);
     mockBackend.givenSkippableTest(
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "datadog.smoke.TestSucceed",
         "test_to_skip_with_itr",
-        Collections.singletonMap("src/main/java/datadog/smoke/Calculator.java", bits(9)));
+        Collections.singletonMap("src/main/java/datadog/smoke/Calculator.java", bits(9))
+    );
 
     mockBackend.givenImpactedTestsDetection(true);
 
-    boolean coverageReportExpected =
-        jacocoCoverage
-            && CiVisibilitySmokeTest.class
-                    .getClassLoader()
-                    .getResource(projectName + "/coverage_report_event.ftl")
-                != null;
+    boolean coverageReportExpected = jacocoCoverage
+        && CiVisibilitySmokeTest.class
+      .getClassLoader()
+      .getResource(projectName + "/coverage_report_event.ftl") != null;
     if (coverageReportExpected) {
       mockBackend.givenCodeCoverageReportUpload(true);
     }
 
-    Map<String, String> agentArgs =
-        jacocoCoverage
-            ? Collections.singletonMap(
-                CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION, JACOCO_PLUGIN_VERSION)
-            : Collections.emptyMap();
-    int exitCode =
-        whenRunningMavenBuild(agentArgs, commandLineParams, Collections.emptyMap(), true);
+    Map<String, String> agentArgs = jacocoCoverage
+        ? Collections.singletonMap(
+            CiVisibilityConfig.CIVISIBILITY_JACOCO_PLUGIN_VERSION,
+            JACOCO_PLUGIN_VERSION
+    )
+        : Collections.emptyMap();
+    int exitCode = whenRunningMavenBuild(agentArgs, commandLineParams, Collections.emptyMap(), true);
 
     if (expectSuccess) {
       assertEquals(0, exitCode);
@@ -173,18 +215,23 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "maven",
         mavenVersion,
         mockBackend.waitForEvents(expectedEvents),
-        mockBackend.waitForCoverages(expectedCoverages));
+        mockBackend.waitForCoverages(expectedCoverages)
+    );
     verifyTelemetryMetrics(
         mockBackend.getAllReceivedTelemetryMetrics(),
         mockBackend.getAllReceivedTelemetryDistributions(),
-        expectedEvents);
+        expectedEvents
+    );
 
     if (coverageReportExpected) {
       List<datadog.trace.civisibility.CiVisibilityTestUtils.CoverageReport> reports =
           mockBackend.waitForCoverageReports(1);
       String realProjectHome = projectHome.toRealPath().toString();
       verifyCoverageReports(
-          projectName, reports, Collections.singletonMap("ci_workspace_path", realProjectHome));
+          projectName,
+          reports,
+          Collections.singletonMap("ci_workspace_path", realProjectHome)
+      );
     }
   }
 
@@ -204,21 +251,27 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenQuarantinedTests(
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "datadog.smoke.TestFailed",
-        "test_failed");
+        "test_failed"
+    );
 
     mockBackend.givenDisabledTests(
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "datadog.smoke.TestSucceeded",
-        "test_succeeded");
+        "test_succeeded"
+    );
 
     mockBackend.givenAttemptToFixTests(
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "datadog.smoke.TestSucceeded",
-        "test_another_succeeded");
+        "test_another_succeeded"
+    );
 
-    int exitCode =
-        whenRunningMavenBuild(
-            Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap(), true);
+    int exitCode = whenRunningMavenBuild(
+        Collections.emptyMap(),
+        Collections.emptyList(),
+        Collections.emptyMap(),
+        true
+    );
     assertEquals(0, exitCode);
 
     verifyEventsAndCoverages(
@@ -226,15 +279,58 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "maven",
         mavenVersion,
         mockBackend.waitForEvents(11),
-        mockBackend.waitForCoverages(3));
+        mockBackend.waitForCoverages(3)
+    );
   }
 
   @TableTest({
-    "scenario                         | projectName                                              | mavenVersion | surefireVersion       | flakyTests                                                                                                                                | knownTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
-    "junit4-provider                  | test_successful_maven_run_junit4_class_ordering          | 3.9.9        | 3.0.0                 | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
-    "junit47-provider                 | test_successful_maven_run_junit4_class_ordering_parallel | 3.9.9        | 3.0.0                 | ['datadog.smoke.TestSucceedC:test_succeed']                                                                                               | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                    | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                                                                                                                          | 12          ",
-    "junit4-provider-latest-surefire  | test_successful_maven_run_junit4_class_ordering          | 3.9.9        | latest-maven-surefire | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
-    "junit47-provider-latest-surefire | test_successful_maven_run_junit4_class_ordering_parallel | 3.9.9        | latest-maven-surefire | ['datadog.smoke.TestSucceedC:test_succeed']                                                                                               | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                    | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                                                                                                                          | 12          "
+    "scenario                         | projectName                                    ",
+    "          | mavenVersion | surefireVersion       | flakyTests                     ",
+    "                                                                                  ",
+    "                         | knownTests                                             ",
+    "                                                                                  ",
+    " | expectedOrder                                                                  ",
+    "                                                                                  ",
+    "                                                                                  ",
+    "                                        | eventsNumber                            ",
+    "junit4-provider                  | test_successful_maven_run_junit4_class_        ",
+    "ordering          | 3.9.9        | 3.0.0                 | ['datadog.smoke.       ",
+    "TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another',    ",
+    "'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedB:test_   ",
+    "succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.      ",
+    "TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed',         ",
+    "'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:   ",
+    "test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke. ",
+    "TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] |  ",
+    "15                                                                                ",
+    "junit47-provider                 | test_successful_maven_run_junit4_class_        ",
+    "ordering_parallel | 3.9.9        | 3.0.0                 | ['datadog.smoke.       ",
+    "TestSucceedC:test_succeed']                                                       ",
+    "                                        | ['datadog.smoke.TestSucceedC:test_      ",
+    "succeed', 'datadog.smoke.TestSucceedA:test_succeed']                              ",
+    "                      | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.     ",
+    "smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']      ",
+    "                                                                                  ",
+    "                                                                  | 12            ",
+    "junit4-provider-latest-surefire  | test_successful_maven_run_junit4_class_        ",
+    "ordering          | 3.9.9        | latest-maven-surefire | ['datadog.smoke.       ",
+    "TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another',    ",
+    "'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedB:test_   ",
+    "succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.      ",
+    "TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed',         ",
+    "'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:   ",
+    "test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke. ",
+    "TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] |  ",
+    "15                                                                                ",
+    "junit47-provider-latest-surefire | test_successful_maven_run_junit4_class_        ",
+    "ordering_parallel | 3.9.9        | latest-maven-surefire | ['datadog.smoke.       ",
+    "TestSucceedC:test_succeed']                                                       ",
+    "                                        | ['datadog.smoke.TestSucceedC:test_      ",
+    "succeed', 'datadog.smoke.TestSucceedA:test_succeed']                              ",
+    "                      | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.     ",
+    "smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']      ",
+    "                                                                                  ",
+    "                                                                  | 12            "
   })
   @ParameterizedTest
   void testJunit4ClassOrdering(
@@ -244,12 +340,11 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       List<TestFQN> flakyTests,
       List<TestFQN> knownTests,
       List<TestFQN> expectedOrder,
-      int eventsNumber)
-      throws Exception {
-    surefireVersion =
-        "latest-maven-surefire".equals(surefireVersion)
-            ? getLatestMavenSurefireVersion()
-            : surefireVersion;
+      int eventsNumber
+  ) throws Exception {
+    surefireVersion = "latest-maven-surefire".equals(surefireVersion)
+        ? getLatestMavenSurefireVersion()
+        : surefireVersion;
     Map<String, String> additionalEnvVars = new HashMap<>();
     additionalEnvVars.put("SMOKE_TEST_SUREFIRE_VERSION", surefireVersion);
 
@@ -261,7 +356,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       mockBackend.givenFlakyTest(
           "Maven Smoke Tests Project maven-surefire-plugin default-test",
           flakyTest.getSuite(),
-          flakyTest.getName());
+          flakyTest.getName()
+      );
     }
 
     mockBackend.givenKnownTests(true);
@@ -269,24 +365,29 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       mockBackend.givenKnownTest(
           "Maven Smoke Tests Project maven-surefire-plugin default-test",
           knownTest.getSuite(),
-          knownTest.getName());
+          knownTest.getName()
+      );
     }
 
-    int exitCode =
-        whenRunningMavenBuild(
-            Collections.singletonMap(
-                CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER),
-            Collections.emptyList(),
-            additionalEnvVars,
-            true);
+    int exitCode = whenRunningMavenBuild(
+        Collections.singletonMap(
+            CiVisibilityConfig.CIVISIBILITY_TEST_ORDER,
+            CIConstants.FAIL_FAST_TEST_ORDER
+        ),
+        Collections.emptyList(),
+        additionalEnvVars,
+        true
+    );
     assertEquals(0, exitCode);
 
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder);
   }
 
   @TableTest({
-    "scenario                  | projectName                                         | mavenVersion",
-    "child-service-propagation | test_successful_maven_run_child_service_propagation | 3.9.9       "
+    "scenario                  | projectName                                         | ",
+    "mavenVersion                                                                      ",
+    "child-service-propagation | test_successful_maven_run_child_service_propagation | ",
+    "3.9.9                                                                             "
   })
   @ParameterizedTest
   void testServiceNamePropagation(String projectName, String mavenVersion) throws Exception {
@@ -294,9 +395,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     givenMavenProjectFiles(projectName);
     givenMavenDependenciesAreLoaded(projectName, mavenVersion);
 
-    int exitCode =
-        whenRunningMavenBuild(
-            Collections.emptyMap(), Collections.emptyList(), Collections.emptyMap(), false);
+    int exitCode = whenRunningMavenBuild(
+        Collections.emptyMap(),
+        Collections.emptyList(),
+        Collections.emptyMap(),
+        false
+    );
     assertEquals(0, exitCode);
 
     List<String> additionalDynamicPaths = Collections.singletonList("content.service");
@@ -306,7 +410,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         mavenVersion,
         mockBackend.waitForEvents(5),
         mockBackend.waitForCoverages(1),
-        additionalDynamicPaths);
+        additionalDynamicPaths
+    );
   }
 
   @TableTest({
@@ -325,7 +430,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenFlakyTest(
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "com.example.TestFailed",
-        "test_failed");
+        "test_failed"
+    );
     mockBackend.givenFailedTestReplay(true);
 
     Map<String, String> agentArgs = new HashMap<>();
@@ -336,27 +442,27 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         whenRunningMavenBuild(agentArgs, Collections.emptyList(), Collections.emptyMap(), true);
     assertEquals(1, exitCode);
 
-    List<String> additionalDynamicTags =
-        Arrays.asList(
-            "content.meta.['_dd.debug.error.3.snapshot_id']",
-            "content.meta.['_dd.debug.error.exception_id']");
+    List<String> additionalDynamicTags = Arrays.asList(
+        "content.meta.['_dd.debug.error.3.snapshot_id']",
+        "content.meta.['_dd.debug.error.exception_id']"
+    );
     verifyEventsAndCoverages(
         projectName,
         "maven",
         mavenVersion,
         mockBackend.waitForEvents(7),
         mockBackend.waitForCoverages(0),
-        additionalDynamicTags);
+        additionalDynamicTags
+    );
     verifySnapshots(mockBackend.waitForLogs(2), 2);
   }
 
   private void givenWrapperPropertiesFile(String mavenVersion) throws IOException {
-    String distributionUrl =
-        "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/"
-            + mavenVersion
-            + "/apache-maven-"
-            + mavenVersion
-            + "-bin.zip";
+    String distributionUrl = "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/"
+        + mavenVersion
+        + "/apache-maven-"
+        + mavenVersion
+        + "-bin.zip";
 
     Properties properties = new Properties();
     properties.setProperty("distributionUrl", distributionUrl);
@@ -379,24 +485,20 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private void copyFolder(Path src, Path dest) throws IOException {
-    Files.walkFileTree(
-        src,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-              throws IOException {
-            Files.createDirectories(dest.resolve(src.relativize(dir)));
-            return FileVisitResult.CONTINUE;
-          }
+    Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+          throws IOException {
+        Files.createDirectories(dest.resolve(src.relativize(dir)));
+        return FileVisitResult.CONTINUE;
+      }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.copy(file, dest.resolve(src.relativize(file)));
-            return FileVisitResult.CONTINUE;
-          }
-        });
-
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.copy(file, dest.resolve(src.relativize(file)));
+        return FileVisitResult.CONTINUE;
+      }
+    });
     // creating empty .git directory so that the tracer could detect projectFolder as repo root
     Files.createDirectory(projectHome.resolve(".git"));
   }
@@ -412,13 +514,17 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private void givenMavenDependenciesAreLoaded(
-      String projectName, String mavenVersion, Map<String, String> additionalEnvVars)
-      throws Exception {
+      String projectName,
+      String mavenVersion,
+      Map<String, String> additionalEnvVars
+  ) throws Exception {
     if (LOADED_DEPENDENCIES.add(projectName + ":" + mavenVersion)) {
       retryUntilSuccessfulOrNoAttemptsLeft(
           Collections.singletonList(
-              "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:go-offline"),
-          additionalEnvVars);
+              "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:go-offline"
+          ),
+          additionalEnvVars
+      );
     }
     // Dependencies below are downloaded separately because they are not declared in the project,
     // but are added at runtime by the tracer.
@@ -426,22 +532,28 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       retryUntilSuccessfulOrNoAttemptsLeft(
           Arrays.asList(
               "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get",
-              "-Dartifact=com.datadoghq:dd-javac-plugin:" + JAVAC_PLUGIN_VERSION),
-          additionalEnvVars);
+              "-Dartifact=com.datadoghq:dd-javac-plugin:" + JAVAC_PLUGIN_VERSION
+          ),
+          additionalEnvVars
+      );
     }
     if (LOADED_DEPENDENCIES.add("org.jacoco:jacoco-maven-plugin:" + JACOCO_PLUGIN_VERSION)) {
       retryUntilSuccessfulOrNoAttemptsLeft(
           Arrays.asList(
               "org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get",
-              "-Dartifact=org.jacoco:jacoco-maven-plugin:" + JACOCO_PLUGIN_VERSION),
-          additionalEnvVars);
+              "-Dartifact=org.jacoco:jacoco-maven-plugin:" + JACOCO_PLUGIN_VERSION
+          ),
+          additionalEnvVars
+      );
     }
   }
 
   private static final Collection<String> LOADED_DEPENDENCIES = new HashSet<>();
 
   private void retryUntilSuccessfulOrNoAttemptsLeft(
-      List<String> mvnCommand, Map<String, String> additionalEnvVars) throws Exception {
+      List<String> mvnCommand,
+      Map<String, String> additionalEnvVars
+  ) throws Exception {
     ProcessBuilder processBuilder =
         createProcessBuilder(mvnCommand, false, false, Collections.emptyMap(), additionalEnvVars);
     for (int attempt = 0; attempt < DEPENDENCIES_DOWNLOAD_RETRIES; attempt++) {
@@ -455,19 +567,16 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       }
     }
     throw new AssertionError(
-        "Tried "
-            + DEPENDENCIES_DOWNLOAD_RETRIES
-            + " times to execute "
-            + mvnCommand
-            + " and failed");
+        "Tried " + DEPENDENCIES_DOWNLOAD_RETRIES + " times to execute " + mvnCommand + " and failed"
+    );
   }
 
   private int whenRunningMavenBuild(
       Map<String, String> additionalAgentArgs,
       List<String> additionalCommandLineParams,
       Map<String, String> additionalEnvVars,
-      boolean setServiceName)
-      throws Exception {
+      boolean setServiceName
+  ) throws Exception {
     List<String> mvnCommand = new ArrayList<>();
     mvnCommand.add("-B");
     mvnCommand.add("test");
@@ -475,7 +584,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
     ProcessBuilder processBuilder =
         createProcessBuilder(
-            mvnCommand, true, setServiceName, additionalAgentArgs, additionalEnvVars);
+            mvnCommand,
+            true,
+            setServiceName,
+            additionalAgentArgs,
+            additionalEnvVars
+    );
 
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF");
 
@@ -491,7 +605,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     if (!p.waitFor(timeoutSecs, TimeUnit.SECONDS)) {
       p.destroyForcibly();
       throw new TimeoutException(
-          "Instrumented process failed to exit within " + timeoutSecs + " seconds");
+          "Instrumented process failed to exit within " + timeoutSecs + " seconds"
+      );
     }
 
     return p.exitValue();
@@ -502,7 +617,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
       boolean runWithAgent,
       boolean setServiceName,
       Map<String, String> additionalAgentArgs,
-      Map<String, String> additionalEnvVars) {
+      Map<String, String> additionalEnvVars
+  ) {
     String mavenRunnerShadowJar = System.getProperty("datadog.smoketest.maven.jar.path");
     assertTrue(new File(mavenRunnerShadowJar).isFile());
 
@@ -534,7 +650,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   List<String> jvmArguments(
-      boolean runWithAgent, boolean setServiceName, Map<String, String> additionalAgentArgs) {
+      boolean runWithAgent,
+      boolean setServiceName,
+      Map<String, String> additionalAgentArgs
+  ) {
     List<String> arguments = new ArrayList<>();
     arguments.add("-D" + MavenWrapperMain.MVNW_VERBOSE + "=true");
     arguments.add("-Duser.dir=" + projectHome.toAbsolutePath());
@@ -546,7 +665,9 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
           buildJvmArguments(
               mockBackend.getIntakeUrl(),
               setServiceName ? TEST_SERVICE_NAME : null,
-              additionalAgentArgs));
+              additionalAgentArgs
+          )
+      );
     }
     return arguments;
   }
@@ -584,11 +705,12 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     Properties properties = new Properties();
     try (InputStream stream =
         MavenSmokeTest.class
-            .getClassLoader()
-            .getResourceAsStream("latest-tool-versions.properties")) {
+      .getClassLoader()
+      .getResourceAsStream("latest-tool-versions.properties")) {
       if (stream == null) {
         throw new IllegalStateException(
-            "Could not find latest-tool-versions.properties on classpath");
+            "Could not find latest-tool-versions.properties on classpath"
+        );
       }
       properties.load(stream);
     } catch (IOException e) {

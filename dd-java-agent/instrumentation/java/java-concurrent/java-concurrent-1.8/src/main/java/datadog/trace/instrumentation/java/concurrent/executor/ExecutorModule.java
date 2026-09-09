@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static java.util.Collections.singleton;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,7 +23,8 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class ExecutorModule extends InstrumenterModule.ContextTracking
-    implements ExcludeFilterProvider {
+    implements ExcludeFilterProvider
+{
   private static final Logger log = LoggerFactory.getLogger(ExecutorModule.class);
 
   public ExecutorModule() {
@@ -50,10 +50,13 @@ public class ExecutorModule extends InstrumenterModule.ContextTracking
         RUNNABLE,
         Arrays.asList(
             "datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper",
-            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable"));
+            "datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable"
+        )
+    );
     map.put(
         EXECUTOR,
-        Collections.singletonList("org.apache.mina.filter.executor.OrderedThreadPoolExecutor"));
+        Collections.singletonList("org.apache.mina.filter.executor.OrderedThreadPoolExecutor")
+    );
 
     return Collections.unmodifiableMap(map);
   }
@@ -62,12 +65,14 @@ public class ExecutorModule extends InstrumenterModule.ContextTracking
   public List<Instrumenter> typeInstrumentations() {
     final List<Instrumenter> instrumenters = new ArrayList<>();
     instrumenters.add(new JavaExecutorInstrumentation());
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(singleton(EXECUTOR_INSTRUMENTATION_NAME + ".other"), true)) {
+    if (InstrumenterConfig
+      .get()
+      .isIntegrationEnabled(singleton(EXECUTOR_INSTRUMENTATION_NAME + ".other"), true)) {
       instrumenters.add(new NonStandardExecutorInstrumentation());
     }
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(singleton("rejected-execution-handler"), true)) {
+    if (InstrumenterConfig
+      .get()
+      .isIntegrationEnabled(singleton("rejected-execution-handler"), true)) {
       instrumenters.add(new RejectedExecutionHandlerInstrumentation());
     }
     instrumenters.add(new ThreadPoolExecutorInstrumentation());

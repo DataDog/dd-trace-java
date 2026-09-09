@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
@@ -28,14 +27,14 @@ import org.junit.jupiter.api.Timeout;
 
 @Timeout(60)
 public class PendingTraceTest extends PendingTraceTestBase {
-
   @BeforeAll
   static void checkJvm() {
     Assumptions.assumeFalse(
         JavaVirtualMachine.isOracleJDK8(),
         "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to"
-            + " correctly extract method parameters without args, when the code is compiled on a"
-            + " later JDK (targeting 8). This can manifest when creating mocks.");
+        + " correctly extract method parameters without args, when the code is compiled on a"
+        + " later JDK (targeting 8). This can manifest when creating mocks."
+    );
   }
 
   @Override
@@ -71,13 +70,16 @@ public class PendingTraceTest extends PendingTraceTestBase {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            PropagationTags.factory().empty()),
-        null);
+            PropagationTags.factory().empty()
+        ),
+        null
+    );
   }
 
   @Test
   void traceStillReportedWhenUnfinishedContinuationDiscarded()
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     AgentScope scope = tracer.activateSpan(rootSpan);
     tracer.captureActiveSpan();
     scope.close();
@@ -106,15 +108,15 @@ public class PendingTraceTest extends PendingTraceTestBase {
     when(stubTracer.captureTraceConfig()).thenReturn(traceConfig);
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
 
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = new PendingTrace(
+        stubTracer,
+        DDTraceId.from(0),
+        buffer,
+        mock(TimeSource.class),
+        null,
+        false,
+        healthMetrics
+    );
 
     DDSpan span = createSimpleSpan(trace);
     trace.registerSpan(span);
@@ -137,15 +139,15 @@ public class PendingTraceTest extends PendingTraceTestBase {
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = new PendingTrace(
+        stubTracer,
+        DDTraceId.from(0),
+        buffer,
+        mock(TimeSource.class),
+        null,
+        false,
+        healthMetrics
+    );
 
     DDSpan span1 = createSimpleSpanWithID(trace, 39);
     span1.setDurationNano(31);
@@ -180,15 +182,15 @@ public class PendingTraceTest extends PendingTraceTestBase {
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
     when(buffer.longRunningSpansEnabled()).thenReturn(true);
 
-    PendingTrace trace =
-        new PendingTrace(
-            stubTracer,
-            DDTraceId.from(0),
-            buffer,
-            mock(TimeSource.class),
-            null,
-            false,
-            healthMetrics);
+    PendingTrace trace = new PendingTrace(
+        stubTracer,
+        DDTraceId.from(0),
+        buffer,
+        mock(TimeSource.class),
+        null,
+        false,
+        healthMetrics
+    );
 
     DDSpan span1 = createSimpleSpanWithID(trace, 39);
     span1.setDurationNano(31);
@@ -211,11 +213,11 @@ public class PendingTraceTest extends PendingTraceTestBase {
 
     assertEquals(2, completedSpans);
     assertEquals(4, traceToWrite.size());
-    assertTrue(
-        traceToWrite.containsAll(Arrays.asList(span1, span2, unfinishedSpan, unfinishedSpan2)));
+    assertTrue(traceToWrite.containsAll(Arrays.asList(span1, span2, unfinishedSpan, unfinishedSpan2)
+    ));
     assertEquals(2, trace.getSpans().size());
-    assertTrue(
-        new ArrayList<>(trace.getSpans())
-            .containsAll(Arrays.asList(unfinishedSpan, unfinishedSpan2)));
+    assertTrue(new ArrayList<>(trace.getSpans())
+      .containsAll(Arrays.asList(unfinishedSpan, unfinishedSpan2))
+    );
   }
 }

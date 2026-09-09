@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.NOOP_TRACER;
-
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
@@ -11,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 
 public class DebuggerTracer implements DebuggerContext.Tracer {
   public static final String OPERATION_NAME = "dd.dynamic.span";
-
   private final ProbeStatusSink probeStatusSink;
 
   public DebuggerTracer(ProbeStatusSink probeStatusSink) {
@@ -24,11 +22,10 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
     if (tracerAPI == null || tracerAPI == NOOP_TRACER) {
       return DebuggerSpan.NOOP_SPAN;
     }
-    AgentSpan dynamicSpan =
-        tracerAPI
-            .buildSpan("dynamic-instrumentation", OPERATION_NAME)
-            .withResourceName(resourceName)
-            .start();
+    AgentSpan dynamicSpan = tracerAPI
+      .buildSpan("dynamic-instrumentation", OPERATION_NAME)
+      .withResourceName(resourceName)
+      .start();
     if (tags != null) {
       for (String tag : tags) {
         int idx = tag.indexOf(':');
@@ -52,7 +49,8 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
         AgentSpan underlyingSpan,
         AgentScope currentScope,
         ProbeStatusSink probeStatusSink,
-        String encodedProbeId) {
+        String encodedProbeId
+    ) {
       this.underlyingSpan = underlyingSpan;
       this.currentScope = currentScope;
       this.probeStatusSink = probeStatusSink;

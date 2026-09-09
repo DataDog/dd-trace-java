@@ -7,15 +7,12 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class OpensearchTransportClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
-
   private static final String DB_TYPE = "opensearch";
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service(DB_TYPE);
-
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence OPENSEARCH_JAVA = UTF8BytesString.create("opensearch-java");
-
   public static final OpensearchTransportClientDecorator DECORATE =
       new OpensearchTransportClientDecorator();
 

@@ -14,21 +14,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JbossVirtualFileHelper {
-
   private final MethodHandle getPhysicalFile;
   private final MethodHandle getName;
   private final Field fileField;
-
   private static JbossVirtualFileHelper jbossVirtualFileHelper;
   public static final JbossVirtualFileHelper FAILED_HELPER = new JbossVirtualFileHelper();
-
   private static final Logger log = LoggerFactory.getLogger(JbossVirtualFileHelper.class);
 
   public JbossVirtualFileHelper(ClassLoader loader) throws Exception {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
     Class<?> virtualFileCls = loader.loadClass("org.jboss.vfs.VirtualFile");
-    getPhysicalFile =
-        lookup.findVirtual(virtualFileCls, "getPhysicalFile", MethodType.methodType(File.class));
+    getPhysicalFile = lookup.findVirtual(
+        virtualFileCls,
+        "getPhysicalFile",
+        MethodType.methodType(File.class)
+    );
     getName = lookup.findVirtual(virtualFileCls, "getName", MethodType.methodType(String.class));
     Class<?> vfsFileUrlConnectionCls =
         loader.loadClass("org.jboss.vfs.protocol.VirtualFileURLConnection");
@@ -89,9 +89,10 @@ public class JbossVirtualFileHelper {
 
     if (jbossVirtualFileHelper == null) {
       try {
-        jbossVirtualFileHelper =
-            JbossVirtualFileHelper.jbossVirtualFileHelper =
-                new JbossVirtualFileHelper(connection.getClass().getClassLoader());
+        jbossVirtualFileHelper = JbossVirtualFileHelper.jbossVirtualFileHelper = new JbossVirtualFileHelper(connection
+          .getClass()
+          .getClassLoader()
+        );
       } catch (Exception e) {
         log.debug("Error preparing for inspection of jboss virtual files", e);
         return null;
@@ -99,7 +100,6 @@ public class JbossVirtualFileHelper {
     }
 
     final Object virtualFile = jbossVirtualFileHelper.getVirtualFile(connection);
-
     // call VirtualFile.getPhysicalFile
     File physicalFile = jbossVirtualFileHelper.getPhysicalFile(virtualFile);
     if (physicalFile.isFile() && physicalFile.getName().endsWith(".jar")) {
@@ -107,7 +107,6 @@ public class JbossVirtualFileHelper {
     } else {
       log.debug("Physical file {} is not a jar", physicalFile);
     }
-
     // not sure what this is about, but it's what the old code used to do
     // this is not correct as a general matter, since getName returns the virtual name,
     // which may not match the physical name

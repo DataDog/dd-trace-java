@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.servlet.http;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -22,9 +21,9 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class CookieInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice
+{
   public CookieInstrumentation() {
     super("servlet", "servlet-cookie");
   }
@@ -43,10 +42,12 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getName")).and(takesArguments(0)),
-        getClass().getName() + "$GetNameAdvice");
+        getClass().getName() + "$GetNameAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("getValue")).and(takesArguments(0)),
-        getClass().getName() + "$GetValueAdvice");
+        getClass().getName() + "$GetValueAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -56,7 +57,8 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
     public static void afterGetName(
         @Advice.This final Object self,
         @Advice.Return final String result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {
@@ -71,14 +73,14 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetValueAdvice {
-
     @Advice.OnMethodExit
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void afterGetValue(
         @Advice.This final Object self,
         @Advice.FieldValue("name") final String name,
         @Advice.Return final String result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         try {

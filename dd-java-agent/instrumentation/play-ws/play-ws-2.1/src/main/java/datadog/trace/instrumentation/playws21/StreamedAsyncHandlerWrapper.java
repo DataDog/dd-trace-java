@@ -5,7 +5,8 @@ import org.reactivestreams.Publisher;
 import play.shaded.ahc.org.asynchttpclient.handler.StreamedAsyncHandler;
 
 public class StreamedAsyncHandlerWrapper extends AsyncHandlerWrapper
-    implements StreamedAsyncHandler {
+    implements StreamedAsyncHandler
+{
   private final StreamedAsyncHandler streamedDelegate;
 
   public StreamedAsyncHandlerWrapper(final StreamedAsyncHandler delegate, final AgentSpan span) {

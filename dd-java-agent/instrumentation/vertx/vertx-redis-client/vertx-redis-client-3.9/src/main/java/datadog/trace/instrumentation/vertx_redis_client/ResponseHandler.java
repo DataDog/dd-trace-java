@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,7 +18,8 @@ public class ResponseHandler implements Handler<AsyncResult<Response>> {
   public ResponseHandler(
       final Promise<Response> promise,
       final AgentSpan clientSpan,
-      final ContextContinuation continuation) {
+      final ContextContinuation continuation
+  ) {
     this.clientSpan = clientSpan;
     this.continuation = continuation;
     this.promise = promise;

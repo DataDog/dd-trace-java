@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.graphqljava;
 
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import graphql.ExecutionResult;
 import graphql.GraphQLError;

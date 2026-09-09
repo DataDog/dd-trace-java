@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.HttpCodec;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("OrgGuard factory gating")
 class OrgGuardTest {
-
   private static final Supplier<String> LOCAL_OPM = () -> "L";
 
   @Test

@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
-
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
@@ -65,8 +64,10 @@ final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
 
     @Override
     public DoubleGauge build() {
-      return new OtelDoubleGauge(
-          meter.registerStorage(builder, OtelMetricStorage::newDoubleValueStorage));
+      return new OtelDoubleGauge(meter.registerStorage(
+          builder,
+          OtelMetricStorage::newDoubleValueStorage
+      ));
     }
 
     @Override

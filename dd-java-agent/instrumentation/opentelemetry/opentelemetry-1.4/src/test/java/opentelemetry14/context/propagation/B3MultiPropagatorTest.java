@@ -5,7 +5,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.core.propagation.B3TraceId;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.Map;
@@ -59,7 +58,11 @@ class B3MultiPropagatorTest extends AgentPropagatorTest {
 
   @Override
   void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
+      Map<String, String> headers,
+      String traceId,
+      String spanId,
+      byte sampling
+  ) {
     String priorityKey = sampling == SAMPLER_DROP ? "0" : "1";
     assertEquals(zeroPadLeft(traceId, 32), headers.get(TRACE_ID_KEY));
     assertEquals(zeroPadLeft(spanId, 8), headers.get(SPAN_ID_KEY));

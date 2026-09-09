@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jersey;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -20,8 +19,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ContainerRequestInstrumentation() {
     super("jersey");
   }
@@ -31,7 +31,8 @@ public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
     String baseName = ContainerRequestInstrumentation.class.getName();
     transformer.applyAdvice(
         named("setProperty").and(isPublic()).and(takesArguments(String.class, Object.class)),
-        baseName + "$SetPropertyAdvice");
+        baseName + "$SetPropertyAdvice"
+    );
   }
 
   @Override
@@ -41,9 +42,7 @@ public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
+    return new String[] {packageName + ".JerseyTaintHelper"};
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -53,8 +52,8 @@ public class ContainerRequestInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Argument(0) String name,
         @Advice.Argument(1) Object value,
-        @ActiveRequestContext RequestContext reqCtx) {
-
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (!"jersey.config.server.representation.decoded.form".equals(name)
           && !"jersey.config.server.representation.form".equals(name)) {
         return;

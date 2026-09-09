@@ -15,11 +15,11 @@ import org.springframework.util.MultiValueMap;
 
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintCookiesAdvice {
-
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void after(
       @Advice.Return MultiValueMap<String, HttpCookie> cookies,
-      @ActiveRequestContext RequestContext reqCtx) {
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || cookies.isEmpty()) {
       return;

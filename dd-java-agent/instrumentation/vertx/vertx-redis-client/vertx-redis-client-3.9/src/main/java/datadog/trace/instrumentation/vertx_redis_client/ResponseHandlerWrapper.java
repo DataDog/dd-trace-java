@@ -16,7 +16,8 @@ public class ResponseHandlerWrapper implements Handler<AsyncResult<Response>> {
   public ResponseHandlerWrapper(
       final Handler<AsyncResult<Response>> handler,
       final AgentSpan clientSpan,
-      final ContextContinuation parentContinuation) {
+      final ContextContinuation parentContinuation
+  ) {
     this.handler = handler;
     this.clientSpan = clientSpan;
     this.parentContinuation = parentContinuation;

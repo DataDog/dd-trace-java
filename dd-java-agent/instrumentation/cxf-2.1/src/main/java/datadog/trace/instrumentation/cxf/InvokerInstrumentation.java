@@ -18,15 +18,18 @@ import org.apache.cxf.message.Exchange;
 
 @AutoService(InstrumenterModule.class)
 public class InvokerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public InvokerInstrumentation() {
     super("cxf", "cxf-invoker");
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return ClassLoaderMatchers.hasClassNamed("javax.servlet.ServletRequest")
-        .or(ClassLoaderMatchers.hasClassNamed("jakarta.servlet.ServletRequest"));
+    return ClassLoaderMatchers
+      .hasClassNamed("javax.servlet.ServletRequest")
+      .or(ClassLoaderMatchers.hasClassNamed("jakarta.servlet.ServletRequest"));
   }
 
   @Override
@@ -41,28 +44,29 @@ public class InvokerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ServletHelper",
-    };
+    return new String[] {packageName + ".ServletHelper"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         ElementMatchers.isMethod().and(NameMatchers.named("invoke")),
-        getClass().getName() + "$PropagateSpanAdvice");
+        getClass().getName() + "$PropagateSpanAdvice"
+    );
   }
 
   public static class PropagateSpanAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beforeInvoke(@Advice.Argument(0) final Exchange exchange) {
-      if (exchange == null || exchange.getInMessage() == null || AgentTracer.activeSpan() != null) {
+      if (exchange == null
+          || exchange.getInMessage() == null
+          || AgentTracer.activeSpan() != null) {
         return null;
       }
-      final Object contextObj =
-          ServletHelper.getServletRequestAttribute(
-              exchange.getInMessage().get("HTTP.REQUEST"),
-              HttpServerDecorator.DD_CONTEXT_ATTRIBUTE);
+      final Object contextObj = ServletHelper.getServletRequestAttribute(
+          exchange.getInMessage().get("HTTP.REQUEST"),
+          HttpServerDecorator.DD_CONTEXT_ATTRIBUTE
+      );
       if (contextObj instanceof Context) {
         return ((Context) contextObj).attach();
       }

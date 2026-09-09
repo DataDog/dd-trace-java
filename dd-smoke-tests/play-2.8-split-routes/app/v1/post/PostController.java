@@ -5,7 +5,6 @@ import play.mvc.Http;
 import play.mvc.Result;
 
 public class PostController extends Controller {
-
   public Result all(Http.Request request) {
     return ok("all");
   }

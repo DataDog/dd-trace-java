@@ -12,7 +12,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce4.LettuceClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.lettuce4.LettuceClientDecorator.REDIS_CLIENT;
-
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.protocol.AsyncCommand;
 import com.lambdaworks.redis.protocol.CommandType;
@@ -25,18 +24,16 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 
 public final class InstrumentationPoints {
-
   private static final Set<CommandType> NON_INSTRUMENTING_COMMANDS = EnumSet.of(SHUTDOWN, DEBUG);
-
   private static final Set<CommandType> AGENT_CRASHING_COMMANDS =
       EnumSet.of(CLIENT, CLUSTER, COMMAND, CONFIG, DEBUG, SCRIPT);
-
   public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
 
   public static AgentScope beforeCommand(
-      final RedisCommand<?, ?, ?> command, final RedisURI redisURI) {
-    final AgentSpan span =
-        startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
+      final RedisCommand<?, ?, ?> command,
+      final RedisURI redisURI
+  ) {
+    final AgentSpan span = startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
     DECORATE.onCommand(span, command);
@@ -47,7 +44,8 @@ public final class InstrumentationPoints {
       final RedisCommand<?, ?, ?> command,
       final AgentScope scope,
       final Throwable throwable,
-      final AsyncCommand<?, ?, ?> asyncCommand) {
+      final AsyncCommand<?, ?, ?> asyncCommand
+  ) {
     final AgentSpan span = scope.span();
     if (throwable != null) {
       DECORATE.onError(span, throwable);
@@ -57,17 +55,16 @@ public final class InstrumentationPoints {
     } else if (expectsResponse(command)) {
       // Register the callback before closing the scope so the active span is correct when
       // the CompletableFuture instrumentation captures context for the finishing lambda.
-      asyncCommand.handleAsync(
-          (value, ex) -> {
-            if (ex instanceof CancellationException) {
-              span.setTag("db.command.cancelled", true);
-            } else {
-              DECORATE.onError(span, ex);
-            }
-            DECORATE.beforeFinish(span);
-            span.finish();
-            return null;
-          });
+      asyncCommand.handleAsync((value, ex) -> {
+        if (ex instanceof CancellationException) {
+          span.setTag("db.command.cancelled", true);
+        } else {
+          DECORATE.onError(span, ex);
+        }
+        DECORATE.beforeFinish(span);
+        span.finish();
+        return null;
+      });
       scope.close();
     } else {
       // No response is expected, so we must finish the span now.
@@ -79,8 +76,7 @@ public final class InstrumentationPoints {
   }
 
   public static AgentScope beforeConnect(final RedisURI redisURI) {
-    final AgentSpan span =
-        startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
+    final AgentSpan span = startSpan(REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
     span.setResourceName(DECORATE.resourceNameForConnection(redisURI));

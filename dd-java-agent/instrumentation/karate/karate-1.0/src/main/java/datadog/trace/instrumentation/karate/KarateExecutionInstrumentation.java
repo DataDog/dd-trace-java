@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import com.intuit.karate.RuntimeHook;
 import com.intuit.karate.core.Result;
@@ -24,8 +23,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public KarateExecutionInstrumentation() {
     super("ci-visibility", "karate", "test-retry");
   }
@@ -38,24 +38,27 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "com.intuit.karate.core.ScenarioRuntime", "com.intuit.karate.core.ScenarioResult"
+        "com.intuit.karate.core.ScenarioRuntime",
+        "com.intuit.karate.core.ScenarioResult"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".KarateTracingHook",
-      packageName + ".ExecutionContext"
+        packageName + ".KarateUtils",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".KarateTracingHook",
+        packageName + ".ExecutionContext"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.intuit.karate.core.Scenario", packageName + ".ExecutionContext");
+        "com.intuit.karate.core.Scenario",
+        packageName + ".ExecutionContext"
+    );
   }
 
   @Override
@@ -63,14 +66,15 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
     // ScenarioRuntime
     transformer.applyAdvice(
         named("run").and(takesNoArguments()),
-        KarateExecutionInstrumentation.class.getName() + "$RetryAdvice");
-
+        KarateExecutionInstrumentation.class.getName() + "$RetryAdvice"
+    );
     // ScenarioResult
     transformer.applyAdvice(
         named("addStepResult")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("com.intuit.karate.core.StepResult"))),
-        KarateExecutionInstrumentation.class.getName() + "$SuppressErrorAdvice");
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("com.intuit.karate.core.StepResult"))),
+        KarateExecutionInstrumentation.class.getName() + "$SuppressErrorAdvice"
+    );
   }
 
   public static class RetryAdvice {
@@ -80,17 +84,18 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return;
       }
 
-      ExecutionContext executionContext =
-          InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-              .getOrCompute(scenarioRuntime.scenario, ExecutionContext::create);
-
+      ExecutionContext executionContext = InstrumentationContext
+        .get(Scenario.class, ExecutionContext.class)
+        .getOrCompute(scenarioRuntime.scenario, ExecutionContext::create);
       // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
       // rest of the frameworks
       TestExecutionPolicy executionPolicy = executionContext.getExecutionPolicy();
       executionContext.setSuppressFailures(executionPolicy.suppressFailures());
 
       scenarioRuntime.magicVariables.putIfAbsent(
-          KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE, executionPolicy);
+          KarateUtils.EXECUTION_TRACKER_MAGICVARIABLE,
+          executionPolicy
+      );
     }
 
     @Advice.OnMethodExit
@@ -123,7 +128,6 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         retry.featureRuntime.result.addResult(retry.result);
         finalResult = retry.result;
       }
-
       // When the scenario is retried, the original runtime's result must reflect the final
       // attempt's outcome. To avoid final field modifications, the final attempt's failure is
       // reflected onto the original result via addStepResult
@@ -144,8 +148,8 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
     @Advice.OnMethodEnter
     public static void onAddingStepResult(
         @Advice.Argument(value = 0, readOnly = false) StepResult stepResult,
-        @Advice.FieldValue("scenario") Scenario scenario) {
-
+        @Advice.FieldValue("scenario") Scenario scenario
+    ) {
       Result result = stepResult.getResult();
       if (result.isFailed()) {
         ExecutionContext executionContext =
@@ -153,7 +157,6 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
         if (executionContext == null) {
           return;
         }
-
         // Suppress every failing step of a to-be-retried attempt (not just the first): with
         // continueOnStepFailure a single attempt can add multiple failing steps, and any leak would
         // mark the original runtime's result failed

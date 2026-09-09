@@ -67,26 +67,25 @@ import org.openjdk.jmh.infra.Blackhole;
 public class TagMapAccessBenchmark {
   // a representative HTTP-server-ish tag set (immutable -> safe to share across threads)
   static final String[] NAMES = {
-    "http.request.method",
-    "http.response.status_code",
-    "http.route",
-    "url.path",
-    "url.scheme",
-    "server.address",
-    "server.port",
-    "client.address",
-    "network.protocol.version",
-    "user_agent.original",
-    "span.kind",
-    "component",
-    "language",
-    "error",
-    "resource.name",
-    "service.name",
-    "operation.name",
-    "env",
+      "http.request.method",
+      "http.response.status_code",
+      "http.route",
+      "url.path",
+      "url.scheme",
+      "server.address",
+      "server.port",
+      "client.address",
+      "network.protocol.version",
+      "user_agent.original",
+      "span.kind",
+      "component",
+      "language",
+      "error",
+      "resource.name",
+      "service.name",
+      "operation.name",
+      "env"
   };
-
   static final Object[] VALUES = new Object[NAMES.length];
 
   static {

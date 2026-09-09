@@ -20,13 +20,13 @@ public class WAFInitializationResultReporter implements TraceSegmentPostProcesso
   private static final String RULE_ERRORS = "_dd.appsec.event_rules.errors";
   private static final String RULES_LOADED = "_dd.appsec.event_rules.loaded";
   private static final String RULE_ERROR_COUNT = "_dd.appsec.event_rules.error_count";
-
-  private static final JsonAdapter<Map<String, List<String>>> RULES_ERRORS_ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(
-              Types.newParameterizedType(
-                  Map.class, String.class, Types.newParameterizedType(List.class, String.class)));
+  private static final JsonAdapter<Map<String, List<String>>> RULES_ERRORS_ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(
+        Map.class,
+        String.class,
+        Types.newParameterizedType(List.class, String.class)
+    ));
   private final AtomicReference<WafDiagnostics> pendingReportRef = new AtomicReference<>();
 
   public void setReportForPublication(WafDiagnostics report) {
@@ -35,7 +35,10 @@ public class WAFInitializationResultReporter implements TraceSegmentPostProcesso
 
   @Override
   public void processTraceSegment(
-      TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents) {
+      TraceSegment segment,
+      AppSecRequestContext ctx,
+      Collection<AppSecEvent> collectedEvents
+  ) {
     WafDiagnostics report = pendingReportRef.get();
     if (report == null) {
       return;

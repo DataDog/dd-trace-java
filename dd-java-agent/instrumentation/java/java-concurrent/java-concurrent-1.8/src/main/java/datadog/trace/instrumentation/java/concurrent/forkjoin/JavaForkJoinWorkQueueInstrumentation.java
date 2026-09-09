@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.fieldType;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -28,13 +27,16 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JavaForkJoinWorkQueueInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JavaForkJoinWorkQueueInstrumentation() {
     super(
         EXECUTOR_INSTRUMENTATION_NAME,
         FORK_JOIN_POOL_INSTRUMENTATION_NAME,
-        FORK_JOIN_POOL_INSTRUMENTATION_NAME + "-workqueue");
+        FORK_JOIN_POOL_INSTRUMENTATION_NAME + "-workqueue"
+    );
   }
 
   @Override
@@ -45,10 +47,12 @@ public class JavaForkJoinWorkQueueInstrumentation extends InstrumenterModule.Pro
   @Override
   public boolean isEnabled() {
     return super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+        && ConfigProvider
+          .getInstance()
+          .getBoolean(
+              ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+              ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT
+          );
   }
 
   @Override
@@ -61,13 +65,15 @@ public class JavaForkJoinWorkQueueInstrumentation extends InstrumenterModule.Pro
     String name = getClass().getName();
     transformer.applyAdvice(
         isMethod()
-            .and(named("push"))
-            .and(takesArgument(0, named("java.util.concurrent.ForkJoinTask")))
-            .and(
-                isDeclaredBy(
-                    declaresField(fieldType(int.class).and(named("top")))
-                        .and(declaresField(fieldType(int.class).and(named("base")))))),
-        name + "$PushTask");
+          .and(named("push"))
+          .and(takesArgument(0, named("java.util.concurrent.ForkJoinTask")))
+          .and(
+              isDeclaredBy(declaresField(fieldType(int.class).and(named("top")))
+                .and(declaresField(fieldType(int.class).and(named("base"))))
+              )
+          ),
+        name + "$PushTask"
+    );
   }
 
   public static final class PushTask {
@@ -77,12 +83,18 @@ public class JavaForkJoinWorkQueueInstrumentation extends InstrumenterModule.Pro
         @Advice.This Object workQueue,
         @Advice.FieldValue("top") int top,
         @Advice.FieldValue("base") int base,
-        @Advice.Argument(0) ForkJoinTask<T> task) {
+        @Advice.Argument(0) ForkJoinTask<T> task
+    ) {
       if (!exclude(FORK_JOIN_TASK, task)) {
         ContextStore<ForkJoinTask, State> contextStore =
             InstrumentationContext.get(ForkJoinTask.class, State.class);
         QueueTimerHelper.startQueuingTimer(
-            contextStore, ForkJoinPool.class, workQueue.getClass(), top - base, task);
+            contextStore,
+            ForkJoinPool.class,
+            workQueue.getClass(),
+            top - base,
+            task
+        );
       }
     }
   }

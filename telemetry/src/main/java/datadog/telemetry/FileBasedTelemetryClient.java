@@ -19,13 +19,10 @@ import org.slf4j.LoggerFactory;
  * zero-padded sequence prefix preserves ordering for deterministic replay.
  */
 public class FileBasedTelemetryClient extends TelemetryClient {
-
   private static final Logger log = LoggerFactory.getLogger(FileBasedTelemetryClient.class);
-
   private static final String DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   private static final HttpUrl PLACEHOLDER_URL =
       HttpUrl.get("http://localhost/bazel-file-telemetry");
-
   private final File outputDir;
   private final AtomicLong sequence = new AtomicLong(0);
 
@@ -48,12 +45,17 @@ public class FileBasedTelemetryClient extends TelemetryClient {
             "[bazel mode] Wrote telemetry payload {} ({} bytes) to {}",
             requestType,
             bytes.length,
-            outputDir);
+            outputDir
+        );
       }
       return Result.SUCCESS;
     } catch (IOException e) {
       log.error(
-          "[bazel mode] Failed to write telemetry payload {} to {}", requestType, outputDir, e);
+          "[bazel mode] Failed to write telemetry payload {} to {}",
+          requestType,
+          outputDir,
+          e
+      );
       return Result.FAILURE;
     }
   }

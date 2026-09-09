@@ -18,7 +18,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -34,7 +33,6 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("OrgGuardEnforcer truth table")
 class OrgGuardEnforcerTest {
-
   private PropagationTags.Factory factory;
   private HealthMetrics healthMetrics;
 
@@ -66,7 +64,8 @@ class OrgGuardEnforcerTest {
   @DisplayName("strict: inbound OPM missing -> strip with strict_missing")
   void strictInboundMissing() {
     OrgGuardEnforcer enforcer = enforcer(true, emptySet(), () -> "L");
-    ExtractedContext ctx = ctxWithOpm(null, /*samplingPriority*/ 2, "synthetics");
+    ExtractedContext ctx = ctxWithOpm(null, /*samplingPriority*/
+    2, "synthetics");
     TagContext result = enforcer.enforce(ctx);
     assertNotSame(ctx, result);
     assertStripped((ExtractedContext) result, ctx);
@@ -139,9 +138,14 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(false, emptySet(), () -> "L");
     PropagationTags tags =
         factory.fromHeaderValue(W3C, "dd=s:1;o:foo;t.opm:upstream-X,vendor1=abc,vendor2=def");
-    ExtractedContext ctx =
-        new ExtractedContext(
-            DDTraceId.from(123L), 456L, 2, "origin", tags, TracePropagationStyle.TRACECONTEXT);
+    ExtractedContext ctx = new ExtractedContext(
+        DDTraceId.from(123L),
+        456L,
+        2,
+        "origin",
+        tags,
+        TracePropagationStyle.TRACECONTEXT
+    );
     TagContext result = enforcer.enforce(ctx);
     assertNotSame(ctx, result);
     ExtractedContext stripped = (ExtractedContext) result;
@@ -153,9 +157,11 @@ class OrgGuardEnforcerTest {
   }
 
   // ---- helpers ----
-
   private OrgGuardEnforcer enforcer(
-      boolean strict, Set<String> trusted, Supplier<String> localOpmSupplier) {
+      boolean strict,
+      Set<String> trusted,
+      Supplier<String> localOpmSupplier
+  ) {
     return new OrgGuardEnforcer(strict, trusted, localOpmSupplier, factory, healthMetrics);
   }
 
@@ -170,8 +176,7 @@ class OrgGuardEnforcerTest {
     }
     tags.updateTraceSamplingPriority(samplingPriority, MANUAL);
     tags.updateTraceOrigin(origin);
-    return new ExtractedContext(
-        DDTraceId.from(123L), 456L, samplingPriority, origin, tags, DATADOG);
+    return new ExtractedContext(DDTraceId.from(123L), 456L, samplingPriority, origin, tags, DATADOG);
   }
 
   private static void assertStripped(ExtractedContext stripped, ExtractedContext original) {

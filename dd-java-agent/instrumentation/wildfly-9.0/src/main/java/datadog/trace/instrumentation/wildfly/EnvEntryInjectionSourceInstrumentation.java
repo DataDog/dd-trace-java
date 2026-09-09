@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.wildfly;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,9 @@ import org.jboss.as.ee.component.EnvEntryInjectionSource;
 
 @AutoService(InstrumenterModule.class)
 public class EnvEntryInjectionSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public EnvEntryInjectionSourceInstrumentation() {
     super("wildfly", "jee-env-entry");
   }
@@ -26,7 +27,9 @@ public class EnvEntryInjectionSourceInstrumentation extends InstrumenterModule.T
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.jboss.as.ee.component.EnvEntryInjectionSource", Object.class.getName());
+        "org.jboss.as.ee.component.EnvEntryInjectionSource",
+        Object.class.getName()
+    );
   }
 
   @Override
@@ -37,7 +40,9 @@ public class EnvEntryInjectionSourceInstrumentation extends InstrumenterModule.T
   public static class ConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.This final EnvEntryInjectionSource self, @Advice.Argument(0) final Object value) {
+        @Advice.This final EnvEntryInjectionSource self,
+        @Advice.Argument(0) final Object value
+    ) {
       InstrumentationContext.get(EnvEntryInjectionSource.class, Object.class).put(self, value);
     }
   }

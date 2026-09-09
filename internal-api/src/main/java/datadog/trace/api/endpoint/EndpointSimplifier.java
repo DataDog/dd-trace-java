@@ -23,21 +23,20 @@ import org.slf4j.LoggerFactory;
  */
 public class EndpointSimplifier {
   private static final Logger log = LoggerFactory.getLogger(EndpointSimplifier.class);
-
   /**
    * Regex to extract path from URL. Captures the path component between optional scheme+host and
    * optional query string. Group "path" contains the extracted path.
    */
   private static final Pattern URL_PATH_PATTERN =
       Pattern.compile("^(?:[a-z]+://(?:[^?/]+))?(?<path>/[^?]*)(?:(\\?).*)?$");
-
   /**
    * Maximum number of path segments to keep after simplification. Prevents cardinality explosion
    * from very deep URLs.
    */
   private static final int MAX_SEGMENTS = 8;
-
-  /** Default endpoint when path is empty or cannot be processed. */
+  /**
+   * Default endpoint when path is empty or cannot be processed.
+   */
   private static final String DEFAULT_ENDPOINT = "/";
 
   /**
@@ -112,19 +111,16 @@ public class EndpointSimplifier {
     if (path == null || path.isEmpty()) {
       return DEFAULT_ENDPOINT;
     }
-
     // Special case: root path
     if (path.equals("/")) {
       return DEFAULT_ENDPOINT;
     }
 
     List<String> segments = splitAndLimitSegments(path, MAX_SEGMENTS);
-
     // If no segments remain after filtering, return root
     if (segments.isEmpty()) {
       return DEFAULT_ENDPOINT;
     }
-
     // Simplify each segment and reconstruct path
     StringBuilder result = new StringBuilder();
     for (String segment : segments) {
@@ -150,7 +146,6 @@ public class EndpointSimplifier {
    */
   static List<String> splitAndLimitSegments(String path, int maxSegments) {
     List<String> segments = new ArrayList<>(maxSegments);
-
     // Manually split on '/' without regex to avoid forbidden API
     int start = 0;
     int length = path.length();
@@ -167,7 +162,6 @@ public class EndpointSimplifier {
         start = i + 1;
       }
     }
-
     // Add final segment if exists
     if (start < length) {
       segments.add(path.substring(start));

@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AgentVersion {
-
   private static final Logger log = LoggerFactory.getLogger(AgentVersion.class);
 
   /**
@@ -37,7 +36,6 @@ public class AgentVersion {
       } else if (major > maxMajor) {
         return false;
       }
-
       // major == maxMajor
       int minorDot = version.indexOf('.', majorDot + 1);
       if (minorDot == -1) {
@@ -50,7 +48,6 @@ public class AgentVersion {
       } else if (minor > maxMinor) {
         return false;
       }
-
       // major == maxMajor && minor == maxMinor
       // Find end of patch version (may have suffix like "-rc.1")
       int patchEnd = minorDot + 1;

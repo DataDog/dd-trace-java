@@ -1,5 +1,4 @@
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.TestInstrumentation;
 import datadog.trace.agent.tooling.InstrumenterModule;

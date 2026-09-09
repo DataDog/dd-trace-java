@@ -8,9 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GitRepoUnshallow {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GitRepoUnshallow.class);
-
   private final Config config;
   private final GitClient gitClient;
 
@@ -19,8 +17,7 @@ public class GitRepoUnshallow {
     this.gitClient = gitClient;
   }
 
-  public synchronized boolean unshallow()
-      throws IOException, InterruptedException, TimeoutException {
+  public synchronized boolean unshallow() throws IOException, InterruptedException, TimeoutException {
     if (!config.isCiVisibilityGitUnshallowEnabled() || !gitClient.isShallow()) {
       return false;
     }
@@ -30,8 +27,10 @@ public class GitRepoUnshallow {
       gitClient.unshallow(GitClient.HEAD);
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
-          "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
-          e);
+          "Could not unshallow using HEAD - assuming HEAD points to a local commit that does "
+          + "not exist in the remote repo",
+          e
+      );
     }
 
     try {
@@ -39,8 +38,10 @@ public class GitRepoUnshallow {
       gitClient.unshallow(upstreamBranch);
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
-          "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
-          e);
+          "Could not unshallow using upstream branch - assuming currently checked out local "
+          + "branch does not track any remote branch",
+          e
+      );
       gitClient.unshallow(null);
     }
     LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);

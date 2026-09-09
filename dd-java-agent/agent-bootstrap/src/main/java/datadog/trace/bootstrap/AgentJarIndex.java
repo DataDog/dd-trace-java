@@ -27,9 +27,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class AgentJarIndex {
   private static final Logger log = LoggerFactory.getLogger(AgentJarIndex.class);
-
   private static final String AGENT_INDEX_FILE_NAME = "dd-java-agent.index";
-
   private final String[] prefixes;
   private final ClassNameTrie prefixTrie;
 
@@ -38,7 +36,9 @@ public final class AgentJarIndex {
     this.prefixTrie = prefixTrie;
   }
 
-  /** Returns the resolved entry name in the jar for the given resource. */
+  /**
+   * Returns the resolved entry name in the jar for the given resource.
+   */
   public String resourceEntryName(String name) {
     int prefixId = prefixTrie.apply(name);
     if (prefixId == 0) {
@@ -50,7 +50,9 @@ public final class AgentJarIndex {
     }
   }
 
-  /** Returns the resolved entry name in the jar for the given class. */
+  /**
+   * Returns the resolved entry name in the jar for the given class.
+   */
   public String classEntryName(String name) {
     int prefixId = prefixTrie.apply(name);
     if (prefixId == 0) {
@@ -62,7 +64,9 @@ public final class AgentJarIndex {
     }
   }
 
-  /** For testing purposes only. */
+  /**
+   * For testing purposes only.
+   */
   public static AgentJarIndex emptyIndex() {
     return new AgentJarIndex(new String[0], ClassNameTrie.EMPTY_TRIE);
   }
@@ -92,12 +96,9 @@ public final class AgentJarIndex {
   static class IndexGenerator {
     private static final Set<String> ignoredFileNames =
         new HashSet<>(Arrays.asList("MANIFEST.MF", "NOTICE", "LICENSE.renamed"));
-
     private final Path resourcesDir;
-
     private final List<String> prefixes = new ArrayList<>();
     private final ClassNameTrie.Builder prefixTrie = new ClassNameTrie.Builder();
-
     private final List<String> collectedEntryKeys = new ArrayList<>();
     private final List<Integer> collectedPrefixIds = new ArrayList<>();
 
@@ -111,26 +112,24 @@ public final class AgentJarIndex {
       Set<String> seen = new HashSet<>();
       try (Stream<Path> paths = Files.walk(resourcesDir)) {
         paths
-            .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-            .map(resourcesDir::relativize)
-            .sorted()
-            .filter(entry -> entry.getNameCount() >= 2)
-            .forEach(
-                entry -> {
-                  String prefix = entry.getName(0) + "/";
-                  int prefixId = prefixIdFor(prefix);
-                  String entryKey = computeEntryKey(entry.subpath(1, entry.getNameCount()));
-                  if (null != entryKey && seen.add(prefixId + "\0" + entryKey)) {
-                    collectedEntryKeys.add(entryKey);
-                    collectedPrefixIds.add(prefixId);
-                  }
-                });
+          .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+          .map(resourcesDir::relativize)
+          .sorted()
+          .filter(entry -> entry.getNameCount() >= 2)
+          .forEach(entry -> {
+            String prefix = entry.getName(0) + "/";
+            int prefixId = prefixIdFor(prefix);
+            String entryKey = computeEntryKey(entry.subpath(1, entry.getNameCount()));
+            if (null != entryKey && seen.add(prefixId + "\0" + entryKey)) {
+              collectedEntryKeys.add(entryKey);
+              collectedPrefixIds.add(prefixId);
+            }
+          });
       }
 
       for (int i = 0; i < collectedEntryKeys.size(); i++) {
         prefixTrie.put(collectedEntryKeys.get(i), collectedPrefixIds.get(i));
       }
-
       // warn if two subsections contain content under the same package prefix
       // because we're then unable to redirect requests to the right submodule
       for (int i = 0; i < collectedEntryKeys.size(); i++) {
@@ -139,10 +138,12 @@ public final class AgentJarIndex {
         int indexedPrefixId = prefixTrie.apply(entryKey);
         if (indexedPrefixId != expectedPrefixId) {
           log.warn(
-              "Detected duplicate content '{}' under '{}', already seen in {}. Ensure your content is under a distinct directory.",
+              "Detected duplicate content '{}' under '{}', already seen in {}. Ensure your "
+              + "content is under a distinct directory.",
               entryKey,
               getPrefix(expectedPrefixId),
-              getPrefix(indexedPrefixId));
+              getPrefix(indexedPrefixId)
+          );
         }
       }
 
@@ -188,7 +189,8 @@ public final class AgentJarIndex {
       // use number of elements in the path to decide how 'unique' this path is
       int nameCount = path.getNameCount();
       if (nameCount > 1) {
-        if (entryKey.startsWith("META-INF")) { // don't count META-INF as a unique element
+        if (entryKey.startsWith("META-INF")) {
+          // don't count META-INF as a unique element
           nameCount--;
         }
         // paths with three or more elements, or nested paths containing '.classdata' files

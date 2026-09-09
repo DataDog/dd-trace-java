@@ -9,10 +9,11 @@ import org.slf4j.LoggerFactory;
 
 public class TelemetryRouter {
   private static final Logger log = LoggerFactory.getLogger(TelemetryRouter.class);
-
-  @Nullable private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
+  @Nullable
+  private final DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery;
   private final TelemetryClient agentClient;
-  @Nullable private final TelemetryClient intakeClient;
+  @Nullable
+  private final TelemetryClient intakeClient;
   private final boolean useIntakeClientByDefault;
   private TelemetryClient currentClient;
   private boolean errorReported;
@@ -21,7 +22,8 @@ public class TelemetryRouter {
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery,
       TelemetryClient agentClient,
       @Nullable TelemetryClient intakeClient,
-      boolean useIntakeClientByDefault) {
+      boolean useIntakeClientByDefault
+  ) {
     this.ddAgentFeaturesDiscovery = ddAgentFeaturesDiscovery;
     this.agentClient = agentClient;
     this.intakeClient = intakeClient;
@@ -53,9 +55,9 @@ public class TelemetryRouter {
 
     boolean requestFailed =
         result != TelemetryClient.Result.SUCCESS
-            // interrupted request is most likely due to telemetry system shutdown,
-            // we do not want to log errors and reattempt in this case
-            && result != TelemetryClient.Result.INTERRUPTED;
+        // interrupted request is most likely due to telemetry system shutdown,
+    // we do not want to log errors and reattempt in this case
+    && result != TelemetryClient.Result.INTERRUPTED;
     if (currentClient == agentClient) {
       if (requestFailed) {
         reportErrorOnce(currentClient.getUrl(), result);

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import com.alipay.sofa.rpc.config.ApplicationConfig;
 import com.alipay.sofa.rpc.config.ConsumerConfig;
 import com.alipay.sofa.rpc.config.ProviderConfig;
@@ -40,32 +39,28 @@ import org.junit.jupiter.api.TestInstance;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SofaRpcRestTest extends AbstractInstrumentationTest {
-
   private static final int PORT = 12205;
-
   private ProviderConfig<RestGreeterService> restProviderConfig;
   private RestGreeterService greeterService;
 
   @BeforeAll
   void setupServers() {
-    restProviderConfig =
-        new ProviderConfig<RestGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-server"))
-            .setInterfaceId(RestGreeterService.class.getName())
-            .setRef(new RestGreeterServiceImpl())
-            .setServer(new ServerConfig().setProtocol("rest").setHost("127.0.0.1").setPort(PORT))
-            .setRegister(false);
+    restProviderConfig = new ProviderConfig<RestGreeterService>()
+      .setApplication(new ApplicationConfig().setAppName("test-server"))
+      .setInterfaceId(RestGreeterService.class.getName())
+      .setRef(new RestGreeterServiceImpl())
+      .setServer(new ServerConfig().setProtocol("rest").setHost("127.0.0.1").setPort(PORT))
+      .setRegister(false);
     restProviderConfig.export();
 
-    greeterService =
-        new ConsumerConfig<RestGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(RestGreeterService.class.getName())
-            .setDirectUrl("rest://127.0.0.1:" + PORT)
-            .setProtocol("rest")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    greeterService = new ConsumerConfig<RestGreeterService>()
+      .setApplication(new ApplicationConfig().setAppName("test-client"))
+      .setInterfaceId(RestGreeterService.class.getName())
+      .setDirectUrl("rest://127.0.0.1:" + PORT)
+      .setProtocol("rest")
+      .setRegister(false)
+      .setSubscribe(false)
+      .refer();
   }
 
   @AfterAll
@@ -96,7 +91,6 @@ public class SofaRpcRestTest extends AbstractInstrumentationTest {
 
     DDSpan clientSofaSpan = findSpan(allSpans, "sofarpc.request", "client");
     DDSpan serverSofaSpan = findSpan(allSpans, "sofarpc.request", "server");
-
     // Client span — full service unique name is available on client side
     assertNotNull(clientSofaSpan, "Expected sofarpc client span");
     assertEquals(serviceUniqueName + "/sayHello", clientSofaSpan.getResourceName().toString());
@@ -107,7 +101,6 @@ public class SofaRpcRestTest extends AbstractInstrumentationTest {
     assertEquals("sayHello", String.valueOf(clientSofaSpan.getTag("rpc.method")));
     assertEquals(callerSpan.getSpanId(), clientSofaSpan.getParentId());
     assertFalse(clientSofaSpan.isError());
-
     // Server span — SofaRequest.getTargetServiceUniqueName() is null on the server side for REST
     // (not propagated through the JAX-RS layer), so resourceName is the method name only
     // and rpc.service tag is absent. Parent link to the client trace is provided by
@@ -119,7 +112,9 @@ public class SofaRpcRestTest extends AbstractInstrumentationTest {
     assertEquals("server", String.valueOf(serverSofaSpan.getTag("span.kind")));
     assertEquals("sofarpc", String.valueOf(serverSofaSpan.getTag("rpc.system")));
     assertNull(
-        serverSofaSpan.getTag("rpc.service"), "rpc.service should be absent for REST server span");
+        serverSofaSpan.getTag("rpc.service"),
+        "rpc.service should be absent for REST server span"
+    );
     assertEquals("sayHello", String.valueOf(serverSofaSpan.getTag("rpc.method")));
     assertFalse(serverSofaSpan.isError());
   }

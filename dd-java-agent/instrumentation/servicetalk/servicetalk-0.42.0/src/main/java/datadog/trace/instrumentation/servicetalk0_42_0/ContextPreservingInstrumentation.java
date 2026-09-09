@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.servicetalk0_42_0;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,22 +13,23 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.servicetalk.concurrent.api.ContextPreservingBiConsumer",
-      "io.servicetalk.concurrent.api.ContextPreservingBiFunction",
-      "io.servicetalk.concurrent.api.ContextPreservingCallable",
-      "io.servicetalk.concurrent.api.ContextPreservingCancellable",
-      "io.servicetalk.concurrent.api.ContextPreservingCompletableSubscriber",
-      "io.servicetalk.concurrent.api.ContextPreservingConsumer",
-      "io.servicetalk.concurrent.api.ContextPreservingFunction",
-      "io.servicetalk.concurrent.api.ContextPreservingRunnable",
-      "io.servicetalk.concurrent.api.ContextPreservingSingleSubscriber",
-      "io.servicetalk.concurrent.api.ContextPreservingSubscriber",
-      "io.servicetalk.concurrent.api.ContextPreservingSubscription",
+        "io.servicetalk.concurrent.api.ContextPreservingBiConsumer",
+        "io.servicetalk.concurrent.api.ContextPreservingBiFunction",
+        "io.servicetalk.concurrent.api.ContextPreservingCallable",
+        "io.servicetalk.concurrent.api.ContextPreservingCancellable",
+        "io.servicetalk.concurrent.api.ContextPreservingCompletableSubscriber",
+        "io.servicetalk.concurrent.api.ContextPreservingConsumer",
+        "io.servicetalk.concurrent.api.ContextPreservingFunction",
+        "io.servicetalk.concurrent.api.ContextPreservingRunnable",
+        "io.servicetalk.concurrent.api.ContextPreservingSingleSubscriber",
+        "io.servicetalk.concurrent.api.ContextPreservingSubscriber",
+        "io.servicetalk.concurrent.api.ContextPreservingSubscription"
     };
   }
 
@@ -47,8 +47,10 @@ public class ContextPreservingInstrumentation extends ServiceTalkInstrumentation
             "request",
             "onNext",
             "onSubscribe",
-            "run"),
-        getClass().getName() + "$Wrapper");
+            "run"
+        ),
+        getClass().getName() + "$Wrapper"
+    );
   }
 
   public static final class Wrapper {

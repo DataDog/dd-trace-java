@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.muzzle;
 
 import static java.util.Collections.enumeration;
 import static java.util.Collections.singletonList;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;

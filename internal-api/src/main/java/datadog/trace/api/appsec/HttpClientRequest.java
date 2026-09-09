@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 
 public class HttpClientRequest extends HttpClientPayload {
-
   private final String url;
   private final String method;
 
@@ -16,7 +15,8 @@ public class HttpClientRequest extends HttpClientPayload {
       final long id,
       final String url,
       final String method,
-      final Map<String, List<String>> headers) {
+      final Map<String, List<String>> headers
+  ) {
     super(id, headers);
     this.url = url;
     this.method = method;

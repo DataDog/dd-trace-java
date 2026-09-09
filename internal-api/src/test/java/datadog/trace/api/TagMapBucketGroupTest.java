@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 public class TagMapBucketGroupTest {
@@ -20,9 +19,7 @@ public class TagMapBucketGroupTest {
     int secondHash = secondEntry.hash();
 
     TagMap.BucketGroup group =
-        new TagMap.BucketGroup(
-            firstHash, firstEntry,
-            secondHash, secondEntry);
+        new TagMap.BucketGroup(firstHash, firstEntry, secondHash, secondEntry);
 
     assertEquals(firstHash, group._hashAt(0));
     assertEquals(firstEntry, group._entryAt(0));
@@ -112,9 +109,7 @@ public class TagMapBucketGroupTest {
     int secondHash = secondEntry.hash();
 
     TagMap.BucketGroup group =
-        new TagMap.BucketGroup(
-            firstHash, firstEntry,
-            secondHash, secondEntry);
+        new TagMap.BucketGroup(firstHash, firstEntry, secondHash, secondEntry);
 
     assertFalse(group._isEmpty());
 
@@ -144,7 +139,6 @@ public class TagMapBucketGroupTest {
 
     TagMap.Entry newEntry = TagMap.Entry.newObjectEntry("new", "new");
     int newHash = newEntry.hash();
-
     // This is a test of the process used by TagMap#put
     assertNull(firstGroup._replace(newHash, newEntry));
     assertFalse(firstGroup._insert(newHash, newEntry));
@@ -280,17 +274,13 @@ public class TagMapBucketGroupTest {
     TagMap.BucketGroup fourthGroup = fullGroup(40, thirdGroup);
     TagMap.BucketGroup headGroup = fullGroup(50, fourthGroup);
     assertChain(headGroup, fourthGroup, thirdGroup, secondGroup, tailGroup);
-
     // need to test group removal - at head, middle, and tail of the chain
-
     // middle
     assertSame(headGroup, headGroup.removeGroupInChain(thirdGroup));
     assertChain(headGroup, fourthGroup, secondGroup, tailGroup);
-
     // tail
     assertSame(headGroup, headGroup.removeGroupInChain(tailGroup));
     assertChain(headGroup, fourthGroup, secondGroup);
-
     // head
     assertSame(fourthGroup, headGroup.removeGroupInChain(headGroup));
     assertChain(fourthGroup, secondGroup);
@@ -356,7 +346,9 @@ public class TagMapBucketGroupTest {
   }
 
   static void assertGroupContentsStrictEquals(
-      TagMap.BucketGroup expected, TagMap.BucketGroup actual) {
+      TagMap.BucketGroup expected,
+      TagMap.BucketGroup actual
+  ) {
     for (int i = 0; i < TagMap.BucketGroup.LEN; ++i) {
       assertEquals(expected._hashAt(i), actual._hashAt(i));
       assertSame(expected._entryAt(i), actual._entryAt(i));

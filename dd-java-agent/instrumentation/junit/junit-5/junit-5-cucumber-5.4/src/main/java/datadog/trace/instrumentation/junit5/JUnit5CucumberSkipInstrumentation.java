@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -25,8 +24,9 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit5CucumberSkipInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-cucumber");
   }
@@ -40,7 +40,7 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   public boolean isEnabled() {
     return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -51,26 +51,27 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("io.cucumber.junit.platform.engine.NodeDescriptor"))
-        // legacy Cucumber versions
-        .or(extendsClass(named("io.cucumber.junit.platform.engine.PickleDescriptor")))
-        // Cucumber 7.24+
-        .or(
-            extendsClass(
-                named(
-                    "io.cucumber.junit.platform.engine.CucumberTestDescriptor$PickleDescriptor")));
+      // legacy Cucumber versions
+      .or(extendsClass(named("io.cucumber.junit.platform.engine.PickleDescriptor")))
+      // Cucumber 7.24+
+      .or(
+          extendsClass(
+              named("io.cucumber.junit.platform.engine.CucumberTestDescriptor$PickleDescriptor")
+          )
+      );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestDataFactory",
-      packageName + ".JUnitPlatformUtils",
-      packageName + ".execution.RetryDescriptorFactory",
-      packageName + ".execution.RetryDescriptorFactories",
-      packageName + ".EmptyConfigurationParameters",
-      packageName + ".CucumberRetryDescriptorFactory",
-      packageName + ".CucumberUtils",
-      packageName + ".TestEventsHandlerHolder",
+        packageName + ".TestDataFactory",
+        packageName + ".JUnitPlatformUtils",
+        packageName + ".execution.RetryDescriptorFactory",
+        packageName + ".execution.RetryDescriptorFactories",
+        packageName + ".EmptyConfigurationParameters",
+        packageName + ".CucumberRetryDescriptorFactory",
+        packageName + ".CucumberUtils",
+        packageName + ".TestEventsHandlerHolder"
     };
   }
 
@@ -78,7 +79,8 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("shouldBeSkipped").and(takesArguments(1)),
-        JUnit5CucumberSkipInstrumentation.class.getName() + "$JUnit5SkipAdvice");
+        JUnit5CucumberSkipInstrumentation.class.getName() + "$JUnit5SkipAdvice"
+    );
   }
 
   /**
@@ -90,7 +92,8 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
     @Advice.OnMethodExit
     public static void shouldBeSkipped(
         @Advice.This TestDescriptor testDescriptor,
-        @Advice.Return(readOnly = false) Node.SkipResult skipResult) {
+        @Advice.Return(readOnly = false) Node.SkipResult skipResult
+    ) {
       if (skipResult.isSkipped()) {
         return;
       }

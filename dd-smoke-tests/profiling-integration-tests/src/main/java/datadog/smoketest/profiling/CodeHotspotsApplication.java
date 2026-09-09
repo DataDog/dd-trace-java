@@ -19,14 +19,18 @@ public final class CodeHotspotsApplication {
             Integer.parseInt(args[1]),
             Long.parseLong(args[2]),
             Long.parseLong(args[3]),
-            Integer.parseInt(args[4]));
+            Integer.parseInt(args[4])
+        );
         break;
       case "batch":
         application.batch(Long.parseLong(args[1]), Integer.parseInt(args[2]));
         break;
       case "fanout":
         application.fanout(
-            Integer.parseInt(args[1]), Long.parseLong(args[2]), Integer.parseInt(args[3]));
+            Integer.parseInt(args[1]),
+            Long.parseLong(args[2]),
+            Integer.parseInt(args[3])
+        );
         break;
       default:
         throw new RuntimeException("Invalid application kind: " + kind);

@@ -54,38 +54,35 @@ import okio.BufferedSource;
 import okio.ByteString;
 import okio.Source;
 
-/** Junk drawer of utility methods. */
+/**
+ * Junk drawer of utility methods.
+ */
 public final class PatchUtil {
   public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
   public static final String[] EMPTY_STRING_ARRAY = new String[0];
-
   public static final ResponseBody EMPTY_RESPONSE = ResponseBody.create(null, EMPTY_BYTE_ARRAY);
   public static final RequestBody EMPTY_REQUEST = RequestBody.create(null, EMPTY_BYTE_ARRAY);
-
   private static final ByteString UTF_8_BOM = ByteString.decodeHex("efbbbf");
   private static final ByteString UTF_16_BE_BOM = ByteString.decodeHex("feff");
   private static final ByteString UTF_16_LE_BOM = ByteString.decodeHex("fffe");
   private static final ByteString UTF_32_BE_BOM = ByteString.decodeHex("0000ffff");
   private static final ByteString UTF_32_LE_BOM = ByteString.decodeHex("ffff0000");
-
   public static final Charset UTF_8 = Charset.forName("UTF-8");
   public static final Charset ISO_8859_1 = Charset.forName("ISO-8859-1");
   private static final Charset UTF_16_BE = Charset.forName("UTF-16BE");
   private static final Charset UTF_16_LE = Charset.forName("UTF-16LE");
   private static final Charset UTF_32_BE = Charset.forName("UTF-32BE");
   private static final Charset UTF_32_LE = Charset.forName("UTF-32LE");
-
-  /** GMT and UTC are equivalent for our purposes. */
+  /**
+   * GMT and UTC are equivalent for our purposes.
+   */
   public static final TimeZone UTC = TimeZone.getTimeZone("GMT");
-
-  public static final Comparator<String> NATURAL_ORDER =
-      new Comparator<String>() {
-        @Override
-        public int compare(String a, String b) {
-          return a.compareTo(b);
-        }
-      };
-
+  public static final Comparator<String> NATURAL_ORDER = new Comparator<String>() {
+    @Override
+    public int compare(String a, String b) {
+      return a.compareTo(b);
+    }
+  };
   private static final Method addSuppressedExceptionMethod;
 
   static {
@@ -120,7 +117,8 @@ public final class PatchUtil {
   private static final Pattern VERIFY_AS_IP_ADDRESS =
       Pattern.compile("([0-9a-fA-F]*:[0-9a-fA-F:.]*)|([\\d.]+)");
 
-  private PatchUtil() {}
+  private PatchUtil() {
+  }
 
   public static void checkOffsetAndCount(long arrayLength, long offset, long count) {
     if ((offset | count) < 0 || offset > arrayLength || arrayLength - offset < count) {
@@ -128,7 +126,9 @@ public final class PatchUtil {
     }
   }
 
-  /** Returns true if two possibly-null objects are equal. */
+  /**
+   * Returns true if two possibly-null objects are equal.
+   */
   public static boolean equal(Object a, Object b) {
     return a == b || (a != null && a.equals(b));
   }
@@ -156,7 +156,9 @@ public final class PatchUtil {
       try {
         socket.close();
       } catch (AssertionError e) {
-        if (!isAndroidGetsocknameError(e)) throw e;
+        if (!isAndroidGetsocknameError(e)) {
+          throw e;
+        }
       } catch (RuntimeException rethrown) {
         if ("bio == null".equals(rethrown.getMessage())) {
           // Conscrypt in Android 10 and 11 may throw closing an SSLSocket. This is safe to ignore.
@@ -205,15 +207,18 @@ public final class PatchUtil {
     long now = System.nanoTime();
     long originalDuration =
         source.timeout().hasDeadline() ? source.timeout().deadlineNanoTime() - now : Long.MAX_VALUE;
-    source.timeout().deadlineNanoTime(now + Math.min(originalDuration, timeUnit.toNanos(duration)));
+    source.timeout().deadlineNanoTime(now
+        + Math.min(originalDuration, timeUnit.toNanos(duration)));
     try {
       Buffer skipBuffer = new Buffer();
       while (source.read(skipBuffer, 8192) != -1) {
         skipBuffer.clear();
       }
-      return true; // Success! The source has been exhausted.
+      // Success! The source has been exhausted.
+      return true;
     } catch (InterruptedIOException e) {
-      return false; // We ran out of time before exhausting the source.
+      // We ran out of time before exhausting the source.
+      return false;
     } finally {
       if (originalDuration == Long.MAX_VALUE) {
         source.timeout().clearDeadline();
@@ -223,19 +228,25 @@ public final class PatchUtil {
     }
   }
 
-  /** Returns an immutable copy of {@code list}. */
+  /**
+   * Returns an immutable copy of {@code list}.
+   */
   public static <T> List<T> immutableList(List<T> list) {
     return Collections.unmodifiableList(new ArrayList<>(list));
   }
 
-  /** Returns an immutable copy of {@code map}. */
+  /**
+   * Returns an immutable copy of {@code map}.
+   */
   public static <K, V> Map<K, V> immutableMap(Map<K, V> map) {
     return map.isEmpty()
         ? Collections.<K, V>emptyMap()
         : Collections.unmodifiableMap(new LinkedHashMap<>(map));
   }
 
-  /** Returns an immutable list containing {@code elements}. */
+  /**
+   * Returns an immutable list containing {@code elements}.
+   */
   public static <T> List<T> immutableList(T... elements) {
     return Collections.unmodifiableList(Arrays.asList(elements.clone()));
   }
@@ -245,7 +256,8 @@ public final class PatchUtil {
       @Override
       public Thread newThread(Runnable runnable) {
         Thread result = new Thread(runnable, name);
-        result.setDaemon(true); // always create daemon threads
+        // always create daemon threads
+        result.setDaemon(true);
         return result;
       }
     };
@@ -257,7 +269,10 @@ public final class PatchUtil {
    */
   @SuppressWarnings("unchecked")
   public static String[] intersect(
-      Comparator<? super String> comparator, String[] first, String[] second) {
+      Comparator<? super String> comparator,
+      String[] first,
+      String[] second
+  ) {
     List<String> result = new ArrayList<>();
     for (String a : first) {
       for (String b : second) {
@@ -277,7 +292,10 @@ public final class PatchUtil {
    * sorting or the memory cost of hashing.
    */
   public static boolean nonEmptyIntersection(
-      Comparator<String> comparator, String[] first, String[] second) {
+      Comparator<String> comparator,
+      String[] first,
+      String[] second
+  ) {
     if (first == null || second == null || first.length == 0 || second.length == 0) {
       return false;
     }
@@ -310,7 +328,9 @@ public final class PatchUtil {
 
   public static int indexOf(Comparator<String> comparator, String[] array, String value) {
     for (int i = 0, size = array.length; i < size; i++) {
-      if (comparator.compare(array[i], value) == 0) return i;
+      if (comparator.compare(array[i], value) == 0) {
+        return i;
+      }
     }
     return -1;
   }
@@ -362,7 +382,9 @@ public final class PatchUtil {
     return pos;
   }
 
-  /** Equivalent to {@code string.substring(pos, limit).trim()}. */
+  /**
+   * Equivalent to {@code string.substring(pos, limit).trim()}.
+   */
   public static String trimSubstring(String string, int pos, int limit) {
     int start = skipLeadingAsciiWhitespace(string, pos, limit);
     int end = skipTrailingAsciiWhitespace(string, start, limit);
@@ -375,7 +397,9 @@ public final class PatchUtil {
    */
   public static int delimiterOffset(String input, int pos, int limit, String delimiters) {
     for (int i = pos; i < limit; i++) {
-      if (delimiters.indexOf(input.charAt(i)) != -1) return i;
+      if (delimiters.indexOf(input.charAt(i)) != -1) {
+        return i;
+      }
     }
     return limit;
   }
@@ -386,7 +410,9 @@ public final class PatchUtil {
    */
   public static int delimiterOffset(String input, int pos, int limit, char delimiter) {
     for (int i = pos; i < limit; i++) {
-      if (input.charAt(i) == delimiter) return i;
+      if (input.charAt(i) == delimiter) {
+        return i;
+      }
     }
     return limit;
   }
@@ -403,20 +429,24 @@ public final class PatchUtil {
     // If the input contains a :, it’s an IPv6 address.
     if (host.contains(":")) {
       // If the input is encased in square braces "[...]", drop 'em.
-      InetAddress inetAddress =
-          host.startsWith("[") && host.endsWith("]")
-              ? decodeIpv6(host, 1, host.length() - 1)
-              : decodeIpv6(host, 0, host.length());
-      if (inetAddress == null) return null;
+      InetAddress inetAddress = host.startsWith("[") && host.endsWith("]")
+          ? decodeIpv6(host, 1, host.length() - 1)
+          : decodeIpv6(host, 0, host.length());
+      if (inetAddress == null) {
+        return null;
+      }
       byte[] address = inetAddress.getAddress();
-      if (address.length == 16) return inet6AddressToAscii(address);
+      if (address.length == 16) {
+        return inet6AddressToAscii(address);
+      }
       throw new AssertionError("Invalid IPv6 address: '" + host + "'");
     }
 
     try {
       String result = IDN.toASCII(host).toLowerCase(Locale.US);
-      if (result.isEmpty()) return null;
-
+      if (result.isEmpty()) {
+        return null;
+      }
       // Confirm that the IDN ToASCII result doesn't contain any illegal characters.
       if (containsInvalidHostnameAsciiCodes(result)) {
         return null;
@@ -462,12 +492,16 @@ public final class PatchUtil {
     return -1;
   }
 
-  /** Returns true if {@code host} is not a host name and might be an IP address. */
+  /**
+   * Returns true if {@code host} is not a host name and might be an IP address.
+   */
   public static boolean verifyAsIpAddress(String host) {
     return VERIFY_AS_IP_ADDRESS.matcher(host).matches();
   }
 
-  /** Returns a {@link Locale#US} formatted {@link String}. */
+  /**
+   * Returns a {@link Locale#US} formatted {@link String}.
+   */
   public static String format(String format, Object... args) {
     return String.format(Locale.US, format, args);
   }
@@ -497,11 +531,19 @@ public final class PatchUtil {
   }
 
   public static int checkDuration(String name, long duration, TimeUnit unit) {
-    if (duration < 0) throw new IllegalArgumentException(name + " < 0");
-    if (unit == null) throw new NullPointerException("unit == null");
+    if (duration < 0) {
+      throw new IllegalArgumentException(name + " < 0");
+    }
+    if (unit == null) {
+      throw new NullPointerException("unit == null");
+    }
     long millis = unit.toMillis(duration);
-    if (millis > Integer.MAX_VALUE) throw new IllegalArgumentException(name + " too large.");
-    if (millis == 0 && duration > 0) throw new IllegalArgumentException(name + " too small.");
+    if (millis > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException(name + " too large.");
+    }
+    if (millis == 0 && duration > 0) {
+      throw new IllegalArgumentException(name + " too small.");
+    }
     return (int) millis;
   }
 
@@ -516,13 +558,21 @@ public final class PatchUtil {
   }
 
   public static int decodeHexDigit(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if (c >= '0' && c <= '9') {
+      return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+      return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F') {
+      return c - 'A' + 10;
+    }
     return -1;
   }
 
-  /** Decodes an IPv6 address like 1111:2222:3333:4444:5555:6666:7777:8888 or ::1. */
+  /**
+   * Decodes an IPv6 address like 1111:2222:3333:4444:5555:6666:7777:8888 or ::1.
+   */
   private static @Nullable InetAddress decodeIpv6(String input, int pos, int limit) {
     byte[] address = new byte[16];
     int b = 0;
@@ -530,47 +580,60 @@ public final class PatchUtil {
     int groupOffset = -1;
 
     for (int i = pos; i < limit; ) {
-      if (b == address.length) return null; // Too many groups.
-
+      // Too many groups.
+      if (b == address.length) {
+        return null;
+      }
       // Read a delimiter.
       if (i + 2 <= limit && input.regionMatches(i, "::", 0, 2)) {
         // Compression "::" delimiter, which is anywhere in the input, including its prefix.
-        if (compress != -1) return null; // Multiple "::" delimiters.
+        // Multiple "::" delimiters.
+        if (compress != -1) {
+          return null;
+        }
         i += 2;
         b += 2;
         compress = b;
-        if (i == limit) break;
+        if (i == limit) {
+          break;
+        }
       } else if (b != 0) {
         // Group separator ":" delimiter.
         if (input.regionMatches(i, ":", 0, 1)) {
           i++;
         } else if (input.regionMatches(i, ".", 0, 1)) {
           // If we see a '.', rewind to the beginning of the previous group and parse as IPv4.
-          if (!decodeIpv4Suffix(input, groupOffset, limit, address, b - 2)) return null;
-          b += 2; // We rewound two bytes and then added four.
+          if (!decodeIpv4Suffix(input, groupOffset, limit, address, b - 2)) {
+            return null;
+          }
+          // We rewound two bytes and then added four.
+          b += 2;
           break;
         } else {
-          return null; // Wrong delimiter.
+          // Wrong delimiter.
+          return null;
         }
       }
-
       // Read a group, one to four hex digits.
       int value = 0;
       groupOffset = i;
       for (; i < limit; i++) {
         char c = input.charAt(i);
         int hexDigit = decodeHexDigit(c);
-        if (hexDigit == -1) break;
+        if (hexDigit == -1) {
+          break;
+        }
         value = (value << 4) + hexDigit;
       }
       int groupLength = i - groupOffset;
-      if (groupLength == 0 || groupLength > 4) return null; // Group is the wrong size.
-
+      // Group is the wrong size.
+      if (groupLength == 0 || groupLength > 4) {
+        return null;
+      }
       // We've successfully read a group. Assign its value to our byte array.
       address[b++] = (byte) ((value >>> 8) & 0xff);
       address[b++] = (byte) (value & 0xff);
     }
-
     // All done. If compression happened, we need to move bytes to the right place in the
     // address. Here's a sample:
     //
@@ -581,7 +644,10 @@ public final class PatchUtil {
     //      after: { 11, 11, 22, 22, 33, 33, 00, 00, 00, 00, 00, 00, 77, 77, 88, 88 }
     //
     if (b != address.length) {
-      if (compress == -1) return null; // Address didn't have compression or enough groups.
+      // Address didn't have compression or enough groups.
+      if (compress == -1) {
+        return null;
+      }
       System.arraycopy(address, compress, address, address.length - (b - compress), b - compress);
       Arrays.fill(address, compress, compress + (address.length - b), (byte) 0);
     }
@@ -593,42 +659,68 @@ public final class PatchUtil {
     }
   }
 
-  /** Decodes an IPv4 address suffix of an IPv6 address, like 1111::5555:6666:192.168.0.1. */
+  /**
+   * Decodes an IPv4 address suffix of an IPv6 address, like 1111::5555:6666:192.168.0.1.
+   */
   private static boolean decodeIpv4Suffix(
-      String input, int pos, int limit, byte[] address, int addressOffset) {
+      String input,
+      int pos,
+      int limit,
+      byte[] address,
+      int addressOffset
+  ) {
     int b = addressOffset;
 
     for (int i = pos; i < limit; ) {
-      if (b == address.length) return false; // Too many groups.
-
+      // Too many groups.
+      if (b == address.length) {
+        return false;
+      }
       // Read a delimiter.
       if (b != addressOffset) {
-        if (input.charAt(i) != '.') return false; // Wrong delimiter.
+        // Wrong delimiter.
+        if (input.charAt(i) != '.') {
+          return false;
+        }
         i++;
       }
-
       // Read 1 or more decimal digits for a value in 0..255.
       int value = 0;
       int groupOffset = i;
       for (; i < limit; i++) {
         char c = input.charAt(i);
-        if (c < '0' || c > '9') break;
-        if (value == 0 && groupOffset != i) return false; // Reject unnecessary leading '0's.
+        if (c < '0' || c > '9') {
+          break;
+        }
+        // Reject unnecessary leading '0's.
+        if (value == 0 && groupOffset != i) {
+          return false;
+        }
         value = (value * 10) + c - '0';
-        if (value > 255) return false; // Value out of range.
+        // Value out of range.
+        if (value > 255) {
+          return false;
+        }
       }
       int groupLength = i - groupOffset;
-      if (groupLength == 0) return false; // No digits.
-
+      // No digits.
+      if (groupLength == 0) {
+        return false;
+      }
       // We've successfully read a byte.
       address[b++] = (byte) value;
     }
-
-    if (b != addressOffset + 4) return false; // Too few groups. We wanted exactly four.
-    return true; // Success.
+    // Too few groups. We wanted exactly four.
+    if (b != addressOffset + 4) {
+      return false;
+    }
+    // Success.
+    return true;
   }
 
-  /** Encodes an IPv6 address in canonical form according to RFC 5952. */
+  /**
+   * Encodes an IPv6 address in canonical form according to RFC 5952.
+   */
   private static String inet6AddressToAscii(byte[] address) {
     // Go through the address looking for the longest run of 0s. Each group is 2-bytes.
     // A run must be longer than one group (section 4.2.2).
@@ -646,16 +738,19 @@ public final class PatchUtil {
         longestRunLength = currentRunLength;
       }
     }
-
     // Emit each 2-byte group in hex, separated by ':'. The longest run of zeroes is "::".
     Buffer result = new Buffer();
     for (int i = 0; i < address.length; ) {
       if (i == longestRunOffset) {
         result.writeByte(':');
         i += longestRunLength;
-        if (i == 16) result.writeByte(':');
+        if (i == 16) {
+          result.writeByte(':');
+        }
       } else {
-        if (i > 0) result.writeByte(':');
+        if (i > 0) {
+          result.writeByte(':');
+        }
         int group = (address[i] & 0xff) << 8 | address[i + 1] & 0xff;
         result.writeHexadecimalUnsignedLong(group);
         i += 2;
@@ -672,11 +767,13 @@ public final class PatchUtil {
       TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
       if (trustManagers.length != 1 || !(trustManagers[0] instanceof X509TrustManager)) {
         throw new IllegalStateException(
-            "Unexpected default trust managers:" + Arrays.toString(trustManagers));
+            "Unexpected default trust managers:" + Arrays.toString(trustManagers)
+        );
       }
       return (X509TrustManager) trustManagers[0];
     } catch (GeneralSecurityException e) {
-      throw assertionError("No System TLS", e); // The system has no TLS. Just give up.
+      // The system has no TLS. Just give up.
+      throw assertionError("No System TLS", e);
     }
   }
 

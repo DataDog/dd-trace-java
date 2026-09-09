@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -9,7 +8,6 @@ import java.nio.ByteBuffer;
  * CharSequence} so that it can be mixed with normal{@code String} instances.
  */
 public final class UTF8BytesString implements CharSequence {
-
   public static final UTF8BytesString EMPTY = UTF8BytesString.create("");
 
   public static UTF8BytesString create(CharSequence sequence) {
@@ -79,13 +77,17 @@ public final class UTF8BytesString implements CharSequence {
     this.utf8Bytes = utf8Bytes;
   }
 
-  /** Writes the UTF8 encoding of the wrapped {@code String}. */
+  /**
+   * Writes the UTF8 encoding of the wrapped {@code String}.
+   */
   public void transferTo(ByteBuffer buffer) {
     encodeIfNecessary();
     buffer.put(utf8Bytes);
   }
 
-  /** Writes the UTF8 encoding of the wrapped {@code String}. */
+  /**
+   * Writes the UTF8 encoding of the wrapped {@code String}.
+   */
   public byte[] getUtf8Bytes() {
     encodeIfNecessary();
     return utf8Bytes;
@@ -110,8 +112,12 @@ public final class UTF8BytesString implements CharSequence {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null) {
+      return false;
+    }
     String that = null;
     if (o instanceof UTF8BytesString) {
       that = ((UTF8BytesString) o).string;

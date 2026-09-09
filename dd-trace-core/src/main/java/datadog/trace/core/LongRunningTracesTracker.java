@@ -13,7 +13,6 @@ public class LongRunningTracesTracker {
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
   private long lastFlushMilli = 0;
-
   private final int maxTrackedTraces;
   private final int initialFlushPeriodMilli;
   private final int flushPeriodMilli;
@@ -22,7 +21,6 @@ public class LongRunningTracesTracker {
   private int dropped = 0;
   private int write = 0;
   private int expired = 0;
-
   public static final int NOT_TRACKED = -1;
   public static final int UNDEFINED = 0;
   public static final int TO_TRACK = 1;
@@ -34,12 +32,13 @@ public class LongRunningTracesTracker {
       Config config,
       int maxTrackedTraces,
       SharedCommunicationObjects sharedCommunicationObjects,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics
+  ) {
     this.maxTrackedTraces = maxTrackedTraces;
-    this.initialFlushPeriodMilli =
-        (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceInitialFlushInterval());
-    this.flushPeriodMilli =
-        (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceFlushInterval());
+    this.initialFlushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceInitialFlushInterval()
+    );
+    this.flushPeriodMilli = (int) TimeUnit.SECONDS.toMillis(config.getLongRunningTraceFlushInterval()
+    );
     this.features = sharedCommunicationObjects.featuresDiscovery(config);
     this.healthMetrics = healthMetrics;
   }
@@ -107,14 +106,12 @@ public class LongRunningTracesTracker {
   }
 
   private boolean hasExpired(long nowMilli, PendingTrace trace) {
-    return (nowMilli - TimeUnit.NANOSECONDS.toMillis(trace.getRunningTraceStartTime()))
-        > maxTrackedDurationMilli;
+    return (nowMilli - TimeUnit.NANOSECONDS.toMillis(trace.getRunningTraceStartTime())) > maxTrackedDurationMilli;
   }
 
   private boolean shouldFlush(long nowMilli, PendingTrace trace) {
     long traceStartTimeNano = trace.getRunningTraceStartTime();
     long lastWriteTimeNano = trace.getLastWriteTime();
-
     // Initial flush
     if (lastWriteTimeNano <= traceStartTimeNano) {
       return nowMilli - TimeUnit.NANOSECONDS.toMillis(traceStartTimeNano) > initialFlushPeriodMilli;

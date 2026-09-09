@@ -36,9 +36,7 @@ import org.slf4j.LoggerFactory;
  * that are covered in a file.
  */
 public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
-
   private static final Logger log = LoggerFactory.getLogger(LineCoverageStore.class);
-
   /**
    * Upper bound on the approximate memory retained by the analysis cache. Coverage stays correct
    * beyond it (analysis just isn't cached), this only guards memory for pathologically large
@@ -46,7 +44,6 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
    * covered by many distinct probe sets, from retaining large arrays for the whole module lifetime.
    */
   private static final long MAX_ANALYSIS_CACHE_BYTES = 64L * 1024 * 1024;
-
   /**
    * Approximate fixed cost of one cache entry beyond its variable bit data: the {@link
    * AnalysisCacheKey} and both {@link BitSet} objects (with their {@code long[]} + array headers)
@@ -54,7 +51,6 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
    * undercounted and the byte bound stays a real ceiling.
    */
   private static final int APPROX_ENTRY_OVERHEAD_BYTES = 160;
-
   private final CiVisibilityMetricCollector metrics;
   private final SourcePathResolver sourcePathResolver;
   // Module-wide cache: (class id + probe set) -> covered lines, shared across tests so a class
@@ -68,7 +64,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       CiVisibilityMetricCollector metrics,
       SourcePathResolver sourcePathResolver,
       Map<AnalysisCacheKey, BitSet> analysisCache,
-      AtomicLong analysisCacheBytes) {
+      AtomicLong analysisCacheBytes
+  ) {
     super(probesFactory);
     this.metrics = metrics;
     this.sourcePathResolver = sourcePathResolver;
@@ -79,7 +76,11 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<LineProbes> probes) {
+      DDTraceId testSessionId,
+      Long testSuiteId,
+      long testSpanId,
+      Collection<LineProbes> probes
+  ) {
     Map<Class<?>, ExecutionDataAdapter> combinedExecutionData = new IdentityHashMap<>();
     Collection<String> combinedNonCodeResources = new HashSet<>();
 
@@ -104,7 +105,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       if (sourcePaths.size() != 1) {
         log.debug(
             "Skipping coverage reporting for {} because source path could not be determined",
-            className);
+            className
+        );
         metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
         continue;
       }
@@ -112,7 +114,9 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
 
       BitSet coveredLines = analyzeClass(clazz, executionDataAdapter);
       if (coveredLines != null) {
-        coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet()).or(coveredLines);
+        coveredLinesBySourcePath
+          .computeIfAbsent(sourcePath, key -> new BitSet())
+          .or(coveredLines);
       }
     }
 
@@ -128,7 +132,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       if (resourcePaths.isEmpty()) {
         log.debug(
             "Skipping coverage reporting for {} because resource path could not be determined",
-            nonCodeResource);
+            nonCodeResource
+        );
         metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
         continue;
       }
@@ -140,7 +145,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
     metrics.add(
         CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
-        report.getTestReportFileEntries().size());
+        report.getTestReportFileEntries().size()
+    );
     return report;
   }
 
@@ -172,7 +178,6 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       store.put(new ExecutionData(classId, executionDataAdapter.getClassName(), probes));
       Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(coveredLines));
       analyzer.analyzeClass(is, null);
-
       // Reserve the entry's weight before inserting so concurrent inserts near the limit can't
       // collectively overshoot the bound; release the reservation if we exceed it or another thread
       // cached the class first.
@@ -186,12 +191,12 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
         analysisCacheBytes.addAndGet(-entryBytes);
       }
       return coveredLines;
-
     } catch (Exception exception) {
       log.debug(
           "Skipping coverage reporting for {} because of error",
           executionDataAdapter.getClassName(),
-          exception);
+          exception
+      );
       metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
       return null;
     }
@@ -220,7 +225,9 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       this.hash = 31 * Long.hashCode(classId) + bits.hashCode();
     }
 
-    /** Bytes of the packed probe bits (the variable part of the retained key). */
+    /**
+     * Bytes of the packed probe bits (the variable part of the retained key).
+     */
     int packedBytes() {
       return probes.size() >>> 3;
     }
@@ -244,11 +251,9 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
   }
 
   public static final class Factory implements CoverageStore.Factory {
-
     private final Map<String, Integer> probeCounts = new ConcurrentHashMap<>();
     private final Map<AnalysisCacheKey, BitSet> analysisCache = new ConcurrentHashMap<>();
     private final AtomicLong analysisCacheBytes = new AtomicLong();
-
     private final CiVisibilityMetricCollector metrics;
     private final SourcePathResolver sourcePathResolver;
 
@@ -260,7 +265,12 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     @Override
     public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
       return new LineCoverageStore(
-          this::createProbes, metrics, sourcePathResolver, analysisCache, analysisCacheBytes);
+          this::createProbes,
+          metrics,
+          sourcePathResolver,
+          analysisCache,
+          analysisCacheBytes
+      );
     }
 
     private LineProbes createProbes(boolean isTestThread) {

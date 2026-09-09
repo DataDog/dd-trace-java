@@ -20,7 +20,8 @@ public class SpringHelper {
     DetectionResult detectionResult = isSpringUsingOnlyMethodParametersSpringVersion(inst);
     if (detectionResult == DetectionResult.UNKNOWN) {
       LOGGER.debug(
-          "isSpringUsingOnlyMethodParameters failed for SpringVersion, trying to detect specific class");
+          "isSpringUsingOnlyMethodParameters failed for SpringVersion, trying to detect specific class"
+      );
       // fallback to lookup for specific class
       return isSpringUsingOnlyMethodParametersSpecificClass(inst);
     }
@@ -28,7 +29,8 @@ public class SpringHelper {
   }
 
   private static DetectionResult isSpringUsingOnlyMethodParametersSpringVersion(
-      Instrumentation inst) {
+      Instrumentation inst
+  ) {
     try {
       // scan for getting an already loaded class and get the classloader
       ClassLoader springClassLoader = null;
@@ -78,8 +80,8 @@ public class SpringHelper {
   }
 
   static class ParsedSpringVersion {
-    private static final Pattern VERSION_PATTERN = Pattern.compile("(\\d+)\\.(\\d+)\\.(\\d+)");
-
+    private static final Pattern VERSION_PATTERN =
+        Pattern.compile("(\\\\d+)\\\\.(\\\\d+)\\\\." + "(\\\\d+)");
     final int major;
     final int minor;
     final int patch;

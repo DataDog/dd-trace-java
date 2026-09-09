@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.rxjava2;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,12 +18,12 @@ public final class RxJavaModule extends InstrumenterModule.ContextTracking {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingCompletableObserver",
-      packageName + ".TracingSubscriber",
-      packageName + ".TracingMaybeObserver",
-      packageName + ".TracingObserver",
-      packageName + ".RxJavaAsyncResultExtension",
-      packageName + ".TracingSingleObserver",
+        packageName + ".TracingCompletableObserver",
+        packageName + ".TracingSubscriber",
+        packageName + ".TracingMaybeObserver",
+        packageName + ".TracingObserver",
+        packageName + ".RxJavaAsyncResultExtension",
+        packageName + ".TracingSingleObserver"
     };
   }
 
@@ -46,6 +45,7 @@ public final class RxJavaModule extends InstrumenterModule.ContextTracking {
         new FlowableInstrumentation(),
         new MaybeInstrumentation(),
         new ObservableInstrumentation(),
-        new SingleInstrumentation());
+        new SingleInstrumentation()
+    );
   }
 }

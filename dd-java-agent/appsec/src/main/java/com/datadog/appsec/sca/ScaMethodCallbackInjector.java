@@ -19,18 +19,21 @@ import net.bytebuddy.utility.OpenedClassReader;
  * ScaReachabilityCallback.onMethodHit} at the entry point of each watched method.
  */
 final class ScaMethodCallbackInjector {
-
   private static final String CALLBACK_OWNER =
       "datadog/trace/bootstrap/appsec/sca/ScaReachabilityCallback";
   private static final String CALLBACK_METHOD = "onMethodHit";
   private static final String CALLBACK_DESC =
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V";
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      + "Ljava/lang/String;I)V";
 
-  private ScaMethodCallbackInjector() {}
+  private ScaMethodCallbackInjector() {
+  }
 
   @VisibleForTesting
   static byte[] inject(
-      byte[] classfileBuffer, Map<String, List<MethodCallbackSpec>> callbacksPerMethod) {
+      byte[] classfileBuffer,
+      Map<String, List<MethodCallbackSpec>> callbacksPerMethod
+  ) {
     ClassReader cr = new ClassReader(classfileBuffer);
     ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_MAXS);
     cr.accept(new MethodCallbackClassVisitor(cw, callbacksPerMethod), ClassReader.EXPAND_FRAMES);
@@ -41,14 +44,21 @@ final class ScaMethodCallbackInjector {
     private final Map<String, List<MethodCallbackSpec>> callbacksPerMethod;
 
     MethodCallbackClassVisitor(
-        ClassVisitor cv, Map<String, List<MethodCallbackSpec>> callbacksPerMethod) {
+        ClassVisitor cv,
+        Map<String, List<MethodCallbackSpec>> callbacksPerMethod
+    ) {
       super(OpenedClassReader.ASM_API, cv);
       this.callbacksPerMethod = callbacksPerMethod;
     }
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions
+    ) {
       MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
       List<MethodCallbackSpec> specs = callbacksPerMethod.get(name);
       if (specs == null || specs.isEmpty()) {
@@ -90,7 +100,12 @@ final class ScaMethodCallbackInjector {
 
     @Override
     public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface
+    ) {
       ensureInjected();
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
     }
@@ -154,16 +169,22 @@ final class ScaMethodCallbackInjector {
         String name,
         String descriptor,
         Handle bootstrapMethodHandle,
-        Object... bootstrapMethodArguments) {
+        Object... bootstrapMethodArguments
+    ) {
       ensureInjected();
       super.visitInvokeDynamicInsn(
-          name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+          name,
+          descriptor,
+          bootstrapMethodHandle,
+          bootstrapMethodArguments
+      );
     }
 
     private void ensureInjected() {
       if (!injected) {
         injected = true;
-        injectCallbacks(1); // no debug info — use line 1 as placeholder
+        // no debug info — use line 1 as placeholder
+        injectCallbacks(1);
       }
     }
 
@@ -179,14 +200,22 @@ final class ScaMethodCallbackInjector {
         mv.visitLdcInsn(spec.version);
         mv.visitLdcInsn(spec.dotClassName);
         mv.visitLdcInsn(spec.methodName);
-        mv.visitLdcInsn(line); // LDC handles the full int range; SIPUSH is limited to -32768..32767
+        // LDC handles the full int range; SIPUSH is limited to -32768..32767
+        mv.visitLdcInsn(line);
         mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, CALLBACK_OWNER, CALLBACK_METHOD, CALLBACK_DESC, false);
+            Opcodes.INVOKESTATIC,
+            CALLBACK_OWNER,
+            CALLBACK_METHOD,
+            CALLBACK_DESC,
+            false
+        );
       }
     }
   }
 
-  /** Immutable spec for a single method-level callback to inject. */
+  /**
+   * Immutable spec for a single method-level callback to inject.
+   */
   static final class MethodCallbackSpec {
     final String vulnId;
     final String artifact;
@@ -195,7 +224,12 @@ final class ScaMethodCallbackInjector {
     final String methodName;
 
     MethodCallbackSpec(
-        String vulnId, String artifact, String version, String dotClassName, String methodName) {
+        String vulnId,
+        String artifact,
+        String version,
+        String dotClassName,
+        String methodName
+    ) {
       this.vulnId = vulnId;
       this.artifact = artifact;
       this.version = version;

@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,11 +14,14 @@ import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Obtain template and matrix variables for AbstractUrlHandlerMapping */
+/**
+ * Obtain template and matrix variables for AbstractUrlHandlerMapping
+ */
 @AutoService(InstrumenterModule.class)
 public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private Advice.PostProcessor.Factory postProcessorFactory;
 
   public TemplateVariablesUrlHandlerInstrumentation() {
@@ -43,20 +45,22 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
 
   @Override
   public String instrumentedType() {
-    return "org.springframework.web.servlet.handler.AbstractUrlHandlerMapping$UriTemplateVariablesHandlerInterceptor";
+    return "org.springframework.web.servlet.handler."
+        + "AbstractUrlHandlerMapping$UriTemplateVariablesHandlerInterceptor";
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("preHandle"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("jakarta.servlet.http.HttpServletRequest")))
-            .and(takesArgument(1, named("jakarta.servlet.http.HttpServletResponse")))
-            .and(takesArgument(2, Object.class)),
-        packageName + ".InterceptorPreHandleAdvice");
+          .and(isPublic())
+          .and(named("preHandle"))
+          .and(takesArguments(3))
+          .and(takesArgument(0, named("jakarta.servlet.http.HttpServletRequest")))
+          .and(takesArgument(1, named("jakarta.servlet.http.HttpServletResponse")))
+          .and(takesArgument(2, Object.class)),
+        packageName + ".InterceptorPreHandleAdvice"
+    );
   }
 
   @Override

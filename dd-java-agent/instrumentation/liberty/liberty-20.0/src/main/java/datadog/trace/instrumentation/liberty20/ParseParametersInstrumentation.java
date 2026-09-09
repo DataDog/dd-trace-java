@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -37,8 +36,9 @@ import net.bytebuddy.pool.TypePool;
 @AutoService(InstrumenterModule.class)
 public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice
+{
   public ParseParametersInstrumentation() {
     super("liberty");
   }
@@ -51,9 +51,9 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ParameterCollector",
-      packageName + ".ParameterCollector$ParameterCollectorNoop",
-      packageName + ".ParameterCollector$ParameterCollectorImpl",
+        packageName + ".ParameterCollector",
+        packageName + ".ParameterCollector$ParameterCollectorNoop",
+        packageName + ".ParameterCollector$ParameterCollectorImpl"
     };
   }
 
@@ -66,18 +66,20 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("parseParameters"))
-            .and(isPublic().or(isProtected()))
-            .and(takesArguments(0))
-            .and(returns(void.class)),
-        ParseParametersInstrumentation.class.getName() + "$ParseParametersAdvice");
+          .and(named("parseParameters"))
+          .and(isPublic().or(isProtected()))
+          .and(takesArguments(0))
+          .and(returns(void.class)),
+        ParseParametersInstrumentation.class.getName() + "$ParseParametersAdvice"
+    );
   }
 
   static class ParseParametersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static void before(
         @Advice.Local("collector") ParameterCollector collector,
-        @Advice.Local("reqCtx") RequestContext reqCtx) {
+        @Advice.Local("reqCtx") RequestContext reqCtx
+    ) {
       AgentSpan agentSpan = AgentTracer.activeSpan();
       if (agentSpan != null) {
         RequestContext requestContext = agentSpan.getRequestContext();
@@ -95,7 +97,8 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Local("collector") ParameterCollector collector,
         @Advice.Local("reqCtx") RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null || reqCtx == null || collector.isEmpty()) {
         return;
       }
@@ -141,7 +144,8 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
         FieldList<FieldDescription.InDefinedShape> fields,
         MethodList<?> methods,
         int writerFlags,
-        int readerFlags) {
+        int readerFlags
+    ) {
       return new RequestClassVisitor(Opcodes.ASM8, classVisitor);
     }
   }
@@ -153,7 +157,12 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions
+    ) {
       MethodVisitor superMv = super.visitMethod(access, name, descriptor, signature, exceptions);
       if ("parseParameters".equals(name) && "()V".equals(descriptor)) {
         return new ParseParametersMethodVisitor(api, superMv);
@@ -172,7 +181,12 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
 
     @Override
     public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface
+    ) {
       if (!afterGetParametersCall) {
         if (opcode == Opcodes.INVOKEVIRTUAL
             && name.equals("getParameters")
@@ -199,7 +213,8 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
               Type.getInternalName(ParameterCollector.class),
               "put",
               "(Ljava/lang/String;[Ljava/lang/String;)V",
-              true);
+              true
+          );
           // original stack
         }
       }

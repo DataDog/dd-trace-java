@@ -6,7 +6,6 @@ import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.che
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedSet;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.evaluateTargetCollection;
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Value;
@@ -33,7 +32,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class FilterCollectionExpression implements ValueExpression<CollectionValue<?>> {
   private static final Logger log = LoggerFactory.getLogger(FilterCollectionExpression.class);
-
   private final ValueExpression<?> source;
   private final BooleanExpression filterExpression;
 
@@ -55,7 +53,9 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
         for (int i = 0; i < len; i++) {
           Object value = materialized.get(i).getValue();
           valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(value));
+              ValueReferences.ITERATOR_EXTENSION_NAME,
+              CapturedValue.of(value)
+          );
           if (filterExpression.evaluate(evalContext)) {
             filtered.add(value);
           }
@@ -74,10 +74,13 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
           Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key);
           valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
           valueRefResolver.addExtension(
-              ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(value));
+              ValueReferences.VALUE_EXTENSION_NAME,
+              CapturedValue.of(value)
+          );
           valueRefResolver.addExtension(
               ValueReferences.ITERATOR_EXTENSION_NAME,
-              CapturedValue.of(new MapValue.Entry(key, value)));
+              CapturedValue.of(new MapValue.Entry(key, value))
+          );
           if (filterExpression.evaluate(evalContext)) {
             filtered.put(key.getValue(), value.getValue());
           }
@@ -96,7 +99,9 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       try {
         for (Object value : setHolder) {
           valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(value));
+              ValueReferences.ITERATOR_EXTENSION_NAME,
+              CapturedValue.of(value)
+          );
           if (filterExpression.evaluate(evalContext)) {
             filtered.add(value);
           }
@@ -109,7 +114,8 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
     }
     throw new EvaluationException(
         "Unsupported collection type: " + collectionValue.getValue().getClass().getTypeName(),
-        print(this));
+        print(this)
+    );
   }
 
   @Override

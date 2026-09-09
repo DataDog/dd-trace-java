@@ -4,7 +4,9 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-/** Wraps input stream to check a maximum allowed size */
+/**
+ * Wraps input stream to check a maximum allowed size
+ */
 public class SizeCheckedInputStream extends FilterInputStream {
   private final long maxSize;
   private long currentSize;

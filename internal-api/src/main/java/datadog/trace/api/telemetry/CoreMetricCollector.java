@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
-/** This class is in charge of draining core metrics for telemetry. */
+/**
+ * This class is in charge of draining core metrics for telemetry.
+ */
 public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.CoreMetric> {
   private static final String METRIC_NAMESPACE = "tracers";
   private static final String INTEGRATION_NAME_TAG = "integration_name:";
@@ -20,7 +22,6 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
   private final SpanMetricRegistryImpl spanMetricRegistry = SpanMetricRegistryImpl.getInstance();
   private final BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
   private final StatsMetrics statsMetrics = StatsMetrics.getInstance();
-
   private final BlockingQueue<CoreMetric> metricsQueue;
 
   public static CoreMetricCollector getInstance() {
@@ -35,8 +36,7 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
     if (value <= 0) {
       return;
     }
-    this.metricsQueue.offer(
-        new CoreMetric(METRIC_NAMESPACE, true, metricName, "count", value, tag));
+    this.metricsQueue.offer(new CoreMetric(METRIC_NAMESPACE, true, metricName, "count", value, tag));
   }
 
   @Override
@@ -60,16 +60,20 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
       }
       CoreMetric metric =
           new CoreMetric(
-              METRIC_NAMESPACE, true, counter.getName(), "count", value, counter.getTag());
+              METRIC_NAMESPACE,
+              true,
+              counter.getName(),
+              "count",
+              value,
+              counter.getTag()
+      );
       if (!this.metricsQueue.offer(metric)) {
         // Stop adding metrics if the queue is full
         break;
       }
     }
-
     // Collect span metrics
-    spanMetricsLoop:
-    for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
+    spanMetricsLoop: for (SpanMetricsImpl spanMetrics : this.spanMetricRegistry.getSpanMetrics()) {
       if (this.metricsQueue.remainingCapacity() == 0) {
         // Queue full: stop before touching any more span-metrics entries, not just the counters of
         // the current one, so a full queue doesn't leave us building tags and iterating counters we
@@ -97,7 +101,6 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
         }
       }
     }
-
     // Collect baggage metrics
     for (BaggageMetrics.TaggedCounter counter : this.baggageMetrics.getTaggedCounters()) {
       if (this.metricsQueue.remainingCapacity() == 0) {
@@ -139,7 +142,8 @@ public class CoreMetricCollector implements MetricCollector<CoreMetricCollector.
         String metricName,
         String type,
         Number value,
-        String tag) {
+        String tag
+    ) {
       super(namespace, common, metricName, type, value, tag);
     }
   }

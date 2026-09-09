@@ -4,7 +4,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
@@ -51,14 +50,12 @@ public class SpanV1 implements DecodedSpan {
   static final int SPAN_FIELD_VERSION = 14;
   static final int SPAN_FIELD_COMPONENT = 15;
   static final int SPAN_FIELD_SPAN_KIND = 16;
-
   // Span link field IDs (from TraceMapperV1.encodeSpanLinks)
   static final int LINK_FIELD_TRACE_ID = 1;
   static final int LINK_FIELD_SPAN_ID = 2;
   static final int LINK_FIELD_ATTRIBUTES = 3;
   static final int LINK_FIELD_TRACE_STATE = 4;
   static final int LINK_FIELD_TRACE_FLAGS = 5;
-
   // Attribute value types
   static final int STRING_VALUE_TYPE = 1;
   static final int BOOL_VALUE_TYPE = 2;
@@ -79,8 +76,7 @@ public class SpanV1 implements DecodedSpan {
     return unpackSpans(unpacker, stringTable, 0);
   }
 
-  static DecodedSpan[] unpackSpans(
-      MessageUnpacker unpacker, List<String> stringTable, long traceId) {
+  static DecodedSpan[] unpackSpans(MessageUnpacker unpacker, List<String> stringTable, long traceId) {
     try {
       int size = unpacker.unpackArrayHeader();
       if (size < 0) {
@@ -195,7 +191,6 @@ public class SpanV1 implements DecodedSpan {
             break;
         }
       }
-
       // Add promoted fields to meta if non-empty
       if (env != null && !env.isEmpty()) {
         meta.put("env", env);
@@ -224,7 +219,8 @@ public class SpanV1 implements DecodedSpan {
           metrics,
           meta,
           metaStruct.isEmpty() ? null : metaStruct,
-          links);
+          links
+      );
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -258,7 +254,8 @@ public class SpanV1 implements DecodedSpan {
       int index = unpacker.unpackInt();
       if (index < 0 || index >= stringTable.size()) {
         throw new IllegalArgumentException(
-            "Invalid string table index: " + index + ", table size: " + stringTable.size());
+            "Invalid string table index: " + index + ", table size: " + stringTable.size()
+        );
       }
       return stringTable.get(index);
     } else if (valueType == ValueType.STRING) {
@@ -268,7 +265,8 @@ public class SpanV1 implements DecodedSpan {
       return str;
     } else {
       throw new IllegalArgumentException(
-          "Expected string or integer for streaming string, got: " + valueType);
+          "Expected string or integer for streaming string, got: " + valueType
+      );
     }
   }
 
@@ -288,13 +286,14 @@ public class SpanV1 implements DecodedSpan {
       List<String> stringTable,
       Map<String, String> meta,
       Map<String, Number> metrics,
-      Map<String, Object> metaStruct)
-      throws IOException {
+      Map<String, Object> metaStruct
+  ) throws IOException {
     int arraySize = unpacker.unpackArrayHeader();
     // Array contains triplets (key, type, value), so size must be divisible by 3
     if (arraySize % 3 != 0) {
       throw new IllegalArgumentException(
-          "Attributes array size must be divisible by 3, got: " + arraySize);
+          "Attributes array size must be divisible by 3, got: " + arraySize
+      );
     }
 
     int tripletCount = arraySize / 3;
@@ -430,47 +429,50 @@ public class SpanV1 implements DecodedSpan {
     return id;
   }
 
-  /** Collects link attributes as strings, keeping the string table in sync. */
+  /**
+   * Collects link attributes as strings, keeping the string table in sync.
+   */
   private static void unpackLinkAttributes(
-      MessageUnpacker unpacker, List<String> stringTable, Map<String, String> attributes)
-      throws IOException {
-    forEachAttribute(
-        unpacker,
-        stringTable,
-        (attributeUnpacker, table, key, valueType) -> {
-          switch (valueType) {
-            case STRING_VALUE_TYPE:
-              attributes.put(key, unpackStreamingString(attributeUnpacker, table));
-              break;
-            case BOOL_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackBoolean()));
-              break;
-            case FLOAT_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackDouble()));
-              break;
-            case INT_VALUE_TYPE:
-              attributes.put(key, String.valueOf(attributeUnpacker.unpackLong()));
-              break;
-            default:
-              attributeUnpacker.skipValue();
-              break;
-          }
-        });
+      MessageUnpacker unpacker,
+      List<String> stringTable,
+      Map<String, String> attributes
+  ) throws IOException {
+    forEachAttribute(unpacker, stringTable, (attributeUnpacker, table, key, valueType) -> {
+      switch (valueType) {
+        case STRING_VALUE_TYPE:
+          attributes.put(key, unpackStreamingString(attributeUnpacker, table));
+          break;
+        case BOOL_VALUE_TYPE:
+          attributes.put(key, String.valueOf(attributeUnpacker.unpackBoolean()));
+          break;
+        case FLOAT_VALUE_TYPE:
+          attributes.put(key, String.valueOf(attributeUnpacker.unpackDouble()));
+          break;
+        case INT_VALUE_TYPE:
+          attributes.put(key, String.valueOf(attributeUnpacker.unpackLong()));
+          break;
+        default:
+          attributeUnpacker.skipValue();
+          break;
+      }
+    });
   }
 
-  static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable)
-      throws IOException {
+  static void skipAttributes(MessageUnpacker unpacker, List<String> stringTable) throws IOException {
     forEachAttribute(unpacker, stringTable, AttributeSkipper.INSTANCE);
   }
 
   private static void forEachAttribute(
-      MessageUnpacker unpacker, List<String> stringTable, AttributeConsumer consumer)
-      throws IOException {
+      MessageUnpacker unpacker,
+      List<String> stringTable,
+      AttributeConsumer consumer
+  ) throws IOException {
     int arraySize = unpacker.unpackArrayHeader();
     // Array contains triplets (key, type, value), so size must be divisible by 3
     if (arraySize % 3 != 0) {
       throw new IllegalArgumentException(
-          "Attributes array size must be divisible by 3, got: " + arraySize);
+          "Attributes array size must be divisible by 3, got: " + arraySize
+      );
     }
 
     int tripletCount = arraySize / 3;
@@ -488,11 +490,13 @@ public class SpanV1 implements DecodedSpan {
 
   private enum AttributeSkipper implements AttributeConsumer {
     INSTANCE;
-
     @Override
     public void accept(
-        MessageUnpacker unpacker, List<String> stringTable, String key, int valueType)
-        throws IOException {
+        MessageUnpacker unpacker,
+        List<String> stringTable,
+        String key,
+        int valueType
+    ) throws IOException {
       switch (valueType) {
         case STRING_VALUE_TYPE:
           unpackStreamingString(unpacker, stringTable);
@@ -580,12 +584,15 @@ public class SpanV1 implements DecodedSpan {
         final Map<String, Object> resultMap = new HashMap<>(map.size());
         for (final Map.Entry<Value, Value> entry : map.entrySet()) {
           resultMap.put(
-              entry.getKey().asStringValue().asString(), convertValueToObject(entry.getValue()));
+              entry.getKey().asStringValue().asString(),
+              convertValueToObject(entry.getValue())
+          );
         }
         return resultMap;
       default:
         throw new IllegalArgumentException(
-            "Failed to convert value to object. Unexpected value type " + value.getValueType());
+            "Failed to convert value to object. Unexpected value type " + value.getValueType()
+        );
     }
   }
 
@@ -617,7 +624,8 @@ public class SpanV1 implements DecodedSpan {
       String type,
       Map<String, Number> metrics,
       Map<String, String> meta,
-      Map<String, Object> metaStruct) {
+      Map<String, Object> metaStruct
+  ) {
     this(
         service,
         name,
@@ -632,7 +640,8 @@ public class SpanV1 implements DecodedSpan {
         metrics,
         meta,
         metaStruct,
-        emptyList());
+        emptyList()
+    );
   }
 
   public SpanV1(
@@ -649,7 +658,8 @@ public class SpanV1 implements DecodedSpan {
       Map<String, Number> metrics,
       Map<String, String> meta,
       Map<String, Object> metaStruct,
-      List<DecodedSpanLink> links) {
+      List<DecodedSpanLink> links
+  ) {
     this.links = links == null ? emptyList() : links;
     this.service = service;
     this.name = name;

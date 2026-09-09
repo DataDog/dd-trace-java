@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.play26.appsec;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
@@ -26,8 +25,9 @@ import play.mvc.StatusHeader;
 
 @AutoService(InstrumenterModule.class)
 public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public StatusHeaderInstrumentation() {
     super("play");
   }
@@ -39,7 +39,8 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public Reference[] additionalMuzzleReferences() {
-    return MuzzleReferences.PLAY_26_PLUS; // force failure in <2.6
+    // force failure in <2.6
+    return MuzzleReferences.PLAY_26_PLUS;
   }
 
   @Override
@@ -51,17 +52,17 @@ public class StatusHeaderInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("sendJson").and(takesArgument(0, named("com.fasterxml.jackson.databind.JsonNode"))),
-        StatusHeaderInstrumentation.class.getName() + "$StatusHeaderSendJsonAdvice");
+        StatusHeaderInstrumentation.class.getName() + "$StatusHeaderSendJsonAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class StatusHeaderSendJsonAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static void before(
         @Advice.Argument(0) final JsonNode json,
-        @ActiveRequestContext final RequestContext reqCtx) {
-
+        @ActiveRequestContext final RequestContext reqCtx
+    ) {
       if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
         return;
       }

@@ -16,7 +16,8 @@ public class Split {
       final List<Shard> shards,
       final String variationKey,
       final Map<String, String> extraLogging,
-      final Integer serialId) {
+      final Integer serialId
+  ) {
     this.shards = shards;
     this.variationKey = variationKey;
     this.extraLogging = extraLogging;

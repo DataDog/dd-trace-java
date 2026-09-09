@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -25,7 +24,9 @@ import org.apache.commons.fileupload.FileItem;
 
 @AutoService(InstrumenterModule.class)
 public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public CommonsFileUploadAppSecInstrumentation() {
     super("commons-fileupload");
   }
@@ -37,18 +38,17 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.commons.fileupload.FileItemContentReader",
-    };
+    return new String[] {"datadog.trace.instrumentation.commons.fileupload.FileItemContentReader"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseRequest")
-            .and(isPublic())
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
-        getClass().getName() + "$ParseRequestAdvice");
+          .and(isPublic())
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+        getClass().getName() + "$ParseRequestAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -57,7 +57,8 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
     static void after(
         @Advice.Return final List<FileItem> fileItems,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null || fileItems == null || fileItems.isEmpty()) {
         return;
       }

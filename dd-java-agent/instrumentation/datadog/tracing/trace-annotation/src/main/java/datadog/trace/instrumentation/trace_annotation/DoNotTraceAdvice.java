@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.trace_annotation;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.blackholeSpan;
 import static datadog.trace.instrumentation.trace_annotation.TraceDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.lang.invoke.MethodType;
 import net.bytebuddy.asm.Advice;
@@ -19,7 +18,8 @@ public class DoNotTraceAdvice {
   public static void after(
       @Advice.Enter final AgentScope scope,
       @Advice.Origin final MethodType methodType,
-      @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result) {
+      @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Object result
+  ) {
     if (scope != null) {
       scope.close();
       result = DECORATE.wrapAsyncResultOrFinishSpan(result, methodType.returnType(), scope.span());

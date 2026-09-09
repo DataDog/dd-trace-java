@@ -1,7 +1,6 @@
 package com.datadog.iast.model;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import com.datadog.iast.model.json.SourceTypeString;
 import datadog.trace.api.iast.SourceTypes;
 import datadog.trace.api.iast.Taintable;
@@ -14,19 +13,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class Source implements Taintable.Source {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(Source.class);
-
-  /** Placeholder for non char sequence objects */
+  /**
+   * Placeholder for non char sequence objects
+   */
   public static final Object PROPAGATION_PLACEHOLDER = new Object();
-
-  /** value to send in the rare case that the name/value have been garbage collected */
+  /**
+   * value to send in the rare case that the name/value have been garbage collected
+   */
   public static final String GARBAGE_COLLECTED_REF =
       "[unknown: original value was garbage collected]";
-
-  private final @SourceTypeString byte origin;
-  @Nullable private final Object name;
-  @Nullable private final Object value;
+  @SourceTypeString
+  private final byte origin;
+  @Nullable
+  private final Object name;
+  @Nullable
+  private final Object value;
   private boolean gcReported;
 
   public Source(final byte origin, @Nullable final Object name, @Nullable final Object value) {
@@ -52,7 +54,9 @@ public final class Source implements Taintable.Source {
     return asString(value);
   }
 
-  /** This will expose the internal reference so be careful */
+  /**
+   * This will expose the internal reference so be careful
+   */
   @Nullable
   public Object getRawValue() {
     if (value == null) {
@@ -64,9 +68,8 @@ public final class Source implements Taintable.Source {
     return value;
   }
 
-  @SuppressFBWarnings(
-      value = "DM_STRING_CTOR",
-      justification = "New string instance requires constructor")
+  @SuppressFBWarnings(value = "DM_STRING_CTOR", justification = "New string instance requires "
+      + "constructor")
   @SuppressWarnings("StringOperationCanBeSimplified")
   @Nullable
   private String asString(@Nullable final Object target) {
@@ -85,7 +88,8 @@ public final class Source implements Taintable.Source {
           LOGGER.debug(
               SEND_TELEMETRY,
               "Source value lost due to GC, origin={}",
-              SourceTypes.toString(origin));
+              SourceTypes.toString(origin)
+          );
         }
       }
     }
@@ -95,16 +99,20 @@ public final class Source implements Taintable.Source {
   @Override
   public String toString() {
     return new StringJoiner(", ", Source.class.getSimpleName() + "[", "]")
-        .add("origin=" + SourceTypes.toString(origin))
-        .add("name='" + getName() + "'")
-        .add("value='" + getValue() + "'")
-        .toString();
+      .add("origin=" + SourceTypes.toString(origin))
+      .add("name='" + getName() + "'")
+      .add("value='" + getValue() + "'")
+      .toString();
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Source source = (Source) o;
     return origin == source.origin
         && Objects.equals(getName(), source.getName())

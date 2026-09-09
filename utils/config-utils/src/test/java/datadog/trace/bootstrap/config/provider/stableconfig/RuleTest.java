@@ -4,7 +4,6 @@ import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,7 +11,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class RuleTest {
-
   @Test
   void testNoArgConstructorYieldsEmptyState() {
     Rule rule = new Rule();
@@ -77,7 +75,6 @@ class RuleTest {
     ruleMap.put("configuration", configuration);
 
     Rule rule = Rule.from(ruleMap);
-
     // The null entry is filtered out, leaving only the valid selector.
     assertEquals(1, rule.getSelectors().size());
     assertEquals("process_arguments", rule.getSelectors().get(0).getOrigin());

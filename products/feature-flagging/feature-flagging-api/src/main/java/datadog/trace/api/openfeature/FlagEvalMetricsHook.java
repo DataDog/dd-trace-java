@@ -8,7 +8,6 @@ import dev.openfeature.sdk.ImmutableMetadata;
 import java.util.Map;
 
 class FlagEvalMetricsHook implements Hook<Object> {
-
   private final FlagEvalMetrics metrics;
 
   FlagEvalMetricsHook(FlagEvalMetrics metrics) {
@@ -17,7 +16,10 @@ class FlagEvalMetricsHook implements Hook<Object> {
 
   @Override
   public void finallyAfter(
-      HookContext<Object> ctx, FlagEvaluationDetails<Object> details, Map<String, Object> hints) {
+      HookContext<Object> ctx,
+      FlagEvaluationDetails<Object> details,
+      Map<String, Object> hints
+  ) {
     if (metrics == null || details == null) {
       return;
     }

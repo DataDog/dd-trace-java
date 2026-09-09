@@ -16,23 +16,25 @@ import org.slf4j.LoggerFactory;
 
 final class OtelObservableCallback extends OtelObservable
     implements ObservableDoubleCounter,
-        ObservableLongCounter,
-        ObservableDoubleGauge,
-        ObservableLongGauge,
-        ObservableDoubleUpDownCounter,
-        ObservableLongUpDownCounter,
-        BatchCallback {
-
+    ObservableLongCounter,
+    ObservableDoubleGauge,
+    ObservableLongGauge,
+    ObservableDoubleUpDownCounter,
+    ObservableLongUpDownCounter,
+    BatchCallback
+{
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelObservableCallback.class);
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
-
   private final OtelMeter meter;
   private final Runnable callback;
   private final List<OtelObservableMeasurement> measurements;
 
   OtelObservableCallback(
-      OtelMeter meter, Runnable callback, List<OtelObservableMeasurement> measurements) {
+      OtelMeter meter,
+      Runnable callback,
+      List<OtelObservableMeasurement> measurements
+  ) {
     this.meter = meter;
     this.callback = callback;
     this.measurements = measurements;

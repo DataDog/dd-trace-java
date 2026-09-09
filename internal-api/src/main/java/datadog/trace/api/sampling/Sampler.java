@@ -1,7 +1,6 @@
 package datadog.trace.api.sampling;
 
 public interface Sampler {
-
   /**
    * Provides binary answer whether the current event is to be sampled
    *

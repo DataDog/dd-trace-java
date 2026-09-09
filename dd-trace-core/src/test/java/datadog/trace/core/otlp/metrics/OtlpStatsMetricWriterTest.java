@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.metrics.api.Histograms;
@@ -51,7 +50,6 @@ import org.junit.jupiter.params.provider.CsvSource;
  * </pre>
  */
 class OtlpStatsMetricWriterTest {
-
   private static final int TEMPORALITY_DELTA = 1;
   private static final long BUCKET_START = SECONDS.toNanos(1_700_000_000L);
   private static final long BUCKET_DURATION = SECONDS.toNanos(10);
@@ -62,7 +60,6 @@ class OtlpStatsMetricWriterTest {
   }
 
   // ── capturing sender ──────────────────────────────────────────────────────
-
   private static final class CapturingSender implements OtlpSender {
     int sendCount;
     byte[] lastPayload;
@@ -82,14 +79,14 @@ class OtlpStatsMetricWriterTest {
   }
 
   // ── entry builders ──────────────────────────────────────────────────────
-
   private static AggregateEntry entry(
       String resource,
       boolean synthetic,
       int httpStatusCode,
       @Nullable String httpMethod,
       @Nullable String httpEndpoint,
-      @Nullable String grpcStatusCode) {
+      @Nullable String grpcStatusCode
+  ) {
     return AggregateEntryTestUtils.of(
         resource,
         "web",
@@ -103,10 +100,13 @@ class OtlpStatsMetricWriterTest {
         null,
         httpMethod,
         httpEndpoint,
-        grpcStatusCode);
+        grpcStatusCode
+    );
   }
 
-  /** Build an entry and record {@code hits} ok durations of {@code durationNanos} each. */
+  /**
+   * Build an entry and record {@code hits} ok durations of {@code durationNanos} each.
+   */
   private static AggregateEntry okEntry(long durationNanos, int hits) {
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
     for (int i = 0; i < hits; i++) {
@@ -116,7 +116,6 @@ class OtlpStatsMetricWriterTest {
   }
 
   // ── decode helpers (adapted from OtlpMetricsProtoTest) ──────────────────────
-
   /**
    * A decoded histogram data point. Only the fields this test asserts on are decoded: the window
    * timestamps, the total count, and the attributes. Per-bucket contents (bucket_counts,
@@ -129,7 +128,9 @@ class OtlpStatsMetricWriterTest {
     final Map<String, Object> attributes = new HashMap<>();
   }
 
-  /** A decoded metric: name, unit, temporality, and its histogram data points. */
+  /**
+   * A decoded metric: name, unit, temporality, and its histogram data points.
+   */
   private static final class DecodedMetric {
     String name;
     String unit;
@@ -137,7 +138,9 @@ class OtlpStatsMetricWriterTest {
     final List<DataPoint> dataPoints = new ArrayList<>();
   }
 
-  /** Decodes a full {@code MetricsData} payload into the single histogram metric it carries. */
+  /**
+   * Decodes a full {@code MetricsData} payload into the single histogram metric it carries.
+   */
   private static DecodedMetric decode(byte[] payload) throws IOException {
     CodedInputStream metricsData = CodedInputStream.newInstance(payload);
     int metricsTag = metricsData.readTag();
@@ -149,10 +152,12 @@ class OtlpStatsMetricWriterTest {
     while (!resourceMetrics.isAtEnd()) {
       int tag = resourceMetrics.readTag();
       int field = WireFormat.getTagFieldNumber(tag);
-      if (field == 2) { // ScopeMetrics
+      if (field == 2) {
+        // ScopeMetrics
         metric = parseScopeMetrics(resourceMetrics.readBytes().newCodedInput());
       } else {
-        resourceMetrics.skipField(tag); // Resource (field 1) etc.
+        // Resource (field 1) etc.
+        resourceMetrics.skipField(tag);
       }
     }
     assertNotNull(metric, "no ScopeMetrics found");
@@ -166,16 +171,19 @@ class OtlpStatsMetricWriterTest {
    */
   private static Map<String, Object> decodeResourceAttributes(byte[] payload) throws IOException {
     CodedInputStream metricsData = CodedInputStream.newInstance(payload);
-    metricsData.readTag(); // MetricsData.resource_metrics = 1
+    // MetricsData.resource_metrics = 1
+    metricsData.readTag();
     CodedInputStream resourceMetrics = metricsData.readBytes().newCodedInput();
     Map<String, Object> attrs = new HashMap<>();
     while (!resourceMetrics.isAtEnd()) {
       int tag = resourceMetrics.readTag();
-      if (WireFormat.getTagFieldNumber(tag) == 1) { // Resource
+      if (WireFormat.getTagFieldNumber(tag) == 1) {
+        // Resource
         CodedInputStream resource = resourceMetrics.readBytes().newCodedInput();
         while (!resource.isAtEnd()) {
           int rtag = resource.readTag();
-          if (WireFormat.getTagFieldNumber(rtag) == 1) { // KeyValue attributes
+          if (WireFormat.getTagFieldNumber(rtag) == 1) {
+            // KeyValue attributes
             readKeyValue(resource.readBytes().newCodedInput(), attrs);
           } else {
             resource.skipField(rtag);
@@ -192,7 +200,8 @@ class OtlpStatsMetricWriterTest {
     DecodedMetric metric = null;
     while (!scopeMetrics.isAtEnd()) {
       int tag = scopeMetrics.readTag();
-      if (WireFormat.getTagFieldNumber(tag) == 2) { // Metric
+      if (WireFormat.getTagFieldNumber(tag) == 2) {
+        // Metric
         metric = parseMetric(scopeMetrics.readBytes().newCodedInput());
       } else {
         scopeMetrics.skipField(tag);
@@ -212,7 +221,9 @@ class OtlpStatsMetricWriterTest {
         case 3:
           metric.unit = m.readString();
           break;
-        case 9: // Histogram
+        case
+            // Histogram
+        9:
           parseHistogram(m.readBytes().newCodedInput(), metric);
           break;
         default:
@@ -226,10 +237,14 @@ class OtlpStatsMetricWriterTest {
     while (!h.isAtEnd()) {
       int tag = h.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
-        case 1: // HistogramDataPoint (repeated)
+        case
+            // HistogramDataPoint (repeated)
+        1:
           metric.dataPoints.add(parseDataPoint(h.readBytes().newCodedInput()));
           break;
-        case 2: // aggregation_temporality
+        case
+            // aggregation_temporality
+        2:
           metric.temporality = h.readEnum();
           break;
         default:
@@ -252,10 +267,13 @@ class OtlpStatsMetricWriterTest {
         case 4:
           p.count = dp.readFixed64();
           break;
-        case 9: // attributes (KeyValue)
+        case
+            // attributes (KeyValue)
+        9:
           readKeyValue(dp.readBytes().newCodedInput(), p.attributes);
           break;
-        default: // sum, bucket_counts, explicit_bounds, min, max — not asserted here
+        default:
+          // sum, bucket_counts, explicit_bounds, min, max — not asserted here
           dp.skipField(tag);
       }
     }
@@ -266,8 +284,7 @@ class OtlpStatsMetricWriterTest {
    * Reads a {@code KeyValue} into {@code out}: key (field 1) → value. Value is an {@code AnyValue}
    * (field 2); we decode string (field 1) and int (field 3) variants used by this writer.
    */
-  private static void readKeyValue(CodedInputStream kv, Map<String, Object> out)
-      throws IOException {
+  private static void readKeyValue(CodedInputStream kv, Map<String, Object> out) throws IOException {
     String key = null;
     Object value = null;
     while (!kv.isAtEnd()) {
@@ -276,7 +293,9 @@ class OtlpStatsMetricWriterTest {
         case 1:
           key = kv.readString();
           break;
-        case 2: // AnyValue
+        case
+            // AnyValue
+        2:
           value = readAnyValue(kv.readBytes().newCodedInput());
           break;
         default:
@@ -293,16 +312,24 @@ class OtlpStatsMetricWriterTest {
     while (!any.isAtEnd()) {
       int tag = any.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
-        case 1: // string_value
+        case
+            // string_value
+        1:
           value = any.readString();
           break;
-        case 2: // bool_value
+        case
+            // bool_value
+        2:
           value = any.readBool();
           break;
-        case 3: // int_value
+        case
+            // int_value
+        3:
           value = any.readInt64();
           break;
-        case 5: // array_value
+        case
+            // array_value
+        5:
           value = readArrayValue(any.readBytes().newCodedInput());
           break;
         default:
@@ -329,7 +356,6 @@ class OtlpStatsMetricWriterTest {
   }
 
   // ── writer driver ─────────────────────────────────────────────────────────
-
   /**
    * Drives the writer through one full {@code startBucket → add → finishBucket} cycle for {@code
    * entry} over the fixed {@link #BUCKET_START}/{@link #BUCKET_DURATION} window, asserts that
@@ -346,7 +372,6 @@ class OtlpStatsMetricWriterTest {
   }
 
   // ── test cases ──────────────────────────────────────────────────────────
-
   @Test
   void okOnlyEntryProducesExactlyOneDataPoint() throws IOException {
     DecodedMetric metric = writeAndDecode(okEntry(SECONDS.toNanos(1), 3));
@@ -366,9 +391,12 @@ class OtlpStatsMetricWriterTest {
   @Test
   void okPlusErrorEntryProducesTwoDataPointsWithErrorStatus() throws IOException {
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
-    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1)); // ok
-    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(2)); // ok
-    AggregateEntryTestUtils.recordError(e, SECONDS.toNanos(3)); // error
+    // ok
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+    // ok
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(2));
+    // error
+    AggregateEntryTestUtils.recordError(e, SECONDS.toNanos(3));
 
     DecodedMetric metric = writeAndDecode(e);
     assertEquals(2, metric.dataPoints.size(), "ok+error → two data points");
@@ -397,11 +425,12 @@ class OtlpStatsMetricWriterTest {
   void errorSeriesDoesNotLingerAfterClearWhenBucketHasOnlyOkHits() throws IOException {
     CapturingSender sender = new CapturingSender();
     OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
-
     // Bucket 1: the entry sees an error, so its error histogram is allocated and emits a point.
     AggregateEntry e = entry("GET /users", false, 0, null, null, null);
-    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1)); // ok
-    AggregateEntryTestUtils.recordError(e, SECONDS.toNanos(3)); // error
+    // ok
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
+    // error
+    AggregateEntryTestUtils.recordError(e, SECONDS.toNanos(3));
 
     writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(e);
@@ -409,14 +438,16 @@ class OtlpStatsMetricWriterTest {
     DecodedMetric bucket1 = decode(sender.lastPayload);
     assertEquals(2, bucket1.dataPoints.size(), "bucket with an error → ok+error data points");
     assertTrue(
-        bucket1.dataPoints.stream()
-            .anyMatch(dp -> "STATUS_CODE_ERROR".equals(dp.attributes.get("status.code"))),
-        "bucket 1 must carry a status.code=STATUS_CODE_ERROR point");
-
+        bucket1.dataPoints
+          .stream()
+          .anyMatch(dp -> "STATUS_CODE_ERROR".equals(dp.attributes.get("status.code"))),
+        "bucket 1 must carry a status.code=STATUS_CODE_ERROR point"
+    );
     // Bucket 2: same entry, reset then only OK hits. errorLatencies survives clear() (cleared, not
     // nulled), so a non-null-but-empty histogram must NOT emit a phantom zero-count error series.
     AggregateEntryTestUtils.clear(e);
-    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(2)); // ok only
+    // ok only
+    AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(2));
 
     writer.startBucket(2, BUCKET_START + BUCKET_DURATION, BUCKET_DURATION);
     writer.add(e);
@@ -426,7 +457,8 @@ class OtlpStatsMetricWriterTest {
     assertEquals(
         "STATUS_CODE_OK",
         bucket2.dataPoints.get(0).attributes.get("status.code"),
-        "recovered entry must not emit a lingering status.code=STATUS_CODE_ERROR series");
+        "recovered entry must not emit a lingering status.code=STATUS_CODE_ERROR series"
+    );
   }
 
   @Test
@@ -442,7 +474,6 @@ class OtlpStatsMetricWriterTest {
     assertEquals(200L, attrs.get("http.response.status_code"));
     assertEquals("/users/{id}", attrs.get("http.route"));
     assertEquals("0", attrs.get("rpc.response.status_code"));
-
     // a bare entry has none of these
     Map<String, Object> bareAttrs =
         writeAndDecode(okEntry(SECONDS.toNanos(1), 1)).dataPoints.get(0).attributes;
@@ -457,26 +488,26 @@ class OtlpStatsMetricWriterTest {
     // Additional tags arrive on the entry pre-packed as "key:value" UTF8 strings in schema order;
     // the writer splits each at the first ':' and emits it as a plain OTLP string attribute keyed
     // by the tag name.
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null,
-            new UTF8BytesString[] {
-              UTF8BytesString.create("region:us-east-1"),
-              UTF8BytesString.create("tenant_id:acme:corp"),
-              UTF8BytesString.create("datadog.custom:visible")
-            });
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null,
+        new UTF8BytesString[] {
+        UTF8BytesString.create("region:us-east-1"),
+        UTF8BytesString.create("tenant_id:acme:corp"),
+        UTF8BytesString.create("datadog.custom:visible")
+        }
+    );
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -492,27 +523,27 @@ class OtlpStatsMetricWriterTest {
     // malformed -- aggregation treats an explicitly-empty tag as a distinct dimension from an
     // absent
     // one, so it is emitted as key="" to keep the OTLP attributes faithful to the aggregate key.
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null,
-            new UTF8BytesString[] {
-              UTF8BytesString.create("noseparator"),
-              UTF8BytesString.create(":emptykey"),
-              UTF8BytesString.create("emptyvalue:"),
-              UTF8BytesString.create("region:us-east-1")
-            });
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null,
+        new UTF8BytesString[] {
+        UTF8BytesString.create("noseparator"),
+        UTF8BytesString.create(":emptykey"),
+        UTF8BytesString.create("emptyvalue:"),
+        UTF8BytesString.create("region:us-east-1")
+        }
+    );
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -552,26 +583,29 @@ class OtlpStatsMetricWriterTest {
     assertEquals(
         "web",
         webAttrs.get("service.name"),
-        "service.name is emitted unconditionally, even matching the tracer's own default service");
+        "service.name is emitted unconditionally, even matching the tracer's own default service"
+    );
   }
 
-  /** An ok-only entry on the given service and operation name, recording a single 1s hit. */
+  /**
+   * An ok-only entry on the given service and operation name, recording a single 1s hit.
+   */
   private static AggregateEntry serviceEntry(String operationName, String service) {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            service,
-            operationName,
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        service,
+        operationName,
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null
+    );
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
     return e;
   }
@@ -582,7 +616,8 @@ class OtlpStatsMetricWriterTest {
     OtlpStatsMetricWriter writer = new OtlpStatsMetricWriter(sender);
 
     writer.startBucket(0, BUCKET_START, BUCKET_DURATION);
-    writer.finishBucket(); // no add()
+    // no add()
+    writer.finishBucket();
 
     assertEquals(0, sender.sendCount, "empty bucket must not invoke send");
     assertNull(sender.lastPayload);
@@ -623,21 +658,21 @@ class OtlpStatsMetricWriterTest {
   @ParameterizedTest
   @CsvSource({"true", "false"})
   void emitsIsTraceRoot(boolean traceRoot) throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            traceRoot,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        traceRoot,
+        "server",
+        null,
+        null,
+        null,
+        null
+    );
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -647,21 +682,21 @@ class OtlpStatsMetricWriterTest {
 
   @Test
   void serviceSourceEmittedOnlyWhenSet() throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            "component",
-            "web",
-            0,
-            false,
-            true,
-            "server",
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        "component",
+        "web",
+        0,
+        false,
+        true,
+        "server",
+        null,
+        null,
+        null,
+        null
+    );
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -675,29 +710,31 @@ class OtlpStatsMetricWriterTest {
 
   @Test
   void emitsPeerTags() throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            "client",
-            Arrays.asList(
-                UTF8BytesString.create("peer.service:downstream"),
-                UTF8BytesString.create("net.peer.name:downstream.example.com")),
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        "client",
+        Arrays.asList(
+            UTF8BytesString.create("peer.service:downstream"),
+            UTF8BytesString.create("net.peer.name:downstream.example.com")
+        ),
+        null,
+        null,
+        null
+    );
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
     assertEquals(
         Arrays.asList("peer.service:downstream", "net.peer.name:downstream.example.com"),
-        attrs.get("datadog.peer_tags"));
+        attrs.get("datadog.peer_tags")
+    );
   }
 
   @Test
@@ -710,34 +747,32 @@ class OtlpStatsMetricWriterTest {
   }
 
   @ParameterizedTest
-  @CsvSource(
-      value = {
-        "server, SPAN_KIND_SERVER",
-        "client, SPAN_KIND_CLIENT",
-        "producer, SPAN_KIND_PRODUCER",
-        "consumer, SPAN_KIND_CONSUMER",
-        "broker, SPAN_KIND_INTERNAL",
-        "'', SPAN_KIND_INTERNAL",
-        "NULL, SPAN_KIND_INTERNAL",
-      },
-      nullValues = "NULL")
+  @CsvSource(value = {
+      "server, SPAN_KIND_SERVER",
+      "client, SPAN_KIND_CLIENT",
+      "producer, SPAN_KIND_PRODUCER",
+      "consumer, SPAN_KIND_CONSUMER",
+      "broker, SPAN_KIND_INTERNAL",
+      "'', SPAN_KIND_INTERNAL",
+      "NULL, SPAN_KIND_INTERNAL"
+  }, nullValues = "NULL")
   void spanKindIsCanonicalizedToUppercaseEnumName(String spanKind, String expected)
       throws IOException {
-    AggregateEntry e =
-        AggregateEntryTestUtils.of(
-            "GET /users",
-            "web",
-            "servlet.request",
-            null,
-            "web",
-            0,
-            false,
-            true,
-            spanKind,
-            null,
-            null,
-            null,
-            null);
+    AggregateEntry e = AggregateEntryTestUtils.of(
+        "GET /users",
+        "web",
+        "servlet.request",
+        null,
+        "web",
+        0,
+        false,
+        true,
+        spanKind,
+        null,
+        null,
+        null,
+        null
+    );
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
 
     Map<String, Object> attrs = writeAndDecode(e).dataPoints.get(0).attributes;
@@ -750,9 +785,7 @@ class OtlpStatsMetricWriterTest {
    * "synthetics"} is the only origin value that can reach the writer.
    */
   @ParameterizedTest(name = "synthetic={0} → datadog.origin={1}")
-  @CsvSource(
-      nullValues = "NULL",
-      value = {"false, NULL", "true, synthetics"})
+  @CsvSource(nullValues = "NULL", value = {"false, NULL", "true, synthetics"})
   void emitsSyntheticOrigin(boolean synthetic, String expectedOrigin) throws IOException {
     AggregateEntry e = entry("servlet.request", synthetic, 0, null, null, null);
     AggregateEntryTestUtils.recordOk(e, SECONDS.toNanos(1));
@@ -781,7 +814,8 @@ class OtlpStatsMetricWriterTest {
 
     writer.startBucket(1, BUCKET_START, BUCKET_DURATION);
     writer.add(e);
-    AggregateEntryTestUtils.clear(e); // mimic Aggregator#report clearing right after add()
+    // mimic Aggregator#report clearing right after add()
+    AggregateEntryTestUtils.clear(e);
     writer.finishBucket();
 
     assertEquals(1, sender.sendCount, "cleared-after-add entry must still emit its snapshot");
@@ -792,11 +826,11 @@ class OtlpStatsMetricWriterTest {
     assertEquals(
         Boolean.TRUE,
         dp.attributes.get("datadog.span.top_level"),
-        "all pre-clear hits were top-level");
+        "all pre-clear hits were top-level"
+    );
   }
 
   // ── resource attributes (datadog.runtime_id / process tags) ────────────────
-
   @Test
   void resourceCarriesRuntimeId() throws IOException {
     CapturingSender sender = new CapturingSender();
@@ -807,7 +841,9 @@ class OtlpStatsMetricWriterTest {
 
     Map<String, Object> resourceAttrs = decodeResourceAttributes(sender.lastPayload);
     assertTrue(
-        resourceAttrs.containsKey("datadog.runtime_id"), "resource carries datadog.runtime_id");
+        resourceAttrs.containsKey("datadog.runtime_id"),
+        "resource carries datadog.runtime_id"
+    );
     Object runtimeId = resourceAttrs.get("datadog.runtime_id");
     assertNotNull(runtimeId, "runtime id value present");
     assertFalse(runtimeId.toString().isEmpty(), "runtime id value non-empty");

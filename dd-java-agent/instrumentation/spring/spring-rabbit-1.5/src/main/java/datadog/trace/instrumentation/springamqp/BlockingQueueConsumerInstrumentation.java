@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.springamqp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,7 +16,9 @@ import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(InstrumenterModule.class)
 public class BlockingQueueConsumerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public BlockingQueueConsumerInstrumentation() {
     super("spring-rabbit");
   }
@@ -30,9 +31,11 @@ public class BlockingQueueConsumerInstrumentation extends InstrumenterModule.Tra
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("handle")
-            .and(takesArgument(0, named("org.springframework.amqp.rabbit.support.Delivery"))),
-        getClass().getName() + "$TransferState");
+        named("handle").and(
+            takesArgument(0, named("org.springframework.amqp.rabbit.support.Delivery"))
+        ),
+        getClass().getName() + "$TransferState"
+    );
   }
 
   @Override
@@ -46,10 +49,11 @@ public class BlockingQueueConsumerInstrumentation extends InstrumenterModule.Tra
   public static class TransferState {
     @Advice.OnMethodExit
     public static void transfer(
-        @Advice.Argument(0) Delivery delivery, @Advice.Return Message message) {
+        @Advice.Argument(0) Delivery delivery,
+        @Advice.Return Message message
+    ) {
       if (null != delivery) {
-        ContextStore<Delivery, State> from =
-            InstrumentationContext.get(Delivery.class, State.class);
+        ContextStore<Delivery, State> from = InstrumentationContext.get(Delivery.class, State.class);
         State state = from.get(delivery);
         if (null != state) {
           from.put(delivery, null);

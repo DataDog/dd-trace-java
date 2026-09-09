@@ -28,7 +28,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
@@ -62,7 +61,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FlagEvaluationWriterImplTest {
-
   private static final String DIRECT_FLAG_EVALUATION_ENDPOINT = "/api/v2/flagevaluation";
   private static final String API_KEY = "test-api-key";
   private static final double TIMEOUT_SECONDS = 5;
@@ -97,7 +95,9 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_DEGRADED_CAP));
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_DEGRADED_CAP
+        )
+    );
   }
 
   @Test
@@ -105,9 +105,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        16,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.start();
     assertEquals(writer, FeatureFlaggingGateway.getFlagEvalWriter());
@@ -141,7 +145,9 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW));
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW
+        )
+    );
   }
 
   @Test
@@ -149,9 +155,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        16,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.close();
     writer.enqueue(simpleEvent("closed-flag", "on"));
@@ -163,7 +173,9 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED
+        )
+    );
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -174,9 +186,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        16,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
     writer.enqueue(simpleEvent("disabled-flag", "on"));
@@ -188,7 +204,9 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED
+        )
+    );
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -197,10 +215,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
-
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        16,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
     // The worker is never started, so nothing drains these; close() must account for them rather
     // than leave them silently stranded. Stands in for the narrow window where a lock-free
     // producer offers after the worker's final drain.
@@ -215,7 +236,9 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED));
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_CLOSED
+        )
+    );
     assertNull(writer.pollQueuedEventForTest());
   }
 
@@ -224,9 +247,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        16,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.enqueue(null);
 
@@ -239,9 +266,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        16,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.enqueue(simpleEvent("g2-flag", "on"));
     writer.enqueue(simpleEvent("g2-flag", "on"));
@@ -275,17 +306,17 @@ class FlagEvaluationWriterImplTest {
   @Test
   void flushIfNecessaryDoesNotReturnEarlyWhenOnlyQueueDropsArePending() {
     final AtomicLong queueDrops = new AtomicLong(1);
-    final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
-        new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
-            () -> null,
-            Queues.<FlagEvalEvent>mpscBlockingConsumerArrayQueue(16),
-            Long.MAX_VALUE,
-            TimeUnit.NANOSECONDS,
-            context(),
-            queueDrops,
-            new java.util.concurrent.ConcurrentHashMap<>(),
-            () -> {},
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+    final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler = new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
+        () -> null,
+        Queues.<FlagEvalEvent>mpscBlockingConsumerArrayQueue(16),
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        context(),
+        queueDrops,
+        new java.util.concurrent.ConcurrentHashMap<>(),
+          () -> {},
+        FlagEvaluationWriterImpl.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES
+    );
 
     handler.flushIfNecessary();
 
@@ -298,25 +329,22 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final MessagePassingBlockingQueue<FlagEvalEvent> queue =
-        mock(MessagePassingBlockingQueue.class);
-    when(queue.poll(100, TimeUnit.MILLISECONDS))
-        .thenAnswer(
-            invocation -> {
-              Thread.currentThread().interrupt();
-              return null;
-            });
-    final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler =
-        new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
-            backendApiSupplier(factory),
-            queue,
-            Long.MAX_VALUE,
-            TimeUnit.NANOSECONDS,
-            context(),
-            new AtomicLong(0),
-            new java.util.concurrent.ConcurrentHashMap<>(),
-            () -> {},
-            FlagEvaluationWriterImpl.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+    final MessagePassingBlockingQueue<FlagEvalEvent> queue = mock(MessagePassingBlockingQueue.class);
+    when(queue.poll(100, TimeUnit.MILLISECONDS)).thenAnswer(invocation -> {
+      Thread.currentThread().interrupt();
+      return null;
+    });
+    final FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler handler = new FlagEvaluationWriterImpl.FlagEvaluationSerializingHandler(
+        backendApiSupplier(factory),
+        queue,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        context(),
+        new AtomicLong(0),
+        new java.util.concurrent.ConcurrentHashMap<>(),
+          () -> {},
+        FlagEvaluationWriterImpl.FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES
+    );
 
     handler.run();
 
@@ -366,7 +394,9 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_PAYLOAD_LIMIT));
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_PAYLOAD_LIMIT
+        )
+    );
   }
 
   @Test
@@ -378,17 +408,20 @@ class FlagEvaluationWriterImplTest {
     final boolean[] interruptedDuringPost = {true};
     final BackendApi mockEvp = mock(BackendApi.class);
     when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
-        .thenAnswer(
-            inv -> {
-              interruptedDuringPost[0] = Thread.currentThread().isInterrupted();
-              posted.countDown();
-              return null;
-            });
+      .thenAnswer(inv -> {
+        interruptedDuringPost[0] = Thread.currentThread().isInterrupted();
+        posted.countDown();
+        return null;
+      });
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            64, TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        64,
+        TimeUnit.DAYS.toSeconds(1),
+        TimeUnit.SECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.startForTest();
     writer.enqueue(simpleEvent("interrupt-flag", "on"));
@@ -398,7 +431,8 @@ class FlagEvaluationWriterImplTest {
     assertFalse(
         interruptedDuringPost[0],
         "final flush must not run on an interrupted thread; OkHttp fails fast and the drained"
-            + " rows are lost without being counted");
+        + " rows are lost without being counted"
+    );
   }
 
   @Test
@@ -407,17 +441,20 @@ class FlagEvaluationWriterImplTest {
     final RequestBody[] captured = {null};
     final BackendApi mockEvp = mock(BackendApi.class);
     when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
-        .thenAnswer(
-            inv -> {
-              captured[0] = inv.getArgument(1);
-              posted.countDown();
-              return null;
-            });
+      .thenAnswer(inv -> {
+        captured[0] = inv.getArgument(1);
+        posted.countDown();
+        return null;
+      });
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            64, TimeUnit.DAYS.toSeconds(1), TimeUnit.SECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        64,
+        TimeUnit.DAYS.toSeconds(1),
+        TimeUnit.SECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.startForTest();
     writer.enqueue(simpleEvent("shutdown-flag", "on"));
@@ -436,9 +473,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            1 << 12, 1, TimeUnit.MILLISECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        1 << 12,
+        1,
+        TimeUnit.MILLISECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.startForTest();
     boolean posted = false;
@@ -448,7 +489,7 @@ class FlagEvaluationWriterImplTest {
         writer.enqueue(simpleEvent("busy-flag", "on"));
         try {
           verify(mockEvp, atLeastOnce())
-              .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+            .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
           posted = true;
           break;
         } catch (AssertionError ignored) {
@@ -481,15 +522,14 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp, limit);
     final AtomicInteger posts = new AtomicInteger();
-    doAnswer(
-            invocation -> {
-              if (posts.incrementAndGet() == 2) {
-                throw new IOException("boom");
-              }
-              return null;
-            })
-        .when(mockEvp)
-        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
+    doAnswer(invocation -> {
+      if (posts.incrementAndGet() == 2) {
+        throw new IOException("boom");
+      }
+      return null;
+    })
+      .when(mockEvp)
+      .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
 
     for (int i = 0; i < 4; i++) {
       final Map<String, Object> attrs = new HashMap<>();
@@ -548,7 +588,6 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
     setup.handler.add(piiEvent(false));
-
     // Flip the gateway's consent on before both aggregation and flush; the event's evaluation-time
     // snapshot (false) must win at every downstream step, so neither may consult the gateway.
     dispatchObserveFullEvaluationData(true);
@@ -556,11 +595,10 @@ class FlagEvaluationWriterImplTest {
 
     final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
     when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
-        .thenAnswer(
-            inv -> {
-              captured.add(inv.getArgument(1));
-              return null;
-            });
+      .thenAnswer(inv -> {
+        captured.add(inv.getArgument(1));
+        return null;
+      });
     setup.handler.flush();
 
     assertEquals(1, captured.size());
@@ -589,11 +627,10 @@ class FlagEvaluationWriterImplTest {
 
     final java.util.List<RequestBody> captured = new java.util.ArrayList<>();
     when(mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
-        .thenAnswer(
-            inv -> {
-              captured.add(inv.getArgument(1));
-              return null;
-            });
+      .thenAnswer(inv -> {
+        captured.add(inv.getArgument(1));
+        return null;
+      });
     setup.handler.flush();
 
     assertEquals(1, captured.size());
@@ -625,7 +662,9 @@ class FlagEvaluationWriterImplTest {
             "TYPE_MISMATCH",
             1000L,
             false,
-            emptyMap()));
+            emptyMap()
+        )
+    );
 
     final FlagEvaluationTestSupport.CapturedJson captured = flushAndCapture(setup);
 
@@ -638,14 +677,14 @@ class FlagEvaluationWriterImplTest {
     assertFalse(captured.raw.contains("jane.doe@datadoghq.com"));
     assertFalse(
         captured.raw.contains("For input string"),
-        "no exception-message-shaped text may reach the wire under consent-off");
+        "no exception-message-shaped text may reach the wire under consent-off"
+    );
   }
 
   @Test
   void encodeFailureClearsAggregatorSoLaterFlushesRecover() throws Exception {
     final BackendApi mockEvp = mock(BackendApi.class);
     final FlagEvaluationTestSupport.TestWriterSetup setup = buildTestWriter(mockEvp);
-
     // Moshi rejects non-finite JSON numbers. A NaN in the context poisons buildPayloads for this
     // bucket. Before the fix, the aggregator kept the bucket and every later flush re-threw.
     final Map<String, Object> poison = new HashMap<>();
@@ -654,8 +693,7 @@ class FlagEvaluationWriterImplTest {
     setup.handler.drainAndAggregate();
     setup.handler.flush();
     verify(mockEvp, org.mockito.Mockito.never())
-        .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
-
+      .post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false));
     // The bucket must not survive the failed flush. A follow-up healthy event flushes cleanly.
     setup.handler.add(simpleEvent("healthy-flag", "on"));
     setup.handler.drainAndAggregate();
@@ -674,50 +712,53 @@ class FlagEvaluationWriterImplTest {
 
   @Test
   void agentlessWritesFlagEvaluationsDirectlyWhenLocalProxyIsUnavailable() throws Exception {
-    try (JavaTestHttpServer server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.prefix(
-                            DIRECT_FLAG_EVALUATION_ENDPOINT,
-                            api -> api.getResponse().status(200).send("OK"))))) {
+    try (JavaTestHttpServer server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.prefix(DIRECT_FLAG_EVALUATION_ENDPOINT, api -> api
+      .getResponse()
+      .status(200)
+      .send("OK"))))) {
       final Config config = cfg();
-      when(config.getFeatureFlaggingConfigurationSource())
-          .thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
+      when(config.getFeatureFlaggingConfigurationSource()).thenReturn(
+          CONFIGURATION_SOURCE_AGENTLESS
+      );
       when(config.getApiKey()).thenReturn(API_KEY);
       final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
       final OkHttpClient client = new OkHttpClient.Builder().build();
       try {
-        final IntakeApi directApi =
-            new IntakeApi(
-                HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
-                API_KEY,
-                "123",
-                HttpRetryPolicy.Factory.NEVER_RETRY,
-                client,
-                false);
-        when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
-            .thenReturn(directApi);
-        final FeatureFlagBackendApiFactory featureFlagBackendApiFactory =
-            new FeatureFlagBackendApiFactory(
-                config, backendApiFactory, FeatureFlagEventType.FLAG_EVALUATION);
+        final IntakeApi directApi = new IntakeApi(
+            HttpUrl.get(server.getAddress()).resolve("/api/v2/"),
+            API_KEY,
+            "123",
+            HttpRetryPolicy.Factory.NEVER_RETRY,
+            client,
+            false
+        );
+        when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false)).thenReturn(
+            directApi
+        );
+        final FeatureFlagBackendApiFactory featureFlagBackendApiFactory = new FeatureFlagBackendApiFactory(
+            config,
+            backendApiFactory,
+            FeatureFlagEventType.FLAG_EVALUATION
+        );
         final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
 
-        try (FlagEvaluationWriterImpl writer =
-            new FlagEvaluationWriterImpl(
-                16, 1, TimeUnit.MILLISECONDS, featureFlagBackendApiFactory::create, config)) {
+        try (FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+            16,
+            1,
+            TimeUnit.MILLISECONDS,
+            featureFlagBackendApiFactory::create,
+            config
+        )) {
           writer.startForTest();
           writer.enqueue(simpleEvent("direct-flag", "on"));
 
-          poll.eventually(
-              () -> {
-                assertNotNull(server.getLastRequest());
-                assertEquals(DIRECT_FLAG_EVALUATION_ENDPOINT, server.getLastRequest().getPath());
-                assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
-                assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
-                assertTrue(server.getLastRequest().getBody().length > 0);
-              });
+          poll.eventually(() -> {
+            assertNotNull(server.getLastRequest());
+            assertEquals(DIRECT_FLAG_EVALUATION_ENDPOINT, server.getLastRequest().getPath());
+            assertEquals(API_KEY, server.getLastRequest().getHeader("dd-api-key"));
+            assertNull(server.getLastRequest().getHeader("X-Datadog-EVP-Subdomain"));
+            assertTrue(server.getLastRequest().getBody().length > 0);
+          });
         }
       } finally {
         client.dispatcher().executorService().shutdownNow();
@@ -731,9 +772,13 @@ class FlagEvaluationWriterImplTest {
     final BackendApi mockEvp = mock(BackendApi.class);
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            16, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        16,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     writer.countContextTruncated("field_count");
     writer.countContextTruncated("field_count");
@@ -747,13 +792,17 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
-            "reason:field_count"));
+            "reason:field_count"
+        )
+    );
     assertEquals(
         1,
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_CONTEXT_TRUNCATED_METRIC,
-            "reason:field_length"));
+            "reason:field_length"
+        )
+    );
   }
 
   @Test
@@ -762,18 +811,20 @@ class FlagEvaluationWriterImplTest {
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
     final int capacity = 2;
-    final FlagEvaluationWriterImpl writer =
-        new FlagEvaluationWriterImpl(
-            capacity, Long.MAX_VALUE, TimeUnit.NANOSECONDS, backendApiSupplier(factory), cfg());
+    final FlagEvaluationWriterImpl writer = new FlagEvaluationWriterImpl(
+        capacity,
+        Long.MAX_VALUE,
+        TimeUnit.NANOSECONDS,
+        backendApiSupplier(factory),
+        cfg()
+    );
 
     assertTrue(writer.hasCapacityForEnqueue());
-
     // Saturate the hand-off queue without starting the worker so no drain can free slots.
     for (int i = 0; i < capacity; i++) {
       writer.enqueue(simpleEvent("cap-flag-" + i, "on"));
     }
     assertFalse(writer.hasCapacityForEnqueue());
-
     // Simulate a pre-queue overflow account by the hook and surface it on flush.
     writer.countPreQueueOverflow();
     writer.flushForTest();
@@ -785,7 +836,9 @@ class FlagEvaluationWriterImplTest {
         metricSum(
             metrics,
             FlagEvaluationWriterImpl.FLAG_EVALUATION_DROPPED_METRIC,
-            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW));
+            "reason:" + FlagEvaluationWriterImpl.DROP_REASON_QUEUE_OVERFLOW
+        )
+    );
 
     writer.close();
   }
@@ -818,7 +871,8 @@ class FlagEvaluationWriterImplTest {
         "jane.doe@datadoghq.com",
         1000L,
         observeFullEvaluationData,
-        piiAttrs());
+        piiAttrs()
+    );
   }
 
   private static FlagEvalEvent piiEventDefaultConsent() {
@@ -834,7 +888,13 @@ class FlagEvaluationWriterImplTest {
   private static void dispatchObserveFullEvaluationData(final boolean value) {
     FeatureFlaggingGateway.dispatch(
         new ServerConfiguration(
-            "2024-04-17T19:40:53.716Z", "SERVER", value, null, java.util.Collections.emptyMap()));
+            "2024-04-17T19:40:53.716Z",
+            "SERVER",
+            value,
+            null,
+            java.util.Collections.emptyMap()
+        )
+    );
   }
 
   private static Object lifecycleLock(final FlagEvaluationWriterImpl writer) throws Exception {

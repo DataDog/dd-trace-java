@@ -12,7 +12,6 @@ import zio.ZIO$;
 
 @SuppressWarnings("unchecked")
 public final class TracingSupervisor extends Supervisor<Object> {
-
   @SuppressWarnings("rawtypes")
   private final ContextStore<Fiber.Runtime, FiberContext> contextStore;
 
@@ -33,7 +32,8 @@ public final class TracingSupervisor extends Supervisor<Object> {
       ZIO<R, E, A_> effect,
       Option<Fiber.Runtime<Object, Object>> parent,
       Fiber.Runtime<E, A_> fiber,
-      Unsafe unsafe) {
+      Unsafe unsafe
+  ) {
     FiberContext context = new FiberContext();
     contextStore.put(fiber, context);
   }
@@ -41,18 +41,24 @@ public final class TracingSupervisor extends Supervisor<Object> {
   @Override
   public <R, E, A_> void onEnd(Exit<E, A_> value, Fiber.Runtime<E, A_> fiber, Unsafe unsafe) {
     FiberContext context = contextStore.get(fiber);
-    if (context != null) context.onEnd();
+    if (context != null) {
+      context.onEnd();
+    }
   }
 
   @Override
   public <E, A_> void onSuspend(Fiber.Runtime<E, A_> fiber, Unsafe unsafe) {
     FiberContext context = contextStore.get(fiber);
-    if (context != null) context.onSuspend();
+    if (context != null) {
+      context.onSuspend();
+    }
   }
 
   @Override
   public <E, A_> void onResume(Fiber.Runtime<E, A_> fiber, Unsafe unsafe) {
     FiberContext context = contextStore.get(fiber);
-    if (context != null) context.onResume();
+    if (context != null) {
+      context.onResume();
+    }
   }
 }

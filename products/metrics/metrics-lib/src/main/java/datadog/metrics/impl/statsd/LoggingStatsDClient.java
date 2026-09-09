@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 public final class LoggingStatsDClient implements StatsDClient {
   private static final Logger log = LoggerFactory.getLogger(LoggingStatsDClient.class);
-
   // logging format is based on the StatsD datagram format
   private static final String COUNT_FORMAT = "{}:{}|c{}";
   private static final String GAUGE_FORMAT = "{}:{}|g{}";
@@ -18,7 +17,6 @@ public final class LoggingStatsDClient implements StatsDClient {
   private static final String DISTRIBUTION_FORMAT = "{}:{}|d{}";
   private static final String SERVICE_CHECK_FORMAT = "_sc|{}|{}{}{}";
   private static final String EVENT_FORMAT = "_e|{}|{}|{}|{}|{}";
-
   private static final DecimalFormat DECIMAL_FORMAT;
 
   static {
@@ -30,7 +28,9 @@ public final class LoggingStatsDClient implements StatsDClient {
   private final Function<String[], String[]> tagMapping;
 
   public LoggingStatsDClient(
-      final Function<String, String> nameMapping, final Function<String[], String[]> tagMapping) {
+      final Function<String, String> nameMapping,
+      final Function<String[], String[]> tagMapping
+  ) {
     this.nameMapping = nameMapping;
     this.tagMapping = tagMapping;
   }
@@ -56,7 +56,8 @@ public final class LoggingStatsDClient implements StatsDClient {
         GAUGE_FORMAT,
         nameMapping.apply(metricName),
         DECIMAL_FORMAT.format(value),
-        join(tagMapping.apply(tags)));
+        join(tagMapping.apply(tags))
+    );
   }
 
   @Override
@@ -70,13 +71,18 @@ public final class LoggingStatsDClient implements StatsDClient {
         HISTOGRAM_FORMAT,
         nameMapping.apply(metricName),
         DECIMAL_FORMAT.format(value),
-        join(tagMapping.apply(tags)));
+        join(tagMapping.apply(tags))
+    );
   }
 
   @Override
   public void distribution(String metricName, long value, String... tags) {
     log.info(
-        DISTRIBUTION_FORMAT, nameMapping.apply(metricName), value, join(tagMapping.apply(tags)));
+        DISTRIBUTION_FORMAT,
+        nameMapping.apply(metricName),
+        value,
+        join(tagMapping.apply(tags))
+    );
   }
 
   @Override
@@ -85,7 +91,8 @@ public final class LoggingStatsDClient implements StatsDClient {
         DISTRIBUTION_FORMAT,
         nameMapping.apply(metricName),
         DECIMAL_FORMAT.format(value),
-        join(tagMapping.apply(tags)));
+        join(tagMapping.apply(tags))
+    );
   }
 
   @Override
@@ -93,13 +100,15 @@ public final class LoggingStatsDClient implements StatsDClient {
       final String serviceCheckName,
       final String status,
       final String message,
-      final String... tags) {
+      final String... tags
+  ) {
     log.info(
         SERVICE_CHECK_FORMAT,
         nameMapping.apply(serviceCheckName),
         DDAgentStatsDClient.serviceCheckStatus(status).ordinal(),
         join(tagMapping.apply(tags)),
-        null != message ? "|m:" + message : "");
+        null != message ? "|m:" + message : ""
+    );
   }
 
   @Override
@@ -112,7 +121,12 @@ public final class LoggingStatsDClient implements StatsDClient {
 
   @Override
   public void recordEvent(
-      String type, String source, String eventName, String message, String... tags) {
+      String type,
+      String source,
+      String eventName,
+      String message,
+      String... tags
+  ) {
     log.info(EVENT_FORMAT, type, source, eventName, message, join(tagMapping.apply(tags)));
   }
 

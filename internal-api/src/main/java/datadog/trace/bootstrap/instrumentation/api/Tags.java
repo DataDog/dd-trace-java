@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 // standard tag names (and span kind values) from OpenTracing (see io.opentracing.tag.Tags)
 public class Tags {
-
   public static final String SPAN_KIND_SERVER = "server";
   public static final String SPAN_KIND_CLIENT = "client";
   public static final String SPAN_KIND_PRODUCER = "producer";
@@ -13,7 +12,6 @@ public class Tags {
   public static final String SPAN_KIND_TEST_MODULE = "test_module_end";
   public static final String SPAN_KIND_TEST_SESSION = "test_session_end";
   public static final String SPAN_KIND_INTERNAL = "internal";
-
   public static final String HTTP_URL = "http.url";
   public static final String HTTP_HOSTNAME = "http.hostname";
   public static final String HTTP_ROUTE = "http.route";
@@ -55,7 +53,6 @@ public class Tags {
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
   public static final String DB_POOL_NAME = "db.pool.name";
   public static final String BASE_HASH = "_dd.propagated_hash";
-
   public static final String TEST_SESSION_NAME = "test_session.name";
   public static final String TEST_MODULE = "test.module";
   public static final String TEST_SUITE = "test.suite";
@@ -89,9 +86,7 @@ public class Tags {
   public static final String TEST_ANDROID_RELEASE = "test.android.release";
   public static final String TEST_ANDROID_CODENAME = "test.android.codename";
   public static final String TEST_ANDROID_ROBOLECTRIC_VERSION = "test.android.robolectric.version";
-
   public static final String TEST_IS_ANDROID = "test.is_android";
-
   public static final String TEST_SESSION_ID = "test_session_id";
   public static final String TEST_MODULE_ID = "test_module_id";
   public static final String TEST_SUITE_ID = "test_suite_id";
@@ -122,9 +117,7 @@ public class Tags {
       "test.test_management.is_attempt_to_fix";
   public static final String TEST_TEST_MANAGEMENT_ATTEMPT_TO_FIX_PASSED =
       "test.test_management.attempt_to_fix_passed";
-
   public static final String ERROR_DEBUG_INFO_CAPTURED = "error.debug_info_captured";
-
   public static final String CI_PROVIDER_NAME = "ci.provider.name";
   public static final String CI_PIPELINE_ID = "ci.pipeline.id";
   public static final String CI_PIPELINE_NAME = "ci.pipeline.name";
@@ -138,7 +131,6 @@ public class Tags {
   public static final String CI_WORKSPACE_PATH = "ci.workspace_path";
   public static final String CI_NODE_NAME = "ci.node.name";
   public static final String CI_NODE_LABELS = "ci.node.labels";
-
   public static final String GIT_REPOSITORY_URL = "git.repository_url";
   public static final String GIT_COMMIT_SHA = "git.commit.sha";
   public static final String GIT_COMMIT_AUTHOR_NAME = "git.commit.author.name";
@@ -163,33 +155,31 @@ public class Tags {
   public static final String GIT_COMMIT_HEAD_COMMITTER_DATE = "git.commit.head.committer.date";
   public static final String GIT_COMMIT_HEAD_MESSAGE = "git.commit.head.message";
   public static final String PULL_REQUEST_NUMBER = "pr.number";
-
   public static final String RUNTIME_NAME = "runtime.name";
   public static final String RUNTIME_VENDOR = "runtime.vendor";
   public static final String RUNTIME_VERSION = "runtime.version";
   public static final String OS_ARCHITECTURE = "os.architecture";
   public static final String OS_PLATFORM = "os.platform";
   public static final String OS_VERSION = "os.version";
-
   public static final String DD_SERVICE = "dd.service";
   public static final String DD_VERSION = "dd.version";
   public static final String DD_ENV = "dd.env";
-
   public static final String ENV = "env";
   public static final String VERSION = "version";
-
-  /** ASM force tracer to keep the trace */
+  /**
+   * ASM force tracer to keep the trace
+   */
   public static final String ASM_KEEP = "asm.keep";
-
-  /** AI Guard force tracer to keep the trace */
+  /**
+   * AI Guard force tracer to keep the trace
+   */
   public static final String AI_GUARD_KEEP = "ai_guard.keep";
-
-  /** Marks a span as originating from an AI Guard evaluation */
+  /**
+   * Marks a span as originating from an AI Guard evaluation
+   */
   public static final String AI_GUARD_EVENT = "ai_guard.event";
-
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
-
   public static final String LLMOBS_LLM_SPAN_KIND = "llm";
   public static final String LLMOBS_WORKFLOW_SPAN_KIND = "workflow";
   public static final String LLMOBS_TASK_SPAN_KIND = "task";

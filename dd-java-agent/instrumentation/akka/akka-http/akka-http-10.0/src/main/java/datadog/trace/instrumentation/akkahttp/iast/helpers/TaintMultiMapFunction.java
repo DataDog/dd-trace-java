@@ -13,7 +13,8 @@ import scala.collection.immutable.Map;
 import scala.compat.java8.JFunction1;
 
 public class TaintMultiMapFunction
-    implements JFunction1<Tuple1<Map<String, List<String>>>, Tuple1<Map<String, List<String>>>> {
+    implements JFunction1<Tuple1<Map<String, List<String>>>, Tuple1<Map<String, List<String>>>>
+{
   public static final TaintMultiMapFunction INSTANCE = new TaintMultiMapFunction();
 
   @Override

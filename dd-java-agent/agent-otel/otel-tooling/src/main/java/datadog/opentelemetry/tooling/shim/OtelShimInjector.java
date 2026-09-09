@@ -12,25 +12,19 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
-/** ASM visitor which injects our OpenTelemetry shim into the target API. */
+/**
+ * ASM visitor which injects our OpenTelemetry shim into the target API.
+ */
 public final class OtelShimInjector implements AsmVisitorWrapper {
   static final OtelShimInjector INSTANCE = new OtelShimInjector();
-
   static final String TRACER_PROVIDER_DESCRIPTOR = "Lio/opentelemetry/api/trace/TracerProvider;";
-
   static final String CONTEXT_PROPAGATORS_DESCRIPTOR =
       "Lio/opentelemetry/context/propagation/ContextPropagators;";
-
   static final String CONTEXT_DESCRIPTOR = "Lio/opentelemetry/context/Context;";
-
   static final String GET_TRACER_PROVIDER_METHOD_DESCRIPTOR = "()" + TRACER_PROVIDER_DESCRIPTOR;
-
   static final String GET_PROPAGATORS_METHOD_DESCRIPTOR = "()" + CONTEXT_PROPAGATORS_DESCRIPTOR;
-
   static final String CURRENT_CONTEXT_METHOD_DESCRIPTOR = "()" + CONTEXT_DESCRIPTOR;
-
   static final String ROOT_CONTEXT_METHOD_DESCRIPTOR = "()" + CONTEXT_DESCRIPTOR;
-
   static final String SHIM_PACKAGE_PREFIX = "datadog/opentelemetry/shim/";
 
   @Override
@@ -52,7 +46,8 @@ public final class OtelShimInjector implements AsmVisitorWrapper {
       final FieldList<FieldDescription.InDefinedShape> fields,
       final MethodList<?> methods,
       final int writerFlags,
-      final int readerFlags) {
+      final int readerFlags
+  ) {
     // for convenience use the same bytecode injector for each class of interest
     // this is safe because the shim-injected methods don't overlap between them
     return new ClassVisitor(Opcodes.ASM7, classVisitor) {
@@ -62,7 +57,8 @@ public final class OtelShimInjector implements AsmVisitorWrapper {
           final String name,
           final String descriptor,
           final String signature,
-          final String[] exceptions) {
+          final String[] exceptions
+      ) {
         MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
         if ("getTracerProvider".equals(name)
             && GET_TRACER_PROVIDER_METHOD_DESCRIPTOR.equals(descriptor)) {
@@ -71,7 +67,8 @@ public final class OtelShimInjector implements AsmVisitorWrapper {
               Opcodes.GETSTATIC,
               SHIM_PACKAGE_PREFIX + "trace/OtelTracerProvider",
               "INSTANCE",
-              TRACER_PROVIDER_DESCRIPTOR);
+              TRACER_PROVIDER_DESCRIPTOR
+          );
           mv.visitInsn(Opcodes.ARETURN);
           mv.visitEnd();
           return null;
@@ -82,18 +79,21 @@ public final class OtelShimInjector implements AsmVisitorWrapper {
               Opcodes.GETSTATIC,
               SHIM_PACKAGE_PREFIX + "context/propagation/OtelContextPropagators",
               "INSTANCE",
-              CONTEXT_PROPAGATORS_DESCRIPTOR);
+              CONTEXT_PROPAGATORS_DESCRIPTOR
+          );
           mv.visitInsn(Opcodes.ARETURN);
           mv.visitEnd();
           return null;
-        } else if ("current".equals(name) && CURRENT_CONTEXT_METHOD_DESCRIPTOR.equals(descriptor)) {
+        } else if ("current".equals(name)
+            && CURRENT_CONTEXT_METHOD_DESCRIPTOR.equals(descriptor)) {
           mv.visitCode();
           mv.visitMethodInsn(
               Opcodes.INVOKESTATIC,
               SHIM_PACKAGE_PREFIX + "context/OtelContext",
               "current",
               CURRENT_CONTEXT_METHOD_DESCRIPTOR,
-              false);
+              false
+          );
           mv.visitInsn(Opcodes.ARETURN);
           mv.visitEnd();
           return null;
@@ -103,7 +103,8 @@ public final class OtelShimInjector implements AsmVisitorWrapper {
               Opcodes.GETSTATIC,
               SHIM_PACKAGE_PREFIX + "context/OtelContext",
               "ROOT",
-              CONTEXT_DESCRIPTOR);
+              CONTEXT_DESCRIPTOR
+          );
           mv.visitInsn(Opcodes.ARETURN);
           mv.visitEnd();
           return null;

@@ -10,7 +10,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,27 +24,30 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Instrument {@link Runnable} */
+/**
+ * Instrument {@link Runnable}
+ */
 @AutoService(InstrumenterModule.class)
 public final class RunnableInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public RunnableInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, RUNNABLE_INSTRUMENTATION_NAME);
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(RUNNABLE)
-        .and(implementsInterface(named(Runnable.class.getName())))
-        .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
+      .and(implementsInterface(named(Runnable.class.getName())))
+      .and(not(implementsInterface(named(RunnableFuture.class.getName()))));
   }
 
   @Override
@@ -57,11 +59,11 @@ public final class RunnableInstrumentation extends InstrumenterModule.ContextTra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run").and(takesArguments(0)).and(isPublic()),
-        RunnableInstrumentation.class.getName() + "$RunnableAdvice");
+        RunnableInstrumentation.class.getName() + "$RunnableAdvice"
+    );
   }
 
   public static class RunnableAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope enter(@Advice.This final Runnable thiz) {
       final ContextStore<Runnable, State> contextStore =

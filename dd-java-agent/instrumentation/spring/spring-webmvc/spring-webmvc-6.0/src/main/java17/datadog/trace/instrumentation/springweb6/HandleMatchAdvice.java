@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -32,16 +31,17 @@ public class HandleMatchAdvice {
   @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   public static void after(
       @Advice.Argument(2) final HttpServletRequest req,
-      @Advice.Thrown(readOnly = false) Throwable t) {
+      @Advice.Thrown(readOnly = false) Throwable t
+  ) {
     if (t != null) {
       return;
     }
-
     // When the opt-in spring-path-filter integration is enabled, the filter resolves the handler
     // against a PathMatchingHttpServletRequestWrapper, which triggers handleMatch a second time.
-    if (req.getClass()
-        .getName()
-        .equals("datadog.trace.instrumentation.springweb6.PathMatchingHttpServletRequestWrapper")) {
+    if (req
+      .getClass()
+      .getName()
+      .equals("datadog.trace.instrumentation.springweb6.PathMatchingHttpServletRequestWrapper")) {
       return;
     }
 
@@ -60,11 +60,10 @@ public class HandleMatchAdvice {
     if (reqCtx == null) {
       return;
     }
-
-    { // appsec
+    {
+      // appsec
       Object appSecRequestContext = reqCtx.getData(RequestContextSlot.APPSEC);
       if (appSecRequestContext != null) {
-
         // merge the uri template and matrix variables
         Map<String, Object> map = null;
         if (templateVars instanceof Map) {
@@ -100,16 +99,16 @@ public class HandleMatchAdvice {
               if (brf != null) {
                 brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
               }
-              t =
-                  new BlockingException(
-                      "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)");
+              t = new BlockingException(
+                  "Blocked request (for RequestMappingInfoHandlerMapping/handleMatch)"
+              );
             }
           }
         }
       }
     }
-
-    { // iast
+    {
+      // iast
       IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
       if (iastRequestContext != null) {
         PropagationModule module = InstrumentationBridge.PROPAGATION;
@@ -119,10 +118,15 @@ public class HandleMatchAdvice {
               String parameterName = e.getKey();
               String value = e.getValue();
               if (parameterName == null || value == null) {
-                continue; // should not happen
+                // should not happen
+                continue;
               }
               module.taintString(
-                  iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+                  iastRequestContext,
+                  value,
+                  SourceTypes.REQUEST_PATH_PARAMETER,
+                  parameterName
+              );
             }
           }
 
@@ -142,7 +146,8 @@ public class HandleMatchAdvice {
                       iastRequestContext,
                       innerKey,
                       SourceTypes.REQUEST_MATRIX_PARAMETER,
-                      parameterName);
+                      parameterName
+                  );
                 }
                 Iterable<String> innerValues = ie.getValue();
                 if (innerValues != null) {
@@ -151,7 +156,8 @@ public class HandleMatchAdvice {
                         iastRequestContext,
                         iv,
                         SourceTypes.REQUEST_MATRIX_PARAMETER,
-                        parameterName);
+                        parameterName
+                    );
                   }
                 }
               }

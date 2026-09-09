@@ -2,7 +2,9 @@ package datadog.trace.core;
 
 import java.util.ArrayList;
 
-/** ArrayList that exposes modCount to allow for an optimization in TraceInterceptor handling */
+/**
+ * ArrayList that exposes modCount to allow for an optimization in TraceInterceptor handling
+ */
 final class SpanList extends ArrayList<DDSpan> {
   static final SpanList EMPTY = new SpanList(0);
 
@@ -28,7 +30,9 @@ final class SpanList extends ArrayList<DDSpan> {
     super(capacity);
   }
 
-  /** The modifcation count of the List - can be used to check if the List has been altered */
+  /**
+   * The modifcation count of the List - can be used to check if the List has been altered
+   */
   int modCount() {
     return this.modCount;
   }

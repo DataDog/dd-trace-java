@@ -10,7 +10,6 @@ import java.lang.reflect.Type;
 import java.util.Set;
 
 public final class SkipUnsupportedTypeJsonAdapter<T> extends JsonAdapter<T> {
-
   @Override
   public T fromJson(JsonReader reader) throws IOException {
     throw new UnsupportedOperationException();
@@ -27,7 +26,10 @@ public final class SkipUnsupportedTypeJsonAdapter<T> extends JsonAdapter<T> {
     return new Factory() {
       @Override
       public JsonAdapter<?> create(
-          Type requestedType, Set<? extends Annotation> annotations, Moshi moshi) {
+          Type requestedType,
+          Set<? extends Annotation> annotations,
+          Moshi moshi
+      ) {
         try {
           return moshi.nextAdapter(this, requestedType, annotations);
         } catch (IllegalArgumentException e) {

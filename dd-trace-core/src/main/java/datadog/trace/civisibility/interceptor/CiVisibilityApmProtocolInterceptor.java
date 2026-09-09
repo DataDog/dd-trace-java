@@ -18,10 +18,8 @@ import java.util.stream.Collectors;
  * in intake message header when CI Test Cycle protocol is used).
  */
 public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor {
-
   public static final CiVisibilityApmProtocolInterceptor INSTANCE =
       new CiVisibilityApmProtocolInterceptor(Priority.CI_VISIBILITY_APM, Config.get());
-
   private final CiVisibilityWellKnownTags wellKnownTags;
 
   protected CiVisibilityApmProtocolInterceptor(Priority priority, Config config) {
@@ -30,9 +28,7 @@ public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor
   }
 
   @Override
-  public Collection<? extends MutableSpan> onTraceComplete(
-      Collection<? extends MutableSpan> trace) {
-
+  public Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
     List<? extends MutableSpan> filteredTrace =
         trace.stream().filter(this::isSupportedByApmProtocol).collect(Collectors.toList());
     for (MutableSpan span : filteredTrace) {
@@ -50,7 +46,8 @@ public class CiVisibilityApmProtocolInterceptor extends AbstractTraceInterceptor
         span.setTag(Tags.OS_VERSION, wellKnownTags.getOsVersion().toString());
         span.setTag(
             DDTags.TEST_IS_USER_PROVIDED_SERVICE,
-            wellKnownTags.getIsUserProvidedService().toString());
+            wellKnownTags.getIsUserProvidedService().toString()
+        );
       }
     }
     return filteredTrace;

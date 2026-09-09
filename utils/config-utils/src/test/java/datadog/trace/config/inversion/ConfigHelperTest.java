@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import datadog.trace.test.util.ControllableEnvironmentVariables;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,25 +25,20 @@ public class ConfigHelperTest {
   private static final String OTEL_VAR_VAL = "test_otel_var";
   private static final String REGULAR_VAR = "REGULAR_TEST_CONFIG";
   private static final String REGULAR_VAR_VAL = "test_regular_var";
-
   private static final String ALIAS_DD_VAR = "DD_TEST_CONFIG_ALIAS";
   private static final String ALIAS_DD_VAL = "test_alias_val";
   private static final String NON_DD_ALIAS_VAR = "TEST_CONFIG_ALIAS";
   private static final String NON_DD_ALIAS_VAL = "test_alias_val_non_dd";
-
   private static final String NEW_ALIAS_TARGET = "DD_NEW_ALIAS_TARGET";
   private static final String NEW_ALIAS_KEY_1 = "DD_NEW_ALIAS_KEY_1";
   private static final String NEW_ALIAS_KEY_2 = "DD_NEW_ALIAS_KEY_2";
-
   private static ControllableEnvironmentVariables env;
-
   private static ConfigHelper.StrictnessPolicy strictness;
   private static TestSupportedConfigurationSource testSource;
 
   @BeforeAll
   static void setUp() {
     env = ControllableEnvironmentVariables.setup();
-
     // Set up test configurations using SupportedConfigurationSource
     Set<String> testSupported = new HashSet<>(Arrays.asList(DD_VAR, OTEL_VAR, REGULAR_VAR));
 
@@ -56,11 +50,13 @@ public class ConfigHelperTest {
     testAliasMapping.put(ALIAS_DD_VAR, DD_VAR);
     testAliasMapping.put(NON_DD_ALIAS_VAR, DD_VAR);
     testAliasMapping.put(NEW_ALIAS_KEY_2, NEW_ALIAS_TARGET);
-
     // Create and set test configuration source
-    testSource =
-        new TestSupportedConfigurationSource(
-            testSupported, testAliases, testAliasMapping, new HashMap<>());
+    testSource = new TestSupportedConfigurationSource(
+        testSupported,
+        testAliases,
+        testAliasMapping,
+        new HashMap<>()
+    );
     ConfigHelper.get().setConfigurationSource(testSource);
     strictness = ConfigHelper.get().configInversionStrictFlag();
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST);
@@ -137,13 +133,18 @@ public class ConfigHelperTest {
     Map<String, List<String>> aliasMap = new HashMap<>();
     aliasMap.put("EMPTY_ALIAS_CONFIG", new ArrayList<>());
 
-    ConfigHelper.get()
-        .setConfigurationSource(
-            new TestSupportedConfigurationSource(
-                new HashSet<>(), aliasMap, new HashMap<>(), new HashMap<>()));
+    ConfigHelper
+      .get()
+      .setConfigurationSource(
+          new TestSupportedConfigurationSource(
+              new HashSet<>(),
+              aliasMap,
+              new HashMap<>(),
+              new HashMap<>()
+          )
+      );
 
     assertNull(ConfigHelper.env("EMPTY_ALIAS_CONFIG"));
-
     // Cleanup
     ConfigHelper.get().setConfigurationSource(testSource);
   }
@@ -171,7 +172,6 @@ public class ConfigHelperTest {
   @Test
   void testStrictTestThrowsForUnsupportedConfig() {
     env.set("DD_FAKE_VAR", "banana");
-
     // STRICT_TEST mode should throw for unsupported DD_ variables
     assertThrows(IllegalArgumentException.class, () -> ConfigHelper.env("DD_FAKE_VAR"));
   }
@@ -181,10 +181,8 @@ public class ConfigHelperTest {
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST);
 
     env.set("DD_FAKE_VAR", "banana");
-
     // Should allow unsupported variable in TEST mode
     assertEquals("banana", ConfigHelper.env("DD_FAKE_VAR"));
-
     // Cleanup
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST);
   }
@@ -195,7 +193,6 @@ public class ConfigHelperTest {
 
     Map<String, String> result = ConfigHelper.env();
     assertEquals(DD_VAR_VAL, result.get(DD_VAR));
-
     // Ensure that the cached value is returned
     env.set(DD_VAR, ALIAS_DD_VAL);
     assertEquals(DD_VAR_VAL, result.get(DD_VAR));

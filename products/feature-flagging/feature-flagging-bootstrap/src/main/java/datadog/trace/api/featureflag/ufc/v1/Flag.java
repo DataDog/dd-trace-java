@@ -15,7 +15,8 @@ public class Flag {
       final boolean enabled,
       final ValueType variationType,
       final Map<String, Variant> variations,
-      final List<Allocation> allocations) {
+      final List<Allocation> allocations
+  ) {
     this.key = key;
     this.enabled = enabled;
     this.variationType = variationType;

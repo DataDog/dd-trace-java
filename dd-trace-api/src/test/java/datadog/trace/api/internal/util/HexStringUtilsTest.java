@@ -1,12 +1,10 @@
 package datadog.trace.api.internal.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.params.ParameterizedTest;
 import org.tabletest.junit.TableTest;
 
 class HexStringUtilsTest {
-
   @TableTest({
     "scenario | highOrderBits       | lowOrderBits        | size                ",
     "zero     | 0                   | 0                   | {10, 16, 20, 32, 40}",
@@ -24,7 +22,9 @@ class HexStringUtilsTest {
     String lowOrderOnly = LongStringUtils.toHexStringPadded(lowOrderBits, size);
 
     assertEquals(
-        highOrder + lowOrder, LongStringUtils.toHexStringPadded(highOrderBits, lowOrderBits, size));
+        highOrder + lowOrder,
+        LongStringUtils.toHexStringPadded(highOrderBits, lowOrderBits, size)
+    );
     assertEquals(lowOrderOnly, LongStringUtils.toHexStringPadded(0L, lowOrderBits, size));
   }
 }

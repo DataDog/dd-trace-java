@@ -26,12 +26,17 @@ import datadog.trace.test.util.ThreadUtils.ThrowingRunnable;
  * }</pre>
  */
 public class PollingConditions {
-  private double timeout = 1; // seconds
-  private double initialDelay = 0; // seconds
-  private double delay = 0.1; // seconds
-  private double factor = 1.0; // delay multiplier between attempts
+  // seconds
+  private double timeout = 1;
+  // seconds
+  private double initialDelay = 0;
+  // seconds
+  private double delay = 0.1;
+  // delay multiplier between attempts
+  private double factor = 1.0;
 
-  public PollingConditions() {}
+  public PollingConditions() {
+  }
 
   /**
    * @param timeoutSeconds the timeout in seconds (the most common single setting).
@@ -74,7 +79,9 @@ public class PollingConditions {
     return this;
   }
 
-  /** Retries {@code conditions} until it passes or the configured {@link #timeout} elapses. */
+  /**
+   * Retries {@code conditions} until it passes or the configured {@link #timeout} elapses.
+   */
   public void eventually(ThrowingRunnable conditions) {
     within(this.timeout, conditions);
   }
@@ -113,8 +120,11 @@ public class PollingConditions {
     throw new AssertionError(
         String.format(
             "Condition not satisfied after %1.2f seconds and %d attempts",
-            elapsed / 1000d, attempts),
-        lastFailure);
+            elapsed / 1000d,
+            attempts
+        ),
+        lastFailure
+    );
   }
 
   private static long toMillis(final double seconds) {

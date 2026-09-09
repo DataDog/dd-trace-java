@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import java.util.Collections;
 import java.util.Set;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ThirdPartyLibrariesTest {
-
   private final Config mockConfig = mock(Config.class);
 
   @BeforeEach
@@ -31,28 +29,31 @@ class ThirdPartyLibrariesTest {
 
   @Test
   void testGetExcludesWithExplicitExclude() {
-    when(mockConfig.getThirdPartyIncludes())
-        .thenReturn(Collections.singleton("com.datadog.debugger"));
-    assertTrue(
-        ThirdPartyLibraries.INSTANCE
-            .getThirdPartyLibraries(mockConfig)
-            .contains("com.datadog.debugger"));
+    when(mockConfig.getThirdPartyIncludes()).thenReturn(Collections.singleton(
+        "com.datadog.debugger"
+    ));
+    assertTrue(ThirdPartyLibraries.INSTANCE
+      .getThirdPartyLibraries(mockConfig)
+      .contains("com.datadog.debugger")
+    );
   }
 
   @Test
   void testGetExcludesWithExplicitExcludeAndExplicitInclude() {
-    when(mockConfig.getThirdPartyIncludes())
-        .thenReturn(Collections.singleton("com.datadog.debugger"));
-    when(mockConfig.getThirdPartyExcludes())
-        .thenReturn(Collections.singleton("com.datadog.debugger"));
-    assertTrue(
-        ThirdPartyLibraries.INSTANCE
-            .getThirdPartyLibraries(mockConfig)
-            .contains("com.datadog.debugger"));
-    assertTrue(
-        ThirdPartyLibraries.INSTANCE
-            .getThirdPartyExcludes(mockConfig)
-            .contains("com.datadog.debugger"));
+    when(mockConfig.getThirdPartyIncludes()).thenReturn(Collections.singleton(
+        "com.datadog.debugger"
+    ));
+    when(mockConfig.getThirdPartyExcludes()).thenReturn(Collections.singleton(
+        "com.datadog.debugger"
+    ));
+    assertTrue(ThirdPartyLibraries.INSTANCE
+      .getThirdPartyLibraries(mockConfig)
+      .contains("com.datadog.debugger")
+    );
+    assertTrue(ThirdPartyLibraries.INSTANCE
+      .getThirdPartyExcludes(mockConfig)
+      .contains("com.datadog.debugger")
+    );
   }
 
   @Test
@@ -71,7 +72,9 @@ class ThirdPartyLibrariesTest {
   @Test
   void testGetExcludeAll() {
     Set<String> excludeAll = ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(null);
-    for (char c : ThirdPartyLibraries.ALPHABET) assertTrue(excludeAll.contains(String.valueOf(c)));
+    for (char c : ThirdPartyLibraries.ALPHABET) {
+      assertTrue(excludeAll.contains(String.valueOf(c)));
+    }
   }
 
   @Test
@@ -85,10 +88,12 @@ class ThirdPartyLibrariesTest {
     when(mockConfig.getThirdPartyShadingIdentifiers()).thenReturn(Collections.singleton(""));
     assertEquals(
         expectedIncludeDefaultSize,
-        ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(mockConfig).size());
+        ThirdPartyLibraries.INSTANCE.getThirdPartyLibraries(mockConfig).size()
+    );
     assertTrue(ThirdPartyLibraries.INSTANCE.getThirdPartyExcludes(mockConfig).isEmpty());
     assertEquals(
         expectedShadingDefaultSize,
-        ThirdPartyLibraries.INSTANCE.getShadingIdentifiers(mockConfig).size());
+        ThirdPartyLibraries.INSTANCE.getShadingIdentifiers(mockConfig).size()
+    );
   }
 }

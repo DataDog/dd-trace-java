@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.JAVA_JDBC_POOL_WAITING;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import com.zaxxer.hikari.util.ConcurrentBag;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -36,8 +35,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariConcurrentBagInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public HikariConcurrentBagInstrumentation() {
     super("jdbc", "hikari");
   }
@@ -55,7 +55,8 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HikariBlockedTracker", packageName + ".PoolWaitingDecorator"
+        packageName + ".HikariBlockedTracker",
+        packageName + ".PoolWaitingDecorator"
     };
   }
 
@@ -68,7 +69,9 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("borrow"), HikariConcurrentBagInstrumentation.class.getName() + "$BorrowAdvice");
+        named("borrow"),
+        HikariConcurrentBagInstrumentation.class.getName() + "$BorrowAdvice"
+    );
   }
 
   /**
@@ -86,13 +89,14 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
     public static void stopSpan(
         @Advice.This ConcurrentBag thiz,
         @Advice.Enter final Long startTimeMillis,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (HikariBlockedTracker.wasBlocked()) {
-        final AgentSpan span =
-            startSpan(
-                JAVA_JDBC_POOL_WAITING.toString(),
-                POOL_WAITING,
-                TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+        final AgentSpan span = startSpan(
+            JAVA_JDBC_POOL_WAITING.toString(),
+            POOL_WAITING,
+            TimeUnit.MILLISECONDS.toMicros(startTimeMillis)
+        );
         DECORATE.afterStart(span);
         DECORATE.onError(span, throwable);
         span.setResourceName("hikari.waiting");

@@ -2,21 +2,20 @@ package com.datadog.iast.securitycontrol;
 
 import static com.datadog.iast.securitycontrol.SecurityControlMethodClassVisitor.LOGGER;
 import static com.datadog.iast.securitycontrol.SecurityControlMethodClassVisitor.isPrimitive;
-
 import datadog.trace.api.iast.securitycontrol.SecurityControl;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 public class InputValidatorMethodAdapter extends AbstractMethodAdapter {
-
   private final boolean isStatic;
 
   public InputValidatorMethodAdapter(
       final MethodVisitor mv,
       final SecurityControl securityControl,
       final int accessFlags,
-      final Type method) {
+      final Type method
+  ) {
     super(mv, securityControl, accessFlags, method);
     isStatic = isStatic();
   }
@@ -41,10 +40,12 @@ public class InputValidatorMethodAdapter extends AbstractMethodAdapter {
       } else if (securityControl.getParametersToMark().get(i)) {
         if (isPrimitive) {
           LOGGER.warn(
-              "Input validators should not be used on primitive types. Parameter {} with type {} .Security control: {}",
+              "Input validators should not be used on primitive types. Parameter {} with type {} "
+              + ".Security control: {}",
               i,
               type.getClassName(),
-              securityControl);
+              securityControl
+          );
         } else {
           callInputValidation(parametersCount);
         }
@@ -55,9 +56,13 @@ public class InputValidatorMethodAdapter extends AbstractMethodAdapter {
 
   private void callInputValidation(int i) {
     // Load the parameter onto the stack
-    mv.visitVarInsn(
-        Opcodes.ALOAD,
-        isStatic ? i : i + 1); // instance methods have this as first element in the stack
+    // instance methods have this as first element in the stack
+    mv
+      // instance methods have this as first element in the stack
+      .visitVarInsn(
+          // instance methods have this as first element in the stack
+      Opcodes.ALOAD,
+          isStatic ? i : i + 1);
     loadMarksAndCallHelper();
   }
 }

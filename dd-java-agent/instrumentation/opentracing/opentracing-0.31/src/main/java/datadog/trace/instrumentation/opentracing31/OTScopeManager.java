@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 
 public class OTScopeManager implements ScopeManager {
   static final Logger log = LoggerFactory.getLogger(OTScopeManager.class);
-
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
 
@@ -51,7 +50,10 @@ public class OTScopeManager implements ScopeManager {
     private final TypeConverter converter;
 
     OTScope(
-        final AgentScope delegate, final boolean finishSpanOnClose, final TypeConverter converter) {
+        final AgentScope delegate,
+        final boolean finishSpanOnClose,
+        final TypeConverter converter
+    ) {
       this.delegate = delegate;
       this.finishSpanOnClose = finishSpanOnClose;
       this.converter = converter;

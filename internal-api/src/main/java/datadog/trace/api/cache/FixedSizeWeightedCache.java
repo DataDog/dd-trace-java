@@ -2,7 +2,6 @@ package datadog.trace.api.cache;
 
 import static datadog.trace.api.cache.FixedSizeCache.calculateSize;
 import static datadog.trace.api.cache.FixedSizeCache.rehash;
-
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.BiConsumer;
@@ -27,7 +26,6 @@ import java.util.function.ToIntFunction;
  * @param <V> value type
  */
 final class FixedSizeWeightedCache<K, V> implements DDCache<K, V> {
-
   private final int mask;
   // This is a cache, so there is no need for volatile, atomics or synchronized.
   // All race conditions here are benign since you always read or write a full
@@ -38,14 +36,10 @@ final class FixedSizeWeightedCache<K, V> implements DDCache<K, V> {
   private final ToIntFunction<V> weigher;
   private final int totalWeightLimit;
   private final int totalWeightTarget;
-
   // only used as a hint, so it doesn't need to be 100% accurate
   private volatile int totalWeightEstimate;
-
-  private static final AtomicIntegerFieldUpdater<FixedSizeWeightedCache>
-      TOTAL_WEIGHT_ESTIMATE_UPDATER =
-          AtomicIntegerFieldUpdater.newUpdater(FixedSizeWeightedCache.class, "totalWeightEstimate");
-
+  private static final AtomicIntegerFieldUpdater<FixedSizeWeightedCache> TOTAL_WEIGHT_ESTIMATE_UPDATER =
+      AtomicIntegerFieldUpdater.newUpdater(FixedSizeWeightedCache.class, "totalWeightEstimate");
   private static final Weighed EVICTED = new Weighed<>(null, null, 0);
 
   /**
@@ -63,7 +57,8 @@ final class FixedSizeWeightedCache<K, V> implements DDCache<K, V> {
     this.mask = size - 1;
     this.weigher = weigher;
     this.totalWeightLimit = totalWeightLimit;
-    this.totalWeightTarget = (int) (0.5 + totalWeightLimit * 0.9); // target 90% of limit
+    // target 90% of limit
+    this.totalWeightTarget = (int) (0.5 + totalWeightLimit * 0.9);
   }
 
   /**
@@ -89,7 +84,6 @@ final class FixedSizeWeightedCache<K, V> implements DDCache<K, V> {
 
     int pos = oldPos;
     Weighed<K, V> current = old;
-
     // try to find a slot or a match 3 times
     for (int i = 1; true; i++) {
       if (current == null) {
@@ -140,11 +134,13 @@ final class FixedSizeWeightedCache<K, V> implements DDCache<K, V> {
     V value = producer.apply(key);
     int weight = weigher.applyAsInt(value);
     if (weight > totalWeightLimit) {
-      return value; // too big to cache
+      // too big to cache
+      return value;
     }
     int oldEstimate;
     while ((oldEstimate = totalWeightEstimate) <= totalWeightLimit) {
-      int newEstimate = oldEstimate + (weight - oldWeight); // estimate may go up or down
+      // estimate may go up or down
+      int newEstimate = oldEstimate + (weight - oldWeight);
       if (TOTAL_WEIGHT_ESTIMATE_UPDATER.compareAndSet(this, oldEstimate, newEstimate)) {
         elements[pos] = new Weighed<>(key, value, weight);
         if (newEstimate > totalWeightLimit) {

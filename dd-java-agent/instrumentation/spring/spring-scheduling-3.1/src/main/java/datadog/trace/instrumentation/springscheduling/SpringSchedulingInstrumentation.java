@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springscheduling;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,8 +15,10 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider
+{
   public SpringSchedulingInstrumentation() {
     super("spring-scheduling");
   }
@@ -30,10 +31,10 @@ public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringSchedulingDecorator",
-      packageName + ".SpringSchedulingRunnableWrapper",
-      packageName + ".SpringSchedulingRunnableWrapper$SchedulingAware",
-      packageName + ".SpringSchedulingRunnableWrapper$1",
+        packageName + ".SpringSchedulingDecorator",
+        packageName + ".SpringSchedulingRunnableWrapper",
+        packageName + ".SpringSchedulingRunnableWrapper$SchedulingAware",
+        packageName + ".SpringSchedulingRunnableWrapper$1"
     };
   }
 
@@ -41,21 +42,23 @@ public final class SpringSchedulingInstrumentation extends InstrumenterModule.Tr
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(0, Runnable.class)),
-        getClass().getName() + "$SpringSchedulingAdvice");
+        getClass().getName() + "$SpringSchedulingAdvice"
+    );
   }
 
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
     return Collections.singletonMap(
         RUNNABLE,
-        Collections.singleton(
-            "org.springframework.scheduling.config.Task$OutcomeTrackingRunnable"));
+        Collections.singleton("org.springframework.scheduling.config.Task$OutcomeTrackingRunnable")
+    );
   }
 
   public static class SpringSchedulingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onConstruction(
-        @Advice.Argument(value = 0, readOnly = false) Runnable runnable) {
+        @Advice.Argument(value = 0, readOnly = false) Runnable runnable
+    ) {
       runnable = SpringSchedulingRunnableWrapper.wrapIfNeeded(runnable);
     }
   }

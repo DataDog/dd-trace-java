@@ -19,14 +19,10 @@ public class ServiceTestModule extends AbstractModule implements ServiceGuiceSup
 
   @Override
   protected void configure() {
-    bindServices(
-        serviceBinding(EchoService.class, EchoServiceImpl.class)
-        // , serviceBinding(HelloService.class, HelloServiceImpl.class)
-        );
+    bindServices(serviceBinding(EchoService.class, EchoServiceImpl.class));
   }
 
   // ------------------------------
-
   /**
    * This is a copy of {@link
    * com.lightbend.lagom.javadsl.server.ServiceGuiceSupport#bindServices(ServiceGuiceSupport.ServiceBinding[])}
@@ -42,7 +38,6 @@ public class ServiceTestModule extends AbstractModule implements ServiceGuiceSup
     for (ServiceBinding binding : serviceBindings) {
       // First, bind the client implementation.  A service should be able to be a client to itself.
       bindClient(binding.serviceInterface());
-
       // Now, bind the server implementation to itself as an eager singleton.
       if (binding instanceof ClassServiceBinding) {
         binder.bind(((ClassServiceBinding<?>) binding).serviceImplementation()).asEagerSingleton();
@@ -55,29 +50,26 @@ public class ServiceTestModule extends AbstractModule implements ServiceGuiceSup
     ServiceBinding<?> primaryServiceBinding = serviceBindings[0];
     // Bind the service info for the first one passed in
     binder
-        .bind(ServiceInfo.class)
-        .toProvider(
-            new ServiceInfoProvider(
-                primaryServiceBinding.serviceInterface(),
-                Arrays.stream(serviceBindings)
-                    .map(ServiceBinding::serviceInterface)
-                    .toArray(Class[]::new)));
-
+      .bind(ServiceInfo.class)
+      .toProvider(
+          new ServiceInfoProvider(
+              primaryServiceBinding.serviceInterface(),
+              Arrays.stream(serviceBindings).map(ServiceBinding::serviceInterface).toArray(
+                  Class[]::new
+              )
+          )
+      );
     // Bind the metrics
     ServiceBinding<MetricsService> metricsServiceBinding =
         serviceBinding(MetricsService.class, MetricsServiceImpl.class);
     binder
-        .bind(((ClassServiceBinding<?>) metricsServiceBinding).serviceImplementation())
-        .asEagerSingleton();
+      .bind(((ClassServiceBinding<?>) metricsServiceBinding).serviceImplementation())
+      .asEagerSingleton();
     ServiceBinding<?>[] allServiceBindings = new ServiceBinding<?>[serviceBindings.length + 1];
     System.arraycopy(serviceBindings, 0, allServiceBindings, 0, serviceBindings.length);
     allServiceBindings[allServiceBindings.length - 1] = metricsServiceBinding;
-
     // Bind the resolved services
-    binder
-        .bind(ResolvedServices.class)
-        .toProvider(new ResolvedServicesProvider(allServiceBindings));
-
+    binder.bind(ResolvedServices.class).toProvider(new ResolvedServicesProvider(allServiceBindings));
     // And bind the router
     binder.bind(LagomServiceRouter.class).to(JavadslServicesRouter.class);
   }

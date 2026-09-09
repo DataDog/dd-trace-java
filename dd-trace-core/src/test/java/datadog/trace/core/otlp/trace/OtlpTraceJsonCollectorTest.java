@@ -14,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.json.JsonMapper;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
@@ -45,8 +44,10 @@ import org.junit.jupiter.api.Test;
  * decimal-string timestamps).
  */
 class OtlpTraceJsonCollectorTest {
-
-  private static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
+  private static final CoreTracer TRACER = CoreTracer
+    .builder()
+    .writer(new LoggingWriter())
+    .build();
 
   @Test
   void emptyTraceProducesEmptyPayload() {
@@ -126,21 +127,23 @@ class OtlpTraceJsonCollectorTest {
     Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
 
     assertFalse(
-        parsedSpan.containsKey("traceState"), "no W3C tracestate propagated should be omitted");
+        parsedSpan.containsKey("traceState"),
+        "no W3C tracestate propagated should be omitted"
+    );
   }
 
   @Test
   void spanTraceStateIncludedWhenPropagated() throws IOException {
     PropagationTags propagationTags = PropagationTags.factory().empty();
     propagationTags.updateW3CTracestate("vendor=state");
-    ExtractedContext parent =
-        new ExtractedContext(
-            DDTraceId.ONE,
-            0L,
-            PrioritySampling.UNSET,
-            null,
-            propagationTags,
-            TracePropagationStyle.DATADOG);
+    ExtractedContext parent = new ExtractedContext(
+        DDTraceId.ONE,
+        0L,
+        PrioritySampling.UNSET,
+        null,
+        propagationTags,
+        TracePropagationStyle.DATADOG
+    );
 
     AgentSpan agentSpan = TRACER.startSpan("test", "op.tracestate", parent);
     agentSpan.setResourceName("op.tracestate");
@@ -201,11 +204,11 @@ class OtlpTraceJsonCollectorTest {
     List<Map<String, Object>> parsedSpans = allSpans(payload);
     assertEquals(2, parsedSpans.size());
 
-    Map<String, Object> parsedChild =
-        parsedSpans.stream()
-            .filter(s -> "child.op".equals(s.get("name")))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("child span not found"));
+    Map<String, Object> parsedChild = parsedSpans
+      .stream()
+      .filter(s -> "child.op".equals(s.get("name")))
+      .findFirst()
+      .orElseThrow(() -> new AssertionError("child span not found"));
     assertEquals(hexSpanId(((DDSpan) parent).getSpanId()), parsedChild.get("parentSpanId"));
   }
 
@@ -224,7 +227,6 @@ class OtlpTraceJsonCollectorTest {
 
     OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
     assertThrows(RuntimeException.class, () -> collector.addTrace(poisonedTrace));
-
     // a normal trace collected afterwards must not see any leftover state from the poisoned one
     DDSpan normalSpan = startAndFinish("op.normal", "GET /normal", null);
     collector.addTrace(asList((CoreSpan<?>) normalSpan));
@@ -258,8 +260,12 @@ class OtlpTraceJsonCollectorTest {
 
     AgentSpan agentSpan = TRACER.startSpan("test", "op.link");
     agentSpan.setResourceName("op.link");
-    agentSpan.addLink(
-        SpanLink.from(linked.spanContext(), (byte) 0, "vendor=state", SpanAttributes.EMPTY));
+    agentSpan.addLink(SpanLink.from(
+        linked.spanContext(),
+        (byte) 0,
+        "vendor=state",
+        SpanAttributes.EMPTY
+    ));
     agentSpan.finish();
 
     OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
@@ -271,7 +277,6 @@ class OtlpTraceJsonCollectorTest {
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
-
   private static DDSpan startAndFinish(String operationName, String resourceName, String spanKind) {
     AgentSpan agentSpan = TRACER.startSpan("test", operationName);
     agentSpan.setResourceName(resourceName);

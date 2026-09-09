@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
 import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
-
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,8 +43,10 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
         ByteBuffer value = datadog.getBinaryValue();
         if (value != null) {
           ByteBuffer duplicate = value.duplicate();
-          hasPathwayContext =
-              StandardCharsets.UTF_8.decode(duplicate).toString().contains(PROPAGATION_KEY_BASE64);
+          hasPathwayContext = StandardCharsets.UTF_8
+            .decode(duplicate)
+            .toString()
+            .contains(PROPAGATION_KEY_BASE64);
         }
         DatadogAttributeParser.forEachProperty(classifier, value);
       }
@@ -68,10 +69,8 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
       throws IOException {
     // Parse the JSON string into a JsonNode
     JsonNode rootNode = MAPPER.readTree(body);
-
     // Navigate to MessageAttributes._datadog
     JsonNode messageAttributes = rootNode.path("MessageAttributes").path("_datadog");
-
     // Extract Value and Type
     String value = messageAttributes.path("Value").asText();
     String type = messageAttributes.path("Type").asText();

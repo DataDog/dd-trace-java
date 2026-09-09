@@ -8,11 +8,11 @@ import org.glassfish.grizzly.http.HttpResponsePacket;
 import org.glassfish.grizzly.http.util.MimeHeaders;
 
 public class ExtractAdapter<T extends HttpHeader> implements AgentPropagation.ContextVisitor<T> {
-
   @SuppressWarnings("rawtypes")
   private static final ExtractAdapter GETTER = new ExtractAdapter();
 
-  private ExtractAdapter() {}
+  private ExtractAdapter() {
+  }
 
   @SuppressWarnings("unchecked")
   public static AgentPropagation.ContextVisitor<HttpRequestPacket> requestGetter() {
@@ -33,7 +33,8 @@ public class ExtractAdapter<T extends HttpHeader> implements AgentPropagation.Co
     for (int i = 0; i < headers.size(); ++i) {
       if (!classifier.accept(
           headers.getName(i).toString(StandardCharsets.UTF_8),
-          headers.getValue(i).toString(StandardCharsets.UTF_8))) {
+          headers.getValue(i).toString(StandardCharsets.UTF_8)
+      )) {
         return;
       }
     }

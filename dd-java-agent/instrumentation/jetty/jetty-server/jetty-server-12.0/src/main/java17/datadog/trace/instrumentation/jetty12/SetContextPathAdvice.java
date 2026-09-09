@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty12.JettyDecorator.DD_SERVLET_PATH_ATTRIBUTE;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -22,7 +21,9 @@ import org.eclipse.jetty.server.handler.ContextHandler;
 public class SetContextPathAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void updateContextPath(
-      @Advice.This final ContextHandler contextHandler, @Advice.Argument(0) final Request req) {
+      @Advice.This final ContextHandler contextHandler,
+      @Advice.Argument(0) final Request req
+  ) {
     Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
     // Don't want to update while being dispatched to new servlet
     if (!(contextObj instanceof Context) || req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) != null) {
@@ -47,10 +48,9 @@ public class SetContextPathAdvice {
       // the following can be cached however than can be issues for application having
       // dynamically generated URL
       // since a bounded cache might collide
-      String relativePath =
-          pathInContext.startsWith(servletContext)
-              ? pathInContext.substring(servletContext.length())
-              : pathInContext;
+      String relativePath = pathInContext.startsWith(servletContext)
+          ? pathInContext.substring(servletContext.length())
+          : pathInContext;
       if (relativePath.isEmpty() || relativePath.charAt(0) != '/') {
         relativePath = "/" + relativePath;
       }

@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
  * }</pre>
  */
 public final class SmokeCliApp extends AbstractSmokeApp {
-
   private SmokeCliApp(Builder builder) {
     super(builder);
   }
@@ -57,16 +56,20 @@ public final class SmokeCliApp extends AbstractSmokeApp {
     }
     if (!exited) {
       throw new AssertionError(
-          "App '" + name() + "' did not complete within " + timeout + " " + unit);
+          "App '" + name() + "' did not complete within " + timeout + " " + unit
+      );
     }
     int actual = process().exitValue();
     if (actual != expectedExitValue) {
       throw new AssertionError(
-          "App '" + name() + "' exited with " + actual + " but expected " + expectedExitValue);
+          "App '" + name() + "' exited with " + actual + " but expected " + expectedExitValue
+      );
     }
   }
 
-  /** Fluent builder for a {@link SmokeCliApp}; obtain via {@link SmokeCliApp#named(String)}. */
+  /**
+   * Fluent builder for a {@link SmokeCliApp}; obtain via {@link SmokeCliApp#named(String)}.
+   */
   public static final class Builder extends AbstractSmokeApp.Builder<SmokeCliApp, Builder> {
     private Builder(String name) {
       super(name);

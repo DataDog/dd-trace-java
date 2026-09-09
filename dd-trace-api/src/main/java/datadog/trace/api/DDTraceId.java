@@ -9,10 +9,13 @@ import datadog.trace.api.internal.util.LongStringUtils;
  * The string representations are either kept from parsing, or generated on demand and cached.
  */
 public abstract class DDTraceId {
-  /** Invalid TraceId value used to denote no TraceId. */
+  /**
+   * Invalid TraceId value used to denote no TraceId.
+   */
   public static final DDTraceId ZERO = from(0);
-
-  /** Convenience constant used from tests */
+  /**
+   * Convenience constant used from tests
+   */
   public static final DDTraceId ONE = from(1);
 
   /**

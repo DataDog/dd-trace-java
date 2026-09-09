@@ -4,7 +4,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MergedAsmFeatures {
-
   private final Map<String, AppSecFeatures> configs = new ConcurrentHashMap<>();
   private volatile AppSecFeatures mergedData;
 
@@ -43,7 +42,9 @@ public class MergedAsmFeatures {
   }
 
   private void mergeAutoUserInstrum(
-      final AppSecFeatures target, final AppSecFeatures.AutoUserInstrum newValue) {
+      final AppSecFeatures target,
+      final AppSecFeatures.AutoUserInstrum newValue
+  ) {
     if (newValue == null || newValue.mode == null) {
       return;
     }

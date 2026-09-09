@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.netty41.NettyChannelPipelineInstrume
 import static datadog.trace.instrumentation.netty41.NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,8 +25,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelHandlerContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public NettyChannelHandlerContextInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
   }
@@ -45,34 +45,39 @@ public class NettyChannelHandlerContextInstrumentation extends InstrumenterModul
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AttributeKeys",
-      packageName + ".ServerRequestContext",
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler"
+        packageName + ".AttributeKeys",
+        packageName + ".ServerRequestContext",
+        packageName + ".client.NettyHttpClientDecorator",
+        packageName + ".server.ResponseExtractAdapter",
+        packageName + ".server.NettyHttpServerDecorator",
+        packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+        packageName + ".server.BlockingResponseHandler",
+        packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+        packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
+        packageName + ".server.HttpServerRequestTracingHandler",
+        packageName + ".server.HttpServerResponseTracingHandler",
+        packageName + ".server.HttpServerTracingHandler"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        // this may be overly aggressive:
-        isMethod().and(nameStartsWith("fire")).and(isPublic()),
-        NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice");
+        isMethod()
+          .and(nameStartsWith("fire"))
+          // this may be overly aggressive:
+          .and(isPublic()),
+        NettyChannelHandlerContextInstrumentation.class.getName() + "$FireAdvice"
+    );
   }
 
   public static class FireAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope scopeSpan(@Advice.This final ChannelHandlerContext ctx) {
-      final AgentSpan channelSpan =
-          spanFromContext(ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get());
+      final AgentSpan channelSpan = spanFromContext(ctx
+        .channel()
+        .attr(CONTEXT_ATTRIBUTE_KEY)
+        .get());
       if (channelSpan == null || channelSpan == activeSpan()) {
         // don't modify the scope
         return null;

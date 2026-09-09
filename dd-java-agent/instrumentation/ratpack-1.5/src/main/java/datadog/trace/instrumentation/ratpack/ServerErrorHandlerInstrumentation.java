@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.co
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,8 +12,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ServerErrorHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ServerErrorHandlerInstrumentation() {
     super("ratpack");
   }
@@ -32,7 +32,8 @@ public class ServerErrorHandlerInstrumentation extends InstrumenterModule.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RatpackServerDecorator", packageName + ".RequestURIAdapterAdapter",
+        packageName + ".RatpackServerDecorator",
+        packageName + ".RequestURIAdapterAdapter"
     };
   }
 
@@ -40,8 +41,9 @@ public class ServerErrorHandlerInstrumentation extends InstrumenterModule.Tracin
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("error")
-            .and(takesArgument(0, named("ratpack.handling.Context")))
-            .and(takesArgument(1, Throwable.class)),
-        packageName + ".ErrorHandlerAdvice");
+          .and(takesArgument(0, named("ratpack.handling.Context")))
+          .and(takesArgument(1, Throwable.class)),
+        packageName + ".ErrorHandlerAdvice"
+    );
   }
 }

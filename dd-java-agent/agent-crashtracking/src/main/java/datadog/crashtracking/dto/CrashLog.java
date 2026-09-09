@@ -9,7 +9,6 @@ import java.util.Objects;
 
 public final class CrashLog {
   private static final int VERSION = 0;
-
   public static final JsonAdapter<CrashLog> ADAPTER;
 
   static {
@@ -18,29 +17,21 @@ public final class CrashLog {
   }
 
   public final String uuid;
-
   @Json(name = "data_schema_version")
   public final String dataSchemaVersion;
-
   public final String timestamp;
   public final boolean incomplete;
   public final ErrorData error;
   public final Metadata metadata;
-
   @Json(name = "os_info")
   public final OSInfo osInfo;
-
   @Json(name = "proc_info")
   public final ProcInfo procInfo;
-
   @Json(name = "version_id")
   public final int version = VERSION;
-
   @Json(name = "sig_info")
   public final SigInfo sigInfo;
-
   public final Experimental experimental;
-
   /**
    * Useful files for triage and debugging (e.g. {@code /proc/self/maps}, {@code
    * dynamic_libraries}).
@@ -56,7 +47,8 @@ public final class CrashLog {
       OSInfo osInfo,
       ProcInfo procInfo,
       SigInfo sigInfo,
-      String dataSchemaVersion) {
+      String dataSchemaVersion
+  ) {
     this(
         uuid,
         incomplete,
@@ -68,7 +60,8 @@ public final class CrashLog {
         sigInfo,
         dataSchemaVersion,
         null,
-        null);
+        null
+    );
   }
 
   public CrashLog(
@@ -82,7 +75,8 @@ public final class CrashLog {
       SigInfo sigInfo,
       String dataSchemaVersion,
       Experimental experimental,
-      DynamicLibs files) {
+      DynamicLibs files
+  ) {
     this.uuid = uuid != null ? uuid : RandomUtils.randomUUID().toString();
     this.incomplete = incomplete;
     this.timestamp = timestamp;
@@ -140,7 +134,8 @@ public final class CrashLog {
         version,
         dataSchemaVersion,
         experimental,
-        files);
+        files
+    );
   }
 
   public boolean equalsForTest(Object o) {

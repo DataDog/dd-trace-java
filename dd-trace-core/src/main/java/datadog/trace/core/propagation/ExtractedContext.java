@@ -23,7 +23,8 @@ public class ExtractedContext extends TagContext {
       final int samplingPriority,
       final CharSequence origin,
       final PropagationTags propagationTags,
-      final TracePropagationStyle propagationStyle) {
+      final TracePropagationStyle propagationStyle
+  ) {
     this(
         traceId,
         spanId,
@@ -35,7 +36,8 @@ public class ExtractedContext extends TagContext {
         null,
         propagationTags,
         null,
-        propagationStyle);
+        propagationStyle
+    );
   }
 
   public ExtractedContext(
@@ -49,7 +51,8 @@ public class ExtractedContext extends TagContext {
       final HttpHeaders httpHeaders,
       final PropagationTags propagationTags,
       final TraceConfig traceConfig,
-      final TracePropagationStyle propagationStyle) {
+      final TracePropagationStyle propagationStyle
+  ) {
     super(
         origin,
         tags,
@@ -58,7 +61,8 @@ public class ExtractedContext extends TagContext {
         samplingPriority,
         traceConfig,
         propagationStyle,
-        DDTraceId.ZERO);
+        DDTraceId.ZERO
+    );
     this.traceId = traceId;
     this.spanId = spanId;
     this.endToEndStartTime = endToEndStartTime;
@@ -80,7 +84,8 @@ public class ExtractedContext extends TagContext {
       final HttpHeaders httpHeaders,
       final PropagationTags propagationTags,
       final TraceConfig traceConfig,
-      final TracePropagationStyle propagationStyle) {
+      final TracePropagationStyle propagationStyle
+  ) {
     this(
         traceId,
         spanId,
@@ -92,7 +97,8 @@ public class ExtractedContext extends TagContext {
         httpHeaders,
         propagationTags,
         traceConfig,
-        propagationStyle);
+        propagationStyle
+    );
   }
 
   @Override

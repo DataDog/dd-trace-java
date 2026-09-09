@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.couchbase_32.client;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -12,8 +11,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public CoreEnvironmentBuilderInstrumentation() {
     super("couchbase", "couchbase-3");
   }
@@ -21,12 +21,12 @@ public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CouchbaseClientDecorator",
-      packageName + ".DatadogRequestSpan",
-      packageName + ".DatadogRequestSpan$1",
-      packageName + ".DatadogRequestTracer",
-      packageName + ".DelegatingRequestSpan",
-      packageName + ".DelegatingRequestTracer"
+        packageName + ".CouchbaseClientDecorator",
+        packageName + ".DatadogRequestSpan",
+        packageName + ".DatadogRequestSpan$1",
+        packageName + ".DatadogRequestTracer",
+        packageName + ".DelegatingRequestSpan",
+        packageName + ".DelegatingRequestTracer"
     };
   }
 
@@ -45,6 +45,7 @@ public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tr
     transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
     transformer.applyAdvice(
         isMethod().and(named("requestTracer")),
-        packageName + ".CoreEnvironmentBuilderRequestTracerAdvice");
+        packageName + ".CoreEnvironmentBuilderRequestTracerAdvice"
+    );
   }
 }

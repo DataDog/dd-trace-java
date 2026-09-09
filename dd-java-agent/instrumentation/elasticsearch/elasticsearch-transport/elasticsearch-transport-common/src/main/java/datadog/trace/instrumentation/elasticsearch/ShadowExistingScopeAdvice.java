@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
@@ -11,7 +10,6 @@ import net.bytebuddy.asm.Advice;
  * useful for example a method that would be doing tail call recursion to handle another request.
  */
 public class ShadowExistingScopeAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope enter() {
     return activateSpan(noopSpan());

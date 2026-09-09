@@ -4,7 +4,6 @@ public enum MethodLocation {
   DEFAULT,
   ENTRY,
   EXIT;
-
   public static boolean isSame(MethodLocation methodLocation, MethodLocation evaluateAt) {
     if (methodLocation == MethodLocation.DEFAULT) {
       // line probe, no evaluation of probe's evaluateAt

@@ -10,7 +10,6 @@ import java.util.concurrent.CompletableFuture;
 import org.springframework.scheduling.annotation.Async;
 
 public class SpannerTask {
-
   @Async
   public CompletableFuture<ResultSet> spannerResultSet() {
     return getSpannerResultSet();
@@ -22,10 +21,11 @@ public class SpannerTask {
     DatabaseId db = DatabaseId.of(options.getProjectId(), "", "");
     DatabaseClient dbClient = spanner.getDatabaseClient(db);
 
-    Statement sql =
-        Statement.newBuilder(
-                "SELECT table_name FROM information_schema.tables WHERE table_catalog = '' and table_schema = ''")
-            .build();
+    Statement sql = Statement
+      .newBuilder(
+          "SELECT table_name FROM information_schema.tables WHERE table_catalog = '' and table_schema = ''"
+      )
+      .build();
 
     return CompletableFuture.completedFuture(dbClient.singleUse().executeQuery(sql));
   }

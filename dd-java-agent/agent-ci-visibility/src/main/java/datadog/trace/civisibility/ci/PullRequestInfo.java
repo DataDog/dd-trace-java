@@ -6,14 +6,13 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 public class PullRequestInfo {
-
   public static final PullRequestInfo EMPTY =
       new PullRequestInfo(null, null, null, CommitInfo.NOOP, null);
-
   private final String baseBranch;
   private final String baseBranchSha;
   private final String baseBranchHeadSha;
-  @Nonnull private final CommitInfo headCommit;
+  @Nonnull
+  private final CommitInfo headCommit;
   private final String pullRequestNumber;
 
   public PullRequestInfo(
@@ -21,7 +20,8 @@ public class PullRequestInfo {
       String baseBranchSha,
       String baseBranchHeadSha,
       @Nonnull CommitInfo headCommit,
-      String pullRequestNumber) {
+      String pullRequestNumber
+  ) {
     this.baseBranch = baseBranch;
     this.baseBranchSha = baseBranchSha;
     this.baseBranchHeadSha = baseBranchHeadSha;
@@ -73,14 +73,14 @@ public class PullRequestInfo {
    * @param second Fallback PR info
    * @return Combined PR info
    */
-  public static PullRequestInfo coalesce(
-      final PullRequestInfo first, final PullRequestInfo second) {
+  public static PullRequestInfo coalesce(final PullRequestInfo first, final PullRequestInfo second) {
     return new PullRequestInfo(
         Strings.coalesce(first.baseBranch, second.baseBranch),
         Strings.coalesce(first.baseBranchSha, second.baseBranchSha),
         Strings.coalesce(first.baseBranchHeadSha, second.baseBranchHeadSha),
         CommitInfo.coalesce(first.headCommit, second.headCommit),
-        Strings.coalesce(first.pullRequestNumber, second.pullRequestNumber));
+        Strings.coalesce(first.pullRequestNumber, second.pullRequestNumber)
+    );
   }
 
   @Override

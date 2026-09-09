@@ -1,7 +1,6 @@
 package datadog.metrics.api;
 
 final class NoOpRecording extends Recording {
-
   public static final Recording NO_OP = new NoOpRecording();
 
   @Override

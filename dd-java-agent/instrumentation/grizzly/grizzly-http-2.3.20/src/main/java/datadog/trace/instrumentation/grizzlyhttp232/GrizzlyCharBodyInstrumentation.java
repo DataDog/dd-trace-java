@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,7 +18,9 @@ import org.glassfish.grizzly.http.io.InputBuffer;
 import org.glassfish.grizzly.http.io.NIOReader;
 
 public class GrizzlyCharBodyInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "org.glassfish.grizzly.http.server.NIOReaderImpl";
@@ -29,25 +30,34 @@ public class GrizzlyCharBodyInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("setInputBuffer")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
-        getClass().getName() + "$NIOReaderSetInputBufferAdvice");
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
+        getClass().getName() + "$NIOReaderSetInputBufferAdvice"
+    );
     transformer.applyAdvice(
-        named("read").and(takesArguments(0)), getClass().getName() + "$NIOReaderReadAdvice");
+        named("read").and(takesArguments(0)),
+        getClass().getName() + "$NIOReaderReadAdvice"
+    );
     transformer.applyAdvice(
         named("read").and(takesArguments(1)).and(takesArgument(0, char[].class)),
-        getClass().getName() + "$NIOReaderReadCharArrayAdvice");
+        getClass().getName() + "$NIOReaderReadCharArrayAdvice"
+    );
     transformer.applyAdvice(
         named("read").and(takesArguments(char[].class, int.class, int.class)),
-        getClass().getName() + "$NIOReaderReadCharArrayIntIntAdvice");
+        getClass().getName() + "$NIOReaderReadCharArrayIntIntAdvice"
+    );
     transformer.applyAdvice(
         named("read").and(takesArguments(CharBuffer.class)),
-        getClass().getName() + "$NIOReaderReadCharBufferAdvice");
+        getClass().getName() + "$NIOReaderReadCharBufferAdvice"
+    );
     transformer.applyAdvice(
         named("isFinished").and(takesArguments(0)),
-        getClass().getName() + "$NIOReaderIsFinishedAdvice");
+        getClass().getName() + "$NIOReaderIsFinishedAdvice"
+    );
     transformer.applyAdvice(
-        named("recycle").and(takesArguments(0)), getClass().getName() + "$NIOReaderRecycleAdvice");
+        named("recycle").and(takesArguments(0)),
+        getClass().getName() + "$NIOReaderRecycleAdvice"
+    );
   }
 
   @SuppressWarnings("Duplicates")
@@ -55,7 +65,9 @@ public class GrizzlyCharBodyInstrumentation
   static class NIOReaderSetInputBufferAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
-        @Advice.This final NIOReader thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
+        @Advice.This final NIOReader thiz,
+        @Advice.Argument(0) final InputBuffer inputBuffer
+    ) {
       HttpHeader header = HttpHeaderFetchingHelper.fetchHttpHeader(inputBuffer);
       AttributeHolder attributes = header.getAttributes();
       Object attribute = attributes.getAttribute("datadog.intercepted_request_body");
@@ -77,7 +89,8 @@ public class GrizzlyCharBodyInstrumentation
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Return int ret,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }
@@ -104,7 +117,8 @@ public class GrizzlyCharBodyInstrumentation
         @Advice.This final NIOReader thiz,
         @Advice.Argument(0) char[] charArray,
         @Advice.Return int ret,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }
@@ -132,7 +146,8 @@ public class GrizzlyCharBodyInstrumentation
         @Advice.Argument(0) char[] charArray,
         @Advice.Argument(1) int off,
         @Advice.Return int ret,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }
@@ -158,7 +173,8 @@ public class GrizzlyCharBodyInstrumentation
     static int before(
         @Advice.This final NIOReader thiz,
         @Advice.Local("storedCharBody") StoredCharBody storedCharBody,
-        @Advice.Argument(0) CharBuffer charBuffer) {
+        @Advice.Argument(0) CharBuffer charBuffer
+    ) {
       storedCharBody = InstrumentationContext.get(NIOReader.class, StoredCharBody.class).get(thiz);
       if (storedCharBody == null) {
         return 0;
@@ -172,7 +188,8 @@ public class GrizzlyCharBodyInstrumentation
         @Advice.Argument(0) CharBuffer charBuffer,
         @Advice.Enter int initPos,
         @Advice.Return int ret,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (storedCharBody == null || t != null) {
         return;
       }
@@ -201,7 +218,8 @@ public class GrizzlyCharBodyInstrumentation
     static void after(
         @Advice.This final NIOReader thiz,
         @Advice.Return boolean ret,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }

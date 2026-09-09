@@ -7,13 +7,10 @@ import java.util.Objects;
 
 public final class Experimental {
   public final Map<String, String> ucontext;
-
   @Json(name = "register_to_memory_mapping")
   public final Map<String, String> registerToMemoryMapping;
-
   @Json(name = "runtime_args")
   public final List<String> runtimeArgs;
-
   @Json(name = "runtime_info")
   public final RuntimeInfo runtimeInfo;
 
@@ -28,7 +25,8 @@ public final class Experimental {
   public Experimental(
       Map<String, String> ucontext,
       Map<String, String> registerToMemoryMapping,
-      List<String> runtimeArgs) {
+      List<String> runtimeArgs
+  ) {
     this(ucontext, registerToMemoryMapping, runtimeArgs, null);
   }
 
@@ -36,7 +34,8 @@ public final class Experimental {
       Map<String, String> ucontext,
       Map<String, String> registerToMemoryMapping,
       List<String> runtimeArgs,
-      RuntimeInfo runtimeInfo) {
+      RuntimeInfo runtimeInfo
+  ) {
     this.ucontext = ucontext;
     this.registerToMemoryMapping = registerToMemoryMapping;
     this.runtimeArgs = runtimeArgs;
@@ -45,7 +44,9 @@ public final class Experimental {
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof Experimental)) return false;
+    if (!(o instanceof Experimental)) {
+      return false;
+    }
     Experimental that = (Experimental) o;
     return Objects.equals(ucontext, that.ucontext)
         && Objects.equals(registerToMemoryMapping, that.registerToMemoryMapping)

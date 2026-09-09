@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -25,7 +24,10 @@ import net.bytebuddy.matcher.ElementMatcher.Junction;
 
 @AutoService(InstrumenterModule.class)
 public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public WrapRunnableAsNewTaskInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "new-task-for");
   }
@@ -33,18 +35,18 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.netty.channel.epoll.EpollEventLoop",
-      "io.netty.channel.nio.NioEventLoop",
-      "io.netty.channel.SingleThreadEventLoop",
-      "io.netty.util.concurrent.AbstractEventExecutor",
-      "io.netty.util.concurrent.AbstractScheduledEventExecutor",
-      "io.netty.util.concurrent.DefaultEventExecutor",
-      "io.netty.util.concurrent.GlobalEventExecutor",
-      "io.netty.util.concurrent.SingleThreadEventExecutor",
-      "java.util.concurrent.AbstractExecutorService",
-      "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
-      "org.jboss.threads.EnhancedQueueExecutor",
-      "io.vertx.core.impl.WorkerExecutor",
+        "io.netty.channel.epoll.EpollEventLoop",
+        "io.netty.channel.nio.NioEventLoop",
+        "io.netty.channel.SingleThreadEventLoop",
+        "io.netty.util.concurrent.AbstractEventExecutor",
+        "io.netty.util.concurrent.AbstractScheduledEventExecutor",
+        "io.netty.util.concurrent.DefaultEventExecutor",
+        "io.netty.util.concurrent.GlobalEventExecutor",
+        "io.netty.util.concurrent.SingleThreadEventExecutor",
+        "java.util.concurrent.AbstractExecutorService",
+        "org.glassfish.grizzly.threadpool.GrizzlyExecutorService",
+        "org.jboss.threads.EnhancedQueueExecutor",
+        "io.vertx.core.impl.WorkerExecutor"
     };
   }
 
@@ -55,17 +57,14 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
 
     Junction<MethodDescription> hasNewTaskFor =
         isDeclaredBy(extendsClass(named("java.util.concurrent.AbstractExecutorService")));
-
     // executors that extend AbstractExecutorService should use 'newTaskFor' wrapper
     transformer.applyAdvice(hasExecute.and(hasNewTaskFor), getClass().getName() + "$NewTaskFor");
-
     // use simple wrapper for executors that don't extend AbstractExecutorService
     transformer.applyAdvice(hasExecute.and(not(hasNewTaskFor)), getClass().getName() + "$Wrap");
   }
 
   // We tolerate a bit of duplication between these advice classes because
   // it avoids having to inject other helper classes onto the bootclasspath
-
   /**
    * Wrapper that uses {@link AbstractExecutorService#newTaskFor}.
    *
@@ -79,7 +78,8 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean execute(
         @Advice.This Executor executor,
-        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
+        @Advice.Argument(value = 0, readOnly = false) Runnable task
+    ) {
       if (task instanceof RunnableFuture || null == task || exclude(RUNNABLE, task)) {
         return false;
         // no wrapping required
@@ -95,7 +95,8 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
     public static void cancel(
         @Advice.Enter boolean wrapped,
         @Advice.Argument(0) Runnable task,
-        @Advice.Thrown Throwable error) {
+        @Advice.Thrown Throwable error
+    ) {
       // don't cancel unless we did the wrapping
       if (wrapped && null != error && task instanceof RunnableFuture) {
         // Guard against recursive cancel calls which can cause StackOverflowError
@@ -112,7 +113,9 @@ public final class WrapRunnableAsNewTaskInstrumentation extends InstrumenterModu
     }
   }
 
-  /** More general wrapper that uses {@link Wrapper} instead of calling 'newTaskFor'. */
+  /**
+   * More general wrapper that uses {@link Wrapper} instead of calling 'newTaskFor'.
+   */
   @SuppressWarnings("rawtypes")
   public static final class Wrap {
     @Advice.OnMethodEnter(suppress = Throwable.class)

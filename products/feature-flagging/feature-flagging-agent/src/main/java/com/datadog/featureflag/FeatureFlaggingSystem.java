@@ -2,7 +2,6 @@ package com.datadog.featureflag;
 
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_REMOTE_CONFIG;
-
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
@@ -13,14 +12,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class FeatureFlaggingSystem {
-
   @FunctionalInterface
   interface SystemInitializer {
     void initialize(SharedCommunicationObjects sco, Config config);
   }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFlaggingSystem.class);
-
   private static volatile ConfigurationSourceService CONFIG_SERVICE;
   private static volatile ExposureWriter EXPOSURE_WRITER;
   private static volatile FlagEvaluationWriter FLAG_EVAL_WRITER;
@@ -28,14 +25,17 @@ public class FeatureFlaggingSystem {
   private static volatile FeatureFlaggingGateway.ActivationListener ACTIVATION_LISTENER;
   private static volatile boolean STARTED;
 
-  private FeatureFlaggingSystem() {}
+  private FeatureFlaggingSystem() {
+  }
 
   public static void start(final SharedCommunicationObjects sco) {
     start(sco, FeatureFlaggingSystem::initializeSystem);
   }
 
   static synchronized void start(
-      final SharedCommunicationObjects sco, final SystemInitializer systemInitializer) {
+      final SharedCommunicationObjects sco,
+      final SystemInitializer systemInitializer
+  ) {
     if (STARTED) {
       LOGGER.debug("Feature Flagging system already started");
       return;
@@ -64,7 +64,8 @@ public class FeatureFlaggingSystem {
   private static synchronized void activateAgentless(
       final SharedCommunicationObjects sco,
       final Config config,
-      final SystemInitializer systemInitializer) {
+      final SystemInitializer systemInitializer
+  ) {
     final FeatureFlaggingGateway.ActivationListener activationListener = ACTIVATION_LISTENER;
     if (!STARTED || activationListener == null) {
       return;
@@ -79,7 +80,8 @@ public class FeatureFlaggingSystem {
   private static void initializeOrRollBack(
       final SharedCommunicationObjects sco,
       final Config config,
-      final SystemInitializer systemInitializer) {
+      final SystemInitializer systemInitializer
+  ) {
     try {
       systemInitializer.initialize(sco, config);
     } catch (final RuntimeException | Error e) {
@@ -97,10 +99,9 @@ public class FeatureFlaggingSystem {
     final ExposureWriter exposureWriter = new ExposureWriterImpl(sco, config);
     initialize(configService, exposureWriter);
 
-    final boolean evalCountsEnabled =
-        config
-            .configProvider()
-            .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
+    final boolean evalCountsEnabled = config
+      .configProvider()
+      .getBoolean(FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, true);
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(evalCountsEnabled);
     if (evalCountsEnabled) {
       final FlagEvaluationWriterImpl evalWriter = new FlagEvaluationWriterImpl(sco, config);
@@ -112,9 +113,9 @@ public class FeatureFlaggingSystem {
       FeatureFlaggingGateway.setFlagEvalWriter(null);
       LOGGER.debug(
           "Flag evaluation EVP writer disabled ({}=false)",
-          FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED);
+          FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED
+      );
     }
-
     // APM span enrichment: agent-side listener for flag-evaluation seam events. Uses the process-
     // wide singleton so a subsystem restart reuses the one already-registered trace interceptor
     // (which the tracer cannot remove) instead of registering a second, rejected one. Cheap: it
@@ -127,7 +128,9 @@ public class FeatureFlaggingSystem {
   }
 
   static void initialize(
-      final ConfigurationSourceService configService, final ExposureWriter exposureWriter) {
+      final ConfigurationSourceService configService,
+      final ExposureWriter exposureWriter
+  ) {
     try {
       if (configService != null) {
         configService.init();
@@ -148,7 +151,9 @@ public class FeatureFlaggingSystem {
   }
 
   static ConfigurationSourceService createConfigurationSourceService(
-      final SharedCommunicationObjects sco, final Config config) {
+      final SharedCommunicationObjects sco,
+      final Config config
+  ) {
     final String configurationSource = config.getFeatureFlaggingConfigurationSource();
     if (CONFIGURATION_SOURCE_REMOTE_CONFIG.equals(configurationSource)) {
       if (!config.isRemoteConfigEnabled()) {
@@ -162,10 +167,9 @@ public class FeatureFlaggingSystem {
     return null;
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards the subsystem lifecycle.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal class; Class object does not escape to app code and lock only guards the "
+      + "subsystem lifecycle.")
   public static synchronized void stop() {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
     FeatureFlaggingGateway.setFlagEvalWriter(null);

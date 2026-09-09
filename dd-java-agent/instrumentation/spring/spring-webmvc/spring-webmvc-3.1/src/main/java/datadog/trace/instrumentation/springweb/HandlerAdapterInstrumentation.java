@@ -15,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -30,8 +29,9 @@ import org.springframework.web.method.HandlerMethod;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerAdapterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HandlerAdapterInstrumentation() {
     super("spring-web");
   }
@@ -49,7 +49,8 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebHttpServerDecorator", packageName + ".ServletRequestURIAdapter",
+        packageName + ".SpringWebHttpServerDecorator",
+        packageName + ".ServletRequestURIAdapter"
     };
   }
 
@@ -57,22 +58,22 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(nameStartsWith("handle"))
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
-            .and(takesArguments(3)),
-        HandlerAdapterInstrumentation.class.getName() + "$ControllerAdvice");
+          .and(isPublic())
+          .and(nameStartsWith("handle"))
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
+          .and(takesArguments(3)),
+        HandlerAdapterInstrumentation.class.getName() + "$ControllerAdvice"
+    );
   }
 
   public static class ControllerAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope nameResourceAndStartSpan(
         @Advice.Argument(0) final HttpServletRequest request,
         @Advice.Argument(2) final Object handler,
-        @Advice.Local("handlerSpanKey") String handlerSpanKey) {
+        @Advice.Local("handlerSpanKey") String handlerSpanKey
+    ) {
       handlerSpanKey = "";
-
       // Name the parent span based on the matching pattern
       Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
       if (contextObj instanceof Context) {
@@ -86,9 +87,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
       if (activeSpan() == null) {
         return null;
       }
-
       // Now create a span for handler/controller execution.
-
       final String handlerKey;
       if (handler instanceof HandlerMethod) {
         handlerKey = ((HandlerMethod) handler).getBean().getClass().getName();
@@ -96,7 +95,6 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         handlerKey = handler.getClass().getName();
       }
       handlerSpanKey = DD_HANDLER_SPAN_PREFIX_KEY + handlerKey;
-
       // If the context already exists, return it
       final Object existingContext = request.getAttribute(handlerSpanKey);
       if (existingContext instanceof Context) {
@@ -117,13 +115,15 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         @Advice.Argument(0) final HttpServletRequest request,
         @Advice.Enter final ContextScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Local("handlerSpanKey") String handlerSpanKey) {
+        @Advice.Local("handlerSpanKey") String handlerSpanKey
+    ) {
       if (scope == null) {
         return;
       }
       boolean finish =
-          !Boolean.TRUE.equals(
-              request.getAttribute(handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX));
+          !Boolean.TRUE.equals(request.getAttribute(
+              handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX
+      ));
       final AgentSpan span = spanFromContext(scope.context());
       scope.close();
       if (throwable != null) {

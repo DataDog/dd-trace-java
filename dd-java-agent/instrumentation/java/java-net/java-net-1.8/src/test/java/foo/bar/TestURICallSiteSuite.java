@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestURICallSiteSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestURICallSiteSuite.class);
 
   public static URI uri(final String value) {
@@ -29,10 +28,19 @@ public class TestURICallSiteSuite {
       final int port,
       final String path,
       final String query,
-      final String fragment) {
+      final String fragment
+  ) {
     try {
       LOGGER.debug(
-          "Before ctor {} {} {} {} {} {} {}", scheme, userInfo, host, port, path, query, fragment);
+          "Before ctor {} {} {} {} {} {} {}",
+          scheme,
+          userInfo,
+          host,
+          port,
+          path,
+          query,
+          fragment
+      );
       final URI uri = new URI(scheme, userInfo, host, port, path, query, fragment);
       LOGGER.debug("After ctor {}", uri);
       return uri;
@@ -46,7 +54,8 @@ public class TestURICallSiteSuite {
       final String authority,
       final String path,
       final String query,
-      final String fragment) {
+      final String fragment
+  ) {
     try {
       LOGGER.debug("Before ctor {} {} {} {} {}", scheme, authority, path, query, fragment);
       final URI uri = new URI(scheme, authority, path, query, fragment);
@@ -58,7 +67,11 @@ public class TestURICallSiteSuite {
   }
 
   public static URI uri(
-      final String scheme, final String path, final String query, final String fragment) {
+      final String scheme,
+      final String path,
+      final String query,
+      final String fragment
+  ) {
     try {
       LOGGER.debug("Before ctor {} {} {} {}", scheme, path, query, fragment);
       final URI uri = new URI(scheme, path, query, fragment);

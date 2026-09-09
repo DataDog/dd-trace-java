@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.NonSmartClientInvocationService;
@@ -18,8 +17,9 @@ import net.bytebuddy.asm.Advice;
  * <p>It is required because there is no getter for this value until 4.0.
  */
 public final class ClientMessageInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.hazelcast.client.impl.protocol.ClientMessage";
@@ -29,26 +29,27 @@ public final class ClientMessageInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("setOperationName"))
-            .and(takesArgument(0, named(String.class.getName()))),
-        getClass().getName() + "$OperationCapturingAdvice");
+          .and(namedOneOf("setOperationName"))
+          .and(takesArgument(0, named(String.class.getName()))),
+        getClass().getName() + "$OperationCapturingAdvice"
+    );
   }
 
   public static class OperationCapturingAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
-        @Advice.This ClientMessage that, @Advice.Argument(0) final String operationName) {
-
+        @Advice.This ClientMessage that,
+        @Advice.Argument(0) final String operationName
+    ) {
       InstrumentationContext.get(ClientMessage.class, String.class).put(that, operationName);
     }
 
     public static void muzzleCheck(
         // Moved in 4.0
         ClientMapProxy proxy,
-
         // Renamed in 3.9
-        NonSmartClientInvocationService invocationService) {
+        NonSmartClientInvocationService invocationService
+    ) {
       proxy.getServiceName();
       invocationService.start();
     }

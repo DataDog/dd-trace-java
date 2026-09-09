@@ -16,53 +16,52 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Settings and tests data received from the backend. */
+/**
+ * Settings and tests data received from the backend.
+ */
 public class ExecutionSettings {
-
-  public static final ExecutionSettings EMPTY =
-      new ExecutionSettings(
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT,
-          null,
-          Collections.emptyMap(),
-          Collections.emptyMap(),
-          null,
-          null,
-          Collections.emptyList(),
-          Collections.emptyList(),
-          Collections.emptyList(),
-          LineDiff.EMPTY,
-          ConfigurationErrors.NONE);
-
-  public static final ExecutionSettings SETTINGS_REQUEST_ERROR =
-      new ExecutionSettings(
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT,
-          null,
-          Collections.emptyMap(),
-          Collections.emptyMap(),
-          null,
-          null,
-          Collections.emptyList(),
-          Collections.emptyList(),
-          Collections.emptyList(),
-          LineDiff.EMPTY,
-          new ConfigurationErrors(true, false, false, false, false));
-
+  public static final ExecutionSettings EMPTY = new ExecutionSettings(
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
+      null,
+      Collections.emptyMap(),
+      Collections.emptyMap(),
+      null,
+      null,
+      Collections.emptyList(),
+      Collections.emptyList(),
+      Collections.emptyList(),
+      LineDiff.EMPTY,
+      ConfigurationErrors.NONE
+  );
+  public static final ExecutionSettings SETTINGS_REQUEST_ERROR = new ExecutionSettings(
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
+      null,
+      Collections.emptyMap(),
+      Collections.emptyMap(),
+      null,
+      null,
+      Collections.emptyList(),
+      Collections.emptyList(),
+      Collections.emptyList(),
+      LineDiff.EMPTY,
+      new ConfigurationErrors(true, false, false, false, false)
+  );
   private final boolean itrEnabled;
   private final boolean codeCoverageEnabled;
   private final boolean testSkippingEnabled;
@@ -70,15 +69,24 @@ public class ExecutionSettings {
   private final boolean impactedTestsDetectionEnabled;
   private final boolean codeCoverageReportUploadEnabled;
   private final boolean failedTestReplayEnabled;
-  @Nonnull private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
-  @Nonnull private final TestManagementSettings testManagementSettings;
-  @Nullable private final String itrCorrelationId;
-  @Nonnull private final Map<TestIdentifier, TestMetadata> skippableTests;
-  @Nonnull private final Map<String, BitSet> skippableTestsCoverage;
-  @Nonnull private final Map<TestFQN, Integer> testSettings;
-  @Nonnull private final Map<TestSetting, Integer> settingsCount;
-  @Nonnull private final Diff pullRequestDiff;
-  @Nonnull private final ConfigurationErrors configurationErrors;
+  @Nonnull
+  private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
+  @Nonnull
+  private final TestManagementSettings testManagementSettings;
+  @Nullable
+  private final String itrCorrelationId;
+  @Nonnull
+  private final Map<TestIdentifier, TestMetadata> skippableTests;
+  @Nonnull
+  private final Map<String, BitSet> skippableTestsCoverage;
+  @Nonnull
+  private final Map<TestFQN, Integer> testSettings;
+  @Nonnull
+  private final Map<TestSetting, Integer> settingsCount;
+  @Nonnull
+  private final Diff pullRequestDiff;
+  @Nonnull
+  private final ConfigurationErrors configurationErrors;
 
   public ExecutionSettings(
       boolean itrEnabled,
@@ -99,7 +107,8 @@ public class ExecutionSettings {
       @Nonnull Collection<TestFQN> disabledTests,
       @Nonnull Collection<TestFQN> attemptToFixTests,
       @Nonnull Diff pullRequestDiff,
-      @Nonnull ConfigurationErrors configurationErrors) {
+      @Nonnull ConfigurationErrors configurationErrors
+  ) {
     this.itrEnabled = itrEnabled;
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
@@ -154,7 +163,8 @@ public class ExecutionSettings {
       @Nonnull Map<TestFQN, Integer> testSettings,
       @Nonnull EnumMap<TestSetting, Integer> settingsCount,
       @Nonnull Diff pullRequestDiff,
-      @Nonnull ConfigurationErrors configurationErrors) {
+      @Nonnull ConfigurationErrors configurationErrors
+  ) {
     this.itrEnabled = itrEnabled;
     this.codeCoverageEnabled = codeCoverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
@@ -225,7 +235,9 @@ public class ExecutionSettings {
     return skippableTests;
   }
 
-  /** A bit vector of covered lines by relative source file path. */
+  /**
+   * A bit vector of covered lines by relative source file path.
+   */
   @Nonnull
   public Map<String, BitSet> getSkippableTestsCoverage() {
     return skippableTestsCoverage;
@@ -327,11 +339,11 @@ public class ExecutionSettings {
         testSettings,
         settingsCount,
         pullRequestDiff,
-        configurationErrors);
+        configurationErrors
+    );
   }
 
   public static class Serializer {
-
     private static final int ITR_ENABLED_FLAG = 1;
     private static final int CODE_COVERAGE_ENABLED_FLAG = 2;
     private static final int TEST_SKIPPING_ENABLED_FLAG = 4;
@@ -344,19 +356,13 @@ public class ExecutionSettings {
       datadog.trace.civisibility.ipc.serialization.Serializer s =
           new datadog.trace.civisibility.ipc.serialization.Serializer();
 
-      byte flags =
-          (byte)
-              ((settings.itrEnabled ? ITR_ENABLED_FLAG : 0)
-                  | (settings.codeCoverageEnabled ? CODE_COVERAGE_ENABLED_FLAG : 0)
-                  | (settings.testSkippingEnabled ? TEST_SKIPPING_ENABLED_FLAG : 0)
-                  | (settings.flakyTestRetriesEnabled ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0)
-                  | (settings.impactedTestsDetectionEnabled
-                      ? IMPACTED_TESTS_DETECTION_ENABLED_FLAG
-                      : 0)
-                  | (settings.codeCoverageReportUploadEnabled
-                      ? CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG
-                      : 0)
-                  | (settings.failedTestReplayEnabled ? FAILED_TEST_REPLAY_ENABLED_FLAG : 0));
+      byte flags = (byte) ((settings.itrEnabled ? ITR_ENABLED_FLAG : 0)
+          | (settings.codeCoverageEnabled ? CODE_COVERAGE_ENABLED_FLAG : 0)
+          | (settings.testSkippingEnabled ? TEST_SKIPPING_ENABLED_FLAG : 0)
+          | (settings.flakyTestRetriesEnabled ? FLAKY_TEST_RETRIES_ENABLED_FLAG : 0)
+          | (settings.impactedTestsDetectionEnabled ? IMPACTED_TESTS_DETECTION_ENABLED_FLAG : 0)
+          | (settings.codeCoverageReportUploadEnabled ? CODE_COVERAGE_REPORT_UPLOAD_ENABLED_FLAG : 0)
+          | (settings.failedTestReplayEnabled ? FAILED_TEST_REPLAY_ENABLED_FLAG : 0));
       s.write(flags);
 
       ConfigurationErrors.serialize(s, settings.configurationErrors);
@@ -369,21 +375,25 @@ public class ExecutionSettings {
       s.write(
           settings.skippableTests,
           TestIdentifierSerializer::serialize,
-          TestMetadataSerializer::serialize);
+          TestMetadataSerializer::serialize
+      );
 
       s.write(
           settings.skippableTestsCoverage,
           datadog.trace.civisibility.ipc.serialization.Serializer::write,
-          datadog.trace.civisibility.ipc.serialization.Serializer::write);
+          datadog.trace.civisibility.ipc.serialization.Serializer::write
+      );
 
       s.write(
           settings.testSettings,
           TestFQNSerializer::serialize,
-          datadog.trace.civisibility.ipc.serialization.Serializer::write);
+          datadog.trace.civisibility.ipc.serialization.Serializer::write
+      );
       s.write(
           settings.settingsCount,
           TestSetting.Serializer::serialize,
-          datadog.trace.civisibility.ipc.serialization.Serializer::write);
+          datadog.trace.civisibility.ipc.serialization.Serializer::write
+      );
 
       Diff.SERIALIZER.serialize(settings.pullRequestDiff, s);
 
@@ -412,29 +422,30 @@ public class ExecutionSettings {
       String itrCorrelationId =
           datadog.trace.civisibility.ipc.serialization.Serializer.readString(buffer);
 
-      Map<TestIdentifier, TestMetadata> skippableTests =
-          datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
-              buffer, TestIdentifierSerializer::deserialize, TestMetadataSerializer::deserialize);
+      Map<TestIdentifier, TestMetadata> skippableTests = datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
+          buffer,
+          TestIdentifierSerializer::deserialize,
+          TestMetadataSerializer::deserialize
+      );
 
-      Map<String, BitSet> skippableTestsCoverage =
-          datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
-              buffer,
-              datadog.trace.civisibility.ipc.serialization.Serializer::readString,
-              datadog.trace.civisibility.ipc.serialization.Serializer::readBitSet);
+      Map<String, BitSet> skippableTestsCoverage = datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
+          buffer,
+          datadog.trace.civisibility.ipc.serialization.Serializer::readString,
+          datadog.trace.civisibility.ipc.serialization.Serializer::readBitSet
+      );
 
-      Map<TestFQN, Integer> testSettings =
-          datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
-              buffer,
-              TestFQNSerializer::deserialize,
-              datadog.trace.civisibility.ipc.serialization.Serializer::readInt);
+      Map<TestFQN, Integer> testSettings = datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
+          buffer,
+          TestFQNSerializer::deserialize,
+          datadog.trace.civisibility.ipc.serialization.Serializer::readInt
+      );
 
-      EnumMap<TestSetting, Integer> settingsCount =
-          (EnumMap<TestSetting, Integer>)
-              datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
-                  buffer,
-                  () -> new EnumMap<>(TestSetting.class),
-                  TestSetting.Serializer::deserialize,
-                  datadog.trace.civisibility.ipc.serialization.Serializer::readInt);
+      EnumMap<TestSetting, Integer> settingsCount = (EnumMap<TestSetting, Integer>) datadog.trace.civisibility.ipc.serialization.Serializer.readMap(
+          buffer,
+          () -> new EnumMap<>(TestSetting.class),
+          TestSetting.Serializer::deserialize,
+          datadog.trace.civisibility.ipc.serialization.Serializer::readInt
+      );
 
       Diff diff = Diff.SERIALIZER.deserialize(buffer);
 
@@ -454,7 +465,8 @@ public class ExecutionSettings {
           testSettings,
           settingsCount,
           diff,
-          configurationErrors);
+          configurationErrors
+      );
     }
   }
 }

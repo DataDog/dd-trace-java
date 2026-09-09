@@ -7,15 +7,18 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isMajorJavaVersionAtLeast", "11"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isMajorJavaVersionAtLeast",
+    "11"
+})
 public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.repeat(int)")
   public static String afterRepeat(
       @CallSite.This final String self,
       @CallSite.Argument final int count,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {
@@ -30,7 +33,9 @@ public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.strip()")
   @CallSite.After("java.lang.String java.lang.String.stripLeading()")
   public static String afterStrip(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final String self,
+      @CallSite.Return final String result
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {
@@ -44,7 +49,9 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.stripTrailing()")
   public static String afterStripTrailing(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final String self,
+      @CallSite.Return final String result
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     try {
       if (module != null) {

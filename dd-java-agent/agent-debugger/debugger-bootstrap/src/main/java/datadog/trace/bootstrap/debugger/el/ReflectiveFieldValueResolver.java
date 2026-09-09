@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.debugger.el;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static java.lang.invoke.MethodType.methodType;
-
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
@@ -12,8 +11,11 @@ import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A helper class to resolve a reference path using reflection. */
-@SuppressForbidden // Class#forName(String)
+/**
+ * A helper class to resolve a reference path using reflection.
+ */
+// Class#forName(String)
+@SuppressForbidden
 public class ReflectiveFieldValueResolver {
   private static final Logger LOGGER = LoggerFactory.getLogger(ReflectiveFieldValueResolver.class);
   // This is a workaround for the fact that Field.trySetAccessible is not available in Java 8
@@ -77,12 +79,15 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static Object getFieldValue(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).get(target);
   }
 
   public static CapturedContext.CapturedValue getFieldAsCapturedValue(
-      Object target, String fieldName) {
+      Object target,
+      String fieldName
+  ) {
     if (target == null) {
       return CapturedContext.CapturedValue.of(fieldName, Object.class.getTypeName(), null);
     }
@@ -90,18 +95,27 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static CapturedContext.CapturedValue getFieldAsCapturedValue(
-      Class<?> clazz, Object target, String fieldName) {
+      Class<?> clazz,
+      Object target,
+      String fieldName
+  ) {
     Field field;
     try {
       FieldResult fieldResult = getField(clazz, fieldName);
       field = fieldResult.field;
       if (field == null) {
         return CapturedContext.CapturedValue.notCapturedReason(
-            fieldName, Object.class.getTypeName(), fieldResult.msg);
+            fieldName,
+            Object.class.getTypeName(),
+            fieldResult.msg
+        );
       }
     } catch (Exception ex) {
       return CapturedContext.CapturedValue.notCapturedReason(
-          fieldName, Object.class.getTypeName(), ex.toString());
+          fieldName,
+          Object.class.getTypeName(),
+          ex.toString()
+      );
     }
     String declaredFieldType = Object.class.getTypeName();
     try {
@@ -110,7 +124,10 @@ public class ReflectiveFieldValueResolver {
       return CapturedContext.CapturedValue.of(fieldName, declaredFieldType, fieldValue);
     } catch (Exception ex) {
       return CapturedContext.CapturedValue.notCapturedReason(
-          fieldName, declaredFieldType, ex.toString());
+          fieldName,
+          declaredFieldType,
+          ex.toString()
+      );
     }
   }
 
@@ -120,7 +137,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static long getFieldValueAsLong(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getLong(target);
   }
 
@@ -130,7 +148,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static int getFieldValueAsInt(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getInt(target);
   }
 
@@ -140,7 +159,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static double getFieldValueAsDouble(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getDouble(target);
   }
 
@@ -150,7 +170,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static float getFieldValueAsFloat(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getFloat(target);
   }
 
@@ -160,7 +181,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static float getFieldValueAsShort(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getShort(target);
   }
 
@@ -170,7 +192,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static char getFieldValueAsChar(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getChar(target);
   }
 
@@ -180,7 +203,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static byte getFieldValueAsByte(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getByte(target);
   }
 
@@ -190,7 +214,8 @@ public class ReflectiveFieldValueResolver {
   }
 
   public static boolean getFieldValueAsBoolean(Object target, String fieldName)
-      throws NoSuchFieldException, IllegalAccessException {
+      throws NoSuchFieldException,
+      IllegalAccessException {
     return getField(target, fieldName).getBoolean(target);
   }
 

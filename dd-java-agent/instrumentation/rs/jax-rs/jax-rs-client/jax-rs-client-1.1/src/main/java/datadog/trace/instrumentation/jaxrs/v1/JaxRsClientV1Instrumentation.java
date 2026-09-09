@@ -14,7 +14,6 @@ import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.JAX_
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.JAX_RS_CLIENT_CALL;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.sun.jersey.api.client.ClientHandler;
 import com.sun.jersey.api.client.ClientRequest;
@@ -30,8 +29,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JaxRsClientV1Instrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");
   }
@@ -48,30 +48,30 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsClientV1Decorator", packageName + ".InjectAdapter",
-    };
+    return new String[] {packageName + ".JaxRsClientV1Decorator", packageName + ".InjectAdapter"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         named("handle")
-            .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
-            .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
+          .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
+          .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
         JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice",
-        JaxRsClientV1Instrumentation.class.getName() + "$HandleContextPropagationAdvice");
+        JaxRsClientV1Instrumentation.class.getName() + "$HandleContextPropagationAdvice"
+    );
   }
 
   public static class HandleAdvice {
-
     @Advice.OnMethodEnter
     public static AgentScope onEnter(
         @Advice.Argument(value = 0) final ClientRequest request,
-        @Advice.This final ClientHandler thisObj) {
-
+        @Advice.This final ClientHandler thisObj
+    ) {
       // WARNING: this might be a chain...so we only have to trace the first in the chain.
-      final boolean isRootClientHandler = null == request.getProperties().get(DD_CONTEXT_ATTRIBUTE);
+      final boolean isRootClientHandler = null == request
+        .getProperties()
+        .get(DD_CONTEXT_ATTRIBUTE);
       if (isRootClientHandler) {
         final AgentSpan span = startSpan(JAX_RS_CLIENT.toString(), JAX_RS_CLIENT_CALL);
         DECORATE.afterStart(span);
@@ -86,7 +86,8 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
     public static void onExit(
         @Advice.Enter final AgentScope scope,
         @Advice.Return final ClientResponse response,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

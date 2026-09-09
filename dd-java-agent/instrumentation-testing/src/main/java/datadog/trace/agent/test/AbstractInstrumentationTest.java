@@ -3,7 +3,6 @@ package datadog.trace.agent.test;
 import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.agent.test.assertions.TraceAssertions;
 import datadog.trace.agent.test.assertions.TraceMatcher;
@@ -56,17 +55,14 @@ import org.opentest4j.AssertionFailedError;
  */
 @WithConfig(key = "detailed.instrumentation.errors", value = "true")
 @ExtendWith({
-  TestClassShadowingExtension.class,
-  AllowContextTestingExtension.class,
-  LegacyContextTestingExtension.class
+    TestClassShadowingExtension.class,
+    AllowContextTestingExtension.class,
+    LegacyContextTestingExtension.class
 })
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
-
   static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);
-
   protected static final InstrumentationTestConfig testConfig = new InstrumentationTestConfig();
-
   protected static TracerAPI tracer;
   protected static ListWriter writer;
   private static ClassFileTransformer activeTransformer;
@@ -75,46 +71,47 @@ public abstract class AbstractInstrumentationTest {
   @BeforeAll
   static void initAll() {
     InstrumentationErrors.resetErrors();
-
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath.
     assertNull(Config.class.getClassLoader(), "Config must load on the bootstrap classpath.");
-
     // Create shared test writer and tracer
     writer = new ListWriter();
-    CoreTracer coreTracer =
-        CoreTracer.builder()
-            .writer(writer)
-            .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
-            .strictTraceWrites(testConfig.strictTraceWrites)
-            .build();
+    CoreTracer coreTracer = CoreTracer
+      .builder()
+      .writer(writer)
+      .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
+      .strictTraceWrites(testConfig.strictTraceWrites)
+      .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
 
     ClassInjector.enableClassInjection(INSTRUMENTATION);
-
     // if a test enables the instrumentation it verifies,
     // the cache needs to be recomputed taking into account that instrumentation's matchers
     ClassLoaderMatchers.resetState();
 
     assertTrue(
-        ServiceLoader.load(
-                InstrumenterModule.class, AbstractInstrumentationTest.class.getClassLoader())
-            .iterator()
-            .hasNext(),
-        "No instrumentation found");
+        ServiceLoader
+          .load(InstrumenterModule.class, AbstractInstrumentationTest.class.getClassLoader())
+          .iterator()
+          .hasNext(),
+        "No instrumentation found"
+    );
     transformerListener = new ClassFileTransformerListener();
-    activeTransformer =
-        AgentInstaller.installBytebuddyAgent(
-            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), transformerListener);
-
+    activeTransformer = AgentInstaller.installBytebuddyAgent(
+        INSTRUMENTATION,
+        true,
+        AgentInstaller.getEnabledSystems(),
+        transformerListener
+    );
     // check for instrumentation issues during installation
     assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
   }
 
   @BeforeEach
   public void init() {
-    InstrumentationErrors.resetErrors(); // reset for each test
+    // reset for each test
+    InstrumentationErrors.resetErrors();
     tracer.flush();
     writer.start();
   }
@@ -122,7 +119,6 @@ public abstract class AbstractInstrumentationTest {
   @AfterEach
   public void tearDown() {
     tracer.flush();
-
     // check for instrumentation issues while running each test
     assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
   }
@@ -165,7 +161,9 @@ public abstract class AbstractInstrumentationTest {
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
   protected void assertTraces(
-      UnaryOperator<TraceAssertions.Options> options, TraceMatcher... matchers) {
+      UnaryOperator<TraceAssertions.Options> options,
+      TraceMatcher... matchers
+  ) {
     int expectedTraceCount = matchers.length;
     try {
       writer.waitForTraces(expectedTraceCount);
@@ -204,7 +202,8 @@ public abstract class AbstractInstrumentationTest {
       TraceCollector traceCollector = ((DDSpan) span).spanContext().getTraceCollector();
       if (!(traceCollector instanceof PendingTrace)) {
         throw new IllegalStateException(
-            "Expected PendingTrace trace collector, got " + traceCollector.getClass().getName());
+            "Expected PendingTrace trace collector, got " + traceCollector.getClass().getName()
+        );
       }
 
       PendingTrace pendingTrace = (PendingTrace) traceCollector;
@@ -214,7 +213,9 @@ public abstract class AbstractInstrumentationTest {
         if (System.currentTimeMillis() > deadline) {
           throw new RuntimeException(
               new TimeoutException(
-                  "Timed out waiting for child spans. Received: " + pendingTrace.size()));
+                  "Timed out waiting for child spans. Received: " + pendingTrace.size()
+              )
+          );
         }
         try {
           Thread.sleep(10);
@@ -225,7 +226,9 @@ public abstract class AbstractInstrumentationTest {
     }
   }
 
-  /** Configuration for {@link AbstractInstrumentationTest}. */
+  /**
+   * Configuration for {@link AbstractInstrumentationTest}.
+   */
   protected static class InstrumentationTestConfig {
     private String idGenerationStrategy = "SEQUENTIAL";
     private boolean strictTraceWrites = true;

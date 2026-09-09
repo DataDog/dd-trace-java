@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 import static datadog.trace.agent.tooling.csi.CallSiteAdvice.AdviceType.AFTER;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static net.bytebuddy.jar.asm.ClassWriter.COMPUTE_MAXS;
-
 import datadog.trace.agent.tooling.HelperInjector;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
@@ -33,16 +32,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
-
   private static Logger LOGGER = LoggerFactory.getLogger(CallSiteTransformer.class);
-
   private static final Instrumenter.TransformingAdvice NO_OP =
       (builder, typeDescription, classLoader, module, pd) -> builder;
-
   public static final int ASM_API = Opcodes.ASM8;
-
   private final Advices advices;
-
   private final Instrumenter.TransformingAdvice helperInjector;
 
   public CallSiteTransformer(@Nonnull final Advices advices) {
@@ -52,10 +46,9 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
   public CallSiteTransformer(@Nonnull final String name, @Nonnull final Advices advices) {
     this.advices = advices;
     final String[] helpers = advices.getHelpers();
-    this.helperInjector =
-        helpers == null || helpers.length == 0
-            ? NO_OP
-            : new HelperInjector(false, name, advices.getHelpers());
+    this.helperInjector = helpers == null || helpers.length == 0
+        ? NO_OP
+        : new HelperInjector(false, name, advices.getHelpers());
   }
 
   @Override
@@ -64,7 +57,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
       @Nonnull final TypeDescription type,
       final ClassLoader classLoader,
       final JavaModule module,
-      final ProtectionDomain pd) {
+      final ProtectionDomain pd
+  ) {
     Advices discovered = advices.findAdvices(builder, type, classLoader);
     if (discovered.isEmpty()) {
       return builder;
@@ -75,7 +69,6 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
   }
 
   private static class CallSiteVisitorWrapper extends AsmVisitorWrapper.AbstractBase {
-
     private final Advices advices;
 
     private CallSiteVisitorWrapper(@Nonnull final Advices advices) {
@@ -96,17 +89,19 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         @Nonnull final FieldList<FieldDescription.InDefinedShape> fields,
         @Nonnull final MethodList<?> methods,
         final int writerFlags,
-        final int readerFlags) {
+        final int readerFlags
+    ) {
       return new CallSiteClassVisitor(advices, classVisitor);
     }
   }
 
   private static class CallSiteClassVisitor extends ClassVisitor {
-
     private final Advices advices;
 
     private CallSiteClassVisitor(
-        @Nonnull final Advices advices, @Nonnull final ClassVisitor delegated) {
+        @Nonnull final Advices advices,
+        @Nonnull final ClassVisitor delegated
+    ) {
       super(ASM_API, delegated);
       this.advices = advices;
     }
@@ -117,7 +112,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final String signature,
-        final String[] exceptions) {
+        final String[] exceptions
+    ) {
       final MethodVisitor delegated =
           super.visitMethod(access, name, descriptor, signature, exceptions);
       return "<init>".equals(name)
@@ -127,13 +123,16 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
   }
 
   private static class CallSiteMethodVisitor extends MethodVisitor
-      implements CallSiteAdvice.MethodHandler {
+      implements CallSiteAdvice.MethodHandler
+  {
     protected final Advices advices;
     protected int lastOpcode;
     protected boolean newFollowedByDup;
 
     private CallSiteMethodVisitor(
-        @Nonnull final Advices advices, @Nonnull final MethodVisitor delegated) {
+        @Nonnull final Advices advices,
+        @Nonnull final MethodVisitor delegated
+    ) {
       super(ASM_API, delegated);
       this.advices = advices;
     }
@@ -162,7 +161,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String owner,
         final String name,
         final String descriptor,
-        final boolean isInterface) {
+        final boolean isInterface
+    ) {
       lastOpcode = opcode;
       CallSiteAdvice advice = advices.findAdvice(owner, name, descriptor);
       if (applyInvokeAdvice(advice, name, descriptor)) {
@@ -178,7 +178,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String owner,
         final String name,
         final String descriptor,
-        final boolean isInterface) {
+        final boolean isInterface
+    ) {
       advice.apply(this, opcode, owner, name, descriptor, isInterface);
     }
 
@@ -187,7 +188,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final Handle bootstrapMethodHandle,
-        final Object... bootstrapMethodArguments) {
+        final Object... bootstrapMethodArguments
+    ) {
       lastOpcode = Opcodes.INVOKEDYNAMIC;
       CallSiteAdvice advice = advices.findAdvice(bootstrapMethodHandle);
       if (advice instanceof InvokeDynamicAdvice) {
@@ -196,10 +198,10 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
             name,
             descriptor,
             bootstrapMethodHandle,
-            bootstrapMethodArguments);
+            bootstrapMethodArguments
+        );
       } else {
-        mv.visitInvokeDynamicInsn(
-            name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+        mv.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
       }
     }
 
@@ -208,7 +210,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final Handle bootstrapMethodHandle,
-        final Object... bootstrapMethodArguments) {
+        final Object... bootstrapMethodArguments
+    ) {
       advice.apply(this, name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
     }
 
@@ -239,7 +242,11 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
     @Override
     public void field(
-        final int opcode, final String owner, final String field, final String descriptor) {
+        final int opcode,
+        final String owner,
+        final String field,
+        final String descriptor
+    ) {
       mv.visitFieldInsn(opcode, owner, field, descriptor);
     }
 
@@ -249,7 +256,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String owner,
         final String name,
         final String descriptor,
-        final boolean isInterface) {
+        final boolean isInterface
+    ) {
       mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
     }
 
@@ -263,7 +271,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String name,
         final String descriptor,
         final Handle bootstrapMethodHandle,
-        final Object... bootstrapMethodArguments) {
+        final Object... bootstrapMethodArguments
+    ) {
       mv.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
     }
 
@@ -295,7 +304,10 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
     @Override
     public void dupInvoke(
-        final String owner, final String methodDescriptor, final StackDupMode mode) {
+        final String owner,
+        final String methodDescriptor,
+        final StackDupMode mode
+    ) {
       final Type[] parameters = methodParamTypesWithThis(owner, methodDescriptor);
       CallSiteUtils.dup(mv, parameters, mode);
     }
@@ -322,12 +334,16 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
           0,
           methodParameterTypesWithThis,
           1,
-          methodParameterTypesWithThis.length - 1);
+          methodParameterTypesWithThis.length - 1
+      );
       return methodParameterTypesWithThis;
     }
 
     protected boolean applyInvokeAdvice(
-        final CallSiteAdvice advice, final String methodName, final String methodDescriptor) {
+        final CallSiteAdvice advice,
+        final String methodName,
+        final String methodDescriptor
+    ) {
       if (!(advice instanceof InvokeAdvice)) {
         return false;
       }
@@ -353,7 +369,11 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
     @Override
     public void visitFieldInsn(
-        final int opcode, final String owner, final String name, final String descriptor) {
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor
+    ) {
       lastOpcode = opcode;
       super.visitFieldInsn(opcode, owner, name, descriptor);
     }
@@ -378,7 +398,11 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
     @Override
     public void visitTableSwitchInsn(
-        final int min, final int max, final Label dflt, final Label... labels) {
+        final int min,
+        final int max,
+        final Label dflt,
+        final Label... labels
+    ) {
       lastOpcode = Opcodes.TABLESWITCH;
       super.visitTableSwitchInsn(min, max, dflt, labels);
     }
@@ -397,12 +421,13 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
   }
 
   private static class CallSiteCtorMethodVisitor extends CallSiteMethodVisitor {
-
     private final Deque<String> newInvocations = new LinkedList<>();
     private boolean isSuperCall = false;
 
     private CallSiteCtorMethodVisitor(
-        @Nonnull final Advices advices, @Nonnull final MethodVisitor delegated) {
+        @Nonnull final Advices advices,
+        @Nonnull final MethodVisitor delegated
+    ) {
       super(advices, delegated);
     }
 
@@ -413,7 +438,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         LOGGER.debug(
             SEND_TELEMETRY,
             "There is an issue handling NEW bytecodes, remaining types {}",
-            newInvocations);
+            newInvocations
+        );
       }
     }
 
@@ -431,7 +457,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String owner,
         final String name,
         final String descriptor,
-        final boolean isInterface) {
+        final boolean isInterface
+    ) {
       try {
         if (opcode == Opcodes.INVOKESPECIAL && "<init>".equals(name)) {
           if (owner.equals(newInvocations.peekLast())) {
@@ -451,9 +478,11 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
     @Override
     public void advice(final String owner, final String name, final String descriptor) {
       if (isSuperCall) {
-        mv.visitIntInsn(Opcodes.ALOAD, 0); // append this to the stack after super call
+        // append this to the stack after super call
+        mv.visitIntInsn(Opcodes.ALOAD, 0);
         mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
-        mv.visitInsn(Opcodes.POP); // pop the result of the advice call
+        // pop the result of the advice call
+        mv.visitInsn(Opcodes.POP);
       } else {
         mv.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, descriptor, false);
       }
@@ -462,7 +491,9 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
     @Override
     public void dupParameters(final String methodDescriptor, final StackDupMode mode) {
       super.dupParameters(
-          methodDescriptor, isSuperCall ? StackDupMode.PREPEND_ARRAY_SUPER_CTOR : mode);
+          methodDescriptor,
+          isSuperCall ? StackDupMode.PREPEND_ARRAY_SUPER_CTOR : mode
+      );
     }
 
     @Override
@@ -472,7 +503,8 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
         final String owner,
         final String name,
         final String descriptor,
-        final boolean isInterface) {
+        final boolean isInterface
+    ) {
       if (isSuperCall && advices.typeOf(advice) != AFTER) {
         // TODO APPSEC-57009 calls to super are only instrumented by after call sites
         // just ignore the advice and keep on
@@ -484,7 +516,10 @@ public class CallSiteTransformer implements Instrumenter.TransformingAdvice {
 
     @Override
     protected boolean applyInvokeAdvice(
-        final CallSiteAdvice advice, final String methodName, final String descriptor) {
+        final CallSiteAdvice advice,
+        final String methodName,
+        final String descriptor
+    ) {
       if (isSuperCall) {
         return advice instanceof InvokeAdvice && "<init>".equals(methodName);
       }

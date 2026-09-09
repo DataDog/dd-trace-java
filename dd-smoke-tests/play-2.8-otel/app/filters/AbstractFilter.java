@@ -31,24 +31,23 @@ public abstract class AbstractFilter extends Filter {
   @Override
   public CompletionStage<Result> apply(
       Function<Http.RequestHeader, CompletionStage<Result>> nextFilter,
-      Http.RequestHeader requestHeader) {
+      Http.RequestHeader requestHeader
+  ) {
     final Tracer tracer = GlobalOpenTelemetry.getTracer("play-test");
     final Span startedSpan = wrap ? tracer.spanBuilder(spanName).startSpan() : null;
     Scope outerScope = wrap ? startedSpan.makeCurrent() : null;
     try {
       return nextFilter
-          .apply(requestHeader)
-          .thenApplyAsync(
-              result -> {
-                Span span = wrap ? startedSpan : tracer.spanBuilder(spanName).startSpan();
-                try (Scope innerScope = span.makeCurrent()) {
-                  // Yes this does no real work
-                  return result;
-                } finally {
-                  span.end();
-                }
-              },
-              ec.current());
+        .apply(requestHeader)
+        .thenApplyAsync(result -> {
+          Span span = wrap ? startedSpan : tracer.spanBuilder(spanName).startSpan();
+          try (Scope innerScope = span.makeCurrent()) {
+            // Yes this does no real work
+            return result;
+          } finally {
+            span.end();
+          }
+        }, ec.current());
     } finally {
       if (wrap) {
         outerScope.close();

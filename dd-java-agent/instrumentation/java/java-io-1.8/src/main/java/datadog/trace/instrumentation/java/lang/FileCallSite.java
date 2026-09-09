@@ -12,14 +12,12 @@ import java.net.URI;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
-@CallSite(
-    spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileIORaspHelper.class)
+@CallSite(spi = {IastCallSites.class, RaspCallSites.class}, helpers = FileIORaspHelper.class)
 public class FileCallSite {
-
   @CallSite.Before("void java.io.File.<init>(java.lang.String)")
   public static void beforeConstructor(@CallSite.Argument @Nullable final String path) {
-    if (path != null) { // new File(null) throws NPE
+    if (path != null) {
+      // new File(null) throws NPE
       iastCallback(path);
       raspCallback(path);
     }
@@ -28,8 +26,10 @@ public class FileCallSite {
   @CallSite.Before("void java.io.File.<init>(java.lang.String, java.lang.String)")
   public static void beforeConstructor(
       @CallSite.Argument @Nullable final String parent,
-      @CallSite.Argument @Nullable final String child) {
-    if (child != null) { // new File("abc", null) throws NPE
+      @CallSite.Argument @Nullable final String child
+  ) {
+    if (child != null) {
+      // new File("abc", null) throws NPE
       final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
       iastCallback(parent, child);
       raspCallback(parent, child);
@@ -39,8 +39,10 @@ public class FileCallSite {
   @CallSite.Before("void java.io.File.<init>(java.io.File, java.lang.String)")
   public static void beforeConstructor(
       @CallSite.Argument @Nullable final File parent,
-      @CallSite.Argument @Nullable final String child) {
-    if (child != null) { // new File(parent, null) throws NPE
+      @CallSite.Argument @Nullable final String child
+  ) {
+    if (child != null) {
+      // new File(parent, null) throws NPE
       final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
       iastCallback(parent, child);
       raspCallback(parent, child);

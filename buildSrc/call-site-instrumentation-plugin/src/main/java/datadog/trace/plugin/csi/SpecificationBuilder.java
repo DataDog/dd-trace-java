@@ -13,7 +13,6 @@ import javax.annotation.Nonnull;
  * implementors should return an empty optional
  */
 public interface SpecificationBuilder {
-
   @Nonnull
   Optional<CallSiteSpecification> build(@Nonnull File classFile);
 }

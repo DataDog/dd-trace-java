@@ -11,7 +11,6 @@ import java.util.Set;
  * data collected by DDProf.
  */
 public class ControllerContext {
-
   private boolean isDatadogProfilerEnabled;
   private String datadogProfilerUnavailableReason;
   private Set<ProfilingMode> datadogProfilingModes = EnumSet.noneOf(ProfilingMode.class);
@@ -27,7 +26,8 @@ public class ControllerContext {
   }
 
   public ControllerContext setDatadogProfilerUnavailableReason(
-      String datadogProfilerUnavailableReason) {
+      String datadogProfilerUnavailableReason
+  ) {
     this.datadogProfilerUnavailableReason = datadogProfilerUnavailableReason;
     return this;
   }
@@ -50,13 +50,15 @@ public class ControllerContext {
       this(
           context.isDatadogProfilerEnabled,
           EnumSet.copyOf(context.datadogProfilingModes),
-          context.datadogProfilerUnavailableReason);
+          context.datadogProfilerUnavailableReason
+      );
     }
 
     private Snapshot(
         boolean isDatadogProfilerEnabled,
         Set<ProfilingMode> datadogProfilingModes,
-        String datadogProfilerFailureReason) {
+        String datadogProfilerFailureReason
+    ) {
       this.isDatadogProfilerEnabled = isDatadogProfilerEnabled;
       this.datadogProfilingModes = datadogProfilingModes;
       this.datadogProfilerUnavailableReason = datadogProfilerFailureReason;

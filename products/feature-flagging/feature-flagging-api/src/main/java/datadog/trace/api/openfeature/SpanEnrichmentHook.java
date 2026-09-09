@@ -36,9 +36,7 @@ import org.slf4j.LoggerFactory;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
 class SpanEnrichmentHook implements Hook<Object> {
-
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentHook.class);
-
   // The metadata keys the DDEvaluator attaches for span enrichment (single source of truth there).
   static final String METADATA_SERIAL_ID = DDEvaluator.METADATA_SPLIT_SERIAL_ID;
   static final String METADATA_DO_LOG = DDEvaluator.METADATA_DO_LOG;
@@ -47,7 +45,8 @@ class SpanEnrichmentHook implements Hook<Object> {
   public void finallyAfter(
       final HookContext<Object> ctx,
       final FlagEvaluationDetails<Object> details,
-      final Map<String, Object> hints) {
+      final Map<String, Object> hints
+  ) {
     if (details == null) {
       return;
     }
@@ -56,14 +55,18 @@ class SpanEnrichmentHook implements Hook<Object> {
       final Integer serialId = metadata != null ? metadata.getInteger(METADATA_SERIAL_ID) : null;
       if (serialId != null) {
         final boolean doLog = Boolean.TRUE.equals(metadata.getBoolean(METADATA_DO_LOG));
-        FeatureFlaggingGateway.dispatch(
-            SpanEnrichmentEvent.serialId(serialId, doLog, targetingKey(ctx)));
+        FeatureFlaggingGateway.dispatch(SpanEnrichmentEvent.serialId(
+            serialId,
+            doLog,
+            targetingKey(ctx)
+        ));
       } else if (details.getVariant() == null) {
         // Runtime-default detection = MISSING VARIANT (never a reason enum). Unwrap any OpenFeature
         // Value to a native Java type here so the seam carries only JDK types.
-        FeatureFlaggingGateway.dispatch(
-            SpanEnrichmentEvent.runtimeDefault(
-                details.getFlagKey(), unwrapDefaultValue(details.getValue())));
+        FeatureFlaggingGateway.dispatch(SpanEnrichmentEvent.runtimeDefault(
+            details.getFlagKey(),
+            unwrapDefaultValue(details.getValue())
+        ));
       }
     } catch (final Throwable t) {
       // Never let span enrichment break flag evaluation; a debug line aids diagnosis if it does.

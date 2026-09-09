@@ -5,7 +5,9 @@ import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
 import java.util.Map;
 
-/** An {@link AgentSpanContext} that hides the sampling priority. */
+/**
+ * An {@link AgentSpanContext} that hides the sampling priority.
+ */
 public final class NotSampledSpanContext implements AgentSpanContext {
   private final AgentSpanContext delegate;
 

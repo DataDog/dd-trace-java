@@ -81,7 +81,11 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
 
   @Override
   public void visitFieldInsn(
-      final int opcode, final String owner, final String name, final String descriptor) {
+      final int opcode,
+      final String owner,
+      final String name,
+      final String descriptor
+  ) {
     if (opcode == Opcodes.GETSTATIC) {
       heldVisitations.add(new GetStaticFieldInsn(opcode, owner, name, descriptor));
     } else if (opcode == Opcodes.GETFIELD) {
@@ -98,7 +102,8 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
       final String owner,
       final String name,
       final String descriptor,
-      final boolean isInterface) {
+      final boolean isInterface
+  ) {
     if (opcode == Opcodes.INVOKEVIRTUAL) {
       heldVisitations.add(new VirtualMethodInsn(opcode, owner, name, descriptor, isInterface));
     } else {
@@ -112,9 +117,11 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
       final String name,
       final String descriptor,
       final Handle bootstrapMethodHandle,
-      final Object... bootstrapMethodArguments) {
+      final Object... bootstrapMethodArguments
+  ) {
     heldVisitations.add(
-        new InvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments));
+        new InvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments)
+    );
   }
 
   @Override
@@ -161,7 +168,11 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
 
   @Override
   public AnnotationVisitor visitInsnAnnotation(
-      int typeRef, TypePath typePath, String descriptor, boolean visible) {
+      int typeRef,
+      TypePath typePath,
+      String descriptor,
+      boolean visible
+  ) {
     commitVisitations();
     return super.visitInsnAnnotation(typeRef, typePath, descriptor, visible);
   }
@@ -174,14 +185,24 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
 
   @Override
   public AnnotationVisitor visitTryCatchAnnotation(
-      int typeRef, TypePath typePath, String descriptor, boolean visible) {
+      int typeRef,
+      TypePath typePath,
+      String descriptor,
+      boolean visible
+  ) {
     commitVisitations();
     return super.visitTryCatchAnnotation(typeRef, typePath, descriptor, visible);
   }
 
   @Override
   public void visitLocalVariable(
-      String name, String descriptor, String signature, Label start, Label end, int index) {
+      String name,
+      String descriptor,
+      String signature,
+      Label start,
+      Label end,
+      int index
+  ) {
     commitVisitations();
     super.visitLocalVariable(name, descriptor, signature, start, end, index);
   }
@@ -194,10 +215,18 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
       Label[] end,
       int[] index,
       String descriptor,
-      boolean visible) {
+      boolean visible
+  ) {
     commitVisitations();
     return super.visitLocalVariableAnnotation(
-        typeRef, typePath, start, end, index, descriptor, visible);
+        typeRef,
+        typePath,
+        start,
+        end,
+        index,
+        descriptor,
+        visible
+    );
   }
 
   @Override
@@ -228,7 +257,8 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
         String name,
         String descriptor,
         Handle bootstrapMethodHandle,
-        Object... bootstrapMethodArguments) {
+        Object... bootstrapMethodArguments
+    ) {
       this.name = name;
       this.descriptor = descriptor;
       this.bootstrapMethodHandle = bootstrapMethodHandle;
@@ -249,7 +279,12 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     public final boolean isInterface;
 
     public VirtualMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface
+    ) {
       this.opcode = opcode;
       this.owner = owner;
       this.name = name;

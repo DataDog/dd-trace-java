@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.CLIENT
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.OPERATION_AMQP_DELIVER;
 import static datadog.trace.instrumentation.rabbitmq.amqp.RabbitDecorator.RABBITMQ_AMQP;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.rabbitmq.client.Command;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -21,8 +20,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class RabbitCommandInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public RabbitCommandInstrumentation() {
     super("amqp", "rabbitmq");
   }
@@ -40,9 +40,9 @@ public class RabbitCommandInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RabbitDecorator",
-      // These are only used by muzzleCheck:
-      packageName + ".TracedDelegatingConsumer"
+        packageName + ".RabbitDecorator",
+        // These are only used by muzzleCheck:
+        packageName + ".TracedDelegatingConsumer"
     };
   }
 
@@ -50,7 +50,8 @@ public class RabbitCommandInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),
-        RabbitCommandInstrumentation.class.getName() + "$CommandConstructorAdvice");
+        RabbitCommandInstrumentation.class.getName() + "$CommandConstructorAdvice"
+    );
   }
 
   public static class CommandConstructorAdvice {
@@ -61,7 +62,9 @@ public class RabbitCommandInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit
     public static void setResourceNameAddHeaders(
-        @Advice.This final Command command, @Advice.Enter final int callDepth) {
+        @Advice.This final Command command,
+        @Advice.Enter final int callDepth
+    ) {
       if (callDepth > 0) {
         return;
       }

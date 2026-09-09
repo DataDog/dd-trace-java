@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jersey.JerseyTaintHelper.taintMultiValuedMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -23,8 +22,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public UriRoutingContextInstrumentation() {
     super("jersey");
   }
@@ -34,10 +34,12 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
     String baseName = UriRoutingContextInstrumentation.class.getName();
     transformer.applyAdvice(
         named("getPathParameters").and(isPublic().and(takesArguments(boolean.class))),
-        baseName + "$GetPathParametersAdvice");
+        baseName + "$GetPathParametersAdvice"
+    );
     transformer.applyAdvice(
         named("getQueryParameters").and(isPublic().and(takesArguments(boolean.class))),
-        baseName + "$GetQueryParametersAdvice");
+        baseName + "$GetQueryParametersAdvice"
+    );
   }
 
   @Override
@@ -47,9 +49,7 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
+    return new String[] {packageName + ".JerseyTaintHelper"};
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -58,7 +58,8 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     public static void onExit(
         @Advice.Return Map<String, List<String>> pathParams,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (pathParams == null || pathParams.isEmpty()) {
         return;
       }
@@ -81,7 +82,8 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.Iast
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     public static void onExit(
         @Advice.Return Map<String, List<String>> queryParams,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (queryParams == null || queryParams.isEmpty()) {
         return;
       }

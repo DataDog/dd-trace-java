@@ -1,12 +1,10 @@
 package datadog.trace.api.time;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.test.util.DDJavaSpecification;
 import org.tabletest.junit.TableTest;
 
 public class TimeUtilsTest extends DDJavaSpecification {
-
   @TableTest({
     "delayString | expected",
     "            | -1      ",

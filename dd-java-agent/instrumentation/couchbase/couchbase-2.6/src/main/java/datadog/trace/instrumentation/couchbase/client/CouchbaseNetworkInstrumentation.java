@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.couchbase.client.core.message.CouchbaseRequest;
 import com.couchbase.client.java.transcoder.crypto.JsonCryptoTranscoder;
 import com.google.auto.service.AutoService;
@@ -24,7 +23,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public CouchbaseNetworkInstrumentation() {
     super("couchbase");
   }
@@ -43,7 +44,9 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.couchbase.client.core.message.CouchbaseRequest", AgentSpan.class.getName());
+        "com.couchbase.client.core.message.CouchbaseRequest",
+        AgentSpan.class.getName()
+    );
   }
 
   @Override
@@ -51,13 +54,17 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
     // encode(ChannelHandlerContext ctx, REQUEST msg, List<Object> out)
     transformer.applyAdvice(
         isMethod()
-            .and(named("encode"))
-            .and(takesArguments(3))
-            .and(
-                takesArgument(
-                    0, named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")))
-            .and(takesArgument(2, named("java.util.List"))),
-        CouchbaseNetworkInstrumentation.class.getName() + "$CouchbaseNetworkAdvice");
+          .and(named("encode"))
+          .and(takesArguments(3))
+          .and(
+              takesArgument(
+                  0,
+                  named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")
+              )
+          )
+          .and(takesArgument(2, named("java.util.List"))),
+        CouchbaseNetworkInstrumentation.class.getName() + "$CouchbaseNetworkAdvice"
+    );
   }
 
   public static class CouchbaseNetworkAdvice {
@@ -66,7 +73,8 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
         @Advice.FieldValue("remoteHostname") final String remoteHostname,
         @Advice.FieldValue("remoteSocket") final String remoteSocket,
         @Advice.FieldValue("localSocket") final String localSocket,
-        @Advice.Argument(1) final CouchbaseRequest request) {
+        @Advice.Argument(1) final CouchbaseRequest request
+    ) {
       final ContextStore<CouchbaseRequest, AgentSpan> contextStore =
           InstrumentationContext.get(CouchbaseRequest.class, AgentSpan.class);
 

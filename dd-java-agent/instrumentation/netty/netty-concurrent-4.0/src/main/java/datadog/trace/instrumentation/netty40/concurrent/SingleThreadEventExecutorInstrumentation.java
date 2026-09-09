@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -27,7 +26,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public SingleThreadEventExecutorInstrumentation() {
     super("netty-concurrent", "netty-event-executor");
   }
@@ -35,10 +36,12 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
   @Override
   public boolean isEnabled() {
     return super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
-                ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+        && ConfigProvider
+          .getInstance()
+          .getBoolean(
+              ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED,
+              ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT
+          );
   }
 
   @Override
@@ -49,8 +52,8 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.netty.util.concurrent.SingleThreadEventExecutor",
-      "io.grpc.shaded.io.netty.util.concurrent.SingleThreadEventExecutor",
+        "io.netty.util.concurrent.SingleThreadEventExecutor",
+        "io.grpc.shaded.io.netty.util.concurrent.SingleThreadEventExecutor"
     };
   }
 
@@ -58,25 +61,28 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("addTask"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, Runnable.class))
-            .and(isDeclaredBy(declaresField(named("taskQueue")))),
-        getClass().getName() + "$StartTimingTaskQueue");
+          .and(named("addTask"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, Runnable.class))
+          .and(isDeclaredBy(declaresField(named("taskQueue")))),
+        getClass().getName() + "$StartTimingTaskQueue"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("schedule"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, nameEndsWith("netty.util.concurrent.ScheduledFutureTask")))
-            .and(isDeclaredBy(declaresField(named("delayedTaskQueue")))),
-        getClass().getName() + "$StartTimingDelayedTaskQueue");
+          .and(named("schedule"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, nameEndsWith("netty.util.concurrent.ScheduledFutureTask")))
+          .and(isDeclaredBy(declaresField(named("delayedTaskQueue")))),
+        getClass().getName() + "$StartTimingDelayedTaskQueue"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("schedule"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, nameEndsWith("netty.util.concurrent.ScheduledFutureTask")))
-            .and(isDeclaredBy(declaresField(named("scheduledTaskQueue")))),
-        getClass().getName() + "$StartTimingScheduledTaskQueue");
+          .and(named("schedule"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, nameEndsWith("netty.util.concurrent.ScheduledFutureTask")))
+          .and(isDeclaredBy(declaresField(named("scheduledTaskQueue")))),
+        getClass().getName() + "$StartTimingScheduledTaskQueue"
+    );
   }
 
   @SuppressWarnings("rawtypes")
@@ -85,7 +91,8 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
     public static void before(
         @Advice.FieldValue("taskQueue") Queue<?> taskQueue,
         @Advice.This EventExecutor executor,
-        @Advice.Argument(0) Runnable task) {
+        @Advice.Argument(0) Runnable task
+    ) {
       // should be a PromiseTask which is a RunnableFuture
       if (task instanceof RunnableFuture) {
         // detect double timing - also not interested in queueing time unless the task is traced
@@ -111,7 +118,8 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
     public static void before(
         @Advice.FieldValue("delayedTaskQueue") Queue<?> delayedTaskQueue,
         @Advice.This EventExecutor executor,
-        @Advice.Argument(0) Runnable task) {
+        @Advice.Argument(0) Runnable task
+    ) {
       // should be a PromiseTask which is a RunnableFuture
       if (task instanceof RunnableFuture) {
         // detect double timing - also not interested in queueing time unless the task is traced
@@ -137,7 +145,8 @@ public class SingleThreadEventExecutorInstrumentation extends InstrumenterModule
     public static void before(
         @Advice.FieldValue("scheduledTaskQueue") Queue<?> scheduledTaskQueue,
         @Advice.This EventExecutor executor,
-        @Advice.Argument(0) Runnable task) {
+        @Advice.Argument(0) Runnable task
+    ) {
       // should be a PromiseTask which is a RunnableFuture
       if (task instanceof RunnableFuture) {
         // detect double timing - also not interested in queueing time unless the task is traced

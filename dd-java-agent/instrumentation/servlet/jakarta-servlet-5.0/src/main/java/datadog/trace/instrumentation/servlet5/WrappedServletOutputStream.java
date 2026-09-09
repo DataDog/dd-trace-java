@@ -16,10 +16,16 @@ public class WrappedServletOutputStream extends ServletOutputStream {
       byte[] contentToInject,
       Runnable onInjected,
       LongConsumer onBytesWritten,
-      LongConsumer onInjectionTime) {
-    this.filtered =
-        new InjectingPipeOutputStream(
-            delegate, marker, contentToInject, onInjected, onBytesWritten, onInjectionTime);
+      LongConsumer onInjectionTime
+  ) {
+    this.filtered = new InjectingPipeOutputStream(
+        delegate,
+        marker,
+        contentToInject,
+        onInjected,
+        onBytesWritten,
+        onInjectionTime
+    );
     this.delegate = delegate;
   }
 

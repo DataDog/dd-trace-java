@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -25,8 +24,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JakartaMultipartInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JakartaMultipartInstrumentation() {
     super("servlet", "servlet-5", "multipart");
   }
@@ -45,19 +45,24 @@ public class JakartaMultipartInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getName").and(isPublic()).and(takesArguments(0)),
-        getClass().getName() + "$GetNameAdvice");
+        getClass().getName() + "$GetNameAdvice"
+    );
     transformer.applyAdvice(
         named("getHeader").and(isPublic()).and(takesArguments(String.class)),
-        getClass().getName() + "$GetHeaderAdvice");
+        getClass().getName() + "$GetHeaderAdvice"
+    );
     transformer.applyAdvice(
         named("getHeaders").and(isPublic()).and(takesArguments(String.class)),
-        getClass().getName() + "$GetHeadersAdvice");
+        getClass().getName() + "$GetHeadersAdvice"
+    );
     transformer.applyAdvice(
         named("getHeaderNames").and(isPublic()).and(takesArguments(0)),
-        getClass().getName() + "$GetHeaderNamesAdvice");
+        getClass().getName() + "$GetHeaderNamesAdvice"
+    );
     transformer.applyAdvice(
         named("getInputStream").and(isPublic()).and(takesArguments(0)),
-        getClass().getName() + "$GetInputStreamAdvice");
+        getClass().getName() + "$GetInputStreamAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -65,12 +70,18 @@ public class JakartaMultipartInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static String onExit(
-        @Advice.Return final String name, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final String name,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         module.taintString(
-            ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER, "Content-Disposition");
+            ctx,
+            name,
+            SourceTypes.REQUEST_MULTIPART_PARAMETER,
+            "Content-Disposition"
+        );
       }
       return name;
     }
@@ -83,7 +94,8 @@ public class JakartaMultipartInstrumentation extends InstrumenterModule.Iast
     public static String onExit(
         @Advice.Return final String value,
         @Advice.Argument(0) final String name,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -100,7 +112,8 @@ public class JakartaMultipartInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Argument(0) final String headerName,
         @Advice.Return Collection<String> headerValues,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (null == headerValues || headerValues.isEmpty()) {
         return;
       }
@@ -120,7 +133,8 @@ public class JakartaMultipartInstrumentation extends InstrumenterModule.Iast
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static void onExit(
         @Advice.Return final Collection<String> headerNames,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (null == headerNames || headerNames.isEmpty()) {
         return;
       }
@@ -139,7 +153,9 @@ public class JakartaMultipartInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static void onExit(
-        @Advice.Return final InputStream inputStream, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final InputStream inputStream,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (null == inputStream) {
         return;
       }

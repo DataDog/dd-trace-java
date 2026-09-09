@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import java.util.HashMap;
@@ -14,11 +13,12 @@ import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.commons.ClassRemapper;
 import net.bytebuddy.jar.asm.commons.Remapper;
 
-/** Shades advice bytecode by applying relocations to all references. */
+/**
+ * Shades advice bytecode by applying relocations to all references.
+ */
 public final class AdviceShader {
   private final Map<String, String> relocations;
   private final List<String> helperNames;
-
   private volatile Remapper remapper;
 
   /**
@@ -32,7 +32,9 @@ public final class AdviceShader {
     return null;
   }
 
-  /** Used to generate and check muzzle references. Only applies relocations declared in modules. */
+  /**
+   * Used to generate and check muzzle references. Only applies relocations declared in modules.
+   */
   public static AdviceShader with(Map<String, String> relocations) {
     if (relocations != null) {
       return new AdviceShader(relocations, emptyList());
@@ -45,7 +47,9 @@ public final class AdviceShader {
     this.helperNames = helperNames;
   }
 
-  /** Applies shading before calling the given {@link ClassVisitor}. */
+  /**
+   * Applies shading before calling the given {@link ClassVisitor}.
+   */
   public ClassVisitor shadeClass(ClassVisitor cv) {
     if (null == remapper) {
       remapper = new AdviceMapper();
@@ -53,7 +57,9 @@ public final class AdviceShader {
     return new ClassRemapper(cv, remapper);
   }
 
-  /** Returns the result of shading the given bytecode. */
+  /**
+   * Returns the result of shading the given bytecode.
+   */
   public byte[] shadeClass(byte[] bytecode) {
     ClassReader cr = new ClassReader(bytecode);
     ClassWriter cw = new ClassWriter(null, 0);
@@ -61,7 +67,9 @@ public final class AdviceShader {
     return cw.toByteArray();
   }
 
-  /** Generates a unique shaded name for the given helper. */
+  /**
+   * Generates a unique shaded name for the given helper.
+   */
   public String uniqueHelper(String dottedName) {
     int packageEnd = dottedName.lastIndexOf('.');
     if (packageEnd > 0) {
@@ -75,10 +83,10 @@ public final class AdviceShader {
 
   final class AdviceMapper extends Remapper {
     private final DDCache<String, String> mappingCache = DDCaches.newFixedSizeCache(64);
-
-    /** Flattened sequence of old-prefix, new-prefix relocations. */
+    /**
+     * Flattened sequence of old-prefix, new-prefix relocations.
+     */
     private final String[] prefixes;
-
     private final Map<String, String> helperMapping;
 
     AdviceMapper() {
@@ -113,7 +121,8 @@ public final class AdviceShader {
       if (internalName.startsWith("java/")
           || internalName.startsWith("datadog/")
           || internalName.startsWith("net/bytebuddy/")) {
-        return internalName; // never shade these references
+        // never shade these references
+        return internalName;
       }
       return mappingCache.computeIfAbsent(internalName, this::shadeInternalName);
     }

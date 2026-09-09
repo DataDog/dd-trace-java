@@ -2,13 +2,11 @@ package datadog.trace.api.sampling;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.time.Duration;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 public class PerRecordingRateLimiterTest {
-
   @Test
   public void testLimitApplied() {
     Duration window = Duration.ofMillis(100);

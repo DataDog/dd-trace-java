@@ -17,7 +17,8 @@ public final class TagsPostProcessorFactory {
       processors.add(new PeerServiceCalculator());
       if (addInternalTags) {
         processors.add(
-            new InternalTagsAdder(Config.get().getServiceName(), Config.get().getVersion()));
+            new InternalTagsAdder(Config.get().getServiceName(), Config.get().getVersion())
+        );
       }
       // Add HTTP endpoint post processor for resource renaming
       // This must run BEFORE metrics aggregation so the correct resource name is used in metrics
@@ -49,8 +50,8 @@ public final class TagsPostProcessorFactory {
       }
       processors.add(new IntegrationAdder());
       processors.add(new ServiceNameSourceAdder());
-      return new PostProcessorChain(
-          processors.toArray(processors.toArray(new TagsPostProcessor[0])));
+      return new PostProcessorChain(processors.toArray(processors.toArray(new TagsPostProcessor[0]))
+      );
     }
   }
 
@@ -82,7 +83,9 @@ public final class TagsPostProcessorFactory {
     Lazy.lazyProcessor = Lazy.createLazyChain();
   }
 
-  /** Used for testing purposes. It reset the singleton and restore default options */
+  /**
+   * Used for testing purposes. It reset the singleton and restore default options
+   */
   public static void reset() {
     withAddInternalTags(true);
     withAddRemoteHostname(true);

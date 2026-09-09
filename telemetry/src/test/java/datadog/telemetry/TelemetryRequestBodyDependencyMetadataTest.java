@@ -2,7 +2,6 @@ package datadog.telemetry;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.telemetry.api.RequestType;
 import datadog.telemetry.dependency.Dependency;
 import java.io.IOException;
@@ -17,20 +16,19 @@ import org.junit.jupiter.api.Test;
  * {@code metadata} array introduced for SCA Reachability.
  */
 class TelemetryRequestBodyDependencyMetadataTest {
-
   @Test
   void writeDependency_includesMetadataArrayWhenPresent() throws IOException {
     String metadataValue =
         "{\"id\":\"GHSA-645p-88qh-w398\","
-            + "\"reached\":[{\"path\":\"com.fasterxml.jackson.databind.ObjectMapper\","
-            + "\"symbol\":\"<clinit>\",\"line\":1}]}";
-    Dependency dep =
-        new Dependency(
-            "com.fasterxml.jackson.core:jackson-databind",
-            "2.8.5",
-            null,
-            null,
-            Collections.singletonList(metadataValue));
+        + "\"reached\":[{\"path\":\"com.fasterxml.jackson.databind.ObjectMapper\","
+        + "\"symbol\":\"<clinit>\",\"line\":1}]}";
+    Dependency dep = new Dependency(
+        "com.fasterxml.jackson.core:jackson-databind",
+        "2.8.5",
+        null,
+        null,
+        Collections.singletonList(metadataValue)
+    );
 
     String json = serializeDependency(dep);
 
@@ -42,15 +40,16 @@ class TelemetryRequestBodyDependencyMetadataTest {
 
   @Test
   void writeDependency_includesAllMetadataEntriesForMultipleCves() throws IOException {
-    Dependency dep =
-        new Dependency(
-            "com.example:lib",
-            "1.0.0",
-            null,
-            null,
-            Arrays.asList(
-                "{\"id\":\"GHSA-aaa-1111-2222\",\"reached\":[]}",
-                "{\"id\":\"GHSA-bbb-3333-4444\",\"reached\":[]}"));
+    Dependency dep = new Dependency(
+        "com.example:lib",
+        "1.0.0",
+        null,
+        null,
+        Arrays.asList(
+            "{\"id\":\"GHSA-aaa-1111-2222\",\"reached\":[]}",
+            "{\"id\":\"GHSA-bbb-3333-4444\",\"reached\":[]}"
+        )
+    );
 
     String json = serializeDependency(dep);
 
@@ -71,8 +70,7 @@ class TelemetryRequestBodyDependencyMetadataTest {
   void writeDependency_includesEmptyMetadataArrayWhenListIsEmpty() throws IOException {
     // RFC: metadata:[] (non-null, empty) means "SCA is active for this dep but no CVEs detected".
     // Must be written so the backend knows SCA is monitoring the dependency.
-    Dependency dep =
-        new Dependency("com.example:lib", "1.0.0", null, null, Collections.emptyList());
+    Dependency dep = new Dependency("com.example:lib", "1.0.0", null, null, Collections.emptyList());
 
     String json = serializeDependency(dep);
 

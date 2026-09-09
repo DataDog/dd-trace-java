@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.junit5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,8 +13,9 @@ import org.junit.jupiter.engine.extension.ExtensionRegistrar;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5BeforeAfterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JUnit5BeforeAfterInstrumentation() {
     super("ci-visibility", "junit-5", "setup-teardown");
   }
@@ -32,16 +32,15 @@ public class JUnit5BeforeAfterInstrumentation extends InstrumenterModule.CiVisib
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".BeforeAfterOperationsTracer",
-    };
+    return new String[] {packageName + ".BeforeAfterOperationsTracer"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),
-        JUnit5BeforeAfterInstrumentation.class.getName() + "$RegisterExtensionAdvice");
+        JUnit5BeforeAfterInstrumentation.class.getName() + "$RegisterExtensionAdvice"
+    );
   }
 
   public static class RegisterExtensionAdvice {

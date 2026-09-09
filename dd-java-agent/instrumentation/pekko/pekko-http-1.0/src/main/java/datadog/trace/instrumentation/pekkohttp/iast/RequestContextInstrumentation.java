@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -21,10 +20,14 @@ import net.bytebuddy.asm.Advice;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
 import org.apache.pekko.http.scaladsl.server.RequestContext;
 
-/** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
+/**
+ * Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}.
+ */
 @AutoService(InstrumenterModule.class)
 public class RequestContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public RequestContextInstrumentation() {
     super("pekko-http");
   }
@@ -38,11 +41,12 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("request"))
-            .and(returns(named("org.apache.pekko.http.scaladsl.model.HttpRequest")))
-            .and(takesArguments(0)),
-        RequestContextInstrumentation.class.getName() + "$GetRequestAdvice");
+          .and(not(isStatic()))
+          .and(named("request"))
+          .and(returns(named("org.apache.pekko.http.scaladsl.model.HttpRequest")))
+          .and(takesArguments(0)),
+        RequestContextInstrumentation.class.getName() + "$GetRequestAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -52,8 +56,8 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
     static void onExit(
         @Advice.This RequestContext requestContext,
         @Advice.Return HttpRequest request,
-        @ActiveRequestContext datadog.trace.api.gateway.RequestContext reqCtx) {
-
+        @ActiveRequestContext datadog.trace.api.gateway.RequestContext reqCtx
+    ) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;

@@ -9,10 +9,8 @@ import datadog.trace.api.Config;
  * depends on {@code dd-trace-core}; {@code ApiSecurityDownstreamSamplerImpl} does the same.
  */
 public final class LLMObsSampler {
-
   private static final long KNUTH_FACTOR = 1111111111111111111L;
   private static final double MAX = Math.pow(2, 64) - 1;
-
   private final double rate;
   private final long threshold;
   private final String formattedRate;

@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.sofarpc.SofaRpcServerDecorator.SOFA_
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.alipay.sofa.rpc.core.request.SofaRequest;
 import com.alipay.sofa.rpc.core.response.SofaResponse;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,8 +19,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import net.bytebuddy.asm.Advice;
 
 public class ProviderProxyInvokerInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.alipay.sofa.rpc.server.ProviderProxyInvoker";
@@ -31,10 +31,11 @@ public class ProviderProxyInvokerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("invoke"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("com.alipay.sofa.rpc.core.request.SofaRequest"))),
-        getClass().getName() + "$InvokeAdvice");
+          .and(named("invoke"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("com.alipay.sofa.rpc.core.request.SofaRequest"))),
+        getClass().getName() + "$InvokeAdvice"
+    );
   }
 
   public static class InvokeAdvice {
@@ -51,10 +52,9 @@ public class ProviderProxyInvokerInstrumentation
       // explicit parent naturally attaches to the active grpc.server span. For REST,
       // parentContext will also be null and the active netty.request span becomes the parent.
       AgentSpanContext parentContext = extractContextAndGetSpanContext(request, GETTER);
-      AgentSpan span =
-          parentContext != null
-              ? startSpan("sofarpc-server", SOFA_RPC_SERVER, parentContext)
-              : startSpan("sofarpc-server", SOFA_RPC_SERVER);
+      AgentSpan span = parentContext != null
+          ? startSpan("sofarpc-server", SOFA_RPC_SERVER, parentContext)
+          : startSpan("sofarpc-server", SOFA_RPC_SERVER);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       span.setTag("sofarpc.protocol", protocol);
@@ -65,7 +65,8 @@ public class ProviderProxyInvokerInstrumentation
     public static void exit(
         @Advice.Enter AgentScope scope,
         @Advice.Return SofaResponse response,
-        @Advice.Thrown Throwable throwable) {
+        @Advice.Thrown Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.tibco.pvm.api.PmProcessInstance;
 import com.tibco.pvm.api.PmTask;
@@ -28,8 +27,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "com.tibco.pvm.api.behavior.PmBehavior";
@@ -44,27 +44,28 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("enter")
-                    .and(
-                        isDeclaredBy(
-                            hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))),
-        getClass().getName() + "$ProcessStartAdvice");
+          .and(named("enter")
+            .and(isDeclaredBy(hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))
+          ),
+        getClass().getName() + "$ProcessStartAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("exit")
-                    .and(
-                        isDeclaredBy(
-                            hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))),
-        getClass().getName() + "$ProcessEndAdvice");
+          .and(named("exit")
+            .and(isDeclaredBy(hasInterface(named("com.tibco.pvm.api.behavior.PmProcessBehavior"))))
+          ),
+        getClass().getName() + "$ProcessEndAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("eval"))
-            .and(takesArgument(1, hasInterface(named("com.tibco.pvm.api.PmTask")))),
-        getClass().getName() + "$ActivityEvalAdvice");
+          .and(named("eval"))
+          .and(takesArgument(1, hasInterface(named("com.tibco.pvm.api.PmTask")))),
+        getClass().getName() + "$ActivityEvalAdvice"
+    );
     transformer.applyAdvice(
-        isMethod().and(named("handleModelEvent")), getClass().getName() + "$HandleEventAdvice");
+        isMethod().and(named("handleModelEvent")),
+        getClass().getName() + "$HandleEventAdvice"
+    );
   }
 
   public static class ActivityEvalAdvice {
@@ -72,7 +73,8 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
     public static AgentScope activityBegin(
         @Advice.This final Object self,
         @Advice.Argument(0) final PmContext pmContext,
-        @Advice.Argument(1) final PmTask pmTask) {
+        @Advice.Argument(1) final PmTask pmTask
+    ) {
       final PmTask parentTask = pmTask.getParent(pmContext);
       if (parentTask == null) {
         // do not trace the Root task
@@ -89,11 +91,11 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
         contextStore.put(pmTask, parentSpan);
         return null;
       }
-      AgentSpan span =
-          startSpan(
-              "tibco_bw",
-              TibcoDecorator.TIBCO_ACTIVITY_OPERATION,
-              parentSpan != null ? parentSpan.spanContext() : null);
+      AgentSpan span = startSpan(
+          "tibco_bw",
+          TibcoDecorator.TIBCO_ACTIVITY_OPERATION,
+          parentSpan != null ? parentSpan.spanContext() : null
+      );
       TibcoDecorator.DECORATE.afterStart(span);
       TibcoDecorator.DECORATE.onActivityStart(span, pmTask.getName(pmContext));
       return activateSpan(span);
@@ -104,7 +106,8 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.This final PmBehavior self,
         @Advice.Argument(0) final PmContext pmContext,
-        @Advice.Argument(1) final PmTask pmTask) {
+        @Advice.Argument(1) final PmTask pmTask
+    ) {
       if (scope == null) {
         return;
       }
@@ -130,7 +133,8 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void processStarts(
         @Advice.Argument(0) final PmContext pmContext,
-        @Advice.Argument(1) final PmProcessInstance pmProcessInstance) {
+        @Advice.Argument(1) final PmProcessInstance pmProcessInstance
+    ) {
       final ContextStore<PmWorkUnit, AgentSpan> contextStore =
           InstrumentationContext.get(PmWorkUnit.class, AgentSpan.class);
       AgentSpan parentSpan = contextStore.get(pmProcessInstance);
@@ -144,11 +148,11 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
           parent = pmProcessInstance.getParentProcess(pmContext);
           parentSpan = parent != null ? contextStore.get(parent) : null;
         }
-        AgentSpan span =
-            startSpan(
-                "tibco_bw",
-                TibcoDecorator.TIBCO_PROCESS_OPERATION,
-                parent != null ? parentSpan.spanContext() : null);
+        AgentSpan span = startSpan(
+            "tibco_bw",
+            TibcoDecorator.TIBCO_PROCESS_OPERATION,
+            parent != null ? parentSpan.spanContext() : null
+        );
         TibcoDecorator.DECORATE.afterStart(span);
         TibcoDecorator.DECORATE.onProcessStart(span, pmProcessInstance.getName(pmContext));
         contextStore.put(pmProcessInstance, span);
@@ -174,7 +178,8 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
         @Advice.This PmBehavior self,
         @Advice.Argument(0) PmContext pmContext,
         @Advice.Argument(1) PmWorkUnit workUnit,
-        @Advice.Argument(2) PmEvent event) {
+        @Advice.Argument(2) PmEvent event
+    ) {
       final ContextStore<PmWorkUnit, AgentSpan> contextStore =
           InstrumentationContext.get(PmWorkUnit.class, AgentSpan.class);
       final AgentSpan span = contextStore.get(workUnit);

@@ -3,7 +3,6 @@ package datadog.trace.test.agent.decoder.json.raw;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
-
 import com.squareup.moshi.Json;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
@@ -23,19 +22,15 @@ public final class SpanJson implements DecodedSpan {
   String name;
   String resource;
   String type;
-
   // IDs are unsigned 64-bit; read as decimal strings and parsed with Long.parseUnsignedLong, since
   // Moshi's long adapter rejects values above Long.MAX_VALUE (the agent emits them as JSON numbers,
   // which Moshi coerces to their string form).
   @Json(name = "trace_id")
   String traceId;
-
   @Json(name = "span_id")
   String spanId;
-
   @Json(name = "parent_id")
   String parentId;
-
   // start and duration are required v0.4 fields; boxed so a missing value decodes to null (and is
   // rejected by MessageJson) instead of a silent 0. error is optional per the agent's Span schema
   // (absent => 0, i.e. no error), so it stays a primitive.
@@ -43,16 +38,12 @@ public final class SpanJson implements DecodedSpan {
   Long duration;
   int error;
   Map<String, String> meta;
-
   @Json(name = "meta_struct")
   Map<String, Object> metaStruct;
-
   Map<String, Number> metrics;
-
   // Ony present in V1 payload. Decoded from meta by #resolveLinks otherwise
   @Json(name = "span_links")
   List<SpanLinkJson> spanLinks;
-
   // Decoded from span links meta tag or #spanLinks
   // transient so Moshi does not try to decode it
   transient List<DecodedSpanLink> links;

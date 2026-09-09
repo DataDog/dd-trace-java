@@ -10,7 +10,8 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      Path optionalLibPath) {
+      Path optionalLibPath
+  ) {
     this.throwException("load");
   }
 
@@ -19,7 +20,8 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {
+      Throwable optionalCause
+  ) {
     this.throwException("loadFailure");
   }
 
@@ -29,7 +31,8 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      URL optionalUrl) {
+      URL optionalUrl
+  ) {
     this.throwException("resolveDynamic");
   }
 
@@ -38,13 +41,18 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {
+      Throwable optionalCause
+  ) {
     this.throwException("resolveDynamicFailure");
   }
 
   @Override
   public final void onTempFileCreated(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile
+  ) {
     this.throwException("tempFileCreated");
   }
 
@@ -55,13 +63,18 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
       String libName,
       Path tempDir,
       String libExt,
-      Throwable optionalCause) {
+      Throwable optionalCause
+  ) {
     this.throwException("tempFileCreationFailure");
   }
 
   @Override
   public final void onTempFileCleanup(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile
+  ) {
     this.throwException("tempFileCleanup");
   }
 

@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
@@ -25,23 +24,23 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AbstractDatadogSparkListener",
-      packageName + ".AbstractSparkPlanSerializer",
-      packageName + ".AbstractSparkPlanUtils",
-      packageName + ".DatabricksParentContext",
-      packageName + ".EmrUtils",
-      packageName + ".OpenlineageParentContext",
-      packageName + ".DatadogSpark213Listener",
-      packageName + ".PredeterminedTraceIdContext",
-      packageName + ".RemoveEldestHashMap",
-      packageName + ".SparkAggregatedTaskMetrics",
-      packageName + ".SparkConfAllowList",
-      packageName + ".SparkLauncherListener",
-      packageName + ".SparkSQLUtils",
-      packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
-      packageName + ".SparkSQLUtils$AccumulatorWithStage",
-      packageName + ".Spark213PlanSerializer",
-      packageName + ".Spark213PlanUtils"
+        packageName + ".AbstractDatadogSparkListener",
+        packageName + ".AbstractSparkPlanSerializer",
+        packageName + ".AbstractSparkPlanUtils",
+        packageName + ".DatabricksParentContext",
+        packageName + ".EmrUtils",
+        packageName + ".OpenlineageParentContext",
+        packageName + ".DatadogSpark213Listener",
+        packageName + ".PredeterminedTraceIdContext",
+        packageName + ".RemoveEldestHashMap",
+        packageName + ".SparkAggregatedTaskMetrics",
+        packageName + ".SparkConfAllowList",
+        packageName + ".SparkLauncherListener",
+        packageName + ".SparkSQLUtils",
+        packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
+        packageName + ".SparkSQLUtils$AccumulatorWithStage",
+        packageName + ".Spark213PlanSerializer",
+        packageName + ".Spark213PlanUtils"
     };
   }
 
@@ -51,17 +50,19 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("setupAndStartListenerBus"))
-            .and(isDeclaredBy(named("org.apache.spark.SparkContext")))
-            .and(takesNoArguments()),
-        Spark213Instrumentation.class.getName() + "$InjectListener");
+          .and(named("setupAndStartListenerBus"))
+          .and(isDeclaredBy(named("org.apache.spark.SparkContext")))
+          .and(takesNoArguments()),
+        Spark213Instrumentation.class.getName() + "$InjectListener"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("fromSparkPlan"))
-            .and(takesArgument(0, named("org.apache.spark.sql.execution.SparkPlan")))
-            .and(isDeclaredBy(named("org.apache.spark.sql.execution.SparkPlanInfo$"))),
-        Spark213Instrumentation.class.getName() + "$SparkPlanInfoAdvice");
+          .and(named("fromSparkPlan"))
+          .and(takesArgument(0, named("org.apache.spark.sql.execution.SparkPlan")))
+          .and(isDeclaredBy(named("org.apache.spark.sql.execution.SparkPlanInfo$"))),
+        Spark213Instrumentation.class.getName() + "$SparkPlanInfoAdvice"
+    );
   }
 
   public static class InjectListener {
@@ -71,33 +72,38 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
       Logger log = LoggerFactory.getLogger("Spark212InjectListener");
       if (Config.get().isDataJobsOpenLineageEnabled()
           && AbstractDatadogSparkListener.classIsLoadable(
-              "io.openlineage.spark.agent.OpenLineageSparkListener")
+              "io.openlineage.spark.agent.OpenLineageSparkListener"
+          )
           && AbstractDatadogSparkListener.classIsLoadable(
-              "io.openlineage.spark.agent.facets.builder.TagsRunFacetBuilder")) {
+              "io.openlineage.spark.agent.facets.builder.TagsRunFacetBuilder"
+          )) {
         if (!sparkContext.conf().contains("spark.extraListeners")) {
           log.debug("spark.extraListeners does not contain any listeners. Adding OpenLineage");
           sparkContext
-              .conf()
-              .set("spark.extraListeners", "io.openlineage.spark.agent.OpenLineageSparkListener");
+            .conf()
+            .set("spark.extraListeners", "io.openlineage.spark.agent.OpenLineageSparkListener");
         } else {
           String extraListeners = sparkContext.conf().get("spark.extraListeners");
           if (!extraListeners.contains("io.openlineage.spark.agent.OpenLineageSparkListener")) {
             log.debug(
                 "spark.extraListeners does contain listeners {}. Adding OpenLineage",
-                extraListeners);
+                extraListeners
+            );
             sparkContext
-                .conf()
-                .set(
-                    "spark.extraListeners",
-                    extraListeners + ",io.openlineage.spark.agent.OpenLineageSparkListener");
+              .conf()
+              .set(
+                  "spark.extraListeners",
+                  extraListeners + ",io.openlineage.spark.agent.OpenLineageSparkListener"
+              );
           }
         }
       }
-
       // We want to add the Datadog listener as the first listener
-      AbstractDatadogSparkListener.listener =
-          new DatadogSpark213Listener(
-              sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
+      AbstractDatadogSparkListener.listener = new DatadogSpark213Listener(
+          sparkContext.getConf(),
+          sparkContext.applicationId(),
+          sparkContext.version()
+      );
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
     }
   }
@@ -107,10 +113,11 @@ public class Spark213Instrumentation extends AbstractSparkInstrumentation {
     @SuppressForbidden
     public static void exit(
         @Advice.Return(readOnly = false) SparkPlanInfo planInfo,
-        @Advice.Argument(0) SparkPlan plan) {
+        @Advice.Argument(0) SparkPlan plan
+    ) {
       if (planInfo.metadata().size() == 0
           && (Config.get().isDataJobsParseSparkPlanEnabled()
-              || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
+          || Config.get().isDataJobsExperimentalFeaturesEnabled())) {
         Spark213PlanSerializer planSerializer = new Spark213PlanSerializer();
         Map<String, String> meta =
             HashMap.from(JavaConverters.asScala(planSerializer.extractFormattedProduct(plan)));

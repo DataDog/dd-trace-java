@@ -87,7 +87,8 @@ public class TracingList implements List<Message> {
 
   @Override
   public Message get(int index) {
-    return delegate.get(index); // not currently covered by iteration span
+    // not currently covered by iteration span
+    return delegate.get(index);
   }
 
   @Override

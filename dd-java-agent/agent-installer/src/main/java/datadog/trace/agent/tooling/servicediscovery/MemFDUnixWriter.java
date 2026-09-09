@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.servicediscovery;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import com.sun.jna.Native;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -23,10 +22,9 @@ abstract class MemFDUnixWriter implements ForeignMemoryWriter {
   // https://elixir.bootlin.com/linux/v6.17.1/source/include/uapi/linux/memfd.h#L8-L9
   private static final int MFD_CLOEXEC = 0x0001;
   private static final int MFD_ALLOW_SEALING = 0x0002;
-
   // https://elixir.bootlin.com/linux/v6.17.1/source/include/uapi/linux/fcntl.h#L40
-  private static final int F_ADD_SEALS = 1033; //
-
+  //
+  private static final int F_ADD_SEALS = 1033;
   // https://elixir.bootlin.com/linux/v6.17.1/source/include/uapi/linux/fcntl.h#L46-L49
   private static final int F_SEAL_SEAL = 0x0001;
   private static final int F_SEAL_SHRINK = 0x0002;
@@ -40,7 +38,8 @@ abstract class MemFDUnixWriter implements ForeignMemoryWriter {
       log.debug(
           SEND_TELEMETRY,
           "service discovery not supported for arch={}",
-          SystemProperties.get("os.arch"));
+          SystemProperties.get("os.arch")
+      );
       return;
     }
     int memFd = (int) syscall(memfdSyscall, fileName, MFD_CLOEXEC | MFD_ALLOW_SEALING);

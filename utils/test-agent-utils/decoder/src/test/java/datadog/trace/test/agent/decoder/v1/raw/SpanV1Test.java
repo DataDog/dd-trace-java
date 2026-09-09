@@ -2,7 +2,6 @@ package datadog.trace.test.agent.decoder.v1.raw;
 
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -79,7 +78,9 @@ class SpanV1Test {
     return SpanV1.unpack(unpacker(packer), new ArrayList<>()).getSpanId();
   }
 
-  /** A 16-byte trace identifier whose low-order half is {@link #UNSIGNED_ID_BITS}. */
+  /**
+   * A 16-byte trace identifier whose low-order half is {@link #UNSIGNED_ID_BITS}.
+   */
   private static byte[] traceIdBytes() {
     byte[] bytes = new byte[16];
     for (int i = 0; i < 8; i++) {

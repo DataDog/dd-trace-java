@@ -2,23 +2,31 @@ package datadog.trace.api.sampling;
 
 import java.util.Map;
 
-/** This interface describes the criteria for a sampling rule. */
+/**
+ * This interface describes the criteria for a sampling rule.
+ */
 public interface SamplingRule {
   static String normalizeGlob(String name) {
     return name == null || MATCH_ALL.equals(name) ? MATCH_ALL : name;
   }
 
-  /** The "match all" glob pattern . */
+  /**
+   * The "match all" glob pattern .
+   */
   String MATCH_ALL = "*";
 
   enum Provenance {
-    /** Rules generated from local static config. */
+    /**
+     * Rules generated from local static config.
+     */
     LOCAL,
-
-    /** Rules generated from dynamic sampling via remote-config. */
+    /**
+     * Rules generated from dynamic sampling via remote-config.
+     */
     DYNAMIC,
-
-    /** Rules supplied by the customer via remote-config. */
+    /**
+     * Rules supplied by the customer via remote-config.
+     */
     CUSTOMER
   }
 
@@ -68,10 +76,15 @@ public interface SamplingRule {
    */
   Provenance getProvenance();
 
-  /** This interface describes the criteria of a sampling rule that can match against a trace. */
-  interface TraceSamplingRule extends SamplingRule {}
+  /**
+   * This interface describes the criteria of a sampling rule that can match against a trace.
+   */
+  interface TraceSamplingRule extends SamplingRule {
+  }
 
-  /** This interface describes the criteria of a sampling rule that can match against a span. */
+  /**
+   * This interface describes the criteria of a sampling rule that can match against a span.
+   */
   interface SpanSamplingRule extends SamplingRule {
     /**
      * Gets the limit applied to the rule, using a token bucket limiter.

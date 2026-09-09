@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public interface Taintable {
-
   Source $$DD$getSource();
 
   void $$DD$setSource(final Source source);
@@ -16,7 +15,9 @@ public interface Taintable {
     return $$DD$getSource() != null;
   }
 
-  /** Interface to isolate customer classloader from our classes */
+  /**
+   * Interface to isolate customer classloader from our classes
+   */
   interface Source {
     byte getOrigin();
 
@@ -31,7 +32,6 @@ public interface Taintable {
 
     static {
       LOGGER = LoggerFactory.getLogger("Taintable tainted objects");
-
       // Check logger class by name to avoid NoClassDefFoundError at runtime
       // for tests without Logback.
       if (LOGGER.getClass().getName().equals("ch.qos.logback.classic.Logger")) {
@@ -55,13 +55,15 @@ public interface Taintable {
       if (t.getClass().getName().startsWith("java.")) {
         content = t.toString();
       } else {
-        content = "(value not shown)"; // toString() may trigger tainting
+        // toString() may trigger tainting
+        content = "(value not shown)";
       }
       LOGGER.debug(
           "taint: {}[{}] {}",
           t.getClass().getSimpleName(),
           Integer.toHexString(System.identityHashCode(t)),
-          content);
+          content
+      );
     }
   }
 }

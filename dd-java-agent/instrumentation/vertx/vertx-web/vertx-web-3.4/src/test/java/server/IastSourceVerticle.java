@@ -10,7 +10,6 @@ import io.vertx.ext.web.handler.CookieHandler;
 import io.vertx.ext.web.impl.CookieImpl;
 
 public class IastSourceVerticle extends AbstractVerticle {
-
   public static final String CONFIG_HTTP_SERVER_PORT = "http.server.port";
 
   @Override
@@ -20,68 +19,60 @@ public class IastSourceVerticle extends AbstractVerticle {
     router.route().handler(BodyHandler.create());
     router.route().handler(CookieHandler.create());
     router
-        .route("/iast/propagation/cookies")
-        .handler(
-            rc -> {
-              rc.cookies();
-              rc.response().end();
-            });
+      .route("/iast/propagation/cookies")
+      .handler(rc -> {
+        rc.cookies();
+        rc.response().end();
+      });
     router
-        .route("/iast/propagation/getcookie")
-        .handler(
-            rc -> {
-              rc.getCookie("cookie");
-              rc.response().end();
-            });
+      .route("/iast/propagation/getcookie")
+      .handler(rc -> {
+        rc.getCookie("cookie");
+        rc.response().end();
+      });
     router
-        .route("/iast/propagation/getcookiename")
-        .handler(
-            rc -> {
-              Cookie cookie = new CookieImpl("cookieName", "cookieValue");
-              cookie.getName();
-              rc.response().end();
-            });
+      .route("/iast/propagation/getcookiename")
+      .handler(rc -> {
+        Cookie cookie = new CookieImpl("cookieName", "cookieValue");
+        cookie.getName();
+        rc.response().end();
+      });
     router
-        .route("/iast/propagation/getcookievalue")
-        .handler(
-            rc -> {
-              Cookie cookie = new CookieImpl("cookieName", "cookieValue");
-              cookie.getValue();
-              rc.response().end();
-            });
+      .route("/iast/propagation/getcookievalue")
+      .handler(rc -> {
+        Cookie cookie = new CookieImpl("cookieName", "cookieValue");
+        cookie.getValue();
+        rc.response().end();
+      });
     router
-        .route("/iast/propagation/headers")
-        .handler(
-            rc -> {
-              rc.request().headers();
-              rc.response().end();
-            });
+      .route("/iast/propagation/headers")
+      .handler(rc -> {
+        rc.request().headers();
+        rc.response().end();
+      });
     router
-        .route("/iast/propagation/params")
-        .handler(
-            rc -> {
-              rc.request().params();
-              rc.response().end();
-            });
+      .route("/iast/propagation/params")
+      .handler(rc -> {
+        rc.request().params();
+        rc.response().end();
+      });
     router
-        .route("/iast/propagation/formAttributes")
-        .handler(rc -> rc.response().end(rc.request().formAttributes().get("formAttribute")));
+      .route("/iast/propagation/formAttributes")
+      .handler(rc -> rc.response().end(rc.request().formAttributes().get("formAttribute")));
     router
-        .route("/iast/propagation/handleData")
-        .handler(rc -> rc.response().end(rc.getBodyAsString()));
+      .route("/iast/propagation/handleData")
+      .handler(rc -> rc.response().end(rc.getBodyAsString()));
 
     vertx
-        .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
-        .requestHandler(router::accept)
-        .listen(
-            port,
-            http -> {
-              if (http.succeeded()) {
-                startPromise.complete();
-                System.out.println("HTTP server started");
-              } else {
-                startPromise.fail(http.cause());
-              }
-            });
+      .createHttpServer(new HttpServerOptions().setHandle100ContinueAutomatically(true))
+      .requestHandler(router::accept)
+      .listen(port, http -> {
+        if (http.succeeded()) {
+          startPromise.complete();
+          System.out.println("HTTP server started");
+        } else {
+          startPromise.fail(http.cause());
+        }
+      });
   }
 }

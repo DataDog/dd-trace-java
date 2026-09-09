@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -23,8 +22,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public MessageBodyReaderInvocationInstrumentation() {
     super("resteasy");
   }
@@ -42,11 +42,11 @@ public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModu
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("readFrom")
-            .and(takesArguments(1))
-            .and(takesArgument(0, nameEndsWith(".MessageBodyReader"))),
-        MessageBodyReaderInvocationInstrumentation.class.getName()
-            + "$AbstractReaderInterceptorAdvice");
+        named("readFrom").and(takesArguments(1)).and(
+            takesArgument(0, nameEndsWith(".MessageBodyReader"))
+        ),
+        MessageBodyReaderInvocationInstrumentation.class.getName() + "$AbstractReaderInterceptorAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -55,14 +55,16 @@ public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModu
     static void after(
         @Advice.Return final Object ret,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (ret == null || t != null) {
         return;
       }
 
-      if (ret.getClass()
-          .getName()
-          .equals("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInputImpl")) {
+      if (ret
+        .getClass()
+        .getName()
+        .equals("org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInputImpl")) {
         // already handled in MultipartFormDataReaderInstrumentation
         return;
       }
@@ -81,9 +83,9 @@ public class MessageBodyReaderInvocationInstrumentation extends InstrumenterModu
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t =
-              new BlockingException(
-                  "Blocked request (for AbstractReaderInterceptorContext/readFrom)");
+          t = new BlockingException(
+              "Blocked request (for AbstractReaderInterceptorContext/readFrom)"
+          );
           reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }

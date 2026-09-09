@@ -2,7 +2,9 @@ package datadog.remoteconfig;
 
 import javax.annotation.Nullable;
 
-/** This interface describes a configuration strongly-typed value change. */
+/**
+ * This interface describes a configuration strongly-typed value change.
+ */
 @FunctionalInterface
 public interface ConfigurationChangesTypedListener<T> {
   /**
@@ -15,8 +17,10 @@ public interface ConfigurationChangesTypedListener<T> {
    */
   void accept(
       String configKey,
-      @Nullable T configuration, // null to "unapply" the configuration
-      PollingRateHinter pollingRateHinter);
+      // null to "unapply" the configuration
+      @Nullable T configuration,
+      PollingRateHinter pollingRateHinter
+  );
 
   class Builder {
     /**
@@ -28,7 +32,9 @@ public interface ConfigurationChangesTypedListener<T> {
      * @param <K> The type of the configuration value.
      */
     static <K> ConfigurationChangesListener useDeserializer(
-        ConfigurationDeserializer<K> deserializer, ConfigurationChangesTypedListener<K> listener) {
+        ConfigurationDeserializer<K> deserializer,
+        ConfigurationChangesTypedListener<K> listener
+    ) {
       return (configKey, content, pollingRateHinter) -> {
         K configuration = null;
 

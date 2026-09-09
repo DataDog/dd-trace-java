@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPackagePrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -21,11 +20,13 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   static final String[] CONCRETE_TYPES = {
-    "io.vertx.core.http.impl.HttpClientRequestBase",
-    "io.vertx.core.http.impl.HttpClientRequestImpl",
-    "io.vertx.core.http.impl.HttpClientRequestPushPromise"
+      "io.vertx.core.http.impl.HttpClientRequestBase",
+      "io.vertx.core.http.impl.HttpClientRequestImpl",
+      "io.vertx.core.http.impl.HttpClientRequestPushPromise"
   };
 
   public HttpClientRequestBaseInstrumentation() {
@@ -41,10 +42,11 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPackagePrivate().or(isPrivate()))
-            .and(named("reset"))
-            .and(takesArgument(0, named("java.lang.Throwable"))),
-        HttpClientRequestBaseInstrumentation.class.getName() + "$ResetAdvice");
+          .and(isPackagePrivate().or(isPrivate()))
+          .and(named("reset"))
+          .and(takesArgument(0, named("java.lang.Throwable"))),
+        HttpClientRequestBaseInstrumentation.class.getName() + "$ResetAdvice"
+    );
   }
 
   @Override
@@ -57,7 +59,8 @@ public class HttpClientRequestBaseInstrumentation extends InstrumenterModule.Tra
     public static void onExit(
         @Advice.Argument(value = 0) Throwable cause,
         @Advice.FieldValue("stream") final HttpClientStream stream,
-        @Advice.Return boolean result) {
+        @Advice.Return boolean result
+    ) {
       if (result) {
         Context storedContext =
             stream.connection().channel().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).get();

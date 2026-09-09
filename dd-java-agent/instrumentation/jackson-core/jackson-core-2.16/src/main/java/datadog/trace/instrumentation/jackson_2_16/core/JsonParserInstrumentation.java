@@ -10,7 +10,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.json.JsonParser216Helper;
@@ -29,8 +28,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JsonParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
   static final ElementMatcher.Junction<ClassLoader> VERSION_POST_2_16_0 =
       hasClassNamed("com.fasterxml.jackson.core.StreamWriteConstraints");
@@ -44,10 +44,11 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
     final String className = JsonParserInstrumentation.class.getName();
     transformer.applyAdvice(
         namedOneOf("getCurrentName", "nextFieldName")
-            .and(isPublic())
-            .and(takesNoArguments())
-            .and(returns(String.class)),
-        className + "$NameAdvice");
+          .and(isPublic())
+          .and(takesNoArguments())
+          .and(returns(String.class)),
+        className + "$NameAdvice"
+    );
   }
 
   @Override
@@ -58,9 +59,9 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return declaresMethod(namedOneOf("getCurrentName", "nextFieldName"))
-        .and(
-            extendsClass(named(hierarchyMarkerType()))
-                .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
+      .and(extendsClass(named(hierarchyMarkerType()))
+        .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase"))
+      );
   }
 
   @Override
@@ -76,13 +77,12 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "com.fasterxml.jackson.core.json" + ".JsonParser216Helper",
-      "com.fasterxml.jackson.core.sym" + ".ByteQuadsCanonicalizer216Helper",
+        "com.fasterxml.jackson.core.json" + ".JsonParser216Helper",
+        "com.fasterxml.jackson.core.sym" + ".ByteQuadsCanonicalizer216Helper"
     };
   }
 
   public static class NameAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {

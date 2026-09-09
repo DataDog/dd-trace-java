@@ -13,7 +13,6 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
 class Log4j2CorrelationIdInjectorTest extends CorrelationIdInjectorTest {
-
   @Override
   LogJournal buildJournal() {
     LoggerContext context = LoggerContext.getContext(false);
@@ -43,7 +42,8 @@ class Log4j2CorrelationIdInjectorTest extends CorrelationIdInjectorTest {
   }
 
   static class TestAppender extends AbstractAppender
-      implements CorrelationIdInjectorTest.LogJournal {
+      implements CorrelationIdInjectorTest.LogJournal
+  {
     List<String> events;
     int read;
 

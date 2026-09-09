@@ -11,89 +11,84 @@ import java.util.regex.Pattern;
  * entries.
  */
 public final class RedactUtils {
-
   static final String REDACTED = "redacted";
   static final String REDACTED_CLASS = "Redacted";
   private static final String REDACTED_STRING = "REDACTED";
-
   private static final String[] KNOWN_PACKAGES_PREFIXES = {
-    // Java SE / JDK internals
-    "java/",
-    "jdk/",
-    "sun/",
-    "javax/",
-    // Jakarta EE (successor to javax)
-    "jakarta/",
-    // Oracle/Sun vendor packages
-    "com/sun/",
-    "com/oracle/",
-    // Datadog top-level and internal shorthand
-    "datadog/",
-    "com/dd/",
+      // Java SE / JDK internals
+      "java/",
+      "jdk/",
+      "sun/",
+      "javax/",
+      // Jakarta EE (successor to javax)
+      "jakarta/",
+      // Oracle/Sun vendor packages
+      "com/sun/",
+      "com/oracle/",
+      // Datadog top-level and internal shorthand
+      "datadog/",
+      "com/dd/"
   };
-
   // " - string: "value"" in String oop dumps
   private static final Pattern STRING_CONTENT = Pattern.compile("(\\s*- string: )\"[^\"]*\"");
-
   // Type descriptors like Lcom/company/Type;
   private static final Pattern TYPE_DESCRIPTOR = Pattern.compile("L([A-Za-z$_][A-Za-z0-9$_/]*);");
-
   // klass references: - klass: 'com/company/Class'
   private static final Pattern KLASS_REF = Pattern.compile("(klass: ')([^']+)'");
-
   // 'in 'class'' clause in {method} descriptor entries
   private static final Pattern METHOD_IN_CLASS = Pattern.compile("( in ')([^']+)'");
-
   // Object-reference field values in oop dumps: a 'com/company/Class'{0x...}
   private static final Pattern OBJ_FIELD_REF = Pattern.compile("(a ')([A-Za-z$_][A-Za-z0-9$_/]*)'");
-
   // Class name in nmethod compiled-method output (JDK 11+):
   //   "Compiled method (c2) ... com.company.Foo::methodName (N bytes)"   (PRODUCT — dots)
   //   "Compiled method (c2) ... com/company/Foo::methodName (N bytes)"   (debug  — slashes)
   private static final Pattern NMETHOD_CLASS =
       Pattern.compile("([A-Za-z$_][A-Za-z0-9$_]*(?:[./][A-Za-z$_][A-Za-z0-9$_]*)+)::");
-
   // Library path in two formats produced by os::print_location():
   //   <offset 0x...> in /path/to/lib.so at 0x...       (no dladdr symbol)
   //   symbol+offset in /path/to/lib.so at 0x...         (dladdr resolved a symbol name)
   private static final Pattern LIBRARY_PATH =
       Pattern.compile("((?:<[^>]+>|\\S+\\+\\S+)\\s+in\\s+)(/\\S+)");
-
   // Dotted class name followed by an OOP reference: "com.company.Type"{0x...}
   // This specifically identifies the inline string value of a java.lang.Class 'name' field
-  private static final Pattern DOTTED_CLASS_OOP_REF =
-      Pattern.compile(
-          "\"([A-Za-z$_][A-Za-z0-9$_]*(?:\\.[A-Za-z$_][A-Za-z0-9$_]*)*)\"(\\{0x[0-9a-fA-F]+\\})");
-
+  private static final Pattern DOTTED_CLASS_OOP_REF = Pattern.compile(
+      "\"([A-Za-z$_][A-Za-z0-9$_]*(?:\\.[A-Za-z$_][A-Za-z0-9$_]*)*)\"(\\{0x[0-9a-fA-F]+\\})"
+  );
   // is an oop: com.company.Class
   private static final Pattern IS_AN_OOP =
       Pattern.compile("(is an oop: )([A-Za-z$_][A-Za-z0-9$_]*(?:\\.[A-Za-z$_][A-Za-z0-9$_]*)*)");
-
   // Hex-dump bytes in "points into unknown readable memory:" lines.
   // Two formats produced by os::print_location():
   //   "memory: 0x<addr> | ff ff ff ff ..."  (Linux/macOS amd64 — address + pipe + bytes)
   //   "memory: ff ff ff ff ..."              (Linux aarch64    — bytes only)
   // The address (when present) is kept; only the raw bytes are redacted.
-  private static final Pattern READABLE_MEMORY_HEX_DUMP =
-      Pattern.compile(
-          "(points into unknown readable memory: (?:0x[0-9a-fA-F]+ \\| )?)([0-9a-fA-F]{2}(?: [0-9a-fA-F]{2})*)");
+  private static final Pattern READABLE_MEMORY_HEX_DUMP = Pattern.compile(
+      "(points into unknown readable memory: (?:0x[0-9a-fA-F]+ \\\\| )?)([0-9a-fA-F]{2}(?"
+      + ": [0-9a-fA-F]{2})*)"
+  );
 
-  private RedactUtils() {}
+  private RedactUtils() {
+  }
 
   /**
    * Main entry point: redact sensitive data from a register-to-memory mapping value (possibly
    * multiline).
    */
-  @SuppressForbidden // split on single-character uses a fast path without regex
+  // split on single-character uses a fast path without regex
+  @SuppressForbidden
   public static String redactRegisterToMemoryMapping(String value) {
-    if (value == null || value.isEmpty()) return value;
+    if (value == null || value.isEmpty()) {
+      return value;
+    }
     String[] lines = value.split("\n", -1);
     // java.lang.Class oop dumps: String fields hold class names, not arbitrary data.
     // All other oop types: String fields are application data and must be fully redacted.
     boolean isClassOop = isJavaLangClassOop(lines[0]);
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < lines.length; i++) {
-      if (i > 0) sb.append('\n');
+      if (i > 0) {
+        sb.append('\n');
+      }
       sb.append(redactLine(lines[i], isClassOop));
     }
     return sb.toString();
@@ -105,7 +100,9 @@ public final class RedactUtils {
    */
   private static boolean isJavaLangClassOop(String firstLine) {
     int idx = firstLine.indexOf("is an oop: java.lang.Class");
-    if (idx < 0) return false;
+    if (idx < 0) {
+      return false;
+    }
     // Ensure the class name ends here — not a prefix of e.g. java.lang.ClassLoader
     int end = idx + "is an oop: java.lang.Class".length();
     return end >= firstLine.length() || firstLine.charAt(end) == ' ';
@@ -133,13 +130,9 @@ public final class RedactUtils {
    * it may be arbitrary application data.
    */
   private static String redactStringOopRef(String line, boolean isClassOop) {
-    return replaceAll(
-        DOTTED_CLASS_OOP_REF,
-        line,
-        m ->
-            isClassOop
-                ? "\"" + redactDottedClassName(m.group(1)) + "\"" + m.group(2)
-                : "\"" + REDACTED_STRING + "\"" + m.group(2));
+    return replaceAll(DOTTED_CLASS_OOP_REF, line, m -> isClassOop
+        ? "\"" + redactDottedClassName(m.group(1)) + "\"" + m.group(2)
+        : "\"" + REDACTED_STRING + "\"" + m.group(2));
   }
 
   /**
@@ -171,8 +164,9 @@ public final class RedactUtils {
    * in 'com/company/Class'</code> to <code>in 'redacted/Redacted'</code>
    */
   static String redactMethodClass(String line) {
-    return replaceAll(
-        METHOD_IN_CLASS, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
+    return replaceAll(METHOD_IN_CLASS, line, m -> m.group(1)
+        + redactJvmClassName(m.group(2))
+        + "'");
   }
 
   /**
@@ -198,15 +192,11 @@ public final class RedactUtils {
    * dot-separated (PRODUCT build) and slash-separated (debug build) class names.
    */
   static String redactNmethodClass(String line) {
-    return replaceAll(
-        NMETHOD_CLASS,
-        line,
-        m -> {
-          String cls = m.group(1);
-          String redacted =
-              cls.indexOf('/') >= 0 ? redactJvmClassName(cls) : redactDottedClassName(cls);
-          return redacted + "::";
-        });
+    return replaceAll(NMETHOD_CLASS, line, m -> {
+      String cls = m.group(1);
+      String redacted = cls.indexOf('/') >= 0 ? redactJvmClassName(cls) : redactDottedClassName(cls);
+      return redacted + "::";
+    });
   }
 
   /**
@@ -269,7 +259,10 @@ public final class RedactUtils {
 
   private static String redactClassName(char sep, String className) {
     int lastSep = className.lastIndexOf(sep);
-    if (lastSep < 0) return className; // no package — nothing to redact
+    // no package — nothing to redact
+    if (lastSep < 0) {
+      return className;
+    }
     return REDACTED + sep + REDACTED_CLASS;
   }
 
@@ -280,9 +273,15 @@ public final class RedactUtils {
    */
   static String redactPath(String path) {
     int last = path.lastIndexOf('/');
-    if (last <= 0) return path; // /file or empty — nothing to redact
+    // /file or empty — nothing to redact
+    if (last <= 0) {
+      return path;
+    }
     int secondLast = path.lastIndexOf('/', last - 1);
-    if (secondLast <= 0) return path; // /dir/file — nothing to redact
+    // /dir/file — nothing to redact
+    if (secondLast <= 0) {
+      return path;
+    }
     // Collapse everything before the second-last slash to a single /redacted
     return "/" + REDACTED + path.substring(secondLast);
   }
@@ -300,7 +299,10 @@ public final class RedactUtils {
   }
 
   private static String replaceAll(
-      Pattern pattern, String input, Function<Matcher, String> replacement) {
+      Pattern pattern,
+      String input,
+      Function<Matcher, String> replacement
+  ) {
     Matcher m = pattern.matcher(input);
     if (!m.find()) {
       return input;

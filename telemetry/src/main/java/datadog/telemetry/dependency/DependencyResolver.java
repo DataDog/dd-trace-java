@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DependencyResolver {
-
   private static final Logger log = LoggerFactory.getLogger(DependencyResolver.class);
 
   public static List<Dependency> resolve(URI uri) {
@@ -50,14 +49,16 @@ public class DependencyResolver {
       return dependencies;
     }
     try (final InputStream is = metadata.inputStreamSupplier.get()) {
-      return Collections.singletonList(
-          Dependency.guessFallbackNoPom(metadata.manifest, metadata.jarName, is));
+      return Collections.singletonList(Dependency.guessFallbackNoPom(
+          metadata.manifest,
+          metadata.jarName,
+          is
+      ));
     }
   }
 
   private static JarReader.Extracted resolveNestedJar(final URI uri) throws IOException {
     String path = uri.getSchemeSpecificPart();
-
     // Strip optional trailing '!' or '!/'.
     if (path.endsWith("!")) {
       path = path.substring(0, path.length() - 1);

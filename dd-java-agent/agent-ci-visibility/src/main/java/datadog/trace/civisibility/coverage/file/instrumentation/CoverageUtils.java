@@ -5,7 +5,6 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 public class CoverageUtils {
-
   public static void insertCoverageProbe(String className, MethodVisitor mv) {
     String typeDescriptor = 'L' + className + ';';
     Type type = Type.getType(typeDescriptor);
@@ -16,6 +15,7 @@ public class CoverageUtils {
         "datadog/trace/api/civisibility/coverage/CoveragePerTestBridge",
         "recordCoverage",
         "(Ljava/lang/Class;)V",
-        false);
+        false
+    );
   }
 }

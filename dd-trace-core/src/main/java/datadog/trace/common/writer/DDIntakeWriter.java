@@ -14,10 +14,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class DDIntakeWriter extends RemoteWriter {
-
   public static final String DEFAULT_INTAKE_VERSION = "v2";
-  public static final long DEFAULT_INTAKE_TIMEOUT = 10; // timeout in seconds
-
+  // timeout in seconds
+  public static final long DEFAULT_INTAKE_TIMEOUT = 10;
   private static final int BUFFER_SIZE = 1024;
 
   public static DDIntakeWriterBuilder builder() {
@@ -35,9 +34,7 @@ public class DDIntakeWriter extends RemoteWriter {
     private int flushTimeout = 5;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
     private boolean alwaysFlush = false;
-
     private final Map<TrackType, RemoteApi> tracks = new EnumMap<>(TrackType.class);
-
     private SingleSpanSampler singleSpanSampler;
 
     public DDIntakeWriterBuilder addTrack(final TrackType trackType, final RemoteApi intakeApi) {
@@ -86,7 +83,9 @@ public class DDIntakeWriter extends RemoteWriter {
     }
 
     public DDIntakeWriterBuilder flushTimeout(
-        final int flushTimeout, final TimeUnit flushTimeoutUnit) {
+        final int flushTimeout,
+        final TimeUnit flushTimeoutUnit
+    ) {
       this.flushTimeout = flushTimeout;
       this.flushTimeoutUnit = flushTimeoutUnit;
       return this;
@@ -107,22 +106,24 @@ public class DDIntakeWriter extends RemoteWriter {
         dispatcher = createDispatcher(tracks.entrySet().iterator().next());
       } else {
         PayloadDispatcher[] dispatchers =
-            tracks.entrySet().stream()
-                .map(this::createDispatcher)
-                .toArray(PayloadDispatcher[]::new);
+            tracks
+          .entrySet()
+          .stream()
+          .map(this::createDispatcher)
+          .toArray(PayloadDispatcher[]::new);
         dispatcher = new CompositePayloadDispatcher(dispatchers);
       }
 
-      final TraceProcessingWorker traceProcessingWorker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              healthMetrics,
-              dispatcher,
-              droppingPolicy,
-              prioritization,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      final TraceProcessingWorker traceProcessingWorker = new TraceProcessingWorker(
+          traceBufferSize,
+          healthMetrics,
+          dispatcher,
+          droppingPolicy,
+          prioritization,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler
+      );
 
       return new DDIntakeWriter(
           traceProcessingWorker,
@@ -130,7 +131,8 @@ public class DDIntakeWriter extends RemoteWriter {
           healthMetrics,
           flushTimeout,
           flushTimeoutUnit,
-          alwaysFlush);
+          alwaysFlush
+      );
     }
 
     private PayloadDispatcher createDispatcher(Map.Entry<TrackType, RemoteApi> e) {
@@ -148,7 +150,8 @@ public class DDIntakeWriter extends RemoteWriter {
       HealthMetrics healthMetrics,
       int flushTimeout,
       TimeUnit flushTimeoutUnit,
-      boolean alwaysFlush) {
+      boolean alwaysFlush
+  ) {
     super(worker, dispatcher, healthMetrics, flushTimeout, flushTimeoutUnit, alwaysFlush);
   }
 
@@ -156,7 +159,8 @@ public class DDIntakeWriter extends RemoteWriter {
       TraceProcessingWorker worker,
       PayloadDispatcher dispatcher,
       HealthMetrics healthMetrics,
-      boolean alwaysFlush) {
+      boolean alwaysFlush
+  ) {
     super(worker, dispatcher, healthMetrics, alwaysFlush);
   }
 }

@@ -19,7 +19,6 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 final class OtelTransformerState implements OtelTransformer {
   private static final OtelTransformerState CURRENT = new OtelTransformerState();
-
   private OtelInstrumenter instrumenter;
   private Instrumenter.MethodTransformer methodTransformer;
   private Instrumenter.TypeTransformer typeTransformer;
@@ -62,7 +61,9 @@ final class OtelTransformerState implements OtelTransformer {
 
   @Override
   public void applyAdviceToMethod(
-      ElementMatcher<? super MethodDescription> methodMatcher, String adviceClassName) {
+      ElementMatcher<? super MethodDescription> methodMatcher,
+      String adviceClassName
+  ) {
     methodTransformer.applyAdvice(methodMatcher, adviceClassName);
   }
 

@@ -10,7 +10,6 @@ import java.util.concurrent.TimeUnit;
 public class ServiceMappingApplication {
   public static final String ORIGINAL_SERVICE_NAME = "foo";
   public static final String MAPPED_SERVICE_NAME = "bar";
-
   public static final long TIMEOUT_IN_NANOS = TimeUnit.SECONDS.toNanos(10);
 
   public static void main(String[] args) throws InterruptedException {

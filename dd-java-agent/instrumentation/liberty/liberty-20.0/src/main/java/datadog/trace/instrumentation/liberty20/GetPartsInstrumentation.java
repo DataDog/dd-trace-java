@@ -5,7 +5,6 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -25,8 +24,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class GetPartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public GetPartsInstrumentation() {
     super("liberty");
   }
@@ -34,8 +34,8 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "com.ibm.ws.webcontainer.srt.SRTServletRequest",
-      "com.ibm.ws.webcontainer31.srt.SRTServletRequest31",
+        "com.ibm.ws.webcontainer.srt.SRTServletRequest",
+        "com.ibm.ws.webcontainer31.srt.SRTServletRequest31"
     };
   }
 
@@ -48,7 +48,8 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getParts")).and(isPublic()).and(takesArguments(0)),
-        GetPartsInstrumentation.class.getName() + "$GetFilenamesAdvice");
+        GetPartsInstrumentation.class.getName() + "$GetFilenamesAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -57,7 +58,8 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Return Collection<?> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }

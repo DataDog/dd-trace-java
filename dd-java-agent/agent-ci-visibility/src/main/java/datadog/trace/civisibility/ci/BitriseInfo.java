@@ -4,7 +4,6 @@ import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -13,7 +12,6 @@ import datadog.trace.civisibility.ci.env.CiEnvironment;
 import javax.annotation.Nonnull;
 
 class BitriseInfo implements CIProviderInfo {
-
   // https://devcenter.bitrise.io/en/references/available-environment-variables.html
   public static final String BITRISE = "BITRISE_BUILD_SLUG";
   public static final String BITRISE_PROVIDER_NAME = "bitrise";
@@ -34,7 +32,6 @@ class BitriseInfo implements CIProviderInfo {
   public static final String BITRISE_GIT_COMMITER_EMAIL = "GIT_CLONE_COMMIT_COMMITER_EMAIL";
   public static final String BITRISE_GIT_BRANCH_DEST = "BITRISEIO_GIT_BRANCH_DEST";
   public static final String BITRISE_PR_NUMBER = "BITRISE_PULL_REQUEST";
-
   private final CiEnvironment environment;
 
   BitriseInfo(CiEnvironment environment) {
@@ -51,23 +48,28 @@ class BitriseInfo implements CIProviderInfo {
             buildGitCommit(),
             new PersonInfo(
                 environment.get(BITRISE_GIT_AUTHOR_NAME),
-                environment.get(BITRISE_GIT_AUTHOR_EMAIL)),
+                environment.get(BITRISE_GIT_AUTHOR_EMAIL)
+            ),
             new PersonInfo(
                 environment.get(BITRISE_GIT_COMMITER_NAME),
-                environment.get(BITRISE_GIT_COMMITER_EMAIL)),
-            environment.get(BITRISE_GIT_MESSAGE)));
+                environment.get(BITRISE_GIT_COMMITER_EMAIL)
+            ),
+            environment.get(BITRISE_GIT_MESSAGE)
+        )
+    );
   }
 
   @Override
   public CIInfo buildCIInfo() {
-    return CIInfo.builder(environment)
-        .ciProviderName(BITRISE_PROVIDER_NAME)
-        .ciPipelineId(environment.get(BITRISE_PIPELINE_ID))
-        .ciPipelineName(environment.get(BITRISE_PIPELINE_NAME))
-        .ciPipelineNumber(environment.get(BITRISE_PIPELINE_NUMBER))
-        .ciPipelineUrl(environment.get(BITRISE_PIPELINE_URL))
-        .ciWorkspace(expandTilde(environment.get(BITRISE_WORKSPACE_PATH)))
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(BITRISE_PROVIDER_NAME)
+      .ciPipelineId(environment.get(BITRISE_PIPELINE_ID))
+      .ciPipelineName(environment.get(BITRISE_PIPELINE_NAME))
+      .ciPipelineNumber(environment.get(BITRISE_PIPELINE_NUMBER))
+      .ciPipelineUrl(environment.get(BITRISE_PIPELINE_URL))
+      .ciWorkspace(expandTilde(environment.get(BITRISE_WORKSPACE_PATH)))
+      .build();
   }
 
   @Nonnull
@@ -78,7 +80,8 @@ class BitriseInfo implements CIProviderInfo {
         null,
         null,
         CommitInfo.NOOP,
-        environment.get(BITRISE_PR_NUMBER));
+        environment.get(BITRISE_PR_NUMBER)
+    );
   }
 
   private String buildGitCommit() {

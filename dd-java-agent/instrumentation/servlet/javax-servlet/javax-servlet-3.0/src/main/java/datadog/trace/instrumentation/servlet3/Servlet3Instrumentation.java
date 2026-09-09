@@ -7,7 +7,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,7 +15,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class Servlet3Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public Servlet3Instrumentation() {
     super("servlet", "servlet-3");
   }
@@ -40,22 +41,22 @@ public final class Servlet3Instrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("javax.servlet.http.HttpServlet"))
-        .or(implementsInterface(named("javax.servlet.FilterChain")));
+      .or(implementsInterface(named("javax.servlet.FilterChain")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".Servlet3Decorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".FinishAsyncDispatchListener",
-      packageName + ".RumHttpServletRequestWrapper",
-      packageName + ".RumHttpServletResponseWrapper",
-      packageName + ".WrappedServletOutputStream",
-      "datadog.trace.instrumentation.servlet.ServletBlockingHelper",
+        packageName + ".HttpServletExtractAdapter",
+        packageName + ".HttpServletExtractAdapter$Request",
+        packageName + ".HttpServletExtractAdapter$Response",
+        packageName + ".Servlet3Decorator",
+        packageName + ".ServletRequestURIAdapter",
+        packageName + ".FinishAsyncDispatchListener",
+        packageName + ".RumHttpServletRequestWrapper",
+        packageName + ".RumHttpServletResponseWrapper",
+        packageName + ".WrappedServletOutputStream",
+        "datadog.trace.instrumentation.servlet.ServletBlockingHelper"
     };
   }
 
@@ -68,9 +69,10 @@ public final class Servlet3Instrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         namedOneOf("doFilter", "service")
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
-        packageName + ".Servlet3Advice");
+          .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+          .and(isPublic()),
+        packageName + ".Servlet3Advice"
+    );
   }
 }

@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.DECO
 import static datadog.trace.instrumentation.synapse3.SynapseServerDecorator.SYNAPSE_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -25,8 +24,9 @@ import org.apache.http.nio.NHttpServerConnection;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public SynapseServerInstrumentation() {
     super("synapse3-server", "synapse3");
   }
@@ -39,10 +39,10 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".SynapseServerDecorator",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".SynapseServerDecorator"
     };
   }
 
@@ -50,20 +50,23 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("requestReceived"))
-            .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
+          .and(named("requestReceived"))
+          .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
         getClass().getName() + "$ServerRequestContextTrackingAdvice",
-        getClass().getName() + "$ServerRequestAdvice");
+        getClass().getName() + "$ServerRequestAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("responseReady"))
-            .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
-        getClass().getName() + "$ServerResponseAdvice");
+          .and(named("responseReady"))
+          .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
+        getClass().getName() + "$ServerResponseAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("closed", "exception", "timeout"))
-            .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
-        getClass().getName() + "$ServerErrorResponseAdvice");
+          .and(namedOneOf("closed", "exception", "timeout"))
+          .and(takesArgument(0, named("org.apache.http.nio.NHttpServerConnection"))),
+        getClass().getName() + "$ServerErrorResponseAdvice"
+    );
   }
 
   @AppliesOn(CONTEXT_TRACKING)
@@ -84,17 +87,17 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
   public static final class ServerRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(
-        @Advice.Argument(0) final NHttpServerConnection connection) {
-
+        @Advice.Argument(0) final NHttpServerConnection connection
+    ) {
       // check incoming request for distributed trace ids
       HttpRequest request = connection.getHttpRequest();
-      Context parentContext = currentContext(); // parent context attached by ContextTrackingAdvice
+      // parent context attached by ContextTrackingAdvice
+      Context parentContext = currentContext();
       Context context = DECORATE.startSpan(request, parentContext);
       ContextScope scope = context.attach();
       AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection, request, parentContext);
-
       // capture context (which contains span) to be finished by one of the various server response
       // advices
       connection.getContext().setAttribute(SYNAPSE_CONTEXT_KEY, context);
@@ -111,7 +114,8 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
   public static final class ServerResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
-        @Advice.Argument(0) final NHttpServerConnection connection) {
+        @Advice.Argument(0) final NHttpServerConnection connection
+    ) {
       // don't remove stored context here because the response callback may run multiple times
       Context context = (Context) connection.getContext().getAttribute(SYNAPSE_CONTEXT_KEY);
       if (null != context) {
@@ -124,7 +128,8 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
     public static void responseReady(
         @Advice.Argument(0) final NHttpServerConnection connection,
         @Advice.Enter final ContextScope scope,
-        @Advice.Thrown final Throwable error) {
+        @Advice.Thrown final Throwable error
+    ) {
       if (null == scope) {
         return;
       }
@@ -157,7 +162,8 @@ public final class SynapseServerInstrumentation extends InstrumenterModule.Traci
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void errorResponse(
         @Advice.Argument(0) final NHttpServerConnection connection,
-        @Advice.Argument(value = 1, optional = true) final Object error) {
+        @Advice.Argument(value = 1, optional = true) final Object error
+    ) {
       // check and remove context so it won't be finished twice
       Context context = (Context) connection.getContext().removeAttribute(SYNAPSE_CONTEXT_KEY);
       if (null != context && context != rootContext()) {

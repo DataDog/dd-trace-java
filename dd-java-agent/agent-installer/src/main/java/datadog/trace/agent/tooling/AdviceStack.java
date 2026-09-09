@@ -7,7 +7,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
 
-/** Stack of advice transformations declared by a particular instrumentation. */
+/**
+ * Stack of advice transformations declared by a particular instrumentation.
+ */
 final class AdviceStack implements AgentBuilder.Transformer {
   private final AgentBuilder.Transformer[] advices;
 
@@ -25,8 +27,8 @@ final class AdviceStack implements AgentBuilder.Transformer {
       TypeDescription target,
       ClassLoader classLoader,
       JavaModule module,
-      ProtectionDomain pd) {
-
+      ProtectionDomain pd
+  ) {
     for (AgentBuilder.Transformer advice : advices) {
       builder = advice.transform(builder, target, classLoader, module, pd);
     }

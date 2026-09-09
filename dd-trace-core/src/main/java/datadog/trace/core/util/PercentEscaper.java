@@ -2,7 +2,6 @@
  * Copyright The OpenTelemetry Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-
 // Includes work from:
 /*
  * Copyright (C) 2008 The Guava Authors
@@ -17,7 +16,6 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-
 package datadog.trace.core.util;
 
 import javax.annotation.CheckForNull;
@@ -65,26 +63,25 @@ import javax.annotation.CheckForNull;
  * @since 15.0
  */
 public final class PercentEscaper {
-
-  /** The amount of padding (chars) to use when growing the escape buffer. */
+  /**
+   * The amount of padding (chars) to use when growing the escape buffer.
+   */
   private static final int DEST_PAD = 32;
-
   private static final String UNSAFE_CHARACTERS_KEY = "\",;\\()/:<=>?@[]{} ";
   private static final String UNSAFE_CHARACTERS_VALUE = "\",;\\ ";
-
   // Percent escapers output upper case hex digits (uri escapers require this).
   private static final char[] UPPER_HEX_DIGITS = "0123456789ABCDEF".toCharArray();
-
   /**
    * Arrays of flags where for any {@code char c} if {@code safeOctets[c]} is true then {@code c}
    * should remain unmodified in the output. If {@code c >= safeOctets.length} then it should be
    * escaped.
    */
   private static final boolean[] unsafeKeyOctets = createUnsafeOctets(UNSAFE_CHARACTERS_KEY);
-
   private static final boolean[] unsafeValOctets = createUnsafeOctets(UNSAFE_CHARACTERS_VALUE);
 
-  /** The default {@link PercentEscaper} which will *not* replace spaces with plus signs. */
+  /**
+   * The default {@link PercentEscaper} which will *not* replace spaces with plus signs.
+   */
   public static PercentEscaper create() {
     return new PercentEscaper();
   }
@@ -141,7 +138,9 @@ public final class PercentEscaper {
     return needsEncoding(val, unsafeValOctets);
   }
 
-  /** Escape the provided String, using percent-style URL Encoding. */
+  /**
+   * Escape the provided String, using percent-style URL Encoding.
+   */
   public Escaped escape(String s, boolean[] unsafeOctets) {
     int slen = s.length();
     for (int index = 0; index < slen; index++) {
@@ -174,9 +173,9 @@ public final class PercentEscaper {
    */
   private static Escaped escapeSlow(String s, int index, boolean[] unsafeOctets) {
     int end = s.length();
-
     // Get a destination buffer and setup some loop variables.
-    char[] dest = new char[1024]; // 1024 from the original guava source
+    // 1024 from the original guava source
+    char[] dest = new char[1024];
     int destIndex = 0;
     int unescapedChunkStart = 0;
     Escaped result = new Escaped("", index);
@@ -193,7 +192,6 @@ public final class PercentEscaper {
       int nextIndex = index + (Character.isSupplementaryCodePoint(cp) ? 2 : 1);
       if (escaped != null) {
         int charsSkipped = index - unescapedChunkStart;
-
         // This is the size needed to add the replacement, not the full
         // size needed by the string. We only regrow when we absolutely must.
         int sizeNeeded = destIndex + charsSkipped + escaped.length;
@@ -215,7 +213,6 @@ public final class PercentEscaper {
       }
       index = nextEscapeIndex(s, nextIndex, end, unsafeOctets);
     }
-
     // Process trailing unescaped characters - no need to account for escaped
     // length or padding the allocation.
     int charsSkipped = end - unescapedChunkStart;
@@ -244,7 +241,9 @@ public final class PercentEscaper {
     return index;
   }
 
-  /** Escapes the given Unicode code point in UTF-8. */
+  /**
+   * Escapes the given Unicode code point in UTF-8.
+   */
   @CheckForNull
   @SuppressWarnings("UngroupedOverloads")
   private static char[] escape(int cp, Escaped escaped, boolean[] unsafeOctets) {
@@ -374,25 +373,27 @@ public final class PercentEscaper {
         }
         throw new IllegalArgumentException(
             "Expected low surrogate but got char '"
-                + c2
-                + "' with value "
-                + (int) c2
-                + " at index "
-                + index
-                + " in '"
-                + seq
-                + "'");
+            + c2
+            + "' with value "
+            + (int) c2
+            + " at index "
+            + index
+            + " in '"
+            + seq
+            + "'"
+        );
       } else {
         throw new IllegalArgumentException(
             "Unexpected low surrogate character '"
-                + c1
-                + "' with value "
-                + (int) c1
-                + " at index "
-                + (index - 1)
-                + " in '"
-                + seq
-                + "'");
+            + c1
+            + "' with value "
+            + (int) c1
+            + " at index "
+            + (index - 1)
+            + " in '"
+            + seq
+            + "'"
+        );
       }
     }
     throw new IndexOutOfBoundsException("Index exceeds specified range");
@@ -403,7 +404,8 @@ public final class PercentEscaper {
    * ok if it's in a method call. If the index passed in is 0 then no copying will be done.
    */
   private static char[] growBuffer(char[] dest, int index, int size) {
-    if (size < 0) { // overflow - should be OutOfMemoryError but GWT/j2cl don't support it
+    if (size < 0) {
+      // overflow - should be OutOfMemoryError but GWT/j2cl don't support it
       throw new AssertionError("Cannot increase internal buffer any further");
     }
     char[] copy = new char[size];

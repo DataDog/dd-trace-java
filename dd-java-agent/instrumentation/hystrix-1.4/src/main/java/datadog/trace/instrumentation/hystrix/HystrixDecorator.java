@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.hystrix;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.HYSTRIX_CIRCUIT_OPEN;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.HYSTRIX_COMMAND;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.HYSTRIX_GROUP;
-
 import com.netflix.hystrix.HystrixInvokableInfo;
 import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
@@ -15,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 
 public class HystrixDecorator extends BaseDecorator {
   public static HystrixDecorator DECORATE = new HystrixDecorator();
-
   private final boolean extraTags;
   private final boolean measured;
 
@@ -29,10 +27,8 @@ public class HystrixDecorator extends BaseDecorator {
   }
 
   public static final CharSequence HYSTRIX = UTF8BytesString.create("hystrix");
-
   private static final DDCache<ResourceNameCacheKey, String> RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(64);
-
   private static final Functions.ToString<ResourceNameCacheKey> TO_STRING =
       new Functions.ToString<>();
 
@@ -53,8 +49,12 @@ public class HystrixDecorator extends BaseDecorator {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       ResourceNameCacheKey cacheKey = (ResourceNameCacheKey) o;
       return group.equals(cacheKey.group)
           && command.equals(cacheKey.command)
@@ -87,7 +87,10 @@ public class HystrixDecorator extends BaseDecorator {
   }
 
   public void onCommand(
-      final AgentSpan span, final HystrixInvokableInfo<?> command, final String methodName) {
+      final AgentSpan span,
+      final HystrixInvokableInfo<?> command,
+      final String methodName
+  ) {
     if (command != null) {
       if (extraTags) {
         span.setTag(HYSTRIX_COMMAND, command.getCommandKey().name());
@@ -97,11 +100,14 @@ public class HystrixDecorator extends BaseDecorator {
       if (measured) {
         span.setMeasured(true);
       }
-      span.setResourceName(
-          RESOURCE_NAME_CACHE.computeIfAbsent(
-              new ResourceNameCacheKey(
-                  command.getCommandGroup().name(), command.getCommandKey().name(), methodName),
-              TO_STRING));
+      span.setResourceName(RESOURCE_NAME_CACHE.computeIfAbsent(
+          new ResourceNameCacheKey(
+              command.getCommandGroup().name(),
+              command.getCommandKey().name(),
+              methodName
+          ),
+          TO_STRING
+      ));
     }
   }
 }

@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -34,7 +33,9 @@ import scala.concurrent.Future;
  */
 @AutoService(InstrumenterModule.class)
 public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public UnmarshallerInstrumentation() {
     super("pekko-http");
   }
@@ -46,29 +47,28 @@ public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintFutureHelper",
-    };
+    return new String[] {packageName + ".helpers.TaintFutureHelper"};
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("org.apache.pekko.http.scaladsl.unmarshalling.")
-        .and(implementsInterface(named(hierarchyMarkerType())));
+      .and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("apply"))
-            .and(returns(named("scala.concurrent.Future")))
-            .and(takesArguments(3))
-            .and(takesArgument(0, Object.class))
-            .and(takesArgument(1, named("scala.concurrent.ExecutionContext")))
-            .and(takesArgument(2, named("org.apache.pekko.stream.Materializer"))),
-        UnmarshallerInstrumentation.class.getName() + "$PropagateTaintOnApplyAdvice");
+          .and(not(isStatic()))
+          .and(named("apply"))
+          .and(returns(named("scala.concurrent.Future")))
+          .and(takesArguments(3))
+          .and(takesArgument(0, Object.class))
+          .and(takesArgument(1, named("scala.concurrent.ExecutionContext")))
+          .and(takesArgument(2, named("org.apache.pekko.stream.Materializer"))),
+        UnmarshallerInstrumentation.class.getName() + "$PropagateTaintOnApplyAdvice"
+    );
   }
 
   static class PropagateTaintOnApplyAdvice {
@@ -77,7 +77,8 @@ public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
     static void after(
         @Advice.Return(readOnly = false) Future<?> result,
         @Advice.Argument(0) Object input,
-        @Advice.Argument(1) ExecutionContext ec) {
+        @Advice.Argument(1) ExecutionContext ec
+    ) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod == null) {
         return;

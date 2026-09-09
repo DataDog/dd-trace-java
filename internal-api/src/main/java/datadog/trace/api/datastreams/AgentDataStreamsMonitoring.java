@@ -5,7 +5,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 
 public interface AgentDataStreamsMonitoring
-    extends DataStreamsCheckpointer, DataStreamsTransactionTracker {
+    extends DataStreamsCheckpointer,
+    DataStreamsTransactionTracker
+{
   void trackBacklog(DataStreamsTags tags, long value);
 
   /**
@@ -18,14 +20,19 @@ public interface AgentDataStreamsMonitoring
    * @param config the configuration key-value pairs
    */
   void reportKafkaConfig(
-      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config);
+      String type,
+      String kafkaClusterId,
+      String consumerGroup,
+      Map<String, String> config
+  );
 
   void reportKafkaConsumerGroupMember(
       String kafkaClusterId,
       String consumerGroup,
       String memberId,
       int generationId,
-      String memberProtocol);
+      String memberProtocol
+  );
 
   /**
    * Tracks Schema Registry usage for Data Streams Monitoring.
@@ -43,7 +50,8 @@ public interface AgentDataStreamsMonitoring
       int schemaId,
       boolean isSuccess,
       boolean isKey,
-      String operation);
+      String operation
+  );
 
   /**
    * Sets data streams checkpoint, used for both produce and consume operations.
@@ -67,6 +75,8 @@ public interface AgentDataStreamsMonitoring
    */
   void setThreadServiceName(String serviceName);
 
-  /** clearThreadServiceName clears up service name override for Thread.currentThread() */
+  /**
+   * clearThreadServiceName clears up service name override for Thread.currentThread()
+   */
   void clearThreadServiceName();
 }

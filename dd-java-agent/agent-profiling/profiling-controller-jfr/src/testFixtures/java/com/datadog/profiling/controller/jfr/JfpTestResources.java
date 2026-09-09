@@ -11,10 +11,10 @@ public final class JfpTestResources {
   private static final AtomicReference<String> overrides = new AtomicReference<>();
   private static final AtomicReference<String> overridesOldObjectSample = new AtomicReference<>();
   private static final AtomicReference<String> overridesObjectAllocation = new AtomicReference<>();
-  private static final AtomicReference<String> overridesNativeMethodSample =
-      new AtomicReference<>();
+  private static final AtomicReference<String> overridesNativeMethodSample = new AtomicReference<>();
 
-  private JfpTestResources() {}
+  private JfpTestResources() {
+  }
 
   public static String overrides() {
     return get(overrides, "overrides.jfp");

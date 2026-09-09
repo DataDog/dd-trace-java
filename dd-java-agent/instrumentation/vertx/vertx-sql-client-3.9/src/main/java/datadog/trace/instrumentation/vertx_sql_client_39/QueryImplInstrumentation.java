@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isVirtual;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,7 +15,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class QueryImplInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public QueryImplInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -29,7 +30,8 @@ public class QueryImplInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".QueryResultHandlerWrapper", packageName + ".VertxSqlClientDecorator",
+        packageName + ".QueryResultHandlerWrapper",
+        packageName + ".VertxSqlClientDecorator"
     };
   }
 
@@ -42,16 +44,18 @@ public class QueryImplInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("execute"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
-        packageName + ".QueryAdvice$Execute");
+          .and(isPublic())
+          .and(named("execute"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.vertx.core.Handler"))),
+        packageName + ".QueryAdvice$Execute"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isVirtual())
-            .and(named("copy"))
-            .and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
-        packageName + ".QueryAdvice$Copy");
+          .and(isVirtual())
+          .and(named("copy"))
+          .and(returns(named("io.vertx.sqlclient.impl.QueryBase"))),
+        packageName + ".QueryAdvice$Copy"
+    );
   }
 }

@@ -13,7 +13,6 @@ import java.util.ArrayList;
 public class ExtendedHeartbeatData {
   private static final int DEFAULT_DEPENDENCIES_LIMIT = 2000;
   private static final int INITIAL_CAPACITY = 32;
-
   private final int dependenciesLimit;
   private final ArrayList<ConfigSetting> configuration;
   private final ArrayList<Dependency> dependencies;

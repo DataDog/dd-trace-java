@@ -14,16 +14,19 @@ import okhttp3.Call;
 import okhttp3.Response;
 
 public class TelemetryListener extends OkHttpUtils.CustomListener {
-
   private static final String CONTENT_ENCODING_HEADER = "Content-Encoding";
   private static final String GZIP_ENCODING = "gzip";
-
   private final CiVisibilityMetricCollector metricCollector;
-  private final @Nullable CiVisibilityCountMetric requestCountMetric;
-  private final @Nullable CiVisibilityCountMetric requestErrorsMetric;
-  private final @Nullable CiVisibilityDistributionMetric requestBytesMetric;
-  private final @Nullable CiVisibilityDistributionMetric requestDurationMetric;
-  private final @Nullable CiVisibilityDistributionMetric responseBytesMetric;
+  @Nullable
+  private final CiVisibilityCountMetric requestCountMetric;
+  @Nullable
+  private final CiVisibilityCountMetric requestErrorsMetric;
+  @Nullable
+  private final CiVisibilityDistributionMetric requestBytesMetric;
+  @Nullable
+  private final CiVisibilityDistributionMetric requestDurationMetric;
+  @Nullable
+  private final CiVisibilityDistributionMetric responseBytesMetric;
   private long callStartTimestamp;
   private boolean responseCompressed;
 
@@ -33,7 +36,8 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
       @Nullable CiVisibilityCountMetric requestErrorsMetric,
       @Nullable CiVisibilityDistributionMetric requestBytesMetric,
       @Nullable CiVisibilityDistributionMetric requestDurationMetric,
-      @Nullable CiVisibilityDistributionMetric responseBytesMetric) {
+      @Nullable CiVisibilityDistributionMetric responseBytesMetric
+  ) {
     this.metricCollector = metricCollector;
     this.requestCountMetric = requestCountMetric;
     this.requestErrorsMetric = requestErrorsMetric;
@@ -49,8 +53,9 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
           requestCountMetric,
           1,
           GZIP_ENCODING.equalsIgnoreCase(call.request().header(CONTENT_ENCODING_HEADER))
-              ? RequestCompressed.TRUE
-              : null);
+          ? RequestCompressed.TRUE
+          : null
+      );
     }
   }
 
@@ -65,7 +70,11 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
       if (!response.isSuccessful()) {
         int responseCode = response.code();
         metricCollector.add(
-            requestErrorsMetric, 1, ErrorType.from(responseCode), StatusCode.from(responseCode));
+            requestErrorsMetric,
+            1,
+            ErrorType.from(responseCode),
+            StatusCode.from(responseCode)
+        );
       }
     }
     responseCompressed = GZIP_ENCODING.equalsIgnoreCase(response.header(CONTENT_ENCODING_HEADER));
@@ -77,7 +86,8 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
       metricCollector.add(
           responseBytesMetric,
           (int) byteCount,
-          responseCompressed ? ResponseCompressed.TRUE : null);
+          responseCompressed ? ResponseCompressed.TRUE : null
+      );
     }
   }
 
@@ -101,11 +111,16 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
 
   public static final class Builder {
     private final CiVisibilityMetricCollector metricCollector;
-    private @Nullable CiVisibilityCountMetric requestCountMetric;
-    private @Nullable CiVisibilityCountMetric requestErrorsMetric;
-    private @Nullable CiVisibilityDistributionMetric requestBytesMetric;
-    private @Nullable CiVisibilityDistributionMetric requestDurationMetric;
-    private @Nullable CiVisibilityDistributionMetric responseBytesMetric;
+    @Nullable
+    private CiVisibilityCountMetric requestCountMetric;
+    @Nullable
+    private CiVisibilityCountMetric requestErrorsMetric;
+    @Nullable
+    private CiVisibilityDistributionMetric requestBytesMetric;
+    @Nullable
+    private CiVisibilityDistributionMetric requestDurationMetric;
+    @Nullable
+    private CiVisibilityDistributionMetric responseBytesMetric;
 
     public Builder(CiVisibilityMetricCollector metricCollector) {
       this.metricCollector = metricCollector;
@@ -143,7 +158,8 @@ public class TelemetryListener extends OkHttpUtils.CustomListener {
           requestErrorsMetric,
           requestBytesMetric,
           requestDurationMetric,
-          responseBytesMetric);
+          responseBytesMetric
+      );
     }
   }
 }

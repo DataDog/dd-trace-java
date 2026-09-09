@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.cu
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import com.google.common.util.concurrent.AbstractFuture;
 import datadog.context.Context;
@@ -22,8 +21,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ListenableFutureInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ListenableFutureInstrumentation() {
     super("guava");
   }
@@ -35,9 +35,7 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.ContextT
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      this.packageName + ".GuavaAsyncResultExtension",
-    };
+    return new String[] {this.packageName + ".GuavaAsyncResultExtension"};
   }
 
   @Override
@@ -49,13 +47,15 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.ContextT
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("addListener").and(takesArguments(Runnable.class, Executor.class)),
-        ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice");
+        ListenableFutureInstrumentation.class.getName() + "$AddListenerAdvice"
+    );
   }
 
   public static class AddListenerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static State addListenerEnter(
-        @Advice.Argument(value = 0, readOnly = false) Runnable task) {
+        @Advice.Argument(value = 0, readOnly = false) Runnable task
+    ) {
       final Context context = currentContext();
       if (context != rootContext()) {
         final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
@@ -73,7 +73,9 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.ContextT
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void addListenerExit(
-        @Advice.Enter final State state, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final State state,
+        @Advice.Thrown final Throwable throwable
+    ) {
       ExecutorInstrumentationUtils.cleanUpOnMethodExit(state, throwable);
     }
 

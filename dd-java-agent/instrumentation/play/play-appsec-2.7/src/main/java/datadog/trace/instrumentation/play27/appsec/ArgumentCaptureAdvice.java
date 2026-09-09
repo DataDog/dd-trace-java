@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play27.appsec;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -33,7 +32,8 @@ public class ArgumentCaptureAdvice {
   }
 
   public static class ArgumentCaptureFunctionParam1<R>
-      implements RequestFunctions.Params1<Object, R> {
+      implements RequestFunctions.Params1<Object, R>
+  {
     private final RequestFunctions.Params1<Object, R> delegate;
 
     public ArgumentCaptureFunctionParam1(RequestFunctions.Params1<Object, R> delegate) {
@@ -58,9 +58,11 @@ public class ArgumentCaptureAdvice {
 
       Map<String, Object> conv = Collections.singletonMap("0", o1);
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routingTo");
+      BlockingException t = PathExtractionHelpers.callRequestPathParamsCallback(
+          requestContext,
+          conv,
+          "RoutingDsl#routingTo"
+      );
       if (t != null) {
         throw t;
       }
@@ -70,7 +72,8 @@ public class ArgumentCaptureAdvice {
   }
 
   public static class ArgumentCaptureFunctionParam2<R>
-      implements RequestFunctions.Params2<Object, Object, R> {
+      implements RequestFunctions.Params2<Object, Object, R>
+  {
     private final RequestFunctions.Params2<Object, Object, R> delegate;
 
     public ArgumentCaptureFunctionParam2(RequestFunctions.Params2<Object, Object, R> delegate) {
@@ -97,9 +100,11 @@ public class ArgumentCaptureAdvice {
       conv.put("0", o1);
       conv.put("1", o2);
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routingTo");
+      BlockingException t = PathExtractionHelpers.callRequestPathParamsCallback(
+          requestContext,
+          conv,
+          "RoutingDsl#routingTo"
+      );
       if (t != null) {
         throw t;
       }
@@ -109,11 +114,13 @@ public class ArgumentCaptureAdvice {
   }
 
   public static class ArgumentCaptureFunctionParam3<R>
-      implements RequestFunctions.Params3<Object, Object, Object, R> {
+      implements RequestFunctions.Params3<Object, Object, Object, R>
+  {
     private final RequestFunctions.Params3<Object, Object, Object, R> delegate;
 
     public ArgumentCaptureFunctionParam3(
-        RequestFunctions.Params3<Object, Object, Object, R> delegate) {
+        RequestFunctions.Params3<Object, Object, Object, R> delegate
+    ) {
       this.delegate = delegate;
     }
 
@@ -138,9 +145,11 @@ public class ArgumentCaptureAdvice {
       conv.put("1", o2);
       conv.put("2", o3);
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routingTo");
+      BlockingException t = PathExtractionHelpers.callRequestPathParamsCallback(
+          requestContext,
+          conv,
+          "RoutingDsl#routingTo"
+      );
       if (t != null) {
         throw t;
       }

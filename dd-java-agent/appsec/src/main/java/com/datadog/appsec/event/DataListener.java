@@ -9,5 +9,6 @@ public interface DataListener extends OrderedCallback {
       ChangeableFlow flow,
       AppSecRequestContext context,
       DataBundle dataBundle,
-      GatewayContext gatewayContext);
+      GatewayContext gatewayContext
+  );
 }

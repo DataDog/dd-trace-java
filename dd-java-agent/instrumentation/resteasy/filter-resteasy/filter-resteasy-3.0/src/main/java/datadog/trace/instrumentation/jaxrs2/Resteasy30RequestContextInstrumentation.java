@@ -22,12 +22,10 @@ import org.jboss.resteasy.core.interception.PostMatchContainerRequestContext;
 @AutoService(InstrumenterModule.class)
 public class Resteasy30RequestContextInstrumentation extends AbstractRequestContextInstrumentation {
   public static class ContainerRequestContextAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope decorateAbortSpan(@Advice.This final ContainerRequestContext context) {
       if (context.getProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED) == null
           && context instanceof PostMatchContainerRequestContext) {
-
         final ResourceMethodInvoker resourceMethodInvoker =
             ((PostMatchContainerRequestContext) context).getResourceMethod();
         final Method method = resourceMethodInvoker.getMethod();
@@ -41,7 +39,9 @@ public class Resteasy30RequestContextInstrumentation extends AbstractRequestCont
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       RequestFilterHelper.closeSpanAndScope(scope, throwable);
     }
   }

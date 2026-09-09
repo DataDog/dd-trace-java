@@ -9,8 +9,8 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 public class TrustBoundaryViolationModuleImpl extends SinkModuleBase
-    implements TrustBoundaryViolationModule {
-
+    implements TrustBoundaryViolationModule
+{
   private static final ClassNameTrie ALLOWED_COLLECTION_PKGS;
 
   static {
@@ -37,7 +37,8 @@ public class TrustBoundaryViolationModuleImpl extends SinkModuleBase
       checkInjectionDeeply(
           VulnerabilityType.TRUST_BOUNDARY_VIOLATION,
           value,
-          TrustBoundaryViolationModuleImpl::visitClass);
+          TrustBoundaryViolationModuleImpl::visitClass
+      );
     }
   }
 

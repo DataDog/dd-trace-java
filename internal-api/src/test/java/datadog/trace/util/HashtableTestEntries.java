@@ -1,8 +1,11 @@
 package datadog.trace.util;
 
-/** Shared test entry types for {@link HashtableTest}, {@link HashtableD1Test}, and friends. */
+/**
+ * Shared test entry types for {@link HashtableTest}, {@link HashtableD1Test}, and friends.
+ */
 final class HashtableTestEntries {
-  private HashtableTestEntries() {}
+  private HashtableTestEntries() {
+  }
 
   static final class StringIntEntry extends Hashtable.D1.Entry<String> {
     int value;
@@ -13,7 +16,9 @@ final class HashtableTestEntries {
     }
   }
 
-  /** Key whose hashCode is fully controllable, to force chain collisions deterministically. */
+  /**
+   * Key whose hashCode is fully controllable, to force chain collisions deterministically.
+   */
   static final class CollidingKey {
     final String label;
     final int hash;

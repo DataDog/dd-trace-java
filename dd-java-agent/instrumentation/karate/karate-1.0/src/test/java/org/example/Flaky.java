@@ -3,7 +3,6 @@ package org.example;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class Flaky {
-
   private static int counter = 0;
   private static int stepCounter = 0;
 

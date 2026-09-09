@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,8 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public WebSocketSessionInstrumentation() {
     super("jetty", "jetty-websocket", "websocket");
   }
@@ -35,7 +35,8 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "javax.websocket.Session",
-        "datadog.trace.bootstrap.instrumentation.websocket.HandlerContext$Sender");
+        "datadog.trace.bootstrap.instrumentation.websocket.HandlerContext$Sender"
+    );
   }
 
   @Override
@@ -56,23 +57,25 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("close").and(takesNoArguments()), getClass().getName() + "$CloseAdvice");
+        named("close").and(takesNoArguments()),
+        getClass().getName() + "$CloseAdvice"
+    );
   }
 
   public static class CloseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(
         @Advice.This final Object session,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
       // that class is not implementing javax.websocket.Session but hides the close() method
       // hence we need an ad hoc advice
-      handlerContext =
-          (HandlerContext.Sender)
-              InstrumentationContext.get(
-                      "javax.websocket.Session",
-                      "datadog.trace.bootstrap.instrumentation.websocket.HandlerContext$Sender")
-                  .remove(session);
+      handlerContext = (HandlerContext.Sender) InstrumentationContext
+        .get(
+            "javax.websocket.Session",
+            "datadog.trace.bootstrap.instrumentation.websocket.HandlerContext$Sender"
+        )
+        .remove(session);
       if (handlerContext == null) {
         return null;
       }
@@ -83,7 +86,8 @@ public class WebSocketSessionInstrumentation extends InstrumenterModule.Tracing
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable thrown,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
       if (scope != null) {
         DECORATE.onError(scope, thrown);
         DECORATE.onFrameEnd(handlerContext);

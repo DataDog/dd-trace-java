@@ -15,29 +15,22 @@ import jdk.jfr.Name;
 public class DeadlockedThreadEvent extends Event {
   @Label("Deadlocked Thread ID")
   private final long threadId;
-
   @Label("Deadlocked Thread Name")
   private final String threadName;
-
   @Label("Lock name")
   private final String lockName;
-
   @Label("Lock Owner Thread Name")
   private final String lockOwnerThreadName;
-
   @Label("Lock Owner Thread ID")
   private final long lockOwnerThreadId;
-
   @Label("Locking Frame")
-  @Description(
-      "Textual representation of the frame locking the monitor. 'null' for java.util.concurrent locks.")
+  @Description("Textual representation of the frame locking the monitor. 'null' for java.util."
+      + "concurrent locks.")
   private final String lockingFrame;
-
   @Label("Waiting Frame")
-  @Description(
-      "Textual representation of the frame awaiting to lock a monitor or java.util.concurrent lock.")
+  @Description("Textual representation of the frame awaiting to lock a monitor or java.util."
+      + "concurrent lock.")
   private final String waitingFrame;
-
   @Label("Deadlock ID")
   @Description("Referential index for data related to a particular deadlock")
   private final long id;
@@ -61,7 +54,8 @@ public class DeadlockedThreadEvent extends Event {
       String lockOwnerThreadName,
       String lockName,
       String lockingFrame,
-      String waitingFrame) {
+      String waitingFrame
+  ) {
     this.id = id;
     this.threadId = threadId;
     this.threadName = threadName;

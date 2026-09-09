@@ -2,7 +2,6 @@ package com.datadog.featureflag;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
@@ -49,14 +48,12 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 1)
 public class FlagEvaluationHotPathBenchmark {
-
   @Param({
-    "typical/100flags_50users_10fields",
-    "stress/10flags_1000users_250fields",
-    "scale/2500flags_500users_20fields"
+      "typical/100flags_50users_10fields",
+      "stress/10flags_1000users_250fields",
+      "scale/2500flags_500users_20fields"
   })
   public String profile;
-
   private Map<String, Object> attrs;
   private String[] flagKeys;
   private String[] targetingKeys;
@@ -80,18 +77,18 @@ public class FlagEvaluationHotPathBenchmark {
     final BackendApiFactory factory = new BackendApiFactory(config, null);
     final Map<String, String> ddContext = new HashMap<>();
     ddContext.put("service", "bench-service");
-    handler =
-        FlagEvaluationWriterImpl.createHandlerForTest(
-            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false), ddContext);
-
+    handler = FlagEvaluationWriterImpl.createHandlerForTest(
+        () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
+        ddContext
+    );
     // Capacity large enough that the benchmark never overflows within a measurement window.
-    writer =
-        new FlagEvaluationWriterImpl(
-            1 << 20,
-            Long.MAX_VALUE,
-            NANOSECONDS,
-            () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
-            config);
+    writer = new FlagEvaluationWriterImpl(
+        1 << 20,
+        Long.MAX_VALUE,
+        NANOSECONDS,
+        () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false),
+        config
+    );
   }
 
   /**
@@ -106,7 +103,9 @@ public class FlagEvaluationHotPathBenchmark {
     blackhole.consume(event);
   }
 
-  /** Worker-thread cost: materialize context, prune, canonicalize, and aggregate. */
+  /**
+   * Worker-thread cost: materialize context, prune, canonicalize, and aggregate.
+   */
   @Benchmark
   public void workerAggregate(final Blackhole blackhole) {
     final FlagEvalEvent event = nextEvent();
@@ -130,7 +129,8 @@ public class FlagEvaluationHotPathBenchmark {
         null,
         1_700_000_000_000L + i,
         true,
-        attrs);
+        attrs
+    );
   }
 
   private static String[] keys(final String prefix, final int count) {

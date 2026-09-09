@@ -20,10 +20,8 @@ import jdk.jfr.Event;
 
 public class DeadlockEventFactory {
   private static final AtomicBoolean EVENTS_REGISTERED_FLAG = new AtomicBoolean();
-
   private static final DeadlockEvent DEADLOCK_EVENT = new DeadlockEvent();
   private static final DeadlockedThreadEvent DEADLOCKED_THREAD_EVENT = new DeadlockedThreadEvent();
-
   private final ThreadMXBean threadMXBean;
   private final AtomicLong deadlockCounter = new AtomicLong();
 
@@ -64,8 +62,8 @@ public class DeadlockEventFactory {
           new TreeMap<>(Comparator.comparingLong(LockInfo::getIdentityHashCode));
       for (ThreadInfo ti : lockedThreads) {
         waitingFrames
-            .computeIfAbsent(ti.getLockInfo(), k -> new HashSet<>())
-            .add(ti.getStackTrace()[0]);
+          .computeIfAbsent(ti.getLockInfo(), k -> new HashSet<>())
+          .add(ti.getStackTrace()[0]);
       }
 
       for (ThreadInfo ti : lockedThreads) {
@@ -80,7 +78,8 @@ public class DeadlockEventFactory {
       ThreadInfo ti,
       long id,
       Map<LockInfo, Set<StackTraceElement>> waitingFrames,
-      List<Event> events) {
+      List<Event> events
+  ) {
     for (LockInfo li : ti.getLockedSynchronizers()) {
       Set<StackTraceElement> waitingFramesSet = waitingFrames.get(li);
       if (waitingFramesSet != null) {
@@ -94,7 +93,9 @@ public class DeadlockEventFactory {
                   ti.getLockOwnerName(),
                   ti.getLockName(),
                   null,
-                  frameAsString(waitingFrame)));
+                  frameAsString(waitingFrame)
+              )
+          );
         }
       }
     }
@@ -104,7 +105,8 @@ public class DeadlockEventFactory {
       ThreadInfo ti,
       long id,
       Map<LockInfo, Set<StackTraceElement>> waitingFrames,
-      List<Event> events) {
+      List<Event> events
+  ) {
     for (MonitorInfo mi : ti.getLockedMonitors()) {
       Set<StackTraceElement> waitingFramesSet = waitingFrames.get(mi);
       if (waitingFramesSet != null) {
@@ -118,7 +120,9 @@ public class DeadlockEventFactory {
                   ti.getLockOwnerName(),
                   ti.getLockName(),
                   frameAsString(mi.getLockedStackFrame()),
-                  frameAsString(waitingFrame)));
+                  frameAsString(waitingFrame)
+              )
+          );
         }
       }
     }

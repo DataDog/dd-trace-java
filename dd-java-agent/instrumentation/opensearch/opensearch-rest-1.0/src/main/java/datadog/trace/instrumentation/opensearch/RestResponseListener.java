@@ -5,7 +5,6 @@ import org.opensearch.client.Response;
 import org.opensearch.client.ResponseListener;
 
 public class RestResponseListener implements ResponseListener {
-
   private final ResponseListener listener;
   private final AgentSpan span;
 

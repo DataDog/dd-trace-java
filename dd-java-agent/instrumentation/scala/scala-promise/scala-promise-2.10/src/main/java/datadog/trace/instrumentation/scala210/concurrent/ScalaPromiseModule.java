@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.scala210.concurrent;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static java.util.Collections.singleton;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -21,8 +20,8 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public final class ScalaPromiseModule extends InstrumenterModule.ContextTracking
-    implements ExcludeFilterProvider {
-
+    implements ExcludeFilterProvider
+{
   public ScalaPromiseModule() {
     super("scala_concurrent");
   }
@@ -66,7 +65,9 @@ public final class ScalaPromiseModule extends InstrumenterModule.ContextTracking
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
     if (config.isIntegrationEnabled(
-        Collections.singletonList("scala_promise_completion_priority"), false)) {
+        Collections.singletonList("scala_promise_completion_priority"),
+        false
+    )) {
       instrumenters.add(new PromiseObjectInstrumentation());
     }
     return instrumenters;

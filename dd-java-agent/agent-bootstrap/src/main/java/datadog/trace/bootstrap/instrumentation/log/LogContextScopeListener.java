@@ -11,7 +11,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
  * and span reference anytime a new scope is activated or closed.
  */
 public abstract class LogContextScopeListener implements ScopeListener, WithGlobalTracer.Callback {
-
   @Override
   public void afterScopeActivated() {
     if (AgentTracer.traceConfig().isLogsInjectionEnabled()) {

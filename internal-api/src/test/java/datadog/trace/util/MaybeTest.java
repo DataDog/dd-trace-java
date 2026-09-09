@@ -4,11 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 public class MaybeTest {
-
   static final class Widget {
     long count;
   }
@@ -58,7 +56,9 @@ public class MaybeTest {
   @Test
   public void updateBiConsumerRunsWhenPresent() {
     Widget w = new Widget();
-    Maybe.of(w).update("context", (widget, ctx) -> widget.count = ctx.length());
+    Maybe
+      .of(w)
+      .update("context", (widget, ctx) -> widget.count = ctx.length());
     assertEquals(7, w.count);
   }
 
@@ -72,7 +72,9 @@ public class MaybeTest {
   @Test
   public void updateLongRunsWhenPresent() {
     Widget w = new Widget();
-    Maybe.of(w).update(5L, (widget, delta) -> widget.count += delta);
+    Maybe
+      .of(w)
+      .update(5L, (widget, delta) -> widget.count += delta);
     assertEquals(5, w.count);
   }
 
@@ -86,14 +88,18 @@ public class MaybeTest {
   @Test
   public void ifPresentOrElseRunsActionWhenPresent() {
     StringBuilder sb = new StringBuilder();
-    Maybe.of("value").ifPresentOrElse(sb::append, () -> sb.append("empty"));
+    Maybe
+      .of("value")
+      .ifPresentOrElse(sb::append, () -> sb.append("empty"));
     assertEquals("value", sb.toString());
   }
 
   @Test
   public void ifPresentOrElseRunsEmptyActionWhenAbsent() {
     StringBuilder sb = new StringBuilder();
-    Maybe.<String>of(null).ifPresentOrElse(sb::append, () -> sb.append("empty"));
+    Maybe
+      .<String>of(null)
+      .ifPresentOrElse(sb::append, () -> sb.append("empty"));
     assertEquals("empty", sb.toString());
   }
 }

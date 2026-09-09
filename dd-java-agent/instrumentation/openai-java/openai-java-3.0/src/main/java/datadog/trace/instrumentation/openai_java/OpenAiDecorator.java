@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import datadog.context.Context;
@@ -24,25 +23,20 @@ import javax.annotation.Nonnull;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
-
   private static final String INTEGRATION = "openai";
   private static final String INSTRUMENTATION_NAME = "openai-java";
   private static final CharSequence SPAN_NAME = UTF8BytesString.create("openai.request");
-
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create(INTEGRATION);
-
   private static final String METRIC_PREFIX = "openai.organization.ratelimit.";
   private static final String REQUESTS_LIMIT_METRIC = METRIC_PREFIX + "requests.limit";
   private static final String REQUESTS_REMAINING_METRIC = METRIC_PREFIX + "requests.remaining";
   private static final String TOKENS_LIMIT_METRIC = METRIC_PREFIX + "tokens.limit";
   private static final String TOKENS_REMAINING_METRIC = METRIC_PREFIX + "tokens.remaining";
-
   private static final String HEADER_PREFIX = "x-ratelimit-";
   private static final String LIMIT_REQUESTS_HEADER = HEADER_PREFIX + "limit-requests";
   private static final String REMAINING_REQUESTS_HEADER = HEADER_PREFIX + "remaining-requests";
   private static final String LIMIT_TOKENS_HEADER = HEADER_PREFIX + "limit-tokens";
   private static final String REMAINING_TOKENS_HEADER = HEADER_PREFIX + "remaining-tokens";
-
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
   private final WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
   private final LLMObsSampler sampler = LLMObsSampler.fromConfig();
@@ -60,8 +54,12 @@ public class OpenAiDecorator extends ClientDecorator {
   private String detectProvider(String baseUrl) {
     if (baseUrl != null) {
       String lower = baseUrl.toLowerCase();
-      if (lower.contains("azure")) return "azure_openai";
-      if (lower.contains("deepseek")) return "deepseek";
+      if (lower.contains("azure")) {
+        return "azure_openai";
+      }
+      if (lower.contains("deepseek")) {
+        return "deepseek";
+      }
     }
     return "openai";
   }
@@ -99,7 +97,6 @@ public class OpenAiDecorator extends ClientDecorator {
       for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
         span.setTag(CommonTags.TAG_PREFIX + entry.getKey(), entry.getValue());
       }
-
       // set UST (unified service tags, env, service, version)
       span.setTag(CommonTags.ENV, wellKnownTags.getEnv());
       span.setTag(CommonTags.SERVICE, wellKnownTags.getService());
@@ -109,7 +106,6 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.ML_APP, Config.get().getLlmObsMlApp());
       span.setTag(CommonTags.SOURCE, "integration");
       span.setTag(CommonTags.INTEGRATION, INTEGRATION);
-
       // Resolve the LLMObs parent context, gated on trace-id consistency: a stale context
       // from a different trace (e.g. async boundary leakage) must not contribute parent_id,
       // session_id, agent_version, agent attribution, or a sampling verdict to this span.
@@ -123,7 +119,6 @@ public class OpenAiDecorator extends ClientDecorator {
       String sampleRate = null;
       if (inheritable) {
         parentSpanId = String.valueOf(parent.getSpanId());
-
         // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
         // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
         // session_id from the workflow root via context propagation. Without this, the
@@ -133,13 +128,11 @@ public class OpenAiDecorator extends ClientDecorator {
         if (sessionId != null && !sessionId.isEmpty()) {
           span.setTag(CommonTags.SESSION_ID, sessionId);
         }
-
         // Inherit agent_version from the active LLMObs parent.
         String agentVersion = LLMObsContext.currentAgentVersion();
         if (agentVersion != null && !agentVersion.isEmpty()) {
           span.setTag(CommonTags.AGENT_VERSION, agentVersion);
         }
-
         // Inherit agent attribution: the nearest agent-kind ancestor of this span. The name is
         // only meaningful alongside an ID, so it is read inside the ID's branch.
         String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
@@ -155,16 +148,14 @@ public class OpenAiDecorator extends ClientDecorator {
         sampleRate = LLMObsContext.currentSampleRate();
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
-
       // Compute the sampling decision if none was inherited (no LLMObs parent), which makes this
       // span the root of its own LLMObs trace. Unlike the tags above, this cannot be skipped when
       // there is nothing to inherit: an unstamped span is retained at any configured rate.
       if (samplingDecision == null || sampleRate == null) {
         sampleRate = sampler.formattedRate();
-        samplingDecision =
-            sampler.sample(span.getTraceId().toLong())
-                ? LLMObsContext.SAMPLING_DECISION_SAMPLED
-                : LLMObsContext.SAMPLING_DECISION_DROPPED;
+        samplingDecision = sampler.sample(span.getTraceId().toLong())
+            ? LLMObsContext.SAMPLING_DECISION_SAMPLED
+            : LLMObsContext.SAMPLING_DECISION_DROPPED;
       }
       span.setTag(CommonTags.SAMPLING_DECISION, samplingDecision);
       span.setTag(CommonTags.SAMPLE_RATE, sampleRate);
@@ -183,8 +174,9 @@ public class OpenAiDecorator extends ClientDecorator {
       if (spanKindTag != null) {
         String spanKind = spanKindTag.toString();
         boolean isRootSpan = span.getLocalRootSpan() == span;
-        LLMObsMetricCollector.get()
-            .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
+        LLMObsMetricCollector
+          .get()
+          .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     }
     super.doBeforeFinish(context);
@@ -205,7 +197,11 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   private static void setMetricFromHeader(
-      AgentSpan span, String metric, Headers headers, String header) {
+      AgentSpan span,
+      String metric,
+      Headers headers,
+      String header
+  ) {
     List<String> values = headers.values(header);
     if (values.isEmpty()) {
       return;

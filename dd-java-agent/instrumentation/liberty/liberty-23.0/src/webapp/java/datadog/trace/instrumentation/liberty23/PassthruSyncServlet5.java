@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.liberty23;
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART;
-
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -14,32 +13,28 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Enumeration;
 
-@WebServlet(
-    urlPatterns = {
-      "/success",
-      "/created",
-      "/created_input_stream",
-      "/body-urlencoded",
-      "/body-multipart",
-      "/body-json",
-      "/redirect",
-      "/forwarded",
-      "/error-status",
-      "/exception",
-      "/custom-exception",
-      "/not-here",
-      "/timeout",
-      "/timeout_error",
-      "/query",
-      "/encoded path query",
-      "/encoded_query",
-      "/user-block",
-      "/session",
-    })
-@MultipartConfig(
-    maxFileSize = 10 * 1024 * 1024,
-    maxRequestSize = 20 * 1024 * 1024,
-    fileSizeThreshold = 5 * 1024 * 1024)
+@WebServlet(urlPatterns = {
+    "/success",
+    "/created",
+    "/created_input_stream",
+    "/body-urlencoded",
+    "/body-multipart",
+    "/body-json",
+    "/redirect",
+    "/forwarded",
+    "/error-status",
+    "/exception",
+    "/custom-exception",
+    "/not-here",
+    "/timeout",
+    "/timeout_error",
+    "/query",
+    "/encoded path query",
+    "/encoded_query",
+    "/user-block",
+    "/session"
+})
+@MultipartConfig(maxFileSize = 10 * 1024 * 1024, maxRequestSize = 20 * 1024 * 1024, fileSizeThreshold = 5 * 1024 * 1024)
 public class PassthruSyncServlet5 extends HttpServlet {
   datadog.trace.instrumentation.servlet5.TestServlet5 delegate;
 
@@ -52,8 +47,7 @@ public class PassthruSyncServlet5 extends HttpServlet {
   }
 
   @Override
-  public void service(ServletRequest req, ServletResponse res)
-      throws ServletException, IOException {
+  public void service(ServletRequest req, ServletResponse res) throws ServletException, IOException {
     if (delegate.determineEndpoint((HttpServletRequest) req) == BODY_MULTIPART) {
       // needed to trigger reading the body on openliberty
       ((HttpServletRequest) req).getParts();

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Random;
@@ -49,10 +48,10 @@ public class GenerationalUtf8CacheTest {
 
   @Test
   public void maxCapacity() {
-    GenerationalUtf8Cache cache =
-        new GenerationalUtf8Cache(
-            GenerationalUtf8Cache.MAX_EDEN_CAPACITY + 1,
-            GenerationalUtf8Cache.MAX_TENURED_CAPACITY + 1);
+    GenerationalUtf8Cache cache = new GenerationalUtf8Cache(
+        GenerationalUtf8Cache.MAX_EDEN_CAPACITY + 1,
+        GenerationalUtf8Cache.MAX_TENURED_CAPACITY + 1
+    );
 
     assertEquals(GenerationalUtf8Cache.MAX_EDEN_CAPACITY, cache.edenCapacity());
     assertEquals(GenerationalUtf8Cache.MAX_TENURED_CAPACITY, cache.tenuredCapacity());
@@ -60,11 +59,9 @@ public class GenerationalUtf8CacheTest {
 
   @Test
   public void maxCapacity_combined() {
-    GenerationalUtf8Cache cache =
-        new GenerationalUtf8Cache(
-            GenerationalUtf8Cache.MAX_EDEN_CAPACITY
-                + GenerationalUtf8Cache.MAX_TENURED_CAPACITY
-                + 2);
+    GenerationalUtf8Cache cache = new GenerationalUtf8Cache(
+        GenerationalUtf8Cache.MAX_EDEN_CAPACITY + GenerationalUtf8Cache.MAX_TENURED_CAPACITY + 2
+    );
 
     assertEquals(GenerationalUtf8Cache.MAX_EDEN_CAPACITY, cache.edenCapacity());
     assertEquals(GenerationalUtf8Cache.MAX_TENURED_CAPACITY, cache.tenuredCapacity());
@@ -79,12 +76,10 @@ public class GenerationalUtf8CacheTest {
 
     byte[] first = cache.getUtf8(value);
     assertArrayEquals(expected, first);
-
     // first request isn't cached - to avoid burning slots
     byte[] second = cache.getUtf8(value);
     assertArrayEquals(expected, second);
     assertNotSame(first, second);
-
     // after first request, the entry should be cached
     byte[] third = cache.getUtf8(value);
     assertArrayEquals(expected, third);
@@ -101,13 +96,11 @@ public class GenerationalUtf8CacheTest {
 
     String value = "bar";
     long callTime = 12345L;
-
     // First call only marks; the second call creates the entry.
     cache.getUtf8(value, callTime);
     cache.getUtf8(value, callTime);
 
     assertEquals(callTime, lookupEdenLastUsedMs(cache, value));
-
     // Drive enough hits to promote into tenured.
     while (cache.promotions == 0) {
       cache.getUtf8(value, callTime);
@@ -187,7 +180,6 @@ public class GenerationalUtf8CacheTest {
     // value's bytes (reassigned slot). Serialization is single-threaded today, but the cache is
     // built to allow concurrent use, so this exercises that contract.
     final GenerationalUtf8Cache cache = create();
-
     // More distinct values than the cache can hold, so promotions/evictions churn slots hard.
     final String[] values = new String[256];
     for (int i = 0; i < values.length; ++i) {
@@ -202,48 +194,45 @@ public class GenerationalUtf8CacheTest {
 
     Thread[] readers = new Thread[threadCount];
     for (int t = 0; t < threadCount; ++t) {
-      readers[t] =
-          new Thread(
-              () -> {
-                try {
-                  start.await();
-                  ThreadLocalRandom random = ThreadLocalRandom.current();
-                  for (int i = 0; i < iterationsPerThread && failure.get() == null; ++i) {
-                    String value = values[random.nextInt(values.length)];
-                    byte[] result = cache.getUtf8(value);
-                    if (!Arrays.equals(value.getBytes(StandardCharsets.UTF_8), result)) {
-                      failure.compareAndSet(
-                          null,
-                          new AssertionError(
-                              "getUtf8(\""
-                                  + value
-                                  + "\") returned bytes for \""
-                                  + new String(result, StandardCharsets.UTF_8)
-                                  + "\""));
-                      return;
-                    }
-                  }
-                } catch (Throwable e) {
-                  failure.compareAndSet(null, e);
-                } finally {
-                  readersRunning.decrementAndGet();
-                }
-              });
+      readers[t] = new Thread(() -> {
+        try {
+          start.await();
+          ThreadLocalRandom random = ThreadLocalRandom.current();
+          for (int i = 0; i < iterationsPerThread && failure.get() == null; ++i) {
+            String value = values[random.nextInt(values.length)];
+            byte[] result = cache.getUtf8(value);
+            if (!Arrays.equals(value.getBytes(StandardCharsets.UTF_8), result)) {
+              failure.compareAndSet(
+                  null,
+                  new AssertionError(
+                      "getUtf8(\""
+                      + value
+                      + "\") returned bytes for \""
+                      + new String(result, StandardCharsets.UTF_8)
+                      + "\""
+                  )
+              );
+              return;
+            }
+          }
+        } catch (Throwable e) {
+          failure.compareAndSet(null, e);
+        } finally {
+          readersRunning.decrementAndGet();
+        }
+      });
     }
-
     // Recalibrate in a tight loop for the duration, nulling decayed slots concurrently with reads.
-    Thread recalibrator =
-        new Thread(
-            () -> {
-              try {
-                start.await();
-                while (readersRunning.get() > 0 && failure.get() == null) {
-                  cache.recalibrate();
-                }
-              } catch (Throwable e) {
-                failure.compareAndSet(null, e);
-              }
-            });
+    Thread recalibrator = new Thread(() -> {
+      try {
+        start.await();
+        while (readersRunning.get() > 0 && failure.get() == null) {
+          cache.recalibrate();
+        }
+      } catch (Throwable e) {
+        failure.compareAndSet(null, e);
+      }
+    });
 
     for (Thread reader : readers) {
       reader.start();
@@ -289,7 +278,6 @@ public class GenerationalUtf8CacheTest {
   }
 
   static final String[] TAGS = {"foo", "bar", "baz"};
-
   static final String[] BASE_STRINGS = {"Hello", "world", "foo", "bar", "baz", "quux"};
 
   static final String nextTag() {
@@ -330,7 +318,10 @@ public class GenerationalUtf8CacheTest {
   }
 
   private static long lookupLastUsedMs(
-      GenerationalUtf8Cache.CacheEntry[] entries, String arrayName, String value) {
+      GenerationalUtf8Cache.CacheEntry[] entries,
+      String arrayName,
+      String value
+  ) {
     for (GenerationalUtf8Cache.CacheEntry entry : entries) {
       if (entry != null && value.equals(entry.value)) {
         return entry.lastUsedMs();
@@ -341,12 +332,14 @@ public class GenerationalUtf8CacheTest {
 
   static final void printStats(GenerationalUtf8Cache cache) {
     System.out.printf(
-        "eden hits: %5d\tpromotion hits: %5d\tpromotions: %5d\tearly: %5d\tlocal evictions: %5d\tglobal evictions: %5d%n",
+        "eden hits: %5d\\tpromotion hits: %5d\\tpromotions: %5d\\tearly: %5d\\tlocal "
+        + "evictions: %5d\\tglobal evictions: %5d%n",
         cache.edenHits,
         cache.tenuredHits,
         cache.promotions,
         cache.earlyPromotions,
         cache.edenEvictions,
-        cache.tenuredEvictions);
+        cache.tenuredEvictions
+    );
   }
 }

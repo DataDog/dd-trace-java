@@ -22,9 +22,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
-/** Settings that provide the same configurable options as {@code SimpleLogger} from SLF4J. */
+/**
+ * Settings that provide the same configurable options as {@code SimpleLogger} from SLF4J.
+ */
 public class SLCompatSettings {
-
   public static final class Names {
     public static final String WARN_LEVEL_STRING = "warnLevelString";
     public static final String LEVEL_IN_BRACKETS = "levelInBrackets";
@@ -43,7 +44,6 @@ public class SLCompatSettings {
   public static final class Keys {
     // This is the package name that the shaded SimpleLogger had before. Use that for compatibility.
     private static final String PREFIX = "datadog.slf4j.simpleLogger.";
-
     public static final String LOG_KEY_PREFIX = PREFIX + "log.";
     // This setting does not change anything in the behavior as of slf4j 1.7.30 so we ignore it
     // public static final String CACHE_OUTPUT_STREAM = PREFIX + "cacheOutputStream";
@@ -58,7 +58,6 @@ public class SLCompatSettings {
     public static final String JSON_ENABLED = PREFIX + Names.JSON_ENABLED;
     public static final String DEFAULT_LOG_LEVEL = PREFIX + Names.DEFAULT_LOG_LEVEL;
     public static final String EMBED_EXCEPTION = PREFIX + Names.EMBED_EXCEPTION;
-
     // This is not available in SimpleLogger, but added here to simplify testing.
     static final String CONFIGURATION_FILE = PREFIX + Names.CONFIGURATION_FILE;
   }
@@ -76,7 +75,6 @@ public class SLCompatSettings {
     public static final boolean JSON_ENABLED = false;
     public static final String DEFAULT_LOG_LEVEL = "INFO";
     public static final boolean EMBED_EXCEPTION = false;
-
     public static final String CONFIGURATION_FILE = "simplelogger.properties";
   }
 
@@ -97,7 +95,10 @@ public class SLCompatSettings {
     }
 
     public abstract void appendFormattedDate(
-        StringBuilder builder, long timeMillis, long startTimeMillis);
+        StringBuilder builder,
+        long timeMillis,
+        long startTimeMillis
+    );
   }
 
   public static class DiffDTFormatter extends DTFormatter {
@@ -141,17 +142,27 @@ public class SLCompatSettings {
         Class<?> iClass = cl.loadClass("java.time.Instant");
         Class<?> zdtClass = cl.loadClass("java.time.ZonedDateTime");
         Class<?> zClass = cl.loadClass("java.time.ZoneId");
-        this.dateTimeFormatter =
-            l.findStatic(fClass, "ofPattern", MethodType.methodType(fClass, String.class))
-                .invoke(dateTimeFormat);
-        this.formatTo =
-            l.findVirtual(
-                fClass, "formatTo", MethodType.methodType(void.class, tClass, Appendable.class));
-        this.instantOfEpochMilli =
-            l.findStatic(iClass, "ofEpochMilli", MethodType.methodType(iClass, long.class));
-        this.zoneId = l.findStatic(zClass, "systemDefault", MethodType.methodType(zClass)).invoke();
-        this.zdtOfInstant =
-            l.findStatic(zdtClass, "ofInstant", MethodType.methodType(zdtClass, iClass, zClass));
+        this.dateTimeFormatter = l
+          .findStatic(fClass, "ofPattern", MethodType.methodType(fClass, String.class))
+          .invoke(dateTimeFormat);
+        this.formatTo = l.findVirtual(
+            fClass,
+            "formatTo",
+            MethodType.methodType(void.class, tClass, Appendable.class)
+        );
+        this.instantOfEpochMilli = l.findStatic(
+            iClass,
+            "ofEpochMilli",
+            MethodType.methodType(iClass, long.class)
+        );
+        this.zoneId = l
+          .findStatic(zClass, "systemDefault", MethodType.methodType(zClass))
+          .invoke();
+        this.zdtOfInstant = l.findStatic(
+            zdtClass,
+            "ofInstant",
+            MethodType.methodType(zdtClass, iClass, zClass)
+        );
       } catch (Throwable t) {
         throw new IllegalArgumentException();
       }
@@ -163,7 +174,8 @@ public class SLCompatSettings {
         formatTo.invoke(
             dateTimeFormatter,
             zdtOfInstant.invoke(instantOfEpochMilli.invoke(timeMillis), zoneId),
-            builder);
+            builder
+        );
       } catch (Throwable t) {
         // ignore
       }
@@ -209,7 +221,8 @@ public class SLCompatSettings {
   }
 
   private static final class ResourceStreamPrivilegedAction
-      implements PrivilegedAction<InputStream> {
+      implements PrivilegedAction<InputStream>
+  {
     private final String fileName;
 
     public ResourceStreamPrivilegedAction(String fileName) {
@@ -243,8 +256,7 @@ public class SLCompatSettings {
     return null;
   }
 
-  private static String getString(
-      Properties properties, Properties fallbackProperties, String name) {
+  private static String getString(Properties properties, Properties fallbackProperties, String name) {
     String property = properties == null ? null : properties.getProperty(name);
     if (property == null) {
       property = fallbackProperties == null ? null : fallbackProperties.getProperty(name);
@@ -253,20 +265,27 @@ public class SLCompatSettings {
   }
 
   static String getString(
-      Properties properties, Properties fallbackProperties, String name, String defaultValue) {
+      Properties properties,
+      Properties fallbackProperties,
+      String name,
+      String defaultValue
+  ) {
     String property = getString(properties, fallbackProperties, name);
     return property == null ? defaultValue : property;
   }
 
   static boolean getBoolean(
-      Properties properties, Properties fallbackProperties, String name, boolean defaultValue) {
+      Properties properties,
+      Properties fallbackProperties,
+      String name,
+      boolean defaultValue
+  ) {
     String property = getString(properties, fallbackProperties, name);
     return property == null ? defaultValue : Boolean.parseBoolean(property);
   }
 
   private final Properties properties;
   private final Properties fileProperties;
-
   // Package reachable for SLCompatHelper and tests
   final String warnLevelString;
   final boolean levelInBrackets;
@@ -283,19 +302,19 @@ public class SLCompatSettings {
   public SLCompatSettings(Properties properties) {
     this(
         properties,
-        loadProperties(
-            properties.getProperty(Keys.CONFIGURATION_FILE, Defaults.CONFIGURATION_FILE)));
+        loadProperties(properties.getProperty(Keys.CONFIGURATION_FILE, Defaults.CONFIGURATION_FILE))
+    );
   }
 
   public SLCompatSettings(Properties properties, Properties fileProperties) {
     this(
         properties,
         fileProperties,
-        getPrintStream(getString(properties, fileProperties, Keys.LOG_FILE, Defaults.LOG_FILE)));
+        getPrintStream(getString(properties, fileProperties, Keys.LOG_FILE, Defaults.LOG_FILE))
+    );
   }
 
-  public SLCompatSettings(
-      Properties properties, Properties fileProperties, PrintStream printStream) {
+  public SLCompatSettings(Properties properties, Properties fileProperties, PrintStream printStream) {
     this(
         properties,
         fileProperties,
@@ -303,18 +322,28 @@ public class SLCompatSettings {
         getBoolean(properties, fileProperties, Keys.LEVEL_IN_BRACKETS, Defaults.LEVEL_IN_BRACKETS),
         printStream,
         getBoolean(
-            properties, fileProperties, Keys.SHOW_SHORT_LOG_NAME, Defaults.SHOW_SHORT_LOG_NAME),
+            properties,
+            fileProperties,
+            Keys.SHOW_SHORT_LOG_NAME,
+            Defaults.SHOW_SHORT_LOG_NAME
+        ),
         getBoolean(properties, fileProperties, Keys.SHOW_LOG_NAME, Defaults.SHOW_LOG_NAME),
         getBoolean(properties, fileProperties, Keys.SHOW_THREAD_NAME, Defaults.SHOW_THREAD_NAME),
         DTFormatter.create(
-            getString(
-                properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT)),
+            getString(properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT)
+        ),
         getBoolean(properties, fileProperties, Keys.SHOW_DATE_TIME, Defaults.SHOW_DATE_TIME),
         getBoolean(properties, fileProperties, Keys.JSON_ENABLED, Defaults.JSON_ENABLED),
         LogLevel.fromString(
             getString(
-                properties, fileProperties, Keys.DEFAULT_LOG_LEVEL, Defaults.DEFAULT_LOG_LEVEL)),
-        getBoolean(properties, fileProperties, Keys.EMBED_EXCEPTION, Defaults.EMBED_EXCEPTION));
+                properties,
+                fileProperties,
+                Keys.DEFAULT_LOG_LEVEL,
+                Defaults.DEFAULT_LOG_LEVEL
+            )
+        ),
+        getBoolean(properties, fileProperties, Keys.EMBED_EXCEPTION, Defaults.EMBED_EXCEPTION)
+    );
   }
 
   public SLCompatSettings(
@@ -330,7 +359,8 @@ public class SLCompatSettings {
       boolean showDateTime,
       boolean jsonEnabled,
       LogLevel defaultLogLevel,
-      boolean embedException) {
+      boolean embedException
+  ) {
     this.properties = properties;
     this.fileProperties = fileProperties;
     this.warnLevelString = warnLevelString;
@@ -376,10 +406,13 @@ public class SLCompatSettings {
     Map<String, Object> settingsDescription = new HashMap<>();
     settingsDescription.put(
         Names.WARN_LEVEL_STRING,
-        warnLevelString != null ? warnLevelString : LogLevel.WARN.toString());
+        warnLevelString != null ? warnLevelString : LogLevel.WARN.toString()
+    );
     settingsDescription.put(Names.LEVEL_IN_BRACKETS, levelInBrackets);
     settingsDescription.put(
-        Names.LOG_FILE, getString(properties, fileProperties, Keys.LOG_FILE, Defaults.LOG_FILE));
+        Names.LOG_FILE,
+        getString(properties, fileProperties, Keys.LOG_FILE, Defaults.LOG_FILE)
+    );
     settingsDescription.put(Names.SHOW_LOG_NAME, showLogName);
     settingsDescription.put(Names.SHOW_SHORT_LOG_NAME, showShortLogName);
     settingsDescription.put(Names.SHOW_THREAD_NAME, showThreadName);
@@ -388,12 +421,15 @@ public class SLCompatSettings {
     String dateTimeFormat =
         getString(properties, fileProperties, Keys.DATE_TIME_FORMAT, Defaults.DATE_TIME_FORMAT);
     settingsDescription.put(
-        Names.DATE_TIME_FORMAT, dateTimeFormat != null ? dateTimeFormat : "relative");
+        Names.DATE_TIME_FORMAT,
+        dateTimeFormat != null ? dateTimeFormat : "relative"
+    );
     settingsDescription.put(Names.DEFAULT_LOG_LEVEL, defaultLogLevel.toString());
     settingsDescription.put(Names.EMBED_EXCEPTION, embedException);
     settingsDescription.put(
         Names.CONFIGURATION_FILE,
-        properties.getProperty(Keys.CONFIGURATION_FILE, Defaults.CONFIGURATION_FILE));
+        properties.getProperty(Keys.CONFIGURATION_FILE, Defaults.CONFIGURATION_FILE)
+    );
 
     return settingsDescription;
   }

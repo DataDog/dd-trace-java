@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,9 @@ import org.redisson.client.protocol.CommandsData;
 
 @AutoService(InstrumenterModule.class)
 public final class RedissonInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public RedissonInstrumentation() {
     super("redisson", "redis");
   }
@@ -38,9 +38,9 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RedissonClientDecorator",
-      packageName + ".SpanFinishListener",
-      packageName + ".PromiseHelper",
+        packageName + ".RedissonClientDecorator",
+        packageName + ".SpanFinishListener",
+        packageName + ".PromiseHelper"
     };
   }
 
@@ -48,24 +48,27 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("org.redisson.client.protocol.CommandData"))),
-        RedissonInstrumentation.class.getName() + "$RedissonCommandAdvice");
+          .and(isPublic())
+          .and(named("send"))
+          .and(takesArgument(0, named("org.redisson.client.protocol.CommandData"))),
+        RedissonInstrumentation.class.getName() + "$RedissonCommandAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("org.redisson.client.protocol.CommandsData"))),
-        RedissonInstrumentation.class.getName() + "$RedissonCommandsAdvice");
+          .and(isPublic())
+          .and(named("send"))
+          .and(takesArgument(0, named("org.redisson.client.protocol.CommandsData"))),
+        RedissonInstrumentation.class.getName() + "$RedissonCommandsAdvice"
+    );
   }
 
   public static class RedissonCommandAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final CommandData<?, ?> command, @Advice.This RedisConnection thiz) {
+        @Advice.Argument(0) final CommandData<?, ?> command,
+        @Advice.This RedisConnection thiz
+    ) {
       final CompletionStage<?> promise =
           PromiseHelper.getPromise(PromiseHelper.COMMAND_GET_PROMISE_HANDLE, command);
       if (promise == null) {
@@ -93,10 +96,11 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class RedissonCommandsAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final CommandsData command, @Advice.This final RedisConnection thiz) {
+        @Advice.Argument(0) final CommandsData command,
+        @Advice.This final RedisConnection thiz
+    ) {
       final CompletionStage<?> promise =
           PromiseHelper.getPromise(PromiseHelper.COMMANDS_GET_PROMISE_HANDLE, command);
       if (promise == null) {

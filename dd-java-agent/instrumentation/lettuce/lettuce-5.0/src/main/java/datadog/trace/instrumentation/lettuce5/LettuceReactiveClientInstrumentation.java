@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -46,8 +45,9 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public LettuceReactiveClientInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-rx");
   }
@@ -55,21 +55,21 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.lettuce.core.RedisPublisher$RedisSubscription",
-      "io.lettuce.core.RedisPublisher$SubscriptionCommand",
-      "io.lettuce.core.AbstractRedisReactiveCommands"
+        "io.lettuce.core.RedisPublisher$RedisSubscription",
+        "io.lettuce.core.RedisPublisher$SubscriptionCommand",
+        "io.lettuce.core.AbstractRedisReactiveCommands"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".rx.RedisSubscriptionSubscribeAdvice",
-      packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
-      packageName + ".rx.RedisSubscriptionState",
-      packageName + ".LettuceInstrumentationUtil",
-      packageName + ".LettuceClientDecorator",
-      packageName + ".ConnectionContextBiConsumer"
+        packageName + ".rx.RedisSubscriptionSubscribeAdvice",
+        packageName + ".rx.RedisSubscriptionSubscribeAdvice$State",
+        packageName + ".rx.RedisSubscriptionState",
+        packageName + ".LettuceInstrumentationUtil",
+        packageName + ".LettuceClientDecorator",
+        packageName + ".ConnectionContextBiConsumer"
     };
   }
 
@@ -78,7 +78,8 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
     Map<String, String> store = new HashMap<>(3);
     store.put(
         "io.lettuce.core.RedisPublisher$RedisSubscription",
-        packageName + ".rx.RedisSubscriptionState");
+        packageName + ".rx.RedisSubscriptionState"
+    );
     store.put("io.lettuce.core.protocol.RedisCommand", AgentSpan.class.getName());
     store.put("io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
     return store;
@@ -87,31 +88,37 @@ public class LettuceReactiveClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("subscribe")), packageName + ".rx.RedisSubscriptionSubscribeAdvice");
+        isMethod().and(named("subscribe")),
+        packageName + ".rx.RedisSubscriptionSubscribeAdvice"
+    );
     transformer.applyAdvice(
-        isMethod().and(named("onNext")), packageName + ".rx.RedisSubscriptionAdvanceAdvice");
+        isMethod().and(named("onNext")),
+        packageName + ".rx.RedisSubscriptionAdvanceAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
-            .and(namedOneOf("complete", "cancel")),
-        packageName + ".rx.RedisSubscriptionCommandCompleteAdvice");
+          .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+          .and(namedOneOf("complete", "cancel")),
+        packageName + ".rx.RedisSubscriptionCommandCompleteAdvice"
+    );
 
     transformer.applyAdvice(
-        isConstructor()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription"))),
-        packageName + ".rx.RedisSubscriptionConnectionContextAdvice");
-
+        isConstructor().and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$RedisSubscription"))),
+        packageName + ".rx.RedisSubscriptionConnectionContextAdvice"
+    );
     // SubscriptionCommand structure has changed due to
     // https://github.com/lettuce-io/lettuce-core/issues/1576 in 5.3.6
     transformer.applyAdvice(
         isMethod()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
-            .and(namedOneOf("doOnComplete")),
-        packageName + ".rx.RedisSubscriptionCommandOnCompleteAdvice");
+          .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+          .and(namedOneOf("doOnComplete")),
+        packageName + ".rx.RedisSubscriptionCommandOnCompleteAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
-            .and(named("onError")),
-        packageName + ".rx.RedisSubscriptionCommandErrorAdvice");
+          .and(isDeclaredBy(named("io.lettuce.core.RedisPublisher$SubscriptionCommand")))
+          .and(named("onError")),
+        packageName + ".rx.RedisSubscriptionCommandErrorAdvice"
+    );
   }
 }

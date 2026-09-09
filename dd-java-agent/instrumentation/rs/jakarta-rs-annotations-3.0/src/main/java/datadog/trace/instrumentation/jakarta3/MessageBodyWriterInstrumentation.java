@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -25,8 +24,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public MessageBodyWriterInstrumentation() {
     super("jakarta-rs");
   }
@@ -44,7 +44,9 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("writeTo").and(takesArguments(7)), getClass().getName() + "$MessageBodyWriterAdvice");
+        named("writeTo").and(takesArguments(7)),
+        getClass().getName() + "$MessageBodyWriterAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -53,8 +55,8 @@ public class MessageBodyWriterInstrumentation extends InstrumenterModule.AppSec
     static void before(
         @Advice.Argument(0) Object entity,
         @Advice.Argument(4) MediaType mediaType,
-        @ActiveRequestContext RequestContext reqCtx) {
-
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (!MediaType.APPLICATION_JSON_TYPE.isCompatible(mediaType)) {
         return;
       }

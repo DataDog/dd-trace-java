@@ -13,7 +13,6 @@ import javax.annotation.Nullable;
 @Sink(VulnerabilityTypes.XSS)
 @CallSite(spi = IastCallSites.class)
 public class PrintWriterCallSite {
-
   @CallSite.Before("void java.io.PrintWriter.write(java.lang.String, int, int)")
   @CallSite.Before("void java.io.PrintWriter.write(java.lang.String)")
   @CallSite.Before("void java.io.PrintWriter.println(java.lang.String)")
@@ -44,14 +43,15 @@ public class PrintWriterCallSite {
     }
   }
 
-  @CallSite.Before(
-      "java.io.PrintWriter java.io.PrintWriter.format(java.util.Locale, java.lang.String, java.lang.Object[])")
-  @CallSite.Before(
-      "java.io.PrintWriter java.io.PrintWriter.printf(java.util.Locale, java.lang.String, java.lang.Object[])")
+  @CallSite.Before("java.io.PrintWriter java.io.PrintWriter.format(java.util.Locale, java.lang."
+      + "String, java.lang.Object[])")
+  @CallSite.Before("java.io.PrintWriter java.io.PrintWriter.printf(java.util.Locale, java.lang."
+      + "String, java.lang.Object[])")
   public static void beforeLocaleAndStringAndObjects(
       @CallSite.Argument(0) @Nonnull final Locale locale,
       @CallSite.Argument(1) @Nonnull final String format,
-      @CallSite.Argument(2) @Nullable final Object[] args) {
+      @CallSite.Argument(2) @Nullable final Object[] args
+  ) {
     final XssModule module = InstrumentationBridge.XSS;
     if (module != null) {
       try {
@@ -62,13 +62,14 @@ public class PrintWriterCallSite {
     }
   }
 
-  @CallSite.Before(
-      "java.io.PrintWriter java.io.PrintWriter.format(java.lang.String, java.lang.Object[])")
-  @CallSite.Before(
-      "java.io.PrintWriter java.io.PrintWriter.printf(java.lang.String, java.lang.Object[])")
+  @CallSite.Before("java.io.PrintWriter java.io.PrintWriter.format(java.lang.String, java.lang."
+      + "Object[])")
+  @CallSite.Before("java.io.PrintWriter java.io.PrintWriter.printf(java.lang.String, java.lang."
+      + "Object[])")
   public static void beforeStringAndObjects(
       @CallSite.Argument(0) @Nonnull final String format,
-      @CallSite.Argument(1) @Nullable final Object[] args) {
+      @CallSite.Argument(1) @Nullable final Object[] args
+  ) {
     final XssModule module = InstrumentationBridge.XSS;
     if (module != null) {
       try {

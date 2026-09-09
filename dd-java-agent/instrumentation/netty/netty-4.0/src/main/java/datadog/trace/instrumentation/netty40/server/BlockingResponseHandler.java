@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty40.server;
 
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
@@ -24,13 +23,11 @@ import org.slf4j.LoggerFactory;
 public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
   public static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
   private static volatile boolean HAS_WARNED;
-
   private final int statusCode;
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
   private final TraceSegment segment;
   private final String securityResponseId;
-
   private boolean hasBlockedAlready;
 
   public BlockingResponseHandler(
@@ -38,7 +35,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
       int statusCode,
       BlockingContentType bct,
       Map<String, String> extraHeaders,
-      String securityResponseId) {
+      String securityResponseId
+  ) {
     this.segment = segment;
     this.statusCode = statusCode;
     this.bct = bct;
@@ -52,7 +50,8 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
         rba.getStatusCode(),
         rba.getBlockingContentType(),
         rba.getExtraHeaders(),
-        rba.getSecurityResponseId());
+        rba.getSecurityResponseId()
+    );
   }
 
   @Override
@@ -76,10 +75,12 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
     if (ctxForDownstream == null) {
       if (HAS_WARNED) {
         log.debug(
-            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
+            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline"
+        );
       } else {
         log.warn(
-            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline");
+            "Unable to block because HttpServerResponseTracingHandler was not found on the pipeline"
+        );
         HAS_WARNED = true;
       }
       ctx.fireChannelRead(msg);
@@ -113,33 +114,31 @@ public class BlockingResponseHandler extends ChannelInboundHandlerAdapter {
 
     this.hasBlockedAlready = true;
     ReferenceCountUtil.release(msg);
-
     // write starts in the handler before the one associated with ctx
     // so add one that will be skipped (but that will prevent any writes later coming from later
     // handlers).
     // We do not want to start from the end of the
     // pipeline because there is an increased risk of hitting duplex handlers that
     // expect to have seen a request before processing the response
-    ctxForDownstream =
-        ctxForDownstream
-            .pipeline()
-            .addAfter(
-                ctxForDownstream.name(),
-                "ignore_all_writes_handler",
-                IgnoreAllWritesHandler.INSTANCE)
-            .context("ignore_all_writes_handler");
+    ctxForDownstream = ctxForDownstream
+      .pipeline()
+      .addAfter(
+          ctxForDownstream.name(),
+          "ignore_all_writes_handler",
+          IgnoreAllWritesHandler.INSTANCE
+      )
+      .context("ignore_all_writes_handler");
 
     segment.effectivelyBlocked();
 
     ctxForDownstream
-        .writeAndFlush(response)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              }
-              ctx.channel().close();
-            });
+      .writeAndFlush(response)
+      .addListener(fut -> {
+        if (!fut.isSuccess()) {
+          log.warn("Write of blocking response failed", fut.cause());
+        }
+        ctx.channel().close();
+      });
   }
 
   @ChannelHandler.Sharable

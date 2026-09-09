@@ -1,7 +1,6 @@
 package datadog.trace.util.json;
 
 import static java.lang.Character.isDigit;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -9,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JsonPathParser {
-
   public static final class ParseError extends Exception {
     public final int position;
     public final String error;
@@ -31,7 +29,6 @@ public class JsonPathParser {
   private static final char SINGLE_QUOTE = '\'';
   private static final char DOUBLE_QUOTE = '"';
   private static final char ESC = '\\';
-
   private static final Logger log = LoggerFactory.getLogger(JsonPathParser.class);
 
   public static List<JsonPath> parseJsonPaths(List<String> rules) {
@@ -62,10 +59,9 @@ public class JsonPathParser {
 
     while (cur.isWithinLimits()) {
       if (cur.is(OPEN_BRACKET)) {
-        boolean ok =
-            tryToParsePropertyInBrackets(cur, builder)
-                || tryToParseIndex(cur, builder)
-                || tryToParseWildcard(cur, builder);
+        boolean ok = tryToParsePropertyInBrackets(cur, builder)
+            || tryToParseIndex(cur, builder)
+            || tryToParseWildcard(cur, builder);
         if (!ok) {
           cur.fail("Expecting in brackets a property, an array index, or a wildcard.");
         }
@@ -124,8 +120,7 @@ public class JsonPathParser {
     builder.name(property);
   }
 
-  private static boolean tryToParseWildcard(Cursor cur, JsonPath.Builder builder)
-      throws ParseError {
+  private static boolean tryToParseWildcard(Cursor cur, JsonPath.Builder builder) throws ParseError {
     if (!cur.nextIsIgnoreSpaces(cur.pos, ASTERISK)) {
       return false;
     }
@@ -189,10 +184,9 @@ public class JsonPathParser {
       if (ESC == c) {
         cur.failAt(readPosition, "Escape character is not supported in property name.");
       } else if (c == COMMA) {
-        String message =
-            inProperty
-                ? "Comma is not allowed in property name."
-                : "Multiple properties are not supported.";
+        String message = inProperty
+            ? "Comma is not allowed in property name."
+            : "Multiple properties are not supported.";
         cur.failAt(readPosition, message);
       } else if (c == CLOSE_BRACKET && !inProperty) {
         break;

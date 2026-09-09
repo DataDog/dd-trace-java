@@ -7,4 +7,5 @@ import javax.ws.rs.HttpMethod;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 @HttpMethod("CUSTOM")
-public @interface CustomMethod {}
+public @interface CustomMethod {
+}

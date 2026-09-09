@@ -10,10 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 final class FlagEvaluationPayloads {
-
   private static final byte[] PAYLOAD_SUFFIX = FeatureFlagEvpPublisher.utf8Bytes("]}");
   private static final byte[] JSON_COMMA = FeatureFlagEvpPublisher.utf8Bytes(",");
-
   /**
    * Wire prefix identifying a privacy-preserving, hashed targeting key. Emitted for full-tier rows
    * when {@code observeFullEvaluationData} is off. The suffix is the lower-case hex SHA-256 of the
@@ -21,7 +19,6 @@ final class FlagEvaluationPayloads {
    * contract - keep it in sync with the other server SDKs and the UFC/EVP spec.
    */
   private static final String HASHED_TARGETING_KEY_PREFIX = "sha256_";
-
   private static final JsonAdapter<FlagEvaluationEvent> EVENT_JSON_ADAPTER;
   private static final JsonAdapter<Map<String, String>> CONTEXT_JSON_ADAPTER;
 
@@ -32,14 +29,17 @@ final class FlagEvaluationPayloads {
     CONTEXT_JSON_ADAPTER = moshi.adapter(contextType);
   }
 
-  private FlagEvaluationPayloads() {}
+  private FlagEvaluationPayloads() {
+  }
 
   static class FlagEvaluationsRequest {
     public final Map<String, String> context;
     public final List<FlagEvaluationEvent> flagEvaluations;
 
     FlagEvaluationsRequest(
-        final Map<String, String> context, final List<FlagEvaluationEvent> flagEvaluations) {
+        final Map<String, String> context,
+        final List<FlagEvaluationEvent> flagEvaluations
+    ) {
       this.context = context;
       this.flagEvaluations = flagEvaluations;
     }
@@ -48,7 +48,8 @@ final class FlagEvaluationPayloads {
   static EncodedPayloads buildPayloads(
       final List<FlagEvaluationEvent> events,
       final Map<String, String> context,
-      final int payloadSizeLimitBytes) {
+      final int payloadSizeLimitBytes
+  ) {
     final byte[] prefix = payloadPrefix(context);
     EncodedPayloadBuilder current = new EncodedPayloadBuilder(prefix);
     final List<byte[]> payloads = new ArrayList<>();
@@ -93,7 +94,8 @@ final class FlagEvaluationPayloads {
 
   private static byte[] payloadPrefix(final Map<String, String> context) {
     return FeatureFlagEvpPublisher.utf8Bytes(
-        "{\"context\":" + CONTEXT_JSON_ADAPTER.toJson(context) + ",\"flagEvaluations\":[");
+        "{\"context\":" + CONTEXT_JSON_ADAPTER.toJson(context) + ",\"flagEvaluations\":["
+    );
   }
 
   private static byte[] encodeEvent(final FlagEvaluationEvent event) {
@@ -108,7 +110,8 @@ final class FlagEvaluationPayloads {
     private EncodedPayloads(
         final List<byte[]> bodies,
         final long droppedPayloadLimit,
-        final long degradedPayloadLimit) {
+        final long degradedPayloadLimit
+    ) {
       this.bodies = bodies;
       this.droppedPayloadLimit = droppedPayloadLimit;
       this.degradedPayloadLimit = degradedPayloadLimit;
@@ -181,30 +184,33 @@ final class FlagEvaluationPayloads {
         final String targetingKey,
         final boolean runtimeDefaultUsed,
         final String errorMessage,
-        final Map<String, Object> evaluationAttrs) {
+        final Map<String, Object> evaluationAttrs
+    ) {
       this.timestamp = timestamp;
       this.flag = new FlagKeyObject(flagKey);
       this.first_evaluation = firstEvalMs;
       this.last_evaluation = lastEvalMs;
       this.evaluation_count = count;
       this.variant = (variant != null && !variant.isEmpty()) ? new KeyObject(variant) : null;
-      this.allocation =
-          (allocation != null && !allocation.isEmpty()) ? new KeyObject(allocation) : null;
+      this.allocation = (allocation != null && !allocation.isEmpty())
+          ? new KeyObject(allocation)
+          : null;
       this.targeting_key = targetingKey;
       this.runtime_default_used = runtimeDefaultUsed ? Boolean.TRUE : null;
-      this.context =
-          (evaluationAttrs != null && !evaluationAttrs.isEmpty())
-              ? new EventContext(evaluationAttrs)
-              : null;
-      this.error =
-          (errorMessage != null && !errorMessage.isEmpty()) ? new ErrorObject(errorMessage) : null;
+      this.context = (evaluationAttrs != null && !evaluationAttrs.isEmpty())
+          ? new EventContext(evaluationAttrs)
+          : null;
+      this.error = (errorMessage != null && !errorMessage.isEmpty())
+          ? new ErrorObject(errorMessage)
+          : null;
     }
 
     static FlagEvaluationEvent fromBucket(
         final FlagEvaluationAggregator.EvalBucket bucket,
         final boolean isFullTier,
         final boolean observeFullEvaluationData,
-        final long flushTimeMs) {
+        final long flushTimeMs
+    ) {
       final boolean includeRawContext = isFullTier && observeFullEvaluationData;
       return new FlagEvaluationEvent(
           flushTimeMs,
@@ -217,13 +223,15 @@ final class FlagEvaluationPayloads {
           resolveTargetingKey(bucket.targetingKey, isFullTier, observeFullEvaluationData),
           bucket.runtimeDefaultUsed,
           bucket.errorMessage,
-          includeRawContext ? bucket.prunedAttrs : null);
+          includeRawContext ? bucket.prunedAttrs : null
+      );
     }
 
     private static String resolveTargetingKey(
         final String rawTargetingKey,
         final boolean isFullTier,
-        final boolean observeFullEvaluationData) {
+        final boolean observeFullEvaluationData
+    ) {
       if (!isFullTier || rawTargetingKey == null) {
         return null;
       }
@@ -248,7 +256,8 @@ final class FlagEvaluationPayloads {
           null,
           Boolean.TRUE.equals(runtime_default_used),
           messageOf(error),
-          null);
+          null
+      );
     }
   }
 

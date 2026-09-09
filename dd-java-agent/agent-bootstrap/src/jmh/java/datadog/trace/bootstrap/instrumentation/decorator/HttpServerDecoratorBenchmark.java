@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.context.Context;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -41,10 +40,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class HttpServerDecoratorBenchmark {
-
   @Param({"https://foo.bar:4711/normal/path", "https://foo.bar:4711/numb3r/path"})
   String url;
-
   Request request;
   BenchmarkHttpServerDecorator decorator;
   AgentSpan span;
@@ -53,11 +50,13 @@ public class HttpServerDecoratorBenchmark {
   public void setUp() {
     request = new Request("GET", URI.create(url));
     CoreTracer tracer =
-        CoreTracer.builder()
-            .strictTraceWrites(
-                true) // Avoid any extra bookkeeping for traces since we write directly
-            .writer(new NoOpWriter()) // Avoid writing
-            .build();
+        CoreTracer
+      .builder()
+      // Avoid any extra bookkeeping for traces since we write directly
+      .strictTraceWrites(true)
+      // Avoid writing
+      .writer(new NoOpWriter())
+      .build();
     GlobalTracer.forceRegister(tracer);
     decorator = new BenchmarkHttpServerDecorator();
     Context context = decorator.startSpan(emptyMap(), root());
@@ -91,10 +90,9 @@ public class HttpServerDecoratorBenchmark {
   }
 
   public static class BenchmarkHttpServerDecorator
-      extends HttpServerDecorator<Request, Void, Void, Map<String, String>> {
-
+      extends HttpServerDecorator<Request, Void, Void, Map<String, String>>
+  {
     private static final CharSequence COMPONENT = UTF8BytesString.create("benchmark");
-
     private final CharSequence SPAN_NAME;
 
     public BenchmarkHttpServerDecorator() {

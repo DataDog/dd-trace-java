@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Test implementation of SupportedConfigurationSource that uses custom configuration data */
+/**
+ * Test implementation of SupportedConfigurationSource that uses custom configuration data
+ */
 class TestSupportedConfigurationSource extends SupportedConfigurationSource {
   private final Set<String> supported;
   private final Map<String, List<String>> aliases;
@@ -16,7 +18,8 @@ class TestSupportedConfigurationSource extends SupportedConfigurationSource {
       Set<String> supported,
       Map<String, List<String>> aliases,
       Map<String, String> aliasMapping,
-      Map<String, String> deprecated) {
+      Map<String, String> deprecated
+  ) {
     this.supported = supported;
     this.aliases = aliases;
     this.aliasMapping = aliasMapping;

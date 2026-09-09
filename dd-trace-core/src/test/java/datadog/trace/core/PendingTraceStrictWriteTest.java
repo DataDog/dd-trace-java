@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.ContextContinuation;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.ArrayList;
@@ -11,7 +10,6 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 public class PendingTraceStrictWriteTest extends PendingTraceTestBase {
-
   @Test
   void traceNotReportedUntilContinuationClosed() throws InterruptedException {
     AgentScope scope = tracer.activateSpan(rootSpan);
@@ -58,7 +56,6 @@ public class PendingTraceStrictWriteTest extends PendingTraceTestBase {
     // continuation is finished the second time
     // Yes this should be guarded by the used flag in the continuation,
     // so remove it anyway to trigger the exception
-    assertThrows(
-        IllegalStateException.class, () -> traceCollector.removeContinuation(continuation));
+    assertThrows(IllegalStateException.class, () -> traceCollector.removeContinuation(continuation));
   }
 }

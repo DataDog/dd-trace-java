@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.debugger.util;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static java.lang.invoke.MethodType.methodType;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.lang.invoke.MethodHandle;
@@ -29,8 +28,9 @@ import org.slf4j.LoggerFactory;
 
 public class WellKnownClasses {
   private static final Logger LOGGER = LoggerFactory.getLogger(WellKnownClasses.class);
-
-  /** Set of class names which have a toString side effect free and class final */
+  /**
+   * Set of class names which have a toString side effect free and class final
+   */
   private static final Map<String, Function<Object, String>> TO_STRING_FINAL_SAFE_CLASSES =
       new HashMap<>();
 
@@ -104,30 +104,25 @@ public class WellKnownClasses {
     EQUALS_SAFE_CLASSES.add("sun.nio.fs.WindowsPath");
   }
 
-  private static final Set<String> STRING_PRIMITIVES =
-      new HashSet<>(
-          Arrays.asList(
-              "java.lang.Class",
-              "java.lang.String",
-              "java.time.Duration",
-              "java.time.Instant",
-              "java.time.LocalTime",
-              "java.time.LocalDate",
-              "java.time.LocalDateTime",
-              "java.util.UUID",
-              "java.net.URI",
-              "java.io.File",
-              "sun.nio.fs.UnixPath",
-              "sun.nio.fs.WindowsPath"));
-
+  private static final Set<String> STRING_PRIMITIVES = new HashSet<>(Arrays.asList(
+      "java.lang.Class",
+      "java.lang.String",
+      "java.time.Duration",
+      "java.time.Instant",
+      "java.time.LocalTime",
+      "java.time.LocalDate",
+      "java.time.LocalDateTime",
+      "java.util.UUID",
+      "java.net.URI",
+      "java.io.File",
+      "sun.nio.fs.UnixPath",
+      "sun.nio.fs.WindowsPath"
+  ));
   private static final Set<String> LONG_PRIMITIVES = new HashSet<>(Arrays.asList("java.util.Date"));
-
-  private static final Map<Class<?>, Map<String, Function<Object, CapturedContext.CapturedValue>>>
-      SPECIAL_TYPE_ACCESS = new HashMap<>();
-
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      STACKTRACEELEMENT_SPECIAL_FIELDS = new HashMap<>();
-
+  private static final Map<Class<?>, Map<String, Function<Object, CapturedContext.CapturedValue>>> SPECIAL_TYPE_ACCESS =
+      new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> STACKTRACEELEMENT_SPECIAL_FIELDS =
+      new HashMap<>();
   private static Method getModuleNameMethod;
 
   static {
@@ -143,16 +138,16 @@ public class WellKnownClasses {
     }
   }
 
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONAL_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONALINT_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONALDOUBLE_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      OPTIONALLONG_SPECIAL_FIELDS = new HashMap<>();
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      COMPLETABLEFUTURE_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> OPTIONAL_SPECIAL_FIELDS =
+      new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> OPTIONALINT_SPECIAL_FIELDS =
+      new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> OPTIONALDOUBLE_SPECIAL_FIELDS =
+      new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> OPTIONALLONG_SPECIAL_FIELDS =
+      new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> COMPLETABLEFUTURE_SPECIAL_FIELDS =
+      new HashMap<>();
 
   static {
     OPTIONAL_SPECIAL_FIELDS.put("value", OptionalFields::value);
@@ -177,8 +172,8 @@ public class WellKnownClasses {
     }
   }
 
-  private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
-      THROWABLE_SPECIAL_FIELDS = new HashMap<>();
+  private static final Map<String, Function<Object, CapturedContext.CapturedValue>> THROWABLE_SPECIAL_FIELDS =
+      new HashMap<>();
 
   static {
     THROWABLE_SPECIAL_FIELDS.put("detailMessage", ThrowableFields::detailMessage);
@@ -187,46 +182,49 @@ public class WellKnownClasses {
     THROWABLE_SPECIAL_FIELDS.put("cause", ThrowableFields::cause);
   }
 
-  private static final List<String> SAFE_COLLECTION_PACKAGES =
-      Arrays.asList(
-          "java.", // JDK base module
-          "com.google.protobuf.", // Google ProtoBuf
-          "com.google.common.collect.", // Google Guava
-          "it.unimi.dsi.fastutil.", // fastutil
-          "org.agrona.collections." // Agrona
-          );
-
-  private static final Set<String> UNSAFE_COLLECTION_CLASSES =
-      new HashSet<>(
-          Arrays.asList(
-              // Collection with synchronized methods can lead to deadlock
-              "java.util.Stack",
-              "java.util.Vector",
-              "java.util.Collections$SynchronizedSet",
-              "java.util.Collections$SynchronizedCollection",
-              "java.util.Collections$SynchronizedSortedSet",
-              "java.util.Collections$SynchronizedNavigableSet",
-              "java.util.Collections$SynchronizedList",
-              "java.util.Collections$SynchronizedRandomAccessList"));
-
-  private static final Set<String> UNSAFE_MAP_CLASSES =
-      new HashSet<>(
-          Arrays.asList(
-              // Maps with synchronized methods can lead to deadlock
-              "java.util.Hashtable",
-              "java.util.Properties",
-              "java.util.Collections$SynchronizedMap",
-              "java.util.Collections$SynchronizedSortedMap",
-              "java.util.Collections$SynchronizedNavigableMap"));
-
-  private static final List<String> SAFE_MAP_PACKAGES =
-      Arrays.asList(
-          "java.", // JDK base module
-          "com.google.protobuf.", // Google ProtoBuf
-          "com.google.common.collect.", // Google Guava
-          "it.unimi.dsi.fastutil.", // fastutil
-          "org.agrona.collections." // Agrona
-          );
+  private static final List<String> SAFE_COLLECTION_PACKAGES = Arrays.asList(
+      // JDK base module
+      "java.",
+      // Google ProtoBuf
+      "com.google.protobuf.",
+      // Google Guava
+      "com.google.common.collect.",
+      // fastutil
+      "it.unimi.dsi.fastutil.",
+      // Agrona
+      "org.agrona.collections."
+  );
+  private static final Set<String> UNSAFE_COLLECTION_CLASSES = new HashSet<>(Arrays.asList(
+      // Collection with synchronized methods can lead to deadlock
+      "java.util.Stack",
+      "java.util.Vector",
+      "java.util.Collections$SynchronizedSet",
+      "java.util.Collections$SynchronizedCollection",
+      "java.util.Collections$SynchronizedSortedSet",
+      "java.util.Collections$SynchronizedNavigableSet",
+      "java.util.Collections$SynchronizedList",
+      "java.util.Collections$SynchronizedRandomAccessList"
+  ));
+  private static final Set<String> UNSAFE_MAP_CLASSES = new HashSet<>(Arrays.asList(
+      // Maps with synchronized methods can lead to deadlock
+      "java.util.Hashtable",
+      "java.util.Properties",
+      "java.util.Collections$SynchronizedMap",
+      "java.util.Collections$SynchronizedSortedMap",
+      "java.util.Collections$SynchronizedNavigableMap"
+  ));
+  private static final List<String> SAFE_MAP_PACKAGES = Arrays.asList(
+      // JDK base module
+      "java.",
+      // Google ProtoBuf
+      "com.google.protobuf.",
+      // Google Guava
+      "com.google.common.collect.",
+      // fastutil
+      "it.unimi.dsi.fastutil.",
+      // Agrona
+      "org.agrona.collections."
+  );
 
   /**
    * @return true if type is a final class and toString implementation is well known and side effect
@@ -250,7 +248,10 @@ public class WellKnownClasses {
    */
   public static boolean isSafe(Collection<?> collection) {
     return isSafe(
-        collection.getClass().getTypeName(), SAFE_COLLECTION_PACKAGES, UNSAFE_COLLECTION_CLASSES);
+        collection.getClass().getTypeName(),
+        SAFE_COLLECTION_PACKAGES,
+        UNSAFE_COLLECTION_CLASSES
+    );
   }
 
   /**
@@ -261,7 +262,10 @@ public class WellKnownClasses {
   }
 
   private static boolean isSafe(
-      String className, List<String> safePackages, Set<String> unsafeClasses) {
+      String className,
+      List<String> safePackages,
+      Set<String> unsafeClasses
+  ) {
     if (unsafeClasses.contains(className)) {
       return false;
     }
@@ -294,7 +298,8 @@ public class WellKnownClasses {
    *     supported. This is used to avoid using reflection to access fields on well known types
    */
   public static Map<String, Function<Object, CapturedContext.CapturedValue>> getSpecialTypeAccess(
-      Object value) {
+      Object value
+  ) {
     if (value == null) {
       return null;
     }
@@ -352,12 +357,16 @@ public class WellKnownClasses {
           "getMessage",
           String.class,
           Throwable.class,
-          Throwable::getMessage);
+          Throwable::getMessage
+      );
     }
 
     public static CapturedContext.CapturedValue suppressedExceptions(Object o) {
       return CapturedContext.CapturedValue.of(
-          "suppressedExceptions", String.class.getTypeName(), ((Throwable) o).getSuppressed());
+          "suppressedExceptions",
+          String.class.getTypeName(),
+          ((Throwable) o).getSuppressed()
+      );
     }
 
     public static CapturedContext.CapturedValue stackTrace(Object o) {
@@ -367,7 +376,8 @@ public class WellKnownClasses {
           "getStackTrace",
           StackTraceElement[].class,
           Throwable.class,
-          Throwable::getStackTrace);
+          Throwable::getStackTrace
+      );
     }
 
     public static CapturedContext.CapturedValue cause(Object o) {
@@ -377,7 +387,8 @@ public class WellKnownClasses {
           "getCause",
           Throwable.class,
           Throwable.class,
-          Throwable::getCause);
+          Throwable::getCause
+      );
     }
 
     private static <T, R> CapturedContext.CapturedValue captureIfNotOverridden(
@@ -386,17 +397,27 @@ public class WellKnownClasses {
         String methodName,
         Class<R> fieldType,
         Class<T> orginalDeclaringClass,
-        Function<T, R> supplier) {
+        Function<T, R> supplier
+    ) {
       if (isOverridden(obj, methodName, orginalDeclaringClass)) {
         return CapturedContext.CapturedValue.notCapturedReason(
-            fieldName, fieldType.getTypeName(), BECAUSE_OVERRIDDEN);
+            fieldName,
+            fieldType.getTypeName(),
+            BECAUSE_OVERRIDDEN
+        );
       }
       return CapturedContext.CapturedValue.of(
-          fieldName, fieldType.getTypeName(), supplier.apply(obj));
+          fieldName,
+          fieldType.getTypeName(),
+          supplier.apply(obj)
+      );
     }
 
     private static boolean isOverridden(
-        Object value, String methodName, Class<?> originalDeclaringClass) {
+        Object value,
+        String methodName,
+        Class<?> originalDeclaringClass
+    ) {
       Class<?> declaringClass = null;
       try {
         declaringClass = value.getClass().getMethod(methodName).getDeclaringClass();
@@ -410,22 +431,34 @@ public class WellKnownClasses {
   private static class StackTraceElementFields {
     public static CapturedContext.CapturedValue declaringClass(Object o) {
       return CapturedContext.CapturedValue.of(
-          "declaringClass", String.class.getTypeName(), ((StackTraceElement) o).getClassName());
+          "declaringClass",
+          String.class.getTypeName(),
+          ((StackTraceElement) o).getClassName()
+      );
     }
 
     public static CapturedContext.CapturedValue methodName(Object o) {
       return CapturedContext.CapturedValue.of(
-          "methodName", String.class.getTypeName(), ((StackTraceElement) o).getMethodName());
+          "methodName",
+          String.class.getTypeName(),
+          ((StackTraceElement) o).getMethodName()
+      );
     }
 
     public static CapturedContext.CapturedValue fileName(Object o) {
       return CapturedContext.CapturedValue.of(
-          "fileName", String.class.getTypeName(), ((StackTraceElement) o).getFileName());
+          "fileName",
+          String.class.getTypeName(),
+          ((StackTraceElement) o).getFileName()
+      );
     }
 
     public static CapturedContext.CapturedValue lineNumber(Object o) {
       return CapturedContext.CapturedValue.of(
-          "lineNumber", String.class.getTypeName(), ((StackTraceElement) o).getLineNumber());
+          "lineNumber",
+          String.class.getTypeName(),
+          ((StackTraceElement) o).getLineNumber()
+      );
     }
 
     public static CapturedContext.CapturedValue moduleName(Object o) {
@@ -445,22 +478,34 @@ public class WellKnownClasses {
   private static class OptionalFields {
     public static CapturedContext.CapturedValue value(Object o) {
       return CapturedContext.CapturedValue.of(
-          "value", Object.class.getTypeName(), ((Optional<?>) o).orElse(null));
+          "value",
+          Object.class.getTypeName(),
+          ((Optional<?>) o).orElse(null)
+      );
     }
 
     public static CapturedContext.CapturedValue valueInt(Object o) {
       return CapturedContext.CapturedValue.of(
-          "value", Integer.TYPE.getTypeName(), ((OptionalInt) o).orElse(0));
+          "value",
+          Integer.TYPE.getTypeName(),
+          ((OptionalInt) o).orElse(0)
+      );
     }
 
     public static CapturedContext.CapturedValue valueDouble(Object o) {
       return CapturedContext.CapturedValue.of(
-          "value", Double.TYPE.getTypeName(), ((OptionalDouble) o).orElse(0.0));
+          "value",
+          Double.TYPE.getTypeName(),
+          ((OptionalDouble) o).orElse(0.0)
+      );
     }
 
     public static CapturedContext.CapturedValue valueLong(Object o) {
       return CapturedContext.CapturedValue.of(
-          "value", Long.TYPE.getTypeName(), ((OptionalLong) o).orElse(0L));
+          "value",
+          Long.TYPE.getTypeName(),
+          ((OptionalLong) o).orElse(0L)
+      );
     }
   }
 
@@ -471,8 +516,11 @@ public class WellKnownClasses {
       MethodHandle methodHandle = null;
       try {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
-        methodHandle =
-            lookup.findVirtual(CompletableFuture.class, "resultNow", methodType(Object.class));
+        methodHandle = lookup.findVirtual(
+            CompletableFuture.class,
+            "resultNow",
+            methodType(Object.class)
+        );
       } catch (Exception e) {
         LOGGER.debug(EXCLUDE_TELEMETRY, "Looking up CompletableFuture::resultNow failed: ", e);
       }

@@ -25,7 +25,8 @@ public final class HttpProviders {
   private static volatile boolean compatibilityMode = false;
   private static HttpProvider provider;
 
-  private HttpProviders() {}
+  private HttpProviders() {
+  }
 
   public static void forceCompatClient() {
     // Skip if already in compat mode
@@ -43,7 +44,8 @@ public final class HttpProviders {
     return provider;
   }
 
-  @SuppressForbidden // Class#forName(String) used to dynamically load the http API implementation
+  // Class#forName(String) used to dynamically load the http API implementation
+  @SuppressForbidden
   private static HttpProvider findProvider() {
     Class<?> clazz = null;
     // Load the default client class

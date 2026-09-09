@@ -14,12 +14,10 @@ import org.slf4j.Marker;
  * then it logs every time.
  */
 public class RatelimitedLogger {
-
   private final Logger log;
   private final long delayNanos;
   private final String noLogMessage;
   private final TimeSource timeSource;
-
   private final AtomicLong nextLogNanos;
 
   public RatelimitedLogger(final Logger log, final int delay, final TimeUnit timeUnit) {
@@ -28,7 +26,11 @@ public class RatelimitedLogger {
 
   @VisibleForTesting
   RatelimitedLogger(
-      final Logger log, final int delay, final TimeUnit timeUnit, final TimeSource timeSource) {
+      final Logger log,
+      final int delay,
+      final TimeUnit timeUnit,
+      final TimeSource timeSource
+  ) {
     this.log = log;
     this.delayNanos = timeUnit.toNanos(delay);
     this.noLogMessage = createNoLogMessage(" (Will not log warnings for ", ")", delay, timeUnit);
@@ -60,15 +62,19 @@ public class RatelimitedLogger {
   }
 
   private static String createNoLogMessage(
-      String prefix, String postfix, int delay, TimeUnit timeUnit) {
+      String prefix,
+      String postfix,
+      int delay,
+      TimeUnit timeUnit
+  ) {
     StringBuilder noLogStringBuilder = new StringBuilder(prefix);
     noLogStringBuilder.append(delay);
     noLogStringBuilder.append(' ');
     String unit = timeUnit.name().toLowerCase(Locale.ROOT);
-    unit =
-        delay == 1
-            ? unit.substring(0, unit.length() - 1)
-            : unit; // should we drop the plural s or not?
+    unit = delay == 1
+        ? unit.substring(0, unit.length() - 1)
+        : // should we drop the plural s or not?
+    unit;
     noLogStringBuilder.append(unit);
     noLogStringBuilder.append(postfix);
     return noLogStringBuilder.toString();

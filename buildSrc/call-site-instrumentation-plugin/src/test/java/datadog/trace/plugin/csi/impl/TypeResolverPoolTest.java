@@ -1,7 +1,6 @@
 package datadog.trace.plugin.csi.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.plugin.csi.util.MethodType;
 import java.lang.reflect.Method;
 import javax.servlet.ServletRequest;
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.objectweb.asm.Type;
 
 class TypeResolverPoolTest {
-
   TypeResolverPool resolver = new TypeResolverPool();
 
   @Test
@@ -50,9 +48,11 @@ class TypeResolverPoolTest {
 
   @Test
   void testTypeResolverFromMethod() {
-    Type type =
-        Type.getMethodType(
-            Type.getType(String[].class), Type.getType(String.class), Type.getType(String.class));
+    Type type = Type.getMethodType(
+        Type.getType(String[].class),
+        Type.getType(String.class),
+        Type.getType(String.class)
+    );
     assertEquals(String[].class, resolver.resolveType(type.getReturnType()));
   }
 

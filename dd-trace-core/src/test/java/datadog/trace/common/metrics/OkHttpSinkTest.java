@@ -14,7 +14,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -33,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class OkHttpSinkTest {
-
   @TableTest({
     "scenario           | eventType   | responseCode",
     "404 -> DOWNGRADED  | DOWNGRADED  | 404         ",
@@ -44,7 +42,9 @@ class OkHttpSinkTest {
     "201 -> OK          | OK          | 201         "
   })
   void httpStatusCodeResponseCodeYieldsEventType(
-      EventListener.EventType eventType, int responseCode) {
+      EventListener.EventType eventType,
+      int responseCode
+  ) {
     String agentUrl = "http://localhost:8126";
     EventListener listener = mock(EventListener.class);
     OkHttpClient client = mock(OkHttpClient.class);
@@ -53,8 +53,8 @@ class OkHttpSinkTest {
     sink.register(listener);
 
     doAnswer(invocation -> respond(invocation.getArgument(0), responseCode))
-        .when(client)
-        .newCall(any());
+      .when(client)
+      .newCall(any());
     sink.accept(0, ByteBuffer.allocate(0));
 
     verify(client, times(1)).newCall(any());
@@ -70,7 +70,6 @@ class OkHttpSinkTest {
     // an asynchronous mode where up to 100 seconds of requests are copied and
     // enqueued for sending in the background, because we don't want to lose
     // them if it's possible not to.
-
     String agentUrl = "http://localhost:8126";
     CountDownLatch latch = new CountDownLatch(2);
     BlockingListener listener = new BlockingListener(latch);
@@ -80,27 +79,24 @@ class OkHttpSinkTest {
     sink.register(listener);
     // Single doAnswer handles all three calls using an atomic counter
     AtomicInteger callCount = new AtomicInteger(0);
-    doAnswer(
-            invocation -> {
-              int callNumber = callCount.incrementAndGet();
-              Request request = invocation.getArgument(0);
-              if (callNumber == 1) {
-                // First call: simulate slow agent
-                Thread.sleep(1001);
-              } else if (callNumber == 2) {
-                // Second call: should be in degraded mode
-                assertTrue(sink.isInDegradedMode());
-              }
-              return respond(request, 200);
-            })
-        .when(client)
-        .newCall(any());
-
+    doAnswer(invocation -> {
+      int callNumber = callCount.incrementAndGet();
+      Request request = invocation.getArgument(0);
+      if (callNumber == 1) {
+        // First call: simulate slow agent
+        Thread.sleep(1001);
+      } else if (callNumber == 2) {
+        // Second call: should be in degraded mode
+        assertTrue(sink.isInDegradedMode());
+      }
+      return respond(request, 200);
+    })
+      .when(client)
+      .newCall(any());
     // one slow response followed by a request
     sink.accept(1, ByteBuffer.allocate(0));
     sink.accept(1, ByteBuffer.allocate(0));
     latch.await(10, SECONDS);
-
     // the second request degrades to async mode
     verify(client, times(2)).newCall(any());
     assertEquals(2, listener.events.size());
@@ -110,10 +106,8 @@ class OkHttpSinkTest {
     long asyncRequests = sink.asyncRequestCount();
     assertEquals(1, asyncRequests);
     assertTrue(sink.isInDegradedMode());
-
     // the agent has recovered and has responded quickly once
     sink.accept(1, ByteBuffer.allocate(0));
-
     // the request was sent synchronously
     verify(client, times(3)).newCall(any());
     assertEquals(asyncRequests, sink.asyncRequestCount());
@@ -124,14 +118,13 @@ class OkHttpSinkTest {
     if (code == 0) {
       return error();
     }
-    Response response =
-        new Response.Builder()
-            .code(code)
-            .request(request)
-            .protocol(Protocol.HTTP_1_1)
-            .message("message")
-            .body(ResponseBody.create(MediaType.get("text/plain"), "message"))
-            .build();
+    Response response = new Response.Builder()
+      .code(code)
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .message("message")
+      .body(ResponseBody.create(MediaType.get("text/plain"), "message"))
+      .build();
     Call call = mock(Call.class);
     doReturn(response).when(call).execute();
     return call;
@@ -144,7 +137,6 @@ class OkHttpSinkTest {
   }
 
   private static class BlockingListener implements EventListener {
-
     private final CountDownLatch latch;
     final List<EventType> events = new CopyOnWriteArrayList<>();
 

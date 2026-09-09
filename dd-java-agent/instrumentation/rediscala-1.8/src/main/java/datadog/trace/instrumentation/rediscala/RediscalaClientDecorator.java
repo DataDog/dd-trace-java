@@ -7,12 +7,10 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class RediscalaClientDecorator
-    extends DBTypeProcessingDatabaseClientDecorator<RedisConnectionInfo> {
-
+    extends DBTypeProcessingDatabaseClientDecorator<RedisConnectionInfo>
+{
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("redis-command");
-
   public static final RediscalaClientDecorator DECORATE = new RediscalaClientDecorator();
-
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
   private static final String SERVICE_NAME =

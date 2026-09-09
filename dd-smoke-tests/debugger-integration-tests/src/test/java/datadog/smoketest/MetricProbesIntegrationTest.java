@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
 @Flaky
 @NonRetryable
 public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTest {
-
   @AfterEach
   void teardown() throws Exception {
     processRemainingRequests();
@@ -31,7 +29,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "incCallCount",
         MetricProbe.MetricKind.COUNT,
         null,
-        "dynamic.instrumentation.metric.probe.%s:1|c|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:1|c|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -41,7 +40,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_count",
         MetricProbe.MetricKind.COUNT,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|c|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|c|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -51,7 +51,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_count",
         MetricProbe.MetricKind.COUNT,
         new ValueScript(DSL.ref("noarg"), "noarg"),
-        "Cannot resolve symbol noarg");
+        "Cannot resolve symbol noarg"
+    );
   }
 
   @Test
@@ -61,7 +62,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_count",
         MetricProbe.MetricKind.COUNT,
         new ValueScript(DSL.ref("argStr"), "argStr"),
-        "Incompatible type for expression: java.lang.String with expected types: [long]");
+        "Incompatible type for expression: java.lang.String with expected types: [long]"
+    );
   }
 
   @Test
@@ -71,7 +73,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_gauge",
         MetricProbe.MetricKind.GAUGE,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|g|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|g|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -81,7 +84,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_histogram",
         MetricProbe.MetricKind.HISTOGRAM,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|h|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|h|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -91,63 +95,75 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_distribution",
         MetricProbe.MetricKind.DISTRIBUTION,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|d|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|d|#debugger.probeid:%s"
+    );
   }
 
   private void doMethodMetric(
-      String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
-      throws IOException, InterruptedException {
+      String metricName,
+      MetricProbe.MetricKind kind,
+      ValueScript script,
+      String expectedMsgFormat
+  ) throws IOException, InterruptedException {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
-        "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
-    MetricProbe metricProbe =
-        MetricProbe.builder()
-            .probeId(PROBE_ID)
-            .where(MAIN_CLASS_NAME, METHOD_NAME)
-            .kind(kind)
-            .metricName(metricName)
-            .valueScript(script)
-            .build();
+        // wait for TIMEOUT_S for letting the metric being sent (async)
+    "-1";
+    MetricProbe metricProbe = MetricProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(MAIN_CLASS_NAME, METHOD_NAME)
+      .kind(kind)
+      .metricName(metricName)
+      .valueScript(script)
+      .build();
     setCurrentConfiguration(createMetricConfig(metricProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
-    processRequests(
-        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
+    processRequests(statusResult::get, () -> String.format(
+        "timeout statusResult=%s",
+        statusResult.get()
+    ));
   }
 
   private void doMethodInvalidMetric(
-      String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsg)
-      throws Exception {
+      String metricName,
+      MetricProbe.MetricKind kind,
+      ValueScript script,
+      String expectedMsg
+  ) throws Exception {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
-        "-1"; // wait for TIMEOUT_S for letting the Probe Status to be sent (async)
-    MetricProbe metricProbe =
-        MetricProbe.builder()
-            .probeId(PROBE_ID)
-            .where(MAIN_CLASS_NAME, METHOD_NAME)
-            .kind(kind)
-            .metricName(metricName)
-            .valueScript(script)
-            .build();
+        // wait for TIMEOUT_S for letting the Probe Status to be sent (async)
+    "-1";
+    MetricProbe metricProbe = MetricProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(MAIN_CLASS_NAME, METHOD_NAME)
+      .kind(kind)
+      .metricName(metricName)
+      .valueScript(script)
+      .build();
     setCurrentConfiguration(createMetricConfig(metricProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     AtomicBoolean received = new AtomicBoolean();
     AtomicBoolean error = new AtomicBoolean();
-    registerProbeStatusListener(
-        probeStatus -> {
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
-            received.set(true);
-          }
-          if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
-            assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
-            error.set(true);
-          }
-        });
-    processRequests(
-        () -> received.get() && error.get(),
-        () -> String.format("timeout received=%s error=%s", received.get(), error.get()));
+    registerProbeStatusListener(probeStatus -> {
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.RECEIVED) {
+        received.set(true);
+      }
+      if (probeStatus.getDiagnostics().getStatus() == ProbeStatus.Status.ERROR) {
+        assertEquals(expectedMsg, probeStatus.getDiagnostics().getException().getMessage());
+        error.set(true);
+      }
+    });
+    processRequests(() -> received.get() && error.get(), () -> String.format(
+        "timeout received=%s error=%s",
+        received.get(),
+        error.get()
+    ));
   }
 
   @Test
@@ -157,7 +173,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_incCallCount",
         MetricProbe.MetricKind.COUNT,
         null,
-        "dynamic.instrumentation.metric.probe.%s:1|c|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:1|c|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -167,7 +184,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_count",
         MetricProbe.MetricKind.COUNT,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|c|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|c|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -177,7 +195,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_gauge",
         MetricProbe.MetricKind.GAUGE,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|g|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|g|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -187,7 +206,8 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_histogram",
         MetricProbe.MetricKind.HISTOGRAM,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|h|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|h|#debugger.probeid:%s"
+    );
   }
 
   @Test
@@ -197,30 +217,37 @@ public class MetricProbesIntegrationTest extends SimpleAppDebuggerIntegrationTes
         "fullMethod_distribution",
         MetricProbe.MetricKind.DISTRIBUTION,
         new ValueScript(DSL.ref("argInt"), "argInt"),
-        "dynamic.instrumentation.metric.probe.%s:42|d|#debugger.probeid:%s");
+        "dynamic.instrumentation.metric.probe.%s:42|d|#debugger.probeid:%s"
+    );
   }
 
   private void doLineMetric(
-      String metricName, MetricProbe.MetricKind kind, ValueScript script, String expectedMsgFormat)
-      throws IOException, InterruptedException {
+      String metricName,
+      MetricProbe.MetricKind kind,
+      ValueScript script,
+      String expectedMsgFormat
+  ) throws IOException, InterruptedException {
     final String METHOD_NAME = "fullMethod";
     final String EXPECTED_UPLOADS =
-        "-1"; // wait for TIMEOUT_S for letting the metric being sent (async)
-    MetricProbe metricProbe =
-        MetricProbe.builder()
-            .probeId(PROBE_ID)
-            // on line: System.out.println("fullMethod");
-            .where("DebuggerTestApplication.java", 95)
-            .kind(kind)
-            .metricName(metricName)
-            .valueScript(script)
-            .build();
+        // wait for TIMEOUT_S for letting the metric being sent (async)
+    "-1";
+    MetricProbe metricProbe = MetricProbe
+      .builder()
+      .probeId(PROBE_ID)
+      // on line: System.out.println("fullMethod");
+      .where("DebuggerTestApplication.java", 95)
+      .kind(kind)
+      .metricName(metricName)
+      .valueScript(script)
+      .build();
     setCurrentConfiguration(createMetricConfig(metricProbe));
     targetProcess = createProcessBuilder(logFilePath, METHOD_NAME, EXPECTED_UPLOADS).start();
     String msgExpected = String.format(expectedMsgFormat, metricName, PROBE_ID.getId());
     assertNotNull(retrieveStatsdMessage(msgExpected));
     AtomicBoolean statusResult = registerCheckReceivedInstalledEmitting(PROBE_ID);
-    processRequests(
-        statusResult::get, () -> String.format("timeout statusResult=%s", statusResult.get()));
+    processRequests(statusResult::get, () -> String.format(
+        "timeout statusResult=%s",
+        statusResult.get()
+    ));
   }
 }

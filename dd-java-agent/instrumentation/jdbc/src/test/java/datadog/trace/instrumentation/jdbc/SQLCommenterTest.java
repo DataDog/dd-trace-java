@@ -4,7 +4,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
@@ -19,7 +18,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class SQLCommenterTest extends AbstractInstrumentationTest {
-
   private static final String TRACE_PARENT =
       "00-00000000000000007fffffffffffffff-000000024cb016ea-00";
   private static final String TRACE_PARENT_SAMPLED =
@@ -30,7 +28,6 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
   void testFindFirstWord(String scenario, String sql, String firstWord) {
     // when
     String word = SQLCommenter.getFirstWord(sql).toString();
-
     // then
     assertEquals(firstWord, word);
   }
@@ -44,7 +41,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
         arguments("brace space call", "{ call", "{"),
         arguments("CALL with args", "CALL ( ? )", "CALL"),
         arguments("empty", "", ""),
-        arguments("blank", "   ", ""));
+        arguments("blank", "   ", "")
+    );
   }
 
   @ParameterizedTest(name = "{0}")
@@ -61,17 +59,16 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
       String ddVersion,
       boolean append,
       String traceParent,
-      String expected) {
+      String expected
+  ) {
     // setup
     injectSysConfig("service", ddService);
     injectSysConfig("env", ddEnv);
     injectSysConfig("version", ddVersion);
     SharedDBCommenter.resetStaticPrefixForTesting();
-
     // when
     String sqlWithComment =
         SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, append);
-
     // then
     assertEquals(expected, sqlWithComment);
   }
@@ -90,7 +87,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-00'*/"
+        ),
         arguments(
             "append mysql trailing semicolon",
             "SELECT * FROM foo;",
@@ -103,7 +103,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/;"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-00'*/;"
+        ),
         arguments(
             "append mysql trailing semicolon and whitespace",
             "SELECT * FROM foo; \t\n\r",
@@ -116,7 +119,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/;"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-00'*/;"
+        ),
         arguments(
             "append mysql two statements",
             "SELECT * FROM foo; SELECT * FROM bar",
@@ -129,7 +135,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo; SELECT * FROM bar /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo; SELECT * FROM bar /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append mysql two statements trailing semicolon",
             "SELECT * FROM foo; SELECT * FROM bar; ",
@@ -142,7 +151,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo; SELECT * FROM bar /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/;"),
+            "SELECT * FROM foo; SELECT * FROM bar /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/;"
+        ),
         arguments(
             "append postgres simple",
             "SELECT * FROM foo",
@@ -155,7 +167,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-00'*/"
+        ),
         arguments(
             "append mysql stored proc braces",
             "{call dogshelterProc(?, ?)}",
@@ -168,7 +183,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "{call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "{call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',"
+            + "dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "prepend mysql stored proc braces",
             "{call dogshelterProc(?, ?)}",
@@ -181,7 +199,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "{call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "{call dogshelterProc(?, ?)} /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',"
+            + "dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append postgres stored proc braces unchanged",
             "{call dogshelterProc(?, ?)}",
@@ -194,7 +215,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "{call dogshelterProc(?, ?)}"),
+            "{call dogshelterProc(?, ?)}"
+        ),
         arguments(
             "prepend postgres CALL proc",
             "CALL dogshelterProc(?, ?)",
@@ -207,7 +229,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',"
+            + "dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "prepend mysql CALL proc",
             "CALL dogshelterProc(?, ?)",
@@ -220,7 +245,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "CALL dogshelterProc(?, ?) /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',"
+            + "dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append empty service drops ddps and dddbs",
             "SELECT * FROM foo",
@@ -233,7 +261,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*dde='Test',ddpv='TestVersion',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*dde='Test',ddpv='TestVersion',ddh='h',dddb='n',"
+            + "traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append empty service keeps dddbs",
             "SELECT * FROM foo",
@@ -246,7 +276,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append empty host and dbName drops ddh and dddb",
             "SELECT * FROM foo",
@@ -259,7 +291,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append only env host dbName",
             "SELECT * FROM foo",
@@ -272,7 +306,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*dde='Test',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*dde='Test',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append only host dbName",
             "SELECT * FROM foo",
@@ -285,7 +321,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append only traceparent",
             "SELECT * FROM foo",
@@ -298,7 +336,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "",
             true,
             TRACE_PARENT,
-            "SELECT * FROM foo /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append with line comment sampled",
             "SELECT * from FOO -- test query",
@@ -311,7 +350,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT_SAMPLED,
-            "SELECT * from FOO -- test query /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/"),
+            "SELECT * from FOO -- test query /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-01'*/"
+        ),
         arguments(
             "append with inline customer comment sampled",
             "SELECT /* customer-comment */ * FROM foo",
@@ -324,7 +366,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT_SAMPLED,
-            "SELECT /* customer-comment */ * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/"),
+            "SELECT /* customer-comment */ * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-01'*/"
+        ),
         arguments(
             "append null traceparent omits traceparent",
             "SELECT * FROM foo",
@@ -337,7 +382,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "append oracle null traceparent",
             "SELECT * FROM DUAL",
@@ -350,7 +397,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM DUAL /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "SELECT * FROM DUAL /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "append sqlserver null traceparent",
             "SELECT * FROM sys.tables",
@@ -363,7 +412,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM sys.tables /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "SELECT * FROM sys.tables /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',"
+            + "dddbs='my-service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "append inline customer comment null traceparent",
             "SELECT /* customer-comment */ * FROM foo",
@@ -376,7 +427,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT /* customer-comment */ * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "SELECT /* customer-comment */ * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "append line comment null traceparent",
             "SELECT * from FOO -- test query",
@@ -389,7 +442,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * from FOO -- test query /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "SELECT * from FOO -- test query /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "append empty query stays empty",
             "",
@@ -402,7 +457,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            ""),
+            ""
+        ),
         arguments(
             "append blank query sampled",
             "   ",
@@ -415,7 +471,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT_SAMPLED,
-            "    /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/"),
+            "    /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',"
+            + "ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-01'*/"
+        ),
         arguments(
             "append empty query dbService postgres",
             "",
@@ -428,7 +487,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            ""),
+            ""
+        ),
         arguments(
             "append blank query dbService postgres sampled",
             "   ",
@@ -441,10 +501,13 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT_SAMPLED,
-            "    /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='postgres',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/"),
+            "    /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='postgres',ddh='h',"
+            + "dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/"
+        ),
         arguments(
             "append idempotent full existing comment",
-            "SELECT * FROM foo /*dddbs='my-service',ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/",
+            "SELECT * FROM foo /*dddbs='my-service',ddh='h',dddb='n',dde='Test',"
+            + "ddps='SqlCommenter',ddpv='TestVersion'*/",
             "SqlCommenter",
             "Test",
             "my-service",
@@ -454,7 +517,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*dddbs='my-service',ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/"),
+            "SELECT * FROM foo /*dddbs='my-service',ddh='h',dddb='n',dde='Test',"
+            + "ddps='SqlCommenter',ddpv='TestVersion'*/"
+        ),
         arguments(
             "append idempotent existing comment no dddbs",
             "SELECT * FROM foo /*ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/",
@@ -467,7 +532,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/"),
+            "SELECT * FROM foo /*ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/"
+        ),
         arguments(
             "append idempotent existing comment no ddh",
             "SELECT * FROM foo /*dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/",
@@ -480,7 +546,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/"),
+            "SELECT * FROM foo /*dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/"
+        ),
         arguments(
             "append idempotent existing comment no dddb",
             "SELECT * FROM foo /*dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/",
@@ -493,7 +560,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/"),
+            "SELECT * FROM foo /*dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/"
+        ),
         arguments(
             "append idempotent existing comment no dde",
             "SELECT * FROM foo /*ddps='SqlCommenter',ddpv='TestVersion'*/",
@@ -506,7 +574,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*ddps='SqlCommenter',ddpv='TestVersion'*/"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',ddpv='TestVersion'*/"
+        ),
         arguments(
             "append idempotent existing comment only ddpv",
             "SELECT * FROM foo /*ddpv='TestVersion'*/",
@@ -519,7 +588,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*ddpv='TestVersion'*/"),
+            "SELECT * FROM foo /*ddpv='TestVersion'*/"
+        ),
         arguments(
             "append leading customer comment null traceparent",
             "/*ddjk its a customer */ SELECT * FROM foo",
@@ -532,7 +602,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "/*ddjk its a customer */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "/*ddjk its a customer */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "append existing traceparent comment unchanged",
             "SELECT * FROM foo /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/",
@@ -545,7 +617,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "SELECT * FROM foo /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/"),
+            "SELECT * FROM foo /*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/"
+        ),
         arguments(
             "append leading customer block comment",
             "/*customer-comment*/ SELECT * FROM foo",
@@ -558,7 +631,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "/*customer-comment*/ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "/*customer-comment*/ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "append unterminated traceparent comment",
             "/*traceparent",
@@ -571,7 +646,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             null,
-            "/*traceparent /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/"),
+            "/*traceparent /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n'*/"
+        ),
         arguments(
             "prepend mysql simple",
             "SELECT * FROM foo",
@@ -584,7 +661,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * FROM foo"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ "
+            + "SELECT * FROM foo"
+        ),
         arguments(
             "prepend empty service drops ddps and dddbs",
             "SELECT * FROM foo",
@@ -597,7 +677,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "/*dde='Test',ddpv='TestVersion',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * FROM foo"),
+            "/*dde='Test',ddpv='TestVersion',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend empty service keeps dddbs",
             "SELECT * FROM foo",
@@ -610,7 +692,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "/*dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * FROM foo"),
+            "/*dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',"
+            + "traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * "
+            + "FROM foo"
+        ),
         arguments(
             "prepend only env host dbName",
             "SELECT * FROM foo",
@@ -623,7 +708,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "",
             false,
             TRACE_PARENT,
-            "/*dde='Test',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * FROM foo"),
+            "/*dde='Test',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-00'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend only traceparent",
             "SELECT * FROM foo",
@@ -636,7 +723,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "",
             false,
             TRACE_PARENT,
-            "/*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * FROM foo"),
+            "/*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend line comment sampled",
             "SELECT * from FOO -- test query",
@@ -649,7 +737,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT_SAMPLED,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ SELECT * from FOO -- test query"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ "
+            + "SELECT * from FOO -- test query"
+        ),
         arguments(
             "prepend inline customer comment sampled",
             "SELECT /* customer-comment */ * FROM foo",
@@ -662,7 +753,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT_SAMPLED,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ SELECT /* customer-comment */ * FROM foo"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ "
+            + "SELECT /* customer-comment */ * FROM foo"
+        ),
         arguments(
             "prepend mysql null traceparent",
             "SELECT * FROM foo",
@@ -675,7 +769,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/ SELECT * FROM foo"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend inline customer comment null traceparent",
             "SELECT /* customer-comment */ * FROM foo",
@@ -688,7 +784,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/ SELECT /* customer-comment */ * FROM foo"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n'*/ SELECT /* customer-comment */ * FROM foo"
+        ),
         arguments(
             "prepend line comment null traceparent",
             "SELECT * from FOO -- test query",
@@ -701,7 +799,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/ SELECT * from FOO -- test query"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n'*/ SELECT * from FOO -- test query"
+        ),
         arguments(
             "prepend empty query stays empty",
             "",
@@ -714,7 +814,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            ""),
+            ""
+        ),
         arguments(
             "prepend blank query sampled",
             "   ",
@@ -727,10 +828,14 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT_SAMPLED,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/    "),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/  "
+            + "  "
+        ),
         arguments(
             "prepend idempotent full existing comment",
-            "/*dddbs='my-service',ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo",
+            "/*dddbs='my-service',ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',"
+            + "ddpv='TestVersion'*/ SELECT * FROM foo",
             "SqlCommenter",
             "Test",
             "my-service",
@@ -740,7 +845,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*dddbs='my-service',ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"),
+            "/*dddbs='my-service',ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',"
+            + "ddpv='TestVersion'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend idempotent existing comment no dddbs",
             "/*ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo",
@@ -753,7 +860,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"),
+            "/*ddh='h',dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend idempotent existing comment no ddh",
             "/*dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo",
@@ -766,7 +874,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"),
+            "/*dddb='n',dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend idempotent existing comment no dddb",
             "/*dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo",
@@ -779,7 +888,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"),
+            "/*dde='Test',ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend idempotent existing comment no dde",
             "/*ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo",
@@ -792,7 +902,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"),
+            "/*ddps='SqlCommenter',ddpv='TestVersion'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend idempotent existing comment only ddpv",
             "/*ddpv='TestVersion'*/ SELECT * FROM foo",
@@ -805,7 +916,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddpv='TestVersion'*/ SELECT * FROM foo"),
+            "/*ddpv='TestVersion'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend leading customer comment null traceparent",
             "/*ddjk its a customer */ SELECT * FROM foo",
@@ -818,7 +930,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/ /*ddjk its a customer */ SELECT * FROM foo"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n'*/ /*ddjk its a customer */ SELECT * FROM foo"
+        ),
         arguments(
             "prepend existing traceparent comment unchanged",
             "/*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ SELECT * FROM foo",
@@ -831,7 +945,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ SELECT * FROM foo"),
+            "/*traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-01'*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend leading customer block comment",
             "/*customer-comment*/ SELECT * FROM foo",
@@ -844,7 +959,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/ /*customer-comment*/ SELECT * FROM foo"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n'*/ /*customer-comment*/ SELECT * FROM foo"
+        ),
         arguments(
             "prepend unterminated traceparent comment",
             "/*traceparent",
@@ -857,7 +974,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             null,
-            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n'*/ /*traceparent"),
+            "/*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',"
+            + "dddb='n'*/ /*traceparent"
+        ),
         arguments(
             "append postgres optimizer hint inline",
             "SELECT /*+ SeqScan(foo) */ * FROM foo",
@@ -870,7 +989,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "SELECT /*+ SeqScan(foo) */ * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT /*+ SeqScan(foo) */ * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "append postgres optimizer hint leading",
             "/*+ SeqScan(foo) */ SELECT * FROM foo",
@@ -883,10 +1005,15 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "postgres optimizer hint leading -- re-injecting already-commented SQL is a no-op",
-            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/",
+            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/",
             "SqlCommenter",
             "Test",
             "my-service",
@@ -896,7 +1023,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "prepend postgres optimizer hint leading",
             "/*+ SeqScan(foo) */ SELECT * FROM foo",
@@ -909,7 +1039,10 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',"
+            + "ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        ),
         arguments(
             "prepend postgres optimizer hint with empty ddps unchanged",
             "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps=''*/",
@@ -922,7 +1055,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps=''*/"),
+            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps=''*/"
+        ),
         arguments(
             "append postgres optimizer hint with empty ddps unchanged",
             "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps=''*/",
@@ -935,7 +1069,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps=''*/"),
+            "/*+ SeqScan(foo) */ SELECT * FROM foo /*ddps=''*/"
+        ),
         arguments(
             "prepend postgres CALL proc with empty ddps unchanged",
             "CALL dogshelterProc(?, ?) /*ddps=''*/",
@@ -948,7 +1083,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             false,
             TRACE_PARENT,
-            "CALL dogshelterProc(?, ?) /*ddps=''*/"),
+            "CALL dogshelterProc(?, ?) /*ddps=''*/"
+        ),
         arguments(
             "append postgres CALL proc with empty ddps unchanged",
             "CALL dogshelterProc(?, ?) /*ddps=''*/",
@@ -961,7 +1097,9 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "TestVersion",
             true,
             TRACE_PARENT,
-            "CALL dogshelterProc(?, ?) /*ddps=''*/"));
+            "CALL dogshelterProc(?, ?) /*ddps=''*/"
+        )
+    );
   }
 
   @ParameterizedTest(name = "{0}")
@@ -973,17 +1111,19 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
       long baseHash,
       boolean processTagsEnabled,
       String srv,
-      String result) {
+      String result
+  ) {
     // setup
     injectSysConfig("service", srv);
     injectSysConfig("env", "");
     injectSysConfig("dbm.inject.sql.basehash", Boolean.toString(injectHash));
     injectSysConfig(
-        "experimental.propagate.process.tags.enabled", Boolean.toString(processTagsEnabled));
+        "experimental.propagate.process.tags.enabled",
+        Boolean.toString(processTagsEnabled)
+    );
     ProcessTags.reset(Config.get());
     BaseHash.updateBaseHash(baseHash);
     SharedDBCommenter.resetStaticPrefixForTesting();
-
     // expect
     assertEquals(processTagsEnabled, Config.get().isExperimentalPropagateProcessTagsEnabled());
     // and
@@ -999,7 +1139,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             234563L,
             false,
             "",
-            "SELECT *"),
+            "SELECT *"
+        ),
         arguments(
             "hash on, process tags, no service",
             "SELECT *",
@@ -1007,7 +1148,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             234563L,
             true,
             "",
-            "/*ddsh='234563'*/ SELECT *"),
+            "/*ddsh='234563'*/ SELECT *"
+        ),
         arguments(
             "hash on alt base, no process tags, no service",
             "SELECT *",
@@ -1015,7 +1157,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             345342L,
             false,
             "",
-            "SELECT *"),
+            "SELECT *"
+        ),
         arguments(
             "hash on alt base, process tags, no service",
             "SELECT *",
@@ -1023,7 +1166,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             345342L,
             true,
             "",
-            "/*ddsh='345342'*/ SELECT *"),
+            "/*ddsh='345342'*/ SELECT *"
+        ),
         arguments(
             "hash on, no process tags, with service",
             "SELECT *",
@@ -1031,7 +1175,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             234563L,
             false,
             "srv",
-            "/*ddps='srv'*/ SELECT *"),
+            "/*ddps='srv'*/ SELECT *"
+        ),
         arguments(
             "hash on, process tags, with service",
             "SELECT *",
@@ -1039,7 +1184,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             234563L,
             true,
             "srv",
-            "/*ddps='srv',ddsh='234563'*/ SELECT *"),
+            "/*ddps='srv',ddsh='234563'*/ SELECT *"
+        ),
         arguments(
             "hash on alt base, no process tags, with service",
             "SELECT *",
@@ -1047,7 +1193,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             345342L,
             false,
             "srv",
-            "/*ddps='srv'*/ SELECT *"),
+            "/*ddps='srv'*/ SELECT *"
+        ),
         arguments(
             "hash on alt base, process tags, with service",
             "SELECT *",
@@ -1055,9 +1202,17 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             345342L,
             true,
             "srv",
-            "/*ddps='srv',ddsh='345342'*/ SELECT *"),
+            "/*ddps='srv',ddsh='345342'*/ SELECT *"
+        ),
         arguments(
-            "hash off, process tags, no service", "SELECT *", false, 234563L, true, "", "SELECT *"),
+            "hash off, process tags, no service",
+            "SELECT *",
+            false,
+            234563L,
+            true,
+            "",
+            "SELECT *"
+        ),
         arguments(
             "hash off, process tags, with service",
             "SELECT *",
@@ -1065,7 +1220,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             234563L,
             true,
             "srv",
-            "/*ddps='srv'*/ SELECT *"),
+            "/*ddps='srv'*/ SELECT *"
+        ),
         arguments(
             "hash off alt base, process tags, with service",
             "SELECT *",
@@ -1073,7 +1229,8 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             345342L,
             true,
             "srv",
-            "/*ddps='srv'*/ SELECT *"),
+            "/*ddps='srv'*/ SELECT *"
+        ),
         arguments(
             "hash on, process tags, existing ddsh unchanged",
             "/*ddsh='-3750763034362895579'*/ SELECT *",
@@ -1081,36 +1238,38 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             234563L,
             true,
             "",
-            "/*ddsh='-3750763034362895579'*/ SELECT *"));
+            "/*ddsh='-3750763034362895579'*/ SELECT *"
+        )
+    );
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("testEncodeSqlCommentWithPeerServiceArguments")
   void testEncodeSqlCommentWithPeerService(
-      String scenario, String dbType, String peerService, String expected) throws Exception {
+      String scenario,
+      String dbType,
+      String peerService,
+      String expected
+  ) throws Exception {
     // setup
     injectSysConfig("service", "SqlCommenter");
     injectSysConfig("env", "Test");
     injectSysConfig("version", "TestVersion");
     SharedDBCommenter.resetStaticPrefixForTesting();
-
     // when
-    String sqlWithComment =
-        runUnderTrace(
-            "testTrace",
-            () -> {
-              AgentSpan currSpan = AgentTracer.activeSpan();
-              currSpan.setTag(Tags.PEER_SERVICE, peerService);
-              return SQLCommenter.inject(
-                  "SELECT * FROM foo",
-                  "my-service",
-                  dbType,
-                  "h",
-                  "n",
-                  "00-00000000000000007fffffffffffffff-000000024cb016ea-00",
-                  true);
-            });
-
+    String sqlWithComment = runUnderTrace("testTrace", () -> {
+      AgentSpan currSpan = AgentTracer.activeSpan();
+      currSpan.setTag(Tags.PEER_SERVICE, peerService);
+      return SQLCommenter.inject(
+          "SELECT * FROM foo",
+          "my-service",
+          dbType,
+          "h",
+          "n",
+          "00-00000000000000007fffffffffffffff-000000024cb016ea-00",
+          true
+      );
+    });
     // then
     assertEquals(expected, sqlWithComment);
   }
@@ -1121,16 +1280,26 @@ class SQLCommenterTest extends AbstractInstrumentationTest {
             "mysql null peer service",
             "mysql",
             null,
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-00'*/"
+        ),
         arguments(
             "postgres empty peer service",
             "postgres",
             "",
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"),
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n',traceparent='00-00000000000000007fffffffffffffff-"
+            + "000000024cb016ea-00'*/"
+        ),
         arguments(
             "postgres with peer service",
             "postgres",
             "testPeer",
-            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-service',ddh='h',dddb='n',ddprs='testPeer',traceparent='00-00000000000000007fffffffffffffff-000000024cb016ea-00'*/"));
+            "SELECT * FROM foo /*ddps='SqlCommenter',dde='Test',ddpv='TestVersion',dddbs='my-"
+            + "service',ddh='h',dddb='n',ddprs='testPeer',traceparent='00-"
+            + "00000000000000007fffffffffffffff-000000024cb016ea-00'*/"
+        )
+    );
   }
 }

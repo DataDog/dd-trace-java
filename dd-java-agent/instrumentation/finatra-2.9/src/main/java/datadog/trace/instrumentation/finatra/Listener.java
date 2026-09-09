@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.finatra;
 
 import static datadog.trace.instrumentation.finatra.FinatraDecorator.DECORATE;
-
 import com.twitter.finagle.http.Response;
 import com.twitter.util.FutureEventListener;
 import datadog.context.ContextScope;

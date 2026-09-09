@@ -4,7 +4,6 @@ import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROB
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.METRIC_PROBE_PREFIX;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_DECORATION_PROBE_PREFIX;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.SPAN_PROBE_PREFIX;
-
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
@@ -69,7 +68,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     if (JAVA_AT_LEAST_16) {
       try {
         Class<?> recordClass = Class.forName("java.lang.Record", true, null);
-        getRecordComponentsMethod = recordClass.getClass().getDeclaredMethod("getRecordComponents");
+        getRecordComponentsMethod = recordClass
+          .getClass()
+          .getDeclaredMethod("getRecordComponents");
         Class<?> recordComponentClass =
             Class.forName("java.lang.reflect.RecordComponent", true, null);
         getAnnotatedTypesMethod = recordComponentClass.getDeclaredMethod("getAnnotatedType");
@@ -87,7 +88,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
         Configuration configuration,
         DebuggerTransformer.InstrumentationListener listener,
         ProbeMetadata probeMetadata,
-        DebuggerSink debuggerSink);
+        DebuggerSink debuggerSink
+    );
   }
 
   private final Instrumentation instrumentation;
@@ -112,7 +114,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       TransformerSupplier transformerSupplier,
       Config config,
       DebuggerSink sink,
-      ClassesToRetransformFinder finder) {
+      ClassesToRetransformFinder finder
+  ) {
     this.instrumentation = instrumentation;
     this.transformerSupplier = transformerSupplier;
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
@@ -171,8 +174,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     try {
       Configuration originalConfiguration = currentConfiguration;
       ConfigurationComparer changes =
-          new ConfigurationComparer(
-              originalConfiguration, newConfiguration, instrumentationResults);
+          new ConfigurationComparer(originalConfiguration, newConfiguration, instrumentationResults);
       if (changes.hasRateLimitRelatedChanged()) {
         // apply rate limit config first to avoid racing with execution/instrumentation
         // of probes requiring samplers
@@ -189,7 +191,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   }
 
   private Configuration createConfiguration(
-      EnumMap<Source, Collection<? extends ProbeDefinition>> sources) {
+      EnumMap<Source, Collection<? extends ProbeDefinition>> sources
+  ) {
     Configuration.Builder builder = Configuration.builder();
     for (Collection<? extends ProbeDefinition> definitions : sources.values()) {
       builder.add(definitions);
@@ -198,7 +201,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   }
 
   private <E extends ProbeDefinition> Collection<E> filterProbes(
-      Supplier<Collection<E>> probeSupplier, int maxAllowedProbes) {
+      Supplier<Collection<E>> probeSupplier,
+      int maxAllowedProbes
+  ) {
     Collection<E> probes = probeSupplier.get();
     if (probes == null) {
       return Collections.emptyList();
@@ -216,12 +221,15 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
     List<Class<?>> changedClasses =
         finder.getAllLoadedChangedClasses(instrumentation.getAllLoadedClasses(), changes);
-    changedClasses =
-        JDKVersionSpecificHelper.detectMethodParameters(
-            errorMsg -> reportError(changes, errorMsg), instrumentation, changedClasses);
-    changedClasses =
-        JDKVersionSpecificHelper.detectRecordWithTypeAnnotation(
-            errorMsg -> reportError(changes, errorMsg), changedClasses);
+    changedClasses = JDKVersionSpecificHelper.detectMethodParameters(
+        errorMsg -> reportError(changes, errorMsg),
+        instrumentation,
+        changedClasses
+    );
+    changedClasses = JDKVersionSpecificHelper.detectRecordWithTypeAnnotation(
+        errorMsg -> reportError(changes, errorMsg),
+        changedClasses
+    );
     retransformClasses(changedClasses);
     // ensures that we have at least re-transformed 1 class
     if (changedClasses.size() > 0) {
@@ -258,16 +266,22 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       return;
     }
     // install new probe definitions
-    DebuggerTransformer newTransformer =
-        transformerSupplier.supply(
-            config, newConfiguration, this::recordInstrumentationProgress, probeMetadata, sink);
+    DebuggerTransformer newTransformer = transformerSupplier.supply(
+        config,
+        newConfiguration,
+        this::recordInstrumentationProgress,
+        probeMetadata,
+        sink
+    );
     instrumentation.addTransformer(newTransformer, true);
     currentTransformer = newTransformer;
     LOGGER.debug("New transformer installed with probes: {}", newConfiguration.getDefinitions());
   }
 
   private void recordInstrumentationProgress(
-      ProbeDefinition definition, InstrumentationResult instrumentationResult) {
+      ProbeDefinition definition,
+      InstrumentationResult instrumentationResult
+  ) {
     if (instrumentationResult.isError()) {
       return;
     }
@@ -341,11 +355,13 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     if (currentTransformer == null) {
       return Collections.emptyMap();
     }
-    return currentConfiguration.getDefinitions().stream()
-        .collect(
-            Collectors.toMap(
-                probeDefinition -> probeDefinition.getProbeId().getEncodedId(),
-                Function.identity()));
+    return currentConfiguration
+      .getDefinitions()
+      .stream()
+      .collect(Collectors.toMap(
+          probeDefinition -> probeDefinition.getProbeId().getEncodedId(),
+          Function.identity()
+      ));
   }
 
   Map<String, InstrumentationResult> getInstrumentationResults() {
@@ -353,9 +369,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   }
 
   private static class JDKVersionSpecificHelper {
-
     public static List<Class<?>> detectRecordWithTypeAnnotation(
-        Consumer<String> reportError, List<Class<?>> changedClasses) {
+        Consumer<String> reportError,
+        List<Class<?>> changedClasses
+    ) {
       if (!JAVA_AT_LEAST_16 || JAVA_AT_LEAST_25_0_4) {
         // records introduced in JDK 16 (final version)
         // JDK-8376185 fixed since JDK 25.0.4
@@ -371,10 +388,12 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
             if (hasTypeAnnotationOnRecordComponent(changedClass)) {
               LOGGER.debug(
                   "Record with type annotation detected, instrumentation not supported for {}",
-                  changedClass.getTypeName());
+                  changedClass.getTypeName()
+              );
               reportError.accept(
                   "Record with type annotation detected, instrumentation not supported for "
-                      + changedClass.getTypeName());
+                  + changedClass.getTypeName()
+              );
               addClass = false;
             }
           }
@@ -402,8 +421,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
           for (Annotation annotation : annotatedType.getAnnotations()) {
             Target annotationTarget = annotation.annotationType().getAnnotation(Target.class);
             if (annotationTarget != null
-                && Arrays.stream(annotationTarget.value())
-                    .anyMatch(it -> it == ElementType.TYPE_USE)) {
+                && Arrays
+                  .stream(annotationTarget.value())
+                  .anyMatch(it -> it == ElementType.TYPE_USE)) {
               return true;
             }
           }
@@ -423,7 +443,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     public static List<Class<?>> detectMethodParameters(
         Consumer<String> reportError,
         Instrumentation instrumentation,
-        List<Class<?>> changedClasses) {
+        List<Class<?>> changedClasses
+    ) {
       if (JAVA_AT_LEAST_17_0_20) {
         // bug is fixed since JDK 19 and 17.0.20, no need to perform detection
         return changedClasses;
@@ -436,9 +457,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
           // capping scanning of methods to 100 to avoid generated class with thousand of methods
           // assuming that in those first 100 methods there is at least one with at least one
           // parameter
-          for (int methodIdx = 0;
-              methodIdx < declaredMethods.length && methodIdx < 100;
-              methodIdx++) {
+          for (int methodIdx = 0; methodIdx < declaredMethods.length && methodIdx < 100; methodIdx++) {
             Method method = declaredMethods[methodIdx];
             Parameter[] parameters = method.getParameters();
             if (parameters.length == 0) {
@@ -451,11 +470,12 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
               LOGGER.debug(
                   "Detecting method parameter: method={} param={}, Skipping retransforming this class",
                   method.getName(),
-                  parameters[0].getName());
+                  parameters[0].getName()
+              );
               // skip the class: compiled with -parameters
               reportError.accept(
-                  "Method Parameters detected, instrumentation not supported for "
-                      + changedClass.getTypeName());
+                  "Method Parameters detected, instrumentation not supported for " + changedClass.getTypeName()
+              );
               addClass = false;
             }
             // we found at leat a method with one parameter if name is not present we can stop there

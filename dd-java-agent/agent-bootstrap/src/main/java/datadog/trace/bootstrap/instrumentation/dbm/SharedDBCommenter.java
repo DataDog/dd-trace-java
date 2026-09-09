@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.dbm;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -14,15 +13,15 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Shared database comment builder for generating trace context comments for SQL DBs and MongoDB */
+/**
+ * Shared database comment builder for generating trace context comments for SQL DBs and MongoDB
+ */
 public class SharedDBCommenter {
   private static final Logger log = LoggerFactory.getLogger(SharedDBCommenter.class);
   private static final String UTF8 = StandardCharsets.UTF_8.toString();
-
   private static final char EQUALS = '=';
   private static final char COMMA = ',';
   private static final char QUOTE = '\'';
-
   // Injected fields. When adding a new one, be sure to update this and the methods below.
   private static final String PARENT_SERVICE = encode("ddps");
   private static final String DATABASE_SERVICE = encode("dddbs");
@@ -33,7 +32,6 @@ public class SharedDBCommenter {
   private static final String DD_VERSION = encode("ddpv");
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
-
   // Pre-built "<key>=" needles for containsTraceComment, computed once at class init. The keys
   // are assigned via encode(...), so "KEY + =" is a runtime concat, not a compile-time constant;
   // doing it per call allocated nine throwaway Strings on every non-matching check.
@@ -46,7 +44,6 @@ public class SharedDBCommenter {
   private static final String DD_VERSION_EQ = DD_VERSION + "=";
   private static final String TRACEPARENT_EQ = TRACEPARENT + "=";
   private static final String DD_SERVICE_HASH_EQ = DD_SERVICE_HASH + "=";
-
   // Pre-encoded "key='encoded_value'" fragments for the invariant fields (the values
   // come from Config are effectively immutable post-init in production).
   // Note about the visibility: needs to be visible but can tolerate races (reason why it's not
@@ -81,12 +78,17 @@ public class SharedDBCommenter {
 
   // Build database comment content without comment delimiters such as /* */
   public static String buildComment(
-      String dbService, String dbType, String hostname, String dbName, String traceParent) {
+      String dbService,
+      String dbType,
+      String hostname,
+      String dbName,
+      String traceParent
+  ) {
     ensureStaticPrefixComputed();
-
     // we can calculate the precise size - having a rough estimation is perhaps faster
     StringBuilder sb = new StringBuilder(1024).append(staticPrefix);
-    int initSize = 0; // No initial content for pure comment
+    // No initial content for pure comment
+    int initSize = 0;
     append(sb, DATABASE_SERVICE, dbService, initSize);
     append(sb, DD_HOSTNAME, hostname, initSize);
     append(sb, DD_DB_NAME, dbName, initSize);
@@ -105,7 +107,8 @@ public class SharedDBCommenter {
       return;
     }
     Config config = Config.get();
-    final StringBuilder sb = new StringBuilder(512); // big enough not to be resized
+    // big enough not to be resized
+    final StringBuilder sb = new StringBuilder(512);
 
     append(sb, PARENT_SERVICE, config.getServiceName(), 0);
     append(sb, DD_ENV, config.getEnv(), 0);

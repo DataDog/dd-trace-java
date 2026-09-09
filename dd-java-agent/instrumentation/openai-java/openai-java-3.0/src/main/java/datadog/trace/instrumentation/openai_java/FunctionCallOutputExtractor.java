@@ -7,15 +7,15 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Helper class to handle FunctionCallOutput method changes between openai-java versions. */
+/**
+ * Helper class to handle FunctionCallOutput method changes between openai-java versions.
+ */
 public class FunctionCallOutputExtractor {
   private static final Logger log = LoggerFactory.getLogger(FunctionCallOutputExtractor.class);
-
   private static final Class<ResponseInputItem.FunctionCallOutput> FUNCTION_CALL_OUTPUT_CLASS =
       ResponseInputItem.FunctionCallOutput.class;
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
-
   private static final MethodHandle CALL_ID_METHOD;
   private static final MethodHandle OUTPUT_METHOD;
   private static final MethodHandle IS_STRING_METHOD;
@@ -27,11 +27,11 @@ public class FunctionCallOutputExtractor {
 
     Class<?> outputClass = null;
     try {
-      outputClass =
-          Class.forName(
-              FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
-              false,
-              FUNCTION_CALL_OUTPUT_CLASS.getClassLoader());
+      outputClass = Class.forName(
+          FUNCTION_CALL_OUTPUT_CLASS.getName() + "$Output",
+          false,
+          FUNCTION_CALL_OUTPUT_CLASS.getClassLoader()
+      );
     } catch (Throwable t) {
       log.debug("Output class not found, assuming openai-java version 3.x", t);
     }
@@ -82,12 +82,10 @@ public class FunctionCallOutputExtractor {
       if (output == null) {
         return null;
       }
-
       // In v3.x, output() returns String directly
       if (output instanceof String) {
         return (String) output;
       }
-
       // In v4.0+, output() returns an Output object
       if (IS_STRING_METHOD != null && AS_STRING_METHOD != null) {
         Boolean isString = METHOD_HANDLES.invoke(IS_STRING_METHOD, output);
@@ -101,9 +99,9 @@ public class FunctionCallOutputExtractor {
 
       log.debug(
           "Unable to extract string from FunctionCallOutput.output(): unexpected return type {}",
-          output.getClass().getName());
+          output.getClass().getName()
+      );
       return null;
-
     } catch (Throwable t) {
       log.debug("Error extracting output from FunctionCallOutput", t);
       return null;

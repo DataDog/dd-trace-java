@@ -31,8 +31,8 @@ public class ProcessTags {
   public static final String ENTRYPOINT_NAME = "entrypoint.name";
   public static final String ENTRYPOINT_BASEDIR = "entrypoint.basedir";
   public static final String ENTRYPOINT_WORKDIR = "entrypoint.workdir";
-
-  @VisibleForTesting static Function<String, String> envGetter = EnvironmentVariables::get;
+  @VisibleForTesting
+  static Function<String, String> envGetter = EnvironmentVariables::get;
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
@@ -57,7 +57,9 @@ public class ProcessTags {
     }
 
     private static void fillMappingTags(
-        SortedMap<String, String> tags, Map<String, String> mappings) {
+        SortedMap<String, String> tags,
+        Map<String, String> mappings
+    ) {
       if (mappings.isEmpty()) {
         return;
       }
@@ -71,7 +73,8 @@ public class ProcessTags {
         SortedMap<String, String> tags,
         Pattern mappingKeyPattern,
         String sourceAndKey,
-        String processTagKey) {
+        String processTagKey
+    ) {
       // sourceAndKey format: {source}config_key (colon-split already done by getMergedMap)
       final Matcher matcher = mappingKeyPattern.matcher(sourceAndKey != null ? sourceAndKey : "");
       if (!matcher.matches()) {
@@ -87,14 +90,19 @@ public class ProcessTags {
         value = SystemProperties.get(configKey);
       } else {
         LOGGER.warn(
-            "Unsupported source '{}' in process.tags.mapping for key: '{}' (supported sources: 'env', 'prop' — lowercase only)",
+            "Unsupported source '{}' in process.tags.mapping for key: '{}' (supported sources: "
+            + "'env', 'prop' — lowercase only)",
             source,
-            sourceAndKey);
+            sourceAndKey
+        );
         return;
       }
       if (value == null || value.isEmpty()) {
         LOGGER.debug(
-            "No value for key '{}' from source '{}' in process.tags.mapping", configKey, source);
+            "No value for key '{}' from source '{}' in process.tags.mapping",
+            configKey,
+            source
+        );
         return;
       }
       tags.put(TraceUtils.normalizeTagValue(processTagKey), value);
@@ -108,7 +116,10 @@ public class ProcessTags {
     }
 
     private static void insertTagFromSysPropIfPresent(
-        Map<String, String> tags, String propKey, String tagKey) {
+        Map<String, String> tags,
+        String propKey,
+        String tagKey
+    ) {
       String value = SystemProperties.get(propKey);
       if (value != null) {
         tags.put(tagKey, value);
@@ -116,7 +127,10 @@ public class ProcessTags {
     }
 
     private static boolean insertTagFromEnvIfPresent(
-        Map<String, String> tags, String envKey, String tagKey) {
+        Map<String, String> tags,
+        String envKey,
+        String tagKey
+    ) {
       try {
         String value = envGetter.apply(envKey);
         if (value != null) {
@@ -129,7 +143,10 @@ public class ProcessTags {
     }
 
     private static boolean insertLastPathSegmentIfPresent(
-        Map<String, String> tags, String path, String tagKey) {
+        Map<String, String> tags,
+        String path,
+        String tagKey
+    ) {
       if (path == null || path.isEmpty()) {
         return false;
       }
@@ -149,15 +166,17 @@ public class ProcessTags {
     }
 
     private static void fillBaseTags(Map<String, String> tags) {
-      final CapturedEnvironment.ProcessInfo processInfo =
-          CapturedEnvironment.get().getProcessInfo();
+      final CapturedEnvironment.ProcessInfo processInfo = CapturedEnvironment
+        .get()
+        .getProcessInfo();
       if (processInfo.mainClass != null) {
         tags.put(ENTRYPOINT_NAME, processInfo.mainClass);
         tags.put("entrypoint.type", "class");
       }
       if (processInfo.jarFile != null) {
         final String jarName = processInfo.jarFile.getName();
-        tags.put(ENTRYPOINT_NAME, jarName.substring(0, jarName.length() - 4)); // strip .jar
+        // strip .jar
+        tags.put(ENTRYPOINT_NAME, jarName.substring(0, jarName.length() - 4));
         tags.put("entrypoint.type", "jar");
         insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), ENTRYPOINT_BASEDIR);
       }
@@ -173,8 +192,7 @@ public class ProcessTags {
     }
 
     private static boolean fillJbossTags(Map<String, String> tags) {
-      if (insertLastPathSegmentIfPresent(
-          tags, SystemProperties.get("jboss.home.dir"), "jboss.home")) {
+      if (insertLastPathSegmentIfPresent(tags, SystemProperties.get("jboss.home.dir"), "jboss.home")) {
         insertTagFromSysPropIfPresent(tags, "jboss.server.name", SERVER_NAME);
         tags.put("jboss.mode", hasSystemProperty("[Standalone]") ? "standalone" : "domain");
         tags.put(SERVER_TYPE, "jboss");
@@ -192,34 +210,36 @@ public class ProcessTags {
       return false;
     }
 
-    @SuppressFBWarnings(
-        value = "USO_UNSAFE_OBJECT_SYNCHRONIZATION",
-        justification =
-            "TAGS is private to this holder and never escapes; the same monitor guards every traversal and mutation.")
+    @SuppressFBWarnings(value = "USO_UNSAFE_OBJECT_SYNCHRONIZATION", justification = "TAGS is "
+        + "private to this holder and never escapes; the same monitor guards every traversal "
+        + "and mutation.")
     static void calculate() {
       if (serializedForm != null || TAGS.isEmpty()) {
         return;
       }
       synchronized (Lazy.TAGS) {
-        final Stream<UTF8BytesString> tagStream =
-            TAGS.entrySet().stream()
-                .map(
-                    entry ->
-                        UTF8BytesString.create(
-                            entry.getKey()
-                                + ":"
-                                + TraceUtils.normalizeTagValue(
-                                    entry.getValue().replace(':', '_'))));
+        final Stream<UTF8BytesString> tagStream = TAGS
+          .entrySet()
+          .stream()
+          .map(entry -> UTF8BytesString.create(
+              entry.getKey() + ":" + TraceUtils.normalizeTagValue(entry
+                .getValue()
+                .replace(':', '_')
+              )
+          ));
         utf8ListForm = Collections.unmodifiableList(tagStream.collect(Collectors.toList()));
-        stringListForm =
-            Collections.unmodifiableList(
-                utf8ListForm.stream().map(UTF8BytesString::toString).collect(Collectors.toList()));
+        stringListForm = Collections.unmodifiableList(utf8ListForm
+          .stream()
+          .map(UTF8BytesString::toString)
+          .collect(Collectors.toList())
+        );
         serializedForm = UTF8BytesString.create(String.join(",", utf8ListForm));
       }
     }
   }
 
-  private ProcessTags() {}
+  private ProcessTags() {
+  }
 
   public static boolean isEnabled() {
     return enabled;

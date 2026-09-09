@@ -11,7 +11,9 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
   private final TestExecutionPolicy executionPolicy;
 
   public TestExecutionWrapper(
-      Function1<SuperEngine<?>.TestLeaf, Outcome> delegate, TestExecutionPolicy executionPolicy) {
+      Function1<SuperEngine<?>.TestLeaf, Outcome> delegate,
+      TestExecutionPolicy executionPolicy
+  ) {
     this.delegate = delegate;
     this.executionPolicy = executionPolicy;
   }
@@ -24,7 +26,8 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
       if (executionPolicy.suppressFailures()) {
         Throwable t = outcome.toOption().get();
         return Canceled.apply(
-            new SuppressedTestFailedException("Test failed and will be retried", t, 0));
+            new SuppressedTestFailedException("Test failed and will be retried", t, 0)
+        );
       }
     }
 

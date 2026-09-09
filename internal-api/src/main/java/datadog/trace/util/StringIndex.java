@@ -77,13 +77,14 @@ public final class StringIndex {
     return indexOf(name) >= 0;
   }
 
-  /** Table size — allocate parallel payload arrays of this length. */
+  /**
+   * Table size — allocate parallel payload arrays of this length.
+   */
   public int numSlots() {
     return hashes.length;
   }
 
   // --- value mapping: build a slot-aligned parallel array (off the hot path) ---
-
   /**
    * Builds a slot-aligned {@code T[]} of values: {@code out[indexOf(name)] == fn.apply(name)} for
    * every indexed name; other slots stay {@code null}. {@code type} is the array element type (Java
@@ -93,49 +94,66 @@ public final class StringIndex {
     return EmbeddingSupport.mapValues(this.names, type, fn);
   }
 
-  /** Slot-aligned {@code int[]} of values; absent slots stay 0. See {@link #mapValues}. */
+  /**
+   * Slot-aligned {@code int[]} of values; absent slots stay 0. See {@link #mapValues}.
+   */
   public int[] mapIntValues(ToIntFunction<String> fn) {
     return EmbeddingSupport.mapIntValues(this.names, fn);
   }
 
-  /** Slot-aligned {@code long[]} of values; absent slots stay 0. See {@link #mapValues}. */
+  /**
+   * Slot-aligned {@code long[]} of values; absent slots stay 0. See {@link #mapValues}.
+   */
   public long[] mapLongValues(ToLongFunction<String> fn) {
     return EmbeddingSupport.mapLongValues(this.names, fn);
   }
 
   // --- lookup: resolve a key and read its parallel value in one call ---
-
-  /** {@code data[indexOf(key)]}, or {@code null} when {@code key} is absent. */
+  /**
+   * {@code data[indexOf(key)]}, or {@code null} when {@code key} is absent.
+   */
   public <T> T lookup(T[] data, String key) {
     return EmbeddingSupport.lookup(this.hashes, this.names, data, key);
   }
 
-  /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
+  /**
+   * {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent.
+   */
   public <T> T lookupOrDefault(T[] data, String key, T defaultValue) {
     return EmbeddingSupport.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
   }
 
-  /** {@code data[indexOf(key)]}, or 0 when {@code key} is absent. */
+  /**
+   * {@code data[indexOf(key)]}, or 0 when {@code key} is absent.
+   */
   public int lookup(int[] data, String key) {
     return EmbeddingSupport.lookup(this.hashes, this.names, data, key);
   }
 
-  /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
+  /**
+   * {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent.
+   */
   public int lookupOrDefault(int[] data, String key, int defaultValue) {
     return EmbeddingSupport.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
   }
 
-  /** {@code data[indexOf(key)]}, or 0 when {@code key} is absent. */
+  /**
+   * {@code data[indexOf(key)]}, or 0 when {@code key} is absent.
+   */
   public long lookup(long[] data, String key) {
     return EmbeddingSupport.lookup(this.hashes, this.names, data, key);
   }
 
-  /** {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent. */
+  /**
+   * {@code data[indexOf(key)]}, or {@code defaultValue} when {@code key} is absent.
+   */
   public long lookupOrDefault(long[] data, String key, long defaultValue) {
     return EmbeddingSupport.lookupOrDefault(this.hashes, this.names, data, key, defaultValue);
   }
 
-  /** Build-time carrier. Pull the fields into your own (static final) fields; don't keep this. */
+  /**
+   * Build-time carrier. Pull the fields into your own (static final) fields; don't keep this.
+   */
   public static final class Data {
     public final int[] hashes;
     public final String[] names;
@@ -167,11 +185,15 @@ public final class StringIndex {
    * }</pre>
    */
   public static final class EmbeddingSupport {
-    private EmbeddingSupport() {}
+    private EmbeddingSupport() {
+    }
 
-    /** Spread of String.hashCode; 0 reserved as the empty sentinel. */
+    /**
+     * Spread of String.hashCode; 0 reserved as the empty sentinel.
+     */
     public static int hash(String name) {
-      int h = name.hashCode(); // cached on String -> field load
+      // cached on String -> field load
+      int h = name.hashCode();
       return h == 0 ? 0xDD06 : h ^ (h >>> 16);
     }
 
@@ -181,14 +203,18 @@ public final class StringIndex {
      * unified when the flat-collection family converges.)
      */
     public static final float DEFAULT_LOAD_FACTOR = 0.5f;
-
-    /** Sparse load factor — target fill {@code <= 0.25} ({@code >= 4x} capacity). */
+    /**
+     * Sparse load factor — target fill {@code <= 0.25} ({@code >= 4x} capacity).
+     */
     public static final float LOW_LOAD_FACTOR = 0.25f;
-
-    /** Largest power-of-two capacity {@link #capacityFor} can return without overflowing. */
+    /**
+     * Largest power-of-two capacity {@link #capacityFor} can return without overflowing.
+     */
     public static final int MAX_CAPACITY = 1 << 30;
 
-    /** Power-of-two capacity for {@code n} names at the {@link #DEFAULT_LOAD_FACTOR}. */
+    /**
+     * Power-of-two capacity for {@code n} names at the {@link #DEFAULT_LOAD_FACTOR}.
+     */
     public static int capacityFor(int n) {
       return capacityFor(n, DEFAULT_LOAD_FACTOR);
     }
@@ -212,23 +238,27 @@ public final class StringIndex {
         throw new IllegalArgumentException("loadFactor must be in (0, 1): " + loadFactor);
       }
       if (n == 0) {
-        return 2; // empty set -> minimal table (one always-empty slot suffices, 2 keeps it pow2)
+        // empty set -> minimal table (one always-empty slot suffices, 2 keeps it pow2)
+        return 2;
       }
       double min = Math.ceil(n / (double) loadFactor);
       if (min > MAX_CAPACITY) {
         throw new IllegalArgumentException(
             "capacity for n="
-                + n
-                + " at loadFactor="
-                + loadFactor
-                + " exceeds maximum capacity ("
-                + MAX_CAPACITY
-                + ")");
+            + n
+            + " at loadFactor="
+            + loadFactor
+            + " exceeds maximum capacity ("
+            + MAX_CAPACITY
+            + ")"
+        );
       }
       return Integer.highestOneBit((int) min - 1) << 1;
     }
 
-    /** Build the placed table. Returns a Data carrier; pull its arrays into your own fields. */
+    /**
+     * Build the placed table. Returns a Data carrier; pull its arrays into your own fields.
+     */
     public static Data create(String... names) {
       int size = capacityFor(names.length);
       int[] hashes = new int[size];
@@ -296,10 +326,12 @@ public final class StringIndex {
           return i;
         }
         if (hashes[i] == h && names[i].equals(name)) {
-          return i; // already present
+          // already present
+          return i;
         }
       }
-      throw new IllegalStateException("table full"); // impossible at LF <= 0.5
+      // impossible at LF <= 0.5
+      throw new IllegalStateException("table full");
     }
 
     /**
@@ -334,46 +366,75 @@ public final class StringIndex {
       return indexOf(hashes, names, name, hash(name));
     }
 
-    /** Number of slots — the length to size parallel payload arrays to. */
+    /**
+     * Number of slots — the length to size parallel payload arrays to.
+     */
     public static int numSlots(int[] hashes) {
       return hashes.length;
     }
 
-    /** {@code data[indexOf(...)]}, or {@code null} when {@code key} is absent. */
+    /**
+     * {@code data[indexOf(...)]}, or {@code null} when {@code key} is absent.
+     */
     public static <T> T lookup(int[] hashes, String[] names, T[] data, String key) {
       int slot = indexOf(hashes, names, key);
       return slot >= 0 ? data[slot] : null;
     }
 
-    /** {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent. */
+    /**
+     * {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent.
+     */
     public static <T> T lookupOrDefault(
-        int[] hashes, String[] names, T[] data, String key, T defaultValue) {
+        int[] hashes,
+        String[] names,
+        T[] data,
+        String key,
+        T defaultValue
+    ) {
       int slot = indexOf(hashes, names, key);
       return slot >= 0 ? data[slot] : defaultValue;
     }
 
-    /** {@code data[indexOf(...)]}, or 0 when {@code key} is absent. */
+    /**
+     * {@code data[indexOf(...)]}, or 0 when {@code key} is absent.
+     */
     public static int lookup(int[] hashes, String[] names, int[] data, String key) {
       int slot = indexOf(hashes, names, key);
       return slot >= 0 ? data[slot] : 0;
     }
 
-    /** {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent. */
+    /**
+     * {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent.
+     */
     public static int lookupOrDefault(
-        int[] hashes, String[] names, int[] data, String key, int defaultValue) {
+        int[] hashes,
+        String[] names,
+        int[] data,
+        String key,
+        int defaultValue
+    ) {
       int slot = indexOf(hashes, names, key);
       return slot >= 0 ? data[slot] : defaultValue;
     }
 
-    /** {@code data[indexOf(...)]}, or 0 when {@code key} is absent. */
+    /**
+     * {@code data[indexOf(...)]}, or 0 when {@code key} is absent.
+     */
     public static long lookup(int[] hashes, String[] names, long[] data, String key) {
       int slot = indexOf(hashes, names, key);
       return slot >= 0 ? data[slot] : 0L;
     }
 
-    /** {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent. */
+    /**
+     * {@code data[indexOf(...)]}, or {@code defaultValue} when {@code key} is absent.
+     */
     public static long lookupOrDefault(
-        int[] hashes, String[] names, long[] data, String key, long defaultValue) {
+        int[] hashes,
+        String[] names,
+        long[] data,
+        String key,
+        long defaultValue
+    ) {
       int slot = indexOf(hashes, names, key);
       return slot >= 0 ? data[slot] : defaultValue;
     }

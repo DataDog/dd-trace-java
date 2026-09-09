@@ -7,12 +7,15 @@ import org.jboss.netty.channel.Channel;
 
 public class WebSocketServerTracingHandler
     extends CombinedSimpleChannelHandler<
-        WebSocketServerRequestTracingHandler, WebSocketServerResponseTracingHandler> {
-
+    WebSocketServerRequestTracingHandler,
+    WebSocketServerResponseTracingHandler>
+{
   public WebSocketServerTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
+      final ContextStore<Channel, ChannelTraceContext> contextStore
+  ) {
     super(
         new WebSocketServerRequestTracingHandler(contextStore),
-        new WebSocketServerResponseTracingHandler(contextStore));
+        new WebSocketServerResponseTracingHandler(contextStore)
+    );
   }
 }

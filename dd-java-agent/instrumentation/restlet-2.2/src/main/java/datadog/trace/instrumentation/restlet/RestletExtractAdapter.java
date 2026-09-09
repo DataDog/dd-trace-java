@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 public abstract class RestletExtractAdapter
-    implements AgentPropagation.ContextVisitor<HttpExchange> {
-
+    implements AgentPropagation.ContextVisitor<HttpExchange>
+{
   abstract Headers getHeaders(HttpExchange exchange);
 
   @Override

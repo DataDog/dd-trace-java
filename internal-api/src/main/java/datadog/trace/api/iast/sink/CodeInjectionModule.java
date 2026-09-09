@@ -5,7 +5,6 @@ import java.io.Reader;
 import javax.annotation.Nonnull;
 
 public interface CodeInjectionModule extends IastModule {
-
   void onEval(@Nonnull Reader reader);
 
   void onEval(@Nonnull String string);

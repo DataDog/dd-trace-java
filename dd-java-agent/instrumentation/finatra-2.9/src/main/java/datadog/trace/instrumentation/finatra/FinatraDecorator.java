@@ -10,12 +10,9 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 
 public class FinatraDecorator extends HttpServerDecorator<Request, Request, Response, Void> {
-
   public static final CharSequence FINATRA = UTF8BytesString.create("finatra");
-  public static final CharSequence FINATRA_CONTROLLER =
-      UTF8BytesString.create("finatra.controller");
+  public static final CharSequence FINATRA_CONTROLLER = UTF8BytesString.create("finatra.controller");
   public static final FinatraDecorator DECORATE = new FinatraDecorator();
-
   private static final CharSequence FINATRA_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
 

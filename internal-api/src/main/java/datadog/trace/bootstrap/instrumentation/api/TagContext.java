@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.TracePropagationStyle.NONE;
 import static java.util.Collections.emptyList;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
@@ -20,9 +19,7 @@ import java.util.Map;
  * returned here even if the rest of the request would have returned null.
  */
 public class TagContext implements AgentSpanContext.Extracted {
-
   private static final HttpHeaders EMPTY_HTTP_HEADERS = new HttpHeaders();
-
   private final CharSequence origin;
   private TagMap tags;
   private List<AgentSpanLink> terminatedSpanLinks;
@@ -54,7 +51,8 @@ public class TagContext implements AgentSpanContext.Extracted {
       final int samplingPriority,
       final TraceConfig traceConfig,
       final TracePropagationStyle propagationStyle,
-      final DDTraceId traceId) {
+      final DDTraceId traceId
+  ) {
     this.origin = origin;
     this.tags = tags;
     this.terminatedSpanLinks = null;

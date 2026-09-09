@@ -7,7 +7,6 @@ public class PoolWaitingDecorator extends BaseDecorator {
   public static final CharSequence POOL_WAITING = UTF8BytesString.create("pool.waiting");
   public static final CharSequence JAVA_JDBC_POOL_WAITING =
       UTF8BytesString.create("java-jdbc-pool-waiting");
-
   public static final PoolWaitingDecorator DECORATE = new PoolWaitingDecorator();
 
   @Override

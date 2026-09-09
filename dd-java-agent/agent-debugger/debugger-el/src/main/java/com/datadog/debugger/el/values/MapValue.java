@@ -49,7 +49,8 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
         return ((Map<?, ?>) mapHolder).isEmpty();
       }
       throw new UnsupportedOperationException(
-          "Unsupported Map class: " + mapHolder.getClass().getTypeName());
+          "Unsupported Map class: " + mapHolder.getClass().getTypeName()
+      );
     } else if (mapHolder instanceof Value) {
       Value<?> val = (Value<?>) mapHolder;
       return val.isNull() || val.isUndefined();
@@ -63,7 +64,8 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
         return ((Map<?, ?>) mapHolder).size();
       }
       throw new UnsupportedOperationException(
-          "Unsupported Map class: " + mapHolder.getClass().getTypeName());
+          "Unsupported Map class: " + mapHolder.getClass().getTypeName()
+      );
     } else if (mapHolder == Value.nullValue()) {
       return 0;
     }
@@ -74,12 +76,15 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
     if (mapHolder instanceof Map) {
       if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
         Map<?, ?> map = (Map<?, ?>) mapHolder;
-        return map.keySet().stream()
-            .map(obj -> Value.of(obj, ValueType.OBJECT))
-            .collect(Collectors.toSet());
+        return map
+          .keySet()
+          .stream()
+          .map(obj -> Value.of(obj, ValueType.OBJECT))
+          .collect(Collectors.toSet());
       }
       throw new UnsupportedOperationException(
-          "Unsupported Map class: " + mapHolder.getClass().getTypeName());
+          "Unsupported Map class: " + mapHolder.getClass().getTypeName()
+      );
     }
     log.warn("{} is not a map", mapHolder);
     return Collections.singleton(Value.undefinedValue());
@@ -101,7 +106,8 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
         return value != null ? Value.of(value, ValueType.OBJECT) : Value.nullValue();
       }
       throw new UnsupportedOperationException(
-          "Unsupported Map class: " + mapHolder.getClass().getTypeName());
+          "Unsupported Map class: " + mapHolder.getClass().getTypeName()
+      );
     }
     // the result will be either Value.nullValue() or Value.undefinedValue() depending on the holder
     // value
@@ -120,10 +126,12 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
           return map.containsKey(val.getValue());
         }
         throw new UnsupportedOperationException(
-            "Unsupported key class: " + val.getValue().getClass().getTypeName());
+            "Unsupported key class: " + val.getValue().getClass().getTypeName()
+        );
       }
       throw new UnsupportedOperationException(
-          "Unsupported Map class: " + mapHolder.getClass().getTypeName());
+          "Unsupported Map class: " + mapHolder.getClass().getTypeName()
+      );
     }
     return false;
   }

@@ -17,7 +17,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -33,7 +32,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class MDBMessageConsumerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public MDBMessageConsumerInstrumentation(String namespace) {
@@ -48,34 +49,39 @@ public final class MDBMessageConsumerInstrumentation
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(
-            hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
-                .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean"))));
+      .and(hasSuperType(declaresAnnotation(named(namespace + ".ejb.MessageDriven")))
+        .or(implementsInterface(named(namespace + ".ejb.MessageDrivenBean")))
+      );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(isPublic())
-            .and(named("onMessage"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, (named(namespace + ".jms.Message")))),
+          .and(isPublic())
+          .and(named("onMessage"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, (named(namespace + ".jms.Message")))),
         getClass().getName() + "$ContextPropagationAdvice",
-        getClass().getName() + "$MDBAdvice");
+        getClass().getName() + "$MDBAdvice"
+    );
   }
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
-        @Advice.Argument(0) final Message message, @Advice.Local("ctxScope") ContextScope scope) {
+        @Advice.Argument(0) final Message message,
+        @Advice.Local("ctxScope") ContextScope scope
+    ) {
       scope = defaultPropagator().extract(rootContext(), message, GETTER).attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
-      if (scope != null) scope.close();
+      if (scope != null) {
+        scope.close();
+      }
     }
   }
 
@@ -103,7 +109,9 @@ public final class MDBMessageConsumerInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (null != scope) {
         CallDepthThreadLocalMap.reset(MessageListener.class);
         CONSUMER_DECORATE.onError(scope, throwable);

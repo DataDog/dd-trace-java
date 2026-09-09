@@ -10,9 +10,7 @@ public enum ProfilingEnablement {
   DISABLED(false),
   AUTO(true),
   INJECTED(true);
-
   private static final Logger logger = LoggerFactory.getLogger(Profiling.class);
-
   private final boolean active;
   private final String alias;
 
@@ -77,8 +75,10 @@ public enum ProfilingEnablement {
         return;
       default:
         logger.warn(
-            "Invalid value for 'dd.profiling.enabled' (DD_PROFILING_ENABLED) detected: {}. Valid values are 'true', 'false' and 'auto'.",
-            value);
+            "Invalid value for 'dd.profiling.enabled' (DD_PROFILING_ENABLED) detected: {}. "
+            + "Valid values are 'true', 'false' and 'auto'.",
+            value
+        );
     }
   }
 }

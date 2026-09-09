@@ -20,9 +20,10 @@ public class DataDogRegistryImageNameSubstitutor extends ImageNameSubstitutor {
 
     if (System.getenv("CI") != null) {
       // For now, we need to mirror Microsoft SQL Server images only.
-      name =
-          name.replace(
-              "mcr.microsoft.com/mssql/server:", "registry.ddbuild.io/images/mirror/sqlserver:");
+      name = name.replace(
+          "mcr.microsoft.com/mssql/server:",
+          "registry.ddbuild.io/images/mirror/sqlserver:"
+      );
     }
 
     return DockerImageName.parse(name);

@@ -1,7 +1,6 @@
 package datadog.trace.api.iast.securitycontrol;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.CUSTOM_SECURITY_CONTROL_MARK;
-
 import datadog.trace.api.iast.VulnerabilityMarks;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.ArrayList;
@@ -14,22 +13,20 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 
-@SuppressForbidden // Suppresses the warning for using split method
+// Suppresses the warning for using split method
+@SuppressForbidden
 public class SecurityControlFormatter {
-
   private static final Logger log =
       org.slf4j.LoggerFactory.getLogger(SecurityControlFormatter.class);
-
   private static final String SECURITY_CONTROL_DELIMITER = ";";
   private static final String SECURITY_CONTROL_FIELD_DELIMITER = ":";
   private static final String SECURITY_CONTROL_ELEMENT_DELIMITER = ",";
-
   private static final String ALL = "*";
 
   @Nullable
   public static Map<String, List<SecurityControl>> format(
-      final @Nonnull String securityControlString) {
-
+      @Nonnull final String securityControlString
+  ) {
     if (securityControlString.isEmpty()) {
       log.warn("Security control configuration is empty");
       return null;
@@ -113,9 +110,11 @@ public class SecurityControlFormatter {
 
   private static BitSet getParametersToMark(String[] elements) {
     BitSet bitSet = new BitSet();
-    Arrays.stream(elements)
-        .map(Integer::parseInt) // Convert each element to an Integer
-        .forEach(bitSet::set);
+    Arrays
+      .stream(elements)
+      // Convert each element to an Integer
+      .map(Integer::parseInt)
+      .forEach(bitSet::set);
     return bitSet;
   }
 

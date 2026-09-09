@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.propagation.Propagators;
@@ -55,10 +54,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST_CARRIER>
-    extends ServerDecorator {
-
+    extends ServerDecorator
+{
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
-
   public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
   public static final String DD_RUM_INJECTED = "datadog.rum.injected";
@@ -66,30 +64,28 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       "datadog.span.finish_dispatch_listener";
   public static final String DD_RESPONSE_ATTRIBUTE = "datadog.response";
   public static final String DD_IGNORE_COMMIT_ATTRIBUTE = "datadog.commit.ignore";
-
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
   protected static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
-  protected static final boolean SHOULD_SET_404_RESOURCE_NAME =
-      Config.get().isRuleEnabled("URLAsResourceNameRule")
-          && Config.get().isRuleEnabled("Status404Rule")
-          && Config.get().isRuleEnabled("Status404Decorator");
+  protected static final boolean SHOULD_SET_404_RESOURCE_NAME = Config
+        .get()
+        .isRuleEnabled("URLAsResourceNameRule")
+      && Config.get().isRuleEnabled("Status404Rule")
+      && Config.get().isRuleEnabled("Status404Decorator");
   private static final boolean SHOULD_SET_URL_RESOURCE_NAME =
       Config.get().isRuleEnabled("URLAsResourceNameRule");
-
   private static final BitSet SERVER_ERROR_STATUSES = Config.get().getHttpServerErrorStatuses();
   private static final String DEFAULT_INSTRUMENTATION_NAME = "http-server";
-
-  private final boolean traceClientIpResolverEnabled =
-      Config.get().isTraceClientIpResolverEnabled();
-
+  private final boolean traceClientIpResolverEnabled = Config
+    .get()
+    .isTraceClientIpResolverEnabled();
   private final String primaryInstrumentationName;
 
   protected HttpServerDecorator() {
     String[] instrumentationNames = instrumentationNames();
-    this.primaryInstrumentationName =
-        instrumentationNames != null && instrumentationNames.length > 0
-            ? instrumentationNames[0]
-            : DEFAULT_INSTRUMENTATION_NAME;
+    this.primaryInstrumentationName = instrumentationNames != null
+        && instrumentationNames.length > 0
+        ? instrumentationNames[0]
+        : DEFAULT_INSTRUMENTATION_NAME;
   }
 
   protected final String primaryInstrumentationName() {
@@ -125,10 +121,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   public CharSequence operationName() {
-    return SpanNaming.instance()
-        .namingSchema()
-        .server()
-        .operationForComponent(component().toString());
+    return SpanNaming
+      .instance()
+      .namingSchema()
+      .server()
+      .operationForComponent(component().toString());
   }
 
   @Override
@@ -215,7 +212,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private void registerServiceEntrySpanInInferredProxy(
-      Context parentContext, AgentSpan serviceEntrySpan) {
+      Context parentContext,
+      AgentSpan serviceEntrySpan
+  ) {
     InferredProxySpan inferredProxy = InferredProxySpan.fromContext(parentContext);
     if (inferredProxy != null) {
       inferredProxy.registerServiceEntrySpan(serviceEntrySpan);
@@ -228,21 +227,21 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
   }
 
-  private final DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return getRequestHeader((REQUEST) source, headerName);
-            } catch (Throwable ignored) {
-              return null;
-            }
-          };
+  private final DataStreamsTransactionTracker.TransactionSourceReader DSM_TRANSACTION_SOURCE_READER =
+      (source, headerName) -> {
+    try {
+      return getRequestHeader((REQUEST) source, headerName);
+    } catch (Throwable ignored) {
+      return null;
+    }
+  };
 
   public final void onRequest(
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
-      final Context parentContext) {
+      final Context parentContext
+  ) {
     try {
       doOnRequest(span, connection, request, parentContext);
     } catch (BlockingException e) {
@@ -256,7 +255,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final AgentSpan span,
       final CONNECTION connection,
       final REQUEST request,
-      final Context parentContext) {
+      final Context parentContext
+  ) {
     Config config = Config.get();
 
     if (APPSEC_ACTIVE) {
@@ -330,7 +330,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (request != null) {
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
-
       // Copy of HttpClientDecorator url handling
       try {
         final URIDataAdapter url = url(request);
@@ -341,7 +340,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           String path = encoded ? url.rawPath() : url.path();
           if (valid) {
             span.setTag(
-                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+                Tags.HTTP_URL,
+                URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path)
+            );
           } else if (supportsRaw) {
             span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
           }
@@ -436,13 +437,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
-    AgentTracer.get()
-        .getDataStreamsMonitoring()
-        .trackTransaction(
-            span,
-            DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
-            request,
-            DSM_TRANSACTION_SOURCE_READER);
+    AgentTracer
+      .get()
+      .getDataStreamsMonitoring()
+      .trackTransaction(
+          span,
+          DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
+          request,
+          DSM_TRANSACTION_SOURCE_READER
+      );
   }
 
   protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {
@@ -459,7 +462,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   protected BlockResponseFunction createBlockResponseFunction(
-      REQUEST request, CONNECTION connection) {
+      REQUEST request,
+      CONNECTION connection
+  ) {
     return null;
   }
 
@@ -569,11 +574,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final Throwable throwable,
+      byte errorPriority
+  ) {
     if (throwable != null) {
       span.addThrowable(
           throwable instanceof ExecutionException ? throwable.getCause() : throwable,
-          ErrorPriorities.HTTP_SERVER_DECORATOR);
+          ErrorPriorities.HTTP_SERVER_DECORATOR
+      );
     }
   }
 
@@ -585,11 +594,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       return Flow.ResultFlow.empty();
     }
     if (cbp != null) {
-      IGKeyClassifier igKeyClassifier =
-          IGKeyClassifier.create(
-              requestContext,
-              cbp.getCallback(EVENTS.requestHeader()),
-              cbp.getCallback(EVENTS.requestHeaderDone()));
+      IGKeyClassifier igKeyClassifier = IGKeyClassifier.create(
+          requestContext,
+          cbp.getCallback(EVENTS.requestHeader()),
+          cbp.getCallback(EVENTS.requestHeaderDone())
+      );
       if (null != igKeyClassifier) {
         getter.forEachKey(carrier, igKeyClassifier);
         return igKeyClassifier.done();
@@ -617,8 +626,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return addrCallback.apply(requestContext, sessionId);
   }
 
-  private Flow<Void> callIGCallbackResponseAndHeaders(
-      AgentSpan span, RESPONSE carrier, int status) {
+  private Flow<Void> callIGCallbackResponseAndHeaders(AgentSpan span, RESPONSE carrier, int status) {
     return callIGCallbackResponseAndHeaders(span, carrier, status, responseGetter());
   }
 
@@ -626,7 +634,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       AgentSpan span,
       RESP carrier,
       int status,
-      AgentPropagation.ContextVisitor<RESP> contextVisitor) {
+      AgentPropagation.ContextVisitor<RESP> contextVisitor
+  ) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
     if (cbp == null || requestContext == null) {
@@ -641,11 +650,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (contextVisitor == null) {
       return Flow.ResultFlow.empty();
     }
-    IGKeyClassifier igKeyClassifier =
-        IGKeyClassifier.create(
-            requestContext,
-            cbp.getCallback(EVENTS.responseHeader()),
-            cbp.getCallback(EVENTS.responseHeaderDone()));
+    IGKeyClassifier igKeyClassifier = IGKeyClassifier.create(
+        requestContext,
+        cbp.getCallback(EVENTS.responseHeader()),
+        cbp.getCallback(EVENTS.responseHeaderDone())
+    );
     if (null != igKeyClassifier) {
       contextVisitor.forEachKey(carrier, igKeyClassifier);
       return igKeyClassifier.done();
@@ -654,7 +663,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private Flow<Void> callIGCallbackURI(
-      @Nonnull final AgentSpan span, @Nonnull final URIDataAdapter url, final String method) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final URIDataAdapter url,
+      final String method
+  ) {
     // TODO:appsec there must be some better way to do this?
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     RequestContext requestContext = span.getRequestContext();
@@ -676,7 +688,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (span != null) {
       onRequestEndForInstrumentationGateway(span);
     }
-
     // Close Serverless Gateway Inferred Span if any
     finishInferredProxySpan(context);
 
@@ -692,11 +703,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
     AgentSpan localRoot = span.getLocalRootSpan();
-
     // Check if the local root is an inferred proxy span
     boolean hasInferredProxyParent =
         localRoot != span && localRoot.getTag("_dd.inferred_span") != null;
-
     // Only proceed if this is the root span OR if we have an inferred proxy parent
     if (localRoot != span && !hasInferredProxyParent) {
       return;
@@ -717,7 +726,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       @Nonnull final AgentSpan span,
       final String ip,
       final int port,
-      final String inferredClientIp) {
+      final String inferredClientIp
+  ) {
     CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
     if (cbp == null || (ip == null && inferredClientIp == null && port == UNSET_PORT)) {
       return Flow.ResultFlow.empty();
@@ -745,13 +755,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     return Flow.ResultFlow.empty();
   }
 
-  /** This passes the headers through to the InstrumentationGateway */
+  /**
+   * This passes the headers through to the InstrumentationGateway
+   */
   protected static final class IGKeyClassifier implements AgentPropagation.KeyClassifier {
-
     public static IGKeyClassifier create(
         RequestContext requestContext,
         TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
+        Function<RequestContext, Flow<Void>> doneCallback
+    ) {
       if (null == requestContext || null == headerCallback) {
         return null;
       }
@@ -765,7 +777,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     private IGKeyClassifier(
         RequestContext requestContext,
         TriConsumer<RequestContext, String, String> headerCallback,
-        Function<RequestContext, Flow<Void>> doneCallback) {
+        Function<RequestContext, Flow<Void>> doneCallback
+    ) {
       this.requestContext = requestContext;
       this.headerCallback = headerCallback;
       this.doneCallback = doneCallback;
@@ -786,10 +799,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   private static final class SecurityTestingHeaderTagClassifier
-      implements AgentPropagation.KeyClassifier {
+      implements AgentPropagation.KeyClassifier
+  {
     private static final String HEADER_ENDPOINT_SCAN = "x-datadog-endpoint-scan";
     private static final String HEADER_SECURITY_TEST = "x-datadog-security-test";
-
     private final AgentSpan span;
     private boolean endpointScanSeen;
     private boolean securityTestSeen;

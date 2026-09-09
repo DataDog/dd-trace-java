@@ -369,7 +369,7 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
             return -1;
           case 1:
             return comparableQualifier(this.value)
-                .compareTo(comparableQualifier(((StringItem) item).value));
+              .compareTo(comparableQualifier(((StringItem) item).value));
           case 2:
             return -1;
           default:
@@ -455,7 +455,6 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
           case 2:
             Iterator<Item> left = this.iterator();
             Iterator<Item> right = ((ListItem) item).iterator();
-
             while (left.hasNext() || right.hasNext()) {
               Item l = left.hasNext() ? left.next() : null;
               Item r = right.hasNext() ? right.next() : null;
@@ -464,7 +463,6 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
                 return result;
               }
             }
-
             return 0;
           default:
             throw new IllegalStateException("invalid item: " + item.getClass());

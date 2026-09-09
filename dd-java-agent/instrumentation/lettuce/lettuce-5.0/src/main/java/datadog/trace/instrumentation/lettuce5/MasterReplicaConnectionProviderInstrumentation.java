@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -29,8 +28,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class MasterReplicaConnectionProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public MasterReplicaConnectionProviderInstrumentation() {
     super("lettuce", "lettuce-5");
   }
@@ -38,27 +38,29 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      // Legacy Lettuce 5.x
-      "io.lettuce.core.masterslave.MasterSlaveConnectionProvider",
-      // Transitional Lettuce 6.0 provider
-      "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider",
-      // Lettuce 6.1+
-      "io.lettuce.core.masterreplica.MasterReplicaConnectionProvider"
+        // Legacy Lettuce 5.x
+        "io.lettuce.core.masterslave.MasterSlaveConnectionProvider",
+        // Transitional Lettuce 6.0 provider
+        "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider",
+        // Lettuce 6.1+
+        "io.lettuce.core.masterreplica.MasterReplicaConnectionProvider"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "io.lettuce.core.api.StatefulConnection", "io.lettuce.core.RedisURI");
+        "io.lettuce.core.api.StatefulConnection",
+        "io.lettuce.core.RedisURI"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".LettuceClientDecorator",
-      packageName + ".MasterReplicaConnectionHelper",
-      packageName + ".LettuceInstrumentationUtil"
+        packageName + ".LettuceClientDecorator",
+        packageName + ".MasterReplicaConnectionHelper",
+        packageName + ".LettuceInstrumentationUtil"
     };
   }
 
@@ -67,22 +69,23 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
     // Intent argument types move across Lettuce versions, but only the returned connection is used.
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("getConnection"))
-            .and(takesArguments(1))
-            .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice");
+          .and(isPublic())
+          .and(named("getConnection"))
+          .and(takesArguments(1))
+          .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
+        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("getConnectionAsync"))
-            .and(takesArguments(1))
-            .and(returns(named("java.util.concurrent.CompletableFuture"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
+          .and(isPublic())
+          .and(named("getConnectionAsync"))
+          .and(takesArguments(1))
+          .and(returns(named("java.util.concurrent.CompletableFuture"))),
+        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice"
+    );
   }
 
   public static class SyncAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return final StatefulRedisConnection<?, ?> connection) {
       final AgentSpan span = activeSpan();
@@ -91,23 +94,27 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
       }
 
       MasterReplicaConnectionHelper.onConnection(
-          span, connection, InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
+          span,
+          connection,
+          InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
+      );
     }
   }
 
   public static class AsyncAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.Return final CompletableFuture<? extends StatefulConnection> connectionFuture) {
+        @Advice.Return final CompletableFuture<? extends StatefulConnection> connectionFuture
+    ) {
       final AgentSpan span = activeSpan();
       if (!MasterReplicaConnectionHelper.isRedisClientSpan(span) || connectionFuture == null) {
         return;
       }
 
-      connectionFuture.whenComplete(
-          MasterReplicaConnectionHelper.onConnectionComplete(
-              span, InstrumentationContext.get(StatefulConnection.class, RedisURI.class)));
+      connectionFuture.whenComplete(MasterReplicaConnectionHelper.onConnectionComplete(
+          span,
+          InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
+      ));
     }
   }
 }

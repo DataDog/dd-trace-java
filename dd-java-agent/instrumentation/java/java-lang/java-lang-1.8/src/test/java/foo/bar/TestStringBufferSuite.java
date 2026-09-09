@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestStringBufferSuite implements TestAbstractStringBuilderSuite<StringBuffer> {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestStringBufferSuite.class);
 
   @Override
@@ -76,8 +75,7 @@ public class TestStringBufferSuite implements TestAbstractStringBuilderSuite<Str
   }
 
   @Override
-  public CharSequence subSequence(
-      final StringBuffer self, final int beginIndex, final int endIndex) {
+  public CharSequence subSequence(final StringBuffer self, final int beginIndex, final int endIndex) {
     LOGGER.debug("Before string buffer subSequence {} from {} to {}", self, beginIndex, endIndex);
     final CharSequence result = self.subSequence(beginIndex, endIndex);
     LOGGER.debug("After string buffer subSequence {}", result);

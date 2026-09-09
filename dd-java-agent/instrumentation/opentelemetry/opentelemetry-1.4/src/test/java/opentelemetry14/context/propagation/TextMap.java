@@ -8,7 +8,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class TextMap
-    implements TextMapGetter<Map<String, String>>, TextMapSetter<Map<String, String>> {
+    implements TextMapGetter<Map<String, String>>,
+    TextMapSetter<Map<String, String>>
+{
   public static final TextMap INSTANCE = new TextMap();
 
   @Override

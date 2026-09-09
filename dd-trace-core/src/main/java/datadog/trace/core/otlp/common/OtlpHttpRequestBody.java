@@ -8,9 +8,10 @@ import okio.BufferedSink;
 import okio.GzipSink;
 import okio.Okio;
 
-/** Wraps an {@link OtlpPayload} as an OkHttp {@link RequestBody}. */
+/**
+ * Wraps an {@link OtlpPayload} as an OkHttp {@link RequestBody}.
+ */
 public final class OtlpHttpRequestBody extends RequestBody {
-
   private final OtlpPayload payload;
   private final MediaType mediaType;
   private final boolean gzip;

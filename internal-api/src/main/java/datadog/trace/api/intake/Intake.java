@@ -10,14 +10,15 @@ public enum Intake {
       "http-intake.logs",
       "v2",
       Config::isAgentlessLogSubmissionEnabled,
-      Config::getAgentlessLogSubmissionUrl),
+      Config::getAgentlessLogSubmissionUrl
+  ),
   CI_INTAKE(
       "ci-intake",
       "v2",
       Config::isCiVisibilityAgentlessEnabled,
-      Config::getCiVisibilityIntakeAgentlessUrl),
+      Config::getCiVisibilityIntakeAgentlessUrl
+  ),
   EVENT_PLATFORM("event-platform-intake", "v2");
-
   public final String urlPrefix;
   public final String version;
   public final Function<Config, Boolean> agentlessModeEnabled;
@@ -31,7 +32,8 @@ public enum Intake {
       String urlPrefix,
       String version,
       Function<Config, Boolean> agentlessModeEnabled,
-      Function<Config, String> customUrl) {
+      Function<Config, String> customUrl
+  ) {
     this.urlPrefix = urlPrefix;
     this.version = version;
     this.agentlessModeEnabled = agentlessModeEnabled;

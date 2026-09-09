@@ -1,6 +1,8 @@
 package datadog.remoteconfig.tuf;
 
-/** Exception when checking configuration integrity */
+/**
+ * Exception when checking configuration integrity
+ */
 public class IntegrityCheckException extends RuntimeException {
   public IntegrityCheckException(String message) {
     super(message);

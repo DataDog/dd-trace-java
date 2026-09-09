@@ -5,7 +5,6 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.instrumentation.aws.v1.sns.TextMapInjectAdapter.SETTER;
-
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.handlers.RequestHandler2;
 import com.amazonaws.services.sns.model.MessageAttributeValue;
@@ -25,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SnsInterceptor extends RequestHandler2 {
-
   private final ContextStore<AmazonWebServiceRequest, Context> contextStore;
 
   public SnsInterceptor(ContextStore<AmazonWebServiceRequest, Context> contextStore) {
@@ -33,7 +31,9 @@ public class SnsInterceptor extends RequestHandler2 {
   }
 
   private ByteBuffer getMessageAttributeValueToInject(
-      AmazonWebServiceRequest request, String snsTopicName) {
+      AmazonWebServiceRequest request,
+      String snsTopicName
+  ) {
     final AgentSpan span = newSpan(request);
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
@@ -43,7 +43,8 @@ public class SnsInterceptor extends RequestHandler2 {
       context = context.with(dsmContext);
     }
     defaultPropagator().inject(context, jsonBuilder, SETTER);
-    jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
+    // Remove the last comma
+    jsonBuilder.setLength(jsonBuilder.length() - 1);
     jsonBuilder.append('}');
     return ByteBuffer.wrap(jsonBuilder.toString().getBytes(StandardCharsets.UTF_8));
   }
@@ -67,7 +68,8 @@ public class SnsInterceptor extends RequestHandler2 {
         if (null == topicName) {
           topicName = pRequest.getTargetArn();
           if (null == topicName) {
-            return request; // request is to phone number, ignore for DSM
+            // request is to phone number, ignore for DSM
+            return request;
           }
         }
 
@@ -78,11 +80,11 @@ public class SnsInterceptor extends RequestHandler2 {
         modifiedMessageAttributes.put(
             "_datadog",
             new MessageAttributeValue()
-                .withDataType(
-                    "Binary") // Use Binary since SNS subscription filter policies fail silently
-                // with JSON strings
-                // https://github.com/DataDog/datadog-lambda-js/pull/269
-                .withBinaryValue(this.getMessageAttributeValueToInject(request, topicName)));
+              // Use Binary since SNS subscription filter policies fail silently
+              .withDataType("Binary")
+              // https://github.com/DataDog/datadog-lambda-js/pull/269
+              .withBinaryValue(this.getMessageAttributeValueToInject(request, topicName))
+        );
 
         pRequest.setMessageAttributes(modifiedMessageAttributes);
       }
@@ -100,7 +102,8 @@ public class SnsInterceptor extends RequestHandler2 {
               new HashMap<>(messageAttributes);
           modifiedMessageAttributes.put(
               "_datadog",
-              new MessageAttributeValue().withDataType("Binary").withBinaryValue(bytebuffer));
+              new MessageAttributeValue().withDataType("Binary").withBinaryValue(bytebuffer)
+          );
           entry.setMessageAttributes(modifiedMessageAttributes);
         }
       }

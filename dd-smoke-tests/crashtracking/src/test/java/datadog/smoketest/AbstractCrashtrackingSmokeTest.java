@@ -3,7 +3,6 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.squareup.moshi.Moshi;
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +29,6 @@ abstract class AbstractCrashtrackingSmokeTest {
   static final OutputThreads OUTPUT = new OutputThreads();
   static final Path LOG_FILE_DIR =
       Paths.get(System.getProperty("datadog.smoketest.builddir"), "reports");
-
   MockWebServer tracingServer;
   final BlockingQueue<CrashTelemetryData> crashEvents = new LinkedBlockingQueue<>();
   final Moshi moshi = new Moshi.Builder().build();
@@ -41,27 +39,27 @@ abstract class AbstractCrashtrackingSmokeTest {
     tempDir = Files.createTempDirectory("dd-smoketest-");
     crashEvents.clear();
     tracingServer = new MockWebServer();
-    tracingServer.setDispatcher(
-        new Dispatcher() {
-          @Override
-          public MockResponse dispatch(RecordedRequest request) {
-            String data = request.getBody().readString(StandardCharsets.UTF_8);
-            System.out.println("URL ====== " + request.getPath());
-            if ("/telemetry/proxy/api/v2/apmtelemetry".equals(request.getPath())) {
-              try {
-                MinimalTelemetryData minimal =
-                    moshi.adapter(MinimalTelemetryData.class).fromJson(data);
-                if ("logs".equals(minimal.request_type)) {
-                  crashEvents.add(moshi.adapter(CrashTelemetryData.class).fromJson(data));
-                }
-              } catch (IOException e) {
-                System.out.println("Unable to parse: " + e);
-              }
+    tracingServer.setDispatcher(new Dispatcher() {
+      @Override
+      public MockResponse dispatch(RecordedRequest request) {
+        String data = request.getBody().readString(StandardCharsets.UTF_8);
+        System.out.println("URL ====== " + request.getPath());
+        if ("/telemetry/proxy/api/v2/apmtelemetry".equals(request.getPath())) {
+          try {
+            MinimalTelemetryData minimal = moshi
+              .adapter(MinimalTelemetryData.class)
+              .fromJson(data);
+            if ("logs".equals(minimal.request_type)) {
+              crashEvents.add(moshi.adapter(CrashTelemetryData.class).fromJson(data));
             }
-            System.out.println(data);
-            return new MockResponse().setResponseCode(200);
+          } catch (IOException e) {
+            System.out.println("Unable to parse: " + e);
           }
-        });
+        }
+        System.out.println(data);
+        return new MockResponse().setResponseCode(200);
+      }
+    });
     OUTPUT.clearMessages();
   }
 
@@ -93,12 +91,13 @@ abstract class AbstractCrashtrackingSmokeTest {
     return uuid.toString();
   }
 
-  protected CrashTelemetryData assertCrashData(String uuid)
-      throws InterruptedException, IOException {
+  protected CrashTelemetryData assertCrashData(String uuid) throws InterruptedException, IOException {
     CrashTelemetryData crashData = crashEvents.poll(crashDataTimeoutMs(), TimeUnit.MILLISECONDS);
     assertNotNull(crashData, "Crash data not uploaded");
     assertTrue(
-        crashData.payload.get(0).tags.contains("severity:crash"), "Expected severity:crash tag");
+        crashData.payload.get(0).tags.contains("severity:crash"),
+        "Expected severity:crash tag"
+    );
     final Object receivedUuid =
         moshi.adapter(Map.class).fromJson(crashData.payload.get(0).message).get("uuid");
     assertEquals(uuid, receivedUuid, "crash uuid should match the one sent with the ping");

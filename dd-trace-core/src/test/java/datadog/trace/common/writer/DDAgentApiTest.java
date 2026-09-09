@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -68,34 +67,23 @@ import org.tabletest.junit.TypeConverterSources;
 @Timeout(20)
 @TypeConverterSources(TableTestTypeConverters.class)
 public class DDAgentApiTest extends DDCoreJavaSpecification {
-
   static final Monitoring monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
   static final ObjectMapper mapper = new ObjectMapper(new MessagePackFactory());
 
   // --- Helper: create a minimal agent server responding 200 to PUT latestVersion ---
-
   static JavaTestHttpServer newAgent(String latestVersion) {
-    return JavaTestHttpServer.httpServer(
-        s ->
-            s.handlers(
-                h ->
-                    h.put(
-                        latestVersion,
-                        api -> {
-                          if (!"application/msgpack".equals(api.getRequest().getContentType())) {
-                            api.getResponse()
-                                .status(400)
-                                .send("wrong type: " + api.getRequest().getContentType());
-                          } else if (api.getRequest().getContentLength() <= 0) {
-                            api.getResponse().status(400).send("no content");
-                          } else {
-                            api.getResponse().status(200).send();
-                          }
-                        })));
+    return JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put(latestVersion, api -> {
+      if (!"application/msgpack".equals(api.getRequest().getContentType())) {
+        api.getResponse().status(400).send("wrong type: " + api.getRequest().getContentType());
+      } else if (api.getRequest().getContentLength() <= 0) {
+        api.getResponse().status(400).send("no content");
+      } else {
+        api.getResponse().status(200).send();
+      }
+    })));
   }
 
   // --- Tests ---
-
   @TableTest({
     "scenario    | agentVersion  | protocolVersion",
     "v0.3 traces | 'v0.3/traces' | V0_4           ",
@@ -104,7 +92,9 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
     "v1.0 traces | 'v1.0/traces' | V1_0           "
   })
   void testSendingAnEmptyListOfTracesReturnsNoErrors(
-      String agentVersion, ProtocolVersion protocolVersion) {
+      String agentVersion,
+      ProtocolVersion protocolVersion
+  ) {
     JavaTestHttpServer agent = newAgent(agentVersion);
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString(), protocolVersion).api;
@@ -121,14 +111,8 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
 
   @Test
   void testResponseBodyPropagatedInCaseOfNon200Response() {
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.put(
-                            "v0.4/traces",
-                            api -> api.getResponse().status(400).send("Test error"))));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put("v0."
+        + "4/traces", api -> api.getResponse().status(400).send("Test error"))));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       Payload payload = prepareTraces("v0.4/traces", emptyList());
@@ -144,14 +128,10 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
 
   @Test
   void testNon200Response() {
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h -> {
-                      h.put("v0.4/traces", api -> api.getResponse().status(404).send());
-                      h.put("v0.3/traces", api -> api.getResponse().status(404).send());
-                    }));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> {
+      h.put("v0.4/traces", api -> api.getResponse().status(404).send());
+      h.put("v0.3/traces", api -> api.getResponse().status(404).send());
+    }));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       Payload payload = prepareTraces("v0.3/traces", emptyList());
@@ -169,32 +149,39 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
   void testContentIsSentAsMsgpackEmptyTraces() throws IOException {
     String agentVersion = "v0.3/traces";
     List<List<DDSpan>> traces = emptyList();
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s -> s.handlers(h -> h.put(agentVersion, api -> api.getResponse().send())));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .send())));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       Payload payload = prepareTraces(agentVersion, traces);
       assertTrue(client.sendSerializedTraces(payload).success());
       assertEquals("application/msgpack", agent.getLastRequest().getContentType());
       assertEquals(
-          "true", agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Top-Level"));
+          "true",
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Top-Level")
+      );
       assertEquals("java", agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang"));
       assertEquals(
           System.getProperty("java.version", "unknown"),
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version")
+      );
       assertEquals(
           "Stubbed-Test-Version",
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version")
+      );
       assertEquals(
           String.valueOf(traces.size()),
-          agent.getLastRequest().getHeaders().get("X-Datadog-Trace-Count"));
+          agent.getLastRequest().getHeaders().get("X-Datadog-Trace-Count")
+      );
       assertEquals(
           String.valueOf(payload.droppedTraces()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces")
+      );
       assertEquals(
           String.valueOf(payload.droppedSpans()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans")
+      );
       assertEquals(emptyList(), convertList(agentVersion, agent.getLastRequest().getBody()));
     } finally {
       agent.close();
@@ -204,43 +191,52 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
   @Test
   void testContentIsSentAsMsgpackServiceSpan() throws IOException {
     String agentVersion = "v0.4/traces";
-    DDSpan span =
-        buildSpan(
-            1L,
-            "service.name",
-            "my-service",
-            PropagationTags.factory()
-                .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"));
+    DDSpan span = buildSpan(
+        1L,
+        "service.name",
+        "my-service",
+        PropagationTags.factory().fromHeaderValue(
+            PropagationTags.HeaderType.DATADOG,
+            "_dd.p.usr=123"
+        )
+    );
     span.finish();
     setDurationNano(span, 10L);
     List<List<DDSpan>> traces = singletonList(singletonList(span));
 
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s -> s.handlers(h -> h.put(agentVersion, api -> api.getResponse().send())));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .send())));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       Payload payload = prepareTraces(agentVersion, traces);
       assertTrue(client.sendSerializedTraces(payload).success());
       assertEquals("application/msgpack", agent.getLastRequest().getContentType());
       assertEquals(
-          "true", agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Top-Level"));
+          "true",
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Top-Level")
+      );
       assertEquals("java", agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang"));
       assertEquals(
           System.getProperty("java.version", "unknown"),
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version")
+      );
       assertEquals(
           "Stubbed-Test-Version",
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version")
+      );
       assertEquals(
           String.valueOf(traces.size()),
-          agent.getLastRequest().getHeaders().get("X-Datadog-Trace-Count"));
+          agent.getLastRequest().getHeaders().get("X-Datadog-Trace-Count")
+      );
       assertEquals(
           String.valueOf(payload.droppedTraces()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces")
+      );
       assertEquals(
           String.valueOf(payload.droppedSpans()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans")
+      );
 
       Map<String, Object> meta = new TreeMap<>();
       meta.put("thread.name", Thread.currentThread().getName());
@@ -272,7 +268,9 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       spanMap.put("type", "fakeType");
       List<List<Map<String, Object>>> expectedRequestBody = singletonList(singletonList(spanMap));
       assertDeepEquals(
-          expectedRequestBody, convertList(agentVersion, agent.getLastRequest().getBody()));
+          expectedRequestBody,
+          convertList(agentVersion, agent.getLastRequest().getBody())
+      );
     } finally {
       agent.close();
     }
@@ -281,43 +279,52 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
   @Test
   void testContentIsSentAsMsgpackResourceSpan() throws IOException {
     String agentVersion = "v0.4/traces";
-    DDSpan span =
-        buildSpan(
-            100L,
-            "resource.name",
-            "my-resource",
-            PropagationTags.factory()
-                .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"));
+    DDSpan span = buildSpan(
+        100L,
+        "resource.name",
+        "my-resource",
+        PropagationTags.factory().fromHeaderValue(
+            PropagationTags.HeaderType.DATADOG,
+            "_dd.p.usr=123"
+        )
+    );
     span.finish();
     setDurationNano(span, 10L);
     List<List<DDSpan>> traces = singletonList(singletonList(span));
 
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s -> s.handlers(h -> h.put(agentVersion, api -> api.getResponse().send())));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .send())));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       Payload payload = prepareTraces(agentVersion, traces);
       assertTrue(client.sendSerializedTraces(payload).success());
       assertEquals("application/msgpack", agent.getLastRequest().getContentType());
       assertEquals(
-          "true", agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Top-Level"));
+          "true",
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Top-Level")
+      );
       assertEquals("java", agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang"));
       assertEquals(
           System.getProperty("java.version", "unknown"),
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version")
+      );
       assertEquals(
           "Stubbed-Test-Version",
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version")
+      );
       assertEquals(
           String.valueOf(traces.size()),
-          agent.getLastRequest().getHeaders().get("X-Datadog-Trace-Count"));
+          agent.getLastRequest().getHeaders().get("X-Datadog-Trace-Count")
+      );
       assertEquals(
           String.valueOf(payload.droppedTraces()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces")
+      );
       assertEquals(
           String.valueOf(payload.droppedSpans()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans")
+      );
 
       Map<String, Object> meta = new TreeMap<>();
       meta.put("thread.name", Thread.currentThread().getName());
@@ -348,7 +355,9 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       spanMap.put("type", "fakeType");
       List<List<Map<String, Object>>> expectedRequestBody = singletonList(singletonList(spanMap));
       assertDeepEquals(
-          expectedRequestBody, convertList(agentVersion, agent.getLastRequest().getBody()));
+          expectedRequestBody,
+          convertList(agentVersion, agent.getLastRequest().getBody())
+      );
     } finally {
       agent.close();
     }
@@ -366,16 +375,10 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
         (endpoint, responseJson) -> agentResponse.set(responseJson);
 
     JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.put(
-                            agentVersion,
-                            api -> {
-                              int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
-                              api.getResponse().status(status).send("{\"hello\":{}}");
-                            })));
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put(agentVersion, api -> {
+      int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
+      api.getResponse().status(status).send("{\"hello\":{}}");
+    })));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       client.addResponseListener(responseListener);
@@ -391,17 +394,21 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       assertEquals("java", agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang"));
       assertEquals(
           System.getProperty("java.version", "unknown"),
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang-Version")
+      );
       assertEquals(
           "Stubbed-Test-Version",
-          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version"));
+          agent.getLastRequest().getHeaders().get("Datadog-Meta-Tracer-Version")
+      );
       assertEquals("3", agent.getLastRequest().getHeaders().get("X-Datadog-Trace-Count"));
       assertEquals(
           String.valueOf(payload.droppedTraces()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Traces")
+      );
       assertEquals(
           String.valueOf(payload.droppedSpans()),
-          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans"));
+          agent.getLastRequest().getHeaders().get("Datadog-Client-Dropped-P0-Spans")
+      );
     } finally {
       agent.close();
     }
@@ -410,16 +417,10 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
   @Test
   void testApiDowngradesToV3IfV04NotAvailable() {
     JavaTestHttpServer v3Agent =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.put(
-                            "v0.3/traces",
-                            api -> {
-                              int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
-                              api.getResponse().status(status).send();
-                            })));
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put("v0.3/traces", api -> {
+      int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
+      api.getResponse().status(status).send();
+    })));
     try {
       DDAgentApi client = createAgentApi(v3Agent.getAddress().toString()).api;
       Payload payload = prepareTraces("v0.4/traces", emptyList());
@@ -438,32 +439,27 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
     "v0.3 long delay  | 'v0.3'          | 30000      | false  "
   })
   void testApiDowngradesToV3IfTimeoutExceeded(
-      String endpointVersion, int delayTrace, boolean badPort) {
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h -> {
-                      h.put(
-                          "v0.3/traces",
-                          api -> {
-                            int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
-                            api.getResponse().status(status).send();
-                          });
-                      h.put(
-                          "v0.4/traces",
-                          api -> {
-                            if (delayTrace > 0) {
-                              try {
-                                Thread.sleep(delayTrace);
-                              } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                              }
-                            }
-                            int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
-                            api.getResponse().status(status).send();
-                          });
-                    }));
+      String endpointVersion,
+      int delayTrace,
+      boolean badPort
+  ) {
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> {
+      h.put("v0.3/traces", api -> {
+        int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
+        api.getResponse().status(status).send();
+      });
+      h.put("v0.4/traces", api -> {
+        if (delayTrace > 0) {
+          try {
+            Thread.sleep(delayTrace);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        }
+        int status = api.getRequest().getContentLength() > 0 ? 200 : 500;
+        api.getResponse().status(status).send();
+      });
+    }));
     try {
       int port = badPort ? 999 : agent.getAddress().getPort();
       String url = "http://" + agent.getAddress().getHost() + ":" + port;
@@ -502,16 +498,10 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
     List<List<DDSpan>> traces = generateEmptyTraces(traceCount);
     AtomicLong receivedContentLength = new AtomicLong();
     JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.put(
-                            agentVersion,
-                            api -> {
-                              receivedContentLength.set(api.getRequest().getContentLength());
-                              api.getResponse().status(200).send();
-                            })));
+        JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put(agentVersion, api -> {
+      receivedContentLength.set(api.getRequest().getContentLength());
+      api.getResponse().status(200).send();
+    })));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       Payload payload = prepareTraces(agentVersion, traces);
@@ -542,9 +532,9 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
   @Test
   void testMetaStructSupportOnTheEncodedSpans() throws IOException {
     String agentVersion = "v0.4/traces";
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s -> s.handlers(h -> h.put(agentVersion, api -> api.getResponse().send())));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put(agentVersion, api -> api
+      .getResponse()
+      .send())));
     try {
       DDAgentApi client = createAgentApi(agent.getAddress().toString()).api;
       DDSpan span = buildSpan(1L, "fakeType", Collections.emptyMap());
@@ -558,7 +548,10 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       List<List<TreeMap<String, Object>>> body =
           convertList(agentVersion, agent.getLastRequest().getBody());
       @SuppressWarnings("unchecked")
-      Map<String, byte[]> metaStruct = (Map<String, byte[]>) body.get(0).get(0).get("meta_struct");
+      Map<String, byte[]> metaStruct = (Map<String, byte[]>) body
+        .get(0)
+        .get(0)
+        .get("meta_struct");
       assertEquals(2, metaStruct.size());
       assertEquals("Hello World!", mapper.readValue(metaStruct.get("meta_1"), String.class));
       @SuppressWarnings("unchecked")
@@ -570,24 +563,31 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                                   | otlpSpanMetrics | nativeMetrics | expectedComputesStats",
-    "gap case: OTLP span metrics on, native off | true            | false         | true                 ",
-    "neither pipeline computes stats            | false           | false         | false                ",
-    "native stats on (regression guard)         | false           | true          | true                 ",
-    "both on                                    | true            | true          | true                 "
+    "scenario                                   | otlpSpanMetrics | nativeMetrics | ",
+    "expectedComputesStats                                                          ",
+    "gap case: OTLP span metrics on, native off | true            | false         | ",
+    "true                                                                           ",
+    "neither pipeline computes stats            | false           | false         | ",
+    "false                                                                          ",
+    "native stats on (regression guard)         | false           | true          | ",
+    "true                                                                           ",
+    "both on                                    | true            | true          | ",
+    "true                                                                           "
   })
   void testDatadogClientComputedStatsHeaderSetWhenEitherStatsPipelineIsEnabled(
-      boolean otlpSpanMetrics, boolean nativeMetrics, boolean expectedComputesStats) {
+      boolean otlpSpanMetrics,
+      boolean nativeMetrics,
+      boolean expectedComputesStats
+  ) {
     datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig(
-        OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED, String.valueOf(otlpSpanMetrics));
+        OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED,
+        String.valueOf(otlpSpanMetrics)
+    );
 
-    JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(h -> h.put("v0.4/traces", api -> api.getResponse().status(200).send())));
+    JavaTestHttpServer agent = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.put("v0."
+        + "4/traces", api -> api.getResponse().status(200).send())));
     try {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress().toString());
-
       // Mock feature discovery so the native-stats pipeline signal can be controlled independently
       // of what the (embedded) agent advertises. supportsMetrics() reflects agent-side client
       // stats support.
@@ -607,14 +607,14 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       assertTrue(clientResponse.success());
       assertEquals(
           expectedComputesStats,
-          "true".equals(agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Stats")));
+          "true".equals(agent.getLastRequest().getHeaders().get("Datadog-Client-Computed-Stats"))
+      );
     } finally {
       agent.close();
     }
   }
 
   // --- Inner types ---
-
   static class AgentApiPair {
     final DDAgentFeaturesDiscovery discovery;
     final DDAgentApi api;
@@ -637,14 +637,15 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
   }
 
   // --- Helper methods ---
-
   AgentApiPair createAgentApi(String url, ProtocolVersion protocolVersion) {
     HttpUrl agentUrl = HttpUrl.get(url);
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
     DDAgentFeaturesDiscovery discovery =
         new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocolVersion, true, false);
     return new AgentApiPair(
-        discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false));
+        discovery,
+        new DDAgentApi(client, agentUrl, discovery, monitoring, false)
+    );
   }
 
   AgentApiPair createAgentApi(String url) {
@@ -670,10 +671,11 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
     packer.flush();
 
     return traceMapper
-        .newPayload()
-        .withBody(
-            traceCapture.traceCount,
-            traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer);
+      .newPayload()
+      .withBody(
+          traceCapture.traceCount,
+          traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer
+      );
   }
 
   static List<List<TreeMap<String, Object>>> convertList(String agentVersion, byte[] bytes)
@@ -682,7 +684,8 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       return convertListV5(bytes);
     }
     List<List<TreeMap<String, Object>>> returnVal =
-        mapper.readValue(bytes, new TypeReference<List<List<TreeMap<String, Object>>>>() {});
+        mapper.readValue(bytes, new TypeReference<List<List<TreeMap<String, Object>>>>() {
+    });
     for (List<TreeMap<String, Object>> trace : returnVal) {
       for (TreeMap<String, Object> span : trace) {
         @SuppressWarnings("unchecked")
@@ -698,7 +701,8 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
 
   static List<List<TreeMap<String, Object>>> convertListV5(byte[] bytes) throws IOException {
     List<List<List<Object>>> traces =
-        mapper.readValue(bytes, new TypeReference<List<List<List<Object>>>>() {});
+        mapper.readValue(bytes, new TypeReference<List<List<List<Object>>>>() {
+    });
     List<List<TreeMap<String, Object>>> maps = new ArrayList<>(traces.size());
     for (List<List<Object>> trace : traces) {
       List<TreeMap<String, Object>> mapTrace = new ArrayList<>();

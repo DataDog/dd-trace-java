@@ -4,7 +4,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 public abstract class CoveragePercentageBridge {
-
   private static volatile Supplier<byte[]> JACOCO_COVERAGE_DATA_SUPPLIER;
 
   public static void registerCoverageDataSupplier(Supplier<byte[]> jacocoCoverageDataSupplier) {

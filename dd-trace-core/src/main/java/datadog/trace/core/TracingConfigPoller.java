@@ -13,7 +13,6 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RA
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TRACING_ENABLED;
 import static datadog.trace.api.sampling.SamplingRule.normalizeGlob;
-
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
@@ -51,11 +50,8 @@ import org.slf4j.LoggerFactory;
 
 final class TracingConfigPoller {
   static final Logger log = LoggerFactory.getLogger(TracingConfigPoller.class);
-
   private final DynamicConfig<?> dynamicConfig;
-
   private boolean startupLogsEnabled;
-
   private Runnable stopPolling;
 
   public TracingConfigPoller(DynamicConfig<?> dynamicConfig) {
@@ -69,17 +65,18 @@ final class TracingConfigPoller {
     if (configPoller != null) {
       configPoller.addCapabilities(
           CAPABILITY_APM_TRACING_TRACING_ENABLED
-              | CAPABILITY_APM_TRACING_SAMPLE_RATE
-              | CAPABILITY_APM_LOGS_INJECTION
-              | CAPABILITY_APM_HTTP_HEADER_TAGS
-              | CAPABILITY_APM_CUSTOM_TAGS
-              | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED
-              | CAPABILITY_APM_TRACING_SAMPLE_RULES
-              | CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION
-              | CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY
-              | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
-              | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING
-              | CAPABILITY_APM_TRACING_MULTICONFIG);
+          | CAPABILITY_APM_TRACING_SAMPLE_RATE
+          | CAPABILITY_APM_LOGS_INJECTION
+          | CAPABILITY_APM_HTTP_HEADER_TAGS
+          | CAPABILITY_APM_CUSTOM_TAGS
+          | CAPABILITY_APM_TRACING_DATA_STREAMS_ENABLED
+          | CAPABILITY_APM_TRACING_SAMPLE_RULES
+          | CAPABILITY_APM_TRACING_ENABLE_DYNAMIC_INSTRUMENTATION
+          | CAPABILITY_APM_TRACING_ENABLE_EXCEPTION_REPLAY
+          | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
+          | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING
+          | CAPABILITY_APM_TRACING_MULTICONFIG
+      );
     }
     stopPolling = new Updater().register(config, configPoller);
   }
@@ -96,12 +93,11 @@ final class TracingConfigPoller {
     private final JsonAdapter<TracingSamplingRule> TRACE_SAMPLING_RULE;
 
     {
-      Moshi MOSHI =
-          new Moshi.Builder()
-              .add(new TracingSamplingRulesAdapter())
-              .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorsAdapter())
-              .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
-              .build();
+      Moshi MOSHI = new Moshi.Builder()
+        .add(new TracingSamplingRulesAdapter())
+        .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorsAdapter())
+        .add(new DataStreamsTransactionExtractors.DataStreamsTransactionExtractorAdapter())
+        .build();
       CONFIG_OVERRIDES_ADAPTER = MOSHI.adapter(ConfigOverrides.class);
       LIB_CONFIG_ADAPTER = MOSHI.adapter(LibConfig.class);
       TRACE_SAMPLING_RULE = MOSHI.adapter(TracingSamplingRule.class);
@@ -122,10 +118,10 @@ final class TracingConfigPoller {
     @Override
     public void accept(ConfigKey configKey, byte[] content, PollingRateHinter hinter)
         throws IOException {
-
       ConfigOverrides overrides =
-          CONFIG_OVERRIDES_ADAPTER.fromJson(
-              Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+          CONFIG_OVERRIDES_ADAPTER.fromJson(Okio.buffer(Okio.source(
+              new ByteArrayInputStream(content)
+      )));
 
       if (null != overrides && null != overrides.libConfig) {
         configs.put(configKey.getConfigId(), overrides);
@@ -133,7 +129,8 @@ final class TracingConfigPoller {
           log.debug(
               "Applied APM_TRACING overrides: {} - priority: {}",
               CONFIG_OVERRIDES_ADAPTER.toJson(overrides),
-              overrides.getOverridePriority());
+              overrides.getOverridePriority()
+          );
         }
       } else {
         log.debug("No APM_TRACING overrides");
@@ -148,11 +145,12 @@ final class TracingConfigPoller {
     @Override
     public void commit(PollingRateHinter hinter) {
       // sort configs by override priority
-      List<LibConfig> sortedConfigs =
-          configs.values().stream()
-              .sorted(Comparator.comparingInt(ConfigOverrides::getOverridePriority).reversed())
-              .map(config -> config.libConfig)
-              .collect(Collectors.toList());
+      List<LibConfig> sortedConfigs = configs
+        .values()
+        .stream()
+        .sorted(Comparator.comparingInt(ConfigOverrides::getOverridePriority).reversed())
+        .map(config -> config.libConfig)
+        .collect(Collectors.toList());
 
       LibConfig mergedConfig = LibConfig.mergeLibConfigs(sortedConfigs);
 
@@ -160,7 +158,9 @@ final class TracingConfigPoller {
         // apply merged config
         if (log.isDebugEnabled()) {
           log.debug(
-              "Applying merged APM_TRACING config: {}", LIB_CONFIG_ADAPTER.toJson(mergedConfig));
+              "Applying merged APM_TRACING config: {}",
+              LIB_CONFIG_ADAPTER.toJson(mergedConfig)
+          );
         }
         applyConfigOverrides(checkConfig(mergedConfig));
       }
@@ -199,13 +199,14 @@ final class TracingConfigPoller {
         TracingSamplingRule rule = itr.next();
         // check for required fields
         if ((null == rule.service
-                && null == rule.name
-                && null == rule.resource
-                && null == rule.tags)
+            && null == rule.name
+            && null == rule.resource
+            && null == rule.tags)
             || null == rule.sampleRate) {
           log.debug(
               "Invalid sampling rule from remote-config, rule will be removed: {}",
-              TRACE_SAMPLING_RULE.toJson(rule));
+              TRACE_SAMPLING_RULE.toJson(rule)
+          );
           itr.remove();
         }
         rule.service = normalizeGlob(rule.service);
@@ -245,13 +246,15 @@ final class TracingConfigPoller {
     maybeOverride(builder::setServiceMapping, libConfig.serviceMapping);
     maybeOverride(builder::setHeaderTags, libConfig.headerTags);
     if (null != libConfig.dataStreamsTransactionExtractors) {
-      builder.setDataStreamsTransactionExtractors(
-          libConfig.dataStreamsTransactionExtractors.getExtractors());
+      builder.setDataStreamsTransactionExtractors(libConfig.dataStreamsTransactionExtractors.getExtractors()
+      );
     }
 
     if (null != libConfig.tracingSamplingRules) {
       builder.setTraceSamplingRules(
-          libConfig.tracingSamplingRules.data, libConfig.tracingSamplingRules.json);
+          libConfig.tracingSamplingRules.data,
+          libConfig.tracingSamplingRules.json
+      );
     }
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
@@ -261,7 +264,9 @@ final class TracingConfigPoller {
             libConfig.dynamicInstrumentationEnabled,
             libConfig.exceptionReplayEnabled,
             libConfig.codeOriginEnabled,
-            libConfig.liveDebuggingEnabled));
+            libConfig.liveDebuggingEnabled
+        )
+    );
     builder.apply();
   }
 
@@ -284,8 +289,8 @@ final class TracingConfigPoller {
     Map<String, String> resultMap = new HashMap<>(input.size());
     for (String s : input) {
       int colonIndex = s.indexOf(':');
-      if (colonIndex > -1
-          && colonIndex < s.length() - 1) { // ensure there's a colon that's not at the start or end
+      if (colonIndex > -1 && colonIndex < s.length() - 1) {
+        // ensure there's a colon that's not at the start or end
         String key = s.substring(0, colonIndex);
         String value = s.substring(colonIndex + 1);
         if (!key.isEmpty() && !value.isEmpty()) {
@@ -300,10 +305,8 @@ final class TracingConfigPoller {
   static final class ConfigOverrides {
     @Json(name = "lib_config")
     public LibConfig libConfig;
-
     @Json(name = "service_target")
     public ServiceTarget serviceTarget;
-
     @Json(name = "k8s_target_v2")
     public K8sTargetV2 k8sTargetV2;
 
@@ -311,7 +314,6 @@ final class TracingConfigPoller {
       boolean isSingleEnvironment = isSingleEnvironment();
       boolean isSingleService = isSingleService();
       boolean isClusterTarget = isClusterTarget();
-
       // Service+ Environment level override - highest priority
       if (isSingleEnvironment && isSingleService) {
         return 5;
@@ -328,14 +330,15 @@ final class TracingConfigPoller {
       if (isClusterTarget) {
         return 2;
       }
-
       // Org level override - lowest priority
       return 1;
     }
 
     // allEnvironments = serviceTarget is null or serviceTarget.env is null or '*'
     public boolean isSingleEnvironment() {
-      return serviceTarget != null && serviceTarget.env != null && !"*".equals(serviceTarget.env);
+      return serviceTarget != null
+          && serviceTarget.env != null
+          && !"*".equals(serviceTarget.env);
     }
 
     public boolean isSingleService() {
@@ -352,7 +355,6 @@ final class TracingConfigPoller {
   static final class ServiceTarget {
     @Json(name = "service")
     public String service;
-
     @Json(name = "env")
     public String env;
   }
@@ -365,10 +367,8 @@ final class TracingConfigPoller {
   static final class ClusterTarget {
     @Json(name = "cluster_name")
     public String clusterName;
-
     @Json(name = "enabled")
     public Boolean enabled;
-
     @Json(name = "enabled_namespaces")
     public List<String> enabledNamespaces;
   }
@@ -376,46 +376,32 @@ final class TracingConfigPoller {
   static final class LibConfig {
     @Json(name = "tracing_enabled")
     public Boolean tracingEnabled;
-
     @Json(name = "tracing_debug")
     public Boolean debugEnabled;
-
     @Json(name = "runtime_metrics_enabled")
     public Boolean runtimeMetricsEnabled;
-
     @Json(name = "log_injection_enabled")
     public Boolean logsInjectionEnabled;
-
     @Json(name = "data_streams_enabled")
     public Boolean dataStreamsEnabled;
-
     @Json(name = "tracing_service_mapping")
     public List<ServiceMappingEntry> serviceMapping;
-
     @Json(name = "tracing_header_tags")
     public List<HeaderTagEntry> headerTags;
-
     @Json(name = "tracing_sampling_rate")
     public Double traceSampleRate;
-
     @Json(name = "tracing_tags")
     public List<String> tracingTags;
-
     @Json(name = "tracing_sampling_rules")
     public TracingSamplingRules tracingSamplingRules;
-
     @Json(name = "dynamic_instrumentation_enabled")
     public Boolean dynamicInstrumentationEnabled;
-
     @Json(name = "exception_replay_enabled")
     public Boolean exceptionReplayEnabled;
-
     @Json(name = "code_origin_enabled")
     public Boolean codeOriginEnabled;
-
     @Json(name = "live_debugging_enabled")
     public Boolean liveDebuggingEnabled;
-
     @Json(name = "data_streams_transaction_extractors")
     public DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
 
@@ -488,10 +474,11 @@ final class TracingConfigPoller {
     }
   }
 
-  /** Holds the raw JSON string and the parsed rule data. */
+  /**
+   * Holds the raw JSON string and the parsed rule data.
+   */
   static final class TracingSamplingRules {
     public final String json;
-
     public final List<TracingSamplingRule> data;
 
     TracingSamplingRules(String json, List<TracingSamplingRule> data) {
@@ -500,7 +487,9 @@ final class TracingConfigPoller {
     }
   }
 
-  /** Extracts the raw JSON first, so it can be saved, then parses it into rules. */
+  /**
+   * Extracts the raw JSON first, so it can be saved, then parses it into rules.
+   */
   static final class TracingSamplingRulesAdapter {
     @FromJson
     TracingSamplingRules fromJson(JsonReader reader, JsonAdapter<List<TracingSamplingRule>> parser)
@@ -523,7 +512,6 @@ final class TracingConfigPoller {
   static final class ServiceMappingEntry implements Map.Entry<String, String> {
     @Json(name = "from_key")
     public String fromKey;
-
     @Json(name = "to_name")
     public String toName;
 
@@ -546,7 +534,6 @@ final class TracingConfigPoller {
   static final class HeaderTagEntry implements Map.Entry<String, String> {
     @Json(name = "header")
     public String header;
-
     @Json(name = "tag_name")
     public String tagName;
 
@@ -569,22 +556,16 @@ final class TracingConfigPoller {
   static final class TracingSamplingRule implements SamplingRule.TraceSamplingRule {
     @Json(name = "service")
     public String service;
-
     @Json(name = "name")
     public String name;
-
     @Json(name = "resource")
     public String resource;
-
     @Json(name = "tags")
     public List<SamplingRuleTagEntry> tags;
-
     @Json(name = "sample_rate")
     public Double sampleRate;
-
     @Json(name = "provenance")
     public String provenance;
-
     private transient Map<String, String> tagMap;
 
     @Override
@@ -605,13 +586,11 @@ final class TracingConfigPoller {
     @Override
     public Map<String, String> getTags() {
       if (null == tagMap) {
-        tagMap =
-            null == tags
-                ? Collections.emptyMap()
-                : tags.stream()
-                    .collect(
-                        Collectors.toMap(
-                            SamplingRuleTagEntry::getKey, e -> normalizeGlob(e.getValue())));
+        tagMap = null == tags
+            ? Collections.emptyMap()
+            : tags
+          .stream()
+          .collect(Collectors.toMap(SamplingRuleTagEntry::getKey, e -> normalizeGlob(e.getValue())));
       }
       return tagMap;
     }
@@ -634,7 +613,6 @@ final class TracingConfigPoller {
   static final class SamplingRuleTagEntry implements Map.Entry<String, String> {
     @Json(name = "key")
     public String key;
-
     @Json(name = "value_glob")
     public String value;
 

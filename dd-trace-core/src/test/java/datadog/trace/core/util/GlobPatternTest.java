@@ -1,11 +1,9 @@
 package datadog.trace.core.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.tabletest.junit.TableTest;
 
 class GlobPatternTest {
-
   @TableTest({
     "scenario             | globPattern | expectedRegex",
     "star alone           | '*'         | '^.*$'       ",

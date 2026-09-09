@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtracto
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -26,7 +25,9 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class AsyncRemoteEndpointInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public AsyncRemoteEndpointInstrumentation(String namespace) {
@@ -47,33 +48,36 @@ public class AsyncRemoteEndpointInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("sendText"))
-            .and(
-                takesArguments(1)
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(1, named(namespace + ".websocket.SendHandler")))))
-            .and(takesArgument(0, named("java.lang.String"))),
-        getClass().getName() + "$SendTextAdvice");
+          .and(named("sendText"))
+          .and(takesArguments(1)
+            .or(takesArguments(2)
+              .and(takesArgument(1, named(namespace + ".websocket.SendHandler")))
+            )
+          )
+          .and(takesArgument(0, named("java.lang.String"))),
+        getClass().getName() + "$SendTextAdvice"
+    );
     transformer.applyAdvice(
         isPublic()
-            .and(named("sendBinary"))
-            .and(
-                takesArguments(1)
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(1, named(namespace + ".websocket.SendHandler")))))
-            .and(takesArgument(0, named("java.nio.ByteBuffer"))),
-        getClass().getName() + "$SendBinaryAdvice");
+          .and(named("sendBinary"))
+          .and(takesArguments(1)
+            .or(takesArguments(2)
+              .and(takesArgument(1, named(namespace + ".websocket.SendHandler")))
+            )
+          )
+          .and(takesArgument(0, named("java.nio.ByteBuffer"))),
+        getClass().getName() + "$SendBinaryAdvice"
+    );
     transformer.applyAdvice(
         isPublic()
-            .and(named("sendObject"))
-            .and(
-                takesArguments(1)
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(1, named(namespace + ".websocket.SendHandler"))))),
-        getClass().getName() + "$SendObjectAdvice");
+          .and(named("sendObject"))
+          .and(takesArguments(1)
+            .or(takesArguments(2)
+              .and(takesArgument(1, named(namespace + ".websocket.SendHandler")))
+            )
+          ),
+        getClass().getName() + "$SendObjectAdvice"
+    );
   }
 
   public static class SendTextAdvice {
@@ -81,25 +85,22 @@ public class AsyncRemoteEndpointInstrumentation
     public static AgentScope before(
         @Advice.This final RemoteEndpoint.Async self,
         @Advice.Argument(0) String text,
-        @Advice.Argument(
-                value = 1,
-                optional = true,
-                readOnly = false,
-                typing = Assigner.Typing.DYNAMIC)
-            SendHandler sendHandler,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+        @Advice.Argument(value = 1, optional = true, readOnly = false, typing = Assigner.Typing.DYNAMIC) SendHandler sendHandler,
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
+      handlerContext = InstrumentationContext
+        .get(RemoteEndpoint.class, HandlerContext.Sender.class)
+        .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
       }
 
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+          handlerContext,
+          CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
+          CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text)
+      );
       if (sendHandler != null) {
         sendHandler = new TracingSendHandler(sendHandler, handlerContext);
       }
@@ -111,7 +112,8 @@ public class AsyncRemoteEndpointInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future) {
+        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
       if (scope == null) {
         return;
@@ -138,25 +140,22 @@ public class AsyncRemoteEndpointInstrumentation
     public static AgentScope before(
         @Advice.This final RemoteEndpoint.Async self,
         @Advice.Argument(0) ByteBuffer buffer,
-        @Advice.Argument(
-                value = 1,
-                optional = true,
-                readOnly = false,
-                typing = Assigner.Typing.DYNAMIC)
-            SendHandler sendHandler,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+        @Advice.Argument(value = 1, optional = true, readOnly = false, typing = Assigner.Typing.DYNAMIC) SendHandler sendHandler,
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
+      handlerContext = InstrumentationContext
+        .get(RemoteEndpoint.class, HandlerContext.Sender.class)
+        .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
       }
 
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
-              BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+          handlerContext,
+          BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
+          BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer)
+      );
       if (sendHandler != null) {
         sendHandler = new TracingSendHandler(sendHandler, handlerContext);
       }
@@ -168,7 +167,8 @@ public class AsyncRemoteEndpointInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future) {
+        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
       if (scope == null) {
         return;
@@ -194,15 +194,12 @@ public class AsyncRemoteEndpointInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(
         @Advice.This final RemoteEndpoint.Async self,
-        @Advice.Argument(
-                value = 1,
-                optional = true,
-                readOnly = false,
-                typing = Assigner.Typing.DYNAMIC)
-            SendHandler sendHandler,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+        @Advice.Argument(value = 1, optional = true, readOnly = false, typing = Assigner.Typing.DYNAMIC) SendHandler sendHandler,
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
+      handlerContext = InstrumentationContext
+        .get(RemoteEndpoint.class, HandlerContext.Sender.class)
+        .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
@@ -210,7 +207,10 @@ public class AsyncRemoteEndpointInstrumentation
 
       final AgentSpan wsSpan =
           DECORATE.startOutboundFrameSpan(
-              handlerContext, BYTE_BUFFER_SIZE_CALCULATOR.getFormat(), 0);
+              handlerContext,
+              BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
+              0
+      );
       if (sendHandler != null) {
         sendHandler = new TracingSendHandler(sendHandler, handlerContext);
       }
@@ -222,7 +222,8 @@ public class AsyncRemoteEndpointInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future) {
+        @Advice.Return(readOnly = false, typing = Assigner.Typing.DYNAMIC) Future<Void> future
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
       if (scope == null) {
         return;

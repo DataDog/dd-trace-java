@@ -2,7 +2,6 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
@@ -59,21 +58,19 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 1)
 public class FlagEvalHookHotPathBenchmark {
-
   /**
    * Context shapes. The three 100-leaf shapes (flat/100attrs, nested/10structs_10fields,
    * list/10lists_10items) carry the same leaf count under different structure, so the spread
    * between them isolates shape cost from leaf count.
    */
   @Param({
-    "flat/0attrs",
-    "flat/10attrs",
-    "flat/100attrs",
-    "nested/10structs_10fields",
-    "list/10lists_10items"
+      "flat/0attrs",
+      "flat/10attrs",
+      "flat/100attrs",
+      "nested/10structs_10fields",
+      "list/10lists_10items"
   })
   public String shape;
-
   private HookContext<Object> hookContext;
   private FlagEvaluationDetails<Object> consentOnDetails;
   private FlagEvaluationDetails<Object> consentOffDetails;
@@ -82,17 +79,16 @@ public class FlagEvalHookHotPathBenchmark {
   @Setup(Level.Trial)
   public void setUp() {
     final MutableContext ctx = buildContext(shape);
-    hookContext =
-        HookContext.builder()
-            .flagKey("bench-flag")
-            .type(FlagValueType.STRING)
-            .defaultValue("default")
-            .ctx(ctx)
-            .build();
+    hookContext = HookContext
+      .builder()
+      .flagKey("bench-flag")
+      .type(FlagValueType.STRING)
+      .defaultValue("default")
+      .ctx(ctx)
+      .build();
 
     consentOnDetails = details(true);
     consentOffDetails = details(false);
-
     // Discarding writer: isolates hook-inline cost from queue mechanics.
     hook = new FlagEvalLoggingHook<>(new NoOpWriter());
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
@@ -103,38 +99,45 @@ public class FlagEvalHookHotPathBenchmark {
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(false);
   }
 
-  /** Total inline cost under consent-on: scalar extraction, bounded context copy, and enqueue. */
+  /**
+   * Total inline cost under consent-on: scalar extraction, bounded context copy, and enqueue.
+   */
   @Benchmark
   public void hookFinallyAfter() {
     hook.finallyAfter(hookContext, consentOnDetails, Collections.emptyMap());
   }
 
-  /** Protected-path floor: consent-off skips the context copy, leaving scalar work plus enqueue. */
+  /**
+   * Protected-path floor: consent-off skips the context copy, leaving scalar work plus enqueue.
+   */
   @Benchmark
   public void hookFinallyAfterConsentOff() {
     hook.finallyAfter(hookContext, consentOffDetails, Collections.emptyMap());
   }
 
-  /** The bounded context copy alone - the component that scales with context shape. */
+  /**
+   * The bounded context copy alone - the component that scales with context shape.
+   */
   @Benchmark
   public void contextCopy(final Blackhole blackhole) {
     blackhole.consume(DDEvaluator.copyPrunedContext(hookContext.getCtx()));
   }
 
   private static FlagEvaluationDetails<Object> details(final boolean observeFullEvaluationData) {
-    return FlagEvaluationDetails.builder()
-        .flagKey("bench-flag")
-        .value("on-value")
-        .variant("on")
-        .reason(Reason.TARGETING_MATCH.name())
-        .flagMetadata(
-            ImmutableMetadata.builder()
-                .addString("allocationKey", "alloc-1")
-                .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
-                .addBoolean(
-                    DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
-                .build())
-        .build();
+    return FlagEvaluationDetails
+      .builder()
+      .flagKey("bench-flag")
+      .value("on-value")
+      .variant("on")
+      .reason(Reason.TARGETING_MATCH.name())
+      .flagMetadata(ImmutableMetadata
+        .builder()
+        .addString("allocationKey", "alloc-1")
+        .addLong("__dd_eval_timestamp_ms", 1_700_000_000_000L)
+        .addBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+        .build()
+      )
+      .build();
   }
 
   private static MutableContext buildContext(final String shape) {
@@ -178,7 +181,9 @@ public class FlagEvalHookHotPathBenchmark {
     return ctx;
   }
 
-  /** Discards events so only hook-inline work is measured. */
+  /**
+   * Discards events so only hook-inline work is measured.
+   */
   private static final class NoOpWriter implements FlagEvaluationWriter {
     @Override
     public void enqueue(final FlagEvalEvent event) {}

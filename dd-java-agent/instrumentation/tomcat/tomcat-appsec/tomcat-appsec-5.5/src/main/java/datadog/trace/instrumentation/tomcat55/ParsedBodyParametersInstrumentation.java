@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -28,8 +27,9 @@ import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(InstrumenterModule.class)
 public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");
   }
@@ -51,14 +51,16 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   }
 
   // paramHashStringArray was only final for a few days. it doesn't seem to have made into a release
-  private static final Reference PARAM_HASH_STRING_ARRAY_REFERENCE =
-      new Reference.Builder("org.apache.tomcat.util.http.Parameters")
-          .withField(
-              new String[0],
-              Reference.EXPECTS_NON_FINAL,
-              "paramHashStringArray",
-              "Ljava/util/Hashtable;")
-          .build();
+  private static final Reference PARAM_HASH_STRING_ARRAY_REFERENCE = new Reference.Builder(
+      "org.apache.tomcat.util.http.Parameters"
+  )
+    .withField(
+        new String[0],
+        Reference.EXPECTS_NON_FINAL,
+        "paramHashStringArray",
+        "Ljava/util/Hashtable;"
+    )
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -68,16 +70,18 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        // also matches the variant taking an extra encoding parameter
         named("processParameters")
-            .and(takesArgument(0, byte[].class))
-            .and(takesArgument(1, int.class))
-            .and(takesArgument(2, int.class)),
-        getClass().getName() + "$ProcessParametersAdvice");
+          .and(takesArgument(0, byte[].class))
+          .and(takesArgument(1, int.class))
+          // also matches the variant taking an extra encoding parameter
+          .and(takesArgument(2, int.class)),
+        getClass().getName() + "$ProcessParametersAdvice"
+    );
 
     transformer.applyAdvice(
         named("handleQueryParameters").and(takesArguments(0)),
-        getClass().getName() + "$HandleQueryParametersAdvice");
+        getClass().getName() + "$HandleQueryParametersAdvice"
+    );
   }
 
   // skip advice in processParameters if we're inside handleQueryParameters()
@@ -101,9 +105,11 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   public static class ProcessParametersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static int before(
-        @Advice.FieldValue(value = "paramHashStringArray", readOnly = false)
-            Hashtable<String, String[]> paramValuesField,
-        @Advice.Local("origParamHashStringArray") Hashtable<String, String[]> origParamValues) {
+        @Advice.FieldValue(value = "paramHashStringArray", readOnly = false) Hashtable<
+        String,
+        String[]> paramValuesField,
+        @Advice.Local("origParamHashStringArray") Hashtable<String, String[]> origParamValues
+    ) {
       int depth = CallDepthThreadLocalMap.incrementCallDepth(Parameters.class);
       if (depth == 0 && !paramValuesField.isEmpty()) {
         origParamValues = paramValuesField;
@@ -116,11 +122,13 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Local("origParamHashStringArray") Hashtable<String, String[]> origParamValues,
-        @Advice.FieldValue(value = "paramHashStringArray", readOnly = false)
-            Hashtable<String, String[]> paramValuesField,
+        @Advice.FieldValue(value = "paramHashStringArray", readOnly = false) Hashtable<
+        String,
+        String[]> paramValuesField,
         @Advice.Enter final int depth,
         @Advice.Thrown(readOnly = false) Throwable t,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (depth > 0) {
         return;
       }

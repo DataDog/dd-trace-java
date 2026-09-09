@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -25,7 +24,9 @@ import org.tinylog.core.LogEntry;
 
 @AutoService(InstrumenterModule.class)
 public class LogEntryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public LogEntryInstrumentation() {
     super("tinylog");
   }
@@ -44,23 +45,22 @@ public class LogEntryInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getContext")).and(takesArguments(0)),
-        LogEntryInstrumentation.class.getName() + "$GetContextAdvice");
+        LogEntryInstrumentation.class.getName() + "$GetContextAdvice"
+    );
   }
 
   public static class GetContextAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This LogEntry event,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)
-            Map<String, String> mdc) {
-
+        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Map<String, String> mdc
+    ) {
       if (mdc instanceof UnionMap) {
         return;
       }
 
       AgentSpanContext context =
           InstrumentationContext.get(LogEntry.class, AgentSpanContext.class).get(event);
-
       // TinyLoggingProviderInstrumentation only populates the context if injection is enabled
       // Impossible for context to be not null while injection is disabled
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
@@ -72,13 +72,15 @@ public class LogEntryInstrumentation extends InstrumenterModule.Tracing
 
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
-        String traceIdValue =
-            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
-                ? traceId.toHexString()
-                : traceId.toString();
+        String traceIdValue = Config.get().isLogs128bitTraceIdEnabled()
+            && traceId.toHighOrderLong() != 0
+            ? traceId.toHexString()
+            : traceId.toString();
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
         correlationValues.put(
-            CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
+            CorrelationIdentifier.getSpanIdKey(),
+            DDSpanId.toString(context.getSpanId())
+        );
       }
 
       String serviceName = Config.get().getServiceName();

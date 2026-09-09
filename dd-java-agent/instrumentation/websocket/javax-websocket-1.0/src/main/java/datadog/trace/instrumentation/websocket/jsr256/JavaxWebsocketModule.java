@@ -19,7 +19,10 @@ public class JavaxWebsocketModule extends InstrumenterModule.Tracing {
   }
 
   protected JavaxWebsocketModule(
-      String namespace, String instrumentationName, String... additionalNames) {
+      String namespace,
+      String instrumentationName,
+      String... additionalNames
+  ) {
     super(instrumentationName, additionalNames);
     this.namespace = namespace;
   }
@@ -36,9 +39,9 @@ public class JavaxWebsocketModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TracingOutputStream",
-      packageName + ".TracingWriter",
-      packageName + ".TracingSendHandler",
+        packageName + ".TracingOutputStream",
+        packageName + ".TracingWriter",
+        packageName + ".TracingSendHandler"
     };
   }
 
@@ -59,6 +62,7 @@ public class JavaxWebsocketModule extends InstrumenterModule.Tracing {
         new SessionInstrumentation(namespace),
         new MessageHandlerInstrumentation(namespace),
         new BasicRemoteEndpointInstrumentation(namespace),
-        new AsyncRemoteEndpointInstrumentation(namespace));
+        new AsyncRemoteEndpointInstrumentation(namespace)
+    );
   }
 }

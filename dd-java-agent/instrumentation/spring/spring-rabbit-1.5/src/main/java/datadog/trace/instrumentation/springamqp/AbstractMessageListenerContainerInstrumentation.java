@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.springamqp.RabbitListenerDecorator.D
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -28,8 +27,10 @@ import org.springframework.amqp.core.Message;
 
 @AutoService(InstrumenterModule.class)
 public class AbstractMessageListenerContainerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider
+{
   public AbstractMessageListenerContainerInstrumentation() {
     super("spring-rabbit");
   }
@@ -54,14 +55,16 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
     // Even though this class isn't immediately relevant to spring-rabbit, it's loaded by the test.
     return singletonMap(
         RUNNABLE,
-        singleton("org.springframework.boot.logging.logback.LogbackLoggingSystem$ShutdownHandler"));
+        singleton("org.springframework.boot.logging.logback.LogbackLoggingSystem$ShutdownHandler")
+    );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("executeListener").and(takesArgument(1, Object.class)),
-        getClass().getName() + "$ActivateContinuation");
+        getClass().getName() + "$ActivateContinuation"
+    );
   }
 
   public static class ActivateContinuation {

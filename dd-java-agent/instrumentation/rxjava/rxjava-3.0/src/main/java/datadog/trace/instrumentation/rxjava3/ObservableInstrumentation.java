@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +16,9 @@ import io.reactivex.rxjava3.core.Observer;
 import net.bytebuddy.asm.Advice;
 
 public final class ObservableInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "io.reactivex.rxjava3.core.Observable";
@@ -28,10 +29,11 @@ public final class ObservableInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.reactivex.rxjava3.core.Observer"))),
-        getClass().getName() + "$PropagateParentSpanAdvice");
+          .and(named("subscribe"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.reactivex.rxjava3.core.Observer"))),
+        getClass().getName() + "$PropagateParentSpanAdvice"
+    );
   }
 
   public static class CaptureParentSpanAdvice {
@@ -48,7 +50,8 @@ public final class ObservableInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onSubscribe(
         @Advice.This final Observable<?> observable,
-        @Advice.Argument(value = 0, readOnly = false) Observer<?> observer) {
+        @Advice.Argument(value = 0, readOnly = false) Observer<?> observer
+    ) {
       if (observer != null) {
         Context parentContext =
             InstrumentationContext.get(Observable.class, Context.class).get(observable);

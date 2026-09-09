@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_HTTP_SERVLET;
 import static datadog.trace.instrumentation.jsp.JSPDecorator.JSP_RENDER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,8 +21,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JSPInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public JSPInstrumentation() {
     super("jsp", "jsp-render");
   }
@@ -40,29 +40,28 @@ public final class JSPInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JSPDecorator",
-    };
+    return new String[] {packageName + ".JSPDecorator"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("_jspService")
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
-            .and(isPublic()),
-        JSPInstrumentation.class.getName() + "$HttpJspPageAdvice");
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
+          .and(isPublic()),
+        JSPInstrumentation.class.getName() + "$HttpJspPageAdvice"
+    );
   }
 
   public static class HttpJspPageAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.This final Object obj, @Advice.Argument(0) final HttpServletRequest req) {
-      final AgentSpan span =
-          startSpan(JSP_HTTP_SERVLET.toString(), JSP_RENDER)
-              .setTag("servlet.context", req.getContextPath());
+        @Advice.This final Object obj,
+        @Advice.Argument(0) final HttpServletRequest req
+    ) {
+      final AgentSpan span = startSpan(JSP_HTTP_SERVLET.toString(), JSP_RENDER)
+        .setTag("servlet.context", req.getContextPath());
       DECORATE.afterStart(span);
       DECORATE.onRender(span, req);
       return activateSpan(span);
@@ -70,7 +69,9 @@ public final class JSPInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       DECORATE.onError(scope, throwable);
       DECORATE.beforeFinish(scope);
       scope.close();

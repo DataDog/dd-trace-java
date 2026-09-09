@@ -11,7 +11,6 @@ import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -32,7 +31,9 @@ import org.tabletest.junit.TableTest;
 class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
   @Override
   protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier
+  ) {
     return XRayHttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
@@ -54,12 +55,13 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractTraceHeaderKeepsParsingContextAfterBaggageLimit() {
     // reaching the baggage limit must not stop the header being parsed: the trace context segments
     // can appear after the `key=value` segments that exhausted the limit
-    TagContext context =
-        this.extractor.extract(
-            headers(
-                X_AMZN_TRACE_ID,
-                traceHeader(generateBaggageItems(50)) + ";Parent=" + zeroPadId("2") + ";Sampled=1"),
-            stringValuesMap());
+    TagContext context = this.extractor.extract(
+        headers(
+            X_AMZN_TRACE_ID,
+            traceHeader(generateBaggageItems(50)) + ";Parent=" + zeroPadId("2") + ";Sampled=1"
+        ),
+        stringValuesMap()
+    );
 
     assertEquals(3, context.getBaggage().size());
     assertEquals(zeroPadId("1"), context.getTraceId().toHexStringPadded(16));
@@ -78,18 +80,25 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario    | traceId          | spanId           | samplingPriority | expectedSamplingPriority",
-    "no sampling | 1                | 2                | ''               | UNSET                   ",
-    "sampled 1   | 2                | 3                | ';Sampled=1'     | SAMPLER_KEEP            ",
-    "sampled 0   | 3                | 4                | ';Sampled=0'     | SAMPLER_DROP            ",
-    "max trace   | ffffffffffffffff | fffffffffffffffe | ';Sampled=0'     | SAMPLER_DROP            ",
-    "max span    | fffffffffffffffe | ffffffffffffffff | ';Sampled=1'     | SAMPLER_KEEP            "
+    "scenario    | traceId          | spanId           | samplingPriority |            ",
+    "expectedSamplingPriority                                                          ",
+    "no sampling | 1                | 2                | ''               | UNSET      ",
+    "                                                                                  ",
+    "sampled 1   | 2                | 3                | ';Sampled=1'     | SAMPLER_   ",
+    "KEEP                                                                              ",
+    "sampled 0   | 3                | 4                | ';Sampled=0'     | SAMPLER_   ",
+    "DROP                                                                              ",
+    "max trace   | ffffffffffffffff | fffffffffffffffe | ';Sampled=0'     | SAMPLER_   ",
+    "DROP                                                                              ",
+    "max span    | fffffffffffffffe | ffffffffffffffff | ';Sampled=1'     | SAMPLER_   ",
+    "KEEP                                                                              "
   })
   void extractHttpHeaders(
       String traceId,
       String spanId,
       String samplingPriority,
-      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         X_AMZN_TRACE_ID, "Root=1-00000000-00000000"
@@ -103,7 +112,6 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_CUSTOM_BAGGAGE_HEADER_2,"my-interesting-baggage-info-2"
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -137,7 +145,6 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
@@ -146,8 +153,7 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
   @Test
   void noContextWithTooLargeTraceId() {
     Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID, "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8");
+        headers(X_AMZN_TRACE_ID, "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -157,8 +163,7 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
   @Test
   void extractHttpHeadersWithNonZeroEpoch() {
     Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID, "Root=1-5759e988-00000000e1be46a994272793;Parent=53995c3f42cd8ad8");
+        headers(X_AMZN_TRACE_ID, "Root=1-5759e988-00000000e1be46a994272793;Parent=53995c3f42cd8ad8");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -176,11 +181,15 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
     "max span   | 1                | ffffffffffffffff | 0000000000000001   | -1                 "
   })
   void extractIdsWhileRetainingTheOriginalString(
-      String traceId, String spanId, String expectedTraceIdHex, long expectedSpanId) {
-    Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID,
-            "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId));
+      String traceId,
+      String spanId,
+      String expectedTraceIdHex,
+      long expectedSpanId
+  ) {
+    Map<String, String> headers = headers(
+        X_AMZN_TRACE_ID,
+        "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId)
+    );
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
@@ -196,16 +205,16 @@ class XRayHttpExtractorTest extends AbstractHttpExtractorTest {
     "non-zero | 2       | 3      | 1610001234       "
   })
   void extractHeadersWithEndToEnd(String traceId, String spanId, long endToEndStartTime) {
-    Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID,
-            "Root=1-00000000-00000000"
-                + zeroPadId(traceId)
-                + ";Parent="
-                + zeroPadId(spanId)
-                + ";k1=v1;t0="
-                + endToEndStartTime
-                + ";k2=v2");
+    Map<String, String> headers = headers(
+        X_AMZN_TRACE_ID,
+        "Root=1-00000000-00000000"
+        + zeroPadId(traceId)
+        + ";Parent="
+        + zeroPadId(spanId)
+        + ";k1=v1;t0="
+        + endToEndStartTime
+        + ";k2=v2"
+    );
 
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());

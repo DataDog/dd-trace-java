@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.websocket.jetty10;
 
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_NON_STATIC;
 import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_PUBLIC;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,8 +22,7 @@ public class Jetty10JavaxPojoWebSocketModule extends InstrumenterModule.Tracing 
     this("javax", "org.eclipse.jetty.websocket.javax.common.Javax");
   }
 
-  protected Jetty10JavaxPojoWebSocketModule(
-      final String jsrNamespace, final String jettyNamespace) {
+  protected Jetty10JavaxPojoWebSocketModule(final String jsrNamespace, final String jettyNamespace) {
     super("jetty", "jetty-websocket", jsrNamespace + "-websocket", "websocket");
     this.jsrNamespace = jsrNamespace;
     this.jettyNamespace = jettyNamespace;
@@ -46,21 +44,20 @@ public class Jetty10JavaxPojoWebSocketModule extends InstrumenterModule.Tracing 
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {
-      new Reference.Builder(jettyNamespace + "WebSocketMessageMetadata")
-          .withMethod(
-              new String[0],
-              EXPECTS_NON_STATIC | EXPECTS_PUBLIC,
-              "getMethodHandle",
-              "Ljava/lang/invoke/MethodHandle;")
-          .build(),
+        new Reference.Builder(jettyNamespace + "WebSocketMessageMetadata")
+      .withMethod(
+          new String[0],
+          EXPECTS_NON_STATIC | EXPECTS_PUBLIC,
+          "getMethodHandle",
+          "Ljava/lang/invoke/MethodHandle;"
+      )
+      .build()
     };
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.websocket.jetty10.MethodHandleWrappers",
-    };
+    return new String[] {"datadog.trace.instrumentation.websocket.jetty10.MethodHandleWrappers"};
   }
 
   @Override
@@ -72,6 +69,7 @@ public class Jetty10JavaxPojoWebSocketModule extends InstrumenterModule.Tracing 
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new JavaxWebSocketFrameHandlerFactoryInstrumentation(jettyNamespace),
-        new JavaxWebSocketFrameHandlerInstrumentation(jettyNamespace));
+        new JavaxWebSocketFrameHandlerInstrumentation(jettyNamespace)
+    );
   }
 }

@@ -9,8 +9,9 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 @AutoService(InstrumenterModule.class)
 public class Http2MultiplexHandlerStreamChannelInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public Http2MultiplexHandlerStreamChannelInstrumentation() {
     super("netty", "netty-4.1", "netty-4.1-http2");
   }
@@ -22,15 +23,15 @@ public class Http2MultiplexHandlerStreamChannelInstrumentation extends Instrumen
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-    };
+    return new String[] {packageName + ".AttributeKeys"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        ElementMatchers.isConstructor(), getClass().getName() + "$PropagateContextAdvice");
+        ElementMatchers.isConstructor(),
+        getClass().getName() + "$PropagateContextAdvice"
+    );
   }
 
   public static class PropagateContextAdvice {
@@ -39,8 +40,9 @@ public class Http2MultiplexHandlerStreamChannelInstrumentation extends Instrumen
       if (self.parent() != null
           && self.parent().hasAttr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)
           && !self.hasAttr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)) {
-        self.attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)
-            .set(self.parent().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).getAndRemove());
+        self
+          .attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY)
+          .set(self.parent().attr(AttributeKeys.CONTEXT_ATTRIBUTE_KEY).getAndRemove());
       }
     }
   }

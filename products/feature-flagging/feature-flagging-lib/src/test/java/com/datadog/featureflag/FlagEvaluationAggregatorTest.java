@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -13,7 +12,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FlagEvaluationAggregatorTest {
-
   @Test
   void identicalEventsAggregateIntoOneBucketWithCount2() {
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
@@ -91,8 +89,10 @@ class FlagEvaluationAggregatorTest {
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(0, state.fullTier.size());
     assertEquals(1, state.degradedTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        state.degradedTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.degradedTier
+      .values()
+      .iterator()
+      .next();
     assertEquals(2, bucket.count);
     assertEquals(1000L, bucket.firstEvalMs);
     assertEquals(2000L, bucket.lastEvalMs);
@@ -115,8 +115,10 @@ class FlagEvaluationAggregatorTest {
     final FlagEvaluationAggregator.AggregatedState state = aggregator.snapshot();
     assertEquals(0, state.fullTier.size());
     assertEquals(1, state.degradedTier.size());
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        state.degradedTier.values().iterator().next();
+    final FlagEvaluationAggregator.EvalBucket bucket = state.degradedTier
+      .values()
+      .iterator()
+      .next();
     assertEquals(2, bucket.count);
     // AND-fold collapses to consent-off; benign for degraded rows but a documented invariant.
     assertFalse(bucket.observeFullEvaluationData);
@@ -205,20 +207,26 @@ class FlagEvaluationAggregatorTest {
 
   @Test
   void flagEvalEventDoesNotCarryReason() {
-    final boolean hasReasonField =
-        Arrays.stream(
-                datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent.class
-                    .getDeclaredFields())
-            .anyMatch(field -> field.getName().equals("reason"));
+    final boolean hasReasonField = Arrays
+      .stream(datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent.class.getDeclaredFields())
+      .anyMatch(field -> field.getName().equals("reason"));
 
     assertFalse(hasReasonField);
   }
 
   @Test
   void evalBucketTracksBoundsDefaultStateAndNullContextFieldCount() {
-    final FlagEvaluationAggregator.EvalBucket bucket =
-        new FlagEvaluationAggregator.EvalBucket(
-            "bucket-flag", "on", "alloc1", "user-1", null, 1000L, false, null, false);
+    final FlagEvaluationAggregator.EvalBucket bucket = new FlagEvaluationAggregator.EvalBucket(
+        "bucket-flag",
+        "on",
+        "alloc1",
+        "user-1",
+        null,
+        1000L,
+        false,
+        null,
+        false
+    );
 
     assertEquals(0, bucket.prunedContextFieldCount());
 
@@ -284,8 +292,7 @@ class FlagEvaluationAggregatorTest {
     assertEquals(2, aggregator.fullTierSize());
     int onCount = 0;
     int offCount = 0;
-    for (final FlagEvaluationAggregator.EvalBucket bucket :
-        aggregator.snapshot().fullTier.values()) {
+    for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.snapshot().fullTier.values()) {
       if (bucket.observeFullEvaluationData) {
         onCount++;
       } else {
@@ -368,7 +375,8 @@ class FlagEvaluationAggregatorTest {
       final String targetingKey,
       final long evalTimeMs,
       final boolean observeFullEvaluationData,
-      final Map<String, Object> attrs) {
+      final Map<String, Object> attrs
+  ) {
     return new FlagEvalEvent(
         flagKey,
         variant,
@@ -377,7 +385,8 @@ class FlagEvaluationAggregatorTest {
         null,
         evalTimeMs,
         observeFullEvaluationData,
-        attrs);
+        attrs
+    );
   }
 
   private static FlagEvalEvent event(
@@ -386,7 +395,8 @@ class FlagEvaluationAggregatorTest {
       final String allocationKey,
       final String targetingKey,
       final long evalTimeMs,
-      final Map<String, Object> attrs) {
+      final Map<String, Object> attrs
+  ) {
     return new FlagEvalEvent(flagKey, variant, allocationKey, targetingKey, evalTimeMs, attrs);
   }
 
@@ -401,7 +411,8 @@ class FlagEvaluationAggregatorTest {
       final boolean runtimeDefaultUsed,
       final String errorMessage,
       final String targetingKey,
-      final String contextKey) {
+      final String contextKey
+  ) {
     return new FlagEvaluationAggregator.FullKey(
         flagKey,
         variant,
@@ -410,7 +421,8 @@ class FlagEvaluationAggregatorTest {
         errorMessage,
         targetingKey,
         contextKey,
-        false);
+        false
+    );
   }
 
   private static FlagEvaluationAggregator.DegradedKey degradedKey(
@@ -418,8 +430,14 @@ class FlagEvaluationAggregatorTest {
       final String variant,
       final String allocationKey,
       final boolean runtimeDefaultUsed,
-      final String errorMessage) {
+      final String errorMessage
+  ) {
     return new FlagEvaluationAggregator.DegradedKey(
-        flagKey, variant, allocationKey, runtimeDefaultUsed, errorMessage);
+        flagKey,
+        variant,
+        allocationKey,
+        runtimeDefaultUsed,
+        errorMessage
+    );
   }
 }

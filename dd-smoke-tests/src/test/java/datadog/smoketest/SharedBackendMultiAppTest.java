@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.smoketest.backend.AgentBackend;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -25,30 +24,27 @@ import org.junit.jupiter.api.extension.RegisterExtension;
  * exercised by the Spring Boot RabbitMQ pilot.
  */
 class SharedBackendMultiAppTest {
-
   @Order(1)
   @RegisterExtension
   static final AgentBackend agent = AgentBackend.mockAgent();
-
   @Order(2)
   @RegisterExtension
-  static final SmokeServerApp producer =
-      SmokeServerApp.named("producer")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(agent)
-          .noAgent()
-          .build();
-
+  static final SmokeServerApp producer = SmokeServerApp
+    .named("producer")
+    .mainClass("datadog.smoketest.TestServerApp")
+    .args("--server.port=${app.httpPort}")
+    .backend(agent)
+    .noAgent()
+    .build();
   @Order(3)
   @RegisterExtension
-  static final SmokeServerApp consumer =
-      SmokeServerApp.named("consumer")
-          .mainClass("datadog.smoketest.TestServerApp")
-          .args("--server.port=${app.httpPort}")
-          .backend(agent)
-          .noAgent()
-          .build();
+  static final SmokeServerApp consumer = SmokeServerApp
+    .named("consumer")
+    .mainClass("datadog.smoketest.TestServerApp")
+    .args("--server.port=${app.httpPort}")
+    .backend(agent)
+    .noAgent()
+    .build();
 
   @Test
   void bothAppsRunOnDistinctPorts() {
@@ -65,7 +61,8 @@ class SharedBackendMultiAppTest {
     assertEquals(
         producer.backend().port(),
         consumer.backend().port(),
-        "one shared backend => one agent port for both apps");
+        "one shared backend => one agent port for both apps"
+    );
   }
 
   @Test

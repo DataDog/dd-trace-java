@@ -8,9 +8,7 @@ import java.util.TimeZone;
 
 public final class PersonInfo {
   public static final PersonInfo NOOP = new PersonInfo();
-
   private static final String DATE_FORMAT_ISO8601 = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
-
   private final String name;
   private final String email;
   private final String iso8601Date;
@@ -52,7 +50,9 @@ public final class PersonInfo {
   }
 
   public boolean isComplete() {
-    return Strings.isNotBlank(name) && Strings.isNotBlank(email) && Strings.isNotBlank(iso8601Date);
+    return Strings.isNotBlank(name)
+        && Strings.isNotBlank(email)
+        && Strings.isNotBlank(iso8601Date);
   }
 
   /**
@@ -66,7 +66,8 @@ public final class PersonInfo {
     return new PersonInfo(
         Strings.coalesce(first.name, second.name),
         Strings.coalesce(first.email, second.email),
-        Strings.coalesce(first.iso8601Date, second.iso8601Date));
+        Strings.coalesce(first.iso8601Date, second.iso8601Date)
+    );
   }
 
   @Override

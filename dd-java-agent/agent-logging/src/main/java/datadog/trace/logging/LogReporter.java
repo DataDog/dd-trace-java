@@ -1,7 +1,6 @@
 package datadog.trace.logging;
 
 import static java.nio.file.Files.readAllBytes;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
@@ -22,7 +21,8 @@ public class LogReporter implements TracerFlare.Reporter {
   private static File configuredLogFile;
   private static PrintStreamWrapper wrappedPrintStream;
 
-  private LogReporter() {}
+  private LogReporter() {
+  }
 
   public static void register(PrintStreamWrapper printStreamWrapper) {
     wrappedPrintStream = printStreamWrapper;
@@ -69,13 +69,18 @@ public class LogReporter implements TracerFlare.Reporter {
           }
         } catch (Exception e) {
           TracerFlare.addText(
-              zip, "tracer.log", "Problem reading temporary tracer log file: " + e.getMessage());
+              zip,
+              "tracer.log",
+              "Problem reading temporary tracer log file: " + e.getMessage()
+          );
         }
       } else {
         TracerFlare.addText(
-            zip, "tracer.log", "No tracer log file specified and no prepare flare event received");
+            zip,
+            "tracer.log",
+            "No tracer log file specified and no prepare flare event received"
+        );
       }
-
     } else {
       Path path = Paths.get(configuredLogFile.getPath());
       if (Files.exists(path)) {

@@ -3,14 +3,15 @@ package datadog.trace.instrumentation.undertow;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public class RequestParserInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public RequestParserInstrumentation() {
     super("undertow", "undertow-2.2", "undertow-request-parse");
   }
@@ -29,22 +30,23 @@ public class RequestParserInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("handle"))
-            .and(takesArgument(2, named("io.undertow.server.HttpServerExchange"))),
-        HttpRequestParserInstrumentation.class.getName() + "$RequestParseFailureAdvice");
+          .and(named("handle"))
+          .and(takesArgument(2, named("io.undertow.server.HttpServerExchange"))),
+        HttpRequestParserInstrumentation.class.getName() + "$RequestParseFailureAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowBlockResponseFunction",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response"
+        packageName + ".HttpServerExchangeURIDataAdapter",
+        packageName + ".UndertowDecorator",
+        packageName + ".UndertowBlockingHandler",
+        packageName + ".IgnoreSendAttribute",
+        packageName + ".UndertowBlockResponseFunction",
+        packageName + ".UndertowExtractAdapter",
+        packageName + ".UndertowExtractAdapter$Request",
+        packageName + ".UndertowExtractAdapter$Response"
     };
   }
 }

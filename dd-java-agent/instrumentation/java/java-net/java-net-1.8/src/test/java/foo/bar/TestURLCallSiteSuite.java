@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestURLCallSiteSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestURLCallSiteSuite.class);
 
   public static URL url(final String value) {
@@ -27,8 +26,7 @@ public class TestURLCallSiteSuite {
     }
   }
 
-  public static URL url(
-      final String protocol, final String host, final int port, final String file) {
+  public static URL url(final String protocol, final String host, final int port, final String file) {
     try {
       LOGGER.debug("Before ctor {} {} {} {}", protocol, host, port, file);
       final URL url = new URL(protocol, host, port, file);
@@ -44,7 +42,8 @@ public class TestURLCallSiteSuite {
       final String host,
       final int port,
       final String file,
-      final URLStreamHandler handler) {
+      final URLStreamHandler handler
+  ) {
     try {
       LOGGER.debug("Before ctor {} {} {} {} {}", protocol, host, port, file, handler);
       final URL url = new URL(protocol, host, port, file, handler);

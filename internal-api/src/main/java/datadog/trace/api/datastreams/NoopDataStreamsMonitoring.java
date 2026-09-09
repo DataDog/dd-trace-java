@@ -17,7 +17,8 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
       int schemaId,
       boolean isSuccess,
       boolean isKey,
-      String operation) {}
+      String operation
+  ) {}
 
   @Override
   public void setCheckpoint(AgentSpan span, DataStreamsContext context) {}
@@ -47,11 +48,16 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
       AgentSpan span,
       DataStreamsTransactionExtractor.Type extractorType,
       Object source,
-      TransactionSourceReader sourceReader) {}
+      TransactionSourceReader sourceReader
+  ) {}
 
   @Override
   public void reportKafkaConfig(
-      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {}
+      String type,
+      String kafkaClusterId,
+      String consumerGroup,
+      Map<String, String> config
+  ) {}
 
   @Override
   public void reportKafkaConsumerGroupMember(
@@ -59,7 +65,8 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
       String consumerGroup,
       String memberId,
       int generationId,
-      String memberProtocol) {}
+      String memberProtocol
+  ) {}
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}

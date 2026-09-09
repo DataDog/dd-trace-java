@@ -6,7 +6,6 @@ import static io.undertow.server.handlers.form.FormDataParser.FORM_DATA;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -29,8 +28,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public MultiPartUploadHandlerInstrumentation() {
     super("undertow", "undertow-2.0");
   }
@@ -40,11 +40,11 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
     return "io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler";
   }
 
-  private static final Reference EXCHANGE_REFERENCE =
-      new Reference.Builder(
-              "io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler")
-          .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
-          .build();
+  private static final Reference EXCHANGE_REFERENCE = new Reference.Builder(
+      "io.undertow.server.handlers.form.MultiPartParserDefinition$MultiPartUploadHandler"
+  )
+    .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -59,10 +59,11 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseBlocking")
-            .and(takesArguments(0))
-            .and(returns(named("io.undertow.server.handlers.form.FormData")))
-            .and(isPublic()),
-        getClass().getName() + "$ParseBlockingAdvice");
+          .and(takesArguments(0))
+          .and(returns(named("io.undertow.server.handlers.form.FormData")))
+          .and(isPublic()),
+        getClass().getName() + "$ParseBlockingAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -77,7 +78,8 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
         @Advice.Enter boolean relevant,
         @Advice.FieldValue("exchange") HttpServerExchange exchange,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (!relevant || t != null) {
         return;
       }
@@ -107,9 +109,9 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
             boolean success =
                 blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             if (success && t == null) {
-              t =
-                  new BlockingException(
-                      "Blocked request (for MultiPartUploadHandler/parseBlocking)");
+              t = new BlockingException(
+                  "Blocked request (for MultiPartUploadHandler/parseBlocking)"
+              );
             }
           }
         }

@@ -15,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -32,8 +31,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class HandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public HandlerInstrumentation() {
     super("undertow", "undertow-2.0");
   }
@@ -47,28 +47,29 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("executeRootHandler"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("io.undertow.server.HttpHandler")))
-            .and(takesArgument(1, named("io.undertow.server.HttpServerExchange")))
-            .and(isStatic())
-            .and(isPublic()),
+          .and(named("executeRootHandler"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("io.undertow.server.HttpHandler")))
+          .and(takesArgument(1, named("io.undertow.server.HttpServerExchange")))
+          .and(isStatic())
+          .and(isPublic()),
         getClass().getName() + "$ContextTrackingAdvice",
-        getClass().getName() + "$ExecuteRootHandlerAdvice");
+        getClass().getName() + "$ExecuteRootHandlerAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExchangeEndSpanListener",
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowBlockResponseFunction",
+        packageName + ".ExchangeEndSpanListener",
+        packageName + ".HttpServerExchangeURIDataAdapter",
+        packageName + ".UndertowDecorator",
+        packageName + ".UndertowExtractAdapter",
+        packageName + ".UndertowExtractAdapter$Request",
+        packageName + ".UndertowExtractAdapter$Response",
+        packageName + ".UndertowBlockingHandler",
+        packageName + ".IgnoreSendAttribute",
+        packageName + ".UndertowBlockResponseFunction"
     };
   }
 
@@ -77,9 +78,11 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void extractParent(
         @Advice.Argument(1) final HttpServerExchange exchange,
-        @Advice.Local("parentScope") ContextScope parentScope) {
+        @Advice.Local("parentScope") ContextScope parentScope
+    ) {
       if (exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION) != null) {
-        return; // async re-dispatch: parent context already extracted
+        // async re-dispatch: parent context already extracted
+        return;
       }
       final Context parentContext = DECORATE.extract(exchange);
       exchange.putAttachment(PARENT_CONTEXT_KEY, parentContext);
@@ -88,7 +91,9 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) parentScope.close();
+      if (parentScope != null) {
+        parentScope.close();
+      }
     }
   }
 
@@ -97,7 +102,8 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
     public static void onEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpHandler handler,
         @Advice.Argument(1) final HttpServerExchange exchange,
-        @Advice.Local("contextScope") ContextScope scope) {
+        @Advice.Local("contextScope") ContextScope scope
+    ) {
       AgentSpan activeSpan = AgentTracer.activeSpan();
       if (activeSpan != null) {
         AgentSpan localRootSpan = activeSpan.getLocalRootSpan();
@@ -120,7 +126,9 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       }
 
       Context parentContext = exchange.getAttachment(PARENT_CONTEXT_KEY);
-      if (parentContext == null) parentContext = rootContext();
+      if (parentContext == null) {
+        parentContext = rootContext();
+      }
       final Context context = DECORATE.startSpan(exchange, parentContext);
       scope = context.attach();
       final AgentSpan span = spanFromContext(context);
@@ -130,13 +138,11 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       exchange.putAttachment(DATADOG_UNDERTOW_CONTINUATION, captureSpan(span));
 
       exchange.addExchangeCompleteListener(ExchangeEndSpanListener.INSTANCE);
-
       // TODO is this required?
       // exchange.getRequestHeaders().add(
       //   new HttpString(CorrelationIdentifier.getTraceIdKey()), GlobalTracer.get().getTraceId());
       // exchange.getRequestHeaders().add(
       //   new HttpString(CorrelationIdentifier.getSpanIdKey()), GlobalTracer.get().getSpanId());
-
       RequestBlockingAction rab = span.getRequestBlockingAction();
       if (rab != null) {
         exchange.putAttachment(REQUEST_BLOCKING_DATA, rab);

@@ -18,7 +18,6 @@ import java.util.Set;
  * <p>"service-2.json" files can be found in <a href="https://github.com/aws/aws-sdk-java-v2"/>.
  */
 public class RedactionRulesExtractor {
-
   public static void main(String[] args) throws IOException {
     if (args.length == 0) {
       System.out.println("Usage: RedactionRulesExtractor <service-2.json>");
@@ -36,10 +35,9 @@ public class RedactionRulesExtractor {
 
     String json = new String(Files.readAllBytes(jsonFile.toPath()));
 
-    JsonAdapter<Map<String, Object>> adapter =
-        new Moshi.Builder()
-            .build()
-            .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+    JsonAdapter<Map<String, Object>> adapter = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
     Map<String, Object> map = adapter.fromJson(json);
 
@@ -53,12 +51,10 @@ public class RedactionRulesExtractor {
     Set<String> requestSensitivePaths = new LinkedHashSet<>();
     Set<String> responseSensitivePaths = new LinkedHashSet<>();
     Set<String> errorsSensitivePaths = new LinkedHashSet<>();
-
     // traverse operations and for each check its input/output allShapes
     for (Map.Entry<String, Object> operation : operations.entrySet()) {
       String operationName = operation.getKey();
       Map<String, Object> operationObject = (Map<String, Object>) operation.getValue();
-
       // input shape
       Map<String, Object> inputObject = (Map<String, Object>) operationObject.get("input");
       if (inputObject != null) {
@@ -68,9 +64,9 @@ public class RedactionRulesExtractor {
             (Map<String, Object>) allShapes.get(inputShape),
             allShapes,
             "$",
-            requestSensitivePaths);
+            requestSensitivePaths
+        );
       }
-
       // output shape
       Map<String, Object> outputObject = (Map<String, Object>) operationObject.get("output");
       if (outputObject != null) {
@@ -80,12 +76,15 @@ public class RedactionRulesExtractor {
             (Map<String, Object>) allShapes.get(outputShape),
             allShapes,
             "$",
-            responseSensitivePaths);
+            responseSensitivePaths
+        );
       }
 
       List<Map<String, Object>> errors =
-          (List<Map<String, Object>>)
-              operationObject.getOrDefault("errors", Collections.emptyList());
+          (List<Map<String, Object>>) operationObject.getOrDefault(
+              "errors",
+              Collections.emptyList()
+      );
       for (Map<String, Object> error : errors) {
         String errorShape = (String) error.get("shape");
         collectSensitivePaths(
@@ -93,7 +92,8 @@ public class RedactionRulesExtractor {
             (Map<String, Object>) allShapes.get(errorShape),
             allShapes,
             "$",
-            errorsSensitivePaths);
+            errorsSensitivePaths
+        );
       }
     }
 
@@ -105,7 +105,8 @@ public class RedactionRulesExtractor {
 
     System.out.println("\nCommon sensitive paths:\n" + String.join("\n", commonSensitivePaths));
     System.out.println("\nRequest sensitive paths:\n" + String.join("\n", requestSensitivePaths));
-    System.out.println("\nResponse sensitive paths:\n" + String.join("\n", responseSensitivePaths));
+    System.out.println("\nResponse sensitive paths:\n"
+        + String.join("\n", responseSensitivePaths));
     System.out.println("\nErrors sensitive paths:\n" + String.join("\n", errorsSensitivePaths));
     Map<String, Object> metadata = (Map<String, Object>) map.get("metadata");
     System.out.println("serviceId: " + metadata.get("serviceId"));
@@ -117,7 +118,8 @@ public class RedactionRulesExtractor {
       Map<String, Object> shape,
       Map<String, Object> allShapes,
       String path,
-      Set<String> sensitivePathsOut) {
+      Set<String> sensitivePathsOut
+  ) {
     if ((boolean) shape.getOrDefault("sensitive", false)) {
       sensitivePathsOut.add(path);
       return;
@@ -137,7 +139,8 @@ public class RedactionRulesExtractor {
             (Map<String, Object>) allShapes.get(memberShape),
             allShapes,
             path + "." + memberName,
-            sensitivePathsOut);
+            sensitivePathsOut
+        );
       }
     } else if ("list".equals(shapeType)) {
       Map<String, Object> member = (Map<String, Object>) shape.get("member");
@@ -147,7 +150,8 @@ public class RedactionRulesExtractor {
           (Map<String, Object>) allShapes.get(memberShape),
           allShapes,
           path + "[*]",
-          sensitivePathsOut);
+          sensitivePathsOut
+      );
     }
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -26,13 +25,14 @@ import org.glassfish.grizzly.http.HttpServerFilter;
 
 public class GrizzlyDecorator
     extends HttpServerDecorator<
-        HttpRequestPacket, HttpRequestPacket, HttpResponsePacket, HttpRequestPacket> {
-
+    HttpRequestPacket,
+    HttpRequestPacket,
+    HttpResponsePacket,
+    HttpRequestPacket>
+{
   public static final CharSequence GRIZZLY_FILTER_CHAIN_SERVER =
       UTF8BytesString.create("grizzly-filterchain-server");
-
   public static final CharSequence GRIZZLY_REQUEST = UTF8BytesString.create("grizzly.request");
-
   public static final GrizzlyDecorator DECORATE = new GrizzlyDecorator();
 
   @Override
@@ -86,7 +86,9 @@ public class GrizzlyDecorator
   }
 
   public static void onHttpServerFilterPrepareResponseEnter(
-      FilterChainContext ctx, HttpResponsePacket responsePacket) {
+      FilterChainContext ctx,
+      HttpResponsePacket responsePacket
+  ) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
     AgentSpan span;
     if (context != null && (span = AgentSpan.fromContext(context)) != null) {
@@ -95,7 +97,9 @@ public class GrizzlyDecorator
   }
 
   public static void onHttpServerFilterPrepareResponseExit(
-      FilterChainContext ctx, HttpResponsePacket responsePacket) {
+      FilterChainContext ctx,
+      HttpResponsePacket responsePacket
+  ) {
     Context context = (Context) ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE);
     AgentSpan span;
     if (context != null && (span = AgentSpan.fromContext(context)) != null) {
@@ -107,7 +111,11 @@ public class GrizzlyDecorator
   }
 
   public static NextAction onHttpCodecFilterExit(
-      FilterChainContext ctx, HttpHeader httpHeader, HttpCodecFilter thiz, NextAction nextAction) {
+      FilterChainContext ctx,
+      HttpHeader httpHeader,
+      HttpCodecFilter thiz,
+      NextAction nextAction
+  ) {
     // only create a span if there isn't another one attached to the current ctx
     // and if the httpHeader has been parsed into a HttpRequestPacket
     if (ctx.getAttributes().getAttribute(DD_CONTEXT_ATTRIBUTE) != null
@@ -128,9 +136,14 @@ public class GrizzlyDecorator
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null && thiz instanceof HttpServerFilter) {
       span.getRequestContext().getTraceSegment().effectivelyBlocked();
-      nextAction =
-          GrizzlyHttpBlockingHelper.block(
-              ctx, (HttpServerFilter) thiz, httpRequest, httpResponse, rba, nextAction);
+      nextAction = GrizzlyHttpBlockingHelper.block(
+          ctx,
+          (HttpServerFilter) thiz,
+          httpRequest,
+          httpResponse,
+          rba,
+          nextAction
+      );
     }
     if (ActiveSubsystems.APPSEC_ACTIVE) {
       RequestContext requestContext = span.getRequestContext();
@@ -162,7 +175,9 @@ public class GrizzlyDecorator
 
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
-      HttpRequestPacket httpRequestPacket, HttpRequestPacket httpRequestPacket2) {
+      HttpRequestPacket httpRequestPacket,
+      HttpRequestPacket httpRequestPacket2
+  ) {
     return new GrizzlyHttpBlockResponseFunction(httpRequestPacket.getHeader("Accept"));
   }
 
@@ -180,12 +195,20 @@ public class GrizzlyDecorator
         int statusCode,
         BlockingContentType templateType,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       if (ctx == null) {
         return false;
       }
       return GrizzlyHttpBlockingHelper.block(
-          ctx, acceptHeader, statusCode, templateType, extraHeaders, segment, securityResponseId);
+          ctx,
+          acceptHeader,
+          statusCode,
+          templateType,
+          extraHeaders,
+          segment,
+          securityResponseId
+      );
     }
   }
 }

@@ -4,70 +4,76 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
-
 import datadog.trace.api.Config;
 
 public class SamplingMechanism {
-  /** Not encouraged to use */
+  /**
+   * Not encouraged to use
+   */
   public static final byte UNKNOWN = -1;
-
-  /** Used before the tracer receives any rates from agent and there are no rules configured */
+  /**
+   * Used before the tracer receives any rates from agent and there are no rules configured
+   */
   public static final byte DEFAULT = 0;
-
-  /** The sampling rate received in the agent's http response */
+  /**
+   * The sampling rate received in the agent's http response
+   */
   public static final byte AGENT_RATE = 1;
-
-  /** Auto; reserved for future use */
+  /**
+   * Auto; reserved for future use
+   */
   public static final byte REMOTE_AUTO_RATE = 2;
-
-  /** Sampling rule or sampling rate based on tracer config */
+  /**
+   * Sampling rule or sampling rate based on tracer config
+   */
   public static final byte LOCAL_USER_RULE = 3;
-
-  /** User directly sets sampling priority via code using span.SetTag(ManualKeep) or similar API */
+  /**
+   * User directly sets sampling priority via code using span.SetTag(ManualKeep) or similar API
+   */
   public static final byte MANUAL = 4;
-
-  /** AppSec */
+  /**
+   * AppSec
+   */
   public static final byte APPSEC = 5;
-
-  /** User-defined target; reserved for future use */
+  /**
+   * User-defined target; reserved for future use
+   */
   public static final byte REMOTE_USER_RATE = 6;
-
-  /** Span Sampling Rate (single span sampled on account of a span sampling rule) */
+  /**
+   * Span Sampling Rate (single span sampled on account of a span sampling rule)
+   */
   public static final byte SPAN_SAMPLING_RATE = 8;
-
-  /** Data Jobs */
+  /**
+   * Data Jobs
+   */
   public static final byte DATA_JOBS = 10;
-
   public static final byte REMOTE_USER_RULE = 11;
   public static final byte REMOTE_ADAPTIVE_RULE = 12;
   public static final byte AI_GUARD = 13;
-
-  /** Force override sampling decision from external source, like W3C traceparent. */
+  /**
+   * Force override sampling decision from external source, like W3C traceparent.
+   */
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
 
   public static boolean validateWithSamplingPriority(int mechanism, int priority) {
     switch (mechanism) {
       case UNKNOWN:
         return true;
-
       case DEFAULT:
       case AGENT_RATE:
       case REMOTE_AUTO_RATE:
         return priority == SAMPLER_DROP || priority == SAMPLER_KEEP;
-
       case LOCAL_USER_RULE:
       case MANUAL:
       case REMOTE_USER_RATE:
         return priority == USER_DROP || priority == USER_KEEP;
-
       case APPSEC:
         return priority == PrioritySampling.USER_KEEP
             || priority == SAMPLER_DROP
-            || priority == SAMPLER_KEEP; // Necessary for ASM standalone billing
-
+            || priority == SAMPLER_KEEP // Necessary for ASM standalone billing
+        ;
       case DATA_JOBS:
         return priority == PrioritySampling.USER_KEEP;
-
       case EXTERNAL_OVERRIDE:
         return false;
     }
@@ -86,5 +92,6 @@ public class SamplingMechanism {
         || (Config.get().isDataJobsEnabled() && mechanism == DATA_JOBS);
   }
 
-  private SamplingMechanism() {}
+  private SamplingMechanism() {
+  }
 }

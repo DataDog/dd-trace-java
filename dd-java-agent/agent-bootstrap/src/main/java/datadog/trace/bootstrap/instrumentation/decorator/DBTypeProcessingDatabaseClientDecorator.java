@@ -5,8 +5,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public abstract class DBTypeProcessingDatabaseClientDecorator<CONNECTION>
-    extends DatabaseClientDecorator<CONNECTION> {
-
+    extends DatabaseClientDecorator<CONNECTION>
+{
   @Override
   protected void doAfterStart(AgentSpan span) {
     processDatabaseType(span, dbType());

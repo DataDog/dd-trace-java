@@ -14,12 +14,12 @@ public class SqlClientBaseAdvice {
     public static void afterQuery(
         @Advice.This final SqlClient zis,
         @Advice.Argument(0) final String sql,
-        @Advice.Return final Query query) {
-
-      Pair<DBInfo, DBQueryInfo> info =
-          Pair.of(
-              InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
-              DBQueryInfo.ofStatement(sql));
+        @Advice.Return final Query query
+    ) {
+      Pair<DBInfo, DBQueryInfo> info = Pair.of(
+          InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
+          DBQueryInfo.ofStatement(sql)
+      );
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
   }
@@ -29,11 +29,12 @@ public class SqlClientBaseAdvice {
     public static void afterPreparedQuery(
         @Advice.This final SqlClient zis,
         @Advice.Argument(0) final String sql,
-        @Advice.Return final Query query) {
-      Pair<DBInfo, DBQueryInfo> info =
-          Pair.of(
-              InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
-              DBQueryInfo.ofPreparedStatement(sql));
+        @Advice.Return final Query query
+    ) {
+      Pair<DBInfo, DBQueryInfo> info = Pair.of(
+          InstrumentationContext.get(SqlClient.class, DBInfo.class).get(zis),
+          DBQueryInfo.ofPreparedStatement(sql)
+      );
       InstrumentationContext.get(Query.class, Pair.class).put(query, info);
     }
   }

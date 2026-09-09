@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.context.propagation;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
-
 import datadog.opentelemetry.shim.context.OtelContext;
 import datadog.opentelemetry.shim.trace.OtelExtractedContext;
 import datadog.trace.api.TracePropagationStyle;
@@ -22,7 +21,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class AgentTextMapPropagator implements TextMapPropagator {
-
   @Override
   public Collection<String> fields() {
     return PropagationUtils.KNOWN_PROPAGATION_HEADERS;
@@ -43,14 +41,11 @@ public class AgentTextMapPropagator implements TextMapPropagator {
     }
     datadog.context.Context extracted =
         defaultPropagator()
-            .extract(
-                convertContext(context),
-                carrier,
-                (carrier1, classifier) -> {
-                  for (String key : getter.keys(carrier1)) {
-                    classifier.accept(key, getter.get(carrier1, key));
-                  }
-                });
+      .extract(convertContext(context), carrier, (carrier1, classifier) -> {
+        for (String key : getter.keys(carrier1)) {
+          classifier.accept(key, getter.get(carrier1, key));
+        }
+      });
     return new OtelContext(extracted);
   }
 
@@ -75,11 +70,14 @@ public class AgentTextMapPropagator implements TextMapPropagator {
    * @return The extracted tracestate, or an empty tracestate otherwise.
    */
   private static <C> TraceState extractTraceState(
-      Extracted extracted, C carrier, TextMapGetter<C> getter) {
+      Extracted extracted,
+      C carrier,
+      TextMapGetter<C> getter
+  ) {
     String header;
     return extracted instanceof TagContext
-            && TRACECONTEXT.equals(((TagContext) extracted).getPropagationStyle())
-            && (header = getter.get(carrier, "tracestate")) != null
+        && TRACECONTEXT.equals(((TagContext) extracted).getPropagationStyle())
+        && (header = getter.get(carrier, "tracestate")) != null
         ? TraceStateHelper.decodeHeader(header)
         : TraceState.getDefault();
   }

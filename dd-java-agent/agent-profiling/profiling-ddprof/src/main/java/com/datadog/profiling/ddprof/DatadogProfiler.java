@@ -37,7 +37,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
-
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import com.datadoghq.profiler.ContextSetter;
@@ -71,14 +70,10 @@ import org.slf4j.LoggerFactory;
  */
 public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
-
   private static final int[] EMPTY = new int[0];
-
   private static final String OPERATION = "_dd.trace.operation";
   private static final String RESOURCE = "_dd.trace.resource";
-
   private static final int MAX_NUM_ENDPOINTS = 8192;
-
   private final boolean detailedDebugLogging;
 
   /**
@@ -110,28 +105,24 @@ public final class DatadogProfiler {
   private final ConfigProvider configProvider;
   private final JavaProfiler profiler;
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
-
   private final ContextSetter contextSetter;
-
   private final List<String> orderedContextAttributes;
-
   // True for each attribute slot that was configured by the application (e.g. foo, bar).
   // setTraceContext/clearTraceContext reset all custom slots; these app-owned slots are
   // re-applied afterwards via reapplyAppContext().
   private final boolean[] isAppOffset;
-
   private final boolean hasAppContext;
-
   /**
    * Per-thread snapshot of application attribute values. Lazily allocated; only threads that call
    * setContextValue for an app attribute ever allocate. Holds the String value for each slot;
    * reapply resolves each value's encoding through the process-wide value cache.
    */
   private final ThreadLocal<AppContextSnapshot> appContextValues = new ThreadLocal<>();
-
   private final ThreadLocal<ScopeStack> scopeStack = new ThreadLocal<>();
 
-  /** Per-thread stack of pre-allocated save slots for {@link DatadogProfilingScope}. */
+  /**
+   * Per-thread stack of pre-allocated save slots for {@link DatadogProfilingScope}.
+   */
   static final class ScopeStack {
     private final int attrCount;
     AppContextSnapshot[] slots;
@@ -159,7 +150,9 @@ public final class DatadogProfiler {
     }
 
     void release() {
-      if (depth > 0) slots[--depth].reset();
+      if (depth > 0) {
+        slots[--depth].reset();
+      }
     }
   }
 
@@ -186,7 +179,9 @@ public final class DatadogProfiler {
     }
 
     void clear(int offset) {
-      if (strings[offset] != null) nonZeroCount--;
+      if (strings[offset] != null) {
+        nonZeroCount--;
+      }
       strings[offset] = null;
     }
 
@@ -214,21 +209,22 @@ public final class DatadogProfiler {
   }
 
   private final long queueTimeThresholdMillis;
-
   private final Path recordingsPath;
 
   private DatadogProfiler(ConfigProvider configProvider) {
     this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
-    this.detailedDebugLogging =
-        configProvider.getBoolean(
-            PROFILING_DETAILED_DEBUG_LOGGING, PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT);
+    this.detailedDebugLogging = configProvider.getBoolean(
+        PROFILING_DETAILED_DEBUG_LOGGING,
+        PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT
+    );
     Throwable reasonNotLoaded = DdprofLibraryLoader.javaProfiler().getReasonNotLoaded();
     if (reasonNotLoaded != null) {
       throw new UnsupportedOperationException(
-          "Unable to instantiate datadog profiler", reasonNotLoaded);
+          "Unable to instantiate datadog profiler",
+          reasonNotLoaded
+      );
     }
-
     // TODO enable/disable events by name (e.g. datadog.ExecutionSample), not flag, so configuration
     //  can be consistent with JFR event control
     if (isAllocationProfilingEnabled(configProvider)) {
@@ -266,21 +262,24 @@ public final class DatadogProfiler {
     }
     this.isAppOffset = appOffsets;
     this.hasAppContext = anyApp;
-    this.queueTimeThresholdMillis =
-        configProvider.getLong(
-            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
-            PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT);
+    this.queueTimeThresholdMillis = configProvider.getLong(
+        PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
+        PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT
+    );
 
     this.recordingsPath = TempLocationManager.getInstance().getTempDir().resolve("recordings");
     if (!Files.exists(recordingsPath)) {
       try {
         Files.createDirectories(
             recordingsPath,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+        );
       } catch (IOException e) {
         log.warn("Failed to create recordings directory: {}", recordingsPath, e);
         throw new IllegalStateException(
-            "Failed to create recordings directory: " + recordingsPath, e);
+            "Failed to create recordings directory: " + recordingsPath,
+            e
+        );
       }
     }
   }
@@ -296,7 +295,9 @@ public final class DatadogProfiler {
   }
 
   private static List<String> getOrderedContextAttributes(
-      Set<String> contextAttributes, ConfigProvider configProvider) {
+      Set<String> contextAttributes,
+      ConfigProvider configProvider
+  ) {
     List<String> ordered = new ArrayList<>(contextAttributes);
     if (isSpanNameContextAttributeEnabled(configProvider)) {
       ordered.add(OPERATION);
@@ -336,7 +337,9 @@ public final class DatadogProfiler {
     return recording.stop();
   }
 
-  /** A call-back from {@linkplain DatadogProfilerRecording#stop()} */
+  /**
+   * A call-back from {@linkplain DatadogProfilerRecording#stop()}
+   */
   void stopProfiler() {
     if (recordingFlag.compareAndSet(true, false)) {
       profiler.stop();
@@ -399,8 +402,9 @@ public final class DatadogProfiler {
       // be very vocal about messing around with the profiler safemode as it may induce crashes
       log.warn(
           "Datadog profiler safemode is enabled with overridden value {}. "
-              + "This is not recommended and may cause instability and crashes.",
-          safemode);
+          + "This is not recommended and may cause instability and crashes.",
+          safemode
+      );
     }
     StringBuilder cmd = new StringBuilder("start,jfr");
     cmd.append(",file=").append(file.toAbsolutePath());
@@ -413,7 +417,6 @@ public final class DatadogProfiler {
     if (omitLineNumbers(configProvider)) {
       cmd.append(",linenumbers=f");
     }
-
     // Default is true
     if (enableJMethodIDOptim(configProvider)) {
       cmd.append(",fjmethodid=false");
@@ -432,11 +435,11 @@ public final class DatadogProfiler {
       } else {
         // using cpu time schedule
         int interval = getCpuInterval();
-        if (JavaVirtualMachine.isJ9())
-          interval =
-              interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
-                  ? ProfilingConfig.PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT
-                  : interval;
+        if (JavaVirtualMachine.isJ9()) {
+          interval = interval == ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT
+              ? ProfilingConfig.PROFILING_DATADOG_PROFILER_J9_CPU_INTERVAL_DEFAULT
+              : interval;
+        }
         cmd.append(",cpu=").append(interval).append('m');
       }
     }
@@ -467,8 +470,10 @@ public final class DatadogProfiler {
       }
       if (profilingModes.contains(MEMLEAK)) {
         cmd.append(isLiveHeapSizeTrackingEnabled(configProvider) ? 'L' : 'l');
-        cmd.append(':')
-            .append(String.format("%.2f", getLiveHeapSamplePercent(configProvider) / 100.0d));
+        cmd.append(':').append(String.format(
+            "%.2f",
+            getLiveHeapSamplePercent(configProvider) / 100.0d
+        ));
       }
     }
     if (profilingModes.contains(NATIVEMEM)) {
@@ -492,8 +497,9 @@ public final class DatadogProfiler {
     if (!profiler.recordTraceRoot(rootSpanId, endpoint, operation, MAX_NUM_ENDPOINTS)) {
       log.debug(
           "Endpoint event not written because more than {} distinct endpoints have been encountered."
-              + " This avoids excessive memory overhead.",
-          MAX_NUM_ENDPOINTS);
+          + " This avoids excessive memory overhead.",
+          MAX_NUM_ENDPOINTS
+      );
     }
   }
 
@@ -523,7 +529,8 @@ public final class DatadogProfiler {
       int operationOffset,
       CharSequence operationName,
       int resourceOffset,
-      CharSequence resourceName) {
+      CharSequence resourceName
+  ) {
     if (spanId == 0) {
       // The native setTraceContext is the activation path and rejects a zero span with
       // IllegalArgumentException — which the catch below would swallow, leaving the previous
@@ -544,7 +551,8 @@ public final class DatadogProfiler {
           operationOffset,
           operationName,
           resourceOffset,
-          resourceName);
+          resourceName
+      );
     } catch (Throwable e) {
       log.debug("Failed to set trace context", e);
     }
@@ -555,7 +563,9 @@ public final class DatadogProfiler {
     reapplyAppContext(operationOffset, resourceOffset);
   }
 
-  /** Per-deactivation clear; reapplies app-managed attributes afterwards (see setTraceContext). */
+  /**
+   * Per-deactivation clear; reapplies app-managed attributes afterwards (see setTraceContext).
+   */
   public void clearTraceContext() {
     debugLogging(0L);
     try {
@@ -681,7 +691,9 @@ public final class DatadogProfiler {
     }
   }
 
-  /** Clears the per-thread app-context snapshot. Used in tests and internally. */
+  /**
+   * Clears the per-thread app-context snapshot. Used in tests and internally.
+   */
   void clearAppContextSnapshot() {
     appContextValues.remove();
     scopeStack.remove();
@@ -824,7 +836,8 @@ public final class DatadogProfiler {
       Class<?> scheduler,
       Class<?> queueType,
       int queueLength,
-      Thread origin) {
+      Thread origin
+  ) {
     if (profiler != null) {
       // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
       // we avoid doing this unless we are absolutely certain we will record the event
@@ -832,7 +845,14 @@ public final class DatadogProfiler {
       if (taskType != null) {
         long endTicks = profiler.getCurrentTicks();
         profiler.recordQueueTime(
-            startTicks, endTicks, taskType, scheduler, queueType, queueLength, origin);
+            startTicks,
+            endTicks,
+            taskType,
+            scheduler,
+            queueType,
+            queueLength,
+            origin
+        );
       }
     }
   }

@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -28,7 +27,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public LoggingEventInstrumentation() {
     super("logback");
   }
@@ -46,30 +47,31 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     return singletonMap(
-        "ch.qos.logback.classic.spi.ILoggingEvent", AgentSpanContext.class.getName());
+        "ch.qos.logback.classic.spi.ILoggingEvent",
+        AgentSpanContext.class.getName()
+    );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("getMDCPropertyMap").or(named("getMdc"))).and(takesArguments(0)),
-        LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice");
+        LoggingEventInstrumentation.class.getName() + "$GetMdcAdvice"
+    );
   }
 
   public static class GetMdcAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This ILoggingEvent event,
-        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false)
-            Map<String, String> mdc) {
-
+        @Advice.Return(typing = Assigner.Typing.DYNAMIC, readOnly = false) Map<String, String> mdc
+    ) {
       if (mdc instanceof UnionMap) {
         return;
       }
 
       AgentSpanContext context =
           InstrumentationContext.get(ILoggingEvent.class, AgentSpanContext.class).get(event);
-
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
@@ -79,13 +81,15 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
 
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
-        String traceIdValue =
-            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
-                ? traceId.toHexString()
-                : traceId.toString();
+        String traceIdValue = Config.get().isLogs128bitTraceIdEnabled()
+            && traceId.toHighOrderLong() != 0
+            ? traceId.toHexString()
+            : traceId.toString();
         correlationValues.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
         correlationValues.put(
-            CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
+            CorrelationIdentifier.getSpanIdKey(),
+            DDSpanId.toString(context.getSpanId())
+        );
       }
 
       String serviceName = Config.get().getServiceName();

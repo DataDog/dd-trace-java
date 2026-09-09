@@ -4,9 +4,7 @@ import datadog.trace.util.Strings;
 import java.util.Objects;
 
 public final class CommitInfo {
-  public static final CommitInfo NOOP =
-      new CommitInfo(null, PersonInfo.NOOP, PersonInfo.NOOP, null);
-
+  public static final CommitInfo NOOP = new CommitInfo(null, PersonInfo.NOOP, PersonInfo.NOOP, null);
   private final String sha;
   private final PersonInfo author;
   private final PersonInfo committer;
@@ -20,7 +18,8 @@ public final class CommitInfo {
       final String sha,
       final PersonInfo author,
       final PersonInfo committer,
-      final String fullMessage) {
+      final String fullMessage
+  ) {
     this.sha = sha;
     this.author = author;
     this.committer = committer;
@@ -69,7 +68,8 @@ public final class CommitInfo {
         Strings.coalesce(first.sha, second.sha),
         PersonInfo.coalesce(first.author, second.author),
         PersonInfo.coalesce(first.committer, second.committer),
-        Strings.coalesce(first.fullMessage, second.fullMessage));
+        Strings.coalesce(first.fullMessage, second.fullMessage)
+    );
   }
 
   @Override

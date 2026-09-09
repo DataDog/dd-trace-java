@@ -20,25 +20,21 @@ final class SpanLinkJson {
   // above Long.MAX_VALUE.
   @Json(name = "trace_id")
   String traceId;
-
   // The high-order half of a 128-bit trace identifier. Not modeled by DecodedSpanLink, which
   // narrows a trace identifier to its low-order half like the rest of the decoder.
   @Json(name = "trace_id_high")
   String traceIdHigh;
-
   @Json(name = "span_id")
   String spanId;
-
   Integer flags;
-
   String tracestate;
-
   Map<String, String> attributes;
 
   DecodedSpanLink toDecodedSpanLink() {
     if (this.traceId == null || this.spanId == null) {
       throw new IllegalStateException(
-          "JSON span link missing a required field (trace_id, span_id): " + this);
+          "JSON span link missing a required field (trace_id, span_id): " + this
+      );
     }
     try {
       return DecodedSpanLinks.link(
@@ -46,7 +42,8 @@ final class SpanLinkJson {
           Long.parseUnsignedLong(this.spanId),
           this.flags == null ? 0 : (byte) this.flags.intValue(),
           this.tracestate,
-          this.attributes);
+          this.attributes
+      );
     } catch (NumberFormatException e) {
       throw new IllegalStateException("JSON span link with a malformed identifier: " + this, e);
     }

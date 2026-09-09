@@ -14,7 +14,11 @@ public class RetryAnnotationTransformer implements IAnnotationTransformer {
 
   @Override
   public void transform(
-      ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
+      ITestAnnotation annotation,
+      Class testClass,
+      Constructor testConstructor,
+      Method testMethod
+  ) {
     annotation.setRetryAnalyzer(RetryAnalyzer.class);
     if (delegate != null) {
       delegate.transform(annotation, testClass, testConstructor, testMethod);

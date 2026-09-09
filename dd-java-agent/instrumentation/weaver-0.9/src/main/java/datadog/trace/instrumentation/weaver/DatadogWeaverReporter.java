@@ -22,30 +22,28 @@ import weaver.framework.SuiteStarted;
 import weaver.framework.TestFinished;
 
 public class DatadogWeaverReporter {
-
   private static final String TEST_FRAMEWORK = "weaver";
   private static final String TEST_FRAMEWORK_VERSION = WeaverUtils.getWeaverVersion();
+  private static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor> TEST_EVENTS_HANDLER;
 
-  private static volatile TestEventsHandler<TestSuiteDescriptor, TestDescriptor>
-      TEST_EVENTS_HANDLER;
-
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Reporter class not exposed to application code; locking on its Class is safe")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Report"
+      + "er class not exposed to application code; locking on its Class is safe")
   public static synchronized void start() {
     if (TEST_EVENTS_HANDLER == null) {
-      TEST_EVENTS_HANDLER =
-          InstrumentationBridge.createTestEventsHandler(
-              "weaver", null, null, WeaverUtils.CAPABILITIES);
+      TEST_EVENTS_HANDLER = InstrumentationBridge.createTestEventsHandler(
+          "weaver",
+          null,
+          null,
+          WeaverUtils.CAPABILITIES
+      );
     }
   }
 
-  /** Used by instrumentation tests */
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Reporter class not exposed to application code; locking on its Class is safe")
+  /**
+   * Used by instrumentation tests
+   */
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Report"
+      + "er class not exposed to application code; locking on its Class is safe")
   public static synchronized void stop() {
     if (TEST_EVENTS_HANDLER != null) {
       TEST_EVENTS_HANDLER.close();
@@ -81,7 +79,8 @@ public class DatadogWeaverReporter {
         categories,
         parallelized,
         TestFrameworkInstrumentation.WEAVER,
-        null);
+        null
+    );
   }
 
   public static void onSuiteFinish(SuiteFinished event) {
@@ -110,7 +109,6 @@ public class DatadogWeaverReporter {
     String testMethodName = null;
     Method testMethod = null;
     TestExecutionTracker executionTracker = null;
-
     // Only test finish is reported, so fake test start timestamp
     long endMicros = SystemTimeSource.INSTANCE.getCurrentTimeMicros();
     long startMicros = endMicros - testOutcome.duration().toMicros();
@@ -124,14 +122,17 @@ public class DatadogWeaverReporter {
         categories,
         new TestSourceData(testClass, testMethod, testMethodName),
         startMicros,
-        executionTracker);
+        executionTracker
+    );
 
     if (testOutcome.result() != null) {
       // Failed outcomes
       if (WeaverUtils.isResultFailure(testOutcome.result())) {
         Object source =
             WeaverUtils.METHOD_HANDLES.invoke(
-                WeaverUtils.GET_FAILURE_SOURCE_HANDLE, testOutcome.result());
+                WeaverUtils.GET_FAILURE_SOURCE_HANDLE,
+                testOutcome.result()
+        );
         Throwable throwable = WeaverUtils.toThrowable(source);
         TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
       } else if (testOutcome.result() instanceof Result.Failures) {
@@ -145,20 +146,22 @@ public class DatadogWeaverReporter {
         Result.Exception result = (Result.Exception) testOutcome.result();
         Throwable throwable = result.source();
         TEST_EVENTS_HANDLER.onTestFailure(testDescriptor, throwable);
-
         // Skipped outcomes
       } else if (testOutcome.result() instanceof Result.Ignored) {
         Result.Ignored result = (Result.Ignored) testOutcome.result();
-        String reason =
-            WeaverUtils.unwrap(
-                WeaverUtils.METHOD_HANDLES.invoke(
-                    WeaverUtils.GET_IGNORED_REASON_HANDLE, testOutcome.result()),
-                String.class);
+        String reason = WeaverUtils.unwrap(
+            WeaverUtils.METHOD_HANDLES.invoke(
+                WeaverUtils.GET_IGNORED_REASON_HANDLE,
+                testOutcome.result()
+            ),
+            String.class
+        );
         TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason);
       } else if (WeaverUtils.isResultCancelled(testOutcome.result())) {
-        Option<String> reason =
-            WeaverUtils.METHOD_HANDLES.invoke(
-                WeaverUtils.GET_CANCELLED_REASON_HANDLE, testOutcome.result());
+        Option<String> reason = WeaverUtils.METHOD_HANDLES.invoke(
+            WeaverUtils.GET_CANCELLED_REASON_HANDLE,
+            testOutcome.result()
+        );
         TEST_EVENTS_HANDLER.onTestSkip(testDescriptor, reason.getOrElse(null));
       }
     }

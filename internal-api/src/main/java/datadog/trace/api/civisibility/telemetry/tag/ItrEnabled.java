@@ -8,7 +8,6 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
  */
 public enum ItrEnabled implements TagValue {
   TRUE;
-
   @Override
   public String asString() {
     return "itr_enabled:true";

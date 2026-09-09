@@ -1,7 +1,6 @@
 package com.datadog.debugger.uploader;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
-
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
@@ -33,7 +32,9 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Handles batching logic of upload requests sent to the intake */
+/**
+ * Handles batching logic of upload requests sent to the intake
+ */
 public class BatchUploader {
   public static class MultiPartContent {
     private final byte[] content;
@@ -84,7 +85,6 @@ public class BatchUploader {
   static final int TERMINATION_TIMEOUT = 5;
   public static final MediaType APPLICATION_JSON = MediaType.get("application/json");
   public static final MediaType APPLICATION_GZIP = MediaType.get("application/gzip");
-
   private final String name;
   private final String containerId;
   private final String entityId;
@@ -97,7 +97,6 @@ public class BatchUploader {
   private final boolean instrumentTheWorld;
   private final RatelimitedLogger ratelimitedLogger;
   private final RetryPolicy retryPolicy;
-
   private final Phaser inflightRequests = new Phaser(1);
 
   public BatchUploader(String name, Config config, String endpoint, RetryPolicy retryPolicy) {
@@ -106,7 +105,8 @@ public class BatchUploader {
         config,
         endpoint,
         new RatelimitedLogger(LOGGER, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES),
-        retryPolicy);
+        retryPolicy
+    );
   }
 
   BatchUploader(
@@ -114,7 +114,8 @@ public class BatchUploader {
       Config config,
       String endpoint,
       RatelimitedLogger ratelimitedLogger,
-      RetryPolicy retryPolicy) {
+      RetryPolicy retryPolicy
+  ) {
     this(
         name,
         config,
@@ -122,7 +123,8 @@ public class BatchUploader {
         ratelimitedLogger,
         retryPolicy,
         ContainerInfo.get().containerId,
-        ContainerInfo.getEntityId());
+        ContainerInfo.getEntityId()
+    );
   }
 
   @VisibleForTesting
@@ -133,7 +135,8 @@ public class BatchUploader {
       RatelimitedLogger ratelimitedLogger,
       RetryPolicy retryPolicy,
       String containerId,
-      String entityId) {
+      String entityId
+  ) {
     this.name = name;
     instrumentTheWorld = config.getDynamicInstrumentationInstrumentTheWorld() != null;
     if (endpoint == null || endpoint.length() == 0) {
@@ -144,32 +147,43 @@ public class BatchUploader {
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    okHttpExecutorService =
-        new ThreadPoolExecutor(
-            0,
-            Integer.MAX_VALUE,
-            60,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>(),
-            new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
+    okHttpExecutorService = new ThreadPoolExecutor(
+        0,
+        Integer.MAX_VALUE,
+        60,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER)
+    );
     this.retryPolicy = retryPolicy;
     this.containerId = containerId;
     this.entityId = entityId;
     Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
-    client =
-        OkHttpUtils.buildHttpClient(
-            config,
-            new Dispatcher(okHttpExecutorService),
-            urlBase,
-            true, /* retry */
-            MAX_RUNNING_REQUESTS,
-            null, /* proxyHost */
-            null, /* proxyPort */
-            null, /* proxyUsername */
-            null, /* proxyPassword */
-            requestTimeout.toMillis());
-    responseCallback =
-        new ResponseCallback(name, ratelimitedLogger, inflightRequests, client, retryPolicy);
+    client = OkHttpUtils.buildHttpClient(
+        config,
+        new Dispatcher(okHttpExecutorService),
+        urlBase,
+        true,
+        /* retry */
+        MAX_RUNNING_REQUESTS,
+        null,
+        /* proxyHost */
+        null,
+        /* proxyPort */
+        null,
+        /* proxyUsername */
+        null,
+        requestTimeout
+          /* proxyPassword */
+          .toMillis()
+    );
+    responseCallback = new ResponseCallback(
+        name,
+        ratelimitedLogger,
+        inflightRequests,
+        client,
+        retryPolicy
+    );
     debuggerMetrics = DebuggerMetrics.getInstance(config);
   }
 
@@ -213,7 +227,9 @@ public class BatchUploader {
       } else {
         debuggerMetrics.count("request.queue.full", 1);
         ratelimitedLogger.warn(
-            "Cannot upload batch data to {}: too many enqueued requests!", urlBase);
+            "Cannot upload batch data to {}: too many enqueued requests!",
+            urlBase
+        );
       }
     } catch (Exception ex) {
       debuggerMetrics.count("batch.upload.error", 1);
@@ -260,7 +276,8 @@ public class BatchUploader {
         LOGGER.debug(
             "API key length is incorrect (truncated?) expected=32 actual={} API key={}...",
             apiKey.length(),
-            apiKey.substring(0, Math.min(apiKey.length(), 6)));
+            apiKey.substring(0, Math.min(apiKey.length(), 6))
+        );
       }
       requestBuilder.addHeader(HEADER_DD_API_KEY, apiKey);
     } else {
@@ -304,7 +321,8 @@ public class BatchUploader {
       Callback responseCallback,
       RetryPolicy retryPolicy,
       int failureCount,
-      Phaser inflightRequests) {
+      Phaser inflightRequests
+  ) {
     Call call = client.newCall(request);
     retryPolicy.failures.put(call, failureCount);
     call.enqueue(responseCallback);
@@ -312,7 +330,6 @@ public class BatchUploader {
   }
 
   private static final class ResponseCallback implements Callback {
-
     private final String name;
     private final RatelimitedLogger ratelimitedLogger;
     private final Phaser inflightRequests;
@@ -324,7 +341,8 @@ public class BatchUploader {
         final RatelimitedLogger ratelimitedLogger,
         Phaser inflightRequests,
         OkHttpClient client,
-        RetryPolicy retryPolicy) {
+        RetryPolicy retryPolicy
+    ) {
       this.name = name;
       this.ratelimitedLogger = ratelimitedLogger;
       this.inflightRequests = inflightRequests;
@@ -349,14 +367,16 @@ public class BatchUploader {
               name,
               call.request().url(),
               failureCount,
-              maxFailures);
+              maxFailures
+          );
           enqueueCall(client, call.request(), this, retryPolicy, failureCount, inflightRequests);
         } else {
           LOGGER.warn(
               "[{}] Failed permanently to upload batch to {} after {} attempts",
               name,
               call.request().url(),
-              maxFailures);
+              maxFailures
+          );
         }
       }
     }
@@ -377,7 +397,8 @@ public class BatchUploader {
                   "Failed to upload batch: unexpected response code {} {} {}",
                   response.message(),
                   response.code(),
-                  body.string());
+                  body.string()
+              );
             } catch (IOException ex) {
               ratelimitedLogger.warn("error while getting error message body", ex);
             }
@@ -385,7 +406,8 @@ public class BatchUploader {
             ratelimitedLogger.warn(
                 "Failed to upload batch: unexpected response code {} {}",
                 response.message(),
-                response.code());
+                response.code()
+            );
           }
           if (response.code() >= 500 || response.code() == 408 || response.code() == 429) {
             handleRetry(call, retryPolicy.maxFailures);

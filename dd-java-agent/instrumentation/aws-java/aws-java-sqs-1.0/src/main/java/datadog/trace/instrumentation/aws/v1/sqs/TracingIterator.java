@@ -16,7 +16,6 @@ import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.SQS_INBOUND_
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.SQS_TIME_IN_QUEUE_OPERATION;
 import static datadog.trace.instrumentation.aws.v1.sqs.SqsDecorator.TIME_IN_QUEUE_ENABLED;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import com.amazonaws.services.sqs.model.Message;
 import datadog.context.Context;
 import datadog.trace.api.Config;
@@ -31,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 public class TracingIterator<L extends Iterator<Message>> implements Iterator<Message> {
   private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
-
   protected final L delegate;
   private final String queueUrl;
   private AgentSpanContext batchContext;
@@ -69,7 +67,8 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(true);
-      } else if (message == null) { // previous message span was the last
+      } else if (message == null) {
+        // previous message span was the last
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
           previousSpan.finishWithEndToEnd();
@@ -79,20 +78,19 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
         AgentSpan queueSpan = null;
         if (batchContext == null) {
           // first grab any incoming distributed context
-          AgentSpanContext spanContext =
-              Config.get().isSqsPropagationEnabled()
-                  ? extractContextAndGetSpanContext(message, GETTER)
-                  : null;
+          AgentSpanContext spanContext = Config.get().isSqsPropagationEnabled()
+              ? extractContextAndGetSpanContext(message, GETTER)
+              : null;
           // next add a time-in-queue span for non-legacy SQS traces
           if (TIME_IN_QUEUE_ENABLED) {
             long timeInQueueStart = GETTER.extractTimeInQueueStart(message);
             if (timeInQueueStart > 0) {
-              queueSpan =
-                  startSpan(
-                      COMPONENT_NAME.toString(),
-                      SQS_TIME_IN_QUEUE_OPERATION,
-                      spanContext,
-                      MILLISECONDS.toMicros(timeInQueueStart));
+              queueSpan = startSpan(
+                  COMPONENT_NAME.toString(),
+                  SQS_TIME_IN_QUEUE_OPERATION,
+                  spanContext,
+                  MILLISECONDS.toMicros(timeInQueueStart)
+              );
               BROKER_DECORATE.afterStart(queueSpan);
               BROKER_DECORATE.onTimeInQueue(queueSpan, queueUrl);
               spanContext = queueSpan.spanContext();

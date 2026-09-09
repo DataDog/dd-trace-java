@@ -4,7 +4,6 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 public abstract class AbstractStackWalker implements StackWalker {
-
   @Override
   public <T> T walk(Function<Stream<StackTraceElement>, T> consumer) {
     return doGetStack(input -> consumer.apply(doFilterStack(input)));

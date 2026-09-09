@@ -24,7 +24,6 @@ import scala.collection.immutable.Map;
 import scala.collection.immutable.Set;
 
 public class RunContext {
-
   private static final ConcurrentMap<Integer, RunContext> CONTEXTS = new ConcurrentHashMap<>();
 
   public static RunContext getOrCreate(int runStamp) {
@@ -43,11 +42,12 @@ public class RunContext {
   }
 
   private final int runStamp;
-
-  private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler =
-      InstrumentationBridge.createTestEventsHandler(
-          "scalatest", null, null, ScalatestUtils.CAPABILITIES);
-
+  private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = InstrumentationBridge.createTestEventsHandler(
+      "scalatest",
+      null,
+      null,
+      ScalatestUtils.CAPABILITIES
+  );
   private final java.util.Map<TestIdentifier, SkipReason> skipReasonByTest =
       new ConcurrentHashMap<>();
   private final java.util.Map<TestIdentifier, Collection<String>> tagsByTest =
@@ -73,8 +73,8 @@ public class RunContext {
 
   public boolean itrUnskippable(TestIdentifier test) {
     return tagsByTest
-        .getOrDefault(test, Collections.emptyList())
-        .contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
+      .getOrDefault(test, Collections.emptyList())
+      .contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG);
   }
 
   public Collection<String> tags(TestIdentifier test) {
@@ -84,7 +84,8 @@ public class RunContext {
   public void populateTags(
       String suiteId,
       Map<String, Set<String>> tags,
-      scala.collection.immutable.List<Tuple2<String, Boolean>> namesAndSkipStatuses) {
+      scala.collection.immutable.List<Tuple2<String, Boolean>> namesAndSkipStatuses
+  ) {
     Iterator<Tuple2<String, Boolean>> it = namesAndSkipStatuses.iterator();
     while (it.hasNext()) {
       Tuple2<String, Boolean> nameAndSkipStatus = it.next();
@@ -96,7 +97,8 @@ public class RunContext {
 
   public scala.collection.immutable.List<Tuple2<String, Boolean>> skip(
       String suiteId,
-      scala.collection.immutable.List<Tuple2<String, Boolean>> namesAndSkipStatuses) {
+      scala.collection.immutable.List<Tuple2<String, Boolean>> namesAndSkipStatuses
+  ) {
     java.util.List<Tuple2<String, Boolean>> modifiedNamesAndSkipStatuses =
         new ArrayList<>(namesAndSkipStatuses.size());
     Iterator<Tuple2<String, Boolean>> it = namesAndSkipStatuses.iterator();
@@ -108,9 +110,12 @@ public class RunContext {
   }
 
   private Tuple2<String, Boolean> skip(
-      String suiteId, Tuple2<String, Boolean> testNameAndSkipStatus) {
+      String suiteId,
+      Tuple2<String, Boolean> testNameAndSkipStatus
+  ) {
     if (testNameAndSkipStatus._2()) {
-      return testNameAndSkipStatus; // test already skipped
+      // test already skipped
+      return testNameAndSkipStatus;
     }
 
     String testName = testNameAndSkipStatus._1();
@@ -152,9 +157,15 @@ public class RunContext {
   }
 
   public TestExecutionPolicy getOrCreateExecutionPolicy(
-      TestIdentifier testIdentifier, TestSourceData testSourceData, Collection<String> testTags) {
-    return executionPolicies.computeIfAbsent(
-        testIdentifier, test -> eventHandler.executionPolicy(test, testSourceData, testTags));
+      TestIdentifier testIdentifier,
+      TestSourceData testSourceData,
+      Collection<String> testTags
+  ) {
+    return executionPolicies.computeIfAbsent(testIdentifier, test -> eventHandler.executionPolicy(
+        test,
+        testSourceData,
+        testTags
+    ));
   }
 
   @Nullable
@@ -165,12 +176,10 @@ public class RunContext {
   @Nullable
   public TestExecutionTracker popExecutionTracker(TestIdentifier testIdentifier) {
     TestExecutionPolicy[] holder = new TestExecutionPolicy[1];
-    executionPolicies.computeIfPresent(
-        testIdentifier,
-        (ti, policy) -> {
-          holder[0] = policy;
-          return policy.applicable() ? policy : null;
-        });
+    executionPolicies.computeIfPresent(testIdentifier, (ti, policy) -> {
+      holder[0] = policy;
+      return policy.applicable() ? policy : null;
+    });
     return holder[0];
   }
 

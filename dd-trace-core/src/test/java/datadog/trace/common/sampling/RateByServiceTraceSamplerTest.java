@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.common.writer.ListWriter;
@@ -28,8 +27,9 @@ import org.tabletest.junit.TypeConverterSources;
 
 @TypeConverterSources(TableTestTypeConverters.class)
 class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
-
-  /** Build a rate_by_service response map from a single entry (the fallback key). */
+  /**
+   * Build a rate_by_service response map from a single entry (the fallback key).
+   */
   private static Map<String, Map<String, Number>> rateResponse(String key, Number rate) {
     Map<String, Number> byService = new HashMap<>();
     byService.put(key, rate);
@@ -38,7 +38,9 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     return response;
   }
 
-  /** Build a rate_by_service response map from multiple entries preserving insertion order. */
+  /**
+   * Build a rate_by_service response map from multiple entries preserving insertion order.
+   */
   private static Map<String, Map<String, Number>> rateResponse(String[][] entries) {
     Map<String, Number> byService = new LinkedHashMap<>();
     for (String[] entry : entries) {
@@ -85,10 +87,9 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     serviceSampler.onResponse(
         "traces",
         rateResponse(
-            new String[][] {
-              {"service:foo,env:bar", "0.8"},
-              {"service:,env:", "0.20"}
-            }));
+            new String[][] {{"service:foo,env:bar", "0.8"}, {"service:,env:", "0.20"}}
+        )
+    );
 
     double sampleRate = serviceSampler.sampleRateFor(env, service);
     assertTrue(sampleRate > expectedRate - 0.01);
@@ -112,11 +113,13 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
         "traces",
         rateResponse(
             new String[][] {
-              {"service:foo,env:bar", "0.8"},
-              {"service:FOO,env:BAR", "0.2"},
-              {"service:FOO,env:BAZ", "0.3"},
-              {"service:quux,env:BAZ", "0.4"}
-            }));
+            {"service:foo,env:bar", "0.8"},
+            {"service:FOO,env:BAR", "0.2"},
+            {"service:FOO,env:BAZ", "0.3"},
+            {"service:quux,env:BAZ", "0.4"}
+            }
+        )
+    );
 
     double sampleRate = serviceSampler.sampleRateFor(env, service);
     assertTrue(sampleRate > expectedRate - 0.01);
@@ -130,35 +133,32 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     try {
       serviceSampler.onResponse("traces", rateResponse("service:spock,env:test", 0.0));
-      DDSpan span1 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("foo")
-                  .withTag("env", "bar")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span1 = (DDSpan) tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("foo")
+        .withTag("env", "bar")
+        .ignoreActiveSpan()
+        .start();
       serviceSampler.setSamplingPriority(span1);
 
       assertEquals(SAMPLER_KEEP, span1.getSamplingPriority());
       assertTrue(serviceSampler.sample(span1));
-
       // case-insensitive equivalence - undefined in spec, but implemented as first one wins
       serviceSampler.onResponse(
           "traces",
           rateResponse(
               new String[][] {
-                {"service:spock,env:test", "1.0"},
-                {"service:SPOCK,env:Test", "0.0"}
-              }));
-      DDSpan span2 =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("spock")
-                  .withTag("env", "test")
-                  .ignoreActiveSpan()
-                  .start();
+              {"service:spock,env:test", "1.0"},
+              {"service:SPOCK,env:Test", "0.0"}
+              }
+          )
+      );
+      DDSpan span2 = (DDSpan) tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("spock")
+        .withTag("env", "test")
+        .ignoreActiveSpan()
+        .start();
       serviceSampler.setSamplingPriority(span2);
 
       assertEquals(SAMPLER_KEEP, span2.getSamplingPriority());
@@ -174,14 +174,12 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
       serviceSampler.onResponse("traces", rateResponse("service:spock,env:test", 1.0));
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("SPOCK")
-                  .withTag("env", "Test")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("SPOCK")
+        .withTag("env", "Test")
+        .ignoreActiveSpan()
+        .start();
       serviceSampler.setSamplingPriority(span);
 
       assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
@@ -197,16 +195,13 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     serviceSampler.onResponse("traces", rateResponse("service:,env:", 1.0));
     try {
-      DDSpan span =
-          (DDSpan)
-              tracer
-                  .buildSpan("datadog", "fakeOperation")
-                  .withServiceName("spock")
-                  .withTag("env", "test")
-                  .ignoreActiveSpan()
-                  .start();
+      DDSpan span = (DDSpan) tracer
+        .buildSpan("datadog", "fakeOperation")
+        .withServiceName("spock")
+        .withTag("env", "test")
+        .ignoreActiveSpan()
+        .start();
       serviceSampler.setSamplingPriority(span);
-
       // sets correctly on root span
       assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
       // RateByServiceSampler must not set the sample rate
@@ -225,10 +220,9 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
       sampler.onResponse(
           "test",
           rateResponse(
-              new String[][] {
-                {"service:,env:", "1.0"},
-                {"service:spock,env:", "0.0"}
-              }));
+              new String[][] {{"service:,env:", "1.0"}, {"service:spock,env:", "0.0"}}
+          )
+      );
 
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
 
@@ -240,9 +234,10 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
       writer.waitForTraces(1);
       assertEquals(SAMPLER_DROP, span.getSamplingPriority());
 
-      span =
-          (DDSpan)
-              tracer.buildSpan("datadog", "test").withTag(DDTags.SERVICE_NAME, "spock").start();
+      span = (DDSpan) tracer
+        .buildSpan("datadog", "test")
+        .withTag(DDTags.SERVICE_NAME, "spock")
+        .start();
       span.finish();
       writer.waitForTraces(2);
 
@@ -260,7 +255,8 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
   void settingForcedTracingViaTag(
       String tagName,
       boolean tagValue,
-      @ConvertWith(PrioritySamplingConverter.class) int expectedPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) int expectedPriority
+  ) {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
     CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
     try {
@@ -278,7 +274,8 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
   void shouldCapReturnsFalseWhenRateDecreasesOrStaysSame() {
     assertFalse(RateByServiceTraceSampler.shouldCap(0.8, 0.4));
     assertFalse(RateByServiceTraceSampler.shouldCap(0.5, 0.5));
-    assertFalse(RateByServiceTraceSampler.shouldCap(0.5, 1.0)); // 1.0 <= 0.5 * 2, no cap needed
+    // 1.0 <= 0.5 * 2, no cap needed
+    assertFalse(RateByServiceTraceSampler.shouldCap(0.5, 1.0));
   }
 
   @Test
@@ -307,44 +304,40 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     time.set(1_000_000_000L);
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time);
     double tolerance = 0.01;
-
     // Set initial rate to 0.1
     serviceSampler.onResponse(
         "traces",
-        rateResponse(new String[][] {{"service:foo,env:bar", "0.1"}, {"service:,env:", "0.1"}}));
+        rateResponse(
+            new String[][] {{"service:foo,env:bar", "0.1"}, {"service:,env:", "0.1"}}
+        )
+    );
 
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.1) < tolerance);
-
     // agent restart sends rate 1.0, first interval
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS);
     Map<String, Map<String, Number>> highRateResponse =
-        rateResponse(new String[][] {{"service:foo,env:bar", "1.0"}, {"service:,env:", "1.0"}});
+        rateResponse(
+            new String[][] {{"service:foo,env:bar", "1.0"}, {"service:,env:", "1.0"}}
+    );
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate is capped at 2x = 0.2
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.2) < tolerance);
     assertTrue(Math.abs(serviceSampler.fallbackSampleRate() - 0.2) < tolerance);
-
     // second interval
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate doubles to 0.4
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.4) < tolerance);
     assertTrue(Math.abs(serviceSampler.fallbackSampleRate() - 0.4) < tolerance);
-
     // third interval
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate doubles to 0.8
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.8) < tolerance);
     assertTrue(Math.abs(serviceSampler.fallbackSampleRate() - 0.8) < tolerance);
-
     // fourth interval
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate reaches target 1.0 (2x=1.6 > 1.0)
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 1.0) < tolerance);
     assertTrue(Math.abs(serviceSampler.fallbackSampleRate() - 1.0) < tolerance);
@@ -356,17 +349,20 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     time.set(1_000_000_000L);
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time);
     double tolerance = 0.01;
-
     // Set initial rate to 0.8
     serviceSampler.onResponse(
         "traces",
-        rateResponse(new String[][] {{"service:foo,env:bar", "0.8"}, {"service:,env:", "0.8"}}));
-
+        rateResponse(
+            new String[][] {{"service:foo,env:bar", "0.8"}, {"service:,env:", "0.8"}}
+        )
+    );
     // rate decreases to 0.2
     serviceSampler.onResponse(
         "traces",
-        rateResponse(new String[][] {{"service:foo,env:bar", "0.2"}, {"service:,env:", "0.2"}}));
-
+        rateResponse(
+            new String[][] {{"service:foo,env:bar", "0.2"}, {"service:,env:", "0.2"}}
+        )
+    );
     // decrease is applied immediately
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.2) < tolerance);
     assertTrue(Math.abs(serviceSampler.fallbackSampleRate() - 0.2) < tolerance);
@@ -379,27 +375,20 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time);
     double tolerance = 0.01;
     Map<String, Map<String, Number>> highRateResponse = rateResponse("service:foo,env:bar", 1.0);
-
     // Set initial rate to 0.1
     serviceSampler.onResponse("traces", rateResponse("service:foo,env:bar", 0.1));
-
     // rate jumps, first capped increase
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // capped to 0.2
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.2) < tolerance);
-
     // try again immediately (within cooldown)
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate stays at 0.2 because cooldown hasn't elapsed
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.2) < tolerance);
-
     // after cooldown elapsed
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate doubles to 0.4
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.4) < tolerance);
   }
@@ -411,30 +400,23 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler(time);
     double tolerance = 0.01;
     Map<String, Map<String, Number>> highRateResponse = rateResponse("service:foo,env:bar", 1.0);
-
     // Set initial low rate
     serviceSampler.onResponse("traces", rateResponse("service:foo,env:bar", 0.01));
 
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.01) < tolerance);
-
     // wait for cooldown, apply increase: 0.01 -> 0.02
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate is capped at 2x = 0.02
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.02) < tolerance);
-
     // before cooldown elapses, send another increase - rate should be held and lastCapped NOT reset
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate stays at 0.02 (cooldown)
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.02) < tolerance);
-
     // wait remaining half of cooldown from the original cap - should allow next ramp-up
     time.advance(RateByServiceTraceSampler.RAMP_UP_INTERVAL_NANOS / 2);
     serviceSampler.onResponse("traces", highRateResponse);
-
     // rate doubles to 0.04 because lastCapped was NOT reset by the blocked increase
     assertTrue(Math.abs(serviceSampler.sampleRateFor("bar", "foo") - 0.04) < tolerance);
   }
@@ -448,7 +430,9 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     "manual.keep 1     | manual.keep | 1       "
   })
   void notSettingForcedTracingViaTagOrSettingItWrongValueNotCausingException(
-      String tagName, @ConvertWith(BoxedValueConverter.class) Object tagValue) {
+      String tagName,
+      @ConvertWith(BoxedValueConverter.class) Object tagValue
+  ) {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
     CoreTracer tracer = tracerBuilder().writer(new LoggingWriter()).sampler(sampler).build();
     try {

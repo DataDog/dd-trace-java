@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -11,8 +10,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class Dbcp2PerUserPoolDataSourceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public Dbcp2PerUserPoolDataSourceInstrumentation() {
     super("jdbc", "dbcp2");
   }
@@ -25,8 +25,10 @@ public final class Dbcp2PerUserPoolDataSourceInstrumentation extends Instrumente
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.commons.dbcp2.datasources.PerUserPoolDataSource", // standalone
-      "org.apache.tomcat.dbcp.dbcp2.datasources.PerUserPoolDataSource" // bundled with Tomcat
+        // standalone
+        "org.apache.commons.dbcp2.datasources.PerUserPoolDataSource",
+        // bundled with Tomcat
+        "org.apache.tomcat.dbcp.dbcp2.datasources.PerUserPoolDataSource"
     };
   }
 
@@ -39,8 +41,8 @@ public final class Dbcp2PerUserPoolDataSourceInstrumentation extends Instrumente
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getPooledConnectionAndInfo"),
-        Dbcp2PerUserPoolDataSourceInstrumentation.class.getName()
-            + "$GetPooledConnectionAndInfoAdvice");
+        Dbcp2PerUserPoolDataSourceInstrumentation.class.getName() + "$GetPooledConnectionAndInfoAdvice"
+    );
   }
 
   public static class GetPooledConnectionAndInfoAdvice {

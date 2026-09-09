@@ -6,7 +6,6 @@ import datadog.trace.api.iast.sink.SsrfModule;
 import javax.annotation.Nullable;
 
 public class SsrfModuleImpl extends SinkModuleBase implements SsrfModule {
-
   public SsrfModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }

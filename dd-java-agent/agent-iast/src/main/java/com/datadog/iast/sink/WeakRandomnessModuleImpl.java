@@ -8,7 +8,6 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public class WeakRandomnessModuleImpl extends SinkModuleBase implements WeakRandomnessModule {
-
   public WeakRandomnessModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }

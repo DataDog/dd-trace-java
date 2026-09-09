@@ -7,7 +7,8 @@ public interface DDSpanHelper {
   static DDSpan create(
       @Nonnull String instrumentationName,
       final long timestampMicro,
-      @Nonnull DDSpanContext context) {
+      @Nonnull DDSpanContext context
+  ) {
     return DDSpan.create(instrumentationName, timestampMicro, context, null);
   }
 

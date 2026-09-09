@@ -17,7 +17,6 @@ import java.util.function.Supplier;
  */
 public final class RemoteConfig {
   private static final double DEFAULT_TIMEOUT_SECONDS = 30;
-
   private final BiConsumer<String, String> setter;
   private final Supplier<List<Map<String, Object>>> requests;
 
@@ -68,19 +67,19 @@ public final class RemoteConfig {
    * @throws AssertionError If no matching request arrives before the timeout.
    */
   public Map<String, Object> waitForRequest(
-      Predicate<Map<String, Object>> predicate, double timeoutSeconds) {
+      Predicate<Map<String, Object>> predicate,
+      double timeoutSeconds
+  ) {
     AtomicReference<Map<String, Object>> match = new AtomicReference<>();
-    new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              for (Map<String, Object> request : requests()) {
-                if (predicate.test(request)) {
-                  match.set(request);
-                  return;
-                }
-              }
-              throw new AssertionError("No remote-config poll request matched yet");
-            });
+    new PollingConditions(timeoutSeconds).eventually(() -> {
+      for (Map<String, Object> request : requests()) {
+        if (predicate.test(request)) {
+          match.set(request);
+          return;
+        }
+      }
+      throw new AssertionError("No remote-config poll request matched yet");
+    });
     return match.get();
   }
 

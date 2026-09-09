@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class NoOpSourcePathResolver implements SourcePathResolver {
-
   public static final SourcePathResolver INSTANCE = new NoOpSourcePathResolver();
 
   @Override

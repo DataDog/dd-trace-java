@@ -4,7 +4,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
-
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
@@ -31,7 +30,8 @@ public final class DecodedSpanLinks {
   private static final JsonAdapter<List<SpanLinkJson>> ADAPTER =
       new Moshi.Builder().build().adapter(LIST_OF_LINKS);
 
-  private DecodedSpanLinks() {}
+  private DecodedSpanLinks() {
+  }
 
   /**
    * Decodes the value of meta tags.
@@ -80,14 +80,16 @@ public final class DecodedSpanLinks {
       long spanId,
       byte traceFlags,
       String traceState,
-      Map<String, String> attributes) {
+      Map<String, String> attributes
+  ) {
     return new SpanLink(traceId, spanId, traceFlags, traceState, attributes);
   }
 
   private static DecodedSpanLink toLink(SpanLinkJson rawLink, String tagValue) {
     if (rawLink.traceId == null || rawLink.spanId == null) {
       throw new IllegalStateException(
-          "Span link missing a required field (trace_id, span_id): " + tagValue);
+          "Span link missing a required field (trace_id, span_id): " + tagValue
+      );
     }
     try {
       return new SpanLink(
@@ -95,7 +97,8 @@ public final class DecodedSpanLinks {
           Long.parseUnsignedLong(rawLink.spanId, 16),
           rawLink.flags == null ? 0 : (byte) rawLink.flags.intValue(),
           rawLink.traceState,
-          rawLink.attributes);
+          rawLink.attributes
+      );
     } catch (NumberFormatException e) {
       throw new IllegalStateException("Span link with a malformed identifier: " + tagValue, e);
     }
@@ -111,20 +114,18 @@ public final class DecodedSpanLinks {
         : traceId;
   }
 
-  /** The serialized shape of a single link, as the tracer's {@code DDSpanLink} writes it. */
+  /**
+   * The serialized shape of a single link, as the tracer's {@code DDSpanLink} writes it.
+   */
   private static final class SpanLinkJson {
     @Json(name = "trace_id")
     String traceId;
-
     @Json(name = "span_id")
     String spanId;
-
     // Read as an Integer, then narrowed, mirroring how the tracer writes `traceFlags() & 0xFF`.
     Integer flags;
-
     @Json(name = "tracestate")
     String traceState;
-
     Map<String, String> attributes;
   }
 
@@ -140,15 +141,15 @@ public final class DecodedSpanLinks {
         long spanId,
         byte traceFlags,
         String traceState,
-        Map<String, String> attributes) {
+        Map<String, String> attributes
+    ) {
       this.traceId = traceId;
       this.spanId = spanId;
       this.traceFlags = traceFlags;
       this.traceState = traceState == null ? "" : traceState;
-      this.attributes =
-          attributes == null || attributes.isEmpty()
-              ? emptyMap()
-              : unmodifiableMap(new HashMap<>(attributes));
+      this.attributes = attributes == null || attributes.isEmpty()
+          ? emptyMap()
+          : unmodifiableMap(new HashMap<>(attributes));
     }
 
     @Override

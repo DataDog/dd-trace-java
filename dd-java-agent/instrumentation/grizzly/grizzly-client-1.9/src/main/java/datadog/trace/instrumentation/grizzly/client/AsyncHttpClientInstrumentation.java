@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.grizzly.client.ClientDecorator.HTTP_
 import static datadog.trace.instrumentation.grizzly.client.InjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.ning.http.client.AsyncHandler;
 import com.ning.http.client.Request;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -21,8 +20,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 public final class AsyncHttpClientInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.ning.http.client.AsyncHttpClient";
@@ -32,19 +32,20 @@ public final class AsyncHttpClientInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         named("executeRequest")
-            .and(takesArgument(0, named("com.ning.http.client.Request")))
-            .and(takesArgument(1, named("com.ning.http.client.AsyncHandler")))
-            .and(isPublic()),
+          .and(takesArgument(0, named("com.ning.http.client.Request")))
+          .and(takesArgument(1, named("com.ning.http.client.AsyncHandler")))
+          .and(isPublic()),
         getClass().getName() + "$ExecuteRequest",
-        getClass().getName() + "$ExecuteContextPropagationAdvice");
+        getClass().getName() + "$ExecuteContextPropagationAdvice"
+    );
   }
 
   public static class ExecuteRequest {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final Request request,
-        @Advice.Argument(value = 1, readOnly = false) AsyncHandler<?> handler) {
+        @Advice.Argument(value = 1, readOnly = false) AsyncHandler<?> handler
+    ) {
       AgentSpan parentSpan = activeSpan();
       AgentSpan span = startSpan("grizzly-http-async-client", HTTP_REQUEST);
       DECORATE.afterStart(span);
@@ -55,7 +56,9 @@ public final class AsyncHttpClientInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

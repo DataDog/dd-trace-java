@@ -25,39 +25,40 @@ public abstract class AbstractSparkPlanSerializer {
   private final int MAX_DEPTH = 4;
   private final int MAX_LENGTH = 50;
   private final ObjectMapper mapper = AbstractDatadogSparkListener.objectMapper;
-
   private final String SPARK_PKG_NAME = "org.apache.spark";
   private final Set<String> SAFE_PARSE_TRAVERSE =
       Collections.singleton(SPARK_PKG_NAME + ".sql.catalyst.plans.physical.Partitioning");
-  private final Set<String> SAFE_PARSE_STRING =
-      new HashSet<>(
-          Arrays.asList(
-              SPARK_PKG_NAME + ".Partitioner", // not a product or TreeNode
-              SPARK_PKG_NAME
-                  + ".sql.catalyst.expressions.Attribute", // avoid data type added by simpleString
-              SPARK_PKG_NAME + ".sql.catalyst.optimizer.BuildSide", // enum (v3+)
-              SPARK_PKG_NAME + ".sql.catalyst.plans.JoinType", // enum
-              SPARK_PKG_NAME
-                  + ".sql.catalyst.plans.physical.BroadcastMode", // not a product or TreeNode
-              SPARK_PKG_NAME
-                  + ".sql.execution.ShufflePartitionSpec", // not a product or TreeNode (v3+)
-              SPARK_PKG_NAME + ".sql.execution.exchange.ShuffleOrigin" // enum (v3+)
-              ));
-
+  private final Set<String> SAFE_PARSE_STRING = new HashSet<>(Arrays.asList(
+      // not a product or TreeNode
+      SPARK_PKG_NAME + ".Partitioner",
+      SPARK_PKG_NAME
+      + ".sql.catalyst.expressions.Attribute" // avoid data type added by simpleString
+      ,
+      // enum (v3+)
+      SPARK_PKG_NAME + ".sql.catalyst.optimizer.BuildSide",
+      // enum
+      SPARK_PKG_NAME + ".sql.catalyst.plans.JoinType",
+      SPARK_PKG_NAME
+      + ".sql.catalyst.plans.physical.BroadcastMode" // not a product or TreeNode
+      ,
+      SPARK_PKG_NAME
+      + ".sql.execution.ShufflePartitionSpec" // not a product or TreeNode (v3+)
+      ,
+      // enum (v3+)
+      SPARK_PKG_NAME + ".sql.execution.exchange.ShuffleOrigin"
+  ));
   // Add class here if we want to break inheritance and interface traversal early when we see
   // this class. In other words, we explicitly do not match these classes or their parents
-  private final Set<String> NEGATIVE_CACHE =
-      new HashSet<>(
-          Arrays.asList(
-              "java.io.Serializable",
-              "java.lang.Object",
-              "scala.Equals",
-              "scala.Product",
-              SPARK_PKG_NAME + ".sql.catalyst.InternalRow",
-              SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
-              SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
-              SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"));
-
+  private final Set<String> NEGATIVE_CACHE = new HashSet<>(Arrays.asList(
+      "java.io.Serializable",
+      "java.lang.Object",
+      "scala.Equals",
+      "scala.Product",
+      SPARK_PKG_NAME + ".sql.catalyst.InternalRow",
+      SPARK_PKG_NAME + ".sql.catalyst.expressions.UnaryExpression",
+      SPARK_PKG_NAME + ".sql.catalyst.expressions.Unevaluable",
+      SPARK_PKG_NAME + ".sql.catalyst.trees.TreeNode"
+  ));
   private final MethodHandles methodLoader = new MethodHandles(ClassLoader.getSystemClassLoader());
   private final MethodHandle getSimpleString =
       methodLoader.method(TreeNode.class, "simpleString", int.class);
@@ -68,11 +69,9 @@ public abstract class AbstractSparkPlanSerializer {
 
   public Map<String, String> extractFormattedProduct(SparkPlan plan) {
     HashMap<String, String> result = new HashMap<>();
-    safeParseTreeNode(plan, 0)
-        .forEach(
-            (key, value) -> {
-              result.put(key, writeObjectToString(value));
-            });
+    safeParseTreeNode(plan, 0).forEach((key, value) -> {
+      result.put(key, writeObjectToString(value));
+    });
     return result;
   }
 
@@ -81,8 +80,7 @@ public abstract class AbstractSparkPlanSerializer {
     HashMap<String, String> unparsed = new HashMap<>();
 
     int i = 0;
-    for (Iterator<Object> it = JavaConverters.asJavaIterator(node.productIterator());
-        it.hasNext(); ) {
+    for (Iterator<Object> it = JavaConverters.asJavaIterator(node.productIterator()); it.hasNext(); ) {
       Object obj = it.next();
 
       Object val = safeParseObjectToJson(obj, depth);
@@ -115,7 +113,6 @@ public abstract class AbstractSparkPlanSerializer {
     // This function MUST not arbitrarily serialize the object as we can't be sure what it is.
     // A null return indicates object is unserializable, otherwise it should really only return
     // valid JSON types (Array, Map, String, Boolean, Number, null)
-
     if (value == null) {
       return "null";
     } else if (value instanceof String || value instanceof Boolean || value instanceof Number) {
@@ -140,7 +137,9 @@ public abstract class AbstractSparkPlanSerializer {
       if (value instanceof TreeNode && depth < MAX_DEPTH) {
         HashMap<String, Object> inner = new HashMap<>();
         inner.put(
-            value.getClass().getSimpleName(), safeParseTreeNode(((TreeNode) value), depth + 1));
+            value.getClass().getSimpleName(),
+            safeParseTreeNode(((TreeNode) value), depth + 1)
+        );
         return inner;
       } else {
         return value.toString();
@@ -180,7 +179,6 @@ public abstract class AbstractSparkPlanSerializer {
     if (classOrInterfaceInstanceOf(value.getClass(), expectedClasses, negativeCache)) {
       return true;
     }
-
     // Traverse up inheritance tree to check for matches
     int lim = 0;
     Class currClass = value.getClass();
@@ -203,12 +201,14 @@ public abstract class AbstractSparkPlanSerializer {
   // of the interfaces it implements matches a class in `expectedClasses`. Will not
   // attempt to match any classes identified in `negativeCache`.
   private boolean classOrInterfaceInstanceOf(
-      Class cls, Set<String> expectedClasses, Set<String> negativeCache) {
+      Class cls,
+      Set<String> expectedClasses,
+      Set<String> negativeCache
+  ) {
     // Match on strings to avoid class loading errors
     if (expectedClasses.contains(cls.getName())) {
       return true;
     }
-
     // Check interfaces as well
     for (Class interfaceClass : cls.getInterfaces()) {
       if (!negativeCache.contains(interfaceClass.getName())

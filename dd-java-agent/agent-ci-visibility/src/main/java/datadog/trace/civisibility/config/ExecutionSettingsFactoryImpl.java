@@ -36,27 +36,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutionSettingsFactoryImpl.class);
-
   private static final String TEST_CONFIGURATION_TAG_PREFIX = "test.configuration.";
-
   private static final ThreadFactory THREAD_FACTORY = r -> new Thread(null, r, "dd-ci-vis-config");
-
   /**
    * A workaround for bulk-requesting module settings. For any module that has no settings that are
    * exclusive to it (i.e. that has no skippable/flaky/known tests), the settings will be under this
    * key in the resulting map.
    */
   static final String DEFAULT_SETTINGS = "<DEFAULT>";
-
   private final Config config;
   private final ConfigurationApi configurationApi;
   private final GitClient gitClient;
   private final GitRepoUnshallow gitRepoUnshallow;
   private final GitDataUploader gitDataUploader;
   private final PullRequestInfo pullRequestInfo;
-  @Nullable private final String repositoryRoot;
+  @Nullable
+  private final String repositoryRoot;
 
   public ExecutionSettingsFactoryImpl(
       Config config,
@@ -65,7 +61,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
-      @Nullable String repositoryRoot) {
+      @Nullable String repositoryRoot
+  ) {
     this.config = config;
     this.configurationApi = configurationApi;
     this.gitClient = gitClient;
@@ -106,21 +103,21 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     CiVisibilityWellKnownTags wellKnownTags = config.getCiVisibilityWellKnownTags();
     return builder
-        .service(config.getServiceName())
-        .env(config.getEnv())
-        .repositoryUrl(gitInfo.getRepositoryURL())
-        .branch(gitInfo.getBranch())
-        .tag(gitInfo.getTag())
-        .sha(gitInfo.getCommit().getSha())
-        .commitMessage(gitInfo.getCommit().getFullMessage())
-        .osPlatform(wellKnownTags.getOsPlatform().toString())
-        .osArchitecture(wellKnownTags.getOsArch().toString())
-        .osVersion(wellKnownTags.getOsVersion().toString())
-        .runtimeName(jvmInfo.getName())
-        .runtimeVersion(jvmInfo.getVersion())
-        .runtimeVendor(jvmInfo.getVendor())
-        .testBundle(moduleName)
-        .build();
+      .service(config.getServiceName())
+      .env(config.getEnv())
+      .repositoryUrl(gitInfo.getRepositoryURL())
+      .branch(gitInfo.getBranch())
+      .tag(gitInfo.getTag())
+      .sha(gitInfo.getCommit().getSha())
+      .commitMessage(gitInfo.getCommit().getFullMessage())
+      .osPlatform(wellKnownTags.getOsPlatform().toString())
+      .osArchitecture(wellKnownTags.getOsArch().toString())
+      .osVersion(wellKnownTags.getOsVersion().toString())
+      .runtimeName(jvmInfo.getName())
+      .runtimeVersion(jvmInfo.getVersion())
+      .runtimeVendor(jvmInfo.getVendor())
+      .testBundle(moduleName)
+      .build();
   }
 
   @Nonnull
@@ -129,16 +126,13 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     ExecutorService settingsExecutor = Executors.newCachedThreadPool(THREAD_FACTORY);
     try {
       return doCreate(tracerEnvironment, settings, settingsExecutor);
-
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while creating execution settings");
       return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.SETTINGS_REQUEST_ERROR);
-
     } catch (ExecutionException e) {
       LOGGER.error("Error while creating execution settings", e);
       return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.SETTINGS_REQUEST_ERROR);
-
     } finally {
       settingsExecutor.shutdownNow();
     }
@@ -146,70 +140,74 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   @Nonnull
   private Map<String, ExecutionSettings> doCreate(
-      TracerEnvironment tracerEnvironment, CiVisibilitySettings settings, ExecutorService executor)
-      throws InterruptedException, ExecutionException {
+      TracerEnvironment tracerEnvironment,
+      CiVisibilitySettings settings,
+      ExecutorService executor
+  ) throws InterruptedException, ExecutionException {
     if (settings.isSettingsRequestError()) {
       return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.SETTINGS_REQUEST_ERROR);
     }
 
-    boolean itrEnabled =
-        isFeatureEnabled(
-            settings, CiVisibilitySettings::isItrEnabled, Config::isCiVisibilityItrEnabled);
-    boolean codeCoverageEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isCodeCoverageEnabled,
-            Config::isCiVisibilityCodeCoverageEnabled);
-    boolean testSkippingEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isTestsSkippingEnabled,
-            Config::isCiVisibilityTestSkippingEnabled);
-    boolean flakyTestRetriesEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isFlakyTestRetriesEnabled,
-            Config::isCiVisibilityFlakyRetryEnabled);
-    boolean impactedTestsEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isImpactedTestsDetectionEnabled,
-            Config::isCiVisibilityImpactedTestsDetectionEnabled);
-    boolean earlyFlakeDetectionEnabled =
-        isFeatureEnabled(
-            settings,
-            s -> s.getEarlyFlakeDetectionSettings().isEnabled(),
-            Config::isCiVisibilityEarlyFlakeDetectionEnabled);
-    boolean knownTestsRequest =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isKnownTestsEnabled,
-            Config::isCiVisibilityKnownTestsRequestEnabled);
-    boolean codeCoverageReportUpload =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isCoverageReportUploadEnabled,
-            Config::isCiVisibilityCodeCoverageReportUploadEnabled);
-    boolean failedTestReplayEnabled =
-        isFeatureEnabled(
-            settings,
-            CiVisibilitySettings::isFailedTestReplayEnabled,
-            Config::isCiVisibilityFailedTestReplayEnabled);
+    boolean itrEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isItrEnabled,
+        Config::isCiVisibilityItrEnabled
+    );
+    boolean codeCoverageEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isCodeCoverageEnabled,
+        Config::isCiVisibilityCodeCoverageEnabled
+    );
+    boolean testSkippingEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isTestsSkippingEnabled,
+        Config::isCiVisibilityTestSkippingEnabled
+    );
+    boolean flakyTestRetriesEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isFlakyTestRetriesEnabled,
+        Config::isCiVisibilityFlakyRetryEnabled
+    );
+    boolean impactedTestsEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isImpactedTestsDetectionEnabled,
+        Config::isCiVisibilityImpactedTestsDetectionEnabled
+    );
+    boolean earlyFlakeDetectionEnabled = isFeatureEnabled(
+        settings,
+        s -> s.getEarlyFlakeDetectionSettings().isEnabled(),
+        Config::isCiVisibilityEarlyFlakeDetectionEnabled
+    );
+    boolean knownTestsRequest = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isKnownTestsEnabled,
+        Config::isCiVisibilityKnownTestsRequestEnabled
+    );
+    boolean codeCoverageReportUpload = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isCoverageReportUploadEnabled,
+        Config::isCiVisibilityCodeCoverageReportUploadEnabled
+    );
+    boolean failedTestReplayEnabled = isFeatureEnabled(
+        settings,
+        CiVisibilitySettings::isFailedTestReplayEnabled,
+        Config::isCiVisibilityFailedTestReplayEnabled
+    );
 
     TestManagementSettings testManagementSettings = getTestManagementSettings(settings);
 
     LOGGER.info(
         "CI Visibility settings ({}, {}/{}/{}):\n"
-            + "Intelligent Test Runner - {},\n"
-            + "Per-test code coverage - {},\n"
-            + "Tests skipping - {},\n"
-            + "Early flakiness detection - {},\n"
-            + "Impacted tests detection - {},\n"
-            + "Known tests marking - {},\n"
-            + "Auto test retries - {},\n"
-            + "Test Management - {},\n"
-            + "Code coverage report upload - {},\n"
-            + "Failed Test Replay - {}",
+        + "Intelligent Test Runner - {},\n"
+        + "Per-test code coverage - {},\n"
+        + "Tests skipping - {},\n"
+        + "Early flakiness detection - {},\n"
+        + "Impacted tests detection - {},\n"
+        + "Known tests marking - {},\n"
+        + "Auto test retries - {},\n"
+        + "Test Management - {},\n"
+        + "Code coverage report upload - {},\n"
+        + "Failed Test Replay - {}",
         repositoryRoot,
         tracerEnvironment.getConfigurations().getRuntimeName(),
         tracerEnvironment.getConfigurations().getRuntimeVersion(),
@@ -223,7 +221,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         flakyTestRetriesEnabled,
         testManagementSettings.isEnabled(),
         codeCoverageReportUpload,
-        failedTestReplayEnabled);
+        failedTestReplayEnabled
+    );
 
     AtomicBoolean skippableTestsError = new AtomicBoolean();
     AtomicBoolean flakyTestsError = new AtomicBoolean();
@@ -231,25 +230,24 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     AtomicBoolean testManagementTestsError = new AtomicBoolean();
 
     Future<SkippableTests> skippableTestsFuture =
-        executor.submit(
-            () -> getSkippableTests(tracerEnvironment, itrEnabled, skippableTestsError));
-    Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
-        executor.submit(
-            () ->
-                getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
-    Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
-        executor.submit(
-            () -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest, knownTestsError));
-    Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
-        executor.submit(
-            () ->
-                getTestManagementTestsByModule(
-                    tracerEnvironment,
-                    testManagementSettings.isEnabled(),
-                    testManagementTestsError));
+        executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled, skippableTestsError));
+    Future<Map<String, Collection<TestFQN>>> flakyTestsFuture = executor.submit(() -> getFlakyTestsByModule(
+        tracerEnvironment,
+        flakyTestRetriesEnabled,
+        flakyTestsError
+    ));
+    Future<Map<String, Collection<TestFQN>>> knownTestsFuture = executor.submit(() -> getKnownTestsByModule(
+        tracerEnvironment,
+        knownTestsRequest,
+        knownTestsError
+    ));
+    Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture = executor.submit(() -> getTestManagementTestsByModule(
+        tracerEnvironment,
+        testManagementSettings.isEnabled(),
+        testManagementTestsError
+    ));
     Future<Diff> pullRequestDiffFuture =
-        executor.submit(
-            () -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
+        executor.submit(() -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
 
     SkippableTests skippableTests = skippableTestsFuture.get();
     Map<String, Collection<TestFQN>> flakyTestsByModule = flakyTestsFuture.get();
@@ -262,28 +260,27 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     Map<String, Collection<TestFQN>> disabledTestsByModule =
         testManagementTestsByModule.getOrDefault(TestSetting.DISABLED, Collections.emptyMap());
     Map<String, Collection<TestFQN>> attemptToFixTestsByModule =
-        testManagementTestsByModule.getOrDefault(
-            TestSetting.ATTEMPT_TO_FIX, Collections.emptyMap());
+        testManagementTestsByModule.getOrDefault(TestSetting.ATTEMPT_TO_FIX, Collections.emptyMap());
 
     Diff pullRequestDiff = pullRequestDiffFuture.get();
 
-    ConfigurationErrors configurationErrors =
-        new ConfigurationErrors(
-            false,
-            skippableTestsError.get(),
-            flakyTestsError.get(),
-            knownTestsError.get(),
-            testManagementTestsError.get());
+    ConfigurationErrors configurationErrors = new ConfigurationErrors(
+        false,
+        skippableTestsError.get(),
+        flakyTestsError.get(),
+        knownTestsError.get(),
+        testManagementTestsError.get()
+    );
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
-    Set<String> moduleNames =
-        getModuleNames(
-            skippableTests,
-            flakyTestsByModule,
-            knownTestsByModule,
-            quarantinedTestsByModule,
-            disabledTestsByModule,
-            attemptToFixTestsByModule);
+    Set<String> moduleNames = getModuleNames(
+        skippableTests,
+        flakyTestsByModule,
+        knownTestsByModule,
+        quarantinedTestsByModule,
+        disabledTestsByModule,
+        attemptToFixTestsByModule
+    );
 
     for (String moduleName : moduleNames) {
       settingsByModule.put(
@@ -297,23 +294,26 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               codeCoverageReportUpload,
               failedTestReplayEnabled,
               earlyFlakeDetectionEnabled
-                  ? settings.getEarlyFlakeDetectionSettings()
-                  : EarlyFlakeDetectionSettings.DEFAULT,
+              ? settings.getEarlyFlakeDetectionSettings()
+              : EarlyFlakeDetectionSettings.DEFAULT,
               testManagementSettings,
               skippableTests.getCorrelationId(),
-              skippableTests
-                  .getIdentifiersByModule()
-                  .getOrDefault(moduleName, Collections.emptyMap()),
+              skippableTests.getIdentifiersByModule().getOrDefault(
+                  moduleName,
+                  Collections.emptyMap()
+              ),
               skippableTests.getCoveredLinesByRelativeSourcePath(),
               flakyTestsByModule != null
-                  ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
-                  : null,
+              ? flakyTestsByModule.getOrDefault(moduleName, Collections.emptyList())
+              : null,
               knownTestsByModule != null ? knownTestsByModule.get(moduleName) : null,
               quarantinedTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               disabledTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               attemptToFixTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               pullRequestDiff,
-              configurationErrors));
+              configurationErrors
+          )
+      );
     }
     return settingsByModule;
   }
@@ -324,14 +324,13 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       if (settings.isGitUploadRequired()) {
         LOGGER.debug("Git data upload needs to finish before remote settings can be retrieved");
         gitDataUploader
-            .startOrObserveGitDataUpload()
-            .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
+          .startOrObserveGitDataUpload()
+          .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
         return configurationApi.getSettings(tracerEnvironment);
       } else {
         return settings;
       }
-
     } catch (Exception e) {
       LOGGER.error("Error while obtaining CI Visibility settings", e);
       return CiVisibilitySettings.SETTINGS_REQUEST_ERROR;
@@ -341,17 +340,18 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private boolean isFeatureEnabled(
       CiVisibilitySettings ciVisibilitySettings,
       Function<CiVisibilitySettings, Boolean> remoteSetting,
-      Function<Config, Boolean> killSwitch) {
+      Function<Config, Boolean> killSwitch
+  ) {
     return remoteSetting.apply(ciVisibilitySettings) && killSwitch.apply(config);
   }
 
   @Nonnull
   private TestManagementSettings getTestManagementSettings(CiVisibilitySettings settings) {
-    boolean testManagementEnabled =
-        isFeatureEnabled(
-            settings,
-            s -> s.getTestManagementSettings().isEnabled(),
-            Config::isCiVisibilityTestManagementEnabled);
+    boolean testManagementEnabled = isFeatureEnabled(
+        settings,
+        s -> s.getTestManagementSettings().isEnabled(),
+        Config::isCiVisibilityTestManagementEnabled
+    );
 
     if (!testManagementEnabled) {
       return TestManagementSettings.DEFAULT;
@@ -367,32 +367,37 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   @Nonnull
   private SkippableTests getSkippableTests(
-      TracerEnvironment tracerEnvironment, boolean itrEnabled, AtomicBoolean errorFlag) {
+      TracerEnvironment tracerEnvironment,
+      boolean itrEnabled,
+      AtomicBoolean errorFlag
+  ) {
     if (!itrEnabled || repositoryRoot == null) {
       return SkippableTests.EMPTY;
     }
     try {
       // ensure git data upload is finished before asking for tests
       gitDataUploader
-          .startOrObserveGitDataUpload()
-          .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
+        .startOrObserveGitDataUpload()
+        .get(config.getCiVisibilityGitUploadTimeoutMillis(), TimeUnit.MILLISECONDS);
 
       SkippableTests skippableTests = configurationApi.getSkippableTests(tracerEnvironment);
 
       if (LOGGER.isDebugEnabled()) {
-        int totalSkippableTests =
-            skippableTests.getIdentifiersByModule().values().stream()
-                .filter(Objects::nonNull)
-                .mapToInt(Map::size)
-                .sum();
+        int totalSkippableTests = skippableTests
+          .getIdentifiersByModule()
+          .values()
+          .stream()
+          .filter(Objects::nonNull)
+          .mapToInt(Map::size)
+          .sum();
         LOGGER.debug(
             "Received {} skippable tests in total for {}",
             totalSkippableTests,
-            Paths.get(repositoryRoot));
+            Paths.get(repositoryRoot)
+        );
       }
 
       return skippableTests;
-
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
@@ -409,7 +414,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private Map<String, Collection<TestFQN>> getFlakyTestsByModule(
       TracerEnvironment tracerEnvironment,
       boolean flakyTestRetriesEnabled,
-      AtomicBoolean errorFlag) {
+      AtomicBoolean errorFlag
+  ) {
     if (!(flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes())
         && !CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())) {
       return null;
@@ -425,13 +431,15 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   @Nullable
   private Map<String, Collection<TestFQN>> getKnownTestsByModule(
-      TracerEnvironment tracerEnvironment, boolean knownTestsRequest, AtomicBoolean errorFlag) {
+      TracerEnvironment tracerEnvironment,
+      boolean knownTestsRequest,
+      AtomicBoolean errorFlag
+  ) {
     if (!knownTestsRequest) {
       return null;
     }
     try {
       return configurationApi.getKnownTestsByModule(tracerEnvironment);
-
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of known tests", e);
       errorFlag.set(true);
@@ -443,7 +451,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
       TracerEnvironment tracerEnvironment,
       boolean testManagementTestsRequest,
-      AtomicBoolean errorFlag) {
+      AtomicBoolean errorFlag
+  ) {
     if (!testManagementTestsRequest) {
       return Collections.emptyMap();
     }
@@ -453,10 +462,14 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         return configurationApi.getTestManagementTestsByModule(
             tracerEnvironment,
             pullRequestInfo.getHeadCommit().getSha(),
-            pullRequestInfo.getHeadCommit().getFullMessage());
+            pullRequestInfo.getHeadCommit().getFullMessage()
+        );
       } else {
         return configurationApi.getTestManagementTestsByModule(
-            tracerEnvironment, tracerEnvironment.getSha(), tracerEnvironment.getCommitMessage());
+            tracerEnvironment,
+            tracerEnvironment.getSha(),
+            tracerEnvironment.getCommitMessage()
+        );
       }
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of test management tests", e);
@@ -478,14 +491,14 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
         String baseCommitSha = pullRequestInfo.getBaseBranchSha();
         if (baseCommitSha == null && pullRequestInfo.getBaseBranchHeadSha() != null) {
-          baseCommitSha =
-              gitClient.getMergeBase(
-                  pullRequestInfo.getBaseBranchHeadSha(), pullRequestInfo.getHeadCommit().getSha());
+          baseCommitSha = gitClient.getMergeBase(
+              pullRequestInfo.getBaseBranchHeadSha(),
+              pullRequestInfo.getHeadCommit().getSha()
+          );
         }
 
         if (baseCommitSha == null) {
-          baseCommitSha =
-              gitClient.getBaseCommitSha(pullRequestInfo.getBaseBranch(), defaultBranch);
+          baseCommitSha = gitClient.getBaseCommitSha(pullRequestInfo.getBaseBranch(), defaultBranch);
         }
 
         Diff diff = gitClient.getGitDiff(baseCommitSha, pullRequestInfo.getHeadCommit().getSha());
@@ -510,7 +523,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       @Nullable Map<String, Collection<TestFQN>> knownTestsByModule,
       @Nonnull Map<String, Collection<TestFQN>> quarantinedTestsByModule,
       @Nonnull Map<String, Collection<TestFQN>> disabledTestsByModule,
-      @Nonnull Map<String, Collection<TestFQN>> attemptToFixTestsByModule) {
+      @Nonnull Map<String, Collection<TestFQN>> attemptToFixTestsByModule
+  ) {
     Set<String> moduleNames = new HashSet<>(Collections.singleton(DEFAULT_SETTINGS));
     moduleNames.addAll(skippableTests.getIdentifiersByModule().keySet());
     if (flakyTestsByModule != null) {

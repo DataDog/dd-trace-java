@@ -9,18 +9,17 @@ import org.apache.http.RequestLine;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.message.AbstractHttpMessage;
 
-/** Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors */
+/**
+ * Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors
+ */
 public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implements HttpUriRequest {
-
   private final String method;
   private final RequestLine requestLine;
   private final ProtocolVersion protocolVersion;
   private final java.net.URI uri;
-
   private final HttpRequest actualRequest;
 
   public HostAndRequestAsHttpUriRequest(final HttpHost httpHost, final HttpRequest httpRequest) {
-
     method = httpRequest.getRequestLine().getMethod();
     requestLine = httpRequest.getRequestLine();
     protocolVersion = requestLine.getProtocolVersion();

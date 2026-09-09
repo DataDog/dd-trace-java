@@ -2,7 +2,6 @@ package excludefilter;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,8 @@ import java.util.concurrent.Executor;
 
 @AutoService(InstrumenterModule.class)
 public class ExcludeFilterTestInstrumentation extends InstrumenterModule.Tracing
-    implements ExcludeFilterProvider {
-
+    implements ExcludeFilterProvider
+{
   public ExcludeFilterTestInstrumentation() {
     super("excludefilter-test");
   }
@@ -36,9 +35,13 @@ public class ExcludeFilterTestInstrumentation extends InstrumenterModule.Tracing
         new EnumMap<>(ExcludeFilter.ExcludeType.class);
     String prefix = getClass().getName() + "$";
     excludedTypes.put(
-        RUNNABLE, Arrays.asList(prefix + "ExcludedRunnable", prefix + "ExecutorExcludedRunnable"));
+        RUNNABLE,
+        Arrays.asList(prefix + "ExcludedRunnable", prefix + "ExecutorExcludedRunnable")
+    );
     excludedTypes.put(
-        EXECUTOR, Arrays.asList(prefix + "ExcludedExecutor", prefix + "RunnableExcludedExecutor"));
+        EXECUTOR,
+        Arrays.asList(prefix + "ExcludedExecutor", prefix + "RunnableExcludedExecutor")
+    );
     return excludedTypes;
   }
 
@@ -71,7 +74,6 @@ public class ExcludeFilterTestInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static final class ExecutorExcludedRunnable implements Executor, Runnable {
-
     @Override
     public void run() {}
 
@@ -80,7 +82,6 @@ public class ExcludeFilterTestInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static final class ExecutorRunnable implements Executor, Runnable {
-
     @Override
     public void run() {}
 

@@ -1,7 +1,6 @@
 package com.datadog.iast.model.json;
 
 import static com.datadog.iast.model.json.TruncationUtils.writeTruncableValue;
-
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -36,9 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class EvidenceAdapter extends FormattingAdapter<Evidence> {
-
   private static final Logger log = LoggerFactory.getLogger(EvidenceAdapter.class);
-
   private final JsonAdapter<Source> sourceAdapter;
   private final JsonAdapter<Evidence> defaultAdapter;
   private final JsonAdapter<Evidence> redactedAdapter;
@@ -50,7 +47,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   @Override
-  public void toJson(@Nonnull final JsonWriter writer, final @Nullable Evidence evidence)
+  public void toJson(@Nonnull final JsonWriter writer, @Nullable final Evidence evidence)
       throws IOException {
     if (evidence == null || evidence.getValue() == null) {
       writer.nullValue();
@@ -73,8 +70,9 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   private static void writeSecureMarks(
-      final JsonWriter writer, final @Nullable Set<VulnerabilityType> markedVulnerabilities)
-      throws IOException {
+      final JsonWriter writer,
+      @Nullable final Set<VulnerabilityType> markedVulnerabilities
+  ) throws IOException {
     if (markedVulnerabilities == null || markedVulnerabilities.isEmpty()) {
       return;
     }
@@ -87,9 +85,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   private class DefaultEvidenceAdapter extends FormattingAdapter<Evidence> {
-
     @Override
-    public void toJson(@Nonnull final JsonWriter writer, final @Nullable Evidence evidence)
+    public void toJson(@Nonnull final JsonWriter writer, @Nullable final Evidence evidence)
         throws IOException {
       if (evidence == null) {
         writer.nullValue();
@@ -109,8 +106,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
     private void toJsonTaintedValue(
         @Nonnull final JsonWriter writer,
         @Nonnull final String value,
-        @Nonnull final Range... ranges)
-        throws IOException {
+        @Nonnull final Range... ranges
+    ) throws IOException {
       writer.beginArray();
       int start = 0;
       for (Range range : ranges) {
@@ -135,8 +132,10 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
     }
 
     private void writeValuePart(
-        @Nonnull final JsonWriter writer, @Nonnull final String value, @Nullable final Range range)
-        throws IOException {
+        @Nonnull final JsonWriter writer,
+        @Nonnull final String value,
+        @Nullable final Range range
+    ) throws IOException {
       writer.beginObject();
       writer.name("value");
       writer.value(value);
@@ -150,7 +149,6 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   private class RedactedEvidenceAdapter extends FormattingAdapter<Evidence> {
-
     @Override
     public void toJson(@Nonnull final JsonWriter writer, @Nullable final Evidence evidence)
         throws IOException {
@@ -182,11 +180,13 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         final JsonWriter writer,
         final String value,
         final RangedDeque<Range> tainted,
-        final RangedDeque<Ranged> sensitive)
-        throws IOException {
+        final RangedDeque<Ranged> sensitive
+    ) throws IOException {
       writer.beginArray();
-      for (final Iterator<ValuePart> it = new ValuePartIterator(ctx, value, tainted, sensitive);
-          it.hasNext(); ) {
+      for (
+          final Iterator<ValuePart> it = new ValuePartIterator(ctx, value, tainted, sensitive);
+          it.hasNext();
+          ) {
         final ValuePart next = it.next();
         if (next != null) {
           next.write(ctx, writer);
@@ -200,7 +200,9 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
     }
 
     private RangedDeque<Ranged> sensitiveRanges(
-        final VulnerabilityType type, final Evidence evidence) {
+        final VulnerabilityType type,
+        final Evidence evidence
+    ) {
       final SensitiveHandler handler = SensitiveHandler.get();
       final Tokenizer tokenizer = handler.tokenizeEvidence(type, evidence);
       return RangedDeque.forTokenizer(tokenizer);
@@ -220,7 +222,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         final Context ctx,
         final String value,
         final RangedDeque<Range> tainted,
-        final RangedDeque<Ranged> sensitive) {
+        final RangedDeque<Ranged> sensitive
+    ) {
       this.ctx = ctx;
       this.value = value;
       this.tainted = tainted;
@@ -242,13 +245,15 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         return next.poll();
       }
       if (tainted.isEmpty() && sensitive.isEmpty()) {
-        return nextStringValuePart(value.length()); // last string chunk
+        // last string chunk
+        return nextStringValuePart(value.length());
       }
       final Range nextTainted = this.tainted.poll();
       Ranged nextSensitive = this.sensitive.poll();
       if (nextTainted != null) {
         if (nextTainted.isBefore(nextSensitive)) {
-          addNextStringValuePart(nextTainted.getStart(), next); // pending string chunk
+          // pending string chunk
+          addNextStringValuePart(nextTainted.getStart(), next);
           nextSensitive = handleTaintedValue(nextTainted, nextSensitive);
         } else {
           tainted.addFirst(nextTainted);
@@ -256,7 +261,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       }
       if (nextSensitive != null) {
         if (nextSensitive.isBefore(nextTainted)) {
-          addNextStringValuePart(nextSensitive.getStart(), next); // pending string chunk
+          // pending string chunk
+          addNextStringValuePart(nextSensitive.getStart(), next);
           handleSensitiveValue(nextSensitive);
         } else {
           sensitive.addFirst(nextSensitive);
@@ -267,11 +273,12 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     @Nullable
     private Ranged handleTaintedValue(
-        @Nonnull final Range nextTainted, @Nullable Ranged nextSensitive) {
+        @Nonnull final Range nextTainted,
+        @Nullable Ranged nextSensitive
+    ) {
       final RedactionContext redactionCtx = ctx.getRedaction(nextTainted.getSource());
       List<Ranged> intersections = this.intersections.remove(nextTainted);
       intersections = intersections == null ? new LinkedList<>() : intersections;
-
       // remove fully overlapped sensitive ranges
       while (nextSensitive != null && nextTainted.contains(nextSensitive)) {
         redactionCtx.markWithSensitiveRanges();
@@ -287,11 +294,11 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         intersections.add(intersection);
         nextSensitive = removeTaintedRange(nextSensitive, nextTainted);
       }
-
       // finally add value part
       final String taintedValue = substring(value, nextTainted);
       next.add(
-          new RedactableTaintedValuePart(sourceAdapter, nextTainted, taintedValue, intersections));
+          new RedactableTaintedValuePart(sourceAdapter, nextTainted, taintedValue, intersections)
+      );
       index = nextTainted.getStart() + nextTainted.getLength();
       return nextSensitive;
     }
@@ -300,13 +307,15 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
       // truncate sensitive part if intersects with the next tainted range
       final Range nextTainted = tainted.peek();
       final Ranged intersection;
-      if (nextTainted != null && (intersection = nextTainted.intersection(nextSensitive)) != null) {
+      if (nextTainted != null
+          && (intersection = nextTainted.intersection(nextSensitive)) != null) {
         final RedactionContext redactionCtx = ctx.getRedaction(nextTainted.getSource());
         redactionCtx.markWithSensitiveRanges();
-        intersections.computeIfAbsent(nextTainted, r -> new LinkedList<>()).add(intersection);
+        intersections
+          .computeIfAbsent(nextTainted, r -> new LinkedList<>())
+          .add(intersection);
         nextSensitive = removeTaintedRange(nextSensitive, nextTainted);
       }
-
       // finally add value part
       if (nextSensitive != null) {
         final String sensitiveValue = substring(value, nextSensitive);
@@ -356,8 +365,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   static class StringValuePart implements ValuePart {
-
-    @Nullable private final String value;
+    @Nullable
+    private final String value;
 
     private StringValuePart(@Nullable final String value) {
       this.value = value;
@@ -376,7 +385,6 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   static class RedactedValuePart implements ValuePart {
-
     private final String value;
 
     private RedactedValuePart(final String value) {
@@ -396,31 +404,28 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
   }
 
   static class RedactableTaintedValuePart implements ValuePart {
-
     private final JsonAdapter<Source> adapter;
-
     private final Source source;
-
     private final String value;
-
     private final List<Ranged> sensitiveRanges;
-
-    @Nullable private final Set<VulnerabilityType> markedTypes;
+    @Nullable
+    private final Set<VulnerabilityType> markedTypes;
 
     private RedactableTaintedValuePart(
         final JsonAdapter<Source> adapter,
         final Range range,
         final String value,
-        final List<Ranged> sensitive) {
+        final List<Ranged> sensitive
+    ) {
       this.adapter = adapter;
       this.source = range.getSource();
       this.value = value;
       // shift ranges to the start of the tainted range and sort them
-      this.sensitiveRanges =
-          sensitive.stream()
-              .map(it -> shift(it, -range.getStart()))
-              .sorted(Comparator.comparing(Ranged::getStart))
-              .collect(Collectors.toList());
+      this.sensitiveRanges = sensitive
+        .stream()
+        .map(it -> shift(it, -range.getStart()))
+        .sorted(Comparator.comparing(Ranged::getStart))
+        .collect(Collectors.toList());
 
       this.markedTypes = range.getMarkedVulnerabilities();
     }
@@ -476,7 +481,8 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         final RedactionContext ctx,
         final Map<String, Integer> matchingOffsets,
         final boolean redact,
-        final List<ValuePart> valueParts) {
+        final List<ValuePart> valueParts
+    ) {
       if (start < end) {
         final Source source = ctx.getSource();
         final String chunk = value.substring(start, end);
@@ -489,8 +495,9 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
           final String sourceValue = source.getValue();
           final String redactedValue = ctx.getRedactedValue();
           final int matching =
-              matchingOffsets.computeIfAbsent(
-                  chunk, c -> sourceValue == null ? -1 : sourceValue.indexOf(c));
+              matchingOffsets.computeIfAbsent(chunk, c -> sourceValue == null
+              ? -1
+              : sourceValue.indexOf(c));
           final String pattern;
           if (matching >= 0 && redactedValue != null) {
             // if matches append the matching part from the redacted value
@@ -511,21 +518,19 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
   static class TaintedValuePart implements ValuePart {
     private final JsonAdapter<Source> adapter;
-
     private final Source source;
-
     private final String value;
-
     private final boolean redacted;
-
-    @Nullable private final Set<VulnerabilityType> markedTypes;
+    @Nullable
+    private final Set<VulnerabilityType> markedTypes;
 
     private TaintedValuePart(
         final JsonAdapter<Source> adapter,
         final Source source,
         final String value,
         final boolean redacted,
-        final @Nullable Set<VulnerabilityType> markedTypes) {
+        @Nullable final Set<VulnerabilityType> markedTypes
+    ) {
       this.adapter = adapter;
       this.source = source;
       this.value = value;

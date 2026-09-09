@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.akka.init;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-
 import akka.actor.ActorSystem$;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -13,8 +12,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class DisableTracingActorInitInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public DisableTracingActorInitInstrumentation() {
     super("akka_concurrent");
   }
@@ -28,7 +28,8 @@ public final class DisableTracingActorInitInstrumentation extends InstrumenterMo
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply"),
-        DisableTracingActorInitInstrumentation.class.getName() + "$BlockPropagation");
+        DisableTracingActorInitInstrumentation.class.getName() + "$BlockPropagation"
+    );
   }
 
   /**
@@ -36,7 +37,6 @@ public final class DisableTracingActorInitInstrumentation extends InstrumenterMo
    * request. (Without this it propagates the trace into the lazy akka initialization.)
    */
   public static class BlockPropagation {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter() {
       return activateSpan(noopSpan());

@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.JEE_SPLIT_BY_DEPLOYMENT;
-
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
@@ -57,15 +56,14 @@ public class ClassloaderConfigurationOverrides {
 
   private static final Function<ClassLoader, ContextualInfo> EMPTY_CONTEXTUAL_INFO_ADDER =
       ignored -> new ContextualInfo(null, null);
-
   private final WeakHashMap<ClassLoader, ContextualInfo> weakCache = new WeakHashMap<>();
   private final String inferredServiceName =
       CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME);
-
   private static volatile boolean atLeastOneEntry;
   private static final Lock lock = new ReentrantLock();
 
-  private ClassloaderConfigurationOverrides() {}
+  private ClassloaderConfigurationOverrides() {
+  }
 
   public static void addContextualInfo(ClassLoader classLoader, ContextualInfo contextualInfo) {
     try {
@@ -133,7 +131,9 @@ public class ClassloaderConfigurationOverrides {
   }
 
   public static void maybeEnrichSpan(
-      @Nonnull final AgentSpan span, @Nonnull final ClassLoader classLoader) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final ClassLoader classLoader
+  ) {
     final ContextualInfo contextualInfo = maybeGetContextualInfo(classLoader);
     if (contextualInfo == null) {
       return;

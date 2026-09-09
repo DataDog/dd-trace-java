@@ -14,17 +14,16 @@ import datadog.trace.llmobs.writer.ddintake.LLMObsSpanMapper;
  * this class is used during the mapper lazy loading in the {@code PayloadDispatcher} class.
  */
 public class DDIntakeMapperDiscovery implements RemoteMapperDiscovery {
-
   private final TrackType trackType;
   private final CiVisibilityWellKnownTags wellKnownTags;
   private final boolean compressionEnabled;
-
   private RemoteMapper mapper;
 
   public DDIntakeMapperDiscovery(
       final TrackType trackType,
       final CiVisibilityWellKnownTags wellKnownTags,
-      boolean compressionEnabled) {
+      boolean compressionEnabled
+  ) {
     this.trackType = trackType;
     this.wellKnownTags = wellKnownTags;
     this.compressionEnabled = compressionEnabled;

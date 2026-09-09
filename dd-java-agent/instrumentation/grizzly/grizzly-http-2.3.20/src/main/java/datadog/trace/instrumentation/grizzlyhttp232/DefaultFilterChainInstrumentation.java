@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -15,8 +14,9 @@ import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 
 public class DefaultFilterChainInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "org.glassfish.grizzly.filterchain.DefaultFilterChain";
@@ -26,16 +26,18 @@ public class DefaultFilterChainInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPrivate())
-            .and(named("notifyFailure"))
-            .and(takesArgument(0, named("org.glassfish.grizzly.filterchain.FilterChainContext")))
-            .and(takesArgument(1, named("java.lang.Throwable"))),
-        "datadog.trace.instrumentation.grizzlyhttp232.DefaultFilterChainAdvice");
+          .and(isPrivate())
+          .and(named("notifyFailure"))
+          .and(takesArgument(0, named("org.glassfish.grizzly.filterchain.FilterChainContext")))
+          .and(takesArgument(1, named("java.lang.Throwable"))),
+        "datadog.trace.instrumentation.grizzlyhttp232.DefaultFilterChainAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("executeFilter"))
-            .and(takesArgument(2, named("org.glassfish.grizzly.filterchain.FilterChainContext"))),
-        getClass().getName() + "$PropagateServerSpanAdvice");
+          .and(named("executeFilter"))
+          .and(takesArgument(2, named("org.glassfish.grizzly.filterchain.FilterChainContext"))),
+        getClass().getName() + "$PropagateServerSpanAdvice"
+    );
   }
 
   public static class PropagateServerSpanAdvice {

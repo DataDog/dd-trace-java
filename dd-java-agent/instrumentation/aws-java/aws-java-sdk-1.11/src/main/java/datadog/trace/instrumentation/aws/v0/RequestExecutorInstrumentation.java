@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.CONTEXT_CONTEXT_KEY;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.amazonaws.Request;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,7 +18,9 @@ import net.bytebuddy.asm.Advice;
  * versions. The {@link AWSHttpClientInstrumentation} class should cover older versions.
  */
 public final class RequestExecutorInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public RequestExecutorInstrumentation(String namespace) {
@@ -35,20 +36,21 @@ public final class RequestExecutorInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("doExecute")),
-        RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice");
+        RequestExecutorInstrumentation.class.getName() + "$RequestExecutorAdvice"
+    );
   }
 
   public static class RequestExecutorAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.FieldValue("request") final Request<?> request,
-        @Advice.Thrown final Throwable throwable) {
-
+        @Advice.Thrown final Throwable throwable
+    ) {
       final AgentSpan activeSpan = activeSpan();
       // check name in case TracingRequestHandler failed to activate the span
       if (activeSpan != null
           && (AwsNameCache.spanName(request).equals(activeSpan.getSpanName())
-              || !activeSpan.isValid())) {
+          || !activeSpan.isValid())) {
         closeActive();
       }
 

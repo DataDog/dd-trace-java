@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.datastax.cassandra;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_INSTANCE;
-
 import com.datastax.driver.core.ColumnDefinitions;
 import com.datastax.driver.core.Host;
 import com.datastax.driver.core.ResultSet;
@@ -25,10 +24,9 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence JAVA_CASSANDRA = UTF8BytesString.create("java-cassandra");
-
   public static final CassandraClientDecorator DECORATE = new CassandraClientDecorator();
-
-  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024; // chars
+  // chars
+  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024;
   private static final ToIntFunction<UTF8BytesString> STATEMENT_WEIGHER = UTF8BytesString::length;
   private static final DDCache<CharSequence, UTF8BytesString> CACHED_STATEMENTS =
       DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);

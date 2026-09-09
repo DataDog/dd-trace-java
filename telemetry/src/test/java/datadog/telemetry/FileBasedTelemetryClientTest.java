@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.util.PidHelper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class FileBasedTelemetryClientTest {
-
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
   @Test
@@ -45,7 +43,8 @@ class FileBasedTelemetryClientTest {
     FileBasedTelemetryClient client = new FileBasedTelemetryClient(outputDir.toString());
     TelemetryClient.Result result =
         client.sendHttpRequest(
-            requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
+            requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8))
+    );
 
     assertEquals(TelemetryClient.Result.SUCCESS, result);
     assertTrue(Files.isDirectory(outputDir));
@@ -68,8 +67,7 @@ class FileBasedTelemetryClientTest {
     FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp.toString());
 
     for (int i = 0; i < 3; i++) {
-      client.sendHttpRequest(
-          requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
+      client.sendHttpRequest(requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
     }
 
     List<Path> files = listFiles(tmp);
@@ -79,8 +77,11 @@ class FileBasedTelemetryClientTest {
       // files are unsorted from DirectoryStream — build expected set, check contains
       String expected = String.format("telemetry-%020d-%s.json", (long) i, pid);
       assertTrue(
-          files.stream().anyMatch(p -> p.getFileName().toString().equals(expected)),
-          "Missing file with sequence " + i + ": " + expected);
+          files
+            .stream()
+            .anyMatch(p -> p.getFileName().toString().equals(expected)),
+          "Missing file with sequence " + i + ": " + expected
+      );
     }
   }
 
@@ -108,7 +109,8 @@ class FileBasedTelemetryClientTest {
 
     TelemetryClient.Result result =
         client.sendHttpRequest(
-            requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
+            requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8))
+    );
 
     assertEquals(TelemetryClient.Result.FAILURE, result);
   }
@@ -121,14 +123,17 @@ class FileBasedTelemetryClientTest {
 
     List<Path> files = listFiles(tmp);
     assertFalse(
-        files.stream().anyMatch(p -> p.getFileName().toString().endsWith(".tmp")),
-        "Found leftover .tmp file: " + files);
+        files
+          .stream()
+          .anyMatch(p -> p.getFileName().toString().endsWith(".tmp")),
+        "Found leftover .tmp file: " + files
+    );
   }
 
   private static Request.Builder requestBuilder(String requestType, byte[] body) {
     return new Request.Builder()
-        .addHeader("DD-Telemetry-Request-Type", requestType)
-        .post(RequestBody.create(JSON, body));
+      .addHeader("DD-Telemetry-Request-Type", requestType)
+      .post(RequestBody.create(JSON, body));
   }
 
   private static List<Path> listFiles(Path dir) throws IOException {

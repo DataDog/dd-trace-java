@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
-
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import datadog.trace.civisibility.utils.FileUtils;
 import java.io.File;
@@ -18,7 +17,6 @@ public class CIInfo {
 
   public static final class Builder {
     private final CiEnvironment environment;
-
     private String ciProviderName;
     private String ciPipelineId;
     private String ciPipelineName;
@@ -140,7 +138,8 @@ public class CIInfo {
           ciNodeName,
           ciNodeLabels,
           ciEnvVars,
-          additionalTags);
+          additionalTags
+      );
     }
   }
 
@@ -179,7 +178,8 @@ public class CIInfo {
       String ciNodeName,
       String ciNodeLabels,
       Map<String, String> ciEnvVars,
-      Map<String, String> additionalTags) {
+      Map<String, String> additionalTags
+  ) {
     this.ciProviderName = ciProviderName;
     this.ciPipelineId = ciPipelineId;
     this.ciPipelineName = ciPipelineName;
@@ -240,8 +240,9 @@ public class CIInfo {
   private String sanitizeWorkspace(String workspace) {
     String realCiWorkspace = FileUtils.toRealPath(workspace);
     return (realCiWorkspace == null
-            || !realCiWorkspace.endsWith(File.separator)
-            || realCiWorkspace.length() == 1) // root path "/"
+        || !realCiWorkspace.endsWith(File.separator)
+        || realCiWorkspace.length() == 1 // root path "/"
+    )
         ? realCiWorkspace
         : (realCiWorkspace.substring(0, realCiWorkspace.length() - 1));
   }

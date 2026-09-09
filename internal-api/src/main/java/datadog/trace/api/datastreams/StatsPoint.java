@@ -20,7 +20,8 @@ public class StatsPoint implements InboxItem {
       long pathwayLatencyNano,
       long edgeLatencyNano,
       long payloadSizeBytes,
-      String serviceNameOverride) {
+      String serviceNameOverride
+  ) {
     this.tags = tags;
     this.hash = hash;
     this.parentHash = parentHash;

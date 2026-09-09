@@ -2,7 +2,6 @@ package datadog.context.propagation;
 
 import static java.util.Collections.synchronizedMap;
 import static java.util.Comparator.comparingInt;
-
 import java.util.IdentityHashMap;
 import java.util.Map;
 
@@ -18,7 +17,8 @@ public final class Propagators {
   private static volatile Propagator defaultPropagator = null;
   private static volatile boolean rebuildDefaultPropagator = true;
 
-  private Propagators() {}
+  private Propagators() {
+  }
 
   /**
    * Gets the default propagator that applies all registered propagators in their priority order.
@@ -27,13 +27,14 @@ public final class Propagators {
    */
   public static Propagator defaultPropagator() {
     if (rebuildDefaultPropagator) {
-      Propagator[] propagatorsByPriority =
-          PROPAGATORS.entrySet().stream()
-              .filter(entry -> entry.getValue().isUsedAsDefault())
-              .sorted(comparingInt(entry -> entry.getKey().priority()))
-              .map(Map.Entry::getValue)
-              .map(RegisteredPropagator::propagator)
-              .toArray(Propagator[]::new);
+      Propagator[] propagatorsByPriority = PROPAGATORS
+        .entrySet()
+        .stream()
+        .filter(entry -> entry.getValue().isUsedAsDefault())
+        .sorted(comparingInt(entry -> entry.getKey().priority()))
+        .map(Map.Entry::getValue)
+        .map(RegisteredPropagator::propagator)
+        .toArray(Propagator[]::new);
       defaultPropagator = composite(propagatorsByPriority);
       rebuildDefaultPropagator = false;
     }
@@ -116,7 +117,9 @@ public final class Propagators {
     }
   }
 
-  /** Clear all registered propagators. For testing purpose only. */
+  /**
+   * Clear all registered propagators. For testing purpose only.
+   */
   static void reset() {
     PROPAGATORS.clear();
     rebuildDefaultPropagator = true;

@@ -1,7 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.EvaluationTimeOutException;
@@ -19,7 +18,10 @@ public class ComparisonExpression implements BooleanExpression {
   private final ComparisonOperator operator;
 
   public ComparisonExpression(
-      ValueExpression<?> left, ValueExpression<?> right, ComparisonOperator operator) {
+      ValueExpression<?> left,
+      ValueExpression<?> right,
+      ComparisonOperator operator
+  ) {
     this.left = left == null ? ValueExpression.NULL : left;
     this.right = right == null ? ValueRefExpression.NULL : right;
     this.operator = operator;

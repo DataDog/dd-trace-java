@@ -1,8 +1,8 @@
 package com.datadog.profiling.ddprof;
 
 public class DatadogProfilerContextSetter
-    implements datadog.trace.api.profiling.ProfilingContextAttribute {
-
+    implements datadog.trace.api.profiling.ProfilingContextAttribute
+{
   private final int offset;
   private final DatadogProfiler profiler;
 

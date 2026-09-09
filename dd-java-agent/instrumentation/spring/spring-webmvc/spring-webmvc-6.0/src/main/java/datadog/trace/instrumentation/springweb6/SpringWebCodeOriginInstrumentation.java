@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.codeorigin.CodeOriginInstrumentation;
@@ -25,6 +24,8 @@ public class SpringWebCodeOriginInstrumentation extends CodeOriginInstrumentatio
             WEB_BIND_ANNOTATION + "PatchMapping",
             WEB_BIND_ANNOTATION + "PostMapping",
             WEB_BIND_ANNOTATION + "PutMapping",
-            WEB_BIND_ANNOTATION + "RequestMapping"));
+            WEB_BIND_ANNOTATION + "RequestMapping"
+        )
+    );
   }
 }

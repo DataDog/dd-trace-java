@@ -6,8 +6,8 @@ import datadog.trace.api.iast.sink.UntrustedDeserializationModule;
 import javax.annotation.Nullable;
 
 public class UntrustedDeserializationModuleImpl extends SinkModuleBase
-    implements UntrustedDeserializationModule {
-
+    implements UntrustedDeserializationModule
+{
   public UntrustedDeserializationModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }

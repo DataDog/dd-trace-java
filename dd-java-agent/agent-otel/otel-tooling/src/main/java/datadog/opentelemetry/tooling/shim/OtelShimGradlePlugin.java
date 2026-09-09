@@ -1,7 +1,6 @@
 package datadog.opentelemetry.tooling.shim;
 
 import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.IOException;
@@ -17,13 +16,12 @@ import net.bytebuddy.dynamic.DynamicType;
  */
 public class OtelShimGradlePlugin extends Plugin.ForElementMatcher {
   private final File targetDir;
-
   static final String[] OTEL_SHIM_INJECTED_CLASSES = {
-    "io.opentelemetry.api.DefaultOpenTelemetry",
-    "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry",
-    "io.opentelemetry.context.ThreadLocalContextStorage",
-    "io.opentelemetry.context.StrictContextStorage",
-    "io.opentelemetry.context.ArrayBasedContext",
+      "io.opentelemetry.api.DefaultOpenTelemetry",
+      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry",
+      "io.opentelemetry.context.ThreadLocalContextStorage",
+      "io.opentelemetry.context.StrictContextStorage",
+      "io.opentelemetry.context.ArrayBasedContext"
   };
 
   @SuppressForbidden
@@ -36,7 +34,8 @@ public class OtelShimGradlePlugin extends Plugin.ForElementMatcher {
   public DynamicType.Builder<?> apply(
       final DynamicType.Builder<?> builder,
       final TypeDescription typeDescription,
-      final ClassFileLocator classFileLocator) {
+      final ClassFileLocator classFileLocator
+  ) {
     return builder.visit(OtelShimInjector.INSTANCE);
   }
 

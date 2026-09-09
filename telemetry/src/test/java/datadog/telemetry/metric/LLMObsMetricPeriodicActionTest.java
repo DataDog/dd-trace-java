@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.api.Metric;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -56,33 +55,34 @@ class LLMObsMetricPeriodicActionTest {
       tagSets.add(new HashSet<>(metric.getTags()));
     }
     assertEquals(
-        new HashSet<>(
-            Arrays.asList(
-                new HashSet<>(
-                    Arrays.asList(
-                        "integration:openai",
-                        "span_kind:llm",
-                        "is_root_span:1",
-                        "autoinstrumented:1",
-                        "error:0",
-                        "has_session_id:1")),
-                new HashSet<>(
-                    Arrays.asList(
-                        "integration:openai",
-                        "span_kind:llm",
-                        "is_root_span:0",
-                        "autoinstrumented:1",
-                        "error:0",
-                        "has_session_id:0")),
-                new HashSet<>(
-                    Arrays.asList(
-                        "integration:anthropic",
-                        "span_kind:embedding",
-                        "is_root_span:1",
-                        "autoinstrumented:0",
-                        "error:1",
-                        "has_session_id:0")))),
-        tagSets);
+        new HashSet<>(Arrays.asList(
+            new HashSet<>(Arrays.asList(
+                "integration:openai",
+                "span_kind:llm",
+                "is_root_span:1",
+                "autoinstrumented:1",
+                "error:0",
+                "has_session_id:1"
+            )),
+            new HashSet<>(Arrays.asList(
+                "integration:openai",
+                "span_kind:llm",
+                "is_root_span:0",
+                "autoinstrumented:1",
+                "error:0",
+                "has_session_id:0"
+            )),
+            new HashSet<>(Arrays.asList(
+                "integration:anthropic",
+                "span_kind:embedding",
+                "is_root_span:1",
+                "autoinstrumented:0",
+                "error:1",
+                "has_session_id:0"
+            ))
+        )),
+        tagSets
+    );
   }
 
   /**

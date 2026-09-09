@@ -11,13 +11,14 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class EscapeUtilsCallSite {
-
-  @CallSite.After(
-      "java.lang.String org.springframework.web.util.HtmlUtils.htmlEscape(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.springframework.web.util.JavaScriptUtils.javaScriptEscape(java.lang.String)")
+  @CallSite.After("java.lang.String org.springframework.web.util.HtmlUtils.htmlEscape(java.lang."
+      + "String)")
+  @CallSite.After("java.lang.String org.springframework.web.util.JavaScriptUtils."
+      + "javaScriptEscape(java.lang.String)")
   public static String afterEscape(
-      @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
+      @CallSite.Argument(0) @Nullable final String input,
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -29,12 +30,13 @@ public class EscapeUtilsCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String org.springframework.web.util.HtmlUtils.htmlEscape(java.lang.String, java.lang.String)")
+  @CallSite.After("java.lang.String org.springframework.web.util.HtmlUtils.htmlEscape(java.lang."
+      + "String, java.lang.String)")
   public static String afterHtmlEscape2(
       @CallSite.Argument(0) @Nullable final String input,
       @CallSite.Argument(1) @Nullable final String encoding,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

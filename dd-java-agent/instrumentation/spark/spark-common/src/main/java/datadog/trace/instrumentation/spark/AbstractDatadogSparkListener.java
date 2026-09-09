@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.spark;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.Config;
@@ -85,59 +84,46 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final Logger log = LoggerFactory.getLogger(AbstractDatadogSparkListener.class);
   protected static final ObjectMapper objectMapper = new ObjectMapper();
   public static volatile AbstractDatadogSparkListener listener = null;
-
   public static volatile boolean finishTraceOnApplicationEnd = true;
   public static volatile boolean isPysparkShell = false;
-
   private final int MAX_COLLECTION_SIZE = 5000;
   private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
   private static final int OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS = 60;
-
   volatile SparkListenerInterface openLineageSparkListener = null;
   public volatile SparkConf openLineageSparkConf = null;
-
   private final SparkConf sparkConf;
   private final String sparkVersion;
   private final String appId;
-
   private final AgentTracer.TracerAPI tracer;
-
   // This is created by constructor, and used if we're not in other known
   // parent context like Databricks, OpenLineage
   private final PredeterminedTraceIdContext predeterminedTraceIdContext;
-
   private AgentSpan applicationSpan;
   private SparkListenerApplicationStart applicationStart;
   private final HashMap<String, AgentSpan> streamingBatchSpans = new HashMap<>();
   private final HashMap<Long, AgentSpan> sqlSpans = new HashMap<>();
   private final HashMap<Integer, AgentSpan> jobSpans = new HashMap<>();
   private final HashMap<Long, AgentSpan> stageSpans = new HashMap<>();
-
   private final HashMap<Integer, Integer> stageToJob = new HashMap<>();
   private final HashMap<Long, Properties> stageProperties = new HashMap<>();
-
   private final SparkAggregatedTaskMetrics applicationMetrics = new SparkAggregatedTaskMetrics();
   private final HashMap<String, SparkAggregatedTaskMetrics> streamingBatchMetrics = new HashMap<>();
   private final HashMap<Long, SparkAggregatedTaskMetrics> sqlMetrics = new HashMap<>();
   private final HashMap<Integer, SparkAggregatedTaskMetrics> jobMetrics = new HashMap<>();
   private final HashMap<Long, SparkAggregatedTaskMetrics> stageMetrics = new HashMap<>();
-
   private final HashMap<UUID, StreamingQueryListener.QueryStartedEvent> streamingQueries =
       new HashMap<>();
   private final HashMap<Long, SparkListenerSQLExecutionStart> sqlQueries = new HashMap<>();
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
-
   private final Map<Long, Integer> accumulatorToStageID = new HashMap<>();
-
   private volatile boolean isStreamingJob = false;
   private final boolean isRunningOnDatabricks;
   private final String databricksClusterName;
   private final String databricksServiceName;
   private final String sparkServiceName;
-
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private String lastJobFailedStackTrace;
@@ -148,7 +134,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
   private long availableExecutorTime = 0;
-
   private volatile boolean applicationEnded = false;
 
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
@@ -162,24 +147,25 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
     databricksServiceName = getDatabricksServiceName(sparkConf, databricksClusterName);
     sparkServiceName = getSparkServiceName(sparkConf, isRunningOnDatabricks);
-    predeterminedTraceIdContext =
-        new PredeterminedTraceIdContext(Config.get().getIdGenerationStrategy().generateTraceId());
-
+    predeterminedTraceIdContext = new PredeterminedTraceIdContext(Config
+      .get()
+      .getIdGenerationStrategy()
+      .generateTraceId()
+    );
     // If JVM exiting with System.exit(code), it bypass the code closing the application span
     //
     // Using shutdown hook to close the span, but it is only best effort:
     // - no guarantee it will be executed before the tracer shuts down
     // - no access to the exit code
-    Runtime.getRuntime()
-        .addShutdownHook(
-            AgentThreadFactory.newAgentThread(
-                AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK,
-                () -> {
-                  if (!applicationEnded) {
-                    log.info("Finishing application trace from shutdown hook");
-                    finishApplication(System.currentTimeMillis(), null, 0, null);
-                  }
-                }));
+    Runtime
+      .getRuntime()
+      .addShutdownHook(AgentThreadFactory.newAgentThread(AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK, () -> {
+        if (!applicationEnded) {
+          log.info("Finishing application trace from shutdown hook");
+          finishApplication(System.currentTimeMillis(), null, 0, null);
+        }
+      })
+      );
   }
 
   public void setupOpenLineage(DDTraceId traceId) {
@@ -189,19 +175,22 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       openLineageSparkConf.set("spark.openlineage.transport.continueOnFailure", "true");
       openLineageSparkConf.set("spark.openlineage.transport.transports.agent.type", "http");
       openLineageSparkConf.set(
-          "spark.openlineage.transport.transports.agent.url", getAgentHttpUrl());
+          "spark.openlineage.transport.transports.agent.url",
+          getAgentHttpUrl()
+      );
       openLineageSparkConf.set(
-          "spark.openlineage.transport.transports.agent.endpoint", AGENT_OL_ENDPOINT);
+          "spark.openlineage.transport.transports.agent.endpoint",
+          AGENT_OL_ENDPOINT
+      );
       openLineageSparkConf.set("spark.openlineage.transport.transports.agent.compression", "gzip");
-      String runTags =
-          "_dd.trace_id:"
-              + traceId.toString()
-              + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
-              + getServiceForOpenLineage(sparkConf, isRunningOnDatabricks)
-              + ";_dd.ol_intake.process_tags:"
-              + ProcessTags.getTagsForSerialization()
-              + ";_dd.ol_app_id:"
-              + appId;
+      String runTags = "_dd.trace_id:"
+          + traceId.toString()
+          + ";_dd.ol_intake.emit_spans:false;_dd.ol_service:"
+          + getServiceForOpenLineage(sparkConf, isRunningOnDatabricks)
+          + ";_dd.ol_intake.process_tags:"
+          + ProcessTags.getTagsForSerialization()
+          + ";_dd.ol_app_id:"
+          + appId;
       // _dd.ol_env carries the run environment so the lineage-processor can use it
       // as the Spark application's UGP namespace, letting the OpenLineage-created
       // node and the tracer-only node (djm-span-processor) resolve to the same
@@ -217,28 +206,42 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     log.debug(
         "There is no OpenLineage Spark Listener in the context. Skipping setting tags. {}",
-        openLineageSparkListener);
+        openLineageSparkListener
+    );
     log.debug(
         "There is no OpenLineage SparkConf in the context. Skipping setting tags. {}",
-        openLineageSparkConf);
+        openLineageSparkConf
+    );
   }
 
-  /** Resource name of the spark job. Provide an implementation based on a specific scala version */
+  /**
+   * Resource name of the spark job. Provide an implementation based on a specific scala version
+   */
   protected abstract String getSparkJobName(SparkListenerJobStart jobStart);
 
-  /** Stage ids of the spark job. Provide an implementation based on a specific scala version */
+  /**
+   * Stage ids of the spark job. Provide an implementation based on a specific scala version
+   */
   protected abstract ArrayList<Integer> getSparkJobStageIds(SparkListenerJobStart jobStart);
 
-  /** Stage count of the spark job. Provide an implementation based on a specific scala version */
+  /**
+   * Stage count of the spark job. Provide an implementation based on a specific scala version
+   */
   protected abstract int getStageCount(SparkListenerJobStart jobStart);
 
-  /** Children of a SparkPlanInfo. Provide an implementation based on a specific scala version */
+  /**
+   * Children of a SparkPlanInfo. Provide an implementation based on a specific scala version
+   */
   protected abstract Collection<SparkPlanInfo> getPlanInfoChildren(SparkPlanInfo info);
 
-  /** Metrics of a SparkPlanInfo. Provide an implementation based on a specific scala version */
+  /**
+   * Metrics of a SparkPlanInfo. Provide an implementation based on a specific scala version
+   */
   protected abstract List<SQLMetricInfo> getPlanInfoMetrics(SparkPlanInfo info);
 
-  /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
+  /**
+   * Parent Ids of a Stage. Provide an implementation based on a specific scala version
+   */
   protected abstract int[] getStageParentIds(StageInfo info);
 
   /**
@@ -252,16 +255,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     this.applicationStart = applicationStart;
 
     if (openLineageSparkListener == null) {
-      openLineageSparkListener =
-          InstanceStore.of(SparkListenerInterface.class).get("openLineageListener");
+      openLineageSparkListener = InstanceStore
+        .of(SparkListenerInterface.class)
+        .get("openLineageListener");
       openLineageSparkConf = InstanceStore.of(SparkConf.class).get("openLineageSparkConf");
     }
 
     if (openLineageSparkListener != null) {
-      setupOpenLineage(
-          OpenlineageParentContext.from(sparkConf)
-              .map(context -> context.getTraceId())
-              .orElse(predeterminedTraceIdContext.getTraceId()));
+      setupOpenLineage(OpenlineageParentContext
+        .from(sparkConf)
+        .map(context -> context.getTraceId())
+        .orElse(predeterminedTraceIdContext.getTraceId())
+      );
     }
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
@@ -276,17 +281,20 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     AgentTracer.SpanBuilder builder = buildSparkSpan("spark.application", null);
 
     if (applicationStart != null) {
-      String ddTags =
-          Config.get().getGlobalTags().entrySet().stream()
-              .sorted(Map.Entry.comparingByKey())
-              .map(e -> e.getKey() + ":" + e.getValue())
-              .collect(Collectors.joining(","));
+      String ddTags = Config
+        .get()
+        .getGlobalTags()
+        .entrySet()
+        .stream()
+        .sorted(Map.Entry.comparingByKey())
+        .map(e -> e.getKey() + ":" + e.getValue())
+        .collect(Collectors.joining(","));
 
       builder
-          .withStartTimestamp(applicationStart.time() * 1000)
-          .withTag("application_name", applicationStart.appName())
-          .withTag("djm.tags", ddTags)
-          .withTag("spark_user", applicationStart.sparkUser());
+        .withStartTimestamp(applicationStart.time() * 1000)
+        .withTag("application_name", applicationStart.appName())
+        .withTag("djm.tags", ddTags)
+        .withTag("spark_user", applicationStart.sparkUser());
 
       if (applicationStart.appAttemptId().isDefined()) {
         builder.withTag("app_attempt_id", applicationStart.appAttemptId().get());
@@ -319,7 +327,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void captureOpenlineageContextIfPresent(
-      AgentTracer.SpanBuilder builder, OpenlineageParentContext context) {
+      AgentTracer.SpanBuilder builder,
+      OpenlineageParentContext context
+  ) {
     builder.asChildOf(context);
 
     log.debug("Captured Openlineage context: {}, with trace_id: {}", context, context.getTraceId());
@@ -353,7 +363,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
     log.info(
         "Received spark application end event, finish trace on this event: {}",
-        finishTraceOnApplicationEnd);
+        finishTraceOnApplicationEnd
+    );
     notifyOl(x -> openLineageSparkListener.onApplicationEnd(x), applicationEnd);
 
     if (finishTraceOnApplicationEnd) {
@@ -364,7 +375,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   // This function is called using reflection in SparkExitInstrumentation, make sure to update if
   // the signature of this function is changed
   public synchronized void finishApplication(
-      long time, Throwable throwable, int exitCode, String msg) {
+      long time,
+      Throwable throwable,
+      int exitCode,
+      String msg
+  ) {
     log.info("Finishing spark application trace");
 
     if (applicationEnded) {
@@ -385,7 +400,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     } else if (exitCode != 0) {
       applicationSpan.setError(true);
       applicationSpan.setTag(
-          DDTags.ERROR_TYPE, "Spark Application Failed with exit code " + exitCode);
+          DDTags.ERROR_TYPE,
+          "Spark Application Failed with exit code " + exitCode
+      );
 
       String errorMessage = getErrorMessageWithoutStackTrace(msg);
       applicationSpan.setTag(DDTags.ERROR_MSG, errorMessage);
@@ -405,17 +422,21 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     applicationMetrics.setSpanMetrics(applicationSpan);
     applicationSpan.setMetric("spark.max_executor_count", maxExecutorCount);
     applicationSpan.setMetric(
-        "spark.available_executor_time", computeCurrentAvailableExecutorTime(time));
+        "spark.available_executor_time",
+        computeCurrentAvailableExecutorTime(time)
+    );
 
     applicationSpan.finish(time * 1000);
-
     // write traces synchronously:
     // as soon as the application finishes, the JVM starts to shut down
     tracer.flush();
   }
 
   private AgentSpan getOrCreateStreamingBatchSpan(
-      String batchKey, Long timeMs, Properties jobProperties) {
+      String batchKey,
+      Long timeMs,
+      Properties jobProperties
+  ) {
     AgentSpan batchSpan = streamingBatchSpans.get(batchKey);
     if (batchSpan != null) {
       return batchSpan;
@@ -423,7 +444,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     AgentTracer.SpanBuilder builder =
         buildSparkSpan("spark.streaming_batch", jobProperties).withStartTimestamp(timeMs * 1000);
-
     // Streaming spans will always be the root span, capturing job parameters on those
     captureJobParameters(builder, jobProperties);
 
@@ -438,7 +458,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void addDatabricksSpecificTags(
-      AgentTracer.SpanBuilder builder, Properties properties, boolean withParentContext) {
+      AgentTracer.SpanBuilder builder,
+      Properties properties,
+      boolean withParentContext
+  ) {
     // Databricks has no application span. Adding the parameters to the top level spark span
     captureJobParameters(builder, properties);
 
@@ -446,18 +469,17 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       String databricksJobId = getDatabricksJobId(properties);
       String databricksJobRunId = getDatabricksJobRunId(properties, databricksClusterName);
       String databricksTaskRunId = getDatabricksTaskRunId(properties, databricksJobRunId);
-
       // ids to link those spans to databricks job/task traces
       builder.withTag("databricks_job_id", databricksJobId);
       builder.withTag("databricks_job_run_id", databricksJobRunId);
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
-      AgentSpanContext parentContext =
-          new DatabricksParentContext(
-              databricksJobId,
-              databricksJobRunId,
-              databricksTaskRunId,
-              getDatabricksJobRunAttempt(properties));
+      AgentSpanContext parentContext = new DatabricksParentContext(
+          databricksJobId,
+          databricksJobRunId,
+          databricksTaskRunId,
+          getDatabricksJobRunAttempt(properties)
+      );
 
       if (parentContext.getTraceId() != DDTraceId.ZERO) {
         if (withParentContext) {
@@ -470,7 +492,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private AgentSpan getOrCreateSqlSpan(
-      long sqlExecutionId, String batchKey, Properties jobProperties) {
+      long sqlExecutionId,
+      String batchKey,
+      Properties jobProperties
+  ) {
     AgentSpan span = sqlSpans.get(sqlExecutionId);
     if (span != null) {
       return span;
@@ -481,14 +506,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return null;
     }
 
-    AgentTracer.SpanBuilder spanBuilder =
-        buildSparkSpan("spark.sql", jobProperties)
-            .withStartTimestamp(queryStart.time() * 1000)
-            .withTag("query_id", sqlExecutionId)
-            .withTag("description", queryStart.description())
-            .withTag("details", queryStart.details())
-            .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
-            .withTag(DDTags.RESOURCE_NAME, queryStart.description());
+    AgentTracer.SpanBuilder spanBuilder = buildSparkSpan("spark.sql", jobProperties)
+      .withStartTimestamp(queryStart.time() * 1000)
+      .withTag("query_id", sqlExecutionId)
+      .withTag("description", queryStart.description())
+      .withTag("details", queryStart.details())
+      .withTag("_dd.spark.physical_plan", queryStart.physicalPlanDescription())
+      .withTag(DDTags.RESOURCE_NAME, queryStart.description());
 
     if (batchKey != null) {
       AgentSpan batchSpan =
@@ -514,11 +538,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    AgentTracer.SpanBuilder jobSpanBuilder =
-        buildSparkSpan("spark.job", jobStart.properties())
-            .withStartTimestamp(jobStart.time() * 1000)
-            .withTag("job_id", jobStart.jobId())
-            .withTag("stage_count", getStageCount(jobStart));
+    AgentTracer.SpanBuilder jobSpanBuilder = buildSparkSpan("spark.job", jobStart.properties())
+      .withStartTimestamp(jobStart.time() * 1000)
+      .withTag("job_id", jobStart.jobId())
+      .withTag("stage_count", getStageCount(jobStart));
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
     Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
@@ -527,7 +550,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (sqlExecutionId != null) {
       sqlSpan = getOrCreateSqlSpan(sqlExecutionId, batchKey, jobStart.properties());
     }
-
     /*-
      * The spark.job span hierarchy depends on the setup:
      *
@@ -583,7 +605,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       jobSpan.setErrorMessage(errorMessage);
       jobSpan.setTag(DDTags.ERROR_STACK, errorStackTrace);
       jobSpan.setTag(DDTags.ERROR_TYPE, "Spark Job Failed");
-
       // Only propagate the error to the application if it is not a cancellation
       if (errorMessage != null && !errorMessage.toLowerCase().contains("cancelled")) {
         lastJobFailed = true;
@@ -633,20 +654,19 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     long stageSpanKey = stageSpanKey(stageId, stageAttemptId);
     stageMetrics.put(
         stageSpanKey,
-        new SparkAggregatedTaskMetrics(computeCurrentAvailableExecutorTime(submissionTimeMs)));
+        new SparkAggregatedTaskMetrics(computeCurrentAvailableExecutorTime(submissionTimeMs))
+    );
     stageProperties.put(stageSpanKey, stageSubmitted.properties());
 
-    AgentSpan stageSpan =
-        buildSparkSpan("spark.stage", stageSubmitted.properties())
-            .asChildOf(jobSpan.spanContext())
-            .withStartTimestamp(submissionTimeMs * 1000)
-            .withTag("stage_id", stageId)
-            .withTag(
-                "parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
-            .withTag("task_count", stageSubmitted.stageInfo().numTasks())
-            .withTag("attempt_id", stageAttemptId)
-            .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
-            .start();
+    AgentSpan stageSpan = buildSparkSpan("spark.stage", stageSubmitted.properties())
+      .asChildOf(jobSpan.spanContext())
+      .withStartTimestamp(submissionTimeMs * 1000)
+      .withTag("stage_id", stageId)
+      .withTag("parent_stage_ids", Arrays.toString(getStageParentIds(stageSubmitted.stageInfo())))
+      .withTag("task_count", stageSubmitted.stageInfo().numTasks())
+      .withTag("attempt_id", stageAttemptId)
+      .withTag(DDTags.RESOURCE_NAME, stageSubmitted.stageInfo().name())
+      .start();
 
     setDataJobsSamplingPriority(stageSpan);
     stageSpan.setMeasured(true);
@@ -691,8 +711,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       metric.allocateAvailableExecutorTime(currentAvailableExecutorTime);
     }
 
-    for (AccumulableInfo info :
-        JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
+    for (AccumulableInfo info : JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
       accumulatorToStageID.put(info.id(), stageId);
     }
 
@@ -706,27 +725,26 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationMetrics.accumulateStageMetrics(stageMetric);
 
       jobMetrics
-          .computeIfAbsent(jobId, k -> new SparkAggregatedTaskMetrics())
-          .accumulateStageMetrics(stageMetric);
+        .computeIfAbsent(jobId, k -> new SparkAggregatedTaskMetrics())
+        .accumulateStageMetrics(stageMetric);
 
       String batchKey = getStreamingBatchKey(prop);
       if (batchKey != null) {
         streamingBatchMetrics
-            .computeIfAbsent(batchKey, k -> new SparkAggregatedTaskMetrics())
-            .accumulateStageMetrics(stageMetric);
+          .computeIfAbsent(batchKey, k -> new SparkAggregatedTaskMetrics())
+          .accumulateStageMetrics(stageMetric);
       }
 
       if (sqlExecutionId != null) {
         sqlMetrics
-            .computeIfAbsent(sqlExecutionId, k -> new SparkAggregatedTaskMetrics())
-            .accumulateStageMetrics(stageMetric);
+          .computeIfAbsent(sqlExecutionId, k -> new SparkAggregatedTaskMetrics())
+          .accumulateStageMetrics(stageMetric);
       }
     }
 
     SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
     if (sqlPlan != null) {
-      SparkSQLUtils.addSQLPlanToStageSpan(
-          span, sqlPlan, accumulatorToStageID, stageMetric, stageId);
+      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulatorToStageID, stageMetric, stageId);
     }
 
     span.finish(completionTimeMs * 1000);
@@ -752,15 +770,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         aggMetrics.recordTotalTaskRunTime(taskRunTime);
       }
     }
-
     // OpenLineage call should be prior to method return statements
     notifyOl(x -> openLineageSparkListener.onTaskEnd(x), taskEnd);
-
     // Only sending failing tasks
     if (!(taskEnd.reason() instanceof TaskFailedReason)) {
       return;
     }
-
     // Only sending tasks that can lead to failure
     TaskFailedReason reason = (TaskFailedReason) taskEnd.reason();
     if (!reason.countTowardsTaskFailures()) {
@@ -781,8 +796,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       Class.forName(
           className,
           false,
-          Optional.ofNullable(Thread.currentThread().getContextClassLoader())
-              .orElse(SparkConf.class.getClassLoader()));
+          Optional
+            .ofNullable(Thread.currentThread().getContextClassLoader())
+            .orElse(SparkConf.class.getClassLoader())
+      );
       return true;
     } catch (ClassNotFoundException e) {
       return false;
@@ -790,22 +807,24 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private void sendTaskSpan(
-      AgentSpan stageSpan, SparkListenerTaskEnd taskEnd, Properties properties) {
-    AgentSpan taskSpan =
-        buildSparkSpan("spark.task", properties)
-            .asChildOf(stageSpan.spanContext())
-            .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
-            .withTag("task_id", taskEnd.taskInfo().taskId())
-            .withTag("task_attempt_id", taskEnd.taskInfo().attemptNumber())
-            .withTag("task_type", taskEnd.taskType())
-            .withTag("stage_id", taskEnd.stageId())
-            .withTag("stage_attempt_id", taskEnd.stageAttemptId())
-            .withTag("executor_id", taskEnd.taskInfo().executorId())
-            .withTag("host", taskEnd.taskInfo().host())
-            .withTag("task_locality", taskEnd.taskInfo().taskLocality().toString())
-            .withTag("speculative", taskEnd.taskInfo().speculative())
-            .withTag("status", taskEnd.taskInfo().status())
-            .start();
+      AgentSpan stageSpan,
+      SparkListenerTaskEnd taskEnd,
+      Properties properties
+  ) {
+    AgentSpan taskSpan = buildSparkSpan("spark.task", properties)
+      .asChildOf(stageSpan.spanContext())
+      .withStartTimestamp(taskEnd.taskInfo().launchTime() * 1000)
+      .withTag("task_id", taskEnd.taskInfo().taskId())
+      .withTag("task_attempt_id", taskEnd.taskInfo().attemptNumber())
+      .withTag("task_type", taskEnd.taskType())
+      .withTag("stage_id", taskEnd.stageId())
+      .withTag("stage_attempt_id", taskEnd.stageAttemptId())
+      .withTag("executor_id", taskEnd.taskInfo().executorId())
+      .withTag("host", taskEnd.taskInfo().host())
+      .withTag("task_locality", taskEnd.taskInfo().taskLocality().toString())
+      .withTag("speculative", taskEnd.taskInfo().speculative())
+      .withTag("status", taskEnd.taskInfo().status())
+      .start();
 
     if (taskEnd.reason() instanceof TaskFailedReason) {
       TaskFailedReason reason = (TaskFailedReason) taskEnd.reason();
@@ -816,8 +835,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       if (reason instanceof ExceptionFailure) {
         ExceptionFailure exceptionFailure = (ExceptionFailure) reason;
 
-        taskSpan.setErrorMessage(
-            String.format("%s: %s", exceptionFailure.className(), exceptionFailure.description()));
+        taskSpan.setErrorMessage(String.format(
+            "%s: %s",
+            exceptionFailure.className(),
+            exceptionFailure.description()
+        ));
         taskSpan.setTag(DDTags.ERROR_STACK, exceptionFailure.fullStackTrace());
       } else {
         taskSpan.setErrorMessage(reason.toErrorString());
@@ -846,8 +868,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkListenerExecutorAdded executor = liveExecutors.remove(executorRemoved.executorId());
     if (executor != null) {
-      availableExecutorTime +=
-          (executorRemoved.time() - executor.time()) * executor.executorInfo().totalCores();
+      availableExecutorTime += (executorRemoved.time() - executor.time()) * executor
+        .executorInfo()
+        .totalCores();
     }
   }
 
@@ -880,7 +903,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     if (openLineageSparkListener != null) {
       log.debug(
-          "Passing event `{}` to OpenLineageSparkListener", event.getClass().getCanonicalName());
+          "Passing event `{}` to OpenLineageSparkListener",
+          event.getClass().getCanonicalName()
+      );
       ol.accept(event);
     } else {
       log.debug("OpenLineageSparkListener is null");
@@ -891,10 +916,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private static final MethodHandle adaptiveExecutionIdMethod;
   private static final MethodHandle adaptiveSparkPlanMethod;
 
-  @SuppressForbidden // Using reflection to avoid splitting the instrumentation once more
+  // Using reflection to avoid splitting the instrumentation once more
+  @SuppressForbidden
   private static Class<?> findAdaptiveExecutionUpdateClass() throws ClassNotFoundException {
     return Class.forName(
-        "org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate");
+        "org.apache.spark.sql.execution.ui.SparkListenerSQLAdaptiveExecutionUpdate"
+    );
   }
 
   static {
@@ -906,12 +933,16 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       MethodHandles.Lookup lookup = MethodHandles.lookup();
 
       executionUpdateClass = findAdaptiveExecutionUpdateClass();
-      executionIdMethod =
-          lookup.findVirtual(
-              executionUpdateClass, "executionId", MethodType.methodType(long.class));
-      sparkPlanMethod =
-          lookup.findVirtual(
-              executionUpdateClass, "sparkPlanInfo", MethodType.methodType(SparkPlanInfo.class));
+      executionIdMethod = lookup.findVirtual(
+          executionUpdateClass,
+          "executionId",
+          MethodType.methodType(long.class)
+      );
+      sparkPlanMethod = lookup.findVirtual(
+          executionUpdateClass,
+          "sparkPlanInfo",
+          MethodType.methodType(SparkPlanInfo.class)
+      );
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ignored) {
     }
 
@@ -955,7 +986,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private synchronized void onStreamingQueryStartedEvent(
-      StreamingQueryListener.QueryStartedEvent event) {
+      StreamingQueryListener.QueryStartedEvent event
+  ) {
     if (streamingQueries.size() > MAX_COLLECTION_SIZE) {
       return;
     }
@@ -964,7 +996,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private synchronized void onStreamingQueryTerminatedEvent(
-      StreamingQueryListener.QueryTerminatedEvent event) {
+      StreamingQueryListener.QueryTerminatedEvent event
+  ) {
     StreamingQueryListener.QueryStartedEvent startedEvent = streamingQueries.remove(event.id());
 
     ArrayList<String> batchesToFinish = new ArrayList<>();
@@ -1006,7 +1039,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private synchronized void onStreamingQueryProgressEvent(
-      StreamingQueryListener.QueryProgressEvent event) {
+      StreamingQueryListener.QueryProgressEvent event
+  ) {
     StreamingQueryProgress progress = event.progress();
 
     String batchKey =
@@ -1140,13 +1174,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return ((long) stageId << 32) + attemptId;
   }
 
-  @SuppressForbidden // split with one-char String use a fast-path without regex usage
+  // split with one-char String use a fast-path without regex usage
+  @SuppressForbidden
   private static String getDatabricksJobId(Properties properties) {
     String jobId = properties.getProperty("spark.databricks.job.id");
     if (jobId != null) {
       return jobId;
     }
-
     // First fallback, use spark.jobGroup.id with the pattern
     // <scheduler_id>_job-<job_id>-run-<task_run_id>-action-<action_id>
     String jobGroupId = properties.getProperty("spark.jobGroup.id");
@@ -1157,7 +1191,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         return jobGroupId.substring(startIndex + 4, endIndex);
       }
     }
-
     // Second fallback, use spark.databricks.workload.id with pattern
     // <org_id>-<job_id>-<task_run_id>
     String workloadId = properties.getProperty("spark.databricks.workload.id");
@@ -1171,25 +1204,25 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return null;
   }
 
-  @SuppressForbidden // split with one-char String use a fast-path without regex usage
+  // split with one-char String use a fast-path without regex usage
+  @SuppressForbidden
   private static String getDatabricksJobRunId(
-      Properties jobProperties, String databricksClusterName) {
+      Properties jobProperties,
+      String databricksClusterName
+  ) {
     String jobRunId = jobProperties.getProperty("spark.databricks.job.parentRunId");
     if (jobRunId != null) {
       return jobRunId;
     }
-
     // Fallback, extract the jobRunId from the cluster name for job clusters having the pattern
     // job-<job_id>-run-<job_run_id>
     String clusterName = jobProperties.getProperty("spark.databricks.clusterUsageTags.clusterName");
-
     // Using the databricksClusterName as fallback, if not present in jobProperties
     clusterName = (clusterName == null) ? databricksClusterName : clusterName;
 
     if (clusterName == null) {
       return null;
     }
-
     // For job cluster, the cluster name has a pattern job-<job_id>-run-<job_run_id>
     String[] parts = clusterName.split("-");
     if (parts.length > 3) {
@@ -1199,7 +1232,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return null;
   }
 
-  @SuppressForbidden // split with one-char String use a fast-path without regex usage
+  // split with one-char String use a fast-path without regex usage
+  @SuppressForbidden
   private static String getDatabricksTaskRunId(Properties properties, String jobRunId) {
     // spark.databricks.job.runId is the runId of the task, not of the Job, until Databricks 18.2
     String taskRunId = properties.getProperty("spark.databricks.job.runId");
@@ -1210,7 +1244,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (taskRunId != null && !taskRunId.equals(jobRunId)) {
       return taskRunId;
     }
-
     // First fallback, use spark.jobGroup.id with the pattern
     // <scheduler_id>_job-<job_id>-run-<task_run_id>-action-<action_id>
     String jobGroupId = properties.getProperty("spark.jobGroup.id");
@@ -1221,7 +1254,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         return jobGroupId.substring(startIndex + 4, endIndex);
       }
     }
-
     // Second fallback, use spark.databricks.workload.id with pattern
     // <org_id>-<job_id>-<task_run_id>
     String workloadId = properties.getProperty("spark.databricks.workload.id");
@@ -1285,8 +1317,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   private static int indexOfDatabricksAttemptKey(byte[] haystack, byte[] needle) {
-    outer:
-    for (int i = 0; i <= haystack.length - needle.length; i++) {
+    outer: for (int i = 0; i <= haystack.length - needle.length; i++) {
       for (int j = 0; j < needle.length; j++) {
         if (haystack[i + j] != needle[j]) {
           continue outer;
@@ -1320,8 +1351,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     long currentAvailableExecutorTime = availableExecutorTime;
 
     for (SparkListenerExecutorAdded executor : liveExecutors.values()) {
-      currentAvailableExecutorTime +=
-          (time - executor.time()) * executor.executorInfo().totalCores();
+      currentAvailableExecutorTime += (time - executor.time()) * executor
+        .executorInfo()
+        .totalCores();
     }
 
     return currentAvailableExecutorTime;
@@ -1347,13 +1379,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         builder.withTag("config." + conf._1.replace(".", "_"), conf._2);
       }
     }
-
     // Parameters from properties overwrite values from the spark conf
     if (properties != null) {
       for (final Map.Entry<Object, Object> entry : properties.entrySet()) {
         if (SparkConfAllowList.canCaptureJobParameter(entry.getKey().toString())) {
-          builder.withTag(
-              "config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
+          builder.withTag("config." + entry.getKey().toString().replace('.', '_'), entry.getValue());
         }
       }
     }
@@ -1433,7 +1463,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (!Config.get().useSparkAppNameAsService() || isRunningOnDatabricks) {
       return null;
     }
-
     // Keep service set by user, except if it is only "spark" or "hadoop" that can be set by USM
     String serviceName = Config.get().getServiceName();
     if (Config.get().isServiceNameSetByUser()
@@ -1462,7 +1491,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         && !"hadoop".equals(serviceName)) {
       log.debug(
           "Service explicitly set by user, not using the application name. Service name: {}",
-          serviceName);
+          serviceName
+      );
       return serviceName;
     }
 
@@ -1470,7 +1500,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (sparkAppName != null) {
       log.debug(
           "Using Spark application name as the Datadog service for OpenLineage. Spark application name: {}",
-          sparkAppName);
+          sparkAppName
+      );
     }
 
     return sparkAppName;
@@ -1482,34 +1513,38 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
     if (!classIsLoadable("io.openlineage.client.circuitBreaker.TimeoutCircuitBreaker")) {
-      log.debug(
-          "OpenLineage version without timeout circuit breaker. Probably OL version < 1.35.0");
+      log.debug("OpenLineage version without timeout circuit breaker. Probably OL version < 1.35.0");
       return;
     }
     if (openLineageSparkConf.contains("spark.openlineage.circuitBreaker.type")) {
       log.debug(
           "Other OpenLineage circuit breaker already configured: {}",
-          openLineageSparkConf.get("spark.openlineage.circuitBreaker.type"));
+          openLineageSparkConf.get("spark.openlineage.circuitBreaker.type")
+      );
       return;
     }
 
     openLineageSparkConf.set("spark.openlineage.circuitBreaker.type", "timeout");
     openLineageSparkConf.setIfMissing(
         "spark.openlineage.circuitBreaker.timeoutInSeconds",
-        String.valueOf(OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS));
+        String.valueOf(OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS)
+    );
     log.debug(
         "Setting OpenLineage circuit breaker with timeout {} seconds",
-        openLineageSparkConf.get("spark.openlineage.circuitBreaker.timeoutInSeconds"));
+        openLineageSparkConf.get("spark.openlineage.circuitBreaker.timeoutInSeconds")
+    );
   }
 
   private static void reportKafkaOffsets(
-      final String appName, final AgentSpan span, final SourceProgress progress) {
+      final String appName,
+      final AgentSpan span,
+      final SourceProgress progress
+  ) {
     if (!traceConfig().isDataStreamsEnabled()
         || progress == null
         || progress.description() == null) {
       return;
     }
-
     // check if this is a kafka source
     if (progress.description().toLowerCase().startsWith("kafka")) {
       try {
@@ -1526,11 +1561,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           while (allPartitions.hasNext()) {
             String partition = allPartitions.next();
             DataStreamsTags tags =
-                DataStreamsTags.createWithPartition(
-                    "kafka_commit", topic, partition, null, appName);
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .trackBacklog(tags, topicNode.get(partition).asLong());
+                DataStreamsTags.createWithPartition("kafka_commit", topic, partition, null, appName);
+            AgentTracer
+              .get()
+              .getDataStreamsMonitoring()
+              .trackBacklog(tags, topicNode.get(partition).asLong());
           }
         }
       } catch (Throwable e) {
@@ -1573,17 +1608,19 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return agentUrl;
     }
 
-    StringBuilder sb =
-        new StringBuilder("http://")
-            .append(Config.get().getAgentHost())
-            .append(":")
-            .append(Config.get().getAgentPort());
+    StringBuilder sb = new StringBuilder("http://")
+      .append(Config.get().getAgentHost())
+      .append(":")
+      .append(Config.get().getAgentPort());
     return sb.toString();
   }
 
-  @SuppressForbidden // called at most once per spark application
+  // called at most once per spark application
+  @SuppressForbidden
   private static String removeUuidFromEndOfString(String input) {
     return input.replaceAll(
-        "_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", "");
+        "_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+        ""
+    );
   }
 }

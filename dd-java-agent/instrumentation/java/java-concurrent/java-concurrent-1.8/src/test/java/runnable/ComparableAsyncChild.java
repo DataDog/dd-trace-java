@@ -1,7 +1,6 @@
 package runnable;
 
 public class ComparableAsyncChild implements Runnable, Comparable<ComparableAsyncChild> {
-
   private final int priority;
   private final Runnable task;
 

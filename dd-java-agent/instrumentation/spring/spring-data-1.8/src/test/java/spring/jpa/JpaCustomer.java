@@ -1,5 +1,4 @@
 // This file includes software developed at SignalFx
-
 package spring.jpa;
 
 import javax.persistence.Entity;
@@ -9,15 +8,14 @@ import javax.persistence.Id;
 
 @Entity
 public class JpaCustomer {
-
   @Id
   @GeneratedValue(strategy = GenerationType.AUTO)
   private Long id;
-
   private String firstName;
   private String lastName;
 
-  protected JpaCustomer() {}
+  protected JpaCustomer() {
+  }
 
   public JpaCustomer(final String firstName, final String lastName) {
     this.firstName = firstName;

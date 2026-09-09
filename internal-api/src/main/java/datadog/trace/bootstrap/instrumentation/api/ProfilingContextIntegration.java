@@ -16,10 +16,14 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    */
   default void onStart() {}
 
-  /** Invoked when a trace first propagates to a thread */
+  /**
+   * Invoked when a trace first propagates to a thread
+   */
   default void onAttach() {}
 
-  /** Invoked when a thread exits */
+  /**
+   * Invoked when a thread exits
+   */
   default void onDetach() {}
 
   default Stateful newScopeState(ProfilerContext profilerContext) {
@@ -41,7 +45,6 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   String name();
 
   final class NoOp implements ProfilingContextIntegration {
-
     public static final ProfilingContextIntegration INSTANCE =
         new ProfilingContextIntegration.NoOp();
 

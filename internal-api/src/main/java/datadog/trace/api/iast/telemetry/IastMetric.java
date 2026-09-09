@@ -9,29 +9,41 @@ import javax.annotation.Nullable;
 public enum IastMetric {
   INSTRUMENTED_PROPAGATION("instrumented.propagation", true, Scope.GLOBAL, Verbosity.MANDATORY),
   INSTRUMENTED_SOURCE(
-      "instrumented.source", true, Scope.GLOBAL, Tag.SOURCE_TYPE, Verbosity.MANDATORY),
+      "instrumented.source",
+      true,
+      Scope.GLOBAL,
+      Tag.SOURCE_TYPE,
+      Verbosity.MANDATORY
+  ),
   INSTRUMENTED_SINK(
-      "instrumented.sink", true, Scope.GLOBAL, Tag.VULNERABILITY_TYPE, Verbosity.MANDATORY),
+      "instrumented.sink",
+      true,
+      Scope.GLOBAL,
+      Tag.VULNERABILITY_TYPE,
+      Verbosity.MANDATORY
+  ),
   EXECUTED_PROPAGATION("executed.propagation", true, Scope.REQUEST, Verbosity.DEBUG),
   EXECUTED_SOURCE("executed.source", true, Scope.REQUEST, Tag.SOURCE_TYPE, Verbosity.INFORMATION),
-  EXECUTED_SINK(
-      "executed.sink", true, Scope.REQUEST, Tag.VULNERABILITY_TYPE, Verbosity.INFORMATION),
+  EXECUTED_SINK("executed.sink", true, Scope.REQUEST, Tag.VULNERABILITY_TYPE, Verbosity.INFORMATION),
   EXECUTED_TAINTED("executed.tainted", true, Scope.REQUEST, Verbosity.DEBUG),
   REQUEST_TAINTED("request.tainted", true, Scope.REQUEST, Verbosity.INFORMATION),
   TAINTED_FLAT_MODE("tainted.flat.mode", false, Scope.GLOBAL, Verbosity.INFORMATION),
   JSON_TAG_SIZE_EXCEED("json.tag.size.exceeded", true, Scope.GLOBAL, Verbosity.INFORMATION),
   SOURCE_MAPPING_LIMIT_REACHED(
-      "source.mapping.limit.reached", true, Scope.GLOBAL, Verbosity.INFORMATION),
+      "source.mapping.limit.reached",
+      true,
+      Scope.GLOBAL,
+      Verbosity.INFORMATION
+  ),
   SUPPRESSED_VULNERABILITIES(
       "suppressed.vulnerabilities",
       true,
       Scope.REQUEST,
       Tag.VULNERABILITY_TYPE,
-      Verbosity.INFORMATION),
+      Verbosity.INFORMATION
+  ),
   EXPERIMENTAL_PROPAGATION("experimental.propagation", false, Scope.GLOBAL, Verbosity.INFORMATION);
-
   private static final int COUNT;
-
   public static final String TRACE_METRIC_PREFIX = "_dd.iast.telemetry.";
 
   static {
@@ -59,8 +71,7 @@ public enum IastMetric {
   private int index;
   private final String[] spanTags;
 
-  IastMetric(
-      final String name, final boolean common, final Scope scope, final Verbosity verbosity) {
+  IastMetric(final String name, final boolean common, final Scope scope, final Verbosity verbosity) {
     this(name, common, scope, null, verbosity);
   }
 
@@ -69,7 +80,8 @@ public enum IastMetric {
       final boolean common,
       final Scope scope,
       final Tag tag,
-      final Verbosity verbosity) {
+      final Verbosity verbosity
+  ) {
     this.name = name;
     this.common = common;
     this.scope = scope;
@@ -125,7 +137,9 @@ public enum IastMetric {
     return index + tagValue;
   }
 
-  /** Gets the full value of the tag for the telemetry intake (name : value). */
+  /**
+   * Gets the full value of the tag for the telemetry intake (name : value).
+   */
   public String getTelemetryTag(final byte tagValue) {
     if (tag == null) {
       return null;
@@ -133,7 +147,9 @@ public enum IastMetric {
     return tag.getTelemetryTag(tagValue);
   }
 
-  /** Gets the key of the tag to be used in spans */
+  /**
+   * Gets the key of the tag to be used in spans
+   */
   public String getSpanTag(final byte tagValue) {
     if (tag == null) {
       return spanTags[0];
@@ -142,30 +158,23 @@ public enum IastMetric {
   }
 
   public abstract static class Tag {
-
     public static final Tag VULNERABILITY_TYPE =
         new Tag("vulnerability_type", VulnerabilityTypes.STRINGS) {
-          @Nullable
-          @Override
-          public byte[] unwrap(byte tagValue) {
-            return VulnerabilityTypes.unwrap(tagValue);
-          }
-        };
-
-    public static final Tag SOURCE_TYPE =
-        new Tag("source_type", SourceTypes.STRINGS) {
-
-          @Nullable
-          @Override
-          public byte[] unwrap(byte tagValue) {
-            return SourceTypes.unwrap(tagValue);
-          }
-        };
-
+      @Nullable
+      @Override
+      public byte[] unwrap(byte tagValue) {
+        return VulnerabilityTypes.unwrap(tagValue);
+      }
+    };
+    public static final Tag SOURCE_TYPE = new Tag("source_type", SourceTypes.STRINGS) {
+      @Nullable
+      @Override
+      public byte[] unwrap(byte tagValue) {
+        return SourceTypes.unwrap(tagValue);
+      }
+    };
     protected final String name;
-
     protected final String[] values;
-
     protected final String[] telemetryTags;
 
     private Tag(final String name, final String[] values) {
@@ -194,10 +203,8 @@ public enum IastMetric {
   }
 
   public static final class Scope {
-
     public static final Scope GLOBAL = new Scope("global");
     public static final Scope REQUEST = new Scope("request");
-
     private final String name;
 
     private Scope(final String name) {

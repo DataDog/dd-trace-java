@@ -6,10 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class IastEnabledChecks {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(IastEnabledChecks.class);
 
-  private IastEnabledChecks() {}
+  private IastEnabledChecks() {
+  }
 
   public static boolean isMajorJavaVersionAtLeast(final String version) {
     try {
@@ -18,7 +18,8 @@ public abstract class IastEnabledChecks {
       LOGGER.error(
           "Error checking major java version {}, expect some call sites to be disabled",
           version,
-          e);
+          e
+      );
       return false;
     }
   }

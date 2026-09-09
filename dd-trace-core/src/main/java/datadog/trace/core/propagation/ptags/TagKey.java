@@ -18,7 +18,13 @@ final class TagKey extends TagElement {
       return null;
     }
     return keyCache.computeIfAbsent(
-        s, 0, s.length(), TagKey::hash, TagKey::compare, TagKey::produce);
+        s,
+        0,
+        s.length(),
+        TagKey::hash,
+        TagKey::compare,
+        TagKey::produce
+    );
   }
 
   static TagKey from(Encoding encoding, String s) {
@@ -30,7 +36,13 @@ final class TagKey extends TagElement {
     }
     int pl = encoding.getPrefixLength();
     return keyCache.computeIfAbsent(
-        s, pl, s.length(), TagKey::hash, TagKey::compare, TagKey::produce);
+        s,
+        pl,
+        s.length(),
+        TagKey::hash,
+        TagKey::compare,
+        TagKey::produce
+    );
   }
 
   static TagKey from(Encoding encoding, String s, int start, int end) {
@@ -42,7 +54,13 @@ final class TagKey extends TagElement {
     }
     int pl = encoding.getPrefixLength();
     return keyCache.computeIfAbsent(
-        s, start + pl, end, TagKey::hash, TagKey::compare, TagKey::produce);
+        s,
+        start + pl,
+        end,
+        TagKey::hash,
+        TagKey::compare,
+        TagKey::produce
+    );
   }
 
   private static boolean isHeaderInvalid(Encoding encoding, String s) {
@@ -113,8 +131,12 @@ final class TagKey extends TagElement {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     TagKey tagKey = (TagKey) o;
     return none.equals(tagKey.none);
   }

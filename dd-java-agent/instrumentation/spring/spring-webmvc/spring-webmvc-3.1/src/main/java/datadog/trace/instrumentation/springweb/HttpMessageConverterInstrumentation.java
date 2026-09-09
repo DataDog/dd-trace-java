@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -29,8 +28,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HttpMessageConverterInstrumentation() {
     super("spring-web");
   }
@@ -39,7 +39,8 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     // Only apply this spring-framework instrumentation when spring-webmvc is also deployed.
     return hasClassNamed(
-        "org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping");
+        "org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping"
+    );
   }
 
   @Override
@@ -56,56 +57,59 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("read"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, Class.class))
-            .and(takesArgument(1, named("org.springframework.http.HttpInputMessage"))),
-        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice");
+          .and(isPublic())
+          .and(named("read"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, Class.class))
+          .and(takesArgument(1, named("org.springframework.http.HttpInputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("read"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, Type.class))
-            .and(takesArgument(1, Class.class))
-            .and(takesArgument(2, named("org.springframework.http.HttpInputMessage"))),
-        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice");
+          .and(isPublic())
+          .and(named("read"))
+          .and(takesArguments(3))
+          .and(takesArgument(0, Type.class))
+          .and(takesArgument(1, Class.class))
+          .and(takesArgument(2, named("org.springframework.http.HttpInputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("write"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, Object.class))
-            .and(takesArgument(1, named("org.springframework.http.MediaType")))
-            .and(takesArgument(2, named("org.springframework.http.HttpOutputMessage"))),
-        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
+          .and(isPublic())
+          .and(named("write"))
+          .and(takesArguments(3))
+          .and(takesArgument(0, Object.class))
+          .and(takesArgument(1, named("org.springframework.http.MediaType")))
+          .and(takesArgument(2, named("org.springframework.http.HttpOutputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("write"))
-            .and(takesArguments(4))
-            .and(takesArgument(0, Object.class))
-            .and(takesArgument(1, Type.class))
-            .and(takesArgument(2, named("org.springframework.http.MediaType")))
-            .and(takesArgument(3, named("org.springframework.http.HttpOutputMessage"))),
-        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
+          .and(isPublic())
+          .and(named("write"))
+          .and(takesArguments(4))
+          .and(takesArgument(0, Object.class))
+          .and(takesArgument(1, Type.class))
+          .and(takesArgument(2, named("org.springframework.http.MediaType")))
+          .and(takesArgument(3, named("org.springframework.http.HttpOutputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class HttpMessageConverterReadAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Return final Object obj,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (obj == null || t != null) {
         return;
       }
-
       // CharSequence or byte[] cannot be treated as parsed body content, as they may lead to false
       // positives in the WAF rules.
       // TODO: These types (CharSequence, byte[]) are candidates to being deserialized before being
@@ -140,7 +144,9 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
   public static class HttpMessageConverterWriteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void before(
-        @Advice.Argument(0) final Object obj, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(0) final Object obj,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (obj == null) {
         return;
       }

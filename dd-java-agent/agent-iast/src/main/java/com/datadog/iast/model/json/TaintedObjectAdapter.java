@@ -13,7 +13,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TaintedObjectAdapter {
-
   @ToJson
   public void toJson(@Nonnull final JsonWriter writer, @Nullable final TaintedObject value)
       throws IOException {

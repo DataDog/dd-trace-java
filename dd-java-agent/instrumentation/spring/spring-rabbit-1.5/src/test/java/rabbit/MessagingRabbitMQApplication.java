@@ -15,12 +15,9 @@ import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
 public class MessagingRabbitMQApplication {
-
   public static String hostName = "127.0.0.1";
   public static int port = 5672;
-
   static final String topicExchangeName = "test-exchange";
-
   static final String queueName = "test-queue";
 
   @Bean
@@ -45,7 +42,9 @@ public class MessagingRabbitMQApplication {
 
   @Bean
   SimpleMessageListenerContainer container(
-      ConnectionFactory connectionFactory, MessageListenerAdapter listenerAdapter) {
+      ConnectionFactory connectionFactory,
+      MessageListenerAdapter listenerAdapter
+  ) {
     SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
     container.setConnectionFactory(connectionFactory);
     container.setQueueNames(queueName);

@@ -3,7 +3,6 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -31,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HttpCodec {
-
   private static final Logger log = LoggerFactory.getLogger(HttpCodec.class);
   // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Forwarded
   static final String FORWARDED_KEY = "forwarded";
@@ -40,7 +38,6 @@ public class HttpCodec {
   static final String X_FORWARDED_HOST_KEY = "x-forwarded-host";
   static final String X_FORWARDED_FOR_KEY = "x-forwarded-for";
   static final String X_FORWARDED_PORT_KEY = "x-forwarded-port";
-
   // other headers which may contain real ip
   static final String X_CLIENT_IP_KEY = "x-client-ip";
   static final String TRUE_CLIENT_IP_KEY = "true-client-ip";
@@ -55,7 +52,9 @@ public class HttpCodec {
     <C> void inject(final DDSpanContext context, final C carrier, final CarrierSetter<C> setter);
   }
 
-  /** This interface defines propagated context extractor. */
+  /**
+   * This interface defines propagated context extractor.
+   */
   public interface Extractor {
     /**
      * Extracts a propagated context from the given carrier using the provided getter.
@@ -81,22 +80,29 @@ public class HttpCodec {
   public static Injector createInjector(
       Config config,
       Set<TracePropagationStyle> styles,
-      Map<String, String> invertedBaggageMapping) {
+      Map<String, String> invertedBaggageMapping
+  ) {
     ArrayList<Injector> injectors =
         new ArrayList<>(createInjectors(config, styles, invertedBaggageMapping).values());
     return new CompoundInjector(injectors);
   }
 
   public static Map<TracePropagationStyle, Injector> allInjectorsFor(
-      Config config, Map<String, String> reverseBaggageMapping) {
+      Config config,
+      Map<String, String> reverseBaggageMapping
+  ) {
     return createInjectors(
-        config, EnumSet.allOf(TracePropagationStyle.class), reverseBaggageMapping);
+        config,
+        EnumSet.allOf(TracePropagationStyle.class),
+        reverseBaggageMapping
+    );
   }
 
   private static Map<TracePropagationStyle, Injector> createInjectors(
       Config config,
       Set<TracePropagationStyle> propagationStyles,
-      Map<String, String> reverseBaggageMapping) {
+      Map<String, String> reverseBaggageMapping
+  ) {
     EnumMap<TracePropagationStyle, Injector> result = new EnumMap<>(TracePropagationStyle.class);
     for (TracePropagationStyle style : propagationStyles) {
       switch (style) {
@@ -106,12 +112,14 @@ public class HttpCodec {
         case B3SINGLE:
           result.put(
               style,
-              B3HttpCodec.newSingleInjector(config.isTracePropagationStyleB3PaddingEnabled()));
+              B3HttpCodec.newSingleInjector(config.isTracePropagationStyleB3PaddingEnabled())
+          );
           break;
         case B3MULTI:
           result.put(
               style,
-              B3HttpCodec.newMultiInjector(config.isTracePropagationStyleB3PaddingEnabled()));
+              B3HttpCodec.newMultiInjector(config.isTracePropagationStyleB3PaddingEnabled())
+          );
           break;
         case HAYSTACK:
           result.put(style, HaystackHttpCodec.newInjector(reverseBaggageMapping));
@@ -135,8 +143,7 @@ public class HttpCodec {
     return result;
   }
 
-  public static Extractor createExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+  public static Extractor createExtractor(Config config, Supplier<TraceConfig> traceConfigSupplier) {
     final List<Extractor> extractors = new ArrayList<>();
     for (final TracePropagationStyle style : config.getTracePropagationStylesToExtract()) {
       switch (style) {
@@ -179,7 +186,6 @@ public class HttpCodec {
   }
 
   public static class CompoundInjector implements Injector {
-
     private final List<Injector> injectors;
 
     public CompoundInjector(final List<Injector> injectors) {
@@ -188,7 +194,10 @@ public class HttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
+        final DDSpanContext context,
+        final C carrier,
+        final CarrierSetter<C> setter
+    ) {
       log.debug("Inject context {}", context);
       for (final Injector injector : injectors) {
         injector.inject(context, carrier, setter);
@@ -215,8 +224,7 @@ public class HttpCodec {
     }
 
     @Override
-    public <C> TagContext extract(
-        final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
+    public <C> TagContext extract(final C carrier, final AgentPropagation.ContextVisitor<C> getter) {
       ExtractedContext context = null;
       TagContext partialContext = null;
       // Extract and cache all headers in advance
@@ -234,9 +242,8 @@ public class HttpCodec {
             if (this.extractFirst) {
               break;
             }
-          }
-          // If another valid context is extracted
-          else {
+          } else // If another valid context is extracted
+          {
             if (traceIdMatch(context.getTraceId(), extractedContext.getTraceId())) {
               boolean comingFromTraceContext = extracted.getPropagationStyle() == TRACECONTEXT;
               if (comingFromTraceContext) {
@@ -244,19 +251,19 @@ public class HttpCodec {
               }
             } else {
               // Terminate extracted context and add it as span link
-              context.addTerminatedSpanLink(
-                  DDSpanLink.from(
-                      (ExtractedContext) extracted,
-                      SpanAttributes.builder()
-                          .put("reason", "terminated_context")
-                          .put("context_headers", extracted.getPropagationStyle().toString())
-                          .build()));
+              context.addTerminatedSpanLink(DDSpanLink.from(
+                  (ExtractedContext) extracted,
+                  SpanAttributes
+                    .builder()
+                    .put("reason", "terminated_context")
+                    .put("context_headers", extracted.getPropagationStyle().toString())
+                    .build()
+              ));
               // TODO Note: Other vendor tracestate will be lost here
             }
           }
-        }
-        // Check if context is at least partial to keep it as first valid partial context found
-        else if (extracted != null && partialContext == null) {
+        } else // Check if context is at least partial to keep it as first valid partial context found
+        if (extracted != null && partialContext == null) {
           partialContext = extracted;
         }
       }
@@ -284,7 +291,8 @@ public class HttpCodec {
     private <C> void applyTraceContextToFirstContext(
         ExtractedContext firstContext,
         ExtractedContext traceContext,
-        ExtractionCache<C> extractionCache) {
+        ExtractionCache<C> extractionCache
+    ) {
       // Propagate newly extracted W3C tracestate to first valid context
       String extractedTracestate = traceContext.getPropagationTags().getW3CTracestate();
       firstContext.getPropagationTags().updateW3CTracestate(extractedTracestate);
@@ -306,10 +314,12 @@ public class HttpCodec {
 
   private static class ExtractionCache<C>
       implements AgentPropagation.KeyClassifier,
-          AgentPropagation.ContextVisitor<ExtractionCache<?>> {
-    /** Cached context key-values (even indexes are header names, odd indexes are header values). */
+      AgentPropagation.ContextVisitor<ExtractionCache<?>>
+  {
+    /**
+     * Cached context key-values (even indexes are header names, odd indexes are header values).
+     */
     private final List<String> keysAndValues;
-
     /**
      * The parent span identifier from {@link DatadogHttpCodec#SPAN_ID_KEY} header formatted as 16
      * hexadecimal characters, {@code null} if absent or invalid.
@@ -369,7 +379,9 @@ public class HttpCodec {
     }
   }
 
-  /** URL encode value */
+  /**
+   * URL encode value
+   */
   static String encode(final String value) {
     String encoded = value;
     try {
@@ -393,7 +405,9 @@ public class HttpCodec {
     return encode(value).replace("+", "%20");
   }
 
-  /** URL decode value */
+  /**
+   * URL decode value
+   */
   static String decode(final String value) {
     String decoded = value;
     try {

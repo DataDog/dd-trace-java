@@ -17,9 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ByteCodeLinesResolver implements LinesResolver {
-
   private static final Logger log = LoggerFactory.getLogger(ByteCodeLinesResolver.class);
-
   private final DDCache<Class<?>, ClassMethodLines> methodLinesCache =
       DDCaches.newFixedSizeIdentityCache(16);
 
@@ -30,7 +28,6 @@ public class ByteCodeLinesResolver implements LinesResolver {
       ClassMethodLines classMethodLines =
           methodLinesCache.computeIfAbsent(method.getDeclaringClass(), ClassMethodLines::parse);
       return classMethodLines.get(method);
-
     } catch (Exception e) {
       log.error("Could not determine method borders for {}", method, e);
       return Lines.EMPTY;
@@ -71,7 +68,6 @@ public class ByteCodeLinesResolver implements LinesResolver {
           classReader.accept(methodLocator, ClassReader.SKIP_FRAMES);
         }
         return classMethodLines;
-
       } catch (Exception e) {
         // do not cache failure
         throw new RuntimeException(e);
@@ -99,7 +95,12 @@ public class ByteCodeLinesResolver implements LinesResolver {
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions
+    ) {
       return classMethodLines.createRecorder(ClassMethodLines.getFingerprint(name, descriptor));
     }
   }

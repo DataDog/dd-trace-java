@@ -17,13 +17,13 @@ public class GrizzlyFilterChainModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".GrizzlyDecorator",
-      packageName + ".GrizzlyDecorator$GrizzlyHttpBlockResponseFunction",
-      packageName + ".GrizzlyHttpBlockingHelper",
-      packageName + ".GrizzlyHttpBlockingHelper$CloseCompletionHandler",
-      packageName + ".GrizzlyHttpBlockingHelper$JustCompleteProcessor",
-      packageName + ".HTTPRequestPacketURIDataAdapter",
-      packageName + ".ExtractAdapter"
+        packageName + ".GrizzlyDecorator",
+        packageName + ".GrizzlyDecorator$GrizzlyHttpBlockResponseFunction",
+        packageName + ".GrizzlyHttpBlockingHelper",
+        packageName + ".GrizzlyHttpBlockingHelper$CloseCompletionHandler",
+        packageName + ".GrizzlyHttpBlockingHelper$JustCompleteProcessor",
+        packageName + ".HTTPRequestPacketURIDataAdapter",
+        packageName + ".ExtractAdapter"
     };
   }
 
@@ -38,6 +38,7 @@ public class GrizzlyFilterChainModule extends InstrumenterModule.Tracing {
         new DefaultFilterChainInstrumentation(),
         new FilterInstrumentation(),
         new HttpCodecFilterInstrumentation(),
-        new HttpServerFilterInstrumentation());
+        new HttpServerFilterInstrumentation()
+    );
   }
 }

@@ -12,11 +12,13 @@ public class HandleResultAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void methodExit(
       @Advice.Argument(0) ServerWebExchange exchange,
-      @Advice.Return(readOnly = false) Mono<Void> mono) {
+      @Advice.Return(readOnly = false) Mono<Void> mono
+  ) {
     final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
     if (span != null && mono != null) {
-      InstrumentationContext.get(Publisher.class, HandoffContext.class)
-          .put(mono, HandoffContext.anyThread(span));
+      InstrumentationContext
+        .get(Publisher.class, HandoffContext.class)
+        .put(mono, HandoffContext.anyThread(span));
     }
   }
 }

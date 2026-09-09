@@ -20,9 +20,7 @@ import javax.annotation.Nullable;
  * apart on the wire by {@code event_kind}, mirroring dd-trace-py and dd-trace-js.
  */
 public final class LLMObsFeedbackEvent {
-
   private static final String EVENT_KIND_FEEDBACK = "feedback";
-
   private final LLMObs.Feedback feedback;
   private final String mlApp;
   private final List<String> tags;
@@ -47,7 +45,10 @@ public final class LLMObsFeedbackEvent {
 
   private static List<String> buildTags(@Nullable Map<String, Object> userTags, String mlApp) {
     return IntakeTags.flatten(
-        userTags, "ddtrace.version:" + DDTraceApiInfo.VERSION, "ml_app:" + mlApp);
+        userTags,
+        "ddtrace.version:" + DDTraceApiInfo.VERSION,
+        "ml_app:" + mlApp
+    );
   }
 
   /**
@@ -113,7 +114,9 @@ public final class LLMObsFeedbackEvent {
     }
   }
 
-  /** The request envelope, identical in shape to the one used for evaluations. */
+  /**
+   * The request envelope, identical in shape to the one used for evaluations.
+   */
   public static final class Request {
     public final Data data;
 

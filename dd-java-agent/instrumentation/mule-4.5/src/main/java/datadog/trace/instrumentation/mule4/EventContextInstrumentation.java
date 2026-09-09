@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mule4;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,13 +12,14 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public final class EventContextInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.mule.runtime.core.internal.event.DefaultEventContext",
-      "org.mule.runtime.core.internal.event.DefaultEventContext$ChildEventContext"
+        "org.mule.runtime.core.internal.event.DefaultEventContext",
+        "org.mule.runtime.core.internal.event.DefaultEventContext$ChildEventContext"
     };
   }
 

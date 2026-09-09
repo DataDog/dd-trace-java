@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jersey.JerseyTaintHelper.taintMultiValuedMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -23,8 +22,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class FormInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public FormInstrumentation() {
     super("jersey");
   }
@@ -33,7 +33,8 @@ public class FormInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("asMap").and(isPublic()).and(takesArguments(0)),
-        FormInstrumentation.class.getName() + "$AsMapAdvice");
+        FormInstrumentation.class.getName() + "$AsMapAdvice"
+    );
   }
 
   @Override
@@ -43,9 +44,7 @@ public class FormInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
+    return new String[] {packageName + ".JerseyTaintHelper"};
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -55,7 +54,8 @@ public class FormInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Return Map<String, List<String>> form,
         @Advice.This Object self,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (form == null || form.isEmpty()) {
         return;
       }

@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_CONNECTI
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -49,8 +48,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   static final String INSTRUMENTATION_NAME = "netty";
   static final String[] ADDITIONAL_INSTRUMENTATION_NAMES = {"netty-4.1"};
 
@@ -71,32 +71,32 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AttributeKeys",
-      packageName + ".ServerRequestContext",
-      // client helpers
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".client.NettyResponseInjectAdapter",
-      packageName + ".client.HttpClientRequestTracingHandler",
-      packageName + ".client.HttpClientResponseTracingHandler",
-      packageName + ".client.HttpClientTracingHandler",
-      // server helpers
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
-      packageName + ".server.HttpServerContextTrackingHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler",
-      packageName + ".server.MaybeBlockResponseHandler",
-      packageName + ".server.websocket.WebSocketServerTracingHandler",
-      packageName + ".server.websocket.WebSocketServerOutboundTracingHandler",
-      packageName + ".server.websocket.WebSocketServerInboundTracingHandler",
-      packageName + ".Http2ConnectContinuationListener",
-      packageName + ".NettyHttp2Helper",
-      packageName + ".NettyPipelineHelper",
+        packageName + ".AttributeKeys",
+        packageName + ".ServerRequestContext",
+        // client helpers
+        packageName + ".client.NettyHttpClientDecorator",
+        packageName + ".client.NettyResponseInjectAdapter",
+        packageName + ".client.HttpClientRequestTracingHandler",
+        packageName + ".client.HttpClientResponseTracingHandler",
+        packageName + ".client.HttpClientTracingHandler",
+        // server helpers
+        packageName + ".server.ResponseExtractAdapter",
+        packageName + ".server.NettyHttpServerDecorator",
+        packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+        packageName + ".server.BlockingResponseHandler",
+        packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+        packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
+        packageName + ".server.HttpServerContextTrackingHandler",
+        packageName + ".server.HttpServerRequestTracingHandler",
+        packageName + ".server.HttpServerResponseTracingHandler",
+        packageName + ".server.HttpServerTracingHandler",
+        packageName + ".server.MaybeBlockResponseHandler",
+        packageName + ".server.websocket.WebSocketServerTracingHandler",
+        packageName + ".server.websocket.WebSocketServerOutboundTracingHandler",
+        packageName + ".server.websocket.WebSocketServerInboundTracingHandler",
+        packageName + ".Http2ConnectContinuationListener",
+        packageName + ".NettyHttp2Helper",
+        packageName + ".NettyPipelineHelper"
     };
   }
 
@@ -104,19 +104,22 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(namedOneOf("addFirst", "addLast"))
-            .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
+          .and(namedOneOf("addFirst", "addLast"))
+          .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
-        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
+        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice"
+    );
     transformer.applyAdvices(
         isMethod()
-            .and(namedOneOf("addBefore", "addAfter"))
-            .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
+          .and(namedOneOf("addBefore", "addAfter"))
+          .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
-        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
+        NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("connect")).and(returns(named("io.netty.channel.ChannelFuture"))),
-        NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice");
+        NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice"
+    );
   }
 
   @AppliesOn(CONTEXT_TRACKING)
@@ -127,13 +130,17 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
     public static void addContextTrackingHandler(
         @Advice.This final ChannelPipeline pipeline,
         @Advice.Argument(value = 2, optional = true) final Object handler2,
-        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3
+    ) {
       ChannelHandler handler =
           handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
       try {
         if (handler instanceof HttpServerCodec || handler instanceof HttpRequestDecoder) {
           NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpServerContextTrackingHandler.INSTANCE);
+              pipeline,
+              handler,
+              HttpServerContextTrackingHandler.INSTANCE
+          );
         }
       } catch (final IllegalArgumentException e) {
         // Prevented adding duplicate handlers.
@@ -150,7 +157,8 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static int checkDepth(
         @Advice.Argument(value = 2, optional = true) final Object handler2,
-        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3
+    ) {
       ChannelHandler handler =
           handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
       /**
@@ -171,7 +179,8 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
         @Advice.Enter final int depth,
         @Advice.This final ChannelPipeline pipeline,
         @Advice.Argument(value = 2, optional = true) final Object handler2,
-        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3
+    ) {
       if (depth > 0) {
         return;
       }
@@ -189,16 +198,21 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
               pipeline,
               handler,
               new HttpServerTracingHandler(),
-              MaybeBlockResponseHandler.INSTANCE);
+              MaybeBlockResponseHandler.INSTANCE
+          );
         } else if (handler instanceof HttpRequestDecoder) {
           NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpServerRequestTracingHandler.INSTANCE);
+              pipeline,
+              handler,
+              HttpServerRequestTracingHandler.INSTANCE
+          );
         } else if (handler instanceof HttpResponseEncoder) {
           NettyPipelineHelper.addHandlerAfter(
               pipeline,
               handler,
               HttpServerResponseTracingHandler.INSTANCE,
-              MaybeBlockResponseHandler.INSTANCE);
+              MaybeBlockResponseHandler.INSTANCE
+          );
         } else if (handler instanceof WebSocketServerProtocolHandler) {
           if (InstrumenterConfig.get().isWebsocketTracingEnabled()
               && pipeline.get(HttpServerTracingHandler.class) != null) {
@@ -212,37 +226,50 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
             NettyPipelineHelper.addHandlerAfter(
                 pipeline,
                 pipeline.get(HttpServerTracingHandler.class),
-                new WebSocketServerTracingHandler());
+                new WebSocketServerTracingHandler()
+            );
           }
         } else if (handler instanceof WebSocketFrameDecoder) {
           if (InstrumenterConfig.get().isWebsocketTracingEnabled()
               && pipeline.get(WebSocketServerTracingHandler.class) == null) {
             NettyPipelineHelper.addHandlerAfter(
-                pipeline, handler, WebSocketServerInboundTracingHandler.INSTANCE);
+                pipeline,
+                handler,
+                WebSocketServerInboundTracingHandler.INSTANCE
+            );
           }
         } else if (handler instanceof WebSocketFrameEncoder) {
           if (InstrumenterConfig.get().isWebsocketTracingEnabled()
               && pipeline.get(WebSocketServerTracingHandler.class) == null) {
             NettyPipelineHelper.addHandlerAfter(
-                pipeline, handler, WebSocketServerOutboundTracingHandler.INSTANCE);
+                pipeline,
+                handler,
+                WebSocketServerOutboundTracingHandler.INSTANCE
+            );
           }
-        }
-        // Client pipeline handlers
-        else if (handler instanceof HttpClientCodec) {
+        } else // Client pipeline handlers
+        if (handler instanceof HttpClientCodec) {
           NettyPipelineHelper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
         } else if (handler instanceof HttpRequestEncoder) {
           NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpClientRequestTracingHandler.INSTANCE);
+              pipeline,
+              handler,
+              HttpClientRequestTracingHandler.INSTANCE
+          );
         } else if (handler instanceof HttpResponseDecoder) {
           NettyPipelineHelper.addHandlerAfter(
-              pipeline, handler, HttpClientResponseTracingHandler.INSTANCE);
+              pipeline,
+              handler,
+              HttpClientResponseTracingHandler.INSTANCE
+          );
         } else if (NettyHttp2Helper.isHttp2FrameCodec(handler)) {
           if (NettyHttp2Helper.isServer(handler)) {
             NettyPipelineHelper.addHandlerAfter(
                 pipeline,
                 handler,
                 new HttpServerTracingHandler(),
-                MaybeBlockResponseHandler.INSTANCE);
+                MaybeBlockResponseHandler.INSTANCE
+            );
           } else {
             NettyPipelineHelper.addHandlerAfter(pipeline, handler, new HttpClientTracingHandler());
           }
@@ -266,8 +293,11 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
           continuation.release();
           return false;
         }
-        return Boolean.TRUE.equals(
-            pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).get());
+        return Boolean.TRUE.equals(pipeline
+          .channel()
+          .attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY)
+          .get()
+        );
       }
       return false;
     }
@@ -276,7 +306,8 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
     public static void cleanupHttp2ConnectParentContinuation(
         @Advice.Enter final boolean cleanupHttp2Continuation,
         @Advice.This final ChannelPipeline pipeline,
-        @Advice.Return final ChannelFuture future) {
+        @Advice.Return final ChannelFuture future
+    ) {
       if (!cleanupHttp2Continuation) {
         return;
       }

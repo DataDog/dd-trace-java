@@ -15,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.TraceConfig;
@@ -33,23 +32,32 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Override
   protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier
+  ) {
     return B3HttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
   @TableTest({
-    "scenario          | traceIdHex         | spanIdHex          | samplingPriority | expectedSamplingPriority",
-    "no priority       | '1'                | '2'                |                  | UNSET                   ",
-    "sampler keep      | '2'                | '3'                | 1                | SAMPLER_KEEP            ",
-    "sampler drop      | '3'                | '4'                | 0                | SAMPLER_DROP            ",
-    "uint64 max drop   | 'ffffffffffffffff' | 'fffffffffffffffe' | 0                | SAMPLER_DROP            ",
-    "uint64 max-1 keep | 'fffffffffffffffe' | 'ffffffffffffffff' | 1                | SAMPLER_KEEP            "
+    "scenario          | traceIdHex         | spanIdHex          | samplingPriority | ",
+    "expectedSamplingPriority                                                         ",
+    "no priority       | '1'                | '2'                |                  | ",
+    "UNSET                                                                            ",
+    "sampler keep      | '2'                | '3'                | 1                | ",
+    "SAMPLER_KEEP                                                                     ",
+    "sampler drop      | '3'                | '4'                | 0                | ",
+    "SAMPLER_DROP                                                                     ",
+    "uint64 max drop   | 'ffffffffffffffff' | 'fffffffffffffffe' | 0                | ",
+    "SAMPLER_DROP                                                                     ",
+    "uint64 max-1 keep | 'fffffffffffffffe' | 'ffffffffffffffff' | 1                | ",
+    "SAMPLER_KEEP                                                                     "
   })
   void extractHttpHeaders(
       String traceIdHex,
       String spanIdHex,
       Integer samplingPriority,
-      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
@@ -58,7 +66,6 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, SOME_VALUE,
         SAMPLING_PRIORITY_KEY, samplingPriority != null ? samplingPriority.toString() : null);
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -71,17 +78,23 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario              | b3      | expectedTraceIdHex | expectedSpanId | expectedSamplingPriority",
-    "b3 takes precedence   | '2-3-0' | '2'                | 3              | SAMPLER_DROP            ",
-    "b3 without priority   | '2-3'   | '2'                | 3              | UNSET                   ",
-    "invalid b3 falls back | '0'     | '1'                | 2              | SAMPLER_KEEP            ",
-    "absent b3 falls back  |         | '1'                | 2              | SAMPLER_KEEP            "
+    "scenario              | b3      | expectedTraceIdHex | expectedSpanId |           ",
+    "expectedSamplingPriority                                                          ",
+    "b3 takes precedence   | '2-3-0' | '2'                | 3              | SAMPLER_  ",
+    "DROP                                                                              ",
+    "b3 without priority   | '2-3'   | '2'                | 3              | UNSET     ",
+    "                                                                                  ",
+    "invalid b3 falls back | '0'     | '1'                | 2              | SAMPLER_  ",
+    "KEEP                                                                              ",
+    "absent b3 falls back  |         | '1'                | 2              | SAMPLER_  ",
+    "KEEP                                                                              "
   })
   void extractHttpHeadersWithB3HeaderAtTheBeginning(
       String b3,
       String expectedTraceIdHex,
       long expectedSpanId,
-      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority
+  ) {
     String traceIdHex = "1";
     String spanIdHex = "2";
     // spotless:off
@@ -94,26 +107,35 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
         SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
     assertB3MultiOrSingleContext(
-        context, expectedTraceIdHex, expectedSpanId, expectedSamplingPriority);
+        context,
+        expectedTraceIdHex,
+        expectedSpanId,
+        expectedSamplingPriority
+    );
   }
 
   @TableTest({
-    "scenario              | b3      | expectedTraceIdHex | expectedSpanId | expectedSamplingPriority",
-    "b3 takes precedence   | '2-3-0' | '2'                | 3              | SAMPLER_DROP            ",
-    "b3 without priority   | '2-3'   | '2'                | 3              | UNSET                   ",
-    "invalid b3 falls back | '0'     | '1'                | 2              | SAMPLER_KEEP            ",
-    "absent b3 falls back  |         | '1'                | 2              | SAMPLER_KEEP            "
+    "scenario              | b3      | expectedTraceIdHex | expectedSpanId |           ",
+    "expectedSamplingPriority                                                          ",
+    "b3 takes precedence   | '2-3-0' | '2'                | 3              | SAMPLER_  ",
+    "DROP                                                                              ",
+    "b3 without priority   | '2-3'   | '2'                | 3              | UNSET     ",
+    "                                                                                  ",
+    "invalid b3 falls back | '0'     | '1'                | 2              | SAMPLER_  ",
+    "KEEP                                                                              ",
+    "absent b3 falls back  |         | '1'                | 2              | SAMPLER_  ",
+    "KEEP                                                                              "
   })
   void extractHttpHeadersWithB3HeaderAtTheEnd(
       String b3,
       String expectedTraceIdHex,
       long expectedSpanId,
-      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority
+  ) {
     String traceIdHex = "1";
     String spanIdHex = "2";
     // spotless:off
@@ -126,18 +148,22 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
         SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertB3MultiOrSingleContext(
-        context, expectedTraceIdHex, expectedSpanId, expectedSamplingPriority);
+        context,
+        expectedTraceIdHex,
+        expectedSpanId,
+        expectedSamplingPriority
+    );
   }
 
   private void assertB3MultiOrSingleContext(
       TagContext context,
       String expectedTraceIdHex,
       long expectedSpanId,
-      int expectedSamplingPriority) {
+      int expectedSamplingPriority
+  ) {
     assertEquals(B3TraceId.fromHex(expectedTraceIdHex), context.getTraceId());
     assertEquals(expectedSpanId, context.getSpanId());
     assertFalse(context.baggageItems().iterator().hasNext());
@@ -155,29 +181,45 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario               | traceId                             | spanId              | expectedTraceIdHex                 | expectedSpanId     ",
-    "negative traceId       | '-1'                                | '1'                 |                                    |                    ",
-    "negative spanId        | '1'                                 | '-1'                |                                    |                    ",
-    "zero traceId           | '0'                                 | '1'                 |                                    |                    ",
-    "padded traceId         | '00001'                             | '1'                 | '00001'                            | 1                  ",
-    "64-bit ids             | '463ac35c9f6413ad'                  | '463ac35c9f6413ad'  | '463ac35c9f6413ad'                 | 5060571933882717101",
-    "128-bit traceId        | '463ac35c9f6413ad48485a3953bb6124'  | '1'                 | '463ac35c9f6413ad48485a3953bb6124' | 1                  ",
-    "uint64 max traceId     | 'ffffffffffffffff'                  | '1'                 | 'ffffffffffffffff'                 | 1                  ",
-    "128-bit high-low max   | 'aaaaaaaaaaaaaaaaffffffffffffffff'  | '1'                 | 'aaaaaaaaaaaaaaaaffffffffffffffff' | 1                  ",
-    "traceId too long high1 | '1ffffffffffffffffffffffffffffffff' | '1'                 |                                    |                    ",
-    "traceId too long high0 | '0ffffffffffffffffffffffffffffffff' | '1'                 |                                    |                    ",
-    "uint64 max spanId      | '1'                                 | 'ffffffffffffffff'  | '1'                                | -1                 ",
-    "spanId too long        | '1'                                 | '1ffffffffffffffff' |                                    |                    "
+    "scenario               | traceId                             | spanId             ",
+    "                       | expectedTraceIdHex                  | expectedSpanId     ",
+    "negative traceId       | '-1'                                | '1'                ",
+    "                       |                                     |                    ",
+    "negative spanId        | '1'                                 | '-1'               ",
+    "                       |                                     |                    ",
+    "zero traceId           | '0'                                 | '1'                ",
+    "                       |                                     |                    ",
+    "padded traceId         | '00001'                             | '1'                ",
+    "                       | '00001'                             | 1                  ",
+    "64-bit ids             | '463ac35c9f6413ad'                  | '463ac35c9f6413ad' ",
+    "                       | '463ac35c9f6413ad'                  | 5060571933882717101",
+    "128-bit traceId        | '463ac35c9f6413ad48485a3953bb6124'  | '1'                ",
+    "                       | '463ac35c9f6413ad48485a3953bb6124'  | 1                  ",
+    "uint64 max traceId     | 'ffffffffffffffff'                  | '1'                ",
+    "                       | 'ffffffffffffffff'                  | 1                  ",
+    "128-bit high-low max   | 'aaaaaaaaaaaaaaaaffffffffffffffff'  | '1'                ",
+    "                       | 'aaaaaaaaaaaaaaaaffffffffffffffff'  | 1                  ",
+    "traceId too long high1 | '1ffffffffffffffffffffffffffffffff' | '1'                ",
+    "                       |                                     |                    ",
+    "traceId too long high0 | '0ffffffffffffffffffffffffffffffff' | '1'                ",
+    "                       |                                     |                    ",
+    "uint64 max spanId      | '1'                                 | 'ffffffffffffffff' ",
+    "                       | '1'                                 | -1                 ",
+    "spanId too long        | '1'                                 |                    ",
+    "'1ffffffffffffffff'    |                                     |                    "
   })
   void extract128BitIdTruncatesIdTo64Bit(
-      String traceId, String spanId, String expectedTraceIdHex, Long expectedSpanId) {
+      String traceId,
+      String spanId,
+      String expectedTraceIdHex,
+      Long expectedSpanId
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         TRACE_ID_KEY, traceId,
         SPAN_ID_KEY, spanId
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (expectedTraceIdHex != null) {
@@ -216,7 +258,6 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, SOME_VALUE
     );
     // spotless:on
-
     TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
@@ -232,7 +273,6 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, SOME_VALUE
     );
     // spotless:on
-
     TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
@@ -240,17 +280,24 @@ class B3HttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario             | traceId                            | spanId                | expectedSpanId     ",
-    "padded 64-bit        | '00001'                            | '00001'               | 1                  ",
-    "normal 64-bit        | '463ac35c9f6413ad'                 | '463ac35c9f6413ad'    | 5060571933882717101",
-    "128-bit truncated    | '463ac35c9f6413ad48485a3953bb6124' | '1'                   | 1                  ",
-    "uint64 max traceId   | 'ffffffffffffffff'                 | '1'                   | 1                  ",
-    "128-bit high+low max | 'aaaaaaaaaaaaaaaaffffffffffffffff' | '1'                   | 1                  ",
-    "uint64 max spanId    | '1'                                | 'ffffffffffffffff'    | -1                 ",
-    "padded uint64 max    | '1'                                | '000ffffffffffffffff' | -1                 "
+    "scenario             | traceId                            | spanId                ",
+    "| expectedSpanId                                                                  ",
+    "padded 64-bit        | '00001'                            | '00001'               ",
+    "| 1                                                                               ",
+    "normal 64-bit        | '463ac35c9f6413ad'                 | '463ac35c9f6413ad'    ",
+    "| 5060571933882717101                                                             ",
+    "128-bit truncated    | '463ac35c9f6413ad48485a3953bb6124' | '1'                   ",
+    "| 1                                                                               ",
+    "uint64 max traceId   | 'ffffffffffffffff'                 | '1'                   ",
+    "| 1                                                                               ",
+    "128-bit high+low max | 'aaaaaaaaaaaaaaaaffffffffffffffff' | '1'                   ",
+    "| 1                                                                               ",
+    "uint64 max spanId    | '1'                                | 'ffffffffffffffff'    ",
+    "| -1                                                                              ",
+    "padded uint64 max    | '1'                                | '000ffffffffffffffff' ",
+    "| -1                                                                              "
   })
-  void extractIdsWhileRetainingTheOriginalString(
-      String traceId, String spanId, long expectedSpanId) {
+  void extractIdsWhileRetainingTheOriginalString(String traceId, String spanId, long expectedSpanId) {
     // spotless:off
     Map<String, String> headers = headers(
         TRACE_ID_KEY, traceId,

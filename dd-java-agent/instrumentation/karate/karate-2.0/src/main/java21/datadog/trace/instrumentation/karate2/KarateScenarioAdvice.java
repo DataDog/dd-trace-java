@@ -11,9 +11,10 @@ import io.karatelabs.core.StepResult;
 import io.karatelabs.gherkin.Scenario;
 import net.bytebuddy.asm.Advice;
 
-/** Advice classes for {@code io.karatelabs.core.ScenarioRuntime}/{@code ScenarioResult}. */
+/**
+ * Advice classes for {@code io.karatelabs.core.ScenarioRuntime}/{@code ScenarioResult}.
+ */
 public class KarateScenarioAdvice {
-
   public static class RetryAdvice {
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
@@ -21,11 +22,10 @@ public class KarateScenarioAdvice {
         return;
       }
 
-      ExecutionContext executionContext =
-          InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-              .getOrCompute(scenarioRuntime.getScenario(), ExecutionContext::create);
+      ExecutionContext executionContext = InstrumentationContext
+        .get(Scenario.class, ExecutionContext.class)
+        .getOrCompute(scenarioRuntime.getScenario(), ExecutionContext::create);
       executionContext.setTestStarted(false);
-
       // Indicate beforehand whether failures should be suppressed. This aligns the ordering with
       // the rest of the frameworks.
       TestExecutionPolicy executionPolicy = executionContext.getExecutionPolicy();
@@ -35,7 +35,8 @@ public class KarateScenarioAdvice {
     @Advice.OnMethodExit
     public static void afterExecute(
         @Advice.This ScenarioRuntime scenarioRuntime,
-        @Advice.Return(readOnly = false) ScenarioResult result) {
+        @Advice.Return(readOnly = false) ScenarioResult result
+    ) {
       if (KarateTracingListener.skipTracking(scenarioRuntime)) {
         return;
       }
@@ -59,15 +60,13 @@ public class KarateScenarioAdvice {
         ScenarioResult finalResult = result;
         TestExecutionPolicy executionPolicy = context.getExecutionPolicy();
         while (executionPolicy.applicable()) {
-          ScenarioRuntime retry =
-              new ScenarioRuntime(scenarioRuntime.getFeatureRuntime(), scenario);
+          ScenarioRuntime retry = new ScenarioRuntime(scenarioRuntime.getFeatureRuntime(), scenario);
           ScenarioResult retryResult = retry.call();
           if (!context.isTestStarted()) {
             break;
           }
           finalResult = retryResult;
         }
-
         // override the return value so the final attempt is the one recorded.
         result = finalResult;
       } finally {
@@ -85,8 +84,8 @@ public class KarateScenarioAdvice {
     @Advice.OnMethodEnter
     public static void onAddingStepResult(
         @Advice.Argument(value = 0, readOnly = false) StepResult stepResult,
-        @Advice.FieldValue("scenario") Scenario scenario) {
-
+        @Advice.FieldValue("scenario") Scenario scenario
+    ) {
       // Keep expected failures intact so Karate can apply the @fail result inversion.
       if (stepResult.isFailed() && !scenario.isFail()) {
         ExecutionContext executionContext =
@@ -94,7 +93,6 @@ public class KarateScenarioAdvice {
         if (executionContext == null) {
           return;
         }
-
         // Suppress every failing step of a to-be-retried attempt (not just the first): with
         // continueOnStepFailure a single attempt can add multiple failing steps, and any leak
         // would mark the retry attempt's result failed.
@@ -113,5 +111,6 @@ public class KarateScenarioAdvice {
     }
   }
 
-  private KarateScenarioAdvice() {}
+  private KarateScenarioAdvice() {
+  }
 }

@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.tibcobw6.TibcoDecorator.TIBCO_BW;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import com.tibco.pvm.api.PmProcessInstance;
 import com.tibco.pvm.api.PmWorkUnit;
@@ -24,8 +23,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ProcessInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "com.tibco.pvm.system.manager.PmProcessInstanceManager";
@@ -39,13 +39,17 @@ public class ProcessInstrumentation extends AbstractTibcoInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("createInstance")), getClass().getName() + "$CreateInstanceAdvice");
+        isMethod().and(named("createInstance")),
+        getClass().getName() + "$CreateInstanceAdvice"
+    );
   }
 
   public static class CreateInstanceAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.Argument(value = 0) PmContext pmContext, @Advice.Return PmProcessInstance process) {
+        @Advice.Argument(value = 0) PmContext pmContext,
+        @Advice.Return PmProcessInstance process
+    ) {
       ContextStore<PmWorkUnit, AgentSpan> contextStore =
           InstrumentationContext.get(PmWorkUnit.class, AgentSpan.class);
       final PmProcessInstance parent = process.getParentProcess(pmContext);
@@ -55,12 +59,10 @@ public class ProcessInstrumentation extends AbstractTibcoInstrumentation
       // the user explicitly
       if (!Config.get().isServiceNameSetByUser()) {
         try {
-          appName =
-              (String)
-                  process
-                      .getModule(pmContext)
-                      .getPrototype(pmContext)
-                      .getAttributeValue(pmContext, "$bx_applicationName");
+          appName = (String) process
+            .getModule(pmContext)
+            .getPrototype(pmContext)
+            .getAttributeValue(pmContext, "$bx_applicationName");
         } catch (Throwable t) {
           // cannot find the name
         }

@@ -2,7 +2,9 @@ package datadog.trace.api;
 
 import java.util.Locale;
 
-/** Trace propagation styles for injecting and extracting trace propagation headers. */
+/**
+ * Trace propagation styles for injecting and extracting trace propagation headers.
+ */
 public enum TracePropagationStyle {
   // Datadog context propagation style
   DATADOG,
@@ -26,7 +28,6 @@ public enum TracePropagationStyle {
   BAGGAGE,
   // None does not extract or inject
   NONE;
-
   public static TracePropagationStyle valueOfDisplayName(String displayName) {
     String convertedName = displayName.toUpperCase().replace(' ', '_');
     // Another name for B3 for cross tracer compatibility

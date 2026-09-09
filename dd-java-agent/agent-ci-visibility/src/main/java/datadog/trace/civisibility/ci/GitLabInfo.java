@@ -4,7 +4,6 @@ import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -16,7 +15,6 @@ import javax.annotation.Nonnull;
 
 @SuppressForbidden
 class GitLabInfo implements CIProviderInfo {
-
   // https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
   public static final String GITLAB = "GITLAB_CI";
   public static final String GITLAB_PROVIDER_NAME = "gitlab";
@@ -39,15 +37,13 @@ class GitLabInfo implements CIProviderInfo {
   public static final String GITLAB_GIT_COMMIT_TIMESTAMP = "CI_COMMIT_TIMESTAMP";
   public static final String GITLAB_CI_RUNNER_ID = "CI_RUNNER_ID";
   public static final String GITLAB_CI_RUNNER_TAGS = "CI_RUNNER_TAGS";
-  public static final String GITLAB_PULL_REQUEST_BASE_BRANCH =
-      "CI_MERGE_REQUEST_TARGET_BRANCH_NAME";
+  public static final String GITLAB_PULL_REQUEST_BASE_BRANCH = "CI_MERGE_REQUEST_TARGET_BRANCH_NAME";
   public static final String GITLAB_PULL_REQUEST_BASE_SHA = "CI_MERGE_REQUEST_DIFF_BASE_SHA";
   public static final String GITLAB_PULL_REQUEST_BASE_HEAD_SHA =
       "CI_MERGE_REQUEST_TARGET_BRANCH_SHA";
   public static final String GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA =
       "CI_MERGE_REQUEST_SOURCE_BRANCH_SHA";
   public static final String GITLAB_PULL_REQUEST_NUMBER = "CI_MERGE_REQUEST_IID";
-
   private final CiEnvironment environment;
 
   GitLabInfo(CiEnvironment environment) {
@@ -64,26 +60,29 @@ class GitLabInfo implements CIProviderInfo {
             environment.get(GITLAB_GIT_COMMIT),
             buildGitCommitAuthor(),
             PersonInfo.NOOP,
-            environment.get(GITLAB_GIT_COMMIT_MESSAGE)));
+            environment.get(GITLAB_GIT_COMMIT_MESSAGE)
+        )
+    );
   }
 
   @Override
   public CIInfo buildCIInfo() {
-    return CIInfo.builder(environment)
-        .ciProviderName(GITLAB_PROVIDER_NAME)
-        .ciPipelineId(environment.get(GITLAB_PIPELINE_ID))
-        .ciPipelineName(environment.get(GITLAB_PIPELINE_NAME))
-        .ciPipelineNumber(environment.get(GITLAB_PIPELINE_NUMBER))
-        .ciPipelineUrl(environment.get(GITLAB_PIPELINE_URL))
-        .ciStageName(environment.get(GITLAB_STAGE_NAME))
-        .ciJobId(environment.get(GITLAB_JOB_ID))
-        .ciJobName(environment.get(GITLAB_JOB_NAME))
-        .ciJobUrl(environment.get(GITLAB_JOB_URL))
-        .ciWorkspace(expandTilde(environment.get(GITLAB_WORKSPACE_PATH)))
-        .ciNodeName(environment.get(GITLAB_CI_RUNNER_ID))
-        .ciNodeLabels(environment.get(GITLAB_CI_RUNNER_TAGS))
-        .ciEnvVars(GITLAB_PROJECT_URL, GITLAB_PIPELINE_ID, GITLAB_JOB_ID)
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(GITLAB_PROVIDER_NAME)
+      .ciPipelineId(environment.get(GITLAB_PIPELINE_ID))
+      .ciPipelineName(environment.get(GITLAB_PIPELINE_NAME))
+      .ciPipelineNumber(environment.get(GITLAB_PIPELINE_NUMBER))
+      .ciPipelineUrl(environment.get(GITLAB_PIPELINE_URL))
+      .ciStageName(environment.get(GITLAB_STAGE_NAME))
+      .ciJobId(environment.get(GITLAB_JOB_ID))
+      .ciJobName(environment.get(GITLAB_JOB_NAME))
+      .ciJobUrl(environment.get(GITLAB_JOB_URL))
+      .ciWorkspace(expandTilde(environment.get(GITLAB_WORKSPACE_PATH)))
+      .ciNodeName(environment.get(GITLAB_CI_RUNNER_ID))
+      .ciNodeLabels(environment.get(GITLAB_CI_RUNNER_TAGS))
+      .ciEnvVars(GITLAB_PROJECT_URL, GITLAB_PIPELINE_ID, GITLAB_JOB_ID)
+      .build();
   }
 
   @Nonnull
@@ -94,7 +93,8 @@ class GitLabInfo implements CIProviderInfo {
         environment.get(GITLAB_PULL_REQUEST_BASE_SHA),
         environment.get(GITLAB_PULL_REQUEST_BASE_HEAD_SHA),
         new CommitInfo(environment.get(GITLAB_PULL_REQUEST_COMMIT_HEAD_SHA)),
-        environment.get(GITLAB_PULL_REQUEST_NUMBER));
+        environment.get(GITLAB_PULL_REQUEST_NUMBER)
+    );
   }
 
   private PersonInfo buildGitCommitAuthor() {
@@ -105,7 +105,10 @@ class GitLabInfo implements CIProviderInfo {
 
     final PersonInfo personInfo = GitUtils.splitAuthorAndEmail(gitAuthor);
     return new PersonInfo(
-        personInfo.getName(), personInfo.getEmail(), environment.get(GITLAB_GIT_COMMIT_TIMESTAMP));
+        personInfo.getName(),
+        personInfo.getEmail(),
+        environment.get(GITLAB_GIT_COMMIT_TIMESTAMP)
+    );
   }
 
   @Override

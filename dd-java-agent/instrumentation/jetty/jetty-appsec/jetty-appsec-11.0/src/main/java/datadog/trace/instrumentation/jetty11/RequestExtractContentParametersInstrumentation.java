@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.fieldType;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -32,9 +31,9 @@ import org.eclipse.jetty.util.MultiMap;
 @AutoService(InstrumenterModule.class)
 public class RequestExtractContentParametersInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice
+{
   public RequestExtractContentParametersInstrumentation() {
     super("jetty");
   }
@@ -59,23 +58,30 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   // are handled transparently because GetFilenamesAdvice reads it with typing=DYNAMIC.
   @Override
   public ElementMatcher<TypeDescription> structureMatcher() {
-    return declaresField(
-            named("_contentParameters").and(fieldType(named("org.eclipse.jetty.util.MultiMap"))))
-        .and(
-            declaresField(
-                named("_dispatcherType").and(fieldType(named("jakarta.servlet.DispatcherType")))));
+    return declaresField(named("_contentParameters")
+      .and(fieldType(named("org.eclipse.jetty.util.MultiMap")))
+    )
+      .and(
+          declaresField(named("_dispatcherType")
+            .and(fieldType(named("jakarta.servlet.DispatcherType")))
+          )
+      );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
-        getClass().getName() + "$ExtractContentParametersAdvice");
+        getClass().getName() + "$ExtractContentParametersAdvice"
+    );
     transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+        named("getParts").and(takesArguments(0)),
+        getClass().getName() + "$GetFilenamesAdvice"
+    );
     transformer.applyAdvice(
         named("getParts").and(takesArguments(1)),
-        getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
+        getClass().getName() + "$GetFilenamesFromMultiPartAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -94,7 +100,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (!proceed) {
         return;
       }
@@ -145,8 +152,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
-        @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC)
-            final Object multiParts) {
+        @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC) final Object multiParts
+    ) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class);
       return callDepth == 0 && contentParameters == null && multiParts == null;
     }
@@ -156,7 +163,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
@@ -185,7 +193,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;

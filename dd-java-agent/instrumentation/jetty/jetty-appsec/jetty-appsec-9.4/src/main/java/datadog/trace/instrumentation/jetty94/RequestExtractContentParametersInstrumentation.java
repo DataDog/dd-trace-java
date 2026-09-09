@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty94;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -28,7 +27,9 @@ import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
 public class RequestExtractContentParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";
 
   public RequestExtractContentParametersInstrumentation() {
@@ -49,12 +50,16 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
-        getClass().getName() + "$ExtractContentParametersAdvice");
+        getClass().getName() + "$ExtractContentParametersAdvice"
+    );
     transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+        named("getParts").and(takesArguments(0)),
+        getClass().getName() + "$GetFilenamesAdvice"
+    );
     transformer.applyAdvice(
         named("getParts").and(takesArguments(1)),
-        getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
+        getClass().getName() + "$GetFilenamesFromMultiPartAdvice"
+    );
   }
 
   // Discriminates Jetty [9.4.10, 10.0) + [10.0.0, 11.0):
@@ -67,22 +72,24 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   //    Request.class bytecode, NOT just classpath presence, so it works even when both
   //    javax.servlet and jakarta.servlet are on the classpath simultaneously.
   //  Note: GetFilenamesAdvice reads _multiParts with typing=DYNAMIC so it works for all versions.
-  private static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withMethod(new String[0], 0, "extractContentParameters", "V")
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
-          .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
-          .or()
-          .withMethod(new String[0], 0, "extractContentParameters", "V")
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(
-              new String[0],
-              0,
-              "_multiParts",
-              "Lorg/eclipse/jetty/server/MultiPartFormInputStream;")
-          .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
-          .build();
+  private static final Reference REQUEST_REFERENCE = new Reference.Builder(
+      "org.eclipse.jetty.server.Request"
+  )
+    .withMethod(new String[0], 0, "extractContentParameters", "V")
+    .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+    .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
+    .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
+    .or()
+    .withMethod(new String[0], 0, "extractContentParameters", "V")
+    .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+    .withField(
+        new String[0],
+        0,
+        "_multiParts",
+        "Lorg/eclipse/jetty/server/MultiPartFormInputStream;"
+    )
+    .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -102,7 +109,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(Request.class);
       if (!proceed) {
         return;
@@ -151,8 +159,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
-        @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC)
-            final Object multiParts) {
+        @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC) final Object multiParts
+    ) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class);
       return callDepth == 0 && contentParameters == null && multiParts == null;
     }
@@ -162,7 +170,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
@@ -191,7 +200,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.apache.pekko.http.scaladsl.model.HttpRequest;
@@ -12,13 +11,15 @@ import scala.concurrent.Future;
 import scala.runtime.AbstractFunction1;
 
 public class DatadogAsyncHandlerWrapper
-    extends AbstractFunction1<HttpRequest, Future<HttpResponse>> {
+    extends AbstractFunction1<HttpRequest, Future<HttpResponse>>
+{
   private final Function1<HttpRequest, Future<HttpResponse>> userHandler;
   private final ExecutionContext executionContext;
 
   public DatadogAsyncHandlerWrapper(
       final Function1<HttpRequest, Future<HttpResponse>> userHandler,
-      final ExecutionContext executionContext) {
+      final ExecutionContext executionContext
+  ) {
     this.userHandler = userHandler;
     this.executionContext = executionContext;
   }
@@ -35,23 +36,23 @@ public class DatadogAsyncHandlerWrapper
       DatadogWrapperHelper.finishSpan(scope.context(), t);
       throw t;
     }
-    final Future<HttpResponse> wrapped =
-        futureResponse.transform(
-            new AbstractFunction1<HttpResponse, HttpResponse>() {
-              @Override
-              public HttpResponse apply(final HttpResponse response) {
-                DatadogWrapperHelper.finishSpan(scope.context(), response);
-                return response;
-              }
-            },
-            new AbstractFunction1<Throwable, Throwable>() {
-              @Override
-              public Throwable apply(final Throwable t) {
-                DatadogWrapperHelper.finishSpan(scope.context(), t);
-                return t;
-              }
-            },
-            executionContext);
+    final Future<HttpResponse> wrapped = futureResponse.transform(
+        new AbstractFunction1<HttpResponse, HttpResponse>() {
+          @Override
+          public HttpResponse apply(final HttpResponse response) {
+            DatadogWrapperHelper.finishSpan(scope.context(), response);
+            return response;
+          }
+        },
+        new AbstractFunction1<Throwable, Throwable>() {
+          @Override
+          public Throwable apply(final Throwable t) {
+            DatadogWrapperHelper.finishSpan(scope.context(), t);
+            return t;
+          }
+        },
+        executionContext
+    );
     scope.close();
     return wrapped;
   }

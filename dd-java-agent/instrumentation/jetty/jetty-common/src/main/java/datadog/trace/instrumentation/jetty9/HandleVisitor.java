@@ -8,7 +8,6 @@ import static net.bytebuddy.jar.asm.Opcodes.IFEQ;
 import static net.bytebuddy.jar.asm.Opcodes.IFNE;
 import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
 import static net.bytebuddy.jar.asm.Opcodes.INVOKEVIRTUAL;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.instrumentation.jetty.JettyBlockingHelper;
@@ -109,10 +108,10 @@ import org.slf4j.LoggerFactory;
  */
 public class HandleVisitor extends MethodVisitor {
   private static final Logger log = LoggerFactory.getLogger(HandleVisitor.class);
-
-  /** Whether the handle() method injection was successful . */
+  /**
+   * Whether the handle() method injection was successful .
+   */
   private boolean success;
-
   private final String methodName;
 
   public HandleVisitor(int api, DelayCertainInsMethodVisitor methodVisitor, String methodName) {
@@ -126,7 +125,12 @@ public class HandleVisitor extends MethodVisitor {
 
   @Override
   public void visitMethodInsn(
-      int opcode, String owner, String name, String descriptor, boolean isInterface) {
+      int opcode,
+      String owner,
+      String name,
+      String descriptor,
+      boolean isInterface
+  ) {
     if (!success
         && opcode == INVOKEVIRTUAL
         && owner.equals("org/eclipse/jetty/server/Server")
@@ -146,7 +150,6 @@ public class HandleVisitor extends MethodVisitor {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         return;
       }
-
       // Declare label to insert after Server.handle() call
       Label afterHandle = new Label();
       // Inject blocking helper call and get its three parameters onto the stack:
@@ -159,28 +162,32 @@ public class HandleVisitor extends MethodVisitor {
           "org/eclipse/jetty/server/HttpChannel",
           "getRequest",
           "()Lorg/eclipse/jetty/server/Request;",
-          false);
+          false
+      );
       super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
           INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
-          false);
+          false
+      );
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
           "currentContext",
           "()Ldatadog/context/Context;",
-          false);
+          false
+      );
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "block",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-              + Type.getDescriptor(Context.class)
-              + ")Z",
-          false);
+          + Type.getDescriptor(Context.class)
+          + ")Z",
+          false
+      );
       // Inject jump to after Server.handle() call if blocked
       super.visitJumpInsn(IFNE, afterHandle);
       // Inject getServer() and Server.handle() calls
@@ -196,13 +203,13 @@ public class HandleVisitor extends MethodVisitor {
         && owner.equals("org/eclipse/jetty/server/HttpChannel")
         && name.equals("dispatch")
         && (descriptor.equals(
-                "(Ljavax/servlet/DispatcherType;Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;)V")
-            || descriptor.equals(
-                "(Ljakarta/servlet/DispatcherType;Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;)V"))) {
-
+            "(Ljavax/servlet/DispatcherType;Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;)V"
+        )
+        || descriptor.equals(
+            "(Ljakarta/servlet/DispatcherType;Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;)V"
+        ))) {
       DelayCertainInsMethodVisitor mv = delayVisitorDelegate();
       List<Runnable> savedVisitations = mv.transferVisitations();
-
       // check that we've queued up what we're supposed to
       if (!checkDispatchMethodState(savedVisitations)) {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -211,24 +218,24 @@ public class HandleVisitor extends MethodVisitor {
 
       Label beforeRegularDispatch = new Label();
       Label afterRegularDispatch = new Label();
-
       // Add current context to the stack
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
           "currentContext",
           "()Ldatadog/context/Context;",
-          false);
+          false
+      );
       // Call JettyBlockingHelper.hasRequestBlockingAction(context)
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(JettyBlockingHelper.class),
           "hasRequestBlockingAction",
           "(" + Type.getDescriptor(Context.class) + ")Z",
-          false);
+          false
+      );
       // If no request blocking action, jump before the regular dispatch
       super.visitJumpInsn(IFEQ, beforeRegularDispatch);
-
       // dispatch with a Dispatchable created from JettyBlockingHelper::block
       // first set up the first two arguments to dispatch (this and DispatcherType.REQUEST)
       List<Runnable> loadThisAndEnum = new ArrayList<>(savedVisitations.subList(0, 2));
@@ -240,46 +247,53 @@ public class HandleVisitor extends MethodVisitor {
           "org/eclipse/jetty/server/HttpChannel",
           "getRequest",
           "()Lorg/eclipse/jetty/server/Request;",
-          false);
+          false
+      );
       super.visitVarInsn(ALOAD, 0);
       super.visitMethodInsn(
           INVOKEVIRTUAL,
           "org/eclipse/jetty/server/HttpChannel",
           "getResponse",
           "()Lorg/eclipse/jetty/server/Response;",
-          false);
+          false
+      );
       super.visitMethodInsn(
           INVOKESTATIC,
           Type.getInternalName(Java8BytecodeBridge.class),
           "currentContext",
           "()Ldatadog/context/Context;",
-          false);
-
+          false
+      );
       // create the lambda
       super.visitInvokeDynamicInsn(
           "dispatch",
           "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-              + Type.getDescriptor(Context.class)
-              + ")Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
+          + Type.getDescriptor(Context.class)
+          + ")Lorg/eclipse/jetty/server/HttpChannel$Dispatchable;",
           new Handle(
               H_INVOKESTATIC,
               "java/lang/invoke/LambdaMetafactory",
               "metafactory",
-              "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;",
-              false),
+              "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;"
+              + "Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;"
+              + "Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)"
+              + "Ljava/lang/invoke/CallSite;",
+              false
+          ),
           new Object[] {
-            Type.getType("()V"),
-            new Handle(
-                H_INVOKESTATIC,
-                Type.getInternalName(JettyBlockingHelper.class),
-                "blockAndThrowOnFailure",
-                "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
-                    + Type.getDescriptor(Context.class)
-                    + ")V",
-                false),
-            Type.getType("()V")
-          });
-
+          Type.getType("()V"),
+          new Handle(
+              H_INVOKESTATIC,
+              Type.getInternalName(JettyBlockingHelper.class),
+              "blockAndThrowOnFailure",
+              "(Lorg/eclipse/jetty/server/Request;Lorg/eclipse/jetty/server/Response;"
+              + Type.getDescriptor(Context.class)
+              + ")V",
+              false
+          ),
+          Type.getType("()V")
+          }
+      );
       // invoke the dispatch method
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
 
@@ -306,7 +320,6 @@ public class HandleVisitor extends MethodVisitor {
     if (!(savedVisitations.get(0) instanceof DelayCertainInsMethodVisitor.ALoadVarInsn)) {
       return false;
     }
-
     // push DispatcherType.REQUEST to the stack
     if (!(savedVisitations.get(1) instanceof DelayCertainInsMethodVisitor.GetStaticFieldInsn)) {
       return false;
@@ -314,11 +327,10 @@ public class HandleVisitor extends MethodVisitor {
     DelayCertainInsMethodVisitor.GetStaticFieldInsn getStaticFieldInsn =
         (DelayCertainInsMethodVisitor.GetStaticFieldInsn) savedVisitations.get(1);
     if ((!getStaticFieldInsn.owner.equals("javax/servlet/DispatcherType")
-            && !getStaticFieldInsn.owner.equals("jakarta/servlet/DispatcherType"))
+        && !getStaticFieldInsn.owner.equals("jakarta/servlet/DispatcherType"))
         || !getStaticFieldInsn.name.equals("REQUEST")) {
       return false;
     }
-
     // push this to the stack (to create the lambda or access the instance field, which depends on
     // this)
     if (!(savedVisitations.get(2) instanceof DelayCertainInsMethodVisitor.ALoadVarInsn)) {
@@ -331,7 +343,6 @@ public class HandleVisitor extends MethodVisitor {
     if (last instanceof DelayCertainInsMethodVisitor.InvokeDynamicInsn) {
       return true;
     }
-
     // jetty >= 11.16.0
     // this.dispatch(DispatcherType.REQUEST, this._requestDispatcher);
     return last instanceof DelayCertainInsMethodVisitor.GetFieldInsn;
@@ -341,7 +352,8 @@ public class HandleVisitor extends MethodVisitor {
   public void visitEnd() {
     if (!success && !"run".equals(methodName)) {
       log.warn(
-          "Transformation of Jetty's connection class was not successful. Blocking will likely not work");
+          "Transformation of Jetty's connection class was not successful. Blocking will likely not work"
+      );
     }
     super.visitEnd();
   }

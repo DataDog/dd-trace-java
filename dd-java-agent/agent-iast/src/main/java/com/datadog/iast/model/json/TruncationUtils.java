@@ -11,7 +11,8 @@ public final class TruncationUtils {
   private static final String TRUNCATED = "truncated";
   private static final String RIGHT = "right";
 
-  private TruncationUtils() {}
+  private TruncationUtils() {
+  }
 
   public static void writeTruncableValue(@Nonnull JsonWriter writer, @Nullable String value)
       throws IOException {

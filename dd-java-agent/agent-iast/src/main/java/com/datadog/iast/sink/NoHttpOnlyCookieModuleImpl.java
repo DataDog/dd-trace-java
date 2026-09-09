@@ -6,7 +6,6 @@ import datadog.trace.api.iast.util.Cookie;
 import javax.annotation.Nonnull;
 
 public class NoHttpOnlyCookieModuleImpl implements NoHttpOnlyCookieModule<VulnerabilityType> {
-
   @Override
   public boolean isVulnerable(@Nonnull final Cookie cookie) {
     return !cookie.isHttpOnly();

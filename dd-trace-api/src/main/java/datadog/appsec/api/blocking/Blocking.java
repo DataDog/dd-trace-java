@@ -10,7 +10,8 @@ import java.util.Map;
 public class Blocking {
   private static volatile BlockingService SERVICE = BlockingService.NOOP;
 
-  private Blocking() {}
+  private Blocking() {
+  }
 
   /**
    * Starts a user-blocking action.
@@ -52,7 +53,10 @@ public class Blocking {
    * @return whether blocking was/will be attempted
    */
   public static boolean tryCommitBlockingResponse(
-      int statusCode, BlockingContentType contentType, Map<String, String> extraHeaders) {
+      int statusCode,
+      BlockingContentType contentType,
+      Map<String, String> extraHeaders
+  ) {
     try {
       return SERVICE.tryCommitBlockingResponse(statusCode, contentType, extraHeaders);
     } catch (Exception e) {
@@ -70,9 +74,11 @@ public class Blocking {
    */
   public static boolean tryCommitBlockingResponse(int statusCode, BlockingContentType contentType) {
     try {
-      boolean committedBlockingResponse =
-          SERVICE.tryCommitBlockingResponse(
-              statusCode, BlockingContentType.NONE, Collections.emptyMap());
+      boolean committedBlockingResponse = SERVICE.tryCommitBlockingResponse(
+          statusCode,
+          BlockingContentType.NONE,
+          Collections.emptyMap()
+      );
       return committedBlockingResponse;
     } catch (Exception e) {
       return false;
@@ -124,7 +130,8 @@ public class Blocking {
       SERVICE.tryCommitBlockingResponse(
           blockingDetails.statusCode,
           blockingDetails.blockingContentType,
-          blockingDetails.extraHeaders);
+          blockingDetails.extraHeaders
+      );
       throw new BlockingException("Blocking user with id '" + userId + "'");
     }
   }

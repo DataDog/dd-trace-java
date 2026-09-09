@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 class LocationsCollectingTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(LocationsCollectingTransformer.class);
-
   private static final int MAX_CACHED_JARS = 1024;
   private final DependencyService dependencyService;
   private final DDCache<ProtectionDomain, Boolean> seenDomains =
@@ -27,7 +26,8 @@ class LocationsCollectingTransformer implements ClassFileTransformer {
       String className,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
-      byte[] classfileBuffer) {
+      byte[] classfileBuffer
+  ) {
     if (protectionDomain != null) {
       seenDomains.computeIfAbsent(protectionDomain, this::addDependency);
     }

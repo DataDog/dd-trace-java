@@ -20,18 +20,15 @@ import org.slf4j.LoggerFactory;
  * track which classloaders have already been exported to and re-export for new ones.
  */
 public class CompilerModuleExporter implements ClassFileTransformer {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CompilerModuleExporter.class);
-
   private static final String COMPILER_PLUGIN_CLASS_PREFIX = "datadog/compiler/";
   private static final String[] COMPILER_PACKAGES = {
-    "com.sun.tools.javac.api",
-    "com.sun.tools.javac.code",
-    "com.sun.tools.javac.comp",
-    "com.sun.tools.javac.tree",
-    "com.sun.tools.javac.util"
+      "com.sun.tools.javac.api",
+      "com.sun.tools.javac.code",
+      "com.sun.tools.javac.comp",
+      "com.sun.tools.javac.tree",
+      "com.sun.tools.javac.util"
   };
-
   private final Instrumentation inst;
   private final ConcurrentHashMap<ClassLoader, Boolean> exportedClassLoaders =
       new ConcurrentHashMap<>();
@@ -46,11 +43,15 @@ public class CompilerModuleExporter implements ClassFileTransformer {
       String className,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
-      byte[] classfileBuffer) {
-    if (loader != null && className != null && className.startsWith(COMPILER_PLUGIN_CLASS_PREFIX)) {
+      byte[] classfileBuffer
+  ) {
+    if (loader != null
+        && className != null
+        && className.startsWith(COMPILER_PLUGIN_CLASS_PREFIX)) {
       exportedClassLoaders.computeIfAbsent(loader, this::exportJdkCompilerModule);
     }
-    return null; // no bytecode modification
+    // no bytecode modification
+    return null;
   }
 
   private Boolean exportJdkCompilerModule(ClassLoader loader) {

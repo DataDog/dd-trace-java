@@ -27,9 +27,8 @@ public interface WeakMap<K, V> {
       return SUPPLIER.get();
     }
 
-    @SuppressFBWarnings(
-        value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-        justification = "Agent-internal holder; Class lock does not escape to application code")
+    @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Agen"
+        + "t-internal holder; Class lock does not escape to application code")
     public static synchronized void registerIfAbsent(Supplier supplier) {
       if (null == SUPPLIER) {
         SUPPLIER = supplier;

@@ -15,7 +15,8 @@ public class RatpackBodyReadStreamAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   static void after(
       @Advice.This RequestBody requestBody,
-      @Advice.Return(readOnly = false) TransformablePublisher<ByteBuf> publisher) {
+      @Advice.Return(readOnly = false) TransformablePublisher<ByteBuf> publisher
+  ) {
     final StoredByteBody byteBody =
         StoredBodyFactories.maybeCreateForByte(null, requestBody.getContentLength());
     if (byteBody == null) {
@@ -26,6 +27,7 @@ public class RatpackBodyReadStreamAdvice {
   }
 
   public void muzzleCheck() {
-    FileIo.open(null); // added in 1.5
+    // added in 1.5
+    FileIo.open(null);
   }
 }

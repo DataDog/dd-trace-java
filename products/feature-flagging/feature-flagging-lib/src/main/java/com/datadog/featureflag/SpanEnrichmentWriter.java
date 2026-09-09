@@ -33,8 +33,9 @@ import org.slf4j.LoggerFactory;
  * <p>All work is wrapped in try/catch — enrichment must NEVER break flag evaluation.
  */
 public final class SpanEnrichmentWriter
-    implements FeatureFlaggingGateway.SpanEnrichmentListener, AutoCloseable {
-
+    implements FeatureFlaggingGateway.SpanEnrichmentListener,
+    AutoCloseable
+{
   private static final Logger log = LoggerFactory.getLogger(SpanEnrichmentWriter.class);
 
   public static SpanEnrichmentWriter getInstance() {
@@ -99,14 +100,18 @@ public final class SpanEnrichmentWriter
 
   // Visible for tests: also inject the registrar to exercise the not-registered path.
   SpanEnrichmentWriter(
-      final RootSpanResolver rootSpanResolver, final InterceptorRegistrar registrar) {
+      final RootSpanResolver rootSpanResolver,
+      final InterceptorRegistrar registrar
+  ) {
     this.rootSpanResolver = rootSpanResolver;
     this.registrar = registrar;
     this.states = new SpanEnrichmentStates();
     this.interceptor = new SpanEnrichmentInterceptor(states);
   }
 
-  /** Starts listening for enrichment events. Safe to call again after {@link #close()}. */
+  /**
+   * Starts listening for enrichment events. Safe to call again after {@link #close()}.
+   */
   public void init() {
     FeatureFlaggingGateway.addSpanEnrichmentListener(this);
   }
@@ -129,7 +134,8 @@ public final class SpanEnrichmentWriter
     try {
       final AgentSpan root = rootSpanResolver.activeLocalRoot();
       if (root == null) {
-        return; // no active span → nothing to enrich (and nothing to register the interceptor for)
+        // no active span → nothing to enrich (and nothing to register the interceptor for)
+        return;
       }
       if (!ensureInterceptorRegistered()) {
         // The interceptor isn't registered (e.g. tracer absent), so nothing would ever flush this
@@ -178,7 +184,6 @@ public final class SpanEnrichmentWriter
   }
 
   // ---- test-only accessors ----
-
   SpanEnrichmentStates states() {
     return states;
   }

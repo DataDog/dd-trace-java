@@ -3,7 +3,6 @@ package datadog.trace.plugin.csi.impl;
 import static datadog.trace.plugin.csi.util.CallSiteConstants.TYPE_RESOLVER;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static java.util.Collections.emptyList;
-
 import datadog.trace.plugin.csi.AdvicePointcutParser;
 import datadog.trace.plugin.csi.TypeResolver;
 import datadog.trace.plugin.csi.TypeResolver.ResolutionException;
@@ -27,9 +26,10 @@ import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.objectweb.asm.Type;
 
-/** Description of a class annotated with {@link datadog.trace.agent.tooling.csi.CallSite} */
+/**
+ * Description of a class annotated with {@link datadog.trace.agent.tooling.csi.CallSite}
+ */
 public class CallSiteSpecification implements Validatable {
-
   private final Type clazz;
   private final List<AdviceSpecification> advices;
   private final Type[] spi;
@@ -41,7 +41,8 @@ public class CallSiteSpecification implements Validatable {
       @Nonnull final List<AdviceSpecification> advices,
       @Nonnull final Set<Type> spi,
       @Nonnull final List<String> enabled,
-      @Nonnull final Set<Type> helpers) {
+      @Nonnull final Set<Type> helpers
+  ) {
     this.clazz = clazz;
     this.advices = advices;
     this.spi = spi.toArray(new Type[0]);
@@ -108,9 +109,9 @@ public class CallSiteSpecification implements Validatable {
    * datadog.trace.agent.tooling.csi.CallSite.Around}
    */
   public abstract static class AdviceSpecification implements Validatable {
-
     protected final MethodType advice;
-    private final Map<Integer /* param idx on the advice */, ParameterSpecification> parameters;
+    private final Map<Integer, ParameterSpecification> /* param idx on the advice */
+    parameters;
     protected final String signature;
     protected final boolean invokeDynamic;
     protected MethodType pointcut;
@@ -120,7 +121,8 @@ public class CallSiteSpecification implements Validatable {
         @Nonnull final MethodType advice,
         @Nonnull final Map<Integer, ParameterSpecification> parameters,
         @Nonnull final String signature,
-        final boolean invokeDynamic) {
+        final boolean invokeDynamic
+    ) {
       this.advice = advice;
       this.parameters = new TreeMap<>(parameters);
       this.signature = signature;
@@ -161,91 +163,114 @@ public class CallSiteSpecification implements Validatable {
     private void validateArgumentSpecCompatibility(
         final ValidationContext context,
         final Type[] adviceArgumentTypes,
-        final Set<Integer> pointcutParameters) {
-      withParameter(
-          ArgumentSpecification.class,
-          (i, spec) -> {
-            final Type argType = pointcut.getMethodType().getArgumentTypes()[spec.index];
-            final Type advice = adviceArgumentTypes[i];
-            if (!pointcutParameters.remove(spec.index)) {
-              context.addError(ErrorCode.ADVICE_PARAMETER_ARGUMENT_OUT_OF_BOUNDS);
-            }
-            validateCompatibility(
-                context, argType, advice, ErrorCode.ADVICE_METHOD_PARAM_NOT_COMPATIBLE, i);
-          });
+        final Set<Integer> pointcutParameters
+    ) {
+      withParameter(ArgumentSpecification.class, (i, spec) -> {
+        final Type argType = pointcut.getMethodType().getArgumentTypes()[spec.index];
+        final Type advice = adviceArgumentTypes[i];
+        if (!pointcutParameters.remove(spec.index)) {
+          context.addError(ErrorCode.ADVICE_PARAMETER_ARGUMENT_OUT_OF_BOUNDS);
+        }
+        validateCompatibility(
+            context,
+            argType,
+            advice,
+            ErrorCode.ADVICE_METHOD_PARAM_NOT_COMPATIBLE,
+            i
+        );
+      });
     }
 
     private void validateReturnSpecCompatibility(
-        final ValidationContext context, final Type[] adviceArgumentTypes) {
-      withParameter(
-          ReturnSpecification.class,
-          (i, spec) -> {
-            final Type rType =
-                pointcut.isConstructor()
-                    ? pointcut.getOwner()
-                    : pointcut.getMethodType().getReturnType();
-            final Type advice = adviceArgumentTypes[i];
-            validateCompatibility(
-                context, rType, advice, ErrorCode.ADVICE_METHOD_PARAM_RETURN_NOT_COMPATIBLE, i);
-          });
+        final ValidationContext context,
+        final Type[] adviceArgumentTypes
+    ) {
+      withParameter(ReturnSpecification.class, (i, spec) -> {
+        final Type rType =
+            pointcut.isConstructor()
+            ? pointcut.getOwner()
+            : pointcut.getMethodType().getReturnType();
+        final Type advice = adviceArgumentTypes[i];
+        validateCompatibility(
+            context,
+            rType,
+            advice,
+            ErrorCode.ADVICE_METHOD_PARAM_RETURN_NOT_COMPATIBLE,
+            i
+        );
+      });
     }
 
     private void validateThisSpecCompatibility(
-        final ValidationContext context, final Type[] adviceArgumentTypes) {
-      withParameter(
-          ThisSpecification.class,
-          (i, spec) -> {
-            final Type owner = pointcut.getOwner();
-            final Type advice = adviceArgumentTypes[i];
-            validateCompatibility(
-                context, owner, advice, ErrorCode.ADVICE_METHOD_PARAM_THIS_NOT_COMPATIBLE, i);
-          });
+        final ValidationContext context,
+        final Type[] adviceArgumentTypes
+    ) {
+      withParameter(ThisSpecification.class, (i, spec) -> {
+        final Type owner = pointcut.getOwner();
+        final Type advice = adviceArgumentTypes[i];
+        validateCompatibility(
+            context,
+            owner,
+            advice,
+            ErrorCode.ADVICE_METHOD_PARAM_THIS_NOT_COMPATIBLE,
+            i
+        );
+      });
     }
 
     protected void validateAdviceReturnTypeCompatibility(final ValidationContext context) {
       if (!advice.isVoidReturn()) {
         final Type pointcutType =
             pointcut.isConstructor()
-                ? pointcut.getOwner()
-                : pointcut.getMethodType().getReturnType();
+            ? pointcut.getOwner()
+            : pointcut.getMethodType().getReturnType();
         final Type adviceType = advice.getMethodType().getReturnType();
         validateCompatibility(
-            context, pointcutType, adviceType, ErrorCode.ADVICE_METHOD_RETURN_NOT_COMPATIBLE, -1);
+            context,
+            pointcutType,
+            adviceType,
+            ErrorCode.ADVICE_METHOD_RETURN_NOT_COMPATIBLE,
+            -1
+        );
       }
     }
 
     private void validateInvokeDynamicConstCompatibility(
         final ValidationContext context,
         final Type[] adviceArgumentTypes,
-        final Set<Integer> pointcutParameters) {
-      withParameter(
-          InvokeDynamicConstantsSpecification.class,
-          (i, spec) -> {
-            final Type type = Types.OBJECT_ARRAY;
-            final Type advice = adviceArgumentTypes[i];
-            pointcutParameters.clear();
-            validateCompatibility(
-                context,
-                type,
-                advice,
-                ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_NOT_COMPATIBLE,
-                i);
-          });
+        final Set<Integer> pointcutParameters
+    ) {
+      withParameter(InvokeDynamicConstantsSpecification.class, (i, spec) -> {
+        final Type type = Types.OBJECT_ARRAY;
+        final Type advice = adviceArgumentTypes[i];
+        pointcutParameters.clear();
+        validateCompatibility(
+            context,
+            type,
+            advice,
+            ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_NOT_COMPATIBLE,
+            i
+        );
+      });
     }
 
     private void validateAllArgsSpecCompatibility(
         final ValidationContext context,
         final Type[] adviceArgumentTypes,
-        final Set<Integer> pointcutParameters) {
-      withParameter(
-          AllArgsSpecification.class,
-          (i, spec) -> {
-            final Type type = Types.OBJECT_ARRAY;
-            final Type advice = adviceArgumentTypes[i];
-            pointcutParameters.clear();
-            validateCompatibility(
-                context, type, advice, ErrorCode.ADVICE_METHOD_PARAM_ALL_ARGS_NOT_COMPATIBLE, i);
-          });
+        final Set<Integer> pointcutParameters
+    ) {
+      withParameter(AllArgsSpecification.class, (i, spec) -> {
+        final Type type = Types.OBJECT_ARRAY;
+        final Type advice = adviceArgumentTypes[i];
+        pointcutParameters.clear();
+        validateCompatibility(
+            context,
+            type,
+            advice,
+            ErrorCode.ADVICE_METHOD_PARAM_ALL_ARGS_NOT_COMPATIBLE,
+            i
+        );
+      });
     }
 
     protected void validateCompatibility(
@@ -253,11 +278,12 @@ public class CallSiteSpecification implements Validatable {
         final Type pointcutType,
         final Type adviceType,
         final ErrorCode errorCode,
-        final int index) {
+        final int index
+    ) {
       final TypeResolver typeResolver = context.getContextProperty(TYPE_RESOLVER);
       if (!typeResolver
-          .resolveType(adviceType)
-          .isAssignableFrom(typeResolver.resolveType(pointcutType))) {
+        .resolveType(adviceType)
+        .isAssignableFrom(typeResolver.resolveType(pointcutType))) {
         context.addError(errorCode, pointcutType, adviceType, index);
       }
     }
@@ -278,11 +304,8 @@ public class CallSiteSpecification implements Validatable {
 
     protected void validateAdviceParameters(@Nonnull final ValidationContext context) {
       final Type[] adviceArguments = advice.getMethodType().getArgumentTypes();
-      boolean thisFound = false,
-          returnFound = false,
-          allArgsFound = false,
-          argumentFound = false,
-          dynamicConstantsFound = false;
+      boolean thisFound = false, returnFound = false, allArgsFound = false, argumentFound = false, dynamicConstantsFound =
+          false;
       for (int i = 0; i < adviceArguments.length; i++) {
         ParameterSpecification spec = parameters.get(i);
         if (spec == null) {
@@ -309,7 +332,10 @@ public class CallSiteSpecification implements Validatable {
     }
 
     private void validateArgumentSpec(
-        final ValidationContext context, final boolean allArgsFound, final int i) {
+        final ValidationContext context,
+        final boolean allArgsFound,
+        final int i
+    ) {
       if (allArgsFound) {
         context.addError(ErrorCode.ADVICE_PARAMETER_ALL_ARGS_MIXED, i);
       }
@@ -319,13 +345,18 @@ public class CallSiteSpecification implements Validatable {
     }
 
     private void validateInvokeDynamicConstSpec(
-        final ValidationContext context, final boolean dynamicConstantsFound, final int i) {
+        final ValidationContext context,
+        final boolean dynamicConstantsFound,
+        final int i
+    ) {
       if (dynamicConstantsFound) {
         context.addError(ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_DUPLICATED, i);
       }
       if (!isInvokeDynamic()) {
         context.addError(
-            ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_ON_NON_INVOKE_DYNAMIC, i);
+            ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_ON_NON_INVOKE_DYNAMIC,
+            i
+        );
       }
       if (!(this instanceof AfterSpecification)) {
         context.addError(ErrorCode.ADVICE_PARAMETER_INVOKE_DYNAMIC_CONSTANTS_NON_AFTER_ADVICE, i);
@@ -340,7 +371,8 @@ public class CallSiteSpecification implements Validatable {
         final ValidationContext context,
         final boolean allArgsFound,
         final boolean argumentFound,
-        final int i) {
+        final int i
+    ) {
       if (allArgsFound) {
         context.addError(ErrorCode.ADVICE_PARAMETER_ALL_ARGS_DUPLICATED, i);
       }
@@ -350,7 +382,10 @@ public class CallSiteSpecification implements Validatable {
     }
 
     private void validateReturnSpec(
-        final ValidationContext context, final boolean returnFound, final int i) {
+        final ValidationContext context,
+        final boolean returnFound,
+        final int i
+    ) {
       if (returnFound) {
         context.addError(ErrorCode.ADVICE_PARAMETER_RETURN_DUPLICATED, i);
       }
@@ -358,9 +393,8 @@ public class CallSiteSpecification implements Validatable {
       if (i != arguments.length - 1) {
         if (isInvokeDynamic()) {
           if (i != arguments.length - 2
-              && !(parameters.get(arguments.length - 1)
-                  instanceof InvokeDynamicConstantsSpecification)) {}
-
+              && !(parameters.get(arguments.length - 1) instanceof InvokeDynamicConstantsSpecification)) {
+          }
         } else {
           context.addError(ErrorCode.ADVICE_PARAMETER_RETURN_SHOULD_BE_LAST, i);
         }
@@ -371,7 +405,10 @@ public class CallSiteSpecification implements Validatable {
     }
 
     private void validateThisSpec(
-        final ValidationContext context, final boolean thisFound, final int i) {
+        final ValidationContext context,
+        final boolean thisFound,
+        final int i
+    ) {
       if (thisFound) {
         context.addError(ErrorCode.ADVICE_PARAMETER_THIS_DUPLICATED, i);
       }
@@ -471,18 +508,24 @@ public class CallSiteSpecification implements Validatable {
     }
 
     private <E extends ParameterSpecification> void withParameter(
-        final Class<E> spec, final BiConsumer<Integer, E> consumer) {
-      parameters.entrySet().stream()
-          .filter(entry -> spec.isInstance(entry.getValue()))
-          .forEach(entry -> consumer.accept(entry.getKey(), spec.cast(entry.getValue())));
+        final Class<E> spec,
+        final BiConsumer<Integer, E> consumer
+    ) {
+      parameters
+        .entrySet()
+        .stream()
+        .filter(entry -> spec.isInstance(entry.getValue()))
+        .forEach(entry -> consumer.accept(entry.getKey(), spec.cast(entry.getValue())));
     }
 
     private <E extends ParameterSpecification> E findParameter(final Class<E> spec) {
-      return parameters.values().stream()
-          .filter(spec::isInstance)
-          .map(spec::cast)
-          .findFirst()
-          .orElse(null);
+      return parameters
+        .values()
+        .stream()
+        .filter(spec::isInstance)
+        .map(spec::cast)
+        .findFirst()
+        .orElse(null);
     }
 
     public boolean isConstructor() {
@@ -490,9 +533,11 @@ public class CallSiteSpecification implements Validatable {
     }
 
     public Stream<ArgumentSpecification> getArguments() {
-      return parameters.values().stream()
-          .filter(it -> it instanceof ArgumentSpecification)
-          .map(it -> (ArgumentSpecification) it);
+      return parameters
+        .values()
+        .stream()
+        .filter(it -> it instanceof ArgumentSpecification)
+        .map(it -> (ArgumentSpecification) it);
     }
   }
 
@@ -501,7 +546,8 @@ public class CallSiteSpecification implements Validatable {
         @Nonnull final MethodType advice,
         @Nonnull final Map<Integer, ParameterSpecification> parameters,
         @Nonnull final String signature,
-        final boolean invokeDynamic) {
+        final boolean invokeDynamic
+    ) {
       super(advice, parameters, signature, invokeDynamic);
     }
 
@@ -530,7 +576,8 @@ public class CallSiteSpecification implements Validatable {
         @Nonnull final MethodType advice,
         @Nonnull final Map<Integer, ParameterSpecification> parameters,
         @Nonnull final String signature,
-        final boolean invokeDynamic) {
+        final boolean invokeDynamic
+    ) {
       super(advice, parameters, signature, invokeDynamic);
     }
 
@@ -564,7 +611,8 @@ public class CallSiteSpecification implements Validatable {
         @Nonnull final MethodType advice,
         @Nonnull final Map<Integer, ParameterSpecification> parameters,
         @Nonnull final String signature,
-        final boolean invokeDynamic) {
+        final boolean invokeDynamic
+    ) {
       super(advice, parameters, signature, invokeDynamic);
     }
 
@@ -615,7 +663,8 @@ public class CallSiteSpecification implements Validatable {
    * datadog.trace.agent.tooling.csi.CallSite.InvokeDynamicConstants}, {@link
    * datadog.trace.agent.tooling.csi.CallSite.Return}
    */
-  public abstract static class ParameterSpecification {}
+  public abstract static class ParameterSpecification {
+  }
 
   public static final class ThisSpecification extends ParameterSpecification {
     @Override
@@ -632,7 +681,6 @@ public class CallSiteSpecification implements Validatable {
   }
 
   public static final class AllArgsSpecification extends ParameterSpecification {
-
     private boolean includeThis;
 
     public boolean isIncludeThis() {
@@ -650,7 +698,6 @@ public class CallSiteSpecification implements Validatable {
   }
 
   public static final class ArgumentSpecification extends ParameterSpecification {
-
     private int index;
 
     public int getIndex() {
@@ -680,11 +727,11 @@ public class CallSiteSpecification implements Validatable {
 
     public Enabled(final List<String> enabled) {
       this.arguments = enabled.size() <= 2 ? emptyList() : enabled.subList(2, enabled.size());
-      this.method =
-          new MethodType(
-              classNameToType(enabled.get(0)),
-              enabled.get(1),
-              Type.getMethodType(Types.BOOLEAN, stringTypeArray(arguments.size())));
+      this.method = new MethodType(
+          classNameToType(enabled.get(0)),
+          enabled.get(1),
+          Type.getMethodType(Types.BOOLEAN, stringTypeArray(arguments.size()))
+      );
     }
 
     public MethodType getMethod() {

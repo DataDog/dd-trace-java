@@ -8,27 +8,22 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class LettuceInstrumentationUtil {
-
   // DEBUG covers `DEBUG OOM`/`DEBUG SEGFAULT`: Lettuce sends those as command type DEBUG with
   // "OOM"/SEGFAULT as an argument, not as the command type.
   public static final Set<CommandType> NON_INSTRUMENTING_COMMANDS =
       EnumSet.of(CommandType.SHUTDOWN, CommandType.DEBUG);
-
-  public static final Set<CommandType> AGENT_CRASHING_COMMANDS =
-      EnumSet.of(
-          CommandType.CLIENT,
-          CommandType.CLUSTER,
-          CommandType.COMMAND,
-          CommandType.CONFIG,
-          CommandType.DEBUG,
-          CommandType.SCRIPT);
-
+  public static final Set<CommandType> AGENT_CRASHING_COMMANDS = EnumSet.of(
+      CommandType.CLIENT,
+      CommandType.CLUSTER,
+      CommandType.COMMAND,
+      CommandType.CONFIG,
+      CommandType.DEBUG,
+      CommandType.SCRIPT
+  );
   public static final String AGENT_CRASHING_COMMAND_PREFIX = "COMMAND-NAME:";
-
   // Fallback for custom (non-CommandType) ProtocolKeyword implementations.
   private static final Set<String> NON_INSTRUMENTING_COMMAND_NAMES =
       commandNames(NON_INSTRUMENTING_COMMANDS);
-
   private static final Set<String> AGENT_CRASHING_COMMAND_NAMES =
       commandNames(AGENT_CRASHING_COMMANDS);
 
@@ -76,10 +71,9 @@ public class LettuceInstrumentationUtil {
   public static String getCommandResourceName(final RedisCommand command) {
     final String commandName = getCommandName(command);
     final ProtocolKeyword type = command == null ? null : command.getType();
-    final boolean crashesAgent =
-        type instanceof CommandType
-            ? AGENT_CRASHING_COMMANDS.contains(type)
-            : type != null && AGENT_CRASHING_COMMAND_NAMES.contains(commandName);
+    final boolean crashesAgent = type instanceof CommandType
+        ? AGENT_CRASHING_COMMANDS.contains(type)
+        : type != null && AGENT_CRASHING_COMMAND_NAMES.contains(commandName);
     if (crashesAgent) {
       return AGENT_CRASHING_COMMAND_PREFIX + commandName;
     }
@@ -95,7 +89,6 @@ public class LettuceInstrumentationUtil {
   public static String getCommandName(final RedisCommand command) {
     String commandName = "Redis Command";
     if (command != null) {
-
       // get the redis command name (i.e. GET, SET, HMSET, etc)
       if (command.getType() != null) {
         commandName = command.getType().toString().trim();

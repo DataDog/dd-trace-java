@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.vertx_redis_client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
 import io.vertx.core.Future;
@@ -19,13 +18,13 @@ public class RedisAPIImplSendAdvice {
   public static void afterSend(
       @Advice.This RedisAPI self,
       @Advice.FieldValue("connection") final RedisConnection connection,
-      @Advice.Return Future<Response> future) {
+      @Advice.Return Future<Response> future
+  ) {
     /*
     Here we can safely set the handler for a command related Future instance.
     We need to take some precautions due to a non-existent operation which would allow setting the handler
     and in case the Future is complete immediately calling it.
      */
-
     // Note that we should not _leak_ the active scope to the handler if it gets executed directly
     try (ContextScope scope = activateSpan(noopSpan())) {
       // Get the handler from the context, set by RedisAPICallAdvice
@@ -34,8 +33,9 @@ public class RedisAPIImplSendAdvice {
       if (handler != null) {
         if (handler.clientSpan != null && connection != null) {
           final SocketAddress socketAddress =
-              InstrumentationContext.get(RedisConnection.class, SocketAddress.class)
-                  .get(connection);
+              InstrumentationContext
+            .get(RedisConnection.class, SocketAddress.class)
+            .get(connection);
           if (socketAddress != null) {
             DECORATE.onConnection(handler.clientSpan, socketAddress);
             DECORATE.setPeerPort(handler.clientSpan, socketAddress.port());
@@ -56,6 +56,7 @@ public class RedisAPIImplSendAdvice {
 
   // Only apply this advice for versions that we instrument 3.9.x
   private static void muzzleCheck() {
-    Redis.createClient(null, "somehost"); // added in 3.9.x
+    // added in 3.9.x
+    Redis.createClient(null, "somehost");
   }
 }

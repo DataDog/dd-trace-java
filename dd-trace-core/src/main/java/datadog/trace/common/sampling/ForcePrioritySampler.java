@@ -2,9 +2,10 @@ package datadog.trace.common.sampling;
 
 import datadog.trace.core.CoreSpan;
 
-/** A sampler which forces the sampling priority */
+/**
+ * A sampler which forces the sampling priority
+ */
 public class ForcePrioritySampler implements Sampler, PrioritySampler {
-
   private final int prioritySampling;
   private final int samplingMechanism;
 

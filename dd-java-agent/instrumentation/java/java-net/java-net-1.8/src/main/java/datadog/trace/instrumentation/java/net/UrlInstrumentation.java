@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.UrlConnectionDec
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,8 +18,10 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class UrlInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public UrlInstrumentation() {
     super("urlconnection", "httpurlconnection");
   }
@@ -39,16 +40,17 @@ public class UrlInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("openConnection")),
-        UrlInstrumentation.class.getName() + "$ConnectionErrorAdvice");
+        UrlInstrumentation.class.getName() + "$ConnectionErrorAdvice"
+    );
   }
 
   public static class ConnectionErrorAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void errorSpan(
         @Advice.This final URL url,
         @Advice.Thrown final Throwable throwable,
-        @Advice.FieldValue("handler") final URLStreamHandler handler) {
+        @Advice.FieldValue("handler") final URLStreamHandler handler
+    ) {
       if (throwable != null) {
         String protocol = url.getProtocol();
         protocol = protocol != null ? protocol : "url";

@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.SPAN_N
 import static datadog.trace.instrumentation.hazelcast4.HazelcastDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.hazelcast.client.ClientListener;
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.proxy.ClientMapProxy;
@@ -20,8 +19,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 public final class ClientListenerInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "com.hazelcast.client.impl.spi.impl.listener.ClientListenerServiceImpl";
@@ -31,26 +31,29 @@ public final class ClientListenerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("handleEventMessageOnCallingThread"))
-            .and(takesArgument(0, named("com.hazelcast.client.impl.protocol.ClientMessage"))),
-        getClass().getName() + "$ListenerAdvice");
+          .and(named("handleEventMessageOnCallingThread"))
+          .and(takesArgument(0, named("com.hazelcast.client.impl.protocol.ClientMessage"))),
+        getClass().getName() + "$ListenerAdvice"
+    );
   }
 
-  /** Advice for instrumenting distributed object client proxy classes. */
+  /**
+   * Advice for instrumenting distributed object client proxy classes.
+   */
   public static class ListenerAdvice {
-
-    /** Method entry instrumentation. */
+    /**
+     * Method entry instrumentation.
+     */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
         @Advice.This final ClientListenerService that,
-        @Advice.Argument(0) final ClientMessage clientMessage) {
-
+        @Advice.Argument(0) final ClientMessage clientMessage
+    ) {
       final String operationName =
           clientMessage.getOperationName() != null
-              ? clientMessage.getOperationName()
-              : "Event.Handle";
+          ? clientMessage.getOperationName()
+          : "Event.Handle";
       long correlationId = clientMessage.getCorrelationId();
-
       // Ensure that we only create a span for the top-level Hazelcast method; except in the
       // case of async operations where we want visibility into how long the task was delayed from
       // starting. Our call depth checker does not span threads, so the async case is handled
@@ -67,26 +70,30 @@ public final class ClientListenerInstrumentation
       return activateSpan(span);
     }
 
-    /** Method exit instrumentation. */
+    /**
+     * Method exit instrumentation.
+     */
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
-
       // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
       final AgentSpan span = scope.span();
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
       scope.close();
       span.finish();
-      CallDepthThreadLocalMap.reset(ClientListener.class); // reset call depth count
+      // reset call depth count
+      CallDepthThreadLocalMap.reset(ClientListener.class);
     }
 
-    public static void muzzleCheck(
-        // Moved in 4.0
-        ClientMapProxy proxy) {
+    public static // Moved in 4.0
+    // Moved in 4.0
+    void muzzleCheck(ClientMapProxy proxy) {
       proxy.getServiceName();
     }
   }

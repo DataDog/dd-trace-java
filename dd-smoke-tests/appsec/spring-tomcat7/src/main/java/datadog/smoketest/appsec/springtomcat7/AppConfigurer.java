@@ -8,4 +8,5 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 @Configuration
 @EnableWebMvc
 @ComponentScan(basePackages = {"datadog.smoketest.appsec.springtomcat7"})
-public class AppConfigurer extends WebMvcConfigurerAdapter {}
+public class AppConfigurer extends WebMvcConfigurerAdapter {
+}

@@ -12,11 +12,11 @@ import org.springframework.web.servlet.HandlerMapping;
  * enabled (see {@code ResourceNameFilterMappingInstrumentation}).
  */
 public class ResourceNameFilterMappingAdvice {
-
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterRefresh(
       @Advice.Argument(0) final ApplicationContext springCtx,
-      @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings) {
+      @Advice.FieldValue("handlerMappings") final List<HandlerMapping> handlerMappings
+  ) {
     if (handlerMappings != null && springCtx.containsBean("ddDispatcherFilter")) {
       final HandlerMappingResourceNameFilter filter =
           (HandlerMappingResourceNameFilter) springCtx.getBean("ddDispatcherFilter");

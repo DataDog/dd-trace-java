@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.javadsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,8 +15,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JacksonUnmarshallerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JacksonUnmarshallerInstrumentation() {
     super("akka-http");
   }
@@ -25,14 +25,14 @@ public class JacksonUnmarshallerInstrumentation extends InstrumenterModule.AppSe
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".UnmarshallerHelpers",
-      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
+        packageName + ".UnmarshallerHelpers",
+        packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
+        packageName + ".AkkaBlockResponseFunction",
+        packageName + ".BlockingResponseHelper",
+        packageName + ".ScalaListCollector",
+        "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
+        "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
+        "datadog.trace.instrumentation.akkahttp.UriAdapter"
     };
   }
 
@@ -50,13 +50,14 @@ public class JacksonUnmarshallerInstrumentation extends InstrumenterModule.AppSe
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isStatic())
-            .and(returns(named("akka.http.javadsl.unmarshalling.Unmarshaller")))
-            .and(named("byteStringUnmarshaller").or(named("unmarshaller")))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("com.fasterxml.jackson.databind.ObjectMapper")))
-            .and(takesArgument(1, Class.class)),
-        JacksonUnmarshallerInstrumentation.class.getName() + "$UnmarshallerAdvice");
+          .and(isStatic())
+          .and(returns(named("akka.http.javadsl.unmarshalling.Unmarshaller")))
+          .and(named("byteStringUnmarshaller").or(named("unmarshaller")))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("com.fasterxml.jackson.databind.ObjectMapper")))
+          .and(takesArgument(1, Class.class)),
+        JacksonUnmarshallerInstrumentation.class.getName() + "$UnmarshallerAdvice"
+    );
   }
 
   static class UnmarshallerAdvice {

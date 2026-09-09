@@ -2,7 +2,6 @@ package datadog.trace.plugin.csi.impl.assertion;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.List;
 
 public class AdviceAssert {
@@ -13,7 +12,12 @@ public class AdviceAssert {
   protected List<String> statements;
 
   public AdviceAssert(
-      String type, String owner, String method, String descriptor, List<String> statements) {
+      String type,
+      String owner,
+      String method,
+      String descriptor,
+      List<String> statements
+  ) {
     this.type = type;
     this.owner = owner;
     this.method = method;

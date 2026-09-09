@@ -11,10 +11,8 @@ import scala.Tuple2;
 import scala.collection.Iterator;
 
 public final class PlayHeaders {
-
   public static final class Request implements AgentPropagation.ContextVisitor<Headers> {
     private static final MethodHandle AS_MAP = asMap();
-
     public static final Request GETTER = new Request();
 
     @Override
@@ -41,13 +39,15 @@ public final class PlayHeaders {
     private static MethodHandle asMap() {
       try {
         // this is available in Play 2.8 and doesn't copy
-        return MethodHandles.lookup()
-            .findVirtual(Headers.class, "asMap", MethodType.methodType(Map.class));
+        return MethodHandles
+          .lookup()
+          .findVirtual(Headers.class, "asMap", MethodType.methodType(Map.class));
       } catch (NoSuchMethodException | IllegalAccessException findFallback) {
         try {
           // this is available in Play 2.7 and doesn't copy
-          return MethodHandles.lookup()
-              .findVirtual(Headers.class, "toMap", MethodType.methodType(Map.class));
+          return MethodHandles
+            .lookup()
+            .findVirtual(Headers.class, "toMap", MethodType.methodType(Map.class));
         } catch (NoSuchMethodException | IllegalAccessException giveup) {
         }
         return null;

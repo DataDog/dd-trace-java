@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -14,7 +13,6 @@ import org.tabletest.junit.TypeConverterSources;
 
 @TypeConverterSources(DDTraceApiTableTestConverters.class)
 class DDTraceIdTest {
-
   @TableTest({
     "scenario  | longId         | expectedString         | expectedHex                       ",
     "zero      | 0              | '0'                    | '00000000000000000000000000000000'",
@@ -25,7 +23,10 @@ class DDTraceIdTest {
   })
   @ParameterizedTest(name = "convert 64-bit ids from/to long and check strings [{index}]")
   void convert64BitIdsFromToLongAndCheckStrings(
-      long longId, String expectedString, String expectedHex) {
+      long longId,
+      String expectedString,
+      String expectedHex
+  ) {
     DD64bTraceId ddid = DD64bTraceId.from(longId);
     DD64bTraceId expectedId = DD64bTraceId.from(expectedString);
     DDTraceId defaultDdid = DDTraceId.from(longId);
@@ -56,16 +57,15 @@ class DDTraceIdTest {
 
   @ParameterizedTest(name = "fail parsing illegal 64-bit id String representation [{index}]")
   @NullSource
-  @ValueSource(
-      strings = {
-        "",
-        "-1",
-        "18446744073709551616",
-        "18446744073709551625",
-        "184467440737095516150",
-        "18446744073709551a1",
-        "184467440737095511a"
-      })
+  @ValueSource(strings = {
+      "",
+      "-1",
+      "18446744073709551616",
+      "18446744073709551625",
+      "184467440737095516150",
+      "18446744073709551a1",
+      "184467440737095511a"
+  })
   void failParsingIllegal64BitIdStringRepresentation(String stringId) {
     assertThrows(NumberFormatException.class, () -> DD64bTraceId.from(stringId));
   }
@@ -94,8 +94,8 @@ class DDTraceIdTest {
     assertEquals(padded32, ddid.toHexStringPadded(32));
   }
 
-  @ParameterizedTest(
-      name = "fail parsing illegal 64-bit hexadecimal String representation [{index}]")
+  @ParameterizedTest(name = "fail parsing illegal 64-bit hexadecimal String representation "
+      + "[{index}]")
   @NullSource
   @ValueSource(strings = {"", "-1", "10000000000000000", "ffffffffffffffzf", "fffffffffffffffz"})
   void failParsingIllegal64BitHexadecimalStringRepresentation(String hexId) {
@@ -103,30 +103,52 @@ class DDTraceIdTest {
   }
 
   @TableTest({
-    "scenario                    | highOrderBits       | lowOrderBits        | hexId                             ",
-    "both long min               | Long.MIN_VALUE      | Long.MIN_VALUE      | '80000000000000008000000000000000'",
-    "high long min low one       | Long.MIN_VALUE      | 1                   | '80000000000000000000000000000001'",
-    "high long min low long max  | Long.MIN_VALUE      | Long.MAX_VALUE      | '80000000000000007fffffffffffffff'",
-    "high one low long min       | 1                   | Long.MIN_VALUE      | '00000000000000018000000000000000'",
-    "high one low one            | 1                   | 1                   | '00000000000000010000000000000001'",
-    "high one low long max       | 1                   | Long.MAX_VALUE      | '00000000000000017fffffffffffffff'",
-    "high long max low long min  | Long.MAX_VALUE      | Long.MIN_VALUE      | '7fffffffffffffff8000000000000000'",
-    "high long max low one       | Long.MAX_VALUE      | 1                   | '7fffffffffffffff0000000000000001'",
-    "high long max low long max  | Long.MAX_VALUE      | Long.MAX_VALUE      | '7fffffffffffffff7fffffffffffffff'",
-    "all zeros length one        | 0                   | 0                   | '0'                               ",
-    "all zeros length sixteen    | 0                   | 0                   | '0000000000000000'                ",
-    "all zeros length seventeen  | 0                   | 0                   | '00000000000000000'               ",
-    "all zeros length thirty-two | 0                   | 0                   | '00000000000000000000000000000000'",
-    "low fifteen                 | 0                   | 15                  | 'f'                               ",
-    "low minus one               | 0                   | -1                  | 'ffffffffffffffff'                ",
-    "high fifteen low minus one  | 15                  | -1                  | 'fffffffffffffffff'               ",
-    "all f                       | -1                  | -1                  | 'ffffffffffffffffffffffffffffffff'",
-    "hex literal                 | 1311768467463790320 | 1311768467463790320 | '123456789abcdef0123456789abcdef0'"
+    "scenario                    | highOrderBits       | lowOrderBits        | hexId   ",
+    "                                                                                  ",
+    "both long min               | Long.MIN_VALUE      | Long.MIN_VALUE      |         ",
+    "'80000000000000008000000000000000'                                                ",
+    "high long min low one       | Long.MIN_VALUE      | 1                   |         ",
+    "'80000000000000000000000000000001'                                                ",
+    "high long min low long max  | Long.MIN_VALUE      | Long.MAX_VALUE      |         ",
+    "'80000000000000007fffffffffffffff'                                                ",
+    "high one low long min       | 1                   | Long.MIN_VALUE      |         ",
+    "'00000000000000018000000000000000'                                                ",
+    "high one low one            | 1                   | 1                   |         ",
+    "'00000000000000010000000000000001'                                                ",
+    "high one low long max       | 1                   | Long.MAX_VALUE      |         ",
+    "'00000000000000017fffffffffffffff'                                                ",
+    "high long max low long min  | Long.MAX_VALUE      | Long.MIN_VALUE      |         ",
+    "'7fffffffffffffff8000000000000000'                                                ",
+    "high long max low one       | Long.MAX_VALUE      | 1                   |         ",
+    "'7fffffffffffffff0000000000000001'                                                ",
+    "high long max low long max  | Long.MAX_VALUE      | Long.MAX_VALUE      |         ",
+    "'7fffffffffffffff7fffffffffffffff'                                                ",
+    "all zeros length one        | 0                   | 0                   | '0'     ",
+    "                                                                                  ",
+    "all zeros length sixteen    | 0                   | 0                   |         ",
+    "'0000000000000000'                                                                ",
+    "all zeros length seventeen  | 0                   | 0                   |         ",
+    "'00000000000000000'                                                               ",
+    "all zeros length thirty-two | 0                   | 0                   |         ",
+    "'00000000000000000000000000000000'                                                ",
+    "low fifteen                 | 0                   | 15                  | 'f'     ",
+    "                                                                                  ",
+    "low minus one               | 0                   | -1                  |         ",
+    "'ffffffffffffffff'                                                                ",
+    "high fifteen low minus one  | 15                  | -1                  |         ",
+    "'fffffffffffffffff'                                                               ",
+    "all f                       | -1                  | -1                  |         ",
+    "'ffffffffffffffffffffffffffffffff'                                                ",
+    "hex literal                 | 1311768467463790320 | 1311768467463790320 |         ",
+    "'123456789abcdef0123456789abcdef0'                                                "
   })
-  @ParameterizedTest(
-      name = "convert 128-bit ids from/to hexadecimal String representation [{index}]")
+  @ParameterizedTest(name = "convert 128-bit ids from/to hexadecimal String representation "
+      + "[{index}]")
   void convert128BitIdsFromToHexadecimalStringRepresentation(
-      long highOrderBits, long lowOrderBits, String hexId) {
+      long highOrderBits,
+      long lowOrderBits,
+      String hexId
+  ) {
     DDTraceId parsedId = DD128bTraceId.fromHex(hexId);
     DDTraceId id = DD128bTraceId.from(highOrderBits, lowOrderBits);
     String paddedHexId = leftPadWithZeros(hexId, 32);
@@ -141,34 +163,55 @@ class DDTraceIdTest {
   }
 
   @TableTest({
-    "scenario             | hexId                                  | start | length | lowerCaseOnly | expectedHexId                   ",
-    "default bounds       | 0123456789abcdeffedcba9876543210       | 0     | 32     | true          | 0123456789abcdeffedcba9876543210",
-    "starting bounds      | 0123456789abcdeffedcba9876543210       | 0     | 16     | true          | 00000000000000000123456789abcdef",
-    "ending bounds        | 0123456789abcdeffedcba9876543210       | 16    | 16     | true          | 0000000000000000fedcba9876543210",
-    "middle bounds        | 0123456789abcdeffedcba9876543210       | 8     | 4      | true          | 000000000000000000000000000089ab",
-    "with padding         | ---0123456789abcdeffedcba9876543210--- | 3     | 32     | true          | 0123456789abcdeffedcba9876543210",
-    "upper case           | 0123456789ABCDEFFEDCBA9876543210       | 0     | 32     | false         | 0123456789abcdeffedcba9876543210",
-    "mixed case           | 0123456789ABCDEFfedcba9876543210       | 0     | 32     | false         | 0123456789abcdeffedcba9876543210",
-    "negative position    | 0123456789abcdeffedcba9876543210       | -1    | 32     | false         |                                 ",
-    "negative length      | 0123456789abcdeffedcba9876543210       | 0     | -1     | false         |                                 ",
-    "invalid length       | 0123456789abcdeffedcba9876543210       | 0     | 33     | false         |                                 ",
-    "invalid ending bound | 0123456789abcdeffedcba9876543210       | 1     | 32     | false         |                                 ",
-    "invalid case         | 0123456789ABCDEFFEDCBA9876543210       | 0     | 32     | true          |                                 "
+    "scenario             | hexId                                  | start | length | ",
+    "lowerCaseOnly | expectedHexId                                                    ",
+    "default bounds       | 0123456789abcdeffedcba9876543210       | 0     | 32     | ",
+    "true          | 0123456789abcdeffedcba9876543210                                 ",
+    "starting bounds      | 0123456789abcdeffedcba9876543210       | 0     | 16     | ",
+    "true          | 00000000000000000123456789abcdef                                 ",
+    "ending bounds        | 0123456789abcdeffedcba9876543210       | 16    | 16     | ",
+    "true          | 0000000000000000fedcba9876543210                                 ",
+    "middle bounds        | 0123456789abcdeffedcba9876543210       | 8     | 4      | ",
+    "true          | 000000000000000000000000000089ab                                 ",
+    "with padding         | ---0123456789abcdeffedcba9876543210--- | 3     | 32     | ",
+    "true          | 0123456789abcdeffedcba9876543210                                 ",
+    "upper case           | 0123456789ABCDEFFEDCBA9876543210       | 0     | 32     | ",
+    "false         | 0123456789abcdeffedcba9876543210                                 ",
+    "mixed case           | 0123456789ABCDEFfedcba9876543210       | 0     | 32     | ",
+    "false         | 0123456789abcdeffedcba9876543210                                 ",
+    "negative position    | 0123456789abcdeffedcba9876543210       | -1    | 32     | ",
+    "false         |                                                                  ",
+    "negative length      | 0123456789abcdeffedcba9876543210       | 0     | -1     | ",
+    "false         |                                                                  ",
+    "invalid length       | 0123456789abcdeffedcba9876543210       | 0     | 33     | ",
+    "false         |                                                                  ",
+    "invalid ending bound | 0123456789abcdeffedcba9876543210       | 1     | 32     | ",
+    "false         |                                                                  ",
+    "invalid case         | 0123456789ABCDEFFEDCBA9876543210       | 0     | 32     | ",
+    "true          |                                                                  "
   })
   void converting128BitIdsFromHexadecimalStringRepresentation(
-      String hexId, int start, int length, boolean lowerCaseOnly, String expectedHexId) {
+      String hexId,
+      int start,
+      int length,
+      boolean lowerCaseOnly,
+      String expectedHexId
+  ) {
     if (expectedHexId == null) {
-      assertThrows(
-          NumberFormatException.class,
-          () -> DD128bTraceId.fromHex(hexId, start, length, lowerCaseOnly));
+      assertThrows(NumberFormatException.class, () -> DD128bTraceId.fromHex(
+          hexId,
+          start,
+          length,
+          lowerCaseOnly
+      ));
       return;
     }
     DD128bTraceId parsedId = DD128bTraceId.fromHex(hexId, start, length, lowerCaseOnly);
     assertEquals(expectedHexId, parsedId.toHexString());
   }
 
-  @ParameterizedTest(
-      name = "fail parsing illegal 128-bit id hexadecimal String representation [{index}]")
+  @ParameterizedTest(name = "fail parsing illegal 128-bit id hexadecimal String representation "
+      + "[{index}]")
   @NullSource
   @ValueSource(strings = {"", "-1", "-A", "111111111111111111111111111111111", "123ABC", "123abcg"})
   void failParsingIllegal128BitIdHexadecimalStringRepresentation(String hexId) {
@@ -189,14 +232,20 @@ class DDTraceIdTest {
     "invalid upper case   | '123ABC'                            | 0     | 6      | true         ",
     "too long             | '111111111111111111111111111111111' | 0     | 33     | true         "
   })
-  @ParameterizedTest(
-      name =
-          "fail parsing illegal 128-bit id hexadecimal String representation from partial String [{index}]")
+  @ParameterizedTest(name = "fail parsing illegal 128-bit id hexadecimal String representation "
+      + "from partial String [{index}]")
   void failParsingIllegal128BitIdHexadecimalStringRepresentationFromPartialString(
-      String hexId, int start, int length, boolean lowerCaseOnly) {
-    assertThrows(
-        NumberFormatException.class,
-        () -> DD128bTraceId.fromHex(hexId, start, length, lowerCaseOnly));
+      String hexId,
+      int start,
+      int length,
+      boolean lowerCaseOnly
+  ) {
+    assertThrows(NumberFormatException.class, () -> DD128bTraceId.fromHex(
+        hexId,
+        start,
+        length,
+        lowerCaseOnly
+    ));
   }
 
   @Test

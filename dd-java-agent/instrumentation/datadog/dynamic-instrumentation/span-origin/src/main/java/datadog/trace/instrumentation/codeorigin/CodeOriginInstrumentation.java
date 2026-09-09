@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.isAnnotatedWith;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule.Tracing;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
@@ -17,8 +16,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class CodeOriginInstrumentation extends Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final OneOf<NamedElement> matcher;
 
   @SuppressForbidden
@@ -36,13 +36,13 @@ public abstract class CodeOriginInstrumentation extends Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // no particular marker type
+    // no particular marker type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    ElementMatcher.Junction<TypeDescription> matcher =
-        declaresMethod(isAnnotatedWith(this.matcher));
+    ElementMatcher.Junction<TypeDescription> matcher = declaresMethod(isAnnotatedWith(this.matcher));
     if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
       matcher = matcher.or(implementsInterface(declaresMethod(isAnnotatedWith(this.matcher))));
     }
@@ -52,11 +52,14 @@ public abstract class CodeOriginInstrumentation extends Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isAnnotatedWith(matcher), "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+        isAnnotatedWith(matcher),
+        "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice"
+    );
     if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
       transformer.applyAdvice(
           isDeclaredBy(implementsInterface(declaresMethod(isAnnotatedWith(matcher)))),
-          "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+          "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice"
+      );
     }
   }
 }

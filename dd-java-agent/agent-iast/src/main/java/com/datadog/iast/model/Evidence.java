@@ -8,15 +8,19 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class Evidence {
+  @Nonnull
+  private final String value;
+  @Nullable
+  private final Range[] ranges;
+  /**
+   * Extra context needed for the evidence, for instance Database in case of a SQLi
+   */
+  @Nonnull
+  private final transient Context context = new Evidence.Context(4);
 
-  private final @Nonnull String value;
-
-  private final @Nullable Range[] ranges;
-
-  /** Extra context needed for the evidence, for instance Database in case of a SQLi */
-  private final transient @Nonnull Context context = new Evidence.Context(4);
-
-  /** For deserialization in tests via moshi */
+  /**
+   * For deserialization in tests via moshi
+   */
   @Deprecated
   @SuppressWarnings({"NullAway", "DataFlowIssue", "unused"})
   private Evidence() {
@@ -49,8 +53,12 @@ public final class Evidence {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Evidence evidence = (Evidence) o;
     return Objects.equals(value, evidence.value) && Arrays.equals(ranges, evidence.ranges);
   }
@@ -80,7 +88,6 @@ public final class Evidence {
   }
 
   public static class Context {
-
     private final Map<String, Object> context;
     private final int maxSize;
 

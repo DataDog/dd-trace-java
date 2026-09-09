@@ -6,14 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.agent.tooling.stratum.SourceMap;
 import datadog.trace.agent.tooling.stratum.StratumExt;
 import datadog.trace.api.Pair;
 import org.junit.jupiter.api.Test;
 
 class SourceRemapperTest {
-
   @Test
   public void noopSourceRemapper() {
     assertEquals(SourceRemapper.NOOP_REMAPPER, SourceRemapper.getSourceRemapper("foo.java", null));

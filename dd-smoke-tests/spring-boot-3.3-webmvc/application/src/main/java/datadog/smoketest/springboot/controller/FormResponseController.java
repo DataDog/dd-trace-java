@@ -11,7 +11,6 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 @Controller
 public class FormResponseController {
   private static final int RESPONSE_OFFSET = 6;
-
   private final SpringTemplateEngine templateEngine;
 
   public FormResponseController(SpringTemplateEngine templateEngine) {

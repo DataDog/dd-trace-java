@@ -5,7 +5,6 @@ import static datadog.trace.api.ProductTraceSource.ASM;
 import static datadog.trace.api.ProductTraceSource.DBM;
 import static datadog.trace.api.ProductTraceSource.DSM;
 import static datadog.trace.api.ProductTraceSource.UNSET;
-
 import java.util.HashMap;
 import java.util.Map;
 

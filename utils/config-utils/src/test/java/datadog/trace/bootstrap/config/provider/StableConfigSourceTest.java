@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
@@ -35,12 +34,12 @@ import org.tabletest.junit.TableTest;
 
 @SuppressForbidden
 public class StableConfigSourceTest extends DDJavaSpecification {
-
   @Test
   void testFileDoesntExist() {
-    StableConfigSource config =
-        new StableConfigSource(
-            StableConfigSource.LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG);
+    StableConfigSource config = new StableConfigSource(
+        StableConfigSource.LOCAL_STABLE_CONFIG_PATH,
+        ConfigOrigin.LOCAL_STABLE_CONFIG
+    );
 
     assertEquals(0, config.getKeys().size());
     assertNull(config.getConfigId());
@@ -86,12 +85,12 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     try {
       // Test the scenario where YAML contains null values for apm_configuration_default and
       // apm_configuration_rules
-      String yaml = "config_id: \"12345\"\napm_configuration_default:\napm_configuration_rules:\n";
+      String yaml =
+          "config_id: \"12345\"\napm_configuration_default:\napm_configuration_rules:\n";
       Files.write(filePath, yaml.getBytes());
 
       StableConfigSource stableCfg =
           new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG);
-
       // Should not throw NullPointerException and should handle null values gracefully
       assertEquals("12345", stableCfg.getConfigId());
       assertEquals(0, stableCfg.getKeys().size());
@@ -114,8 +113,10 @@ public class StableConfigSourceTest extends DDJavaSpecification {
 
       assertEquals(configId.isEmpty() ? null : configId, stableCfg.getConfigId());
       assertEquals(defaultConfigs.keySet(), stableCfg.getKeys());
-      defaultConfigs.forEach(
-          (key, value) -> assertEquals(value, stableCfg.get(key.substring("DD_".length()))));
+      defaultConfigs.forEach((key, value) -> assertEquals(
+          value,
+          stableCfg.get(key.substring("DD_".length()))
+      ));
     } finally {
       Files.delete(filePath);
     }
@@ -139,12 +140,10 @@ public class StableConfigSourceTest extends DDJavaSpecification {
 
       assertNull(stableCfg.getConfigId());
       assertEquals(0, stableCfg.getKeys().size());
-      boolean hasExpectedLog =
-          listAppender.list.stream()
-              .anyMatch(
-                  event ->
-                      "WARN".equals(event.getLevel().toString())
-                          && event.getFormattedMessage().contains(expectedLogSubstring));
+      boolean hasExpectedLog = listAppender.list
+        .stream()
+        .anyMatch(event -> "WARN".equals(event.getLevel().toString())
+            && event.getFormattedMessage().contains(expectedLogSubstring));
       assertTrue(hasExpectedLog, "Expected WARN log containing: " + expectedLogSubstring);
     } finally {
       tempFile.delete();
@@ -156,97 +155,108 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     return Stream.of(
         arguments(
             "apm_configuration_rules:\n"
-                + "      - selectors:\n"
-                + "          - key: \"someKey\"\n"
-                + "            matches: [\"someValue\"]\n"
-                + "            operator: equals\n"
-                + "        configuration:\n"
-                + "          DD_SERVICE: \"test\"\n",
-            "Missing 'origin' in selector"),
+            + "      - selectors:\n"
+            + "          - key: \"someKey\"\n"
+            + "            matches: [\"someValue\"]\n"
+            + "            operator: equals\n"
+            + "        configuration:\n"
+            + "          DD_SERVICE: \"test\"\n",
+            "Missing 'origin' in selector"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "      - selectors:\n"
-                + "          - origin: process_arguments\n"
-                + "            key: \"-Dfoo\"\n"
-                + "            matches: [\"bar\"]\n"
-                + "            operator: equals\n",
-            "Missing 'configuration' in rule"),
+            + "      - selectors:\n"
+            + "          - origin: process_arguments\n"
+            + "            key: \"-Dfoo\"\n"
+            + "            matches: [\"bar\"]\n"
+            + "            operator: equals\n",
+            "Missing 'configuration' in rule"
+        ),
+        arguments(
+            "apm_configuration_rules:\n" + "       - configuration:\n" + "           DD_SERVICE: \"test\"\n",
+            "Missing 'selectors' in rule"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "       - configuration:\n"
-                + "           DD_SERVICE: \"test\"\n",
-            "Missing 'selectors' in rule"),
+            + "      - selectors: \"not-a-list\"\n"
+            + "        configuration:\n"
+            + "          DD_SERVICE: \"test\"\n",
+            "'selectors' must be a list, but got: String"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "      - selectors: \"not-a-list\"\n"
-                + "        configuration:\n"
-                + "          DD_SERVICE: \"test\"\n",
-            "'selectors' must be a list, but got: String"),
+            + "       - selectors:\n"
+            + "           - \"not-a-map\"\n"
+            + "         configuration:\n"
+            + "           DD_SERVICE: \"test\"\n",
+            "Each selector must be a map, but got: String"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "       - selectors:\n"
-                + "           - \"not-a-map\"\n"
-                + "         configuration:\n"
-                + "           DD_SERVICE: \"test\"\n",
-            "Each selector must be a map, but got: String"),
+            + "      - selectors:\n"
+            + "          - origin: process_arguments\n"
+            + "            key: \"-Dfoo\"\n"
+            + "            matches: [\"bar\"]\n"
+            + "            operator: equals\n"
+            + "        configuration: \"not-a-map\"\n",
+            "'configuration' must be a map, but got: String"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "      - selectors:\n"
-                + "          - origin: process_arguments\n"
-                + "            key: \"-Dfoo\"\n"
-                + "            matches: [\"bar\"]\n"
-                + "            operator: equals\n"
-                + "        configuration: \"not-a-map\"\n",
-            "'configuration' must be a map, but got: String"),
-        arguments(
-            "apm_configuration_rules:\n"
-                + "      - selectors:\n"
-                + "          - origin: process_arguments\n"
-                + "            key: \"-Dfoo\"\n"
-                + "            matches: [\"bar\"]\n"
-                + "            operator: equals\n"
-                + "        configuration: 12345\n",
-            "'configuration' must be a map, but got: Integer"),
+            + "      - selectors:\n"
+            + "          - origin: process_arguments\n"
+            + "            key: \"-Dfoo\"\n"
+            + "            matches: [\"bar\"]\n"
+            + "            operator: equals\n"
+            + "        configuration: 12345\n",
+            "'configuration' must be a map, but got: Integer"
+        ),
         arguments(
             "apm_configuration_rules:\n" + "      - \"not-a-map\"\n",
-            "Rule must be a map, but got: String"),
+            "Rule must be a map, but got: String"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "     - selectors:\n"
-                + "         - origin: process_arguments\n"
-                + "           key: \"-Dfoo\"\n"
-                + "           matches: \"not-a-list\"\n"
-                + "           operator: equals\n"
-                + "       configuration:\n"
-                + "         DD_SERVICE: \"test\"\n",
-            "'matches' must be a list, but got: String"),
+            + "     - selectors:\n"
+            + "         - origin: process_arguments\n"
+            + "           key: \"-Dfoo\"\n"
+            + "           matches: \"not-a-list\"\n"
+            + "           operator: equals\n"
+            + "       configuration:\n"
+            + "         DD_SERVICE: \"test\"\n",
+            "'matches' must be a list, but got: String"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "     - selectors:\n"
-                + "         - origin: process_arguments\n"
-                + "           key: \"-Dfoo\"\n"
-                + "           matches: [\"bar\"]\n"
-                + "       configuration:\n"
-                + "         DD_SERVICE: \"test\"\n",
-            "Missing 'operator' in selector"),
+            + "     - selectors:\n"
+            + "         - origin: process_arguments\n"
+            + "           key: \"-Dfoo\"\n"
+            + "           matches: [\"bar\"]\n"
+            + "       configuration:\n"
+            + "         DD_SERVICE: \"test\"\n",
+            "Missing 'operator' in selector"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "     - selectors:\n"
-                + "         - origin: process_arguments\n"
-                + "           key: \"-Dfoo\"\n"
-                + "           matches: [\"bar\"]\n"
-                + "           operator: 12345\n"
-                + "       configuration:\n"
-                + "         DD_SERVICE: \"test\"\n",
-            "'operator' must be a string, but got: Integer"),
+            + "     - selectors:\n"
+            + "         - origin: process_arguments\n"
+            + "           key: \"-Dfoo\"\n"
+            + "           matches: [\"bar\"]\n"
+            + "           operator: 12345\n"
+            + "       configuration:\n"
+            + "         DD_SERVICE: \"test\"\n",
+            "'operator' must be a string, but got: Integer"
+        ),
         arguments(
             "apm_configuration_rules:\n"
-                + "      - selectors:\n"
-                + "          # origin is missing entirely, should trigger NullPointerException\n"
-                + "          - key: \"-Dfoo\"\n"
-                + "            matches: [\"bar\"]\n"
-                + "            operator: equals\n",
-            "YAML mapping error in stable configuration file"));
+            + "      - selectors:\n"
+            + "          # origin is missing entirely, should trigger NullPointerException\n"
+            + "          - key: \"-Dfoo\"\n"
+            + "            matches: [\"bar\"]\n"
+            + "            operator: equals\n",
+            "YAML mapping error in stable configuration file"
+        )
+    );
   }
 
   @Test
@@ -254,28 +264,23 @@ public class StableConfigSourceTest extends DDJavaSpecification {
   void testConfigIdExistsInConfigCollectorWhenUsingStableConfigSource() throws Exception {
     Path filePath = Files.createTempFile("testFile_", ".yaml");
     String expectedConfigId = "123";
-
     // Create YAML content with config_id and some configuration
-    String yamlContent =
-        "config_id: "
-            + expectedConfigId
-            + "\napm_configuration_default:\n  DD_SERVICE: test-service\n  DD_ENV: test-env\n";
+    String yamlContent = "config_id: "
+        + expectedConfigId
+        + "\napm_configuration_default:\n  DD_SERVICE: test-service\n  DD_ENV: test-env\n";
     Files.write(filePath, yamlContent.getBytes());
-
     // Clear any existing collected config
     ConfigCollector.get().collect();
 
     try {
       StableConfigSource stableConfigSource =
           new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG);
-
       // Create ConfigProvider via reflection (constructor is private)
       Constructor<ConfigProvider> constructor =
           ConfigProvider.class.getDeclaredConstructor(ConfigProvider.Source[].class);
       constructor.setAccessible(true);
       ConfigProvider configProvider =
           constructor.newInstance((Object) new ConfigProvider.Source[] {stableConfigSource});
-
       // Trigger config collection by getting a value
       configProvider.getString("SERVICE", "default-service");
 
@@ -302,7 +307,6 @@ public class StableConfigSourceTest extends DDJavaSpecification {
 
     StableConfigSource.StableConfig config =
         new StableConfigSource.StableConfig("config-123", configMap);
-
     // Present String value: hits the non-null branch of the ternary in get()
     assertEquals("test-service", config.get("DD_SERVICE"));
     // Present non-String value: exercises String.valueOf on a non-null, non-String object
@@ -323,7 +327,10 @@ public class StableConfigSourceTest extends DDJavaSpecification {
   }
 
   private static void writeFileYaml(
-      Path filePath, String configId, Map<String, String> defaultConfigs) throws IOException {
+      Path filePath,
+      String configId,
+      Map<String, String> defaultConfigs
+  ) throws IOException {
     Map<String, Object> yamlData = new HashMap<>();
 
     if (configId != null && !configId.isEmpty()) {

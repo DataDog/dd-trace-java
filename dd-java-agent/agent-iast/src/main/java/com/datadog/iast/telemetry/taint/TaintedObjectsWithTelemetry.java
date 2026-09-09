@@ -2,7 +2,6 @@ package com.datadog.iast.telemetry.taint;
 
 import static datadog.trace.api.iast.telemetry.IastMetric.EXECUTED_TAINTED;
 import static datadog.trace.api.iast.telemetry.IastMetric.REQUEST_TAINTED;
-
 import com.datadog.iast.model.Range;
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
@@ -15,7 +14,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TaintedObjectsWithTelemetry implements TaintedObjects, Wrapper<TaintedObjects> {
-
   public static TaintedObjects build(final Verbosity verbosity, final IastContext ctx) {
     final TaintedObjects delegate = ctx.getTaintedObjects();
     if (verbosity.isInformationEnabled()) {
@@ -29,7 +27,10 @@ public class TaintedObjectsWithTelemetry implements TaintedObjects, Wrapper<Tain
   private final IastContext ctx;
 
   protected TaintedObjectsWithTelemetry(
-      final boolean debug, final TaintedObjects delegate, final IastContext ctx) {
+      final boolean debug,
+      final TaintedObjects delegate,
+      final IastContext ctx
+  ) {
     this.delegate = delegate;
     this.debug = debug;
     this.ctx = ctx;

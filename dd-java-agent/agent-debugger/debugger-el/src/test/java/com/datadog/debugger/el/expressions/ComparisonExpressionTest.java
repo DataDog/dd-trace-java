@@ -17,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.values.NumericValue;
@@ -36,7 +35,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class ComparisonExpressionTest {
-
   @ParameterizedTest(name = "[{index}] {4}")
   @MethodSource("expressions")
   void evaluateOperator(
@@ -44,7 +42,8 @@ class ComparisonExpressionTest {
       ValueExpression<?> right,
       ComparisonOperator operator,
       boolean expected,
-      String prettyPrint) {
+      String prettyPrint
+  ) {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
     assertEquals(expected, expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals(prettyPrint, print(expression));
@@ -55,13 +54,22 @@ class ComparisonExpressionTest {
         Arguments.of(new NumericValue(1, INT), new NumericValue(1, INT), EQ, true, "1 == 1"),
         Arguments.of(new NumericValue(1L, LONG), new NumericValue(1L, LONG), EQ, true, "1 == 1"),
         Arguments.of(
-            new NumericValue(1.0F, FLOAT), new NumericValue(1.0F, FLOAT), EQ, true, "1.0 == 1.0"),
+            new NumericValue(1.0F, FLOAT),
+            new NumericValue(1.0F, FLOAT),
+            EQ,
+            true,
+            "1.0 == 1.0"
+        ),
         Arguments.of(
-            new NumericValue(1.0, DOUBLE), new NumericValue(1.0, DOUBLE), EQ, true, "1.0 == 1.0"),
+            new NumericValue(1.0, DOUBLE),
+            new NumericValue(1.0, DOUBLE),
+            EQ,
+            true,
+            "1.0 == 1.0"
+        ),
         Arguments.of(new NumericValue(1, INT), new NumericValue(1.0, DOUBLE), EQ, true, "1 == 1.0"),
         Arguments.of(new NumericValue(1, INT), new NumericValue(2, INT), EQ, false, "1 == 2"),
-        Arguments.of(
-            new NumericValue(1, INT), new NumericValue(2.0, DOUBLE), EQ, false, "1 == 2.0"),
+        Arguments.of(new NumericValue(1, INT), new NumericValue(2.0, DOUBLE), EQ, false, "1 == 2.0"),
         Arguments.of(new StringValue("foo"), new NumericValue(2, INT), EQ, false, "\"foo\" == 2"),
         Arguments.of(new NumericValue(1, INT), new StringValue("foo"), EQ, false, "1 == \"foo\""),
         Arguments.of(ValueExpression.NULL, new NumericValue(2, INT), EQ, false, "null == 2"),
@@ -70,14 +78,25 @@ class ComparisonExpressionTest {
             new NumericValue(Double.NaN, DOUBLE),
             EQ,
             false,
-            "NaN == NaN"),
+            "NaN == NaN"
+        ),
         Arguments.of(new NumericValue(1, INT), new NumericValue(1, INT), GT, false, "1 > 1"),
         Arguments.of(new NumericValue(1, INT), new NumericValue(2, INT), GT, false, "1 > 2"),
         Arguments.of(
-            new NumericValue(1.0, DOUBLE), new NumericValue(1.1, DOUBLE), GT, false, "1.0 > 1.1"),
+            new NumericValue(1.0, DOUBLE),
+            new NumericValue(1.1, DOUBLE),
+            GT,
+            false,
+            "1.0 > 1.1"
+        ),
         Arguments.of(new NumericValue(2, INT), new NumericValue(1, INT), GT, true, "2 > 1"),
         Arguments.of(
-            new NumericValue(1.1, DOUBLE), new NumericValue(1.0, DOUBLE), GT, true, "1.1 > 1.0"),
+            new NumericValue(1.1, DOUBLE),
+            new NumericValue(1.0, DOUBLE),
+            GT,
+            true,
+            "1.1 > 1.0"
+        ),
         Arguments.of(new NumericValue(1.1, DOUBLE), new NumericValue(1, INT), GT, true, "1.1 > 1"),
         Arguments.of(new NumericValue(1, INT), new NumericValue(0.9, DOUBLE), GT, true, "1 > 0.9"),
         Arguments.of(ValueExpression.NULL, new NumericValue(2, INT), GT, false, "null > 2"),
@@ -87,19 +106,31 @@ class ComparisonExpressionTest {
             new NumericValue(Double.NaN, DOUBLE),
             GT,
             false,
-            "NaN > NaN"),
+            "NaN > NaN"
+        ),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(2), OBJECT),
             new NumericValue(BigDecimal.valueOf(1), OBJECT),
             GT,
             true,
-            "2 > 1"),
+            "2 > 1"
+        ),
         Arguments.of(new NumericValue(1, INT), new NumericValue(2, INT), GE, false, "1 >= 2"),
         Arguments.of(
-            new NumericValue(1.0, DOUBLE), new NumericValue(1.1, DOUBLE), GE, false, "1.0 >= 1.1"),
+            new NumericValue(1.0, DOUBLE),
+            new NumericValue(1.1, DOUBLE),
+            GE,
+            false,
+            "1.0 >= 1.1"
+        ),
         Arguments.of(new NumericValue(2, INT), new NumericValue(1, INT), GE, true, "2 >= 1"),
         Arguments.of(
-            new NumericValue(1.1, DOUBLE), new NumericValue(1.0, DOUBLE), GE, true, "1.1 >= 1.0"),
+            new NumericValue(1.1, DOUBLE),
+            new NumericValue(1.0, DOUBLE),
+            GE,
+            true,
+            "1.1 >= 1.0"
+        ),
         Arguments.of(new NumericValue(1.1, DOUBLE), new NumericValue(1, INT), GE, true, "1.1 >= 1"),
         Arguments.of(new NumericValue(1, INT), new NumericValue(0.9, DOUBLE), GE, true, "1 >= 0.9"),
         Arguments.of(ValueExpression.NULL, new NumericValue(2, INT), GE, false, "null >= 2"),
@@ -108,20 +139,32 @@ class ComparisonExpressionTest {
             new NumericValue(Double.NaN, DOUBLE),
             GE,
             false,
-            "NaN >= NaN"),
+            "NaN >= NaN"
+        ),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(2), OBJECT),
             new NumericValue(BigDecimal.valueOf(1), OBJECT),
             GE,
             true,
-            "2 >= 1"),
+            "2 >= 1"
+        ),
         Arguments.of(new NumericValue(1, INT), new NumericValue(1, INT), LT, false, "1 < 1"),
         Arguments.of(new NumericValue(1, INT), new NumericValue(2, INT), LT, true, "1 < 2"),
         Arguments.of(new NumericValue(2, INT), new NumericValue(1, INT), LT, false, "2 < 1"),
         Arguments.of(
-            new NumericValue(1.1, DOUBLE), new NumericValue(1.0, DOUBLE), LT, false, "1.1 < 1.0"),
+            new NumericValue(1.1, DOUBLE),
+            new NumericValue(1.0, DOUBLE),
+            LT,
+            false,
+            "1.1 < 1.0"
+        ),
         Arguments.of(
-            new NumericValue(1.0, DOUBLE), new NumericValue(1.1, DOUBLE), LT, true, "1.0 < 1.1"),
+            new NumericValue(1.0, DOUBLE),
+            new NumericValue(1.1, DOUBLE),
+            LT,
+            true,
+            "1.0 < 1.1"
+        ),
         Arguments.of(new NumericValue(1, INT), new NumericValue(1.1, DOUBLE), LT, true, "1 < 1.1"),
         Arguments.of(new NumericValue(0.9, DOUBLE), new NumericValue(1, INT), LT, true, "0.9 < 1"),
         Arguments.of(ValueExpression.NULL, new NumericValue(2, INT), LT, false, "null < 2"),
@@ -130,20 +173,32 @@ class ComparisonExpressionTest {
             new NumericValue(Double.NaN, DOUBLE),
             LT,
             false,
-            "NaN < NaN"),
+            "NaN < NaN"
+        ),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(1), OBJECT),
             new NumericValue(BigDecimal.valueOf(2), OBJECT),
             LT,
             true,
-            "1 < 2"),
+            "1 < 2"
+        ),
         Arguments.of(new NumericValue(1, INT), new NumericValue(1, INT), LE, true, "1 <= 1"),
         Arguments.of(new NumericValue(1, INT), new NumericValue(2, INT), LE, true, "1 <= 2"),
         Arguments.of(new NumericValue(2, INT), new NumericValue(1, INT), LE, false, "2 <= 1"),
         Arguments.of(
-            new NumericValue(1.1, DOUBLE), new NumericValue(1.0, DOUBLE), LE, false, "1.1 <= 1.0"),
+            new NumericValue(1.1, DOUBLE),
+            new NumericValue(1.0, DOUBLE),
+            LE,
+            false,
+            "1.1 <= 1.0"
+        ),
         Arguments.of(
-            new NumericValue(1.0, DOUBLE), new NumericValue(1.1, DOUBLE), LE, true, "1.0 <= 1.1"),
+            new NumericValue(1.0, DOUBLE),
+            new NumericValue(1.1, DOUBLE),
+            LE,
+            true,
+            "1.0 <= 1.1"
+        ),
         Arguments.of(new NumericValue(1, INT), new NumericValue(1.1, DOUBLE), LE, true, "1 <= 1.1"),
         Arguments.of(new NumericValue(0.9, DOUBLE), new NumericValue(1, INT), LE, true, "0.9 <= 1"),
         Arguments.of(ValueExpression.NULL, new NumericValue(2, INT), LE, false, "null <= 2"),
@@ -152,91 +207,107 @@ class ComparisonExpressionTest {
             new NumericValue(Double.NaN, DOUBLE),
             LE,
             false,
-            "NaN <= NaN"),
+            "NaN <= NaN"
+        ),
         Arguments.of(
             new NumericValue(BigDecimal.valueOf(1), OBJECT),
             new NumericValue(BigDecimal.valueOf(2), OBJECT),
             LE,
             true,
-            "1 <= 2"),
+            "1 <= 2"
+        ),
         Arguments.of(
             new StringValue("foo"),
             new StringValue("java.lang.String"),
             INSTANCEOF,
             true,
-            "\"foo\" instanceof \"java.lang.String\""),
+            "\"foo\" instanceof \"java.lang.String\""
+        ),
         Arguments.of(
             new StringValue("foo"),
             new StringValue("java.lang.Object"),
             INSTANCEOF,
             true,
-            "\"foo\" instanceof \"java.lang.Object\""),
+            "\"foo\" instanceof \"java.lang.Object\""
+        ),
         Arguments.of(
             new ObjectValue(new Random()),
             new StringValue("java.util.Random"),
             INSTANCEOF,
             true,
-            "java.util.Random instanceof \"java.util.Random\""),
+            "java.util.Random instanceof \"java.util.Random\""
+        ),
         Arguments.of(
             new ObjectValue(new ArrayList<>()),
             new StringValue("java.util.List"),
             INSTANCEOF,
             true,
-            "java.util.ArrayList instanceof \"java.util.List\""),
+            "java.util.ArrayList instanceof \"java.util.List\""
+        ),
         Arguments.of(
             new ObjectValue(new ArrayList<>()),
             new StringValue("java.util.Map"),
             INSTANCEOF,
             false,
-            "java.util.ArrayList instanceof \"java.util.Map\""),
+            "java.util.ArrayList instanceof \"java.util.Map\""
+        ),
         Arguments.of(
             ValueExpression.NULL,
             new StringValue("java.lang.String"),
             INSTANCEOF,
             false,
-            "null instanceof \"java.lang.String\""),
+            "null instanceof \"java.lang.String\""
+        ),
         Arguments.of(
             new NumericValue(1, INT),
             new StringValue("java.lang.Integer"),
             INSTANCEOF,
             true,
-            "1 instanceof \"java.lang.Integer\""),
+            "1 instanceof \"java.lang.Integer\""
+        ),
         Arguments.of(
             new NumericValue(1.0, DOUBLE),
             new StringValue("java.lang.Double"),
             INSTANCEOF,
             true,
-            "1.0 instanceof \"java.lang.Double\""),
+            "1.0 instanceof \"java.lang.Double\""
+        ),
         Arguments.of(
             new ObjectValue(StandardOpenOption.READ),
             new StringValue("READ"),
             EQ,
             true,
-            "java.nio.file.StandardOpenOption == \"READ\""),
+            "java.nio.file.StandardOpenOption == \"READ\""
+        ),
         Arguments.of(
             new ObjectValue(StandardOpenOption.READ),
             new StringValue("StandardOpenOption.READ"),
             EQ,
             true,
-            "java.nio.file.StandardOpenOption == \"StandardOpenOption.READ\""),
+            "java.nio.file.StandardOpenOption == \"StandardOpenOption.READ\""
+        ),
         Arguments.of(
             new ObjectValue(StandardOpenOption.READ),
             new StringValue("java.nio.file.StandardOpenOption.READ"),
             EQ,
             true,
-            "java.nio.file.StandardOpenOption == \"java.nio.file.StandardOpenOption.READ\""),
+            "java.nio.file.StandardOpenOption == \"java.nio.file.StandardOpenOption.READ\""
+        ),
         Arguments.of(
             new ObjectValue(StandardOpenOption.CREATE),
             new StringValue("READ"),
             EQ,
             false,
-            "java.nio.file.StandardOpenOption == \"READ\""),
+            "java.nio.file.StandardOpenOption == \"READ\""
+        ),
         Arguments.of(
             new StringValue("READ"),
             new ObjectValue(StandardOpenOption.READ),
             EQ,
             true,
-            "\"READ\" == java.nio.file.StandardOpenOption"));
+            "\"READ\" == java.nio.file.StandardOpenOption"
+        )
+    );
   }
 
   @ParameterizedTest
@@ -246,7 +317,8 @@ class ComparisonExpressionTest {
       ValueExpression<?> right,
       ComparisonOperator operator,
       boolean expected,
-      String prettyPrint) {
+      String prettyPrint
+  ) {
     ComparisonExpression expression = new ComparisonExpression(left, right, operator);
     assertEquals(expected, expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
     assertEquals(prettyPrint, print(expression));
@@ -255,23 +327,76 @@ class ComparisonExpressionTest {
   private static Stream<Arguments> expressionStrs() {
     return Stream.of(
         Arguments.of(
-            new StringValue("foo"), new StringValue("foo"), EQ, true, "\"foo\" == \"foo\""),
+            new StringValue("foo"),
+            new StringValue("foo"),
+            EQ,
+            true,
+            "\\\"foo\\\" == " + "\\\"foo\\\""
+        ),
         Arguments.of(
-            new StringValue("foo"), new StringValue("bar"), EQ, false, "\"foo\" == \"bar\""),
-        Arguments.of(new StringValue("foo"), new StringValue("bar"), GT, true, "\"foo\" > \"bar\""),
+            new StringValue("foo"),
+            new StringValue("bar"),
+            EQ,
+            false,
+            "\"foo\" == \"bar\""
+        ),
         Arguments.of(
-            new StringValue("bar"), new StringValue("foo"), GT, false, "\"bar\" > \"foo\""),
+            new StringValue("foo"),
+            new StringValue("bar"),
+            GT,
+            true,
+            "\\\"foo\\\" > " + "\\\"bar\\\""
+        ),
         Arguments.of(
-            new StringValue("foo"), new StringValue("bar"), GE, true, "\"foo\" >= \"bar\""),
+            new StringValue("bar"),
+            new StringValue("foo"),
+            GT,
+            false,
+            "\\\"bar\\\" > " + "\\\"foo\\\""
+        ),
         Arguments.of(
-            new StringValue("bar"), new StringValue("foo"), GE, false, "\"bar\" >= \"foo\""),
-        Arguments.of(new StringValue("bar"), new StringValue("foo"), LT, true, "\"bar\" < \"foo\""),
+            new StringValue("foo"),
+            new StringValue("bar"),
+            GE,
+            true,
+            "\\\"foo\\\" >= " + "\\\"bar\\\""
+        ),
         Arguments.of(
-            new StringValue("foo"), new StringValue("bar"), LT, false, "\"foo\" < \"bar\""),
+            new StringValue("bar"),
+            new StringValue("foo"),
+            GE,
+            false,
+            "\"bar\" >= \"foo\""
+        ),
         Arguments.of(
-            new StringValue("bar"), new StringValue("foo"), LE, true, "\"bar\" <= \"foo\""),
+            new StringValue("bar"),
+            new StringValue("foo"),
+            LT,
+            true,
+            "\\\"bar\\\" < " + "\\\"foo\\\""
+        ),
         Arguments.of(
-            new StringValue("foo"), new StringValue("bar"), LE, false, "\"foo\" <= \"bar\""));
+            new StringValue("foo"),
+            new StringValue("bar"),
+            LT,
+            false,
+            "\\\"foo\\\" < " + "\\\"bar\\\""
+        ),
+        Arguments.of(
+            new StringValue("bar"),
+            new StringValue("foo"),
+            LE,
+            true,
+            "\\\"bar\\\" <= " + "\\\"foo\\\""
+        ),
+        Arguments.of(
+            new StringValue("foo"),
+            new StringValue("bar"),
+            LE,
+            false,
+            "\"foo\" <= \"bar\""
+        )
+    );
   }
 
   @Test
@@ -313,13 +438,13 @@ class ComparisonExpressionTest {
   void invalidInstanceofOperand() {
     ComparisonExpression expression =
         new ComparisonExpression(new StringValue("foo"), new NumericValue(1, INT), INSTANCEOF);
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
+    EvaluationException evaluationException = assertThrows(EvaluationException.class, () -> expression.evaluate(
+        createEvalContext(NoopResolver.INSTANCE)
+    ));
     assertEquals(
         "Right operand of instanceof operator must be a string literal",
-        evaluationException.getMessage());
+        evaluationException.getMessage()
+    );
     assertEquals("\"foo\" instanceof 1", evaluationException.getExpr());
   }
 
@@ -327,10 +452,9 @@ class ComparisonExpressionTest {
   void invalidInstanceofClassName() {
     ComparisonExpression expression =
         new ComparisonExpression(new StringValue("foo"), new StringValue("String"), INSTANCEOF);
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () -> expression.evaluate(createEvalContext(NoopResolver.INSTANCE)));
+    EvaluationException evaluationException = assertThrows(EvaluationException.class, () -> expression.evaluate(
+        createEvalContext(NoopResolver.INSTANCE)
+    ));
     assertEquals("Class not found: String", evaluationException.getMessage());
     assertEquals("\"foo\" instanceof \"String\"", evaluationException.getExpr());
   }

@@ -9,7 +9,6 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
  */
 public enum IsHeadless implements TagValue {
   TRUE;
-
   @Override
   public String asString() {
     return "is_headless:true";

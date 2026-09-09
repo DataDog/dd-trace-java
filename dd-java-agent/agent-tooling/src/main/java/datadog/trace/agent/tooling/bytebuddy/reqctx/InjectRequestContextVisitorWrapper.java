@@ -34,7 +34,8 @@ public class InjectRequestContextVisitorWrapper implements AsmVisitorWrapper {
       FieldList<FieldDescription.InDefinedShape> fields,
       MethodList<?> methods,
       int writerFlags,
-      int readerFlags) {
+      int readerFlags
+  ) {
     AnnotationList annotations = instrumentedType.getDeclaredAnnotations();
     AnnotationDescription.Loadable<RequiresRequestContext> rrc =
         annotations.ofType(RequiresRequestContext.class);

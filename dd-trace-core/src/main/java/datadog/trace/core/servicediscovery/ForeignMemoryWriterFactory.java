@@ -1,7 +1,6 @@
 package datadog.trace.core.servicediscovery;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -23,7 +22,8 @@ public final class ForeignMemoryWriterFactory implements Supplier<ForeignMemoryW
     }
   }
 
-  @SuppressForbidden // intentional Class.forName to force loading
+  // intentional Class.forName to force loading
+  @SuppressForbidden
   private ForeignMemoryWriter createForLinux() {
     try {
       // first check if the arch is supported
@@ -31,16 +31,19 @@ public final class ForeignMemoryWriterFactory implements Supplier<ForeignMemoryW
         log.debug(
             SEND_TELEMETRY,
             "service discovery not supported for arch={}",
-            SystemProperties.get("os.arch"));
+            SystemProperties.get("os.arch")
+        );
         return null;
       }
       final Class<?> memFdClass;
       if (JavaVirtualMachine.isJavaVersionAtLeast(22)) {
-        memFdClass =
-            Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriterFFM");
+        memFdClass = Class.forName(
+            "datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriterFFM"
+        );
       } else {
-        memFdClass =
-            Class.forName("datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriterJNA");
+        memFdClass = Class.forName(
+            "datadog.trace.agent.tooling.servicediscovery.MemFDUnixWriterJNA"
+        );
       }
       return (ForeignMemoryWriter) memFdClass.newInstance();
     } catch (Throwable t) {

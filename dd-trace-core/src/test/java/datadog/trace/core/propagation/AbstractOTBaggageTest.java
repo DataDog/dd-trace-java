@@ -9,7 +9,6 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.HashMap;
@@ -25,8 +24,9 @@ import org.junit.jupiter.api.Test;
  * of its extractor test, supplying only the wire format.
  */
 abstract class AbstractOTBaggageTest {
-
-  /** Returns the extractor under test, built by the enclosing extractor test. */
+  /**
+   * Returns the extractor under test, built by the enclosing extractor test.
+   */
   protected abstract HttpCodec.Extractor extractor();
 
   /**
@@ -35,7 +35,9 @@ abstract class AbstractOTBaggageTest {
    */
   protected abstract Map<String, String> baggageHeaders(List<Entry<String, String>> items);
 
-  /** Returns the headers carrying {@code itemCount} generated baggage items. */
+  /**
+   * Returns the headers carrying {@code itemCount} generated baggage items.
+   */
   protected final Map<String, String> generateBaggageHeaders(int itemCount) {
     return baggageHeaders(generateBaggageItems(itemCount));
   }
@@ -68,9 +70,9 @@ abstract class AbstractOTBaggageTest {
   @WithConfig(key = TRACE_BAGGAGE_MAX_BYTES, value = "24")
   @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "2")
   void chargesRepeatedKeyOnce() {
-    Map<String, String> baggage =
-        extractBaggage(
-            baggageHeaders(baggageItems("key0", "val0", "a", "0123456789", "key0", "val1")));
+    Map<String, String> baggage = extractBaggage(
+        baggageHeaders(baggageItems("key0", "val0", "a", "0123456789", "key0", "val1"))
+    );
 
     Map<String, String> expected = new HashMap<>();
     expected.put("key0", "val1");

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.micronaut.v4_0;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.PARENT_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.SPAN_ATTRIBUTE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.web.router.UriRouteMatch;
@@ -13,7 +12,8 @@ public class HandleRouteMatchAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void captureRoute(
       @Advice.Argument(0) final HttpRequest<?> request,
-      @Advice.Return final UriRouteMatch routeMatch) {
+      @Advice.Return final UriRouteMatch routeMatch
+  ) {
     if (routeMatch == null) {
       return;
     }

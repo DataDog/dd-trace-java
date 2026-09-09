@@ -2,7 +2,6 @@ package com.datadog.iast.util;
 
 import static com.datadog.iast.util.ObjectVisitor.State.CONTINUE;
 import static com.datadog.iast.util.ObjectVisitor.State.EXIT;
-
 import datadog.environment.JavaVirtualMachine;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -19,11 +18,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ObjectVisitor {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ObjectVisitor.class);
   private static final int MAX_VISITED_OBJECTS = 1000;
   private static final int MAX_DEPTH = 10;
-  @Nullable private static final Method TRY_SET_ACCESSIBLE;
+  @Nullable
+  private static final Method TRY_SET_ACCESSIBLE;
 
   static {
     TRY_SET_ACCESSIBLE = fetchTrySetAccessibleMethod();
@@ -32,7 +31,8 @@ public class ObjectVisitor {
   public static void visit(
       @Nonnull final Object object,
       @Nonnull final Visitor visitor,
-      @Nonnull final Predicate<Class<?>> classFilter) {
+      @Nonnull final Predicate<Class<?>> classFilter
+  ) {
     visit(object, visitor, classFilter, MAX_DEPTH, MAX_VISITED_OBJECTS);
   }
 
@@ -41,7 +41,8 @@ public class ObjectVisitor {
       @Nonnull final Visitor visitor,
       @Nonnull final Predicate<Class<?>> classFilter,
       final int maxDepth,
-      final int maxObjects) {
+      final int maxObjects
+  ) {
     new ObjectVisitor(classFilter, maxDepth, maxObjects, visitor).visit(0, "root", object);
   }
 
@@ -55,7 +56,8 @@ public class ObjectVisitor {
       final Predicate<Class<?>> classFilter,
       final int maxDepth,
       final int maxObjects,
-      final Visitor visitor) {
+      final Visitor visitor
+  ) {
     this.maxDepth = maxDepth;
     this.remaining = maxObjects;
     this.visited = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -186,11 +188,13 @@ public class ObjectVisitor {
     }
     final String fieldName = field.getName();
     if ("this$0".equals(fieldName)) {
-      return false; // skip back references from inner class
+      // skip back references from inner class
+      return false;
     }
     final Class<?> fieldType = field.getType();
     if ("groovy.lang.MetaClass".equals(fieldType.getName())) {
-      return false; // skip the whole groovy MOP
+      // skip the whole groovy MOP
+      return false;
     }
     return true;
   }

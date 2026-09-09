@@ -8,7 +8,6 @@ public enum TestSetting {
   QUARANTINED(4, "quarantined"),
   DISABLED(8, "disabled"),
   ATTEMPT_TO_FIX(16, "attempt_to_fix");
-
   private final int flag;
   private final String name;
 
@@ -35,7 +34,9 @@ public enum TestSetting {
 
   public static class Serializer {
     public static void serialize(
-        datadog.trace.civisibility.ipc.serialization.Serializer serializer, TestSetting setting) {
+        datadog.trace.civisibility.ipc.serialization.Serializer serializer,
+        TestSetting setting
+    ) {
       serializer.write(setting.flag);
     }
 

@@ -1,7 +1,6 @@
 package foo.bar;
 
 public interface TestAbstractStringBuilderSuite<E> {
-
   E init(final String param);
 
   E init(final CharSequence param);

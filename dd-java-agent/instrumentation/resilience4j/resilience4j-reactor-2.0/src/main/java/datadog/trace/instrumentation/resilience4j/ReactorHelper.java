@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -18,7 +17,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
 
 public class ReactorHelper {
-
   private static final Logger log = LoggerFactory.getLogger(ReactorHelper.class);
 
   // These build the hand-off BiConsumer here rather than in @Advice code on purpose: a lambda
@@ -26,18 +24,21 @@ public class ReactorHelper {
   // into the (third-party) operator, and fails silently. anyThread: the span is attached at
   // assembly and the publisher may be subscribed later on another thread.
   public static BiConsumer<Publisher<?>, AgentSpan> putInto(
-      final ContextStore<Publisher, HandoffContext> store) {
+      final ContextStore<Publisher, HandoffContext> store
+  ) {
     return (publisher, span) -> store.put(publisher, HandoffContext.anyThread(span));
   }
 
   public static BiConsumer<Publisher<?>, AgentSpan> putIfAbsentInto(
-      final ContextStore<Publisher, HandoffContext> store) {
+      final ContextStore<Publisher, HandoffContext> store
+  ) {
     return (publisher, span) -> store.getOrPut(publisher, HandoffContext.anyThread(span));
   }
 
   public static Function<Publisher<?>, Publisher<?>> wrapFunction(
       Function<Publisher<?>, Publisher<?>> operator,
-      BiConsumer<Publisher<?>, AgentSpan> attachContext) {
+      BiConsumer<Publisher<?>, AgentSpan> attachContext
+  ) {
     return (value) -> {
       AgentSpan current = Resilience4jSpan.current();
       AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
@@ -62,7 +63,8 @@ public class ReactorHelper {
       Publisher<?> publisher,
       Resilience4jSpanDecorator<T> spanDecorator,
       T data,
-      BiConsumer<Publisher<?>, AgentSpan> attachContext) {
+      BiConsumer<Publisher<?>, AgentSpan> attachContext
+  ) {
     // Create span at construction (needs transformDeferred which is what Spring R4j use)
     AgentSpan current = Resilience4jSpan.current();
     AgentSpan owned = current == null ? Resilience4jSpan.start() : null;
@@ -71,7 +73,6 @@ public class ReactorHelper {
       spanDecorator.afterStart(current);
     }
     spanDecorator.decorate(current, data);
-
     // This schedules a span to be finished when the publisher finishes to be non-zero
     Publisher<?> newResult = scheduleOwnedSpanFinish(publisher, spanDecorator, owned);
     if (newResult instanceof Scannable) {
@@ -89,7 +90,10 @@ public class ReactorHelper {
   }
 
   private static <T> Publisher<?> scheduleOwnedSpanFinish(
-      Publisher<?> publisher, Resilience4jSpanDecorator<T> spanDecorator, AgentSpan owned) {
+      Publisher<?> publisher,
+      Resilience4jSpanDecorator<T> spanDecorator,
+      AgentSpan owned
+  ) {
     if (owned == null) {
       return publisher;
     }
@@ -107,7 +111,9 @@ public class ReactorHelper {
   }
 
   private static <T> Consumer<SignalType> beforeFinish(
-      Resilience4jSpanDecorator<T> spanDecorator, AgentSpan span) {
+      Resilience4jSpanDecorator<T> spanDecorator,
+      AgentSpan span
+  ) {
     return signalType -> {
       spanDecorator.beforeFinish(span);
       span.finish();

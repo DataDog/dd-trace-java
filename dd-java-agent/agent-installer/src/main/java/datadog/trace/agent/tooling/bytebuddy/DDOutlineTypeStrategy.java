@@ -16,7 +16,9 @@ import net.bytebuddy.utility.JavaModule;
  * outline types to full type parsing when the actual transformation begins.
  */
 public final class DDOutlineTypeStrategy
-    implements AgentBuilder.ClassFileBufferStrategy, AgentBuilder.TypeStrategy {
+    implements AgentBuilder.ClassFileBufferStrategy,
+    AgentBuilder.TypeStrategy
+{
   public static final DDOutlineTypeStrategy INSTANCE = new DDOutlineTypeStrategy();
 
   @Override
@@ -25,7 +27,8 @@ public final class DDOutlineTypeStrategy
       byte[] binaryRepresentation,
       ClassLoader classLoader,
       JavaModule module,
-      ProtectionDomain protectionDomain) {
+      ProtectionDomain protectionDomain
+  ) {
     TypePoolFacade.beginTransform(name, binaryRepresentation);
     return ClassFileLocator.Simple.of(name, binaryRepresentation);
   }
@@ -35,7 +38,8 @@ public final class DDOutlineTypeStrategy
       AgentBuilder.PoolStrategy poolStrategy,
       ClassFileLocator classFileLocator,
       ClassLoader classLoader,
-      String name) {
+      String name
+  ) {
     TypePoolFacade.switchContext(classLoader);
     return TypePoolFacade.INSTANCE;
   }
@@ -48,7 +52,8 @@ public final class DDOutlineTypeStrategy
       MethodNameTransformer methodNameTransformer,
       ClassLoader classLoader,
       JavaModule module,
-      ProtectionDomain protectionDomain) {
+      ProtectionDomain protectionDomain
+  ) {
     TypePoolFacade.enableFullDescriptions();
     return AgentBuilder.TypeStrategy.Default.REDEFINE_FROZEN.builder(
         typeDescription,
@@ -57,6 +62,7 @@ public final class DDOutlineTypeStrategy
         methodNameTransformer,
         classLoader,
         module,
-        protectionDomain);
+        protectionDomain
+    );
   }
 }

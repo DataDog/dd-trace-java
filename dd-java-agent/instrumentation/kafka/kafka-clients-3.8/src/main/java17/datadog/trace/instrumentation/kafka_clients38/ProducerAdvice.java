@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
-
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,23 +22,21 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.internals.Sender;
 
 public class ProducerAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
       @Advice.FieldValue("sender") Sender sender,
       @Advice.FieldValue("metadata") Metadata metadata,
       @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
-      @Advice.Argument(value = 1, readOnly = false) Callback callback) {
+      @Advice.Argument(value = 1, readOnly = false) Callback callback
+  ) {
     MetadataState metadataState =
         InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
     String clusterId = metadataState != null ? metadataState.clusterId : null;
-
     // Set cluster ID for Schema Registry instrumentation
     if (clusterId != null) {
       ClusterIdHolder.set(clusterId);
     }
-
     // Try to extract existing trace context from record headers
     final AgentSpanContext extractedContext =
         extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
@@ -70,7 +67,9 @@ public class ProducerAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
-      @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      @Advice.Enter final AgentScope scope,
+      @Advice.Thrown final Throwable throwable
+  ) {
     // Clear cluster ID from Schema Registry instrumentation
     ClusterIdHolder.clear();
 

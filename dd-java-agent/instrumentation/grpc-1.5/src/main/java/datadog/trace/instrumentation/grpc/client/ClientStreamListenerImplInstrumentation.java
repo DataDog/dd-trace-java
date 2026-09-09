@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECO
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -18,8 +17,9 @@ import io.grpc.internal.ClientStreamListener;
 import net.bytebuddy.asm.Advice;
 
 public class ClientStreamListenerImplInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "io.grpc.internal.ClientCallImpl$ClientStreamListenerImpl";
@@ -29,12 +29,15 @@ public class ClientStreamListenerImplInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformer.applyAdvice(
-        named("exceptionThrown")
-            .and(takesArgument(0, named("io.grpc.Status")))
-            .and(takesArguments(1)),
-        getClass().getName() + "$ExceptionThrown");
+        named("exceptionThrown").and(takesArgument(0, named("io.grpc.Status"))).and(
+            takesArguments(1)
+        ),
+        getClass().getName() + "$ExceptionThrown"
+    );
     transformer.applyAdvice(
-        namedOneOf("messageRead", "messagesAvailable"), getClass().getName() + "$RecordActivity");
+        namedOneOf("messageRead", "messagesAvailable"),
+        getClass().getName() + "$RecordActivity"
+    );
     transformer.applyAdvice(named("headersRead"), getClass().getName() + "$RecordHeaders");
   }
 
@@ -52,7 +55,9 @@ public class ClientStreamListenerImplInstrumentation
   public static final class ExceptionThrown {
     @Advice.OnMethodEnter
     public static void exceptionThrown(
-        @Advice.This ClientStreamListener listener, @Advice.Argument(0) Status status) {
+        @Advice.This ClientStreamListener listener,
+        @Advice.Argument(0) Status status
+    ) {
       if (null != status) {
         AgentSpan span =
             InstrumentationContext.get(ClientStreamListener.class, AgentSpan.class).get(listener);
@@ -66,7 +71,6 @@ public class ClientStreamListenerImplInstrumentation
   }
 
   public static final class RecordActivity {
-
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientStreamListener listener) {
       // activate the span so serialisation work is accounted for, whichever thread the work is done
@@ -94,7 +98,6 @@ public class ClientStreamListenerImplInstrumentation
   instrumentation can correctly 'resume' the span.
    */
   public static final class RecordHeaders {
-
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientStreamListener listener) {
       // activate the span so serialisation work is accounted for, whichever thread the work is done

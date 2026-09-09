@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.core.propagation.PropagationTags;
 import java.util.Locale;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -45,14 +44,12 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @Fork(value = 1)
 public class KnuthSamplingRateFormatBenchmark {
-
   /**
    * Representative sampling rates. Most real-world rates are in [0.001, 1.0]. The 0.0001 value
    * exercises the edge of the fixed-notation range.
    */
   @Param({"0.5", "0.1", "0.01", "0.001", "0.0001", "0.123456789", "0.999999"})
   double rate;
-
   PTagsFactory.PTags ptags;
 
   @Setup(Level.Trial)
@@ -61,13 +58,17 @@ public class KnuthSamplingRateFormatBenchmark {
     ptags.updateKnuthSamplingRate(rate);
   }
 
-  /** Baseline: old implementation using String.format + substring trimming. */
+  /**
+   * Baseline: old implementation using String.format + substring trimming.
+   */
   @Benchmark
   public void stringFormat(Blackhole bh) {
     bh.consume(stringFormatImpl(rate));
   }
 
-  /** Custom formatter: char-array arithmetic, no Formatter allocation. */
+  /**
+   * Custom formatter: char-array arithmetic, no Formatter allocation.
+   */
   @Benchmark
   public void customFormat(Blackhole bh) {
     bh.consume(PTagsFactory.PTags.formatKnuthSamplingRate(rate));
@@ -89,16 +90,20 @@ public class KnuthSamplingRateFormatBenchmark {
    */
   @Benchmark
   public void updateRateFreshTrace(Blackhole bh) {
-    ptags.updateKnuthSamplingRate(Double.NaN); // reset instance cache, like a new PTags
+    // reset instance cache, like a new PTags
+    ptags.updateKnuthSamplingRate(Double.NaN);
     ptags.updateKnuthSamplingRate(rate);
     bh.consume(ptags.getKnuthSamplingRateTagValue());
   }
 
   // ---- old implementation for comparison (%.6f with trailing zero removal) ----
-
   static String stringFormatImpl(double rate) {
-    if (rate <= 0.0) return "0";
-    if (rate >= 1.0) return "1";
+    if (rate <= 0.0) {
+      return "0";
+    }
+    if (rate >= 1.0) {
+      return "1";
+    }
     String formatted = String.format(Locale.ROOT, "%.6f", rate);
     int dotIndex = formatted.indexOf('.');
     if (dotIndex >= 0) {

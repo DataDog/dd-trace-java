@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import org.apache.catalina.connector.Request;
 
 final class RequestURIDataAdapter extends URIRawDataAdapter {
-
   private final Request request;
 
   RequestURIDataAdapter(Request request) {

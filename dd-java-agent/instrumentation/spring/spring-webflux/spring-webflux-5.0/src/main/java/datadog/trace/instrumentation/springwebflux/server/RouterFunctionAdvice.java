@@ -11,13 +11,13 @@ import reactor.core.publisher.Mono;
  * functional interface.
  */
 public class RouterFunctionAdvice {
-
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
       @Advice.This final RouterFunction thiz,
       @Advice.Argument(0) final ServerRequest serverRequest,
       @Advice.Return(readOnly = false) Mono<HandlerFunction<?>> result,
-      @Advice.Thrown final Throwable throwable) {
+      @Advice.Thrown final Throwable throwable
+  ) {
     if (throwable == null) {
       // doOnSuccessOrError is deprecated and no more existing
       result = result.doOnSuccess(new RouteOnSuccessOrError(thiz, serverRequest));

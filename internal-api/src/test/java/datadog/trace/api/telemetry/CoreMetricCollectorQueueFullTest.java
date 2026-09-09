@@ -3,7 +3,6 @@ package datadog.trace.api.telemetry;
 import static datadog.trace.api.telemetry.MetricCollector.RAW_QUEUE_SIZE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.metrics.SpanMetricRegistryImpl;
 import datadog.trace.api.telemetry.CoreMetricCollector.CoreMetric;
 import java.util.Collection;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
  * happen before the read, not after a failed {@code offer()}.
  */
 class CoreMetricCollectorQueueFullTest {
-
   /**
    * Fills the drain past its queue capacity and verifies that every counter's delta is reported
    * exactly once across as many cycles as it takes to empty — none dropped while the queue is full.
@@ -35,16 +33,13 @@ class CoreMetricCollectorQueueFullTest {
   void skippedCountersRetainDeltaAcrossCycles() {
     SpanMetricRegistryImpl registry = SpanMetricRegistryImpl.getInstance();
     CoreMetricCollector collector = CoreMetricCollector.getInstance();
-
     // Discard anything left in the queue by other tests sharing the singleton.
     collector.drain();
-
     // Unique instrumentation-name prefix so we count only the instrumentations this test creates,
     // regardless of whatever else has already polluted the shared registry. CoreMetricCollector
     // emits these as "integration_name:<name>" tags.
     String namePrefix = "queue-full-test-" + System.nanoTime() + "-";
     String tagPrefix = "integration_name:" + namePrefix;
-
     // Create more non-zero counters than the queue can hold so at least one collection cycle
     // overflows. A single onSpanCreated() per instrumentation leaves exactly one non-zero counter
     // (spans_created) each; the rest read as 0 and are skipped.
@@ -52,7 +47,6 @@ class CoreMetricCollectorQueueFullTest {
     for (int i = 0; i < created; i++) {
       registry.get(namePrefix + i).onSpanCreated();
     }
-
     // Drain cycle-by-cycle until the queue is fully emptied, summing how many of our own metrics
     // surface. Guard the loop so a bug that never converges fails loudly instead of hanging.
     int seen = 0;
@@ -74,7 +68,8 @@ class CoreMetricCollectorQueueFullTest {
     assertEquals(
         created,
         seen,
-        "every counter's delta must be reported exactly once; a full queue must not drop any");
+        "every counter's delta must be reported exactly once; a full queue must not drop any"
+    );
   }
 
   private static boolean isOurs(CoreMetric metric, String tagPrefix) {

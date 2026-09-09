@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.Collections.emptyList;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -15,7 +14,6 @@ public final class Metadata {
   private final UTF8BytesString httpStatusCode;
   private final TagMap tags;
   private final Map<String, String> baggage;
-
   private final int samplingPriority;
   private final boolean measured;
   private final boolean topLevel;
@@ -36,7 +34,8 @@ public final class Metadata {
       CharSequence origin,
       int longRunningVersion,
       UTF8BytesString processTags,
-      List<? extends AgentSpanLink> spanLinks) {
+      List<? extends AgentSpanLink> spanLinks
+  ) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;

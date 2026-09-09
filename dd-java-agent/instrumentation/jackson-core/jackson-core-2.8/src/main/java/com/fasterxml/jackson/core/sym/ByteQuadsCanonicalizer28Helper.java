@@ -6,10 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ByteQuadsCanonicalizer28Helper {
-  private ByteQuadsCanonicalizer28Helper() {}
+  private ByteQuadsCanonicalizer28Helper() {
+  }
 
   private static final Logger log = LoggerFactory.getLogger(ByteQuadsCanonicalizer28Helper.class);
-
   private static final Field INTERN = prepareIntern();
 
   private static Field prepareIntern() {

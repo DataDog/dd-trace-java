@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -30,20 +29,17 @@ public class OtelSpanBuilder implements SpanBuilder {
   private final AgentTracer.SpanBuilder delegate;
   private boolean spanKindSet;
   private boolean ignoreActiveSpan;
-
   /**
    * Operation name overridden value by {@link OtelConventions#OPERATION_NAME_SPECIFIC_ATTRIBUTE}
    * reserved attribute ({@code null} if not set).
    */
   private String overriddenOperationName;
-
   /**
    * Analytics sample rate metric value from {@link
    * OtelConventions#ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES} reserved attribute ({@code -1} if not
    * set).
    */
   private int overriddenAnalyticsSampleRate;
-
   /**
    * HTTP status code overridden value by {@link
    * OtelConventions#HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE} reserved attribute ({@code -1} if not

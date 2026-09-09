@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jersey2;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,7 +13,9 @@ import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
 
 @AutoService(InstrumenterModule.class)
 public class UriRoutingContextGetPathSegmentsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public UriRoutingContextGetPathSegmentsInstrumentation() {
     super("jersey");
   }
@@ -33,7 +34,8 @@ public class UriRoutingContextGetPathSegmentsInstrumentation extends Instrumente
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getPathSegments").and(takesArguments(1)).and(takesArgument(0, boolean.class)),
-        getClass().getName() + "$GetPathSegmentsAdvice");
+        getClass().getName() + "$GetPathSegmentsAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -42,7 +44,8 @@ public class UriRoutingContextGetPathSegmentsInstrumentation extends Instrumente
     static void after(
         @Advice.This UriRoutingContext thiz,
         @Advice.Argument(0) boolean decode,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }

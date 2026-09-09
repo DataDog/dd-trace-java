@@ -23,7 +23,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 
 public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
-
   protected static List<CoreTracer> unclosedTracers = new ArrayList<>();
 
   protected static class AutoCloseableCoreTracerBuilder extends CoreTracerBuilder {
@@ -81,11 +80,16 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
         PropagationTags.factory().empty(),
         tags,
         PrioritySampling.SAMPLER_KEEP,
-        null);
+        null
+    );
   }
 
   protected DDSpan buildSpan(
-      long timestamp, String tag, String value, PropagationTags propagationTags) {
+      long timestamp,
+      String tag,
+      String value,
+      PropagationTags propagationTags
+  ) {
     Map<String, Object> tags = new HashMap<>();
     tags.put(tag, value);
     return buildSpan(timestamp, "fakeType", propagationTags, tags, PrioritySampling.UNSET, null);
@@ -97,35 +101,36 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
       PropagationTags propagationTags,
       Map<String, Object> tags,
       byte prioritySampling,
-      Object ciVisibilityContextData) {
+      Object ciVisibilityContextData
+  ) {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1L,
-            DDSpanId.ZERO,
-            null,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            prioritySampling,
-            null,
-            Collections.emptyMap(),
-            null,
-            false,
-            spanType,
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            ciVisibilityContextData,
-            NoopPathwayContext.INSTANCE,
-            false,
-            propagationTags,
-            ProfilingContextIntegration.NoOp.INSTANCE,
-            true,
-            true);
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1L,
+        DDSpanId.ZERO,
+        null,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        prioritySampling,
+        null,
+        Collections.emptyMap(),
+        null,
+        false,
+        spanType,
+        0,
+        tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        ciVisibilityContextData,
+        NoopPathwayContext.INSTANCE,
+        false,
+        propagationTags,
+        ProfilingContextIntegration.NoOp.INSTANCE,
+        true,
+        true
+    );
 
     DDSpan span = DDSpan.create("test", timestamp, context, null);
     for (Map.Entry<String, Object> entry : tags.entrySet()) {

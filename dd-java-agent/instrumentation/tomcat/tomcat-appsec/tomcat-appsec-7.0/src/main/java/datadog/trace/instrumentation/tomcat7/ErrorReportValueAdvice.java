@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.tomcat7;
 
 import static datadog.trace.bootstrap.blocking.BlockingActionHelper.TemplateType.HTML;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -14,15 +13,14 @@ import net.bytebuddy.asm.Advice;
 import org.apache.catalina.connector.Response;
 
 public class ErrorReportValueAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(
       @Advice.Argument(value = 1) Response response,
       @Advice.Argument(value = 2) Throwable throwable,
       @Advice.Origin("#t") String className,
-      @Advice.Origin("#m") String methodName) {
+      @Advice.Origin("#m") String methodName
+  ) {
     int statusCode = response.getStatus();
-
     // Do nothing on a 1xx, 2xx, 3xx and 404 status
     // Do nothing if the response hasn't been explicitly marked as in error
     //    and that error has not been reported.
@@ -40,7 +38,6 @@ public class ErrorReportValueAdvice {
         }
       }
     }
-
     // If IAST is opt-out or we don't need to suppress stacktrace leak
     final Config config = Config.get();
     if (config.getIastActivation() != ProductActivation.FULLY_ENABLED

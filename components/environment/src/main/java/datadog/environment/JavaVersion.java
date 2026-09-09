@@ -38,7 +38,6 @@ final class JavaVersion {
     try {
       List<Integer> nums = splitDigits(javaVersion);
       major = nums.get(0);
-
       // for java 1.6/1.7/1.8
       if (major == 1) {
         major = nums.get(1);
@@ -96,14 +95,26 @@ final class JavaVersion {
   }
 
   public boolean isBetween(
-      int fromMajor, int fromMinor, int fromUpdate, int toMajor, int toMinor, int toUpdate) {
+      int fromMajor,
+      int fromMinor,
+      int fromUpdate,
+      int toMajor,
+      int toMinor,
+      int toUpdate
+  ) {
     return isAtLeast(toMajor, toMinor, toUpdate, fromMajor, fromMinor, fromUpdate)
         && isAtLeast(fromMajor, fromMinor, fromUpdate)
         && !isAtLeast(toMajor, toMinor, toUpdate);
   }
 
   private static boolean isAtLeast(
-      int major, int minor, int update, int atLeastMajor, int atLeastMinor, int atLeastUpdate) {
+      int major,
+      int minor,
+      int update,
+      int atLeastMajor,
+      int atLeastMinor,
+      int atLeastUpdate
+  ) {
     return (major > atLeastMajor)
         || (major == atLeastMajor && minor > atLeastMinor)
         || (major == atLeastMajor && minor == atLeastMinor && update >= atLeastUpdate);

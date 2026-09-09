@@ -4,7 +4,8 @@ import java.util.Arrays;
 import java.util.List;
 
 public final class ExpectedQueryParams {
-  private ExpectedQueryParams() {}
+  private ExpectedQueryParams() {
+  }
 
   public static List<String> getExpectedQueryParams(String operation) {
     switch (operation) {
@@ -18,7 +19,8 @@ public final class ExpectedQueryParams {
             "PublishBatchRequestEntries.member.1.Id",
             "PublishBatchRequestEntries.member.1.Message",
             "PublishBatchRequestEntries.member.2.Id",
-            "PublishBatchRequestEntries.member.2.Message");
+            "PublishBatchRequestEntries.member.2.Message"
+        );
       case "AllocateAddress":
       case "DeleteOptionGroup":
         return Arrays.asList("Action", "Version");
@@ -45,14 +47,16 @@ public final class ExpectedQueryParams {
             "SendMessageBatchRequestEntry.4.Id",
             "SendMessageBatchRequestEntry.4.MessageBody",
             "SendMessageBatchRequestEntry.5.Id",
-            "SendMessageBatchRequestEntry.5.MessageBody");
+            "SendMessageBatchRequestEntry.5.MessageBody"
+        );
       case "DeleteMessageBatch":
         return Arrays.asList(
             "Action",
             "Version",
             "QueueUrl",
             "DeleteMessageBatchRequestEntry.1.Id",
-            "DeleteMessageBatchRequestEntry.1.ReceiptHandle");
+            "DeleteMessageBatchRequestEntry.1.ReceiptHandle"
+        );
       case "Mule":
         return Arrays.asList("name");
       default:

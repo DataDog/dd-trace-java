@@ -3,7 +3,6 @@ package com.datadog.debugger.probe;
 import com.datadog.debugger.agent.Configuration;
 
 public class ProbeDefinitionSerializer {
-
   public static String serializeMetricProbe(MetricProbe metricProbe) {
     return ProbeDefinitionDeserializer.METRIC_PROBE_JSON_ADAPTER.toJson(metricProbe);
   }
@@ -18,7 +17,8 @@ public class ProbeDefinitionSerializer {
 
   public static String serializeSpanDecorationProbe(SpanDecorationProbe spanDecorationProbe) {
     return ProbeDefinitionDeserializer.SPAN_DECORATION_PROBE_JSON_ADAPTER.toJson(
-        spanDecorationProbe);
+        spanDecorationProbe
+    );
   }
 
   public static String serializeTriggerProbe(TriggerProbe triggerProbe) {

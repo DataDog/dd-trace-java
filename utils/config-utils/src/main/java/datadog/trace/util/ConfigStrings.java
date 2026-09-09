@@ -4,8 +4,8 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 
 public final class ConfigStrings {
-
-  private ConfigStrings() {}
+  private ConfigStrings() {
+  }
 
   public static String toEnvVar(String string) {
     return string.replace('.', '_').replace('-', '_').toUpperCase(Locale.ROOT);

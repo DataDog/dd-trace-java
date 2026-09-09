@@ -18,10 +18,9 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 @Source(value = SourceTypes.REQUEST_HEADER_NAME)
 @CallSite(spi = IastCallSites.class)
 public class HeaderNameCallSite {
-
   @CallSite.After("java.lang.String akka.http.javadsl.model.HttpHeader.name()")
-  @CallSite.After(
-      "java.lang.String akka.http.scaladsl.model.HttpHeader.name()") // subtype of the first
+  @// subtype of the first
+  CallSite.After("java.lang.String akka.http.scaladsl.model.HttpHeader.name()")
   public static String after(@CallSite.This HttpHeader header, @CallSite.Return String result) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {

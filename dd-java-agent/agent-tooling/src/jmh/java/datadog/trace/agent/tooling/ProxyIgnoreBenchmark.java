@@ -33,11 +33,12 @@ ProxyIgnoreBenchmark.useTrie                                                 dat
 @Fork(value = 1)
 public class ProxyIgnoreBenchmark {
   @Param({
-    "org.springframework.util.ConcurrentReferenceHashMap$4",
-    "java.lang.invoke.LambdaForm$DMH/0x00007fe9f0388000",
-    "org.springframework.core.annotation.RepeatableContainers$StandardRepeatableContainers$$Lambda$315/0x00007fe9f03adc70",
-    // worst case for trie based
-    "datadog.test.package.redis.RedisTemplateProvider$$TestCGLIB$$FastClass$$0"
+      "org.springframework.util.ConcurrentReferenceHashMap$4",
+      "java.lang.invoke.LambdaForm$DMH/0x00007fe9f0388000",
+      "org.springframework.core.annotation."
+      + "RepeatableContainers$StandardRepeatableContainers$$Lambda$315/0x00007fe9f03adc70",
+      // worst case for trie based
+      "datadog.test.package.redis.RedisTemplateProvider$$TestCGLIB$$FastClass$$0"
   })
   public String className;
 

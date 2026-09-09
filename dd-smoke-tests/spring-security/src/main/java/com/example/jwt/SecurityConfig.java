@@ -1,7 +1,6 @@
 package com.example.jwt;
 
 import static org.springframework.security.oauth2.core.OAuth2TokenIntrospectionClaimNames.AUD;
-
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.EncodedKeySpec;
@@ -28,19 +27,16 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 public class SecurityConfig {
-
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
     return httpSecurity
-        .authorizeHttpRequests(
-            authorize ->
-                authorize
-                    .mvcMatchers("/read/**")
-                    .hasAuthority("SCOPE_read")
-                    .anyRequest()
-                    .authenticated())
-        .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
-        .build();
+      .authorizeHttpRequests(authorize -> authorize
+        .mvcMatchers("/read/**")
+        .hasAuthority("SCOPE_read")
+        .anyRequest()
+        .authenticated())
+      .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
+      .build();
   }
 
   RSAPublicKey buildKey() {
@@ -58,7 +54,6 @@ public class SecurityConfig {
 
   @Bean
   public JwtDecoder jwtDecoder() {
-
     final NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(buildKey()).build();
     decoder.setJwtValidator(tokenValidator());
     return decoder;

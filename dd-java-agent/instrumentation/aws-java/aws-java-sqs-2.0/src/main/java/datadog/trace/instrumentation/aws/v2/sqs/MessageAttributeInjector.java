@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aws.v2.sqs;
 
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import java.util.Map;
@@ -10,12 +9,14 @@ import software.amazon.awssdk.services.sqs.model.MessageAttributeValue;
 
 @ParametersAreNonnullByDefault
 public class MessageAttributeInjector implements CarrierSetter<Map<String, MessageAttributeValue>> {
-
   public static final MessageAttributeInjector SETTER = new MessageAttributeInjector();
 
   @Override
   public void set(
-      final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
+      final Map<String, MessageAttributeValue> carrier,
+      final String key,
+      final String value
+  ) {
     if (!Config.get().isSqsInjectDatadogAttributeEnabled()) {
       return;
     }
@@ -28,10 +29,12 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
       }
       carrier.put(
           DATADOG_KEY,
-          MessageAttributeValue.builder()
-              .dataType("String")
-              .stringValue(String.format("{\"%s\": \"%s\"}", key, value))
-              .build());
+          MessageAttributeValue
+            .builder()
+            .dataType("String")
+            .stringValue(String.format("{\"%s\": \"%s\"}", key, value))
+            .build()
+      );
     } else {
       // _datadog was created by an earlier set() call in this same inject session; append to it.
       String existing = carrier.get(DATADOG_KEY).stringValue();
@@ -44,7 +47,8 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
             existing.substring(0, closingBrace) + String.format(", \"%s\": \"%s\"}", key, value);
         carrier.put(
             DATADOG_KEY,
-            MessageAttributeValue.builder().dataType("String").stringValue(updated).build());
+            MessageAttributeValue.builder().dataType("String").stringValue(updated).build()
+        );
       }
     }
   }

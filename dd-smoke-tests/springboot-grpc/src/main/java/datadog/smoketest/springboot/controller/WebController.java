@@ -16,15 +16,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class WebController {
-
   private final ExecutorService pool = Executors.newFixedThreadPool(5);
-
   private final AsynchronousGreeter asyncGreeter;
   private final AsyncTask asyncTask;
   private final SpannerTask spannerTask;
 
   public WebController(
-      AsynchronousGreeter asyncGreeter, AsyncTask asyncTask, SpannerTask spannerTask) {
+      AsynchronousGreeter asyncGreeter,
+      AsyncTask asyncTask,
+      SpannerTask spannerTask
+  ) {
     this.asyncGreeter = asyncGreeter;
     this.asyncTask = asyncTask;
     this.spannerTask = spannerTask;
@@ -32,19 +33,23 @@ public class WebController {
 
   @RequestMapping("/spanner")
   public String spanner() {
-    spannerTask.spannerResultSet().thenAccept(results -> {}).join();
+    spannerTask
+      .spannerResultSet()
+      .thenAccept(results -> {})
+      .join();
     return "bye";
   }
 
   @RequestMapping("/async_cf_greeting")
   public String asyncCompleteableFutureGreeting(
-      @RequestParam(value = "message", defaultValue = "aGVsbG8=" /*hello*/) final String message) {
+      @RequestParam(value = "message", defaultValue = "aGVsbG8=") final String message
+  ) {
     final String decodedMsg = decodeBase64(message);
     CompletableFuture<String>[] cfs = new CompletableFuture[20];
     for (int i = 0; i < cfs.length; ++i) {
-      cfs[i] =
-          CompletableFuture.supplyAsync(() -> "something", pool)
-              .thenApplyAsync(x -> asyncGreeter.greet(decodedMsg), pool);
+      cfs[i] = CompletableFuture
+        .supplyAsync(() -> "something", pool)
+        .thenApplyAsync(x -> asyncGreeter.greet(decodedMsg), pool);
     }
     return CompletableFuture.allOf(cfs).thenApply(x -> "bye").join();
   }
@@ -52,8 +57,8 @@ public class WebController {
   @RequestMapping("/async_concurrent_greeting")
   @SuppressWarnings("unchecked")
   public String asyncConcurrentGreeting(
-      @RequestParam(value = "message", defaultValue = "aGVsbG8=") final String message)
-      throws Exception {
+      @RequestParam(value = "message", defaultValue = "aGVsbG8=") final String message
+  ) throws Exception {
     // more tasks than threads to force some parallel activity
     // onto the same threads
     Future[] futures = new Future[20];
@@ -69,7 +74,8 @@ public class WebController {
 
   @RequestMapping("async_annotation_greeting")
   public String asyncAnnotationGreeting(
-      @RequestParam(value = "message", defaultValue = "aGVsbG8=") final String message) {
+      @RequestParam(value = "message", defaultValue = "aGVsbG8=") final String message
+  ) {
     return asyncTask.greet(decodeBase64(message)).join();
   }
 

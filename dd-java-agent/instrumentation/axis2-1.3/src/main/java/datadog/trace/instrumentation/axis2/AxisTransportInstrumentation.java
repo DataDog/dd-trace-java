@@ -12,7 +12,6 @@ import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.axis2.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
@@ -25,9 +24,9 @@ import org.apache.axis2.context.MessageContext;
 
 public final class AxisTransportInstrumentation
     implements Instrumenter.ForKnownTypes,
-        Instrumenter.ForConfiguredType,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForConfiguredType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {"com.ibm.ws.websvcs.transport.http.HTTPTransportSender"};
@@ -43,10 +42,11 @@ public final class AxisTransportInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("invoke"))
-            .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
+          .and(named("invoke"))
+          .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
         getClass().getName() + "$TransportAdvice",
-        getClass().getName() + "$TransportContextPropagationAdvice");
+        getClass().getName() + "$TransportContextPropagationAdvice"
+    );
   }
 
   public static final class TransportAdvice {
@@ -67,7 +67,8 @@ public final class AxisTransportInstrumentation
     public static void finishTransport(
         @Advice.Enter final AgentScope scope,
         @Advice.Argument(0) final MessageContext message,
-        @Advice.Thrown final Throwable error) {
+        @Advice.Thrown final Throwable error
+    ) {
       if (null == scope) {
         return;
       }
@@ -97,7 +98,9 @@ public final class AxisTransportInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) final MessageContext message) {
       AgentSpan span = activeSpan();
-      if (span == null) return;
+      if (span == null) {
+        return;
+      }
       // the transport handler will copy TRANSPORT_HEADERS to the outgoing request
       @SuppressWarnings({"unchecked", "rawtypes"})
       Map<String, Object> headers = (Map) message.getProperty("TRANSPORT_HEADERS");

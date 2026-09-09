@@ -22,14 +22,14 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Factory for creating OkHttp requests */
+/**
+ * Factory for creating OkHttp requests
+ */
 public class PollerRequestFactory {
   private static final String HEADER_DD_API_KEY = "DD-API-KEY";
   private static final String HEADER_CONTAINER_ID = "Datadog-Container-ID";
   private static final String HEADER_ENTITY_ID = "Datadog-Entity-ID";
-
   private static final Logger log = LoggerFactory.getLogger(PollerRequestFactory.class);
-
   private final String clientId = RandomUtils.randomUUID().toString();
   private final String runtimeId;
   private final String serviceName;
@@ -49,7 +49,8 @@ public class PollerRequestFactory {
       String containerId,
       String entityId,
       String url,
-      Moshi moshi) {
+      Moshi moshi
+  ) {
     this.runtimeId = getRuntimeId(config);
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.apiKey = config.getApiKey();
@@ -85,14 +86,14 @@ public class PollerRequestFactory {
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
-      long capabilities) {
+      long capabilities
+  ) {
     Request.Builder requestBuilder = new Request.Builder().url(this.url).get();
     MediaType applicationJson = MediaType.parse("application/json");
-    RequestBody requestBody =
-        RequestBody.create(
-            applicationJson,
-            buildRemoteConfigRequestJson(
-                productNames, clientState, cachedTargetFiles, capabilities));
+    RequestBody requestBody = RequestBody.create(
+        applicationJson,
+        buildRemoteConfigRequestJson(productNames, clientState, cachedTargetFiles, capabilities)
+    );
     requestBuilder.post(requestBody);
     if (this.apiKey != null) {
       requestBuilder.addHeader(HEADER_DD_API_KEY, this.apiKey);
@@ -110,20 +111,28 @@ public class PollerRequestFactory {
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
-      long capabilities) {
-    RemoteConfigRequest rcRequest =
-        buildRemoteConfigRequest(
-            productNames, clientState, cachedTargetFiles, capabilities, ServiceNameCollector.get());
+      long capabilities
+  ) {
+    RemoteConfigRequest rcRequest = buildRemoteConfigRequest(
+        productNames,
+        clientState,
+        cachedTargetFiles,
+        capabilities,
+        ServiceNameCollector.get()
+    );
     return moshi.adapter(RemoteConfigRequest.class).toJson(rcRequest);
   }
 
-  /** For testing purposes only. */
+  /**
+   * For testing purposes only.
+   */
   public RemoteConfigRequest buildRemoteConfigRequest(
       Collection<String> productNames,
       ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
       long capabilities,
-      ServiceNameCollector serviceNameCollector) {
+      ServiceNameCollector serviceNameCollector
+  ) {
     return RemoteConfigRequest.newRequest(
         this.clientId,
         this.runtimeId,
@@ -136,14 +145,18 @@ public class PollerRequestFactory {
         buildRequestTags(),
         clientState,
         cachedTargetFiles,
-        capabilities);
+        capabilities
+    );
   }
 
   private List<String> buildRequestTags() {
-    List<String> tags =
-        Config.get().getGlobalTags().entrySet().stream()
-            .map(entry -> entry.getKey() + ":" + entry.getValue())
-            .collect(Collectors.toList());
+    List<String> tags = Config
+      .get()
+      .getGlobalTags()
+      .entrySet()
+      .stream()
+      .map(entry -> entry.getKey() + ":" + entry.getValue())
+      .collect(Collectors.toList());
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo();
     String repositoryURL = gitInfo.getRepositoryURL();
     if (repositoryURL != null) {
@@ -153,12 +166,12 @@ public class PollerRequestFactory {
     if (sha != null) {
       tags.add(Tags.GIT_COMMIT_SHA + ":" + sha);
     }
-    tags.addAll(
-        Arrays.asList(
-            "env:" + this.env,
-            "version:" + this.ddVersion,
-            "tracer_version:" + this.tracerVersion,
-            "host_name:" + this.hostName));
+    tags.addAll(Arrays.asList(
+        "env:" + this.env,
+        "version:" + this.ddVersion,
+        "tracer_version:" + this.tracerVersion,
+        "host_name:" + this.hostName
+    ));
 
     return tags;
   }

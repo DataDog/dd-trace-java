@@ -1,3 +1,4 @@
 package com.datadog.appsec.event;
 
-public class ExpiredSubscriberInfoException extends Exception {}
+public class ExpiredSubscriberInfoException extends Exception {
+}

@@ -6,7 +6,6 @@ import static com.datadog.iast.taint.Ranges.mergeRanges;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.taint.Tainteds.getTainted;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.taint.Ranges;
@@ -35,23 +34,28 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class StringModuleImpl implements StringModule {
-
-  /** {@link java.util.Formatter#formatSpecifier} */
-  private static final Pattern FORMAT_PATTERN =
-      Pattern.compile("%(?<index>\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])");
-
-  /** Escaped format patterns * */
+  /**
+   * {@link java.util.Formatter#formatSpecifier}
+   */
+  private static final Pattern FORMAT_PATTERN = Pattern.compile(
+      "%(?<index>\\\\d+\\\\$)?([-#+ 0,(\\\\<]*)?(\\\\d+)?(\\\\.\\\\d+)?([tT])?" + "([a-zA-Z%])"
+  );
+  /**
+   * Escaped format patterns *
+   */
   private static final Map<String, String> ESCAPED_PATTERNS =
       Stream.of("%%", "%n").collect(Collectors.toMap(Function.identity(), String::format));
-
   private static final Ranged END = Ranged.build(Integer.MAX_VALUE, 0);
-
   private static final int NULL_STR_LENGTH = "null".length();
 
-  @SuppressWarnings("NullAway") // NullAway fails with taintedLeft and taintedRight checks
+  // NullAway fails with taintedLeft and taintedRight checks
+  @SuppressWarnings("NullAway")
   @Override
   public void onStringConcat(
-      @Nonnull final String left, @Nullable final String right, @Nonnull final String result) {
+      @Nonnull final String left,
+      @Nullable final String right,
+      @Nonnull final String result
+  ) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -82,7 +86,9 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderInit(
-      @Nonnull final CharSequence builder, @Nullable final CharSequence param) {
+      @Nonnull final CharSequence builder,
+      @Nullable final CharSequence param
+  ) {
     if (!canBeTainted(param)) {
       return;
     }
@@ -100,7 +106,9 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderAppend(
-      @Nonnull final CharSequence builder, @Nullable final CharSequence param) {
+      @Nonnull final CharSequence builder,
+      @Nullable final CharSequence param
+  ) {
     if (!canBeTainted(builder) || !canBeTainted(param)) {
       return;
     }
@@ -130,7 +138,11 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderAppend(
-      @Nonnull CharSequence builder, @Nullable CharSequence param, int start, int end) {
+      @Nonnull CharSequence builder,
+      @Nullable CharSequence param,
+      int start,
+      int end
+  ) {
     if (!canBeTainted(builder) || !canBeTainted(param)) {
       return;
     }
@@ -169,7 +181,9 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringBuilderToString(
-      @Nonnull final CharSequence builder, @Nonnull final String result) {
+      @Nonnull final CharSequence builder,
+      @Nonnull final String result
+  ) {
     if (!canBeTainted(builder) || !canBeTainted(result)) {
       return;
     }
@@ -191,7 +205,8 @@ public class StringModuleImpl implements StringModule {
       @Nullable final String[] args,
       @Nullable final String recipe,
       @Nullable final Object[] constants,
-      @Nonnull final int[] recipeOffsets) {
+      @Nonnull final int[] recipeOffsets
+  ) {
     if (!canBeTainted(result) || !canBeTainted(args)) {
       return;
     }
@@ -225,7 +240,11 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringSubSequence(
-      @Nonnull CharSequence self, int beginIndex, int endIndex, @Nullable CharSequence result) {
+      @Nonnull CharSequence self,
+      int beginIndex,
+      int endIndex,
+      @Nullable CharSequence result
+  ) {
     if (self == result || !canBeTainted(result)) {
       return;
     }
@@ -250,7 +269,10 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringJoin(
-      @Nullable String result, @Nonnull CharSequence delimiter, @Nonnull CharSequence[] elements) {
+      @Nullable String result,
+      @Nonnull CharSequence delimiter,
+      @Nonnull CharSequence[] elements
+  ) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -298,7 +320,8 @@ public class StringModuleImpl implements StringModule {
     if (!canBeTainted(result)) {
       return;
     }
-    if (self == result) { // same ref, no change in taint status
+    if (self == result) {
+      // same ref, no change in taint status
       return;
     }
     final IastContext ctx = IastContext.Provider.get();
@@ -308,9 +331,11 @@ public class StringModuleImpl implements StringModule {
     final TaintedObjects taintedObjects = ctx.getTaintedObjects();
     final TaintedObject taintedSelf = taintedObjects.get(self);
     if (taintedSelf == null) {
-      return; // original string is not tainted
+      // original string is not tainted
+      return;
     }
-    taintedObjects.taint(result, taintedSelf.getRanges()); // only possibility left
+    // only possibility left
+    taintedObjects.taint(result, taintedSelf.getRanges());
   }
 
   @Override
@@ -380,14 +405,17 @@ public class StringModuleImpl implements StringModule {
     }
     if (result.length() >= self.length()) {
       taintedObjects.taint(result, rangesSelf);
-    } // Pathological case where the string's length actually becomes smaller
-    else {
+    } else // Pathological case where the string's length actually becomes smaller
+    {
       stringCaseChangedWithReducedSize(rangesSelf, taintedObjects, result);
     }
   }
 
   private void stringCaseChangedWithReducedSize(
-      final Range[] rangesSelf, final TaintedObjects taintedObjects, @Nonnull String result) {
+      final Range[] rangesSelf,
+      final TaintedObjects taintedObjects,
+      @Nonnull String result
+  ) {
     int skippedRanges = 0;
     Range adjustedRange = null;
     for (int i = rangesSelf.length - 1; i >= 0; i--) {
@@ -395,9 +423,11 @@ public class StringModuleImpl implements StringModule {
       if (currentRange.getStart() >= result.length()) {
         skippedRanges++;
       } else if (currentRange.getStart() + currentRange.getLength() >= result.length()) {
-        adjustedRange =
-            Ranges.copyWithPosition(
-                currentRange, currentRange.getStart(), result.length() - currentRange.getStart());
+        adjustedRange = Ranges.copyWithPosition(
+            currentRange,
+            currentRange.getStart(),
+            result.length() - currentRange.getStart()
+        );
       }
     }
     Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
@@ -409,9 +439,15 @@ public class StringModuleImpl implements StringModule {
     taintedObjects.taint(result, newRanges);
   }
 
-  /** Inserts the range in the selected position and returns the new position for further ranges */
+  /**
+   * Inserts the range in the selected position and returns the new position for further ranges
+   */
   private static int insertRange(
-      final Range[] targetRanges, final Range[] ranges, final int offset, final int rangeIndex) {
+      final Range[] targetRanges,
+      final Range[] ranges,
+      final int offset,
+      final int rangeIndex
+  ) {
     if (ranges.length == 0) {
       return rangeIndex;
     }
@@ -481,7 +517,10 @@ public class StringModuleImpl implements StringModule {
 
   @Override
   public void onStringFormat(
-      @Nonnull final String format, @Nonnull final Object[] params, @Nonnull final String result) {
+      @Nonnull final String format,
+      @Nonnull final Object[] params,
+      @Nonnull final String result
+  ) {
     onStringFormat(null, format, params, result);
   }
 
@@ -490,7 +529,8 @@ public class StringModuleImpl implements StringModule {
       @Nullable final Locale locale,
       @Nonnull final String format,
       @Nonnull final Object[] parameters,
-      @Nonnull final String result) {
+      @Nonnull final String result
+  ) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -529,7 +569,8 @@ public class StringModuleImpl implements StringModule {
           formattedValue = formatValue(locale, placeholder.replace(index, ""), parameter);
         } else {
           if (!checkParameterBounds(format, parameters, paramIndex)) {
-            return; // return without tainting the string in case of error
+            // return without tainting the string in case of error
+            return;
           }
           parameter = parameters[paramIndex++];
           formattedValue = formatValue(locale, placeholder, parameter);
@@ -542,21 +583,35 @@ public class StringModuleImpl implements StringModule {
       final Range[] paramRanges = taintedObject == null ? null : taintedObject.getRanges();
       final int shift = placeholderPos.getStart() + offset;
       addParameterTaintedRanges(
-          placeholderRange, parameter, formattedValue, shift, paramRanges, finalRanges);
+          placeholderRange,
+          parameter,
+          formattedValue,
+          shift,
+          paramRanges,
+          finalRanges
+      );
       offset += (formattedValue.length() - placeholder.length());
       if (finalRanges.isFull()) {
         break;
       }
     }
     addFormatTaintedRanges(
-        END, offset, formatRanges, finalRanges); // add remaining ranges from the format
+        END,
+        offset,
+        formatRanges,
+        // add remaining ranges from the format
+        finalRanges
+    );
     if (!finalRanges.isEmpty()) {
       to.taint(result, finalRanges.toArray());
     }
   }
 
   private static boolean checkParameterBounds(
-      final String format, final Object[] parameters, int paramIndex) {
+      final String format,
+      final Object[] parameters,
+      int paramIndex
+  ) {
     if (paramIndex < parameters.length) {
       return true;
     }
@@ -565,7 +620,8 @@ public class StringModuleImpl implements StringModule {
         "Error handling string format pattern {} with args {} at index {}",
         format,
         parameters.length,
-        paramIndex);
+        paramIndex
+    );
     return false;
   }
 
@@ -578,7 +634,10 @@ public class StringModuleImpl implements StringModule {
    * @return the formatted value
    */
   private static String formatValue(
-      @Nullable final Locale locale, final String placeholder, final Object parameter) {
+      @Nullable final Locale locale,
+      final String placeholder,
+      final Object parameter
+  ) {
     try {
       return String.format(locale, placeholder, parameter);
     } catch (final java.util.IllegalFormatException e) {
@@ -588,7 +647,8 @@ public class StringModuleImpl implements StringModule {
           "Format conversion failed for placeholder {} with parameter type {}: {}",
           placeholder,
           parameter == null ? "null" : parameter.getClass().getName(),
-          e.getMessage());
+          e.getMessage()
+      );
       throw e;
     }
   }
@@ -597,7 +657,8 @@ public class StringModuleImpl implements StringModule {
   public void onStringFormat(
       @Nonnull final Iterable<String> literals,
       @Nonnull final Object[] parameters,
-      @Nonnull final String result) {
+      @Nonnull final String result
+  ) {
     if (!canBeTainted(result)) {
       return;
     }
@@ -720,7 +781,11 @@ public class StringModuleImpl implements StringModule {
   @Override
   @SuppressFBWarnings("ES_COMPARING_PARAMETER_STRING_WITH_EQ")
   public void onStringReplace(
-      @Nonnull String self, char oldChar, char newChar, @Nonnull String result) {
+      @Nonnull String self,
+      char oldChar,
+      char newChar,
+      @Nonnull String result
+  ) {
     if (self == result || !canBeTainted(result)) {
       return;
     }
@@ -742,10 +807,15 @@ public class StringModuleImpl implements StringModule {
     taintedObjects.taint(result, rangesSelf);
   }
 
-  /** This method is used to make an {@code CallSite.Around} of the {@code String.replace} method */
+  /**
+   * This method is used to make an {@code CallSite.Around} of the {@code String.replace} method
+   */
   @Override
   public String onStringReplace(
-      @Nonnull String self, CharSequence oldCharSeq, CharSequence newCharSeq) {
+      @Nonnull String self,
+      CharSequence oldCharSeq,
+      CharSequence newCharSeq
+  ) {
     final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       return self.replace(oldCharSeq, newCharSeq);
@@ -774,7 +844,8 @@ public class StringModuleImpl implements StringModule {
         newCharSeq.toString(),
         rangesSelf,
         rangesInput,
-        Integer.MAX_VALUE);
+        Integer.MAX_VALUE
+    );
   }
 
   /**
@@ -784,7 +855,11 @@ public class StringModuleImpl implements StringModule {
   @Override
   @SuppressForbidden
   public String onStringReplace(
-      @Nonnull String self, String regex, String replacement, int numReplacements) {
+      @Nonnull String self,
+      String regex,
+      String replacement,
+      int numReplacements
+  ) {
     final IastContext ctx = IastContext.Provider.get();
     if (ctx == null) {
       if (numReplacements > 1) {
@@ -822,7 +897,8 @@ public class StringModuleImpl implements StringModule {
         replacement,
         rangesSelf,
         rangesInput,
-        numReplacements);
+        numReplacements
+    );
   }
 
   @Override
@@ -842,9 +918,10 @@ public class StringModuleImpl implements StringModule {
         return;
       }
       final Source source = (Source) taintable.$$DD$getSource();
-      final Range[] ranges =
-          Ranges.forCharSequence(
-              result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+      final Range[] ranges = Ranges.forCharSequence(
+          result,
+          new Source(source.getOrigin(), source.getName(), source.getValue())
+      );
 
       taintedObjects.taint(result, ranges);
     } else {
@@ -857,13 +934,13 @@ public class StringModuleImpl implements StringModule {
       if (rangesParam.length == 0) {
         return;
       }
-
       // Special objects like InputStream...
       if (rangesParam[0].getLength() == Integer.MAX_VALUE) {
         final Source source = rangesParam[0].getSource();
-        final Range[] ranges =
-            Ranges.forCharSequence(
-                result, new Source(source.getOrigin(), source.getName(), source.getValue()));
+        final Range[] ranges = Ranges.forCharSequence(
+            result,
+            new Source(source.getOrigin(), source.getName(), source.getValue())
+        );
 
         taintedObjects.taint(result, ranges);
       } else {
@@ -915,7 +992,9 @@ public class StringModuleImpl implements StringModule {
       final String formatted,
       final int offset,
       @Nullable final Range[] ranges,
-      /* out */ final RangeBuilder finalRanges) {
+      /* out */
+      final RangeBuilder finalRanges
+  ) {
     if (ranges != null && ranges.length > 0) {
       // only shift ranges if they are character sequences of the same length, otherwise taint the
       // whole thing
@@ -943,18 +1022,18 @@ public class StringModuleImpl implements StringModule {
       final Ranged placeholderPos,
       final int offset,
       final Deque<Range> ranges,
-      /* out */ final RangeBuilder finalRanges) {
+      /* out */
+      final RangeBuilder finalRanges
+  ) {
     Range formatRange;
     int end = placeholderPos.getStart() + placeholderPos.getLength();
     Range placeholderRange = null;
     while ((formatRange = ranges.peek()) != null && formatRange.getStart() < end) {
       ranges.poll();
-
       // check if the placeholder was tainted
       if (placeholderRange == null) {
         placeholderRange = placeholderPos.intersects(formatRange) ? formatRange : null;
       }
-
       // 1. remove the placeholder range from the format one
       // 2. append ranges located before tha placeholder
       // 3. enqueue the remaining ones

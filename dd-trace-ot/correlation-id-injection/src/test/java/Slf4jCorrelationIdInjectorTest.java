@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class Slf4jCorrelationIdInjectorTest extends CorrelationIdInjectorTest {
-
   ch.qos.logback.classic.Logger logger;
 
   @Override
@@ -29,7 +28,8 @@ class Slf4jCorrelationIdInjectorTest extends CorrelationIdInjectorTest {
   }
 
   class TestAppender extends AppenderBase<ILoggingEvent>
-      implements CorrelationIdInjectorTest.LogJournal {
+      implements CorrelationIdInjectorTest.LogJournal
+  {
     private final List<String> events;
     int read;
     private final PatternLayoutEncoder encoder;

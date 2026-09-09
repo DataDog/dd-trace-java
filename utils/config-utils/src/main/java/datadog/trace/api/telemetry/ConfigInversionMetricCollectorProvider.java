@@ -4,7 +4,8 @@ public final class ConfigInversionMetricCollectorProvider {
   private static ConfigInversionMetricCollector INSTANCE =
       NoOpConfigInversionMetricCollector.getInstance();
 
-  private ConfigInversionMetricCollectorProvider() {}
+  private ConfigInversionMetricCollectorProvider() {
+  }
 
   public static ConfigInversionMetricCollector get() {
     return INSTANCE;

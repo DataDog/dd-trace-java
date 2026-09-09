@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.kafka_streams;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.KAFKA_PRODUCED_KEY;
 import static datadog.trace.instrumentation.kafka_streams.ProcessorRecordContextHeadersAccess.HEADERS_METHOD;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation.ContextVisitor;
 import java.nio.ByteBuffer;
@@ -15,12 +14,10 @@ import org.slf4j.LoggerFactory;
 
 public class ProcessorRecordContextVisitor implements ContextVisitor<ProcessorRecordContext> {
   private static final Logger log = LoggerFactory.getLogger(ProcessorRecordContextVisitor.class);
-
   public static final ProcessorRecordContextVisitor PR_GETTER = new ProcessorRecordContextVisitor();
 
   @Override
-  public void forEachKey(
-      ProcessorRecordContext carrier, AgentPropagation.KeyClassifier classifier) {
+  public void forEachKey(ProcessorRecordContext carrier, AgentPropagation.KeyClassifier classifier) {
     if (HEADERS_METHOD == null) {
       return;
     }

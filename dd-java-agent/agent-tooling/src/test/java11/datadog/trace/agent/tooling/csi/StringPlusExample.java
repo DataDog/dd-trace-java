@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StringPlusExample implements TriFunction<String, String, String, String> {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(StringPlusExample.class);
 
   public String apply(final String first, final String second, final String third) {

@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static datadog.metrics.impl.statsd.DDAgentStatsDClientManager.statsDClientManager;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.statsd.StatsDClient;
@@ -25,10 +24,9 @@ public class MeterInstaller {
   public static void installMeter() {
     Config config = Config.get();
     StatsDClient statsDClient = createStatsDClient(config);
-    Monitoring monitoring =
-        config.isHealthMetricsEnabled()
-            ? new MonitoringImpl(statsDClient, 10, SECONDS)
-            : MonitoringImpl.DISABLED;
+    Monitoring monitoring = config.isHealthMetricsEnabled()
+        ? new MonitoringImpl(statsDClient, 10, SECONDS)
+        : MonitoringImpl.DISABLED;
     AgentMeter.registerIfAbsent(statsDClient, monitoring, DDSketchHistograms.FACTORY);
   }
 
@@ -46,13 +44,15 @@ public class MeterInstaller {
     }
 
     return statsDClientManager()
-        .statsDClient(
-            host,
-            port,
-            config.getDogStatsDNamedPipe(),
+      .statsDClient(
+          host,
+          port,
+          config.getDogStatsDNamedPipe(),
+          "datadog:tracer"
             // use replace to stop string being changed to 'ddtrot.dd.tracer' in dd-trace-ot
-            "datadog:tracer".replace(':', '.'),
-            generateConstantTags(config));
+            .replace(':', '.'),
+          generateConstantTags(config)
+      );
   }
 
   private static String[] generateConstantTags(final Config config) {

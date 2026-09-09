@@ -2,7 +2,6 @@ package datadog.trace.civisibility.interceptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.common.writer.ListWriter;
@@ -22,7 +21,6 @@ import org.tabletest.junit.TableTest;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -54,7 +52,6 @@ public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "sample-span").start();
     span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
     span.finish();
-
     // expect:
     assertEquals(1, writer.size());
   }
@@ -67,7 +64,8 @@ public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
     "test session end | DDSpanTypes.TEST_SESSION_END"
   })
   void addTracerVersionToSpansOfType(@ConvertWith(DDSpanTypesConverter.class) String spanType)
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
 
     DDSpan span =

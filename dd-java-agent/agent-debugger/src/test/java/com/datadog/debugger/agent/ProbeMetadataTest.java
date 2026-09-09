@@ -1,12 +1,10 @@
 package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.datadog.debugger.probe.LogProbe;
 import org.junit.jupiter.api.Test;
 
 class ProbeMetadataTest {
-
   @Test
   void addProbe() {
     ProbeMetadata probeMetadata = new ProbeMetadata();

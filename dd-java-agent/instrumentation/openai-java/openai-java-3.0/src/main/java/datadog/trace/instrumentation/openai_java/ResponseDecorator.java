@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.openai_java;
 
 import static datadog.trace.instrumentation.openai_java.JsonValueUtils.jsonValueMapToObject;
 import static datadog.trace.instrumentation.openai_java.JsonValueUtils.jsonValueToObject;
-
 import com.openai.core.JsonField;
 import com.openai.core.JsonValue;
 import com.openai.models.Reasoning;
@@ -37,11 +36,9 @@ import java.util.Optional;
 
 public class ResponseDecorator {
   public static final ResponseDecorator DECORATE = new ResponseDecorator();
-
   private static final CharSequence RESPONSES_CREATE = UTF8BytesString.create("createResponse");
   private static final String IMAGE_FALLBACK_MARKER = "[image]";
   private static final String FILE_FALLBACK_MARKER = "[file]";
-
   private final boolean llmObsEnabled = Config.get().isLlmObsEnabled();
 
   public void withResponseCreateParams(AgentSpan span, ResponseCreateParams params) {
@@ -59,7 +56,6 @@ public class ResponseDecorator {
     if (!llmObsEnabled) {
       return;
     }
-
     // Keep model_name/output/metadata shape stable on error paths where no response is available.
     if (modelName != null && !modelName.isEmpty()) {
       span.setTag(CommonTags.MODEL_NAME, modelName);
@@ -72,12 +68,11 @@ public class ResponseDecorator {
     List<LLMObs.LLMMessage> inputMessages = new ArrayList<>();
 
     params
-        ._instructions()
-        .asString()
-        .ifPresent(
-            instructions -> {
-              inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
-            });
+      ._instructions()
+      .asString()
+      .ifPresent(instructions -> {
+        inputMessages.add(LLMObs.LLMMessage.from("system", instructions));
+      });
 
     Optional<String> textOpt = params._input().asString();
     if (textOpt.isPresent()) {
@@ -99,7 +94,6 @@ public class ResponseDecorator {
         }
       }
     }
-
     // Handle raw list input (when SDK can't parse into known types)
     // This path is tested by "create streaming response with raw json tool input test"
     if (inputMessages.isEmpty()) {
@@ -122,10 +116,12 @@ public class ResponseDecorator {
     }
 
     extractReasoningFromParams(params)
-        .ifPresent(reasoningMap -> span.setTag(CommonTags.REQUEST_REASONING, reasoningMap));
+      .ifPresent(reasoningMap -> span.setTag(CommonTags.REQUEST_REASONING, reasoningMap));
 
-    extractPromptFromParams(params)
-        .ifPresent(prompt -> span.setTag(CommonTags.REQUEST_PROMPT, prompt));
+    extractPromptFromParams(params).ifPresent(prompt -> span.setTag(
+        CommonTags.REQUEST_PROMPT,
+        prompt
+    ));
 
     List<Map<String, Object>> toolDefinitions = extractToolDefinitionsFromParams(params);
     if (!toolDefinitions.isEmpty()) {
@@ -178,12 +174,15 @@ public class ResponseDecorator {
 
     Map<String, Object> toolDef = new HashMap<>();
     toolDef.put("name", name);
-    functionTool.description().ifPresent(desc -> toolDef.put("description", desc));
     functionTool
-        .parameters()
-        .ifPresent(
-            parameters ->
-                toolDef.put("schema", jsonValueMapToObject(parameters._additionalProperties())));
+      .description()
+      .ifPresent(desc -> toolDef.put("description", desc));
+    functionTool
+      .parameters()
+      .ifPresent(parameters -> toolDef.put(
+          "schema",
+          jsonValueMapToObject(parameters._additionalProperties())
+      ));
     return toolDef;
   }
 
@@ -208,10 +207,9 @@ public class ResponseDecorator {
       }
     }
 
-    String name =
-        functionObj == null
-            ? getJsonString(toolObj.get("name"))
-            : getJsonString(functionObj.get("name"));
+    String name = functionObj == null
+        ? getJsonString(toolObj.get("name"))
+        : getJsonString(functionObj.get("name"));
     if (name == null || name.isEmpty()) {
       return null;
     }
@@ -219,10 +217,9 @@ public class ResponseDecorator {
     Map<String, Object> toolDef = new HashMap<>();
     toolDef.put("name", name);
 
-    String description =
-        functionObj == null
-            ? getJsonString(toolObj.get("description"))
-            : getJsonString(functionObj.get("description"));
+    String description = functionObj == null
+        ? getJsonString(toolObj.get("description"))
+        : getJsonString(functionObj.get("description"));
     if (description != null) {
       toolDef.put("description", description);
     }
@@ -322,7 +319,6 @@ public class ResponseDecorator {
 
     Map<String, JsonValue> obj = objOpt.get();
     JsonValue typeValue = obj.get("type");
-
     // Check if it's a function_call
     if (typeValue != null) {
       Optional<String> typeStr = typeValue.asString();
@@ -393,7 +389,6 @@ public class ResponseDecorator {
         }
       }
     }
-
     // Otherwise, it's a regular message with role and content
     JsonValue roleValue = obj.get("role");
     JsonValue contentValue = obj.get("content");
@@ -441,16 +436,16 @@ public class ResponseDecorator {
 
     Optional<String> inputImage =
         content
-            .inputImage()
-            .map(v -> v.imageUrl().orElse(v.fileId().orElse(IMAGE_FALLBACK_MARKER)));
+      .inputImage()
+      .map(v -> v.imageUrl().orElse(v.fileId().orElse(IMAGE_FALLBACK_MARKER)));
     if (inputImage.isPresent()) {
       return inputImage.get();
     }
 
     return content
-        .inputFile()
-        .map(v -> v.fileUrl().orElse(v.fileId().orElse(v.filename().orElse(FILE_FALLBACK_MARKER))))
-        .orElse(null);
+      .inputFile()
+      .map(v -> v.fileUrl().orElse(v.fileId().orElse(v.filename().orElse(FILE_FALLBACK_MARKER))))
+      .orElse(null);
   }
 
   private Optional<Map<String, String>> extractReasoningFromParams(ResponseCreateParams params) {
@@ -464,22 +459,30 @@ public class ResponseDecorator {
     Optional<Reasoning> knownReasoning = reasoningField.asKnown();
     if (knownReasoning.isPresent()) {
       Reasoning reasoning = knownReasoning.get();
-      reasoning.effort().ifPresent(effort -> reasoningMap.put("effort", effort.asString()));
-      reasoning.summary().ifPresent(summary -> reasoningMap.put("summary", summary.asString()));
+      reasoning
+        .effort()
+        .ifPresent(effort -> reasoningMap.put("effort", effort.asString()));
+      reasoning
+        .summary()
+        .ifPresent(summary -> reasoningMap.put("summary", summary.asString()));
     } else {
       Optional<Map<String, JsonValue>> rawObject = reasoningField.asObject();
       if (rawObject.isPresent()) {
         Map<String, JsonValue> obj = rawObject.get();
         JsonValue effortVal = obj.get("effort");
         if (effortVal != null) {
-          effortVal.asString().ifPresent(v -> reasoningMap.put("effort", String.valueOf(v)));
+          effortVal
+            .asString()
+            .ifPresent(v -> reasoningMap.put("effort", String.valueOf(v)));
         }
         JsonValue summaryVal = obj.get("summary");
         if (summaryVal == null) {
           summaryVal = obj.get("generate_summary");
         }
         if (summaryVal != null) {
-          summaryVal.asString().ifPresent(v -> reasoningMap.put("summary", String.valueOf(v)));
+          summaryVal
+            .asString()
+            .ifPresent(v -> reasoningMap.put("summary", String.valueOf(v)));
         }
       }
     }
@@ -516,7 +519,10 @@ public class ResponseDecorator {
     }
 
     List<LLMObs.LLMMessage> outputMessages =
-        extractResponseOutputMessages(response._output().asKnown().orElse(Collections.emptyList()));
+        extractResponseOutputMessages(response
+      ._output()
+      .asKnown()
+      .orElse(Collections.emptyList()));
     if (!outputMessages.isEmpty()) {
       span.setTag(CommonTags.OUTPUT, outputMessages);
     }
@@ -530,63 +536,58 @@ public class ResponseDecorator {
       metadata.put("reasoning", reasoningTag);
     }
 
-    response.maxOutputTokens().ifPresent(v -> metadata.put("max_output_tokens", v));
-    response.temperature().ifPresent(v -> metadata.put("temperature", v));
+    response
+      .maxOutputTokens()
+      .ifPresent(v -> metadata.put("max_output_tokens", v));
+    response
+      .temperature()
+      .ifPresent(v -> metadata.put("temperature", v));
     response.topP().ifPresent(v -> metadata.put("top_p", v));
 
     response
-        ._toolChoice()
-        .asKnown()
-        .ifPresent(
-            toolChoice -> {
-              toolChoice
-                  .options()
-                  .flatMap(v -> v._value().asString())
-                  .ifPresent(v -> metadata.put("tool_choice", v));
-              if (!metadata.containsKey("tool_choice")) {
-                toolChoice
-                    .types()
-                    .map(v -> v.type().toString().toLowerCase())
-                    .ifPresent(v -> metadata.put("tool_choice", v));
-              }
-              if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
-                metadata.put("tool_choice", "function");
-              }
-            });
+      ._toolChoice()
+      .asKnown()
+      .ifPresent(toolChoice -> {
+        toolChoice
+          .options()
+          .flatMap(v -> v._value().asString())
+          .ifPresent(v -> metadata.put("tool_choice", v));
+        if (!metadata.containsKey("tool_choice")) {
+          toolChoice
+            .types()
+            .map(v -> v.type().toString().toLowerCase())
+            .ifPresent(v -> metadata.put("tool_choice", v));
+        }
+        if (!metadata.containsKey("tool_choice") && toolChoice.function().isPresent()) {
+          metadata.put("tool_choice", "function");
+        }
+      });
 
     response
-        ._truncation()
-        .asKnown()
-        .flatMap(t -> t._value().asString())
-        .ifPresent(v -> metadata.put("truncation", v));
+      ._truncation()
+      .asKnown()
+      .flatMap(t -> t._value().asString())
+      .ifPresent(v -> metadata.put("truncation", v));
 
     Map<String, Object> textMap = new HashMap<>();
-    response
-        ._text()
+    response._text().asKnown().ifPresent(textConfig -> {
+      textConfig._format().asKnown().ifPresent(format -> {
+        Map<String, String> formatMap = new HashMap<>();
+        if (format.text().isPresent()) {
+          formatMap.put("type", "text");
+        } else if (format.jsonSchema().isPresent()) {
+          formatMap.put("type", "json_schema");
+        } else if (format.jsonObject().isPresent()) {
+          formatMap.put("type", "json_object");
+        }
+        textMap.put("format", formatMap);
+      });
+      textConfig
+        ._verbosity()
         .asKnown()
-        .ifPresent(
-            textConfig -> {
-              textConfig
-                  ._format()
-                  .asKnown()
-                  .ifPresent(
-                      format -> {
-                        Map<String, String> formatMap = new HashMap<>();
-                        if (format.text().isPresent()) {
-                          formatMap.put("type", "text");
-                        } else if (format.jsonSchema().isPresent()) {
-                          formatMap.put("type", "json_schema");
-                        } else if (format.jsonObject().isPresent()) {
-                          formatMap.put("type", "json_object");
-                        }
-                        textMap.put("format", formatMap);
-                      });
-              textConfig
-                  ._verbosity()
-                  .asKnown()
-                  .flatMap(verbosity -> verbosity._value().asString())
-                  .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
-            });
+        .flatMap(verbosity -> verbosity._value().asString())
+        .ifPresent(verbosity -> textMap.put("verbosity", verbosity));
+    });
     if (!textMap.isEmpty()) {
       metadata.put("text", textMap);
     }
@@ -595,20 +596,15 @@ public class ResponseDecorator {
 
     span.setTag(CommonTags.METADATA, metadata);
 
-    response
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.outputTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
-              span.setTag(
-                  CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
-              span.setTag(
-                  CommonTags.REASONING_OUTPUT_TOKENS,
-                  usage.outputTokensDetails().reasoningTokens());
-            });
+    response._usage().asKnown().ifPresent(usage -> {
+      span.setTag(CommonTags.INPUT_TOKENS, usage.inputTokens());
+      span.setTag(CommonTags.OUTPUT_TOKENS, usage.outputTokens());
+      span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
+      span.setTag(CommonTags.CACHE_READ_INPUT_TOKENS, usage.inputTokensDetails().cachedTokens());
+      span.setTag(CommonTags.REASONING_OUTPUT_TOKENS, usage
+        .outputTokensDetails()
+        .reasoningTokens());
+    });
   }
 
   private void enrichInputWithPromptTracking(AgentSpan span, Response response) {
@@ -646,7 +642,9 @@ public class ResponseDecorator {
   }
 
   private List<Map<String, String>> extractChatTemplate(
-      List<LLMObs.LLMMessage> messages, Map<String, Object> variables) {
+      List<LLMObs.LLMMessage> messages,
+      Map<String, Object> variables
+  ) {
     Map<String, String> valueToPlaceholder = new LinkedHashMap<>();
     for (Map.Entry<String, Object> variable : variables.entrySet()) {
       if (variable.getValue() == null) {
@@ -686,22 +684,22 @@ public class ResponseDecorator {
   }
 
   private List<LLMObs.LLMMessage> extractInputMessagesForPromptTracking(
-      AgentSpan span, Response response) {
+      AgentSpan span,
+      Response response
+  ) {
     List<LLMObs.LLMMessage> messages = new ArrayList<>();
 
     response
-        ._instructions()
-        .asKnown()
-        .ifPresent(
-            instructions -> {
-              for (ResponseInputItem item :
-                  instructions.inputItemList().orElse(Collections.emptyList())) {
-                LLMObs.LLMMessage message = extractInputItemMessage(item);
-                if (message != null) {
-                  messages.add(message);
-                }
-              }
-            });
+      ._instructions()
+      .asKnown()
+      .ifPresent(instructions -> {
+        for (ResponseInputItem item : instructions.inputItemList().orElse(Collections.emptyList())) {
+          LLMObs.LLMMessage message = extractInputItemMessage(item);
+          if (message != null) {
+            messages.add(message);
+          }
+        }
+      });
     return messages;
   }
 
@@ -734,7 +732,10 @@ public class ResponseDecorator {
     if (id != null && !id.isEmpty()) {
       promptMap.put("id", id);
     }
-    prompt._version().asString().ifPresent(version -> promptMap.put("version", version));
+    prompt
+      ._version()
+      .asString()
+      .ifPresent(version -> promptMap.put("version", version));
 
     Optional<ResponsePrompt.Variables> typedVariablesOpt = prompt._variables().asKnown();
     if (typedVariablesOpt.isPresent()) {
@@ -864,8 +865,11 @@ public class ResponseDecorator {
         ResponseCustomToolCall customToolCall = customToolCallOpt.get();
         LLMObs.ToolCall toolCall = ToolCallExtractor.getToolCall(customToolCall);
         if (toolCall != null) {
-          messages.add(
-              LLMObs.LLMMessage.from("assistant", null, Collections.singletonList(toolCall)));
+          messages.add(LLMObs.LLMMessage.from(
+              "assistant",
+              null,
+              Collections.singletonList(toolCall)
+          ));
         }
         continue;
       }
@@ -900,13 +904,12 @@ public class ResponseDecorator {
         try (JsonWriter writer = new JsonWriter()) {
           writer.beginObject();
 
-          String summaryText =
-              reasoning
-                  ._summary()
-                  .asKnown()
-                  .filter(summary -> !summary.isEmpty())
-                  .flatMap(summary -> summary.get(0)._text().asString())
-                  .orElse(null);
+          String summaryText = reasoning
+            ._summary()
+            .asKnown()
+            .filter(summary -> !summary.isEmpty())
+            .flatMap(summary -> summary.get(0)._text().asString())
+            .orElse(null);
           writer.name("summary");
           if (summaryText != null && !summaryText.isEmpty()) {
             writer.value(summaryText);
@@ -938,7 +941,9 @@ public class ResponseDecorator {
     StringBuilder contentBuilder = new StringBuilder();
     for (ResponseOutputMessage.Content content :
         message._content().asKnown().orElse(Collections.emptyList())) {
-      content.outputText().ifPresent(outputText -> contentBuilder.append(outputText.text()));
+      content
+        .outputText()
+        .ifPresent(outputText -> contentBuilder.append(outputText.text()));
     }
     String result = contentBuilder.toString();
     return result.isEmpty() ? null : result;

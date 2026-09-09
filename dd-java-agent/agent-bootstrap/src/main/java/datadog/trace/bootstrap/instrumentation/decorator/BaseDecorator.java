@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -29,30 +28,25 @@ import org.slf4j.LoggerFactory;
 @ParametersAreNonnullByDefault
 public abstract class BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(BaseDecorator.class);
-
   protected static final int UNSET_PORT = 0;
-
-  private static final QualifiedClassNameCache CLASS_NAMES =
-      new QualifiedClassNameCache(
-          new Function<Class<?>, CharSequence>() {
-            @Override
-            public String apply(Class<?> clazz) {
-              String simpleName = clazz.getSimpleName();
-              if (simpleName.isEmpty()) {
-                String name = clazz.getName();
-                int start = name.lastIndexOf('.');
-                return name.substring(start + 1);
-              }
-              return simpleName;
-            }
-          },
-          Functions.PrefixJoin.of("."));
-
+  private static final QualifiedClassNameCache CLASS_NAMES = new QualifiedClassNameCache(
+      new Function<Class<?>, CharSequence>() {
+        @Override
+        public String apply(Class<?> clazz) {
+          String simpleName = clazz.getSimpleName();
+          if (simpleName.isEmpty()) {
+            String name = clazz.getName();
+            int start = name.lastIndexOf('.');
+            return name.substring(start + 1);
+          }
+          return simpleName;
+        }
+      },
+      Functions.PrefixJoin.of(".")
+  );
   protected final boolean traceAnalyticsEnabled;
   protected final double traceAnalyticsSampleRate;
-
   private final TagMap.Entry traceAnalyticsEntry;
-
   // Deliberately not volatile, reading null and repeating the calculation is safe
   private TagMap.Entry cachedComponentEntry = null;
 
@@ -60,18 +54,16 @@ public abstract class BaseDecorator {
     final Config config = Config.get();
     final String[] instrumentationNames = instrumentationNames();
 
-    this.traceAnalyticsEnabled =
-        instrumentationNames.length > 0
-            && config.isTraceAnalyticsIntegrationEnabled(
-                traceAnalyticsDefault(), instrumentationNames);
+    this.traceAnalyticsEnabled = instrumentationNames.length > 0
+        && config.isTraceAnalyticsIntegrationEnabled(traceAnalyticsDefault(), instrumentationNames);
 
-    this.traceAnalyticsSampleRate =
-        (double) config.getInstrumentationAnalyticsSampleRate(instrumentationNames);
+    this.traceAnalyticsSampleRate = (double) config.getInstrumentationAnalyticsSampleRate(
+        instrumentationNames
+    );
 
-    this.traceAnalyticsEntry =
-        this.traceAnalyticsEnabled
-            ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
-            : null;
+    this.traceAnalyticsEntry = this.traceAnalyticsEnabled
+        ? TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, traceAnalyticsSampleRate)
+        : null;
   }
 
   protected abstract String[] instrumentationNames();
@@ -80,12 +72,13 @@ public abstract class BaseDecorator {
 
   protected abstract CharSequence component();
 
-  /** Caches the component TagMap.Entry, so it isn't recreated for every trace */
+  /**
+   * Caches the component TagMap.Entry, so it isn't recreated for every trace
+   */
   protected final TagMap.Entry componentEntry() {
     // DQH = Tried calling component() in the constructor, but that had issues with static
     // field ordering.  That was caught be an integration test, but I didn't want to risk
     // breaking other integrations where the test is not as thorough.
-
     // This approach while more complicated doesn't have any field initialization ordering issues.
     TagMap.Entry componentEntry = cachedComponentEntry;
     if (componentEntry == null) {
@@ -114,12 +107,10 @@ public abstract class BaseDecorator {
     }
 
     span.setTag(componentEntry());
-
     // DQH - Could retrieve the value from componentEntry and cast to avoid the virtual call,
     // unclear which option is better here
     final CharSequence component = component();
     span.spanContext().setIntegrationName(component);
-
     // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);
   }
@@ -159,7 +150,10 @@ public abstract class BaseDecorator {
   }
 
   public final void onError(
-      @Nullable final AgentSpan span, @Nullable final Throwable throwable, byte errorPriority) {
+      @Nullable final AgentSpan span,
+      @Nullable final Throwable throwable,
+      byte errorPriority
+  ) {
     if (span != null && throwable != null) {
       try {
         doOnError(span, throwable, errorPriority);
@@ -171,8 +165,7 @@ public abstract class BaseDecorator {
     }
   }
 
-  public final void onError(
-      @Nullable final ContextScope scope, @Nullable final Throwable throwable) {
+  public final void onError(@Nullable final ContextScope scope, @Nullable final Throwable throwable) {
     if (scope != null) {
       onError(AgentSpan.fromContext(scope.context()), throwable);
     }
@@ -180,11 +173,15 @@ public abstract class BaseDecorator {
 
   protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
     span.addThrowable(
-        throwable instanceof ExecutionException ? throwable.getCause() : throwable, errorPriority);
+        throwable instanceof ExecutionException ? throwable.getCause() : throwable,
+        errorPriority
+    );
   }
 
   public final void onPeerConnection(
-      final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
+      final AgentSpan span,
+      @Nullable final InetSocketAddress remoteConnection
+  ) {
     if (remoteConnection != null) {
       onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
       setPeerPort(span, remoteConnection.getPort());
@@ -192,12 +189,17 @@ public abstract class BaseDecorator {
   }
 
   public final void onPeerConnection(
-      final AgentSpan span, @Nullable final InetAddress remoteAddress) {
+      final AgentSpan span,
+      @Nullable final InetAddress remoteAddress
+  ) {
     onPeerConnection(span, remoteAddress, true);
   }
 
   public final void onPeerConnection(
-      AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
+      AgentSpan span,
+      @Nullable InetAddress remoteAddress,
+      boolean resolved
+  ) {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {

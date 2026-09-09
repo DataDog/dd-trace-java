@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.iast;
 
 public class WithHardcodedSecret {
-
   private static final int NUMBER = 1;
   private static final String FOO = "foo";
 

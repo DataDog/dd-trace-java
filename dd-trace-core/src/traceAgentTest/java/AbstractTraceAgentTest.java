@@ -2,7 +2,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.config.TracerConfig.AGENT_HOST;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
 import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSysConfig;
-
 import datadog.trace.test.util.DDJavaSpecification;
 import java.time.Duration;
 import java.util.HashMap;
@@ -14,7 +13,6 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.startupcheck.MinimumDurationRunningStartupCheckStrategy;
 
 abstract class AbstractTraceAgentTest extends DDJavaSpecification {
-
   private static GenericContainer<?> agentContainer;
 
   @BeforeAll
@@ -29,17 +27,14 @@ abstract class AbstractTraceAgentTest extends DDJavaSpecification {
       env.put("DD_API_KEY", "invalid_key_but_this_is_fine");
       env.put("DD_HOSTNAME", "doesnotexist");
       env.put("DD_LOGS_STDOUT", "yes");
-      agentContainer =
-          new GenericContainer<>("datadog/agent:7.40.1")
-              .withEnv(env)
-              .withExposedPorts(DEFAULT_TRACE_AGENT_PORT)
-              .withStartupTimeout(Duration.ofSeconds(120))
-              // Apparently we need to sleep for a bit so agent's response
-              // `{"service:,env:":1}` in rate_by_service.
-              // This is clearly a race-condition and maybe we should avoid verifying complete
-              // response
-              .withStartupCheckStrategy(
-                  new MinimumDurationRunningStartupCheckStrategy(Duration.ofSeconds(10)));
+      agentContainer = new GenericContainer<>("datadog/agent:7.40.1")
+        .withEnv(env)
+        .withExposedPorts(DEFAULT_TRACE_AGENT_PORT)
+        .withStartupTimeout(Duration.ofSeconds(120))
+        // response
+        .withStartupCheckStrategy(
+            new MinimumDurationRunningStartupCheckStrategy(Duration.ofSeconds(10))
+        );
       agentContainer.start();
     }
   }

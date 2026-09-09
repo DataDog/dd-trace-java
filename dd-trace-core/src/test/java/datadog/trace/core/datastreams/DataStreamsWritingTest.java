@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.OkHttpUtils;
@@ -49,9 +48,7 @@ import org.msgpack.core.MessageUnpacker;
  * DataStreamsIntegrationTest
  */
 public class DataStreamsWritingTest extends DDCoreJavaSpecification {
-
   private static long defaultBucketDurationNanos;
-
   private static JavaTestHttpServer server;
   private static HttpUrl serverAddress;
   private static List<byte[]> requestBodies;
@@ -60,17 +57,10 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
   static void startServer() {
     defaultBucketDurationNanos = Config.get().getDataStreamsBucketDurationNanoseconds();
     requestBodies = new CopyOnWriteArrayList<>();
-    server =
-        JavaTestHttpServer.httpServer(
-            s ->
-                s.handlers(
-                    h ->
-                        h.post(
-                            DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
-                            api -> {
-                              requestBodies.add(api.getRequest().getBody());
-                              api.getResponse().status(200).send();
-                            })));
+    server = JavaTestHttpServer.httpServer(s -> s.handlers(h -> h.post(DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT, api -> {
+      requestBodies.add(api.getRequest().getBody());
+      api.getResponse().status(200).send();
+    })));
     serverAddress = HttpUrl.get(server.getAddress());
   }
 
@@ -96,9 +86,14 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void serviceOverridesSplitBuckets() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid",
+        "hostname",
+        "test",
+        Config.get().getServiceName(),
+        "version",
+        "java"
+    );
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -118,8 +113,7 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     String serviceNameOverride = "service-name-override";
 
     DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+        new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
     dataStreams.setThreadServiceName(serviceNameOverride);
     dataStreams.add(
@@ -132,9 +126,13 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             0,
             0,
             0,
-            serviceNameOverride));
+            serviceNameOverride
+        )
+    );
     dataStreams.trackBacklog(
-        DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 130);
+        DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null),
+        130
+    );
     timeSource.advance(defaultBucketDurationNanos);
     // force flush
     dataStreams.report();
@@ -156,15 +154,21 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @ParameterizedTest(name = "Write bucket to mock server with process tags enabled {0}")
   @ValueSource(booleans = {true, false})
-  void writeBucketToMockServer(boolean processTagsEnabled)
-      throws InterruptedException, IOException {
+  void writeBucketToMockServer(boolean processTagsEnabled) throws InterruptedException, IOException {
     WithConfigExtension.injectSysConfig(
-        EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, Boolean.toString(processTagsEnabled));
+        EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
+        Boolean.toString(processTagsEnabled)
+    );
     ProcessTags.reset(Config.get());
 
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid",
+        "hostname",
+        "test",
+        Config.get().getServiceName(),
+        "version",
+        "java"
+    );
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -183,8 +187,7 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
     DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+        new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     try {
       dataStreams.start();
       dataStreams.add(
@@ -197,11 +200,18 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               0,
               0,
               0,
-              null));
+              null
+          )
+      );
       dataStreams.add(
           new StatsPoint(
               DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
+                  "testType",
+                  DataStreamsTags.Direction.INBOUND,
+                  "testTopic",
+                  "testGroup",
+                  null
+              ),
               1,
               2,
               5,
@@ -209,16 +219,27 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               0,
               0,
               0,
-              null));
+              null
+          )
+      );
       dataStreams.trackBacklog(
-          DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 100);
+          DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null),
+          100
+      );
       dataStreams.trackBacklog(
-          DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null), 130);
+          DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "1", null, null),
+          130
+      );
       timeSource.advance(defaultBucketDurationNanos - 100L);
       dataStreams.add(
           new StatsPoint(
               DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
+                  "testType",
+                  DataStreamsTags.Direction.INBOUND,
+                  "testTopic",
+                  "testGroup",
+                  null
+              ),
               1,
               2,
               5,
@@ -226,12 +247,19 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               SECONDS.toNanos(10),
               SECONDS.toNanos(10),
               10,
-              null));
+              null
+          )
+      );
       timeSource.advance(defaultBucketDurationNanos);
       dataStreams.add(
           new StatsPoint(
               DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic", "testGroup", null),
+                  "testType",
+                  DataStreamsTags.Direction.INBOUND,
+                  "testTopic",
+                  "testGroup",
+                  null
+              ),
               1,
               2,
               5,
@@ -239,11 +267,18 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               SECONDS.toNanos(5),
               SECONDS.toNanos(5),
               5,
-              null));
+              null
+          )
+      );
       dataStreams.add(
           new StatsPoint(
               DataStreamsTags.create(
-                  "testType", DataStreamsTags.Direction.INBOUND, "testTopic2", "testGroup", null),
+                  "testType",
+                  DataStreamsTags.Direction.INBOUND,
+                  "testTopic2",
+                  "testGroup",
+                  null
+              ),
               3,
               4,
               6,
@@ -251,7 +286,9 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               SECONDS.toNanos(2),
               0,
               2,
-              null));
+              null
+          )
+      );
       timeSource.advance(defaultBucketDurationNanos);
       dataStreams.close();
 
@@ -266,9 +303,14 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void writeKafkaConfigsToMockServer() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid",
+        "hostname",
+        "test",
+        Config.get().getServiceName(),
+        "version",
+        "java"
+    );
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -287,10 +329,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
     DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+        new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
-
     // Report a producer and consumer config
     Map<String, String> producerConfig = new HashMap<>();
     producerConfig.put("bootstrap.servers", "localhost:9092");
@@ -303,7 +343,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     consumerConfig.put("group.id", "test-group");
     consumerConfig.put("auto.offset.reset", "earliest");
     dataStreams.reportKafkaConfig("kafka_consumer", "", "test-group", consumerConfig);
-
     // Also add a stats point so the bucket is not empty of stats
     dataStreams.add(
         new StatsPoint(
@@ -315,7 +354,9 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             0,
             0,
             0,
-            null));
+            null
+        )
+    );
 
     timeSource.advance(defaultBucketDurationNanos);
     dataStreams.close();
@@ -326,9 +367,14 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void writeKafkaConsumerGroupMemberToMockServer() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid",
+        "hostname",
+        "test",
+        Config.get().getServiceName(),
+        "version",
+        "java"
+    );
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -347,12 +393,16 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
     DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+        new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
 
     dataStreams.reportKafkaConsumerGroupMember(
-        "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
+        "cluster-1",
+        "test-group",
+        "consumer-1-abc123",
+        7,
+        "range"
+    );
 
     dataStreams.add(
         new StatsPoint(
@@ -364,7 +414,9 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             0,
             0,
             0,
-            null));
+            null
+        )
+    );
 
     timeSource.advance(defaultBucketDurationNanos);
     dataStreams.close();
@@ -375,9 +427,14 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
 
   @Test
   void duplicateKafkaConfigsAreEachSerializedInPayload() throws InterruptedException, IOException {
-    WellKnownTags wellKnownTags =
-        new WellKnownTags(
-            "runtimeid", "hostname", "test", Config.get().getServiceName(), "version", "java");
+    WellKnownTags wellKnownTags = new WellKnownTags(
+        "runtimeid",
+        "hostname",
+        "test",
+        Config.get().getServiceName(),
+        "version",
+        "java"
+    );
     Config fakeConfig = mock(Config.class);
     when(fakeConfig.getAgentUrl()).thenReturn(serverAddress.toString());
     when(fakeConfig.getWellKnownTags()).thenReturn(wellKnownTags);
@@ -396,17 +453,14 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     when(traceConfig.isDataStreamsEnabled()).thenReturn(true);
 
     DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
+        new DefaultDataStreamsMonitoring(fakeConfig, sharedCommObjects, timeSource, () -> traceConfig);
     dataStreams.start();
-
     // Report the same producer config twice — both should be serialized
     Map<String, String> producerConfig = new HashMap<>();
     producerConfig.put("bootstrap.servers", "localhost:9092");
     producerConfig.put("acks", "all");
     dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig);
     dataStreams.reportKafkaConfig("kafka_producer", "", "", producerConfig);
-
     // Also add a stats point so the bucket has content
     dataStreams.add(
         new StatsPoint(
@@ -418,7 +472,9 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             0,
             0,
             0,
-            null));
+            null
+        )
+    );
 
     timeSource.advance(defaultBucketDurationNanos);
     dataStreams.close();
@@ -431,7 +487,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     GzipSource gzipSource = new GzipSource(Okio.source(new ByteArrayInputStream(message)));
     BufferedSource bufferedSource = Okio.buffer(gzipSource);
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(bufferedSource.inputStream());
-
     // Outer map (same structure as other payloads)
     int outerMapSize = unpacker.unpackMapHeader();
     // Skip to Stats array
@@ -442,7 +497,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
         foundStats = true;
         int numBuckets = unpacker.unpackArrayHeader();
         assertTrue(numBuckets >= 1);
-
         // Parse first bucket
         int bucketMapSize = unpacker.unpackMapHeader();
         boolean foundConfigs = false;
@@ -452,7 +506,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
             foundConfigs = true;
             int numConfigs = unpacker.unpackArrayHeader();
             assertEquals(2, numConfigs);
-
             // Collect configs in a map keyed by type
             Map<String, Map<String, String>> configsByType = new HashMap<>();
             for (int n = 0; n < numConfigs; n++) {
@@ -460,9 +513,11 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               assertEquals("Type", unpacker.unpackString());
               String type = unpacker.unpackString();
               assertEquals("KafkaClusterId", unpacker.unpackString());
-              unpacker.unpackString(); // skip cluster id value
+              // skip cluster id value
+              unpacker.unpackString();
               assertEquals("ConsumerGroup", unpacker.unpackString());
-              unpacker.unpackString(); // skip consumer group value
+              // skip consumer group value
+              unpacker.unpackString();
               assertEquals("MemberId", unpacker.unpackString());
               unpacker.unpackString();
               assertEquals("GenerationId", unpacker.unpackString());
@@ -479,18 +534,20 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               }
               configsByType.put(type, configEntries);
             }
-
             // Verify producer config
             assertTrue(configsByType.containsKey("kafka_producer"));
             assertEquals(
-                "localhost:9092", configsByType.get("kafka_producer").get("bootstrap.servers"));
+                "localhost:9092",
+                configsByType.get("kafka_producer").get("bootstrap.servers")
+            );
             assertEquals("all", configsByType.get("kafka_producer").get("acks"));
             assertEquals("5", configsByType.get("kafka_producer").get("linger.ms"));
-
             // Verify consumer config
             assertTrue(configsByType.containsKey("kafka_consumer"));
             assertEquals(
-                "localhost:9092", configsByType.get("kafka_consumer").get("bootstrap.servers"));
+                "localhost:9092",
+                configsByType.get("kafka_consumer").get("bootstrap.servers")
+            );
             assertEquals("test-group", configsByType.get("kafka_consumer").get("group.id"));
             assertEquals("earliest", configsByType.get("kafka_consumer").get("auto.offset.reset"));
           } else {
@@ -498,7 +555,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
           }
         }
         assertTrue(foundConfigs, "Configs field not found in bucket");
-
         // Skip remaining buckets
         for (int b = 1; b < numBuckets; b++) {
           unpacker.skipValue();
@@ -577,7 +633,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
         foundStats = true;
         int numBuckets = unpacker.unpackArrayHeader();
         assertTrue(numBuckets >= 1);
-
         // Parse first bucket
         int bucketMapSize = unpacker.unpackMapHeader();
         boolean foundConfigs = false;
@@ -594,9 +649,11 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
               assertEquals("Type", unpacker.unpackString());
               assertEquals("kafka_producer", unpacker.unpackString());
               assertEquals("KafkaClusterId", unpacker.unpackString());
-              unpacker.unpackString(); // skip cluster id value
+              // skip cluster id value
+              unpacker.unpackString();
               assertEquals("ConsumerGroup", unpacker.unpackString());
-              unpacker.unpackString(); // skip consumer group value
+              // skip consumer group value
+              unpacker.unpackString();
               assertEquals("MemberId", unpacker.unpackString());
               unpacker.unpackString();
               assertEquals("GenerationId", unpacker.unpackString());
@@ -649,8 +706,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     assertEquals("Version", unpacker.unpackString());
     assertEquals("version", unpacker.unpackString());
     assertEquals("Stats", unpacker.unpackString());
-    assertEquals(2, unpacker.unpackArrayHeader()); // 2 time buckets
-
+    // 2 time buckets
+    assertEquals(2, unpacker.unpackArrayHeader());
     // FIRST BUCKET
     assertEquals(4, unpacker.unpackMapHeader());
     assertEquals("Start", unpacker.unpackString());
@@ -658,8 +715,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     assertEquals("Duration", unpacker.unpackString());
     assertEquals(defaultBucketDurationNanos, unpacker.unpackLong());
     assertEquals("Stats", unpacker.unpackString());
-    assertEquals(2, unpacker.unpackArrayHeader()); // 2 groups in first bucket
-
+    // 2 groups in first bucket
+    assertEquals(2, unpacker.unpackArrayHeader());
     // we don't know the order the groups will be reported
     Set<Integer> availableSizes = new HashSet<>();
     availableSizes.add(5);
@@ -699,7 +756,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
         assertEquals("group:testGroup", unpacker.unpackString());
       }
     }
-
     // Kafka stats
     assertEquals("Backlogs", unpacker.unpackString());
     assertEquals(1, unpacker.unpackArrayHeader());
@@ -711,7 +767,6 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     assertEquals("partition:1", unpacker.unpackString());
     assertEquals("Value", unpacker.unpackString());
     assertEquals(130L, unpacker.unpackLong());
-
     // SECOND BUCKET
     assertEquals(3, unpacker.unpackMapHeader());
     assertEquals("Start", unpacker.unpackString());
@@ -719,8 +774,8 @@ public class DataStreamsWritingTest extends DDCoreJavaSpecification {
     assertEquals("Duration", unpacker.unpackString());
     assertEquals(defaultBucketDurationNanos, unpacker.unpackLong());
     assertEquals("Stats", unpacker.unpackString());
-    assertEquals(2, unpacker.unpackArrayHeader()); // 2 groups in second bucket
-
+    // 2 groups in second bucket
+    assertEquals(2, unpacker.unpackArrayHeader());
     // we don't know the order the groups will be reported
     Set<Long> availableHashes = new HashSet<>();
     availableHashes.add(1L);

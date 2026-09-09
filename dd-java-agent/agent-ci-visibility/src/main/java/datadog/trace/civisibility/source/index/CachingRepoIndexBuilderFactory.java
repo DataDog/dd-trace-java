@@ -7,7 +7,6 @@ import java.nio.file.FileSystem;
 import javax.annotation.Nullable;
 
 public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory {
-
   private final DDCache<String, RepoIndexProvider> cache = DDCaches.newFixedSizeCache(8);
   private final Config config;
   private final PackageResolver packageResolver;
@@ -18,7 +17,8 @@ public class CachingRepoIndexBuilderFactory implements RepoIndexProvider.Factory
       Config config,
       PackageResolver packageResolver,
       ResourceResolver resourceResolver,
-      FileSystem fileSystem) {
+      FileSystem fileSystem
+  ) {
     this.config = config;
     this.packageResolver = packageResolver;
     this.resourceResolver = resourceResolver;

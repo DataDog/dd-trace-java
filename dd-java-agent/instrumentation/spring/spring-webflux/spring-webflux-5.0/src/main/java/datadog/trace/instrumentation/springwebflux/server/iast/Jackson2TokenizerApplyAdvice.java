@@ -21,7 +21,8 @@ class Jackson2TokenizerApplyAdvice {
   public static void after(
       @Advice.Argument(0) DataBuffer dataBuffer,
       @Advice.Return(readOnly = false) Flux<TokenBuffer> flux,
-      @ActiveRequestContext RequestContext reqCtx) {
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     PropagationModule propagation = InstrumentationBridge.PROPAGATION;
     if (propagation == null || flux == null || dataBuffer == null) {
       return;

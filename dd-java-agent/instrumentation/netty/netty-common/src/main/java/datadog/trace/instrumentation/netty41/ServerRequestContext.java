@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty41;
 
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.netty.util.AttributeKey;
@@ -11,7 +10,9 @@ import java.util.Deque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Per-request server state stored on the channel until the matching response is written. */
+/**
+ * Per-request server state stored on the channel until the matching response is written.
+ */
 public final class ServerRequestContext {
   /**
    * Returns whether a new server request can be tracked on this channel (and may disable server
@@ -23,9 +24,14 @@ public final class ServerRequestContext {
     return contexts == null || canAdd(attributes, contexts);
   }
 
-  /** Adds a request context to the queue tail. */
+  /**
+   * Adds a request context to the queue tail.
+   */
   public static ServerRequestContext add(
-      final AttributeMap attributes, final Context context, final String acceptHeader) {
+      final AttributeMap attributes,
+      final Context context,
+      final String acceptHeader
+  ) {
     final Deque<ServerRequestContext> contexts = getOrCreate(attributes);
     if (!canAdd(attributes, contexts)) {
       return null;
@@ -40,7 +46,9 @@ public final class ServerRequestContext {
     return serverContext;
   }
 
-  /** Returns the server request context for the next response. */
+  /**
+   * Returns the server request context for the next response.
+   */
   public static ServerRequestContext nextResponse(final AttributeMap attributes) {
     final Deque<ServerRequestContext> contexts =
         attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
@@ -49,16 +57,22 @@ public final class ServerRequestContext {
     return contexts == null || isPoisoned(contexts) ? null : contexts.peekFirst();
   }
 
-  /** Returns the server request context for the current inbound request. */
+  /**
+   * Returns the server request context for the current inbound request.
+   */
   public static ServerRequestContext currentRequest(final AttributeMap attributes) {
     final Deque<ServerRequestContext> contexts =
         attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
     return contexts == null || isPoisoned(contexts) ? null : contexts.peekLast();
   }
 
-  /** Returns whether the request context is still awaiting a response on this channel. */
+  /**
+   * Returns whether the request context is still awaiting a response on this channel.
+   */
   public static boolean isPending(
-      final AttributeMap attributes, final ServerRequestContext serverContext) {
+      final AttributeMap attributes,
+      final ServerRequestContext serverContext
+  ) {
     if (serverContext == null) {
       return false;
     }
@@ -67,29 +81,38 @@ public final class ServerRequestContext {
     return contexts != null && !isPoisoned(contexts) && contexts.contains(serverContext);
   }
 
-  /** Returns whether a request block is closing the channel. */
+  /**
+   * Returns whether a request block is closing the channel.
+   */
   public static boolean isRequestBlocked(final AttributeMap attributes) {
     return attributes.attr(BLOCKED_REQUEST_ATTRIBUTE_KEY).get() != null;
   }
 
-  /** Marks the channel as closing after an AppSec request block. */
+  /**
+   * Marks the channel as closing after an AppSec request block.
+   */
   public static void markRequestBlocked(final AttributeMap attributes) {
     attributes.attr(BLOCKED_REQUEST_ATTRIBUTE_KEY).set(Boolean.TRUE);
   }
 
-  /** Returns whether the channel is closing after an AppSec response block. */
+  /**
+   * Returns whether the channel is closing after an AppSec response block.
+   */
   public static boolean isResponseBlocked(final AttributeMap attributes) {
     return attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).get() != null;
   }
 
-  /** Marks the channel as closing after an AppSec response block. */
+  /**
+   * Marks the channel as closing after an AppSec response block.
+   */
   public static void markResponseBlocked(final AttributeMap attributes) {
     attributes.attr(BLOCKED_RESPONSE_ATTRIBUTE_KEY).set(Boolean.TRUE);
   }
 
-  /** Removes a completed or failed request context. */
-  public static void remove(
-      final AttributeMap attributes, final ServerRequestContext serverContext) {
+  /**
+   * Removes a completed or failed request context.
+   */
+  public static void remove(final AttributeMap attributes, final ServerRequestContext serverContext) {
     if (serverContext == null) {
       return;
     }
@@ -127,12 +150,16 @@ public final class ServerRequestContext {
     }
   }
 
-  /** Closes all pending request contexts on channel close. */
+  /**
+   * Closes all pending request contexts on channel close.
+   */
   public static void closeAll(final AttributeMap attributes) {
     close(removeAll(attributes));
   }
 
-  /** Removes all pending request contexts. */
+  /**
+   * Removes all pending request contexts.
+   */
   public static Deque<ServerRequestContext> removeAll(final AttributeMap attributes) {
     // The context mirror must not outlive the authoritative request queue.
     attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
@@ -142,23 +169,21 @@ public final class ServerRequestContext {
   }
 
   private static final int PIPELINING_LIMIT = 1000;
-
   private static final Logger log = LoggerFactory.getLogger(ServerRequestContext.class);
-
-  /** Pending server request contexts for a channel. */
-  private static final AttributeKey<Deque<ServerRequestContext>>
-      SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY =
-          AttributeKeys.attributeKey("datadog.server.request.contexts");
-
+  /**
+   * Pending server request contexts for a channel.
+   */
+  private static final AttributeKey<Deque<ServerRequestContext>> SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY =
+      AttributeKeys.attributeKey("datadog.server.request.contexts");
   private static final AttributeKey<Boolean> BLOCKED_RESPONSE_ATTRIBUTE_KEY =
       AttributeKeys.attributeKey("datadog.server.blocked_response");
-
   private static final AttributeKey<Boolean> BLOCKED_REQUEST_ATTRIBUTE_KEY =
       AttributeKeys.attributeKey("datadog.server.blocked_request");
-
   private static final Deque<ServerRequestContext> POISONED_CONTEXTS = new ArrayDeque<>(0);
 
-  /** Creates the per-channel server request context queue. */
+  /**
+   * Creates the per-channel server request context queue.
+   */
   private static Deque<ServerRequestContext> getOrCreate(final AttributeMap attributes) {
     Deque<ServerRequestContext> contexts =
         attributes.attr(SERVER_REQUEST_CONTEXTS_ATTRIBUTE_KEY).get();
@@ -191,7 +216,9 @@ public final class ServerRequestContext {
   }
 
   private static boolean canAdd(
-      final AttributeMap attributes, final Deque<ServerRequestContext> contexts) {
+      final AttributeMap attributes,
+      final Deque<ServerRequestContext> contexts
+  ) {
     if (isPoisoned(contexts)) {
       return false;
     }
@@ -204,10 +231,11 @@ public final class ServerRequestContext {
       attributes.attr(CONTEXT_ATTRIBUTE_KEY).remove();
       log.error(
           "Too many pending Netty server request contexts on a channel; "
-              + "closing {} contexts and disabling Netty server tracing on that channel "
-              + "(limit: {})",
+          + "closing {} contexts and disabling Netty server tracing on that channel "
+          + "(limit: {})",
           pendingContexts,
-          PIPELINING_LIMIT);
+          PIPELINING_LIMIT
+      );
       return false;
     }
     return true;

@@ -1,7 +1,6 @@
 package datadog.trace.test.agent.decoder.json.raw;
 
 import static java.util.Collections.unmodifiableList;
-
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
@@ -29,22 +28,21 @@ import java.util.Map;
  */
 public final class MessageJson implements DecodedMessage {
   private static final Type LIST_OF_TRACES =
-      Types.newParameterizedType(
-          List.class, Types.newParameterizedType(List.class, SpanJson.class));
-  private static final JsonAdapter<List<List<SpanJson>>> ADAPTER =
-      new Moshi.Builder()
-          .add(new MetricNumberAdapter())
-          .add(new MetaStructObjectAdapter())
-          .build()
-          .adapter(LIST_OF_TRACES);
-
+      Types.newParameterizedType(List.class, Types.newParameterizedType(List.class, SpanJson.class));
+  private static final JsonAdapter<List<List<SpanJson>>> ADAPTER = new Moshi.Builder()
+    .add(new MetricNumberAdapter())
+    .add(new MetaStructObjectAdapter())
+    .build()
+    .adapter(LIST_OF_TRACES);
   private final List<DecodedTrace> traces;
 
   private MessageJson(List<DecodedTrace> traces) {
     this.traces = unmodifiableList(traces);
   }
 
-  /** Decodes a JSON trace payload into a {@link MessageJson}. */
+  /**
+   * Decodes a JSON trace payload into a {@link MessageJson}.
+   */
   public static MessageJson fromJson(String json) {
     List<List<SpanJson>> rawTraces;
     try {
@@ -70,8 +68,9 @@ public final class MessageJson implements DecodedMessage {
               || span.duration == null) {
             throw new IllegalStateException(
                 "JSON span missing a required v0.4 field "
-                    + "(name, trace_id, span_id, start, duration): "
-                    + span);
+                + "(name, trace_id, span_id, start, duration): "
+                + span
+            );
           }
           span.resolveLinks();
           decodedSpans.add(span);

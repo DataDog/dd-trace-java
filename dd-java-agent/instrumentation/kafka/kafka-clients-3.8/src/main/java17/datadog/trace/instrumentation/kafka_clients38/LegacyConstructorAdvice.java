@@ -20,7 +20,8 @@ public class LegacyConstructorAdvice {
       @Advice.This ConsumerDelegate consumer,
       @Advice.Argument(0) ConsumerConfig consumerConfig,
       @Advice.FieldValue("coordinator") ConsumerCoordinator coordinator,
-      @Advice.FieldValue("metadata") Metadata metadata) {
+      @Advice.FieldValue("metadata") Metadata metadata
+  ) {
     ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
     String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
     String normalizedConsumerGroup =
@@ -41,20 +42,25 @@ public class LegacyConstructorAdvice {
     // new - search for the ConsumerDelegate instead of KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup().isPresent()
         || kafkaConsumerInfo.getmetadata().isPresent()) {
-      InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
-          .put(consumer, kafkaConsumerInfo);
+      InstrumentationContext
+        .get(ConsumerDelegate.class, KafkaConsumerInfo.class)
+        .put(consumer, kafkaConsumerInfo);
       if (coordinator != null) {
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .put(coordinator, kafkaConsumerInfo);
+        InstrumentationContext
+          .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+          .put(coordinator, kafkaConsumerInfo);
       }
     }
 
     if (Config.get().isDataStreamsEnabled()) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext
+        .get(Metadata.class, MetadataState.class)
+        .getOrCreate(metadata, MetadataState::new);
       KafkaConfigHelper.storePendingConsumerConfig(
-          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+          state,
+          normalizedConsumerGroup,
+          KafkaConfigHelper.extractConsumerConfig(consumerConfig)
+      );
     }
   }
 

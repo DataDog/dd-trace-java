@@ -24,11 +24,12 @@ import java.util.Date;
 import javax.annotation.Nonnull;
 import javax.management.ObjectName;
 
-/** Implementation for profiling recordings. */
+/**
+ * Implementation for profiling recordings.
+ */
 public class OracleJdkRecordingData extends RecordingData {
   private final ObjectName recordingId;
   private final String name;
-
   private final JfrMBeanHelper helper;
 
   OracleJdkRecordingData(
@@ -37,7 +38,8 @@ public class OracleJdkRecordingData extends RecordingData {
       @Nonnull Instant start,
       @Nonnull Instant end,
       @Nonnull Kind kind,
-      @Nonnull JfrMBeanHelper helper) {
+      @Nonnull JfrMBeanHelper helper
+  ) {
     super(start, end, kind);
     this.name = name;
     this.recordingId = recordingId;
@@ -67,7 +69,6 @@ public class OracleJdkRecordingData extends RecordingData {
     private int pos = 0;
     private boolean closed = false;
     private boolean endOfStream = false;
-
     private long streamId = -1L;
 
     @Override
@@ -87,7 +88,8 @@ public class OracleJdkRecordingData extends RecordingData {
 
     private void ensureOpen() throws IOException {
       if (closed) {
-        throw new IOException("Stream closed"); // $NON-NLS-1$
+        // $NON-NLS-1$
+        throw new IOException("Stream closed");
       }
     }
 
@@ -124,9 +126,11 @@ public class OracleJdkRecordingData extends RecordingData {
 
     private void fill() throws IOException {
       if (streamId == -1L) {
-        streamId =
-            helper.openStream(
-                recordingId, new Date(start.toEpochMilli()), new Date(end.toEpochMilli()));
+        streamId = helper.openStream(
+            recordingId,
+            new Date(start.toEpochMilli()),
+            new Date(end.toEpochMilli())
+        );
       }
       buf = helper.readStream(streamId);
       if (buf != null) {

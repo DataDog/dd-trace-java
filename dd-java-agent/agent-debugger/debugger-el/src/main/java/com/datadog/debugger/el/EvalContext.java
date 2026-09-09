@@ -8,7 +8,9 @@ public class EvalContext {
   private final TimeoutChecker timeoutChecker;
 
   public EvalContext(
-      final ValueReferenceResolver valueRefResolver, final TimeoutChecker timeoutChecker) {
+      final ValueReferenceResolver valueRefResolver,
+      final TimeoutChecker timeoutChecker
+  ) {
     this.valueRefResolver = valueRefResolver;
     this.timeoutChecker = timeoutChecker;
   }

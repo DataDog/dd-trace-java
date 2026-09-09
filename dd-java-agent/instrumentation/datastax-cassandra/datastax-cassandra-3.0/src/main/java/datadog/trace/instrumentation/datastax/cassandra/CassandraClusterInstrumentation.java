@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.datastax.driver.core.Cluster;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,8 +19,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CassandraClusterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public CassandraClusterInstrumentation() {
     super("cassandra");
   }
@@ -43,9 +43,7 @@ public class CassandraClusterInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ContactPointsUtil",
-    };
+    return new String[] {packageName + ".ContactPointsUtil"};
   }
 
   @Override
@@ -57,16 +55,19 @@ public class CassandraClusterInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArgument(1, named("java.util.List"))),
-        getClass().getName() + "$CassandraManagerConstructorAdvice");
+        getClass().getName() + "$CassandraManagerConstructorAdvice"
+    );
   }
 
   public static class CassandraManagerConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterConstruct(
-        @Advice.This Cluster self, @Advice.Argument(1) final List<InetSocketAddress> contactPoints)
-        throws Exception {
-      InstrumentationContext.get(Cluster.class, String.class)
-          .put(self, ContactPointsUtil.fromInetSocketList(contactPoints));
+        @Advice.This Cluster self,
+        @Advice.Argument(1) final List<InetSocketAddress> contactPoints
+    ) throws Exception {
+      InstrumentationContext
+        .get(Cluster.class, String.class)
+        .put(self, ContactPointsUtil.fromInetSocketList(contactPoints));
     }
   }
 }

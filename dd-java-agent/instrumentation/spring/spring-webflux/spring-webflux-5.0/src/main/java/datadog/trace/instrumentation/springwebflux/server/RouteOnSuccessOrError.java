@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springwebflux.server;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -15,29 +14,27 @@ import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.ServerRequest;
 
 public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
-
   private static final Pattern SPECIAL_CHARACTERS_REGEX = Pattern.compile("[\\(\\)&|]");
   private static final Pattern SPACES_REGEX = Pattern.compile("[ \\t]+");
   private static final Pattern ROUTER_FUNCTION_REGEX = Pattern.compile("\\s*->.*$");
   private static final Pattern METHOD_REGEX =
       Pattern.compile("^(GET|HEAD|POST|PUT|DELETE|CONNECT|OPTIONS|TRACE|PATCH) ");
   private static final Function<String, String> PATH_EXTRACTOR =
-      arg ->
-          METHOD_REGEX
-              .matcher(
-                  SPACES_REGEX
-                      .matcher(SPECIAL_CHARACTERS_REGEX.matcher(arg).replaceAll(""))
-                      .replaceAll(" ")
-                      .trim())
-              .replaceAll("");
-
+      arg -> METHOD_REGEX
+    .matcher(SPACES_REGEX
+      .matcher(SPECIAL_CHARACTERS_REGEX.matcher(arg).replaceAll(""))
+      .replaceAll(" ")
+      .trim()
+    )
+    .replaceAll("");
   private final RouterFunction routerFunction;
   private final ServerRequest serverRequest;
-
   private final DDCache<String, String> parsedRouteCache = DDCaches.newFixedSizeCache(16);
 
   public RouteOnSuccessOrError(
-      final RouterFunction routerFunction, final ServerRequest serverRequest) {
+      final RouterFunction routerFunction,
+      final ServerRequest serverRequest
+  ) {
     this.routerFunction = routerFunction;
     this.serverRequest = serverRequest;
   }
@@ -47,7 +44,8 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
     // Router functions containing lambda predicates should not end up in span tags since they are
     // confusing
     if (routerFunctionString.startsWith(
-        "org.springframework.web.reactive.function.server.RequestPredicates$$Lambda")) {
+        "org.springframework.web.reactive.function.server.RequestPredicates$$Lambda"
+    )) {
       return null;
     } else {
       return ROUTER_FUNCTION_REGEX.matcher(routerFunctionString).replaceFirst("");
@@ -67,7 +65,9 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
     }
     final String predicateString = parsePredicateString();
     if (predicateString != null) {
-      final AgentSpan span = (AgentSpan) serverRequest.attributes().get(AdviceUtils.SPAN_ATTRIBUTE);
+      final AgentSpan span = (AgentSpan) serverRequest
+        .attributes()
+        .get(AdviceUtils.SPAN_ATTRIBUTE);
       if (span != null) {
         span.setTag("request.predicate", predicateString);
       }
@@ -77,7 +77,10 @@ public class RouteOnSuccessOrError implements Consumer<HandlerFunction<?>> {
         final HttpMethod httpMethod = serverRequest.method();
         if (httpMethod != null) {
           HTTP_RESOURCE_DECORATOR.withRoute(
-              parentSpan, httpMethod.name(), parseRoute(predicateString));
+              parentSpan,
+              httpMethod.name(),
+              parseRoute(predicateString)
+          );
         }
       }
     }

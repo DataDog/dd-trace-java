@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jms;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.Functions.Join;
 import datadog.trace.api.Functions.PrefixJoin;
@@ -31,73 +30,62 @@ import org.slf4j.LoggerFactory;
 
 public final class JMSDecorator extends MessagingClientDecorator {
   private static final Logger log = LoggerFactory.getLogger(JMSDecorator.class);
-
   public static final CharSequence JMS = UTF8BytesString.create("jms");
-  public static final CharSequence JMS_CONSUME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation(JMS.toString()));
-  public static final CharSequence JMS_PRODUCE =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().outboundOperation(JMS.toString()));
+  public static final CharSequence JMS_CONSUME = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .messaging()
+    .inboundOperation(JMS.toString())
+  );
+  public static final CharSequence JMS_PRODUCE = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .messaging()
+    .outboundOperation(JMS.toString())
+  );
   public static final CharSequence JMS_DELIVER = UTF8BytesString.create("jms.deliver");
-
   public static final boolean JMS_LEGACY_TRACING = Config.get().isJmsLegacyTracingEnabled();
-
   public static final boolean TIME_IN_QUEUE_ENABLED =
       Config.get().isTimeInQueueEnabled(!JMS_LEGACY_TRACING, "jms");
   public static final String JMS_PRODUCED_KEY = "x_datadog_jms_produced";
   public static final String JMS_BATCH_ID_KEY = "x_datadog_jms_batch_id";
-
   private static final Join QUEUE_JOINER = PrefixJoin.of("Queue ");
   private static final Join TOPIC_JOINER = PrefixJoin.of("Topic ");
-
   private final DDCache<CharSequence, CharSequence> resourceNameCache =
       DDCaches.newFixedSizeCache(32);
-
   private final String resourcePrefix;
-
   private final UTF8BytesString queueTempResourceName;
   private final UTF8BytesString topicTempResourceName;
-
   private final Function<CharSequence, CharSequence> queueResourceJoiner;
   private final Function<CharSequence, CharSequence> topicResourceJoiner;
-
   private final String spanKind;
   private final CharSequence spanType;
   private final Supplier<String> serviceNameSupplier;
-
-  public static final JMSDecorator PRODUCER_DECORATE =
-      new JMSDecorator(
-          "Produced for ",
-          Tags.SPAN_KIND_PRODUCER,
-          InternalSpanTypes.MESSAGE_PRODUCER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .outboundService("jms", JMS_LEGACY_TRACING));
-
-  public static final JMSDecorator CONSUMER_DECORATE =
-      new JMSDecorator(
-          "Consumed from ",
-          Tags.SPAN_KIND_CONSUMER,
-          InternalSpanTypes.MESSAGE_CONSUMER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .inboundService("jms", JMS_LEGACY_TRACING));
-
-  public static final JMSDecorator BROKER_DECORATE =
-      new JMSDecorator(
-          "",
-          Tags.SPAN_KIND_BROKER,
-          InternalSpanTypes.MESSAGE_BROKER,
-          SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString()));
+  public static final JMSDecorator PRODUCER_DECORATE = new JMSDecorator(
+      "Produced for ",
+      Tags.SPAN_KIND_PRODUCER,
+      InternalSpanTypes.MESSAGE_PRODUCER,
+      SpanNaming.instance().namingSchema().messaging().outboundService("jms", JMS_LEGACY_TRACING)
+  );
+  public static final JMSDecorator CONSUMER_DECORATE = new JMSDecorator(
+      "Consumed from ",
+      Tags.SPAN_KIND_CONSUMER,
+      InternalSpanTypes.MESSAGE_CONSUMER,
+      SpanNaming.instance().namingSchema().messaging().inboundService("jms", JMS_LEGACY_TRACING)
+  );
+  public static final JMSDecorator BROKER_DECORATE = new JMSDecorator(
+      "",
+      Tags.SPAN_KIND_BROKER,
+      InternalSpanTypes.MESSAGE_BROKER,
+      SpanNaming.instance().namingSchema().messaging().timeInQueueService(JMS.toString())
+  );
 
   public JMSDecorator(
       String resourcePrefix,
       String spanKind,
       CharSequence spanType,
-      Supplier<String> serviceNameSupplier) {
+      Supplier<String> serviceNameSupplier
+  ) {
     this.resourcePrefix = resourcePrefix;
 
     this.queueTempResourceName = UTF8BytesString.create(resourcePrefix + "Temporary Queue");
@@ -208,31 +196,26 @@ public final class JMSDecorator extends MessagingClientDecorator {
     }
 
     int len = name.length();
-
     // Check if name ends with digits (the schema index suffix)
     if (!Character.isDigit(name.charAt(len - 1))) {
       return name;
     }
-
     // Find the underscore before the trailing digits
     int underscoreBeforeDigits = name.lastIndexOf('_');
     if (underscoreBeforeDigits <= 0) {
       return name;
     }
-
     // Verify all characters after the underscore are digits
     for (int i = underscoreBeforeDigits + 1; i < len; i++) {
       if (!Character.isDigit(name.charAt(i))) {
         return name;
       }
     }
-
     // Find the underscore before the suffix word
     int underscoreBeforeSuffix = name.lastIndexOf('_', underscoreBeforeDigits - 1);
     if (underscoreBeforeSuffix < 0) {
       return name;
     }
-
     // Check if the suffix word is one of our known Kafka Connect schema suffixes (case insensitive)
     int suffixStart = underscoreBeforeSuffix + 1;
     int suffixLen = underscoreBeforeDigits - suffixStart;
@@ -270,7 +253,8 @@ public final class JMSDecorator extends MessagingClientDecorator {
 
   public Destination getDestination(final MessageProducer messageProducer) throws JMSException {
     try {
-      return messageProducer.getDestination(); // >= 1.1
+      // >= 1.1
+      return messageProducer.getDestination();
     } catch (AbstractMethodError ignored) {
       // <=1.1 getDestination is not available so we need to pay an additional instanceOf
       if (messageProducer instanceof QueueSender) {
@@ -311,7 +295,8 @@ public final class JMSDecorator extends MessagingClientDecorator {
       // handle WebLogic by treating everything as a Queue unless it's a Topic with a name
       return !(destination instanceof Topic) || null == ((Topic) destination).getTopicName();
     } catch (Exception e) {
-      return true; // assume it's a Queue if we can't check the details
+      // assume it's a Queue if we can't check the details
+      return true;
     }
   }
 

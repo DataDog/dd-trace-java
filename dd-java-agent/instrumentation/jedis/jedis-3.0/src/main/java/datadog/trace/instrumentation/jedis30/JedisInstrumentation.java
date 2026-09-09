@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,17 +19,16 @@ import redis.clients.jedis.commands.ProtocolCommand;
 
 @AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public JedisInstrumentation() {
     super("jedis", "redis");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JedisClientDecorator",
-    };
+    return new String[] {packageName + ".JedisClientDecorator"};
   }
 
   @Override
@@ -42,17 +40,19 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("sendCommand"))
-            .and(takesArgument(0, named("redis.clients.jedis.commands.ProtocolCommand"))),
-        JedisInstrumentation.class.getName() + "$JedisAdvice");
+          .and(named("sendCommand"))
+          .and(takesArgument(0, named("redis.clients.jedis.commands.ProtocolCommand"))),
+        JedisInstrumentation.class.getName() + "$JedisAdvice"
+    );
     // FIXME: This instrumentation only incorporates sending the command, not processing the result.
   }
 
   public static class JedisAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) final ProtocolCommand command, @Advice.This final Connection thiz) {
+        @Advice.Argument(0) final ProtocolCommand command,
+        @Advice.This final Connection thiz
+    ) {
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
@@ -72,7 +72,9 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

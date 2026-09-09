@@ -3,7 +3,6 @@ package datadog.crashtracking;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,24 +39,27 @@ public class ScriptInitializerTest {
   @Test
   void testCrashUploaderSanity() {
     assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, null));
-    assertDoesNotThrow(
-        () ->
-            CrashUploaderScriptInitializer.initialize(
-                tempDir.resolve("dummy.sh").toString(), null));
+    assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(
+        tempDir.resolve("dummy.sh").toString(),
+        null
+    ));
     assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(null, "hs_err.log"));
   }
 
   @Test
   void testOomeNotifierSanity() {
     assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(null));
-    assertDoesNotThrow(
-        () -> OOMENotifierScriptInitializer.initialize(tempDir.resolve("dummy.sh").toString()));
+    assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(tempDir
+      .resolve("dummy.sh")
+      .toString()
+    ));
   }
 
   @ParameterizedTest
   @MethodSource("crashTrackingScripts")
   void testCrashUploaderInitializationSuccess(String target, String pidArg)
-      throws IOException, InterruptedException {
+      throws IOException,
+      InterruptedException {
     Path file = tempDir.resolve(target);
     String hsErrFile = "/tmp/hs_err.log";
     CrashUploaderScriptInitializer.initialize(file + pidArg, hsErrFile);
@@ -66,7 +68,9 @@ public class ScriptInitializerTest {
     assertFalse(lines.isEmpty(), "File " + file + " is expected to be non-empty");
     // sanity check to see if no placeholders are left
     Pattern placeholder = Pattern.compile("![A-Z_]+!");
-    assertFalse(lines.stream().anyMatch(l -> placeholder.matcher(l).find()));
+    assertFalse(lines
+      .stream()
+      .anyMatch(l -> placeholder.matcher(l).find()));
     // sanity to check the crash log file was properly replaced in the script
     assertTrue(lines.stream().anyMatch(l -> l.contains(hsErrFile)));
     // sanity to check the java home was properly captured
@@ -81,7 +85,8 @@ public class ScriptInitializerTest {
     assertTrue(Files.exists(file), "File " + file + " should not have been removed");
     assertTrue(
         Files.readAllLines(file).isEmpty(),
-        "File " + file + " content should not have been modified");
+        "File " + file + " content should not have been modified"
+    );
   }
 
   private static Stream<Arguments> crashTrackingScripts() {
@@ -89,7 +94,8 @@ public class ScriptInitializerTest {
         Arguments.of("dd_crash_uploader.sh", ""),
         Arguments.of("dd_crash_uploader.bat", ""),
         Arguments.of("dd_CrAsH_uploader.sh", " %p"),
-        Arguments.of("dd_crash_uploader.bat", " %p"));
+        Arguments.of("dd_crash_uploader.bat", " %p")
+    );
   }
 
   @ParameterizedTest
@@ -131,7 +137,8 @@ public class ScriptInitializerTest {
     assertTrue(Files.exists(file), "File " + file + " should not have been removed");
     assertTrue(
         Files.readAllLines(file).isEmpty(),
-        "File " + file + " content should not have been modified");
+        "File " + file + " content should not have been modified"
+    );
   }
 
   @Test
@@ -150,8 +157,10 @@ public class ScriptInitializerTest {
   void testCrashUploaderInvalidFolder() throws IOException {
     Files.setPosixFilePermissions(tempDir, PosixFilePermissions.fromString("r-x------"));
     Path file = tempDir.resolve("dd_crash_uploader.sh");
-    assertDoesNotThrow(
-        () -> CrashUploaderScriptInitializer.initialize(file.toString(), "/tmp/hs_err.log"));
+    assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(
+        file.toString(),
+        "/tmp/hs_err.log"
+    ));
     assertFalse(Files.exists(file), "File " + file + " should not have been created");
   }
 

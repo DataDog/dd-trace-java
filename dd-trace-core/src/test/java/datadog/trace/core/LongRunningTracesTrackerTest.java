@@ -9,7 +9,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.environment.JavaVirtualMachine;
@@ -37,12 +36,10 @@ import org.tabletest.junit.TableTest;
 @WithConfig(key = "trace.experimental.long-running.initial.flush.interval", value = "10")
 @WithConfig(key = "trace.experimental.long-running.flush.interval", value = "20")
 public class LongRunningTracesTrackerTest extends DDJavaSpecification {
-
   private static final long INITIAL_FLUSH_PERIOD_MILLI = TimeUnit.SECONDS.toMillis(10);
   private static final long FLUSH_PERIOD_MILLI = TimeUnit.SECONDS.toMillis(20);
   private static final long MAX_TRACKED_DURATION_MILLI = TimeUnit.HOURS.toMillis(12);
   private static final int MAX_TRACKED_TRACES = 10;
-
   private CoreTracer tracer;
   private CoreTracer.ConfigSnapshot traceConfig;
   private DDAgentFeaturesDiscovery features;
@@ -57,8 +54,9 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
     Assumptions.assumeFalse(
         JavaVirtualMachine.isOracleJDK8(),
         "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to"
-            + " correctly extract method parameters without args, when the code is compiled on a"
-            + " later JDK (targeting 8). This can manifest when creating mocks.");
+        + " correctly extract method parameters without args, when the code is compiled on a"
+        + " later JDK (targeting 8). This can manifest when creating mocks."
+    );
   }
 
   @BeforeEach
@@ -76,13 +74,13 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
     when(traceConfig.getServiceMapping()).thenReturn(Collections.emptyMap());
     when(sharedCommunicationObjects.featuresDiscovery(any())).thenReturn(features);
 
-    buffer =
-        new PendingTraceBuffer.DelayingPendingTraceBuffer(
-            MAX_TRACKED_TRACES,
-            timeSource,
-            Config.get(),
-            sharedCommunicationObjects,
-            HealthMetrics.NO_OP);
+    buffer = new PendingTraceBuffer.DelayingPendingTraceBuffer(
+        MAX_TRACKED_TRACES,
+        timeSource,
+        Config.get(),
+        sharedCommunicationObjects,
+        HealthMetrics.NO_OP
+    );
     tracker = buffer.getRunningTracesTracker();
     factory = new PendingTrace.Factory(tracer, buffer, timeSource, false, HealthMetrics.NO_OP);
   }
@@ -101,13 +99,13 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
 
   @Test
   void traceWithoutRightStateAreNotTracked() {
-    List<Integer> statesToTest =
-        Arrays.asList(
-            LongRunningTracesTracker.NOT_TRACKED,
-            LongRunningTracesTracker.UNDEFINED,
-            LongRunningTracesTracker.TRACKED,
-            LongRunningTracesTracker.WRITE_RUNNING_SPANS,
-            LongRunningTracesTracker.EXPIRED);
+    List<Integer> statesToTest = Arrays.asList(
+        LongRunningTracesTracker.NOT_TRACKED,
+        LongRunningTracesTracker.UNDEFINED,
+        LongRunningTracesTracker.TRACKED,
+        LongRunningTracesTracker.WRITE_RUNNING_SPANS,
+        LongRunningTracesTracker.EXPIRED
+    );
     for (int stateToTest : statesToTest) {
       PendingTrace trace = newTraceToTrack();
       trace.setLongRunningTrackedState(stateToTest);
@@ -156,32 +154,33 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
   void flushLogicWithInitialFlush() {
     PendingTrace trace = newTraceToTrack();
     tracker.add(trace);
-
     // Before the initial flush
     flushAt(INITIAL_FLUSH_PERIOD_MILLI - 1000);
     verify(tracer, never()).write(any());
     clearInvocations(tracer);
-
     // After the initial flush
     flushAt(INITIAL_FLUSH_PERIOD_MILLI + 1000);
     verify(tracer, times(1)).write(any());
     assertEquals(
-        TimeUnit.MILLISECONDS.toNanos(INITIAL_FLUSH_PERIOD_MILLI + 1000), trace.getLastWriteTime());
+        TimeUnit.MILLISECONDS.toNanos(INITIAL_FLUSH_PERIOD_MILLI + 1000),
+        trace.getLastWriteTime()
+    );
     clearInvocations(tracer);
-
     // Before the regular flush
     flushAt(INITIAL_FLUSH_PERIOD_MILLI + FLUSH_PERIOD_MILLI - 1000);
     verify(tracer, never()).write(any());
     assertEquals(
-        TimeUnit.MILLISECONDS.toNanos(INITIAL_FLUSH_PERIOD_MILLI + 1000), trace.getLastWriteTime());
+        TimeUnit.MILLISECONDS.toNanos(INITIAL_FLUSH_PERIOD_MILLI + 1000),
+        trace.getLastWriteTime()
+    );
     clearInvocations(tracer);
-
     // After the first regular flush
     flushAt(INITIAL_FLUSH_PERIOD_MILLI + FLUSH_PERIOD_MILLI + 2000);
     verify(tracer, times(1)).write(any());
     assertEquals(
         TimeUnit.MILLISECONDS.toNanos(INITIAL_FLUSH_PERIOD_MILLI + FLUSH_PERIOD_MILLI + 2000),
-        trace.getLastWriteTime());
+        trace.getLastWriteTime()
+    );
   }
 
   @TableTest({
@@ -214,27 +213,27 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
   }
 
   private static DDSpan newSpanOf(PendingTrace trace, int samplingPriority, long timestampMicro) {
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            samplingPriority,
-            null,
-            Collections.emptyMap(),
-            false,
-            "fakeType",
-            0,
-            trace,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        samplingPriority,
+        null,
+        Collections.emptyMap(),
+        false,
+        "fakeType",
+        0,
+        trace,
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        PropagationTags.factory().empty()
+    );
     return DDSpan.create("test", timestampMicro, context, null);
   }
 }

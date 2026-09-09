@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ha
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -20,8 +19,9 @@ import org.reactivestreams.Publisher;
  * {@link Publisher#subscribe}
  */
 public class BlockingPublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "reactor.core.publisher.Mono";
@@ -35,14 +35,18 @@ public class BlockingPublisherInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(nameStartsWith("block")), getClass().getName() + "$BlockingAdvice");
+        isMethod().and(nameStartsWith("block")),
+        getClass().getName() + "$BlockingAdvice"
+    );
   }
 
   public static class BlockingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final Publisher self) {
       return ReactorContextBridge.activateForBlocking(
-          self, InstrumentationContext.get(Publisher.class, HandoffContext.class));
+          self,
+          InstrumentationContext.get(Publisher.class, HandoffContext.class)
+      );
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

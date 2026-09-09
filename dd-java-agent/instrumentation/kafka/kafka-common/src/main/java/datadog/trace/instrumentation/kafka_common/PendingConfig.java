@@ -2,7 +2,9 @@ package datadog.trace.instrumentation.kafka_common;
 
 import java.util.Map;
 
-/** Holds pending Kafka config info until the cluster ID becomes available from metadata. */
+/**
+ * Holds pending Kafka config info until the cluster ID becomes available from metadata.
+ */
 public class PendingConfig {
   public final String type;
   public final String consumerGroup;

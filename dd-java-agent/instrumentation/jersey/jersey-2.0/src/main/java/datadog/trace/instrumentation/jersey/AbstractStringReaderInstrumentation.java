@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jersey;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -20,8 +19,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class AbstractStringReaderInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public AbstractStringReaderInstrumentation() {
     super("jersey");
   }
@@ -30,14 +30,15 @@ public class AbstractStringReaderInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("fromString").and(isPublic().and(takesArguments(String.class))),
-        getClass().getName() + "$FromStringAdvice");
+        getClass().getName() + "$FromStringAdvice"
+    );
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.glassfish.jersey.internal.inject.ParamConverters$AbstractStringReader",
-      "org.glassfish.jersey.server.internal.inject.ParamConverters$AbstractStringReader"
+        "org.glassfish.jersey.internal.inject.ParamConverters$AbstractStringReader",
+        "org.glassfish.jersey.server.internal.inject.ParamConverters$AbstractStringReader"
     };
   }
 
@@ -48,7 +49,8 @@ public class AbstractStringReaderInstrumentation extends InstrumenterModule.Iast
     public static void onExit(
         @Advice.Argument(0) final String param,
         @Advice.Return Object result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       if (!(result instanceof String)) {
         return;
       }

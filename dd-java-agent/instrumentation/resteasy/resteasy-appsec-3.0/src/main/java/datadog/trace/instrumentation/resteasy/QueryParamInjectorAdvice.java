@@ -19,7 +19,8 @@ public class QueryParamInjectorAdvice {
   public static void onExit(
       @Advice.Return Object result,
       @Advice.FieldValue("encodedName") String paramName,
-      @ActiveRequestContext RequestContext reqCtx) {
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     if (result instanceof String || result instanceof Collection) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

@@ -4,7 +4,6 @@ import datadog.context.propagation.CarrierSetter;
 import datadog.json.JsonWriter;
 
 public class TextMapInjectAdapter implements CarrierSetter<JsonWriter> {
-
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
   @Override

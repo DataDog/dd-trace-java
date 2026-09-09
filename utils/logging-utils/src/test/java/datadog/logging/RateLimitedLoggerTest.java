@@ -13,7 +13,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.api.time.ControllableTimeSource;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,7 +22,6 @@ import org.slf4j.Marker;
 
 class RateLimitedLoggerTest {
   private static final RuntimeException EXCEPTION = new RuntimeException("bad thing");
-
   private Logger log;
   private ControllableTimeSource timeSource;
 
@@ -54,10 +52,11 @@ class RateLimitedLoggerTest {
     boolean secondLog = defaultRateLimitedLog.warn("test {} {}", "message", EXCEPTION);
 
     verify(this.log)
-        .warn(
-            nullable(Marker.class),
-            eq("test {} {} (Will not log warnings for 5 minutes)"),
-            (Object[]) any());
+      .warn(
+          nullable(Marker.class),
+          eq("test {} {} (Will not log warnings for 5 minutes)"),
+          (Object[]) any()
+      );
     assertTrue(firstLog);
     assertFalse(secondLog);
   }
@@ -75,10 +74,11 @@ class RateLimitedLoggerTest {
     assertFalse(secondLog);
 
     verify(this.log)
-        .warn(
-            nullable(Marker.class),
-            eq("test {} {} (Will not log warnings for 1 minute)"),
-            (Object[]) any());
+      .warn(
+          nullable(Marker.class),
+          eq("test {} {} (Will not log warnings for 1 minute)"),
+          (Object[]) any()
+      );
   }
 
   @Test
@@ -107,10 +107,11 @@ class RateLimitedLoggerTest {
     assertFalse(secondLog);
 
     verify(this.log)
-        .warn(
-            nullable(Marker.class),
-            eq("test {} {} (Will not log warnings for 5 nanoseconds)"),
-            (Object[]) any());
+      .warn(
+          nullable(Marker.class),
+          eq("test {} {} (Will not log warnings for 5 nanoseconds)"),
+          (Object[]) any()
+      );
   }
 
   @Test
@@ -129,10 +130,11 @@ class RateLimitedLoggerTest {
     assertFalse(secondLog);
 
     verify(this.log)
-        .warn(
-            nullable(Marker.class),
-            eq("test {} {} (Will not log warnings for 5 nanoseconds)"),
-            (Object[]) any());
+      .warn(
+          nullable(Marker.class),
+          eq("test {} {} (Will not log warnings for 5 nanoseconds)"),
+          (Object[]) any()
+      );
   }
 
   @Test
@@ -150,10 +152,11 @@ class RateLimitedLoggerTest {
     assertTrue(secondLog);
 
     verify(this.log, times(2))
-        .warn(
-            nullable(Marker.class),
-            eq("test {} {} (Will not log warnings for 7 nanoseconds)"),
-            (Object[]) any());
+      .warn(
+          nullable(Marker.class),
+          eq("test {} {} (Will not log warnings for 7 nanoseconds)"),
+          (Object[]) any()
+      );
   }
 
   @Test
@@ -165,10 +168,11 @@ class RateLimitedLoggerTest {
     rateLimitedLog.warn("test");
 
     verify(this.log)
-        .warn(
-            nullable(Marker.class),
-            eq("test (Will not log warnings for 1 millisecond)"),
-            (Object[]) any());
+      .warn(
+          nullable(Marker.class),
+          eq("test (Will not log warnings for 1 millisecond)"),
+          (Object[]) any()
+      );
   }
 
   @Test
@@ -181,9 +185,10 @@ class RateLimitedLoggerTest {
     rateLimitedLog.warn(LogCollector.SEND_TELEMETRY, "test");
 
     verify(this.log)
-        .warn(
-            eq(LogCollector.SEND_TELEMETRY),
-            eq("test (Will not log warnings for 1 millisecond)"),
-            (Object[]) any());
+      .warn(
+          eq(LogCollector.SEND_TELEMETRY),
+          eq("test (Will not log warnings for 1 millisecond)"),
+          (Object[]) any()
+      );
   }
 }

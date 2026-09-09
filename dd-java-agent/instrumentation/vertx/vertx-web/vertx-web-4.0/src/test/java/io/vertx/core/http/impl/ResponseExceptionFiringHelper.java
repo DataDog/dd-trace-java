@@ -9,7 +9,8 @@ import io.vertx.core.http.HttpServerResponse;
  * response.exceptionHandler(...).
  */
 public final class ResponseExceptionFiringHelper {
-  private ResponseExceptionFiringHelper() {}
+  private ResponseExceptionFiringHelper() {
+  }
 
   public static void fireException(HttpServerResponse response, Throwable cause) {
     ((Http1xServerResponse) response).handleException(cause);

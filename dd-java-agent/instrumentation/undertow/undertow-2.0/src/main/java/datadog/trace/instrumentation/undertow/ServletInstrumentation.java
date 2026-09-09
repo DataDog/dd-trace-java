@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,8 +23,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class ServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ServletInstrumentation() {
     super("undertow", "undertow-2.0");
   }
@@ -38,20 +38,22 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("dispatchRequest")), getClass().getName() + "$DispatchAdvice");
+        isMethod().and(named("dispatchRequest")),
+        getClass().getName() + "$DispatchAdvice"
+    );
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowBlockResponseFunction",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response"
+        packageName + ".HttpServerExchangeURIDataAdapter",
+        packageName + ".UndertowDecorator",
+        packageName + ".UndertowBlockingHandler",
+        packageName + ".IgnoreSendAttribute",
+        packageName + ".UndertowBlockResponseFunction",
+        packageName + ".UndertowExtractAdapter",
+        packageName + ".UndertowExtractAdapter$Request",
+        packageName + ".UndertowExtractAdapter$Response"
     };
   }
 
@@ -64,7 +66,8 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
         @Advice.Argument(0) final HttpServerExchange exchange,
-        @Advice.Argument(1) final ServletRequestContext servletRequestContext) {
+        @Advice.Argument(1) final ServletRequestContext servletRequestContext
+    ) {
       ContextContinuation continuation = exchange.getAttachment(DATADOG_UNDERTOW_CONTINUATION);
       if (continuation != null) {
         AgentSpan undertowSpan = spanFromContext(continuation.context());
@@ -84,7 +87,11 @@ public final class ServletInstrumentation extends InstrumenterModule.Tracing
           // higher priority than 404 resource, so it wouldn't be able to set resource 404 later in
           // the onResponse instrumentation.
           HTTP_RESOURCE_DECORATOR.withRoute(
-              undertowSpan, exchange.getRequestMethod().toString(), relativePath, false);
+              undertowSpan,
+              exchange.getRequestMethod().toString(),
+              relativePath,
+              false
+          );
         }
         // The servlet.path tag is expected even for a non-existing resource.
         undertowSpan.setTag(SERVLET_PATH, relativePath);

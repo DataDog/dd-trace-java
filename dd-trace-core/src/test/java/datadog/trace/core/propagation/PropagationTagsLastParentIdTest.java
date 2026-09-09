@@ -4,7 +4,6 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 /**
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.Test;
  * last-parent-id is never overwritten.
  */
 class PropagationTagsLastParentIdTest {
-
   private static final String SPAN_A = "00000000000000aa";
   private static final String SPAN_B = "00000000000000bb";
 
@@ -32,7 +30,8 @@ class PropagationTagsLastParentIdTest {
   @Test
   void overrideDoesNotMutateSharedTags_noCrossTalk() {
     // One tags instance, two sibling spans injecting through it (the shared-root scenario).
-    PropagationTags shared = w3c("dd=s:1;o:rum"); // no inbound p:
+    // no inbound p:
+    PropagationTags shared = w3c("dd=s:1;o:rum");
 
     String headerA = shared.headerValue(W3C, SPAN_A);
     String headerB = shared.headerValue(W3C, SPAN_B);
@@ -48,14 +47,16 @@ class PropagationTagsLastParentIdTest {
 
   @Test
   void inboundLastParentIdPreservedAndUnmutatedByOverride() {
-    PropagationTags tags = w3c("dd=s:1;p:" + SPAN_A); // arrived carrying a last-parent-id
-
+    // arrived carrying a last-parent-id
+    PropagationTags tags = w3c("dd=s:1;p:" + SPAN_A);
     // No-override path (e.g. span-link traceState) keeps the inbound p:.
     assertTrue(tags.headerValue(W3C).contains("p:" + SPAN_A));
     // An inject override replaces it for that produced header...
     assertTrue(tags.headerValue(W3C, SPAN_B).contains("p:" + SPAN_B));
     // ...without mutating the stored inbound value.
     assertTrue(
-        tags.headerValue(W3C).contains("p:" + SPAN_A), "inbound p: must survive override use");
+        tags.headerValue(W3C).contains("p:" + SPAN_A),
+        "inbound p: must survive override use"
+    );
   }
 }

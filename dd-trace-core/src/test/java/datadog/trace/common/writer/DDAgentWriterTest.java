@@ -12,7 +12,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
@@ -33,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class DDAgentWriterTest extends DDCoreJavaSpecification {
-
   HealthMetrics monitor = mock(HealthMetrics.class);
   TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
   DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
@@ -42,7 +40,6 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   PayloadDispatcherImpl dispatcher =
       new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, monitor, monitoring);
   DDAgentWriter writer = new DDAgentWriter(worker, dispatcher, monitor, 1, SECONDS, false);
-
   // Only used to create spans
   CoreTracer dummyTracer = tracerBuilder().writer(new ListWriter()).build();
 
@@ -86,20 +83,16 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   @Test
   void testWriterFlush() {
     when(worker.flush(1, SECONDS)).thenReturn(true, false);
-
     // first flush succeeds
     writer.flush();
-
     // monitor is notified
     verify(worker).flush(1, SECONDS);
     verify(monitor).onFlush(false);
     verifyNoMoreInteractions(monitor, worker, discovery, api);
 
     clearInvocations(monitor, worker, discovery, api);
-
     // second flush returns false
     writer.flush();
-
     // no additional monitor notifications
     verify(worker).flush(1, SECONDS);
     verifyNoMoreInteractions(monitor, worker, discovery, api);
@@ -119,12 +112,11 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   void testWriterWritePublishSucceeds() {
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
-
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
     // publish succeeds
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SERIALIZATION);
     writer.write(trace);
-
     // monitor is notified of successful publication
     verify(worker).publish(any(), anyInt(), eq(trace));
     verify(monitor).onPublish(any(), anyInt());
@@ -135,12 +127,11 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   void testWriterWritePublishForSingleSpanSampling() {
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
-
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
     // publish succeeds (single span sampling)
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(ENQUEUED_FOR_SINGLE_SPAN_SAMPLING);
     writer.write(trace);
-
     // monitor should not call onPublish for single span sampling
     verify(worker).publish(any(), anyInt(), eq(trace));
     verifyNoMoreInteractions(monitor, worker, discovery, api);
@@ -155,12 +146,11 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   void testWriterWritePublishFails(PublishResult publishResult) {
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
-
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
     // publish fails
     when(worker.publish(any(), anyInt(), eq(trace))).thenReturn(publishResult);
     writer.write(trace);
-
     // monitor is notified of unsuccessful publication
     verify(worker).publish(any(), anyInt(), eq(trace));
     verify(monitor).onFailedPublish(anyInt(), anyInt());
@@ -171,7 +161,6 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   void testEmptyTracesShouldBeReportedAsFailures() {
     // trace is empty
     writer.write(Collections.emptyList());
-
     // monitor is notified of unsuccessful publication
     verify(monitor).onFailedPublish(anyInt(), anyInt());
     verifyNoMoreInteractions(monitor, worker, discovery, api);
@@ -183,7 +172,8 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
     clearInvocations(monitor, worker, discovery, api);
     List<DDSpan> trace =
         Collections.singletonList(
-            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start());
+            (DDSpan) dummyTracer.buildSpan("datadog", "fakeOperation").start()
+    );
 
     writer.write(trace);
 
@@ -210,11 +200,14 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
     List<DDSpan> trace = Arrays.asList(p0, newSpan());
 
     when(localWorker.publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace)))
-        .thenReturn(publishResult);
+      .thenReturn(publishResult);
     localWriter.write(trace);
 
-    verify(localWorker)
-        .publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace));
+    verify(localWorker).publish(
+        eq(trace.get(0)),
+        eq((int) PrioritySampling.SAMPLER_DROP),
+        eq(trace)
+    );
     verify(localDispatcher).onDroppedTrace(trace.size());
   }
 

@@ -14,8 +14,9 @@ import org.mule.runtime.tracer.api.span.info.InitialSpanInfo;
 
 @AutoService(InstrumenterModule.class)
 public class EventTracerInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "org.mule.runtime.tracer.impl.SelectableCoreEventTracer";
@@ -25,19 +26,20 @@ public class EventTracerInstrumentation extends AbstractMuleInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         NameMatchers.named("updateSelectedCoreEventTracer"),
-        getClass().getName() + "$SwapCoreTracerAdvice");
+        getClass().getName() + "$SwapCoreTracerAdvice"
+    );
   }
 
   public static class SwapCoreTracerAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterInit(
-        @Advice.FieldValue(value = "selectedCoreEventTracer", readOnly = false)
-            EventTracer<CoreEvent> eventTracer) {
-      eventTracer =
-          new DDEventTracer(
-              InstrumentationContext.get(EventContext.class, SpanState.class),
-              InstrumentationContext.get(InitialSpanInfo.class, Component.class),
-              eventTracer);
+        @Advice.FieldValue(value = "selectedCoreEventTracer", readOnly = false) EventTracer<CoreEvent> eventTracer
+    ) {
+      eventTracer = new DDEventTracer(
+          InstrumentationContext.get(EventContext.class, SpanState.class),
+          InstrumentationContext.get(InitialSpanInfo.class, Component.class),
+          eventTracer
+      );
     }
   }
 }

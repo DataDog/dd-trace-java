@@ -20,24 +20,21 @@ import org.slf4j.LoggerFactory;
  * Service that detects app dependencies from classloading by using a no-op class-file transformer
  */
 public class DependencyService implements Runnable {
-
   private static final Logger log = LoggerFactory.getLogger(DependencyService.class);
-
   private final DependencyResolverQueue resolverQueue = new DependencyResolverQueue();
-
   private final BlockingQueue<Dependency> newDependencies = new LinkedBlockingQueue<>();
-
   private AgentTaskScheduler.Scheduled<Runnable> scheduledTask;
 
   public void schedulePeriodicResolution() {
-    scheduledTask =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                AgentTaskScheduler.RunnableTask.INSTANCE,
-                this,
-                0,
-                Config.get().getDependecyResolutionPeriodMillis(),
-                TimeUnit.MILLISECONDS);
+    scheduledTask = AgentTaskScheduler
+      .get()
+      .scheduleAtFixedRate(
+          AgentTaskScheduler.RunnableTask.INSTANCE,
+          this,
+          0,
+          Config.get().getDependecyResolutionPeriodMillis(),
+          TimeUnit.MILLISECONDS
+      );
   }
 
   public void resolveOneDependency() {

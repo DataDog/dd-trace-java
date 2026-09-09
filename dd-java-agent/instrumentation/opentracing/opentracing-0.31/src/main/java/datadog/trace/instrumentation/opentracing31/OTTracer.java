@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.opentracing31;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -23,7 +22,6 @@ import org.slf4j.LoggerFactory;
 public class OTTracer implements Tracer {
   private static final String INSTRUMENTATION_NAME = "opentracing";
   private static final Logger log = LoggerFactory.getLogger(OTTracer.class);
-
   private final TypeConverter converter = new TypeConverter(new DefaultLogHandler());
   private final AgentTracer.TracerAPI tracer;
   private final ScopeManager scopeManager;
@@ -64,7 +62,9 @@ public class OTTracer implements Tracer {
     if (carrier instanceof TextMap) {
       final AgentSpanContext tagContext =
           extractContextAndGetSpanContext(
-              (TextMap) carrier, ContextVisitors.stringValuesEntrySet());
+              (TextMap) carrier,
+              ContextVisitors.stringValuesEntrySet()
+      );
 
       return converter.toSpanContext(tagContext);
     } else {
@@ -96,7 +96,9 @@ public class OTTracer implements Tracer {
 
     @Override
     public Tracer.SpanBuilder addReference(
-        final String referenceType, final SpanContext referencedContext) {
+        final String referenceType,
+        final SpanContext referencedContext
+    ) {
       if (referencedContext == null) {
         return this;
       }

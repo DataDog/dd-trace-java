@@ -5,7 +5,6 @@ import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.internal.util.LongStringUtils;
@@ -31,7 +30,6 @@ import org.tabletest.junit.TableTest;
 
 // This test focuses on things that are different between OpenTracing API 0.31.0 and 0.32.0
 class OT31ApiTest extends DDJavaSpecification {
-
   private final ListWriter writer = new ListWriter();
   private final Tracer tracer = DDTracer.builder().writer(writer).build();
 
@@ -76,7 +74,6 @@ class OT31ApiTest extends DDJavaSpecification {
 
     assertNotNull(scope);
     assertEquals(span, tracer.scopeManager().active().span());
-
     // attempting to close via active() doesn't work because we lost the 'finishSpan' reference
     tracer.scopeManager().active().close();
     assertTrue(!((DDSpan) ((OTSpan) span).getDelegate()).isFinished());
@@ -87,19 +84,25 @@ class OT31ApiTest extends DDJavaSpecification {
 
   @ParameterizedTest
   @TableTest({
-    "scenario     | contextPriority               | samplingMechanism         | propagatedPriority           ",
-    "sampler drop | PrioritySampling.SAMPLER_DROP | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_DROP",
-    "sampler keep | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_KEEP",
-    "unset        | PrioritySampling.UNSET        | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_KEEP",
-    "user keep    | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL  | PrioritySampling.USER_KEEP   ",
-    "user drop    | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL  | PrioritySampling.USER_DROP   "
+    "scenario     | contextPriority               | samplingMechanism         | ",
+    "propagatedPriority                                                         ",
+    "sampler drop | PrioritySampling.SAMPLER_DROP | SamplingMechanism.DEFAULT | ",
+    "PrioritySampling.SAMPLER_DROP                                              ",
+    "sampler keep | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT | ",
+    "PrioritySampling.SAMPLER_KEEP                                              ",
+    "unset        | PrioritySampling.UNSET        | SamplingMechanism.DEFAULT | ",
+    "PrioritySampling.SAMPLER_KEEP                                              ",
+    "user keep    | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL  | ",
+    "PrioritySampling.USER_KEEP                                                 ",
+    "user drop    | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL  | ",
+    "PrioritySampling.USER_DROP                                                 "
   })
   void testInjectExtract(
       String scenario,
       @ConvertWith(PrioritySamplingConverter.class) byte contextPriority,
       @ConvertWith(SamplingMechanismConverter.class) byte samplingMechanism,
-      @ConvertWith(PrioritySamplingConverter.class) byte propagatedPriority)
-      throws Exception {
+      @ConvertWith(PrioritySamplingConverter.class) byte propagatedPriority
+  ) throws Exception {
     io.opentracing.Span span = tracer.buildSpan("some name").start();
     io.opentracing.SpanContext context = span.context();
     Map<String, String> map = new HashMap<>();
@@ -111,23 +114,21 @@ class OT31ApiTest extends DDJavaSpecification {
 
     DDTraceId traceId = ((OTSpan) span).getDelegate().spanContext().getTraceId();
     long spanId = ((OTSpan) span).getDelegate().spanContext().getSpanId();
-    String expectedTraceparent =
-        "00-"
-            + traceId.toHexStringPadded(32)
-            + "-"
-            + DDSpanId.toHexStringPadded(spanId)
-            + "-"
-            + (propagatedPriority > 0 ? "01" : "00");
+    String expectedTraceparent = "00-"
+        + traceId.toHexStringPadded(32)
+        + "-"
+        + DDSpanId.toHexStringPadded(spanId)
+        + "-"
+        + (propagatedPriority > 0 ? "01" : "00");
     int effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism;
-    String expectedTracestate =
-        "dd=s:"
-            + propagatedPriority
-            + ";p:"
-            + DDSpanId.toHexStringPadded(spanId)
-            + (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "")
-            + ";t.tid:"
-            + traceId.toHexStringPadded(32).substring(0, 16)
-            + (contextPriority == UNSET ? ";t.ksr:1" : "");
+    String expectedTracestate = "dd=s:"
+        + propagatedPriority
+        + ";p:"
+        + DDSpanId.toHexStringPadded(spanId)
+        + (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "")
+        + ";t.tid:"
+        + traceId.toHexStringPadded(32).substring(0, 16)
+        + (contextPriority == UNSET ? ";t.ksr:1" : "");
 
     Map<String, String> expectedTextMap = new HashMap<>();
     OTSpanContext otContext = (OTSpanContext) context;
@@ -143,7 +144,8 @@ class OT31ApiTest extends DDJavaSpecification {
     }
     if (traceId.toHighOrderLong() != 0) {
       datadogTags.add(
-          "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16));
+          "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
+      );
     }
     if (contextPriority == UNSET) {
       datadogTags.add("_dd.p.ksr=1");

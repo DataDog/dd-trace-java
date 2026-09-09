@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jetty93;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -23,13 +22,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MultipartHelper {
-
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
-
   private static final Logger log = LoggerFactory.getLogger(MultipartHelper.class);
 
-  private MultipartHelper() {}
+  private MultipartHelper() {
+  }
 
   /**
    * Extracts non-null, non-empty filenames from a collection of multipart {@link Part}s using
@@ -74,7 +72,8 @@ public class MultipartHelper {
       }
       try {
         if (part.getSubmittedFileName() == null) {
-          continue; // form field — skip
+          // form field — skip
+          continue;
         }
         contents.add(readFileContent(part));
       } catch (Exception ignored) {
@@ -98,7 +97,9 @@ public class MultipartHelper {
    * WAF requests blocking, or {@code null} otherwise.
    */
   public static BlockingException fireFilesContentEvent(
-      Collection<Part> parts, RequestContext reqCtx) {
+      Collection<Part> parts,
+      RequestContext reqCtx
+  ) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, List<String>, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestFilesContent());
@@ -128,8 +129,7 @@ public class MultipartHelper {
    * Fires the {@code requestFilesFilenames} IG event and returns a {@link BlockingException} if the
    * WAF requests blocking, or {@code null} otherwise.
    */
-  public static BlockingException fireFilenamesEvent(
-      Collection<Part> parts, RequestContext reqCtx) {
+  public static BlockingException fireFilenamesEvent(Collection<Part> parts, RequestContext reqCtx) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, List<String>, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestFilesFilenames());

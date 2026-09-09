@@ -8,10 +8,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/** Entry point when running the agent as a sample application with -jar. */
+/**
+ * Entry point when running the agent as a sample application with -jar.
+ */
 public final class AgentJar {
   private static final Class<?> thisClass = AgentJar.class;
-
   private static Class<?> agentClass;
 
   @SuppressForbidden
@@ -98,14 +99,15 @@ public final class AgentJar {
     }
 
     installAgentCLI()
-        .getMethod("sendSampleTraces", int.class, double.class)
-        .invoke(null, count, interval);
+      .getMethod("sendSampleTraces", int.class, double.class)
+      .invoke(null, count, interval);
   }
 
   private static void uploadCrash(final String[] args) throws Exception {
     if (args.length < 2 || ("-c".equals(args[1]) && args.length < 4)) {
       throw new IllegalArgumentException(
-          "Arguments mismatch. At least one crash report should be provided");
+          "Arguments mismatch. At least one crash report should be provided"
+      );
     }
 
     int crashFilePos = 1;
@@ -116,8 +118,8 @@ public final class AgentJar {
     }
 
     installAgentCLI()
-        .getMethod("uploadCrash", String.class, String.class)
-        .invoke(null, configFile, args[crashFilePos]);
+      .getMethod("uploadCrash", String.class, String.class)
+      .invoke(null, configFile, args[crashFilePos]);
   }
 
   private static void sendOomeEvent(final String[] args) throws Exception {
@@ -133,8 +135,8 @@ public final class AgentJar {
     }
 
     installAgentCLI()
-        .getMethod("scanDependencies", String[].class)
-        .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
+      .getMethod("scanDependencies", String[].class)
+      .invoke(null, new Object[] {Arrays.copyOfRange(args, 1, args.length)});
   }
 
   private static void printIntegrationNames() throws Exception {
@@ -169,11 +171,12 @@ public final class AgentJar {
 
   public static String getAgentVersion() throws IOException {
     final StringBuilder sb = new StringBuilder();
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                thisClass.getResourceAsStream("/dd-java-agent.version"), StandardCharsets.UTF_8))) {
-
+    try (final BufferedReader reader = new BufferedReader(
+        new InputStreamReader(
+            thisClass.getResourceAsStream("/dd-java-agent.version"),
+            StandardCharsets.UTF_8
+        )
+    )) {
       for (int c = reader.read(); c != -1; c = reader.read()) {
         sb.append((char) c);
       }

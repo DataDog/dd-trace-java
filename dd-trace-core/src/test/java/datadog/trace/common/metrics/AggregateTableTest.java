@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class AggregateTableTest {
-
   @BeforeAll
   static void initAgentMeter() {
     // AggregateEntry.recordOneDuration -> Histogram.accept needs AgentMeter to be initialized.
@@ -96,15 +94,13 @@ class AggregateTableTest {
 
     AggregateEntry stale = table.findOrInsert(snapshot("svc-a", "op", "client"));
     // do not record on stale -> hitCount stays at 0
-
     AggregateEntry live = table.findOrInsert(snapshot("svc-b", "op", "client"));
-    live.recordOneDuration(10L | TOP_LEVEL_TAG); // hitCount=1, not evictable
-
+    // hitCount=1, not evictable
+    live.recordOneDuration(10L | TOP_LEVEL_TAG);
     // table is full (size=2). Inserting a third should evict the stale one and succeed.
     AggregateEntry newcomer = table.findOrInsert(snapshot("svc-c", "op", "client"));
     assertNotNull(newcomer);
     assertEquals(2, table.size());
-
     // re-inserting the stale snapshot should miss now (it was evicted) and produce a fresh entry
     AggregateEntry staleAgain = table.findOrInsert(snapshot("svc-a", "op", "client"));
     assertNotSame(stale, staleAgain);
@@ -125,7 +121,9 @@ class AggregateTableTest {
     for (int i = 0; i < 32; i++) {
       AggregateEntry inserted = table.findOrInsert(snapshot("post-" + i, "op", "client"));
       assertNotNull(
-          inserted, "insert #" + i + " should evict a stale entry and succeed (table full)");
+          inserted,
+          "insert #" + i + " should evict a stale entry and succeed (table full)"
+      );
     }
     assertEquals(8, table.size());
   }
@@ -136,7 +134,6 @@ class AggregateTableTest {
     // stale bucket index. Verified indirectly: clear and re-fill, then force an eviction; the
     // newcomer must successfully take a slot (which only works if a stale entry was found).
     AggregateTable table = new AggregateTable(4);
-
     // Fill, age, evict once -- cursor lands at some non-zero bucket
     for (int i = 0; i < 4; i++) {
       table.findOrInsert(snapshot("warm-" + i, "op", "client"));
@@ -145,7 +142,6 @@ class AggregateTableTest {
 
     table.clear();
     assertEquals(0, table.size());
-
     // Re-fill, age, force eviction -- should still find a stale entry from bucket 0 onward
     for (int i = 0; i < 4; i++) {
       table.findOrInsert(snapshot("fresh-" + i, "op", "client"));
@@ -287,11 +283,16 @@ class AggregateTableTest {
         null,
         null,
         null,
-        0L);
+        0L
+    );
   }
 
   private static SpanSnapshot nullableSnapshot(
-      String resource, String operation, String type, String serviceNameSource) {
+      String resource,
+      String operation,
+      String type,
+      String serviceNameSource
+  ) {
     return new SpanSnapshot(
         resource,
         "svc",
@@ -308,7 +309,8 @@ class AggregateTableTest {
         null,
         null,
         null,
-        0L);
+        0L
+    );
   }
 
   @Test
@@ -316,7 +318,6 @@ class AggregateTableTest {
     // Inject the core handlers via the 3-arg constructor to test resetCoreHandlers() directly.
     CoreHandlers handlers = new CoreHandlers();
     AggregateTable table = new AggregateTable(512, handlers, AdditionalTagsSchema.EMPTY);
-
     // Fill the service cardinality budget and push one value over the limit.
     for (int i = 0; i < MetricCardinalityLimits.SERVICE; i++) {
       table.findOrInsert(snapshot("svc-" + i, "op", "client"));
@@ -331,7 +332,6 @@ class AggregateTableTest {
 
     verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 2L);
     verifyNoMoreInteractions(metrics);
-
     // After reset, a new service name should land in a fresh bucket, not the sentinel.
     AggregateEntry afterReset = table.findOrInsert(snapshot("svc-new", "op", "client"));
     assertNotSame(blocked, afterReset);
@@ -339,7 +339,6 @@ class AggregateTableTest {
   }
 
   // ---------- helpers ----------
-
   private static SpanSnapshot snapshot(String service, String operation, String spanKind) {
     return builder(service, operation, spanKind).build();
   }
@@ -392,7 +391,8 @@ class AggregateTableTest {
           null,
           null,
           null,
-          tagAndDuration);
+          tagAndDuration
+      );
     }
   }
 }

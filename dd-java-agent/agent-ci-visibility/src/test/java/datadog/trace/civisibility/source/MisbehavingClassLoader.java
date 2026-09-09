@@ -13,7 +13,6 @@ import java.util.Map;
  * references {@code java.lang.Module} and would break this Java 8 test suite.
  */
 final class MisbehavingClassLoader extends ClassLoader {
-
   private final Map<String, byte[]> classes = new HashMap<>();
 
   @Override

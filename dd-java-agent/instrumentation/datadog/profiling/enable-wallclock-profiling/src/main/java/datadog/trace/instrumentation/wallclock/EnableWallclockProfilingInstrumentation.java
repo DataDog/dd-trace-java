@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,33 +20,36 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public EnableWallclockProfilingInstrumentation() {
     super("wallclock");
   }
 
   private static final String[] RUNNABLE_EVENT_LOOPS = {
-    // regular netty
-    "io.netty.channel.ThreadPerChannelEventLoop",
-    "io.netty.channel.nio.NioEventLoop",
-    "io.netty.channel.epoll.EPollEventLoop",
-    "io.netty.channel.kqueue.KQueueEventLoop",
-    // gRPC shades the same classes
-    "io.grpc.netty.shaded.io.netty.channel.ThreadPerChannelEventLoop",
-    "io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoop",
-    "io.grpc.netty.shaded.io.netty.channel.epoll.EPollEventLoop",
-    "io.grpc.netty.shaded.io.netty.channel.kqueue.KQueueEventLoop"
+      // regular netty
+      "io.netty.channel.ThreadPerChannelEventLoop",
+      "io.netty.channel.nio.NioEventLoop",
+      "io.netty.channel.epoll.EPollEventLoop",
+      "io.netty.channel.kqueue.KQueueEventLoop",
+      // gRPC shades the same classes
+      "io.grpc.netty.shaded.io.netty.channel.ThreadPerChannelEventLoop",
+      "io.grpc.netty.shaded.io.netty.channel.nio.NioEventLoop",
+      "io.grpc.netty.shaded.io.netty.channel.epoll.EPollEventLoop",
+      "io.grpc.netty.shaded.io.netty.channel.kqueue.KQueueEventLoop"
   };
 
   @Override
   public boolean isEnabled() {
     // only needed if wallclock profiling is enabled, which requires tracing
     return super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                PROFILING_DATADOG_PROFILER_WALL_ENABLED,
-                PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT)
+        && ConfigProvider
+          .getInstance()
+          .getBoolean(
+              PROFILING_DATADOG_PROFILER_WALL_ENABLED,
+              PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT
+          )
         && InstrumenterConfig.get().isTraceEnabled();
   }
 
@@ -56,22 +58,25 @@ public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.
     String adviceClassName = getClass().getName() + "$EnableWallclockSampling";
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("run")
-                    .and(isDeclaredBy(namedOneOf(RUNNABLE_EVENT_LOOPS)))
-                    .and(takesNoArguments())),
-        adviceClassName);
+          .and(named("run")
+            .and(isDeclaredBy(namedOneOf(RUNNABLE_EVENT_LOOPS)))
+            .and(takesNoArguments())
+          ),
+        adviceClassName
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(named("dowait"))
-            .and(takesArguments(boolean.class, long.class))
-            .and(isDeclaredBy(named("java.util.concurrent.CyclicBarrier"))),
-        adviceClassName);
+          .and(named("dowait"))
+          .and(takesArguments(boolean.class, long.class))
+          .and(isDeclaredBy(named("java.util.concurrent.CyclicBarrier"))),
+        adviceClassName
+    );
     transformer.applyAdvice(
-        isMethod()
-            .and(named("await"))
-            .and(isDeclaredBy(named("java.util.concurrent.CountDownLatch"))),
-        adviceClassName);
+        isMethod().and(named("await")).and(
+            isDeclaredBy(named("java.util.concurrent.CountDownLatch"))
+        ),
+        adviceClassName
+    );
   }
 
   @Override
@@ -83,7 +88,6 @@ public class EnableWallclockProfilingInstrumentation extends InstrumenterModule.
   }
 
   public static final class EnableWallclockSampling {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
       AgentSpan span = AgentTracer.activeSpan();

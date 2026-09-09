@@ -3,7 +3,6 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.environment.JavaVirtualMachine;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,7 +59,6 @@ public class OpenJ9CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest
 
     Process p = pb.start();
     OUTPUT.captureOutput(p, LOG_FILE_DIR.resolve("testProcess.openj9CrashTracking.log").toFile());
-
     // OpenJ9 runs the dump tool synchronously on crash, so the upload completes before JVM exits
     assertTrue(p.waitFor(60, TimeUnit.SECONDS), "JVM did not exit within 60s after crash");
     assertTrue(p.exitValue() != 0, "JVM should have crashed (non-zero exit code)");
@@ -79,12 +77,15 @@ public class OpenJ9CrashtrackingSmokeTest extends AbstractCrashtrackingSmokeTest
     Map<Object, Object> stack = (Map<Object, Object>) error.get("stack");
     List<Object> frames = (List<Object>) stack.get("frames");
     assertTrue(
-        frames.stream()
-            .filter(Map.class::isInstance)
-            .map(Map.class::cast)
-            .map(frame -> frame.get("function"))
-            .anyMatch(
-                "datadog/smoketest/crashtracking/OpenJ9CrashtrackingTestApplication.main"::equals),
-        "Expected application main frame");
+        frames
+          .stream()
+          .filter(Map.class::isInstance)
+          .map(Map.class::cast)
+          .map(frame -> frame.get("function"))
+          .anyMatch(
+              "datadog/smoketest/crashtracking/OpenJ9CrashtrackingTestApplication.main"::equals
+          ),
+        "Expected application main frame"
+    );
   }
 }

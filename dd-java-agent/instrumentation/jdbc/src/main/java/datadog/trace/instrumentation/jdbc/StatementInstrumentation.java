@@ -13,7 +13,6 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -36,16 +35,17 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class StatementInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public StatementInstrumentation() {
     super("jdbc");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -60,24 +60,24 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
-    };
+    return new String[] {packageName + ".JDBCDecorator", packageName + ".SQLCommenter"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("execute").and(takesArgument(0, String.class)).and(isPublic()),
-        StatementInstrumentation.class.getName() + "$StatementAdvice");
+        StatementInstrumentation.class.getName() + "$StatementAdvice"
+    );
   }
 
   public static class StatementAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(value = 0, readOnly = false) String sql,
-        @Advice.AllArguments() Object[] args,
-        @Advice.This final Statement statement) {
+        @Advice.AllArguments Object[] args,
+        @Advice.This final Statement statement
+    ) {
       // TODO consider matching known non-wrapper implementations to avoid this check
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Statement.class);
       if (callDepth > 0) {
@@ -85,9 +85,10 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
       }
       try {
         final Connection connection = statement.getConnection();
-        final DBInfo dbInfo =
-            JDBCDecorator.parseDBInfo(
-                connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+        final DBInfo dbInfo = JDBCDecorator.parseDBInfo(
+            connection,
+            InstrumentationContext.get(Connection.class, DBInfo.class)
+        );
         boolean injectTraceContext = DECORATE.shouldInjectTraceContext(dbInfo);
         final AgentSpan span;
         final boolean isSqlServer = DECORATE.isSqlServer(dbInfo);
@@ -98,11 +99,11 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // The span ID is pre-determined so that we can reference it when setting the context
             final long spanID = DECORATE.setContextInfo(connection, dbInfo);
             // we then force that pre-determined span ID for the span covering the actual query
-            span =
-                AgentTracer.get()
-                    .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
-                    .withSpanId(spanID)
-                    .start();
+            span = AgentTracer
+              .get()
+              .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
+              .withSpanId(spanID)
+              .start();
           } else if (isOracle) {
             span = startSpan("java-jdbc-statement", DATABASE_QUERY);
             DECORATE.setAction(span, connection);
@@ -133,10 +134,8 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           // context_info and v$session.action respectively.
           // we should not also inject it into SQL comments to avoid duplication
           final boolean injectTraceInComment = injectTraceContext && !isSqlServer && !isOracle;
-
           // prepend mode will prepend the SQL comment to the raw sql query
           boolean appendComment = DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT;
-
           // There is a bug in the SQL Server JDBC driver that prevents
           // the generated keys from being returned when the
           // SQL comment is prepended to the SQL query.
@@ -154,22 +153,23 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
           if (isOracle) {
             String oracleService = DECORATE.getDbService(dbInfo);
             if (oracleService != null) {
-              oracleService =
-                  traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
+              oracleService = traceConfig(span)
+                .getServiceMapping()
+                .getOrDefault(oracleService, oracleService);
             }
             dbService = oracleService;
           } else {
             dbService = span.getServiceName();
           }
-          sql =
-              SQLCommenter.inject(
-                  sql,
-                  dbService,
-                  dbInfo.getType(),
-                  dbInfo.getHost(),
-                  dbInfo.getDb(),
-                  injectTraceInComment ? traceParent : null,
-                  appendComment);
+          sql = SQLCommenter.inject(
+              sql,
+              dbService,
+              dbInfo.getType(),
+              dbInfo.getHost(),
+              dbInfo.getDb(),
+              injectTraceInComment ? traceParent : null,
+              appendComment
+          );
         }
         DECORATE.onStatement(span, copy);
         DECORATE.withBaseHash(span);
@@ -186,7 +186,9 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(Statement.class);
       if (scope == null) {
         return;

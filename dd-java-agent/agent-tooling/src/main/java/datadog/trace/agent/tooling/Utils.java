@@ -4,23 +4,30 @@ import datadog.trace.bootstrap.BootstrapProxy;
 import java.lang.instrument.Instrumentation;
 
 public class Utils {
-
-  /** Return a classloader which can be used to look up bootstrap resources. */
+  /**
+   * Return a classloader which can be used to look up bootstrap resources.
+   */
   public static ClassLoader getBootstrapProxy() {
     return BootstrapProxy.INSTANCE;
   }
 
-  /** Return the classloader the core agent is running on. */
+  /**
+   * Return the classloader the core agent is running on.
+   */
   public static ClassLoader getAgentClassLoader() {
     return Instrumenter.class.getClassLoader();
   }
 
-  /** Return a classloader covering the core agent plus any runtime extensions. */
+  /**
+   * Return a classloader covering the core agent plus any runtime extensions.
+   */
   public static ClassLoader getExtendedClassLoader() {
     return Utils.extendedClassLoader;
   }
 
-  /** Return access to the current JVM instrumentation services. */
+  /**
+   * Return access to the current JVM instrumentation services.
+   */
   public static Instrumentation getInstrumentation() {
     return Utils.instrumentation;
   }
@@ -41,5 +48,6 @@ public class Utils {
     }
   }
 
-  private Utils() {}
+  private Utils() {
+  }
 }

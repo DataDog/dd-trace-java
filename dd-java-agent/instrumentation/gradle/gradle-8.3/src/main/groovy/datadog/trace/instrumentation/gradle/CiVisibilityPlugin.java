@@ -26,26 +26,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class CiVisibilityPlugin implements Plugin<Project> {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityPlugin.class);
-
   private static final String PLUGIN_EXTENSION_NAME = "dd-ci-visibility";
   private static final String JACOCO_PLUGIN_ID = "jacoco";
   private static final String JACOCO_AGENT_CONFIGURATION_NAME = "jacocoAgent";
   private static final String JACOCO_ANT_CONFIGURATION_NAME = "jacocoAnt";
   private static final String DEPENDENCY_VERIFICATION_WARNING_EMITTED =
       "datadog.civisibility.dependency-verification-warning-emitted";
-
   private Project project;
 
   @Override
   public void apply(Project project) {
     this.project = project;
 
-    CiVisibilityPluginExtension extension =
-        project
-            .getExtensions()
-            .create(PLUGIN_EXTENSION_NAME, CiVisibilityPluginExtension.class, project.getObjects());
+    CiVisibilityPluginExtension extension = project
+      .getExtensions()
+      .create(PLUGIN_EXTENSION_NAME, CiVisibilityPluginExtension.class, project.getObjects());
     calculateCompiledClassesFolders(extension);
     applyCompilerPlugin(extension);
     applyJacocoPlugin(extension);
@@ -64,10 +60,12 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
     for (String sourceSetName : sourceSetNames) {
       SourceSet sourceSet = gradleSourceSets.findByName(sourceSetName);
       if (sourceSet != null) {
-        datadog.trace.api.civisibility.domain.SourceSet.Type sourceSetType =
-            sourceSet.getName().toLowerCase().contains("test")
-                ? datadog.trace.api.civisibility.domain.SourceSet.Type.TEST
-                : datadog.trace.api.civisibility.domain.SourceSet.Type.CODE;
+        datadog.trace.api.civisibility.domain.SourceSet.Type sourceSetType = sourceSet
+          .getName()
+          .toLowerCase()
+          .contains("test")
+            ? datadog.trace.api.civisibility.domain.SourceSet.Type.TEST
+            : datadog.trace.api.civisibility.domain.SourceSet.Type.CODE;
 
         SourceDirectorySet allSource = sourceSet.getAllSource();
         Collection<File> srcDirs = allSource.getSrcDirs();
@@ -77,7 +75,11 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
 
         sourceSets.add(
             new datadog.trace.api.civisibility.domain.SourceSet(
-                sourceSetType, srcDirs, destinationDirs));
+                sourceSetType,
+                srcDirs,
+                destinationDirs
+            )
+        );
       }
     }
 
@@ -93,22 +95,22 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
   }
 
   public void addCompilerPluginConfigurations(CiVisibilityPluginExtension extension) {
-    Configuration configuration =
-        project
-            .getConfigurations()
-            .detachedConfiguration(
-                project
-                    .getDependencies()
-                    .create(
-                        String.format(
-                            "com.datadoghq:dd-javac-plugin:%s",
-                            extension.getCompilerPluginVersion())),
-                project
-                    .getDependencies()
-                    .create(
-                        String.format(
-                            "com.datadoghq:dd-javac-plugin-client:%s",
-                            extension.getCompilerPluginVersion())));
+    Configuration configuration = project
+      .getConfigurations()
+      .detachedConfiguration(
+          project
+            .getDependencies()
+            .create(String.format(
+                "com.datadoghq:dd-javac-plugin:%s",
+                extension.getCompilerPluginVersion()
+            )),
+          project
+            .getDependencies()
+            .create(String.format(
+                "com.datadoghq:dd-javac-plugin-client:%s",
+                extension.getCompilerPluginVersion()
+            ))
+      );
 
     disableDependencyVerificationIfConfigured(configuration);
 
@@ -120,29 +122,30 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
       return;
     }
 
-    if (Files.isRegularFile(
-        project
-            .getRootProject()
-            .getProjectDir()
-            .toPath()
-            .resolve("gradle/verification-metadata.xml"))) {
+    if (Files.isRegularFile(project
+      .getRootProject()
+      .getProjectDir()
+      .toPath()
+      .resolve("gradle/verification-metadata.xml")
+    )) {
       if (!project
+        .getRootProject()
+        .getExtensions()
+        .getExtraProperties()
+        .has(DEPENDENCY_VERIFICATION_WARNING_EMITTED)) {
+        project
           .getRootProject()
           .getExtensions()
           .getExtraProperties()
-          .has(DEPENDENCY_VERIFICATION_WARNING_EMITTED)) {
-        project
-            .getRootProject()
-            .getExtensions()
-            .getExtraProperties()
-            .set(DEPENDENCY_VERIFICATION_WARNING_EMITTED, true);
+          .set(DEPENDENCY_VERIFICATION_WARNING_EMITTED, true);
         LOGGER.warn(
             "Datadog Test Optimization disabled Gradle dependency verification for dependencies "
-                + "injected into this build. To keep verification enabled, set "
-                + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
-                + "the Datadog compiler plugin and injected JaCoCo dependencies to "
-                + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
-                + "fail the build while resolving these dependencies.");
+            + "injected into this build. To keep verification enabled, set "
+            + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
+            + "the Datadog compiler plugin and injected JaCoCo dependencies to "
+            + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
+            + "fail the build while resolving these dependencies."
+        );
       }
     }
     configuration.getResolutionStrategy().disableDependencyVerification();
@@ -189,13 +192,12 @@ public abstract class CiVisibilityPlugin implements Plugin<Project> {
         project.getExtensions().getByType(JacocoPluginExtension.class);
     jacocoExtension.setToolVersion(extension.getJacocoVersion());
 
-    List<Configuration> jacocoConfigurations =
-        project.getConfigurations().stream()
-            .filter(
-                c ->
-                    JACOCO_AGENT_CONFIGURATION_NAME.equals(c.getName())
-                        || JACOCO_ANT_CONFIGURATION_NAME.equals(c.getName()))
-            .collect(Collectors.toList());
+    List<Configuration> jacocoConfigurations = project
+      .getConfigurations()
+      .stream()
+      .filter(c -> JACOCO_AGENT_CONFIGURATION_NAME.equals(c.getName())
+          || JACOCO_ANT_CONFIGURATION_NAME.equals(c.getName()))
+      .collect(Collectors.toList());
     for (Configuration jacocoConfiguration : jacocoConfigurations) {
       disableDependencyVerificationIfConfigured(jacocoConfiguration);
     }

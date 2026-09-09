@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.play23;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -27,7 +26,8 @@ import play.api.mvc.Request;
 import scala.Option;
 
 public class PlayHttpServerDecorator
-    extends HttpServerDecorator<Request<?>, Request<?>, play.api.mvc.Result, Headers> {
+    extends HttpServerDecorator<Request<?>, Request<?>, play.api.mvc.Result, Headers>
+{
   private static final Logger LOG = LoggerFactory.getLogger(PlayHttpServerDecorator.class);
   public static final boolean REPORT_HTTP_STATUS = Config.get().getPlayReportHttpStatus();
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
@@ -89,7 +89,8 @@ public class PlayHttpServerDecorator
       final AgentSpan span,
       final Request<?> connection,
       final Request<?> request,
-      final Context parentContext) {
+      final Context parentContext
+  ) {
     // Play's Request#remoteAddress() returns the address resolved from X-Forwarded-For (and
     // similar) proxy headers, not the actual TCP socket peer. If the upstream framework
     // (akka/netty) already populated peer information on the span from the real socket,
@@ -164,7 +165,10 @@ public class PlayHttpServerDecorator
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull Throwable throwable,
+      byte errorPriority
+  ) {
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
@@ -172,7 +176,7 @@ public class PlayHttpServerDecorator
       throwable = throwable.getCause();
     }
     while ((throwable instanceof InvocationTargetException
-            || throwable instanceof UndeclaredThrowableException)
+        || throwable instanceof UndeclaredThrowableException)
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }

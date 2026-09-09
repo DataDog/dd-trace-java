@@ -40,7 +40,6 @@ import javax.annotation.Nullable;
  * <p>This class manages the module span since there is no build system instrumentation to do it.
  */
 public class HeadlessTestModule extends AbstractTestModule implements TestFrameworkModule {
-
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionStrategy executionStrategy;
   private final ExecutionResults executionResults;
@@ -59,7 +58,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
       Collection<LibraryCapability> capabilities,
-      Consumer<AgentSpan> onSpanFinish) {
+      Consumer<AgentSpan> onSpanFinish
+  ) {
     super(
         sessionSpanContext,
         moduleName,
@@ -71,7 +71,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         sourcePathResolver,
         codeowners,
         linesResolver,
-        onSpanFinish);
+        onSpanFinish
+    );
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionStrategy = executionStrategy;
     this.executionResults = new ExecutionResults();
@@ -112,7 +113,10 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   @Override
   @Nonnull
   public TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+      TestIdentifier test,
+      TestSourceData testSource,
+      Collection<String> testTags
+  ) {
     return executionStrategy.executionPolicy(test, testSource, testTags);
   }
 
@@ -168,7 +172,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized,
-      TestFrameworkInstrumentation instrumentation) {
+      TestFrameworkInstrumentation instrumentation
+  ) {
     return new TestSuiteImpl(
         span.spanContext(),
         moduleName,
@@ -190,6 +195,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         executionResults,
         executionStrategy.getExecutionSettings().getConfigurationErrors(),
         capabilities,
-        tagsPropagator::propagateCiVisibilityTags);
+        tagsPropagator::propagateCiVisibilityTags
+    );
   }
 }

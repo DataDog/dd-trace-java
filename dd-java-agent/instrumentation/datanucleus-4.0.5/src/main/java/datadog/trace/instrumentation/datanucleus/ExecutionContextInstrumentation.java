@@ -12,7 +12,6 @@ import static java.util.Collections.singleton;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,18 +22,21 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.datanucleus.ExecutionContext;
 
 public class ExecutionContextInstrumentation
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get()
-        .isIntegrationShortcutMatchingEnabled(singleton("datanucleus"), false);
+    return InstrumenterConfig
+      .get()
+      .isIntegrationShortcutMatchingEnabled(singleton("datanucleus"), false);
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.datanucleus.ExecutionContextImpl", "org.datanucleus.ExecutionContextThreadedImpl"
+        "org.datanucleus.ExecutionContextImpl",
+        "org.datanucleus.ExecutionContextThreadedImpl"
     };
   }
 
@@ -52,33 +54,36 @@ public class ExecutionContextInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(namedOneOf("persistObject", "deleteObject", "refreshObject")),
-        ExecutionContextInstrumentation.class.getName() + "$SingleObjectActionAdvice");
+        ExecutionContextInstrumentation.class.getName() + "$SingleObjectActionAdvice"
+    );
 
     transformer.applyAdvice(
-        isMethod()
-            .and(namedOneOf("refreshAllObjects", "persistObjects", "deleteObjects", "findObjects")),
-        ExecutionContextInstrumentation.class.getName() + "$MultiObjectActionAdvice");
+        isMethod().and(
+            namedOneOf("refreshAllObjects", "persistObjects", "deleteObjects", "findObjects")
+        ),
+        ExecutionContextInstrumentation.class.getName() + "$MultiObjectActionAdvice"
+    );
 
     transformer.applyAdvice(
-        isMethod()
-            .and(named("findObject"))
-            .and(takesArguments(4))
-            .and(takesArgument(3, String.class)),
-        ExecutionContextInstrumentation.class.getName() + "$FindWithStringClassnameAdvice");
+        isMethod().and(named("findObject")).and(takesArguments(4)).and(
+            takesArgument(3, String.class)
+        ),
+        ExecutionContextInstrumentation.class.getName() + "$FindWithStringClassnameAdvice"
+    );
     transformer.applyAdvice(
-        isMethod()
-            .and(named("findObject"))
-            .and(takesArguments(4))
-            .and(takesArgument(2, Class.class)),
-        ExecutionContextInstrumentation.class.getName() + "$FindWithClassAdvice");
+        isMethod().and(named("findObject")).and(takesArguments(4)).and(
+            takesArgument(2, Class.class)
+        ),
+        ExecutionContextInstrumentation.class.getName() + "$FindWithClassAdvice"
+    );
   }
 
   public static class MultiObjectActionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod(
         @Advice.This final ExecutionContext executionContext,
-        @Advice.Origin("datanucleus.#m") final String operationName) {
-
+        @Advice.Origin("datanucleus.#m") final String operationName
+    ) {
       final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), operationName);
       DECORATE.afterStart(span);
 
@@ -87,8 +92,9 @@ public class ExecutionContextInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void endMethod(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }
@@ -106,8 +112,8 @@ public class ExecutionContextInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod(
         @Advice.Origin("datanucleus.#m") final String operationName,
-        @Advice.Argument(0) Object entity) {
-
+        @Advice.Argument(0) Object entity
+    ) {
       if (entity == null) {
         return null;
       }
@@ -122,8 +128,8 @@ public class ExecutionContextInstrumentation
     public static void endMethod(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Argument(0) Object entity) {
-
+        @Advice.Argument(0) Object entity
+    ) {
       if (scope == null) {
         return;
       }
@@ -141,7 +147,6 @@ public class ExecutionContextInstrumentation
   public static class FindWithStringClassnameAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
-
       final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
 
@@ -153,8 +158,8 @@ public class ExecutionContextInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(0) Object id,
-        @Advice.Argument(3) String objectClassName) {
-
+        @Advice.Argument(3) String objectClassName
+    ) {
       if (scope == null) {
         return;
       }
@@ -172,7 +177,6 @@ public class ExecutionContextInstrumentation
   public static class FindWithClassAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope startMethod() {
-
       final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_FIND_OBJECT);
       DECORATE.afterStart(span);
 
@@ -184,8 +188,8 @@ public class ExecutionContextInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable,
         @Advice.Argument(0) Object id,
-        @Advice.Argument(2) Class cls) {
-
+        @Advice.Argument(2) Class cls
+    ) {
       if (scope == null) {
         return;
       }

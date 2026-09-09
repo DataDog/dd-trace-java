@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -27,7 +26,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class BasicRemoteEndpointInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public BasicRemoteEndpointInstrumentation(String namespace) {
@@ -48,27 +49,32 @@ public class BasicRemoteEndpointInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("sendText"))
-            .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
-            .and(takesArgument(0, named("java.lang.String")))
-            .and(returns(void.class)),
-        getClass().getName() + "$SendTextAdvice");
+          .and(named("sendText"))
+          .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
+          .and(takesArgument(0, named("java.lang.String")))
+          .and(returns(void.class)),
+        getClass().getName() + "$SendTextAdvice"
+    );
     transformer.applyAdvice(
         isPublic()
-            .and(named("sendBinary"))
-            .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
-            .and(takesArgument(0, named("java.nio.ByteBuffer")))
-            .and(returns(void.class)),
-        getClass().getName() + "$SendBinaryAdvice");
+          .and(named("sendBinary"))
+          .and(takesArguments(1).or(takesArguments(2).and(takesArgument(1, boolean.class))))
+          .and(takesArgument(0, named("java.nio.ByteBuffer")))
+          .and(returns(void.class)),
+        getClass().getName() + "$SendBinaryAdvice"
+    );
     transformer.applyAdvice(
         isPublic().and(named("sendObject")).and(takesArguments(1)).and(returns(void.class)),
-        getClass().getName() + "$SendObjectAdvice");
+        getClass().getName() + "$SendObjectAdvice"
+    );
     transformer.applyAdvice(
         isPublic().and(named("getSendStream")).and(takesNoArguments()),
-        getClass().getName() + "$WrapStreamAdvice");
+        getClass().getName() + "$WrapStreamAdvice"
+    );
     transformer.applyAdvice(
         isPublic().and(named("getSendWriter")).and(takesNoArguments()),
-        getClass().getName() + "$WrapWriterAdvice");
+        getClass().getName() + "$WrapWriterAdvice"
+    );
   }
 
   public static class SendTextAdvice {
@@ -76,19 +82,21 @@ public class BasicRemoteEndpointInstrumentation
     public static AgentScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) String text,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
+      handlerContext = InstrumentationContext
+        .get(RemoteEndpoint.class, HandlerContext.Sender.class)
+        .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
       }
 
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
-              CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text));
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+          handlerContext,
+          CHAR_SEQUENCE_SIZE_CALCULATOR.getFormat(),
+          CHAR_SEQUENCE_SIZE_CALCULATOR.getLengthFunction().applyAsInt(text)
+      );
       return activateSpan(wsSpan);
     }
 
@@ -97,7 +105,8 @@ public class BasicRemoteEndpointInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Argument(value = 1, optional = true) final Boolean last) {
+        @Advice.Argument(value = 1, optional = true) final Boolean last
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
 
       if (scope == null) {
@@ -117,19 +126,21 @@ public class BasicRemoteEndpointInstrumentation
     public static AgentScope before(
         @Advice.This final RemoteEndpoint.Basic self,
         @Advice.Argument(0) ByteBuffer buffer,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
+      handlerContext = InstrumentationContext
+        .get(RemoteEndpoint.class, HandlerContext.Sender.class)
+        .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
       }
 
-      final AgentSpan wsSpan =
-          DECORATE.startOutboundFrameSpan(
-              handlerContext,
-              BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
-              BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer));
+      final AgentSpan wsSpan = DECORATE.startOutboundFrameSpan(
+          handlerContext,
+          BYTE_BUFFER_SIZE_CALCULATOR.getFormat(),
+          BYTE_BUFFER_SIZE_CALCULATOR.getLengthFunction().applyAsInt(buffer)
+      );
       return activateSpan(wsSpan);
     }
 
@@ -138,7 +149,8 @@ public class BasicRemoteEndpointInstrumentation
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Argument(value = 1, optional = true) final Boolean last) {
+        @Advice.Argument(value = 1, optional = true) final Boolean last
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
       if (scope == null) {
         return;
@@ -156,14 +168,15 @@ public class BasicRemoteEndpointInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(
         @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class).get(self);
+        @Advice.Local("handlerContext") HandlerContext.Sender handlerContext
+    ) {
+      handlerContext = InstrumentationContext
+        .get(RemoteEndpoint.class, HandlerContext.Sender.class)
+        .get(self);
       if (handlerContext == null
           || CallDepthThreadLocalMap.incrementCallDepth(RemoteEndpoint.class) > 0) {
         return null;
       }
-
       // we actually cannot know the size and the type since this the conversion is done by
       // encoders/decoders.
       // we can anyway instrument also the Encoders but that would add much more complexity.
@@ -176,7 +189,8 @@ public class BasicRemoteEndpointInstrumentation
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(RemoteEndpoint.class);
       if (scope == null) {
         return;
@@ -191,7 +205,8 @@ public class BasicRemoteEndpointInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(
         @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Return(readOnly = false) Writer writer) {
+        @Advice.Return(readOnly = false) Writer writer
+    ) {
       if (writer instanceof TracingWriter) {
         return;
       }
@@ -207,7 +222,8 @@ public class BasicRemoteEndpointInstrumentation
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void after(
         @Advice.This final RemoteEndpoint.Basic self,
-        @Advice.Return(readOnly = false) OutputStream outputStream) {
+        @Advice.Return(readOnly = false) OutputStream outputStream
+    ) {
       if (outputStream instanceof TracingOutputStream) {
         return;
       }

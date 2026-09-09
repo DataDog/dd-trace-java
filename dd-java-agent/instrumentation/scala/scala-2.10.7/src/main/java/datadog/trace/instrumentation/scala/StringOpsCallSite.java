@@ -10,21 +10,19 @@ import scala.collection.immutable.StringOps;
 import scala.math.ScalaNumber;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    helpers = {
-      ScalaJavaConverters.class,
-      ScalaJavaConverters.JavaIterable.class,
-      ScalaJavaConverters.JavaIterator.class
-    })
+@CallSite(spi = IastCallSites.class, helpers = {
+    ScalaJavaConverters.class,
+    ScalaJavaConverters.JavaIterable.class,
+    ScalaJavaConverters.JavaIterator.class
+})
 public class StringOpsCallSite {
-
-  @CallSite.After(
-      "java.lang.String scala.collection.immutable.StringOps.format(scala.collection.Seq)")
+  @CallSite.After("java.lang.String scala.collection.immutable.StringOps.format(scala.collection."
+      + "Seq)")
   public static String afterInterpolation(
       @CallSite.This @Nonnull final StringOps stringOps,
       @CallSite.Argument(0) final scala.collection.Seq<?> params,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -40,13 +38,15 @@ public class StringOpsCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String scala.collection.StringOps$.format$extension(java.lang.String, scala.collection.immutable.Seq)")
+  @CallSite.After("java.lang.String scala.collection.StringOps$.format$extension(java.lang."
+      + "String, scala.collection.immutable.Seq)")
   public static String afterInterpolation(
-      @CallSite.This final Object target, // CSI forces to include the target of the invoke
+      // CSI forces to include the target of the invoke
+      @CallSite.This final Object target,
       @CallSite.Argument(0) @Nonnull final String pattern,
       @CallSite.Argument(1) final scala.collection.immutable.Seq<?> params,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {

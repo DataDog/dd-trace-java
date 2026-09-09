@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.jetty76.JettyDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -44,9 +43,9 @@ import org.eclipse.jetty.server.Response;
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice
+{
   public JettyServerInstrumentation() {
     super("jetty");
   }
@@ -59,13 +58,13 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".JettyDecorator",
+        packageName + ".RequestURIDataAdapter",
+        "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+        "datadog.trace.instrumentation.jetty.JettyBlockingHelper"
     };
   }
 
@@ -83,18 +82,21 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), JettyServerInstrumentation.class.getName() + "$ConstructorAdvice");
+        isConstructor(),
+        JettyServerInstrumentation.class.getName() + "$ConstructorAdvice"
+    );
     transformer.applyAdvices(
         named("handleRequest").and(takesNoArguments()),
         JettyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
-        JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
+        JettyServerInstrumentation.class.getName() + "$HandleRequestAdvice"
+    );
     transformer.applyAdvice(
         named("reset").and(takesNoArguments()),
-        JettyServerInstrumentation.class.getName() + "$ResetAdvice");
+        JettyServerInstrumentation.class.getName() + "$ResetAdvice"
+    );
   }
 
   public static class ConnectionHandleRequestVisitorWrapper implements AsmVisitorWrapper {
-
     @Override
     public int mergeWriter(int flags) {
       return flags | ClassWriter.COMPUTE_MAXS;
@@ -114,13 +116,17 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         FieldList<FieldDescription.InDefinedShape> fields,
         MethodList<?> methods,
         int writerFlags,
-        int readerFlags) {
+        int readerFlags
+    ) {
       if (Config.get().getAppSecActivation() == ProductActivation.FULLY_DISABLED) {
         return classVisitor;
       }
 
       return new ConnectionHandleRequestVisitor(
-          Opcodes.ASM7, classVisitor, "org/eclipse/jetty/server/AbstractHttpConnection");
+          Opcodes.ASM7,
+          classVisitor,
+          "org/eclipse/jetty/server/AbstractHttpConnection"
+      );
     }
   }
 
@@ -138,7 +144,8 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void link(
         @Advice.FieldValue("_generator") final Generator generator,
-        @Advice.FieldValue("_response") final Response response) {
+        @Advice.FieldValue("_response") final Response response
+    ) {
       InstrumentationContext.get(Generator.class, Response.class).put(generator, response);
     }
   }
@@ -148,11 +155,13 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.This final AbstractHttpConnection connection,
-        @Advice.Local("parentScope") ContextScope parentScope) {
+        @Advice.Local("parentScope") ContextScope parentScope
+    ) {
       Request req = connection.getRequest();
       Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
       if (existingContext instanceof Context) {
-        return; // re-entry: HandleRequestAdvice will attach existing context
+        // re-entry: HandleRequestAdvice will attach existing context
+        return;
       }
       Context parentContext = DECORATE.extract(req);
       req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
@@ -172,11 +181,11 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
    * parsed. This allows us to read the headers from the request to extract propagation info.
    */
   public static class HandleRequestAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(
         @Advice.This final AbstractHttpConnection connection,
-        @Advice.Local("newSpan") AgentSpan span) {
+        @Advice.Local("newSpan") AgentSpan span
+    ) {
       Request req = connection.getRequest();
 
       Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
@@ -225,7 +234,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
           span.finish();
         }
       }
-
       // Jetty doesn't always call async listeners
       // Finish the dispatch listener span if it hasn't already
       Runnable r = (Runnable) req.getAttribute(DD_FIN_DISP_LIST_SPAN_ATTRIBUTE);

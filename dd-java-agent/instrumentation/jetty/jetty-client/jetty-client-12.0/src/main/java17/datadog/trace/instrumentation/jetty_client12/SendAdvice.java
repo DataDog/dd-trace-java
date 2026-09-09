@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jetty_client12.JettyClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.jetty_client12.JettyClientDecorator.HTTP_REQUEST;
-
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -24,7 +23,9 @@ public class SendAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
-      @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      @Advice.Enter final AgentScope scope,
+      @Advice.Thrown final Throwable throwable
+  ) {
     try (scope) {
       if (throwable != null) {
         DECORATE.onError(scope, throwable);

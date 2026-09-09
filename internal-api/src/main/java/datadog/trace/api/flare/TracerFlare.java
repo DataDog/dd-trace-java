@@ -1,7 +1,6 @@
 package datadog.trace.api.flare;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,7 +10,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public final class TracerFlare {
-
   public interface Reporter {
     default void prepareForFlare() {}
 
@@ -74,8 +72,7 @@ public final class TracerFlare {
     }
   }
 
-  public static void addBinary(ZipOutputStream zip, String section, byte[] bytes)
-      throws IOException {
+  public static void addBinary(ZipOutputStream zip, String section, byte[] bytes) throws IOException {
     zip.putNextEntry(new ZipEntry(section));
     if (null != bytes) {
       zip.write(bytes);

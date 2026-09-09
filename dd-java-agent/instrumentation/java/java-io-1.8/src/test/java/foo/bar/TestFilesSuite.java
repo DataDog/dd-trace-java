@@ -14,16 +14,17 @@ import java.util.List;
 import java.util.stream.Stream;
 
 public class TestFilesSuite {
-
   // ===================== WRITE =====================
-
   public static OutputStream newOutputStream(final Path path, final OpenOption... options)
       throws IOException {
     return Files.newOutputStream(path, options);
   }
 
   public static long copyFromStream(
-      final InputStream in, final Path target, final CopyOption... options) throws IOException {
+      final InputStream in,
+      final Path target,
+      final CopyOption... options
+  ) throws IOException {
     return Files.copy(in, target, options);
   }
 
@@ -36,29 +37,39 @@ public class TestFilesSuite {
       final Path path,
       final Iterable<? extends CharSequence> lines,
       final Charset cs,
-      final OpenOption... options)
-      throws IOException {
+      final OpenOption... options
+  ) throws IOException {
     return Files.write(path, lines, cs, options);
   }
 
   public static Path writeLinesDefaultCharset(
-      final Path path, final Iterable<? extends CharSequence> lines, final OpenOption... options)
-      throws IOException {
+      final Path path,
+      final Iterable<? extends CharSequence> lines,
+      final OpenOption... options
+  ) throws IOException {
     return Files.write(path, lines, options);
   }
 
   public static BufferedWriter newBufferedWriter(
-      final Path path, final Charset cs, final OpenOption... options) throws IOException {
+      final Path path,
+      final Charset cs,
+      final OpenOption... options
+  ) throws IOException {
     return Files.newBufferedWriter(path, cs, options);
   }
 
   public static BufferedWriter newBufferedWriterDefaultCharset(
-      final Path path, final OpenOption... options) throws IOException {
+      final Path path,
+      final OpenOption... options
+  ) throws IOException {
     return Files.newBufferedWriter(path, options);
   }
 
   public static Path copyPathToPath(
-      final Path source, final Path target, final CopyOption... options) throws IOException {
+      final Path source,
+      final Path target,
+      final CopyOption... options
+  ) throws IOException {
     return Files.copy(source, target, options);
   }
 
@@ -72,7 +83,6 @@ public class TestFilesSuite {
   }
 
   // ===================== READ =====================
-
   public static InputStream newInputStream(final Path path, final OpenOption... options)
       throws IOException {
     return Files.newInputStream(path, options);

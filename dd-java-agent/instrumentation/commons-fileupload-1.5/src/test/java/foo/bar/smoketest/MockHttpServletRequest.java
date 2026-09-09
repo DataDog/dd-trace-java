@@ -27,15 +27,16 @@ public class MockHttpServletRequest implements HttpServletRequest {
   private final String BOUNDARY = "----boundary";
   private final String BOUNDARY_START = "--" + BOUNDARY + "\r\n";
   private final String BOUNDARY_END = "--" + BOUNDARY + "--\r\n";
-
   private final String contentType;
   private final String inputStream;
   private String characterEncoding;
   private final int contentLength;
 
   public MockHttpServletRequest(
-      final String contentType, final String inputStream, final String characterEncoding)
-      throws UnsupportedEncodingException {
+      final String contentType,
+      final String inputStream,
+      final String characterEncoding
+  ) throws UnsupportedEncodingException {
     this.contentType = contentType;
     this.inputStream = inputStream;
     this.characterEncoding = characterEncoding;
@@ -166,10 +167,10 @@ public class MockHttpServletRequest implements HttpServletRequest {
   }
 
   @Override
-  /**
+  public /**
    * @deprecated
    */
-  public String getRealPath(String var1) {
+  String getRealPath(String var1) {
     return null;
   }
 
@@ -350,10 +351,10 @@ public class MockHttpServletRequest implements HttpServletRequest {
   }
 
   @Override
-  /**
+  public /**
    * @deprecated
    */
-  public boolean isRequestedSessionIdFromUrl() {
+  boolean isRequestedSessionIdFromUrl() {
     return false;
   }
 

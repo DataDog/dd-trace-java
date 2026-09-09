@@ -8,9 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** Handles requests to Remote Configuration */
+/**
+ * Handles requests to Remote Configuration
+ */
 public class RemoteConfigRequest {
-
   public static RemoteConfigRequest newRequest(
       String clientId,
       String runtimeId,
@@ -23,62 +24,64 @@ public class RemoteConfigRequest {
       List<String> tags,
       ClientInfo.ClientState clientState,
       Collection<CachedTargetFile> cachedTargetFiles,
-      long capabilities) {
+      long capabilities
+  ) {
+    ClientInfo.TracerInfo tracerInfo = new RemoteConfigRequest.ClientInfo.TracerInfo(
+        runtimeId,
+        tracerVersion,
+        serviceName,
+        extraServices,
+        serviceEnv,
+        serviceVersion,
+        tags,
+        ProcessTags.getTagsAsStringList()
+    );
 
-    ClientInfo.TracerInfo tracerInfo =
-        new RemoteConfigRequest.ClientInfo.TracerInfo(
-            runtimeId,
-            tracerVersion,
-            serviceName,
-            extraServices,
-            serviceEnv,
-            serviceVersion,
-            tags,
-            ProcessTags.getTagsAsStringList());
-
-    ClientInfo clientInfo =
-        new RemoteConfigRequest.ClientInfo(
-            clientState, clientId, productNames, tracerInfo, capabilities);
+    ClientInfo clientInfo = new RemoteConfigRequest.ClientInfo(
+        clientState,
+        clientId,
+        productNames,
+        tracerInfo,
+        capabilities
+    );
 
     return new RemoteConfigRequest(clientInfo, cachedTargetFiles);
   }
 
   private final ClientInfo client;
-
   @Json(name = "cached_target_files")
   private final Collection<CachedTargetFile> cachedTargetFiles;
 
   public RemoteConfigRequest(ClientInfo client, Collection<CachedTargetFile> cachedTargetFiles) {
     this.client = client;
     // system tests expect this to be null if we're not holding anything cached
-    this.cachedTargetFiles =
-        (cachedTargetFiles != null && cachedTargetFiles.isEmpty()) ? null : cachedTargetFiles;
+    this.cachedTargetFiles = (cachedTargetFiles != null && cachedTargetFiles.isEmpty())
+        ? null
+        : cachedTargetFiles;
   }
 
   public ClientInfo getClient() {
     return this.client;
   }
 
-  /** Stores client information for Remote Configuration */
+  /**
+   * Stores client information for Remote Configuration
+   */
   public static class ClientInfo {
     @Json(name = "state")
     private final ClientState clientState;
-
     private final String id;
     private final Collection<String> products;
-
     @Json(name = "client_tracer")
     private final TracerInfo tracerInfo;
-
     @Json(name = "client_agent")
-    private final AgentInfo agentInfo = null; // MUST NOT be set
-
+    private final AgentInfo // MUST NOT be set
+    agentInfo = null;
     @Json(name = "is_tracer")
     private final boolean isTracer = true;
-
     @Json(name = "is_agent")
-    private final Boolean isAgent = null; // MUST NOT be set;
-
+    private final Boolean // MUST NOT be set;
+    isAgent = null;
     private final byte[] capabilities;
 
     public ClientInfo(
@@ -86,12 +89,12 @@ public class RemoteConfigRequest {
         String id,
         Collection<String> productNames,
         TracerInfo tracerInfo,
-        final long capabilities) {
+        final long capabilities
+    ) {
       this.clientState = clientState;
       this.id = id;
       this.products = productNames;
       this.tracerInfo = tracerInfo;
-
       // Big-endian encoding of the `long` capabilities, stripping any trailing zero bytes
       // (except the first one)
       final int size = Math.max(1, Long.BYTES - Long.numberOfLeadingZeros(capabilities) / 8);
@@ -108,18 +111,13 @@ public class RemoteConfigRequest {
     public static class ClientState {
       @Json(name = "root_version")
       public long rootVersion = 1L;
-
       @Json(name = "targets_version")
       public long targetsVersion;
-
       @Json(name = "config_states")
       public List<ConfigState> configStates = new ArrayList<>();
-
       @Json(name = "has_error")
       public boolean hasError;
-
       public String error;
-
       @Json(name = "backend_client_state")
       public String backendClientState;
 
@@ -127,7 +125,8 @@ public class RemoteConfigRequest {
           long targetsVersion,
           List<ConfigState> configStates,
           String error,
-          String backendClientState) {
+          String backendClientState
+      ) {
         this.targetsVersion = targetsVersion;
         this.configStates = configStates;
         this.error = error;
@@ -138,14 +137,11 @@ public class RemoteConfigRequest {
       public static class ConfigState {
         public static final int APPLY_STATE_ACKNOWLEDGED = 2;
         public static final int APPLY_STATE_ERROR = 3;
-
         private String id;
         private long version;
         public String product;
-
         @Json(name = "apply_state")
         public int applyState;
-
         @Json(name = "apply_error")
         public String applyError;
 
@@ -162,26 +158,18 @@ public class RemoteConfigRequest {
     public static class TracerInfo {
       @Json(name = "runtime_id")
       private final String runtimeId;
-
       private final String language = "java";
-
       private final List<String> tags;
-
       @Json(name = "tracer_version")
       private final String tracerVersion;
-
       @Json(name = "service")
       private final String serviceName;
-
       @Json(name = "extra_services")
       private final List<String> extraServices;
-
       @Json(name = "env")
       private final String serviceEnv;
-
       @Json(name = "app_version")
       private final String serviceVersion;
-
       @Json(name = "process_tags")
       private final List<String> processTags;
 
@@ -193,7 +181,8 @@ public class RemoteConfigRequest {
           String serviceEnv,
           String serviceVersion,
           List<String> tags,
-          List<String> processTags) {
+          List<String> processTags
+      ) {
         this.runtimeId = runtimeId;
         this.tracerVersion = tracerVersion;
         this.serviceName = serviceName;
@@ -245,18 +234,20 @@ public class RemoteConfigRequest {
     public final long length;
     public final List<TargetFileHash> hashes;
 
-    public CachedTargetFile(
-        String path, long length, Map<String /*algo*/, String /*digest*/> hashes) {
+    public CachedTargetFile(String path, long length, Map<String, /*algo*/
+    String> hashes) {
       this.path = path;
       this.length = length;
-      List<TargetFileHash> hashesList =
-          hashes.entrySet().stream()
-              .map(e -> new TargetFileHash(e.getKey(), e.getValue()))
-              .collect(Collectors.toList());
+      List<TargetFileHash> hashesList = hashes
+        .entrySet()
+        .stream()
+        .map(e -> new TargetFileHash(e.getKey(), e.getValue()))
+        .collect(Collectors.toList());
       this.hashes = hashesList;
     }
 
-    public boolean hashesMatch(Map<String /*algo*/, String /*digest*/> hashesMap) {
+    public boolean hashesMatch(Map<String, /*algo*/
+    String> hashesMap) {
       if (this.hashes == null) {
         return false;
       }

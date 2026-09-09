@@ -7,18 +7,18 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class TraitMethodMatchers {
   public static ElementMatcher.Junction<MethodDescription> isTraitDirectiveMethod(
-      String traitName, String name, String... argumentTypes) {
-
-    ElementMatcher.Junction<MethodDescription> scalaOldArgs =
-        isStatic()
-            .and(takesArguments(argumentTypes.length + 1))
-            .and(takesArgument(0, named(traitName)));
+      String traitName,
+      String name,
+      String... argumentTypes
+  ) {
+    ElementMatcher.Junction<MethodDescription> scalaOldArgs = isStatic()
+      .and(takesArguments(argumentTypes.length + 1))
+      .and(takesArgument(0, named(traitName)));
     ElementMatcher.Junction<MethodDescription> scalaNewArgs =
         not(isStatic()).and(takesArguments(argumentTypes.length));
 
@@ -28,8 +28,8 @@ public class TraitMethodMatchers {
     }
 
     return isMethod()
-        .and(named(name))
-        .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
-        .and(scalaOldArgs.or(scalaNewArgs));
+      .and(named(name))
+      .and(returns(named("org.apache.pekko.http.scaladsl.server.Directive")))
+      .and(scalaOldArgs.or(scalaNewArgs));
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
-
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
@@ -14,11 +13,11 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 
 public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<StreamResponse<T>> {
-
   public static <T> HttpResponseFor<StreamResponse<T>> wrap(
       HttpResponseFor<StreamResponse<T>> response,
       final AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
+      BiConsumer<AgentSpan, List<T>> decorate
+  ) {
     DECORATE.withHttpResponse(span, response.headers());
     return new HttpStreamResponseWrapper<>(response, span, decorate);
   }
@@ -26,15 +25,15 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
   public static <T> CompletableFuture<HttpResponseFor<StreamResponse<T>>> wrapFuture(
       CompletableFuture<HttpResponseFor<StreamResponse<T>>> future,
       AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
+      BiConsumer<AgentSpan, List<T>> decorate
+  ) {
     return future
-        .thenApply(r -> wrap(r, span, decorate))
-        .whenComplete(
-            (_r, err) -> {
-              if (err != null) {
-                DECORATE.finishSpan(span, err);
-              }
-            });
+      .thenApply(r -> wrap(r, span, decorate))
+      .whenComplete((_r, err) -> {
+        if (err != null) {
+          DECORATE.finishSpan(span, err);
+        }
+      });
   }
 
   private final HttpResponseFor<StreamResponse<T>> delegate;
@@ -45,7 +44,8 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
   private HttpStreamResponseWrapper(
       HttpResponseFor<StreamResponse<T>> delegate,
       AgentSpan span,
-      BiConsumer<AgentSpan, List<T>> decorate) {
+      BiConsumer<AgentSpan, List<T>> decorate
+  ) {
     this.delegate = delegate;
     this.span = span;
     this.decorate = decorate;

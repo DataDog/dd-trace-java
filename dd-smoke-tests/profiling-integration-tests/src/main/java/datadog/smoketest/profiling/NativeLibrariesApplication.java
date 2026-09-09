@@ -11,9 +11,11 @@ import net.jpountz.xxhash.XXHashFactory;
 import org.xerial.snappy.Snappy;
 
 public class NativeLibrariesApplication {
-
   private static final String TEXT =
-      "It was a bright cold day in April, and the clocks were striking thirteen. Winston Smith, his chin nuzzled into his breast in an effort to escape the vile wind, slipped quickly through the glass doors of Victory Mansions, though not quickly enough to prevent a swirl of gritty dust from entering along with him.";
+      "It was a bright cold day in April, and the clocks were striking thirteen. Winston "
+      + "Smith, his chin nuzzled into his breast in an effort to escape the vile wind, "
+      + "slipped quickly through the glass doors of Victory Mansions, though not quickly "
+      + "enough to prevent a swirl of gritty dust from entering along with him.";
 
   public static void main(String... args) throws Throwable {
     NativeLibrariesApplication application = new NativeLibrariesApplication();
@@ -72,7 +74,10 @@ public class NativeLibrariesApplication {
         {
           Span xxhash64 = tracer.buildSpan("xxhash64").start();
           try (Scope inner = tracer.activateSpan(xxhash64)) {
-            long hash64 = XXHashFactory.nativeInstance().hash64().hash(bytes, 0, bytes.length, 0L);
+            long hash64 = XXHashFactory
+              .nativeInstance()
+              .hash64()
+              .hash(bytes, 0, bytes.length, 0L);
           }
           xxhash64.finish();
           Span xxhash32 = tracer.buildSpan("xxhash32").start();

@@ -9,7 +9,6 @@ import datadog.trace.api.GenericClassValue;
  * #incrementCallDepth at the beginning of each constructor.
  */
 public class CallDepthThreadLocalMap {
-
   private static final ClassValue<ThreadLocalDepth> TLS =
       GenericClassValue.constructing(ThreadLocalDepth.class);
 

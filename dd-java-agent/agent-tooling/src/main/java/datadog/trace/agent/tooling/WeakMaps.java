@@ -14,27 +14,29 @@ public class WeakMaps {
   public static <K, V> WeakMap<K, V> newWeakMap() {
     final WeakConcurrentMap<K, V> map = new WeakConcurrentMap<>(false, true);
     if (!Platform.isNativeImageBuilder()) {
-      AgentTaskScheduler.get()
-          .weakScheduleAtFixedRate(
-              MapCleaningTask.INSTANCE,
-              map,
-              CLEAN_FREQUENCY_SECONDS,
-              CLEAN_FREQUENCY_SECONDS,
-              TimeUnit.SECONDS);
+      AgentTaskScheduler
+        .get()
+        .weakScheduleAtFixedRate(
+            MapCleaningTask.INSTANCE,
+            map,
+            CLEAN_FREQUENCY_SECONDS,
+            CLEAN_FREQUENCY_SECONDS,
+            TimeUnit.SECONDS
+        );
     }
     return new Adapter<>(map);
   }
 
-  private WeakMaps() {}
+  private WeakMaps() {
+  }
 
   public static void registerAsSupplier() {
-    WeakMap.Supplier.registerIfAbsent(
-        new WeakMap.Supplier() {
-          @Override
-          protected <K, V> WeakMap<K, V> get() {
-            return WeakMaps.newWeakMap();
-          }
-        });
+    WeakMap.Supplier.registerIfAbsent(new WeakMap.Supplier() {
+      @Override
+      protected <K, V> WeakMap<K, V> get() {
+        return WeakMaps.newWeakMap();
+      }
+    });
   }
 
   // Important to use explicit class to avoid implicit hard references to target
@@ -74,7 +76,8 @@ public class WeakMaps {
       if (null != value) {
         map.put(key, value);
       } else {
-        map.remove(key); // WeakConcurrentMap doesn't accept null values
+        // WeakConcurrentMap doesn't accept null values
+        map.remove(key);
       }
     }
 

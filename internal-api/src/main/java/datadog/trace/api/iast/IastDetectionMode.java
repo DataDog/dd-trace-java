@@ -10,7 +10,6 @@ import static datadog.trace.api.config.IastConfig.IAST_MAX_CONCURRENT_REQUESTS;
 import static datadog.trace.api.config.IastConfig.IAST_MAX_RANGE_COUNT;
 import static datadog.trace.api.config.IastConfig.IAST_REQUEST_SAMPLING;
 import static datadog.trace.api.config.IastConfig.IAST_VULNERABILITIES_PER_REQUEST;
-
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import javax.annotation.Nonnull;
 
@@ -41,7 +40,6 @@ public enum IastDetectionMode {
       return Integer.MAX_VALUE;
     }
   },
-
   DEFAULT {
     @Override
     public int getIastMaxConcurrentRequests(@Nonnull final ConfigProvider config) {
@@ -51,7 +49,9 @@ public enum IastDetectionMode {
     @Override
     public int getIastVulnerabilitiesPerRequest(@Nonnull final ConfigProvider config) {
       return config.getInteger(
-          IAST_VULNERABILITIES_PER_REQUEST, DEFAULT_IAST_VULNERABILITIES_PER_REQUEST);
+          IAST_VULNERABILITIES_PER_REQUEST,
+          DEFAULT_IAST_VULNERABILITIES_PER_REQUEST
+      );
     }
 
     @Override
@@ -69,7 +69,6 @@ public enum IastDetectionMode {
       return config.getInteger(IAST_MAX_RANGE_COUNT, DEFAULT_IAST_MAX_RANGE_COUNT);
     }
   };
-
   public static final int UNLIMITED = Integer.MIN_VALUE;
 
   public abstract int getIastMaxConcurrentRequests(@Nonnull ConfigProvider config);

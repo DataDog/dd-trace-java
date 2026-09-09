@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresContextField;
-
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -10,10 +9,8 @@ import org.slf4j.LoggerFactory;
 
 public final class FieldBackedContextMatcher {
   private static final Logger log = LoggerFactory.getLogger(FieldBackedContextMatcher.class);
-
   private final String keyType;
   private final String valueType;
-
   private final ElementMatcher<TypeDescription> shouldInjectContextField;
 
   public FieldBackedContextMatcher(String keyType, String valueType) {
@@ -24,7 +21,6 @@ public final class FieldBackedContextMatcher {
   }
 
   public boolean matches(TypeDescription target, Class<?> classBeingRedefined) {
-
     /*
      * The idea here is that we can add fields if class is just being loaded
      * (classBeingRedefined == null) and we have to add same fields again if
@@ -41,15 +37,18 @@ public final class FieldBackedContextMatcher {
             "Added context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
             target.getName(),
             keyType,
-            valueType);
+            valueType
+        );
       } else if (!canInject && shouldInjectContextField.matches(target)) {
         // must be a re-define of a class that we weren't able to field-inject on startup
         // - make sure we'd have field-injected (if we'd had the chance) before reporting
         log.debug(
-            "Failed to add context-store field - instrumentation.target.class={} instrumentation.target.context={}->{}",
+            "Failed to add context-store field - instrumentation.target.class={} "
+            + "instrumentation.target.context={}->{}",
             target.getName(),
             keyType,
-            valueType);
+            valueType
+        );
       }
     }
 

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import kotlinx.coroutines.AbstractCoroutine;
 import net.bytebuddy.asm.Advice;
@@ -12,8 +11,9 @@ import net.bytebuddy.asm.Advice;
  * Datadog context when any coroutine completes (regardless whether it is lazy or non-lazy).
  */
 public class CoroutineInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String instrumentedType() {
     return "kotlinx.coroutines.AbstractCoroutine";
@@ -22,10 +22,13 @@ public class CoroutineInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), CoroutineInstrumentation.class.getName() + "$ConstructorAdvice");
+        isConstructor(),
+        CoroutineInstrumentation.class.getName() + "$ConstructorAdvice"
+    );
     transformer.applyAdvice(
         named("onCompletionInternal"),
-        CoroutineInstrumentation.class.getName() + "$OnCompletionAdvice");
+        CoroutineInstrumentation.class.getName() + "$OnCompletionAdvice"
+    );
   }
 
   public static class ConstructorAdvice {

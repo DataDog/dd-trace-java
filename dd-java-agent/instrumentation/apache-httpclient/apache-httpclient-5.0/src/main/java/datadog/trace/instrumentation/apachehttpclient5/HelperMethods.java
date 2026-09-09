@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDe
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
-
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -53,15 +52,18 @@ public class HelperMethods {
   }
 
   public static void doMethodExit(
-      final AgentScope scope, final Object result, final Throwable throwable) {
+      final AgentScope scope,
+      final Object result,
+      final Throwable throwable
+  ) {
     if (scope == null) {
       return;
     }
     final AgentSpan span = scope.span();
     if (result instanceof HttpResponse) {
       DECORATE.onResponse(span, (HttpResponse) result);
-    } // else they probably provided a ResponseHandler.
-
+    }
+    // else they probably provided a ResponseHandler.
     DECORATE.onError(span, throwable);
     DECORATE.beforeFinish(span);
     scope.close();

@@ -4,8 +4,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public interface Timestamper {
-
-  Timestamper DEFAULT = new Timestamper() {};
+  Timestamper DEFAULT = new Timestamper() {
+  };
 
   default long timestamp() {
     return System.nanoTime();
@@ -19,7 +19,6 @@ public interface Timestamper {
     volatile Timestamper pending = Timestamper.DEFAULT;
     private static final AtomicReferenceFieldUpdater<Registration, Timestamper> UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(Registration.class, Timestamper.class, "pending");
-
     private static final Registration INSTANCE = new Registration();
   }
 
@@ -31,7 +30,10 @@ public interface Timestamper {
    */
   static boolean override(Timestamper timestamper) {
     return Registration.UPDATER.compareAndSet(
-        Registration.INSTANCE, Timestamper.DEFAULT, timestamper);
+        Registration.INSTANCE,
+        Timestamper.DEFAULT,
+        timestamper
+    );
   }
 
   @SuppressFBWarnings("SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR")

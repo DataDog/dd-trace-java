@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
-
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -13,12 +12,12 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 
 public final class Strings {
+  private static final byte[] HEX_DIGITS =
+      {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-  private static final byte[] HEX_DIGITS = {
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-  };
-
-  /** com.foo.Bar -> com/foo/Bar.class */
+  /**
+   * com.foo.Bar -> com/foo/Bar.class
+   */
   public static String getResourceName(final String className) {
     if (!className.endsWith(".class")) {
       return className.replace('.', '/') + ".class";
@@ -27,7 +26,9 @@ public final class Strings {
     }
   }
 
-  /** com/foo/Bar.class -> com.foo.Bar */
+  /**
+   * com/foo/Bar.class -> com.foo.Bar
+   */
   public static String getClassName(final String resourceName) {
     if (resourceName.endsWith(".class")) {
       return resourceName.substring(0, resourceName.length() - 6).replace('/', '.');
@@ -35,18 +36,24 @@ public final class Strings {
     return resourceName.replace('/', '.');
   }
 
-  /** com.foo.Bar -> com/foo/Bar */
+  /**
+   * com.foo.Bar -> com/foo/Bar
+   */
   public static String getInternalName(final String className) {
     return className.replace('.', '/');
   }
 
-  /** com.foo.Bar -> com.foo */
+  /**
+   * com.foo.Bar -> com.foo
+   */
   public static String getPackageName(final String className) {
     int lastDot = className.lastIndexOf('.');
     return lastDot < 0 ? "" : className.substring(0, lastDot);
   }
 
-  /** com.foo.Bar -> Bar */
+  /**
+   * com.foo.Bar -> Bar
+   */
   public static String getSimpleName(final String className) {
     return className.substring(className.lastIndexOf('.') + 1);
   }
@@ -120,7 +127,6 @@ public final class Strings {
     if (s == null || s.isEmpty()) {
       return false;
     }
-
     // the code below traverses string characters one by one
     // and checks if there is any character that is not a whitespace (space, tab, newline, etc);
     final int length = s.length();
@@ -175,8 +181,12 @@ public final class Strings {
   }
 
   public static String[] concat(String[] arr, String... extra) {
-    if (arr.length == 0) return extra;
-    if (extra.length == 0) return arr;
+    if (arr.length == 0) {
+      return extra;
+    }
+    if (extra.length == 0) {
+      return arr;
+    }
     String[] result = new String[arr.length + extra.length];
     System.arraycopy(arr, 0, result, 0, arr.length);
     System.arraycopy(extra, 0, result, arr.length, extra.length);
@@ -197,10 +207,14 @@ public final class Strings {
     }
   }
 
-  /** Low overhead replaceAll */
+  /**
+   * Low overhead replaceAll
+   */
   public static final String replaceAll(String input, String needle, String replacement) {
     int index = input.indexOf(needle);
-    if (index == -1) return input;
+    if (index == -1) {
+      return input;
+    }
 
     int needleLen = needle.length();
 
@@ -278,7 +292,6 @@ public final class Strings {
     private final String str;
     private final int len;
     private final char splitChar;
-
     private int curIndex;
     private int nextIndex;
 
@@ -301,8 +314,9 @@ public final class Strings {
       int curIndex = this.curIndex;
       int len = this.len;
 
-      if (curIndex > len) throw new NoSuchElementException();
-
+      if (curIndex > len) {
+        throw new NoSuchElementException();
+      }
       // NOTE: Experimented with returning a single mutable SubSequence
       // where the index range is updated each time.  In typical usage,
       // that was slightly worse -- likely because escape analysis was
@@ -315,7 +329,6 @@ public final class Strings {
         // Handles the case where there's a trailing separator,
         // curIndex is moved to len to represent the empty string
         // after the trailing separator
-
         // Next call then goes into the special case below
         subSeq = new SubSequence(this.str, curIndex, nextIndex);
         this.curIndex = len;
@@ -323,14 +336,12 @@ public final class Strings {
       } else if (curIndex == len) {
         // Handles the empty string after the trailing separator
         // curIndex is given the terminating value `len + 1`
-
         // Don't use SubSequence.EMPTY because it wouldn't have
         // the correct beginIndex
         subSeq = new SubSequence(this.str, len, len);
         this.curIndex = len + 1;
       } else {
         subSeq = new SubSequence(this.str, curIndex, nextIndex);
-
         // core advancing logic
         this.curIndex = nextIndex + 1;
         int searchIndex = this.str.indexOf(this.splitChar, nextIndex + 1);

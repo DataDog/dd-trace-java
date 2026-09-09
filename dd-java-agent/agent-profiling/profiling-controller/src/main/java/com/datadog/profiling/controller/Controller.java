@@ -30,8 +30,9 @@ public interface Controller {
    */
   @Nonnull
   OngoingRecording createRecording(
-      @Nonnull String recordingName, ControllerContext.Snapshot context)
-      throws UnsupportedEnvironmentException;
+      @Nonnull String recordingName,
+      ControllerContext.Snapshot context
+  ) throws UnsupportedEnvironmentException;
 
   default void configure(ControllerContext context) {}
 }

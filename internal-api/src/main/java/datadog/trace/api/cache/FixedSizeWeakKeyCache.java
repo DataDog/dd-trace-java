@@ -2,7 +2,6 @@ package datadog.trace.api.cache;
 
 import static datadog.trace.api.cache.FixedSizeCache.calculateSize;
 import static datadog.trace.api.cache.FixedSizeCache.rehash;
-
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
@@ -25,7 +24,6 @@ import javax.annotation.Nullable;
  * @param <V> value type
  */
 final class FixedSizeWeakKeyCache<K, V> implements DDCache<K, V> {
-
   private final int mask;
   // This is a cache, so there is no need for volatile, atomics or synchronized.
   // All race conditions here are benign since you always read or write a full
@@ -64,11 +62,10 @@ final class FixedSizeWeakKeyCache<K, V> implements DDCache<K, V> {
     }
 
     int hash = System.identityHashCode(key);
-
-    int h = hash - (hash << 7); // multiply by -127 to improve identityHashCode spread
+    // multiply by -127 to improve identityHashCode spread
+    int h = hash - (hash << 7);
     int firstPos = h & mask;
     V value;
-
     // try to find a slot or a match 3 times
     for (int i = 1; true; i++) {
       int pos = h & mask;

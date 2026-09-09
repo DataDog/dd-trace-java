@@ -2,7 +2,6 @@ package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
@@ -35,7 +34,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
       Capture capture,
       Sampling sampling,
       ExceptionProbeManager exceptionProbeManager,
-      int chainedExceptionIdx) {
+      int chainedExceptionIdx
+  ) {
     super(
         LANGUAGE,
         probeId,
@@ -50,7 +50,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
         capture,
         sampling,
         null,
-        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout()));
+        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout())
+    );
     this.exceptionProbeManager = exceptionProbeManager;
     this.chainedExceptionIdx = chainedExceptionIdx;
     initSamplers();
@@ -58,7 +59,10 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices
+  ) {
     return new ExceptionInstrumenter(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
@@ -78,7 +82,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
       CapturedContext context,
       CapturedContext.Status status,
       MethodLocation methodLocation,
-      boolean singleProbe) {
+      boolean singleProbe
+  ) {
     ExceptionProbeStatus exceptionStatus;
     if (status instanceof ExceptionProbeStatus) {
       exceptionStatus = (ExceptionProbeStatus) status;
@@ -135,7 +140,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   public void commit(
       CapturedContext entryContext,
       CapturedContext exitContext,
-      List<CapturedContext.CapturedThrowable> caughtExceptions) {
+      List<CapturedContext.CapturedThrowable> caughtExceptions
+  ) {
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = fillSnapshot(entryContext, exitContext, caughtExceptions, snapshot);
     if (shouldCommit) {
@@ -158,7 +164,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
           "committing exception probe id={}, snapshot id={}, exception id={}",
           id,
           snapshot.getId(),
-          snapshot.getExceptionId());
+          snapshot.getExceptionId()
+      );
     }
   }
 
@@ -180,7 +187,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   }
 
   public static class ExceptionProbeStatus extends LogStatus {
-    private boolean capture = true; // default to true for status entry when mixed with log probe
+    // default to true for status entry when mixed with log probe
+    private boolean capture = true;
 
     public ExceptionProbeStatus(ProbeImplementation probeImplementation) {
       super(probeImplementation);

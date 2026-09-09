@@ -1,7 +1,6 @@
 package datadog.trace.agent.test.datastreams;
 
 import static datadog.trace.api.ProtocolVersion.V0_5;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.Monitoring;
 

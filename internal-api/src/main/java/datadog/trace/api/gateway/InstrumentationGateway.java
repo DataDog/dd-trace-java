@@ -34,7 +34,6 @@ import static datadog.trace.api.gateway.Events.RESPONSE_HEADER_ID;
 import static datadog.trace.api.gateway.Events.RESPONSE_STARTED_ID;
 import static datadog.trace.api.gateway.Events.SHELL_CMD_ID;
 import static datadog.trace.api.gateway.Events.USER_ID;
-
 import datadog.trace.api.appsec.HttpClientPayload;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -50,10 +49,11 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The implementation of the {@code CallbackProvider} and {@code SubscriptionService}. */
+/**
+ * The implementation of the {@code CallbackProvider} and {@code SubscriptionService}.
+ */
 public class InstrumentationGateway {
   private static final Logger log = LoggerFactory.getLogger(InstrumentationGateway.class);
-
   private final IGCallbackRegistry callbackRegistryAppSec;
   private final IGCallbackRegistry callbackRegistryIast;
   private final UniversalCallbackProvider universalCallbackProvider;
@@ -168,346 +168,322 @@ public class InstrumentationGateway {
     }
   }
 
-  /** Ensure that callbacks don't leak exceptions */
+  /**
+   * Ensure that callbacks don't leak exceptions
+   */
   @SuppressWarnings({"unchecked", "DuplicateBranchesInSwitch"})
   public static <C> C wrap(final EventType<C> eventType, final C callback) {
     switch (eventType.getId()) {
       case REQUEST_STARTED_ID:
-        return (C)
-            new Supplier<Flow<Object>>() {
-              @Override
-              public Flow<Object> get() {
-                try {
-                  return ((Supplier<Flow<Object>>) callback).get();
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
+        return (C) new Supplier<Flow<Object>>() {
+          @Override
+          public Flow<Object> get() {
+            try {
+              return ((Supplier<Flow<Object>>) callback).get();
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case REQUEST_ENDED_ID:
-        return (C)
-            new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, IGSpanInfo agentSpan) {
-                try {
-                  return ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callback)
-                      .apply(ctx, agentSpan);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
+        return (C) new BiFunction<RequestContext, IGSpanInfo, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, IGSpanInfo agentSpan) {
+            try {
+              return ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callback)
+                .apply(ctx, agentSpan);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case REQUEST_HEADER_DONE_ID:
       case RESPONSE_HEADER_DONE_ID:
-        return (C)
-            new Function<RequestContext, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx) {
-                try {
-                  return ((Function<RequestContext, Flow<Void>>) callback).apply(ctx);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
+        return (C) new Function<RequestContext, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx) {
+            try {
+              return ((Function<RequestContext, Flow<Void>>) callback).apply(ctx);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case REQUEST_HEADER_ID:
       case RESPONSE_HEADER_ID:
-        return (C)
-            new TriConsumer<RequestContext, String, String>() {
-              @Override
-              public void accept(RequestContext ctx, String key, String value) {
-                try {
-                  ((TriConsumer<RequestContext, String, String>) callback).accept(ctx, key, value);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                }
-              }
+        return (C) new TriConsumer<RequestContext, String, String>() {
+          @Override
+          public void accept(RequestContext ctx, String key, String value) {
+            try {
+              ((TriConsumer<RequestContext, String, String>) callback).accept(ctx, key, value);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case REQUEST_METHOD_URI_RAW_ID:
-        return (C)
-            new TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, String method, URIDataAdapter adapter) {
-                try {
-                  return ((TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>)
-                          callback)
-                      .apply(ctx, method, adapter);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
+        return (C) new TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, String method, URIDataAdapter adapter) {
+            try {
+              return ((TriFunction<RequestContext, String, URIDataAdapter, Flow<Void>>) callback)
+                .apply(ctx, method, adapter);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case REQUEST_PATH_PARAMS_ID:
-        return (C)
-            new BiFunction<RequestContext, Map<String, Object>, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, Map<String, Object> map) {
-                try {
-                  return ((BiFunction<RequestContext, Map<String, Object>, Flow<Void>>) callback)
-                      .apply(ctx, map);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
+        return (C) new BiFunction<RequestContext, Map<String, Object>, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, Map<String, Object> map) {
+            try {
+              return ((BiFunction<RequestContext, Map<String, Object>, Flow<Void>>) callback)
+                .apply(ctx, map);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case REQUEST_CLIENT_SOCKET_ADDRESS_ID:
-        return (C)
-            new TriFunction<RequestContext, String, Integer, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, String ip, Integer port) {
-                try {
-                  return ((TriFunction<RequestContext, String, Integer, Flow<Void>>) callback)
-                      .apply(ctx, ip, port);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
+        return (C) new TriFunction<RequestContext, String, Integer, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, String ip, Integer port) {
+            try {
+              return ((TriFunction<RequestContext, String, Integer, Flow<Void>>) callback)
+                .apply(ctx, ip, port);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case GRPC_SERVER_METHOD_ID:
       case REQUEST_INFERRED_CLIENT_ADDRESS_ID:
-        return (C)
-            new BiFunction<RequestContext, String, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, String ip) {
-                try {
-                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, ip);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
+        return (C) new BiFunction<RequestContext, String, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, String ip) {
+            try {
+              return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, ip);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
 
-              // Make testing easier by delegating equals
-              @Override
-              public boolean equals(Object obj) {
-                return callback.equals(obj);
-              }
-            };
+          // Make testing easier by delegating equals
+          @Override
+          public boolean equals(Object obj) {
+            return callback.equals(obj);
+          }
+        };
       case REQUEST_BODY_START_ID:
-        return (C)
-            new BiFunction<RequestContext, StoredBodySupplier, Void>() {
-              @Override
-              public Void apply(RequestContext ctx, StoredBodySupplier storedBodySupplier) {
-                try {
-                  return ((BiFunction<RequestContext, StoredBodySupplier, Void>) callback)
-                      .apply(ctx, storedBodySupplier);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return null;
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, StoredBodySupplier, Void>() {
+          @Override
+          public Void apply(RequestContext ctx, StoredBodySupplier storedBodySupplier) {
+            try {
+              return ((BiFunction<RequestContext, StoredBodySupplier, Void>) callback)
+                .apply(ctx, storedBodySupplier);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return null;
+            }
+          }
+        };
       case REQUEST_BODY_DONE_ID:
-        return (C)
-            new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, StoredBodySupplier storedBodySupplier) {
-                try {
-                  return ((BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>) callback)
-                      .apply(ctx, storedBodySupplier);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, StoredBodySupplier storedBodySupplier) {
+            try {
+              return ((BiFunction<RequestContext, StoredBodySupplier, Flow<Void>>) callback)
+                .apply(ctx, storedBodySupplier);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case GRPC_SERVER_REQUEST_MESSAGE_ID:
       case GRAPHQL_SERVER_REQUEST_MESSAGE_ID:
       case REQUEST_BODY_CONVERTED_ID:
       case RESPONSE_BODY_ID:
       case REQUEST_FILES_FILENAMES_ID:
       case REQUEST_FILES_CONTENT_ID:
-        return (C)
-            new BiFunction<RequestContext, Object, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, Object obj) {
-                try {
-                  return ((BiFunction<RequestContext, Object, Flow<Void>>) callback)
-                      .apply(ctx, obj);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, Object, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, Object obj) {
+            try {
+              return ((BiFunction<RequestContext, Object, Flow<Void>>) callback).apply(ctx, obj);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case RESPONSE_STARTED_ID:
-        return (C)
-            new BiFunction<RequestContext, Integer, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, Integer status) {
-                try {
-                  return ((BiFunction<RequestContext, Integer, Flow<Void>>) callback)
-                      .apply(ctx, status);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, Integer, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, Integer status) {
+            try {
+              return ((BiFunction<RequestContext, Integer, Flow<Void>>) callback)
+                .apply(ctx, status);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case DATABASE_CONNECTION_ID:
       case HTTP_ROUTE_ID:
-        return (C)
-            new BiConsumer<RequestContext, String>() {
-              @Override
-              public void accept(RequestContext ctx, String arg) {
-                try {
-                  ((BiConsumer<RequestContext, String>) callback).accept(ctx, arg);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                }
-              }
-            };
+        return (C) new BiConsumer<RequestContext, String>() {
+          @Override
+          public void accept(RequestContext ctx, String arg) {
+            try {
+              ((BiConsumer<RequestContext, String>) callback).accept(ctx, arg);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+            }
+          }
+        };
       case USER_ID:
-        return (C)
-            new BiFunction<RequestContext, String, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, String userId) {
-                try {
-                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
-                      .apply(ctx, userId);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, String, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, String userId) {
+            try {
+              return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
+                .apply(ctx, userId);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case LOGIN_EVENT_ID:
-        return (C)
-            new TriFunction<RequestContext, LoginEvent, String, Flow<Void>>() {
-
-              @Override
-              public Flow<Void> apply(RequestContext ctx, LoginEvent event, String user) {
-                try {
-                  return ((TriFunction<RequestContext, LoginEvent, String, Flow<Void>>) callback)
-                      .apply(ctx, event, user);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new TriFunction<RequestContext, LoginEvent, String, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, LoginEvent event, String user) {
+            try {
+              return ((TriFunction<RequestContext, LoginEvent, String, Flow<Void>>) callback)
+                .apply(ctx, event, user);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case REQUEST_SESSION_ID:
-        return (C)
-            new BiFunction<RequestContext, String, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, String arg) {
-                try {
-                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
-                      .apply(ctx, arg);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, String, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, String arg) {
+            try {
+              return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, arg);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case DATABASE_SQL_QUERY_ID:
       case FILE_LOADED_ID:
       case FILE_WRITTEN_ID:
       case SHELL_CMD_ID:
-        return (C)
-            new BiFunction<RequestContext, String, Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, String arg) {
-                try {
-                  return ((BiFunction<RequestContext, String, Flow<Void>>) callback)
-                      .apply(ctx, arg);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, String, Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, String arg) {
+            try {
+              return ((BiFunction<RequestContext, String, Flow<Void>>) callback).apply(ctx, arg);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case HTTP_CLIENT_REQUEST_ID:
       case HTTP_CLIENT_RESPONSE_ID:
-        return (C)
-            new BiFunction<RequestContext, HttpClientPayload, Flow<Object>>() {
-              @Override
-              public Flow<Object> apply(RequestContext ctx, HttpClientPayload arg) {
-                try {
-                  return ((BiFunction<RequestContext, HttpClientPayload, Flow<Object>>) callback)
-                      .apply(ctx, arg);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, HttpClientPayload, Flow<Object>>() {
+          @Override
+          public Flow<Object> apply(RequestContext ctx, HttpClientPayload arg) {
+            try {
+              return ((BiFunction<RequestContext, HttpClientPayload, Flow<Object>>) callback)
+                .apply(ctx, arg);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case HTTP_CLIENT_SAMPLING_ID:
-        return (C)
-            new BiFunction<RequestContext, Long, Flow<Object>>() {
-              @Override
-              public Flow<Object> apply(RequestContext ctx, Long requestId) {
-                try {
-                  return ((BiFunction<RequestContext, Long, Flow<Object>>) callback)
-                      .apply(ctx, requestId);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, Long, Flow<Object>>() {
+          @Override
+          public Flow<Object> apply(RequestContext ctx, Long requestId) {
+            try {
+              return ((BiFunction<RequestContext, Long, Flow<Object>>) callback)
+                .apply(ctx, requestId);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       case EXEC_CMD_ID:
-        return (C)
-            new BiFunction<RequestContext, String[], Flow<Void>>() {
-              @Override
-              public Flow<Void> apply(RequestContext ctx, String[] arg) {
-                try {
-                  return ((BiFunction<RequestContext, String[], Flow<Void>>) callback)
-                      .apply(ctx, arg);
-                } catch (Throwable t) {
-                  log.warn("Callback for {} threw.", eventType, t);
-                  return Flow.ResultFlow.empty();
-                }
-              }
-            };
+        return (C) new BiFunction<RequestContext, String[], Flow<Void>>() {
+          @Override
+          public Flow<Void> apply(RequestContext ctx, String[] arg) {
+            try {
+              return ((BiFunction<RequestContext, String[], Flow<Void>>) callback).apply(ctx, arg);
+            } catch (Throwable t) {
+              log.warn("Callback for {} threw.", eventType, t);
+              return Flow.ResultFlow.empty();
+            }
+          }
+        };
       default:
         log.warn("Unwrapped callback for {}", eventType);
         return callback;
@@ -530,36 +506,32 @@ public class InstrumentationGateway {
 
     switch (eventType.getId()) {
       case REQUEST_ENDED_ID:
-        return (C)
-            (BiFunction<RequestContext, IGSpanInfo, Flow<Void>>)
-                (ctx, agentSpan) -> {
-                  Flow<Void> flowAppSec =
-                      ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackAppSec)
-                          .apply(ctx, agentSpan);
-                  Flow<Void> flowIast =
-                      ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackIast)
-                          .apply(ctx, agentSpan);
-                  return mergeFlows(flowAppSec, flowIast);
-                };
+        return (C) (BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) (ctx, agentSpan) -> {
+          Flow<Void> flowAppSec =
+              ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackAppSec)
+            .apply(ctx, agentSpan);
+          Flow<Void> flowIast =
+              ((BiFunction<RequestContext, IGSpanInfo, Flow<Void>>) callbackIast)
+            .apply(ctx, agentSpan);
+          return mergeFlows(flowAppSec, flowIast);
+        };
       case REQUEST_HEADER_ID:
-        return (C)
-            (TriConsumer<RequestContext, String, String>)
-                (requestContext, s, s2) -> {
-                  ((TriConsumer<RequestContext, String, String>) callbackAppSec)
-                      .accept(requestContext, s, s2);
-                  ((TriConsumer<RequestContext, String, String>) callbackIast)
-                      .accept(requestContext, s, s2);
-                };
+        return (C) (TriConsumer<RequestContext, String, String>) (requestContext, s, s2) -> {
+          ((TriConsumer<RequestContext, String, String>) callbackAppSec).accept(
+              requestContext,
+              s,
+              s2
+          );
+          ((TriConsumer<RequestContext, String, String>) callbackIast).accept(requestContext, s, s2);
+        };
       case REQUEST_HEADER_DONE_ID:
-        return (C)
-            (Function<RequestContext, Flow<Void>>)
-                requestContext -> {
-                  Flow<Void> flowAppSec =
-                      ((Function<RequestContext, Flow<Void>>) callbackAppSec).apply(requestContext);
-                  Flow<Void> flowIast =
-                      ((Function<RequestContext, Flow<Void>>) callbackIast).apply(requestContext);
-                  return mergeFlows(flowAppSec, flowIast);
-                };
+        return (C) (Function<RequestContext, Flow<Void>>) requestContext -> {
+          Flow<Void> flowAppSec =
+              ((Function<RequestContext, Flow<Void>>) callbackAppSec).apply(requestContext);
+          Flow<Void> flowIast =
+              ((Function<RequestContext, Flow<Void>>) callbackIast).apply(requestContext);
+          return mergeFlows(flowAppSec, flowIast);
+        };
     }
     return null;
   }

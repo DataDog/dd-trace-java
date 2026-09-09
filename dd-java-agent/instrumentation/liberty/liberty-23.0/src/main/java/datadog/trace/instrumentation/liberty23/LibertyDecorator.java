@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.liberty23;
 
 import static datadog.trace.instrumentation.liberty23.HttpServletExtractAdapter.Request;
 import static datadog.trace.instrumentation.liberty23.HttpServletExtractAdapter.Response;
-
 import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
@@ -29,8 +28,11 @@ import org.slf4j.LoggerFactory;
 
 public class LibertyDecorator
     extends HttpServerDecorator<
-        HttpServletRequest, HttpServletRequest, HttpServletResponse, HttpServletRequest> {
-
+    HttpServletRequest,
+    HttpServletRequest,
+    HttpServletResponse,
+    HttpServletRequest>
+{
   public static final Logger log = LoggerFactory.getLogger(LibertyDecorator.class);
   public static final CharSequence LIBERTY_SERVER = UTF8BytesString.create("liberty-server");
   public static final LibertyDecorator DECORATE = new LibertyDecorator();
@@ -160,8 +162,7 @@ public class LibertyDecorator
       // overwrite the HTTP status codes, and if a custom error report is provided by liberty server
       WebAppErrorReport errReport = (WebAppErrorReport) report;
       onError(span, errReport, throwable);
-    } else if ((errorMessage = req.getAttribute("jakarta.servlet.error.message"))
-        instanceof String) {
+    } else if ((errorMessage = req.getAttribute("jakarta.servlet.error.message")) instanceof String) {
       span.setError(true);
       span.setTag(DDTags.ERROR_MSG, (String) errorMessage);
     }
@@ -191,7 +192,8 @@ public class LibertyDecorator
         int statusCode,
         BlockingContentType bct,
         Map<String, String> extraHeaders,
-        String securityResponseId) {
+        String securityResponseId
+    ) {
       if (!(request instanceof SRTServletRequest)) {
         log.warn("Can't block; request not of type SRTServletRequest");
         return false;
@@ -208,7 +210,8 @@ public class LibertyDecorator
           statusCode,
           bct,
           extraHeaders,
-          securityResponseId);
+          securityResponseId
+      );
 
       return true;
     }
@@ -216,7 +219,9 @@ public class LibertyDecorator
 
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
-      HttpServletRequest httpServletRequest, HttpServletRequest connection) {
+      HttpServletRequest httpServletRequest,
+      HttpServletRequest connection
+  ) {
     return new LibertyBlockResponseFunction(httpServletRequest);
   }
 }

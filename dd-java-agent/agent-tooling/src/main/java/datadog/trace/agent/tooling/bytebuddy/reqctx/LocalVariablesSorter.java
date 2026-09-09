@@ -25,7 +25,6 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 // THE POSSIBILITY OF SUCH DAMAGE.
-
 package datadog.trace.agent.tooling.bytebuddy.reqctx;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -49,23 +48,24 @@ import net.bytebuddy.jar.asm.TypePath;
  */
 @SuppressFBWarnings("RC_REF_COMPARISON_BAD_PRACTICE")
 public class LocalVariablesSorter extends MethodVisitor {
-
   private static final Type OBJECT_TYPE = Type.getObjectType("java/lang/Object");
-
   /**
    * Mapping from old to new local variable indexes. A local variable at index i of size 1 is
    * remapped to 'mapping[2*i]', while a local variable at index i of size 2 is remapped to
    * 'mapping[2*i+1]'.
    */
   private int[] mapping = new int[40];
-
-  /** Array used to store stack map local variable types after remapping. */
+  /**
+   * Array used to store stack map local variable types after remapping.
+   */
   private Object[] newLocals = new Object[20];
-
-  /** Index of the first local variable, after formal parameters. */
+  /**
+   * Index of the first local variable, after formal parameters.
+   */
   protected final int firstLocal;
-
-  /** Index of the next local variable to be created by {@link #newLocal}. */
+  /**
+   * Index of the next local variable to be created by {@link #newLocal}.
+   */
   protected int nextLocal;
 
   /**
@@ -95,7 +95,11 @@ public class LocalVariablesSorter extends MethodVisitor {
    * @param mv the method visitor to which this adapter delegates calls.
    */
   protected LocalVariablesSorter(
-      final int api, final int access, final String desc, final MethodVisitor mv) {
+      final int api,
+      final int access,
+      final String desc,
+      final MethodVisitor mv
+  ) {
     super(api, mv);
     Type[] args = Type.getArgumentTypes(desc);
     nextLocal = (Opcodes.ACC_STATIC & access) == 0 ? 1 : 0;
@@ -117,22 +121,18 @@ public class LocalVariablesSorter extends MethodVisitor {
       case Opcodes.LSTORE:
         type = Type.LONG_TYPE;
         break;
-
       case Opcodes.DLOAD:
       case Opcodes.DSTORE:
         type = Type.DOUBLE_TYPE;
         break;
-
       case Opcodes.FLOAD:
       case Opcodes.FSTORE:
         type = Type.FLOAT_TYPE;
         break;
-
       case Opcodes.ILOAD:
       case Opcodes.ISTORE:
         type = Type.INT_TYPE;
         break;
-
       default:
         // case Opcodes.ALOAD:
         // case Opcodes.ASTORE:
@@ -160,7 +160,8 @@ public class LocalVariablesSorter extends MethodVisitor {
       final String signature,
       final Label start,
       final Label end,
-      final int index) {
+      final int index
+  ) {
     int newIndex = remap(index, Type.getType(desc));
     mv.visitLocalVariable(name, desc, signature, start, end, newIndex);
   }
@@ -173,7 +174,8 @@ public class LocalVariablesSorter extends MethodVisitor {
       Label[] end,
       int[] index,
       String desc,
-      boolean visible) {
+      boolean visible
+  ) {
     Type t = Type.getType(desc);
     int[] newIndex = new int[index.length];
     for (int i = 0; i < newIndex.length; ++i) {
@@ -188,23 +190,25 @@ public class LocalVariablesSorter extends MethodVisitor {
       final int nLocal,
       final Object[] local,
       final int nStack,
-      final Object[] stack) {
-    if (type != Opcodes.F_NEW) { // uncompressed frame
+      final Object[] stack
+  ) {
+    if (type != Opcodes.F_NEW) {
+      // uncompressed frame
       throw new IllegalStateException(
-          "ClassReader.accept() should be called with EXPAND_FRAMES flag");
+          "ClassReader.accept() should be called with EXPAND_FRAMES flag"
+      );
     }
-
     // creates a copy of newLocals
     Object[] oldLocals = new Object[newLocals.length];
     System.arraycopy(newLocals, 0, oldLocals, 0, oldLocals.length);
 
     updateNewLocals(newLocals);
-
     // copies types from 'local' to 'newLocals'
     // 'newLocals' already contains the variables added with 'newLocal'
-
-    int index = 0; // old local variable index
-    int number = 0; // old local variable number
+    // old local variable index
+    int index = 0;
+    // old local variable number
+    int number = 0;
     for (; number < nLocal; ++number) {
       Object t = local[number];
       int size = t == Opcodes.LONG || t == Opcodes.DOUBLE ? 2 : 1;
@@ -225,9 +229,7 @@ public class LocalVariablesSorter extends MethodVisitor {
       }
       index += size;
     }
-
     // removes TOP after long and double types as well as trailing TOPs
-
     index = 0;
     number = 0;
     for (int i = 0; index < newLocals.length; ++i) {
@@ -242,16 +244,13 @@ public class LocalVariablesSorter extends MethodVisitor {
         newLocals[i] = Opcodes.TOP;
       }
     }
-
     // visits remapped frame
     mv.visitFrame(type, number, newLocals, nStack, stack);
-
     // restores original value of 'newLocals'
     newLocals = oldLocals;
   }
 
   // -------------
-
   /**
    * Creates a new local variable of the given type.
    *

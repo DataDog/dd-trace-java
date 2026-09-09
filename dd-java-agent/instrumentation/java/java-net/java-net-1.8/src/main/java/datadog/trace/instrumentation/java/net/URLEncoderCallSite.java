@@ -10,11 +10,11 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class URLEncoderCallSite {
-
   @CallSite.After("java.lang.String java.net.URLEncoder.encode(java.lang.String)")
   public static String afterEncode(
       @CallSite.Argument @Nullable final String value,
-      @CallSite.Return @Nullable final String result) {
+      @CallSite.Return @Nullable final String result
+  ) {
     return encode(result, null, value);
   }
 
@@ -22,7 +22,8 @@ public class URLEncoderCallSite {
   public static String afterEncode(
       @CallSite.Argument @Nullable final String value,
       @CallSite.Argument @Nullable final String encoding,
-      @CallSite.Return @Nullable final String result) {
+      @CallSite.Return @Nullable final String result
+  ) {
     return encode(result, encoding, value);
   }
 

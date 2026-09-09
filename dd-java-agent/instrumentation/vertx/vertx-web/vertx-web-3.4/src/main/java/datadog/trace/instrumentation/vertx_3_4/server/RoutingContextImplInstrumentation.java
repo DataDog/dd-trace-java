@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher.VIRTUAL_HOST_HANDLER;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,15 +12,17 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  private static final Reference FILE_UPLOAD_REF =
-      new Reference.Builder("io.vertx.ext.web.FileUpload")
-          .withMethod(new String[0], 0, "fileName", "Ljava/lang/String;")
-          .withMethod(new String[0], 0, "uploadedFileName", "Ljava/lang/String;")
-          .withMethod(new String[0], 0, "contentType", "Ljava/lang/String;")
-          .withMethod(new String[0], 0, "charSet", "Ljava/lang/String;")
-          .build();
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
+  private static final Reference FILE_UPLOAD_REF = new Reference.Builder(
+      "io.vertx.ext.web.FileUpload"
+  )
+    .withMethod(new String[0], 0, "fileName", "Ljava/lang/String;")
+    .withMethod(new String[0], 0, "uploadedFileName", "Ljava/lang/String;")
+    .withMethod(new String[0], 0, "contentType", "Ljava/lang/String;")
+    .withMethod(new String[0], 0, "charSet", "Ljava/lang/String;")
+    .build();
 
   public RoutingContextImplInstrumentation() {
     super("vertx", "vertx-3.4");
@@ -46,12 +47,15 @@ public class RoutingContextImplInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getBodyAsJson").or(named("getBodyAsJsonArray")).and(takesArguments(0)),
-        packageName + ".RoutingContextJsonAdvice");
+        packageName + ".RoutingContextJsonAdvice"
+    );
     transformer.applyAdvice(
         named("setSession").and(takesArgument(0, named("io.vertx.ext.web.Session"))),
-        packageName + ".RoutingContextSessionAdvice");
+        packageName + ".RoutingContextSessionAdvice"
+    );
     transformer.applyAdvice(
         named("fileUploads").and(takesArguments(0)),
-        packageName + ".RoutingContextFilenamesAdvice");
+        packageName + ".RoutingContextFilenamesAdvice"
+    );
   }
 }

@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -31,9 +30,9 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice
+{
   private final String className = HeadersAdaptorInstrumentation.class.getName();
 
   public HeadersAdaptorInstrumentation() {
@@ -48,7 +47,8 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.vertx.core.http.impl.HeadersAdaptor", "io.vertx.core.http.impl.Http2HeadersAdaptor"
+        "io.vertx.core.http.impl.HeadersAdaptor",
+        "io.vertx.core.http.impl.Http2HeadersAdaptor"
     };
   }
 
@@ -61,16 +61,20 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("get")).and(takesArguments(1)),
-        className + "$GetAdvice");
+        className + "$GetAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("getAll")).and(takesArguments(1)),
-        className + "$GetAllAdvice");
+        className + "$GetAllAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesArguments(0)),
-        className + "$EntriesAdvice");
+        className + "$EntriesAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesArguments(0)),
-        className + "$NamesAdvice");
+        className + "$NamesAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -81,7 +85,8 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
         @Advice.Return final String result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -98,7 +103,8 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
         @Advice.This final Object self,
         @Advice.Argument(0) final CharSequence name,
         @Advice.Return final Collection<String> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -119,7 +125,8 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -145,7 +152,8 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
     public static void afterNames(
         @Advice.This final Object self,
         @Advice.Return final Set<String> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

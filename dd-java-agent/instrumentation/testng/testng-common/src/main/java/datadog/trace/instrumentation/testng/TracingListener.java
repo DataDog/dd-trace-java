@@ -15,8 +15,9 @@ import org.testng.ITestListener;
 import org.testng.ITestResult;
 
 public class TracingListener extends TestNGClassListener
-    implements ITestListener, IConfigurationListener {
-
+    implements ITestListener,
+    IConfigurationListener
+{
   public static final String FRAMEWORK_NAME = "testng";
   public static final String FRAMEWORK_VERSION = TestNGUtils.getTestNGVersion();
 
@@ -45,7 +46,8 @@ public class TracingListener extends TestNGClassListener
         groups,
         parallelized,
         TestFrameworkInstrumentation.TESTNG,
-        null);
+        null
+    );
   }
 
   @Override
@@ -65,7 +67,9 @@ public class TracingListener extends TestNGClassListener
     TestSuiteDescriptor suiteDescriptor =
         TestNGUtils.toSuiteDescriptor(result.getMethod().getTestClass());
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
-        suiteDescriptor, result.getThrowable());
+        suiteDescriptor,
+        result.getThrowable()
+    );
   }
 
   @Override
@@ -93,7 +97,8 @@ public class TracingListener extends TestNGClassListener
         groups,
         testSourceData,
         null,
-        executionTracker(result));
+        executionTracker(result)
+    );
   }
 
   @Nullable

@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,9 @@ import datadog.trace.agent.tooling.muzzle.Reference;
  */
 @AutoService(InstrumenterModule.class)
 public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public PlayBodyParsersInstrumentation() {
     super("play");
   }
@@ -30,15 +30,14 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      "play.api.mvc.BodyParsers$parse$",
-    };
+    return new String[] {"play.api.mvc.BodyParsers$parse$"};
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BodyParserHelpers", packageName + ".BodyParserHelpers$ScalaIteratorAdapter",
+        packageName + ".BodyParserHelpers",
+        packageName + ".BodyParserHelpers$ScalaIteratorAdapter"
     };
   }
 
@@ -46,32 +45,36 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("tolerantText")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, long.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersTolerantTextAdvice");
+          .and(not(isStatic()))
+          .and(takesArguments(1))
+          .and(takesArgument(0, long.class))
+          .and(returns(named("play.api.mvc.BodyParser"))),
+        packageName + ".PlayBodyParsersTolerantTextAdvice"
+    );
     transformer.applyAdvice(
         named("tolerantJson")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, int.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersTolerantJsonAdvice");
+          .and(not(isStatic()))
+          .and(takesArguments(1))
+          .and(takesArgument(0, int.class))
+          .and(returns(named("play.api.mvc.BodyParser"))),
+        packageName + ".PlayBodyParsersTolerantJsonAdvice"
+    );
     transformer.applyAdvice(
         named("tolerantFormUrlEncoded")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, int.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersTolerantFormUrlEncodedAdvice");
+          .and(not(isStatic()))
+          .and(takesArguments(1))
+          .and(takesArgument(0, int.class))
+          .and(returns(named("play.api.mvc.BodyParser"))),
+        packageName + ".PlayBodyParsersTolerantFormUrlEncodedAdvice"
+    );
     transformer.applyAdvice(
         named("multipartFormData")
-            .and(not(isStatic()))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("scala.Function1")))
-            .and(takesArgument(1, long.class))
-            .and(returns(named("play.api.mvc.BodyParser"))),
-        packageName + ".PlayBodyParsersMultipartFormDataAdvice");
+          .and(not(isStatic()))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("scala.Function1")))
+          .and(takesArgument(1, long.class))
+          .and(returns(named("play.api.mvc.BodyParser"))),
+        packageName + ".PlayBodyParsersMultipartFormDataAdvice"
+    );
   }
 }

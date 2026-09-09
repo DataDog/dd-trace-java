@@ -24,7 +24,8 @@ public final class Configurations {
       String runtimeVendor,
       String runtimeArchitecture,
       String testBundle,
-      Map<String, String> custom) {
+      Map<String, String> custom
+  ) {
     this.osPlatform = osPlatform;
     this.osArchitecture = osArchitecture;
     this.osVersion = osVersion;

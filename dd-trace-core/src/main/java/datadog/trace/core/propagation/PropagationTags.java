@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_LENGTH;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.ptags.PTagsFactory;
@@ -21,7 +20,6 @@ import java.util.Map;
  * </pre>
  */
 public abstract class PropagationTags {
-
   public static PropagationTags.Factory factory(Config config) {
     return factory(config.getxDatadogTagsMaxLength());
   }
@@ -37,7 +35,6 @@ public abstract class PropagationTags {
   public enum HeaderType {
     DATADOG,
     W3C;
-
     private static final int numValues = HeaderType.values().length;
 
     public static int getNumValues() {

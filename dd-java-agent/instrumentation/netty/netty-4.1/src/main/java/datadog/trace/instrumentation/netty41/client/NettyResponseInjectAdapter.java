@@ -6,7 +6,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class NettyResponseInjectAdapter implements CarrierSetter<HttpHeaders> {
-
   public static final NettyResponseInjectAdapter SETTER = new NettyResponseInjectAdapter();
 
   @Override

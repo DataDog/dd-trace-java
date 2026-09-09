@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,8 +12,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class ContextHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ContextHandlerInstrumentation() {
     super("jetty");
   }
@@ -33,8 +33,9 @@ public final class ContextHandlerInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("handle")
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.eclipse.jetty.server.Request"))),
-        packageName + ".SetContextPathAdvice");
+          .and(takesArguments(3))
+          .and(takesArgument(0, named("org.eclipse.jetty.server.Request"))),
+        packageName + ".SetContextPathAdvice"
+    );
   }
 }

@@ -5,7 +5,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.sizeVarInt;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
 import static datadog.trace.core.otlp.common.OtlpPayload.PROTOBUF_CONTENT_TYPE;
 import static datadog.trace.util.BitUtils.nextPowerOfTwo;
-
 import datadog.communication.serialization.GrowableBuffer;
 import java.nio.ByteBuffer;
 
@@ -19,8 +18,8 @@ import java.nio.ByteBuffer;
  */
 public final class OtlpProtoBuffer {
   // hard limit to avoid unbounded buffering; matches OTLP spec's recommended default
-  public static final int MAX_CAPACITY_BYTES = 64 << 20; // 64 MiB
-
+  // 64 MiB
+  public static final int MAX_CAPACITY_BYTES = 64 << 20;
   private final int initialCapacity;
   private ByteBuffer buffer;
   private int remaining;
@@ -30,10 +29,11 @@ public final class OtlpProtoBuffer {
     if (this.initialCapacity > MAX_CAPACITY_BYTES) {
       throw new IllegalArgumentException(
           "OTLP payload initial capacity of "
-              + this.initialCapacity
-              + " bytes exceeds maximum buffer size of "
-              + MAX_CAPACITY_BYTES
-              + " bytes");
+          + this.initialCapacity
+          + " bytes exceeds maximum buffer size of "
+          + MAX_CAPACITY_BYTES
+          + " bytes"
+      );
     }
     this.buffer = ByteBuffer.allocate(initialCapacity);
     this.remaining = initialCapacity;
@@ -101,13 +101,17 @@ public final class OtlpProtoBuffer {
     return numBytes;
   }
 
-  /** Flips the buffer, returning the protobuf encoded content for reading. */
+  /**
+   * Flips the buffer, returning the protobuf encoded content for reading.
+   */
   public ByteBuffer flip() {
     buffer.position(remaining);
     return buffer;
   }
 
-  /** Returns the number of bytes currently recorded in the buffer. */
+  /**
+   * Returns the number of bytes currently recorded in the buffer.
+   */
   public int sizeInBytes() {
     return buffer.capacity() - remaining;
   }
@@ -133,7 +137,9 @@ public final class OtlpProtoBuffer {
     remaining = buffer.capacity();
   }
 
-  /** Grows the buffer to ensure the required number of bytes can be prepended. */
+  /**
+   * Grows the buffer to ensure the required number of bytes can be prepended.
+   */
   private void checkCapacity(int required) {
     if (remaining < required) {
       ByteBuffer oldBuffer = flip();
@@ -144,12 +150,13 @@ public final class OtlpProtoBuffer {
       if (newSize > MAX_CAPACITY_BYTES) {
         throw new IllegalStateException(
             "OTLP payload exceeds maximum buffer size of "
-                + MAX_CAPACITY_BYTES
-                + " bytes: "
-                + oldSize
-                + " bytes buffered, "
-                + required
-                + " more requested");
+            + MAX_CAPACITY_BYTES
+            + " bytes: "
+            + oldSize
+            + " bytes buffered, "
+            + required
+            + " more requested"
+        );
       }
       ByteBuffer newBuffer = ByteBuffer.allocate((int) newSize);
       // copy over old content so it stays at the far end

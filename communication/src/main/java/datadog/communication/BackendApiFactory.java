@@ -12,9 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BackendApiFactory {
-
   private static final Logger log = LoggerFactory.getLogger(BackendApiFactory.class);
-
   private final Config config;
   private final SharedCommunicationObjects sharedCommunicationObjects;
 
@@ -36,23 +34,29 @@ public class BackendApiFactory {
     if (backendApi == null) {
       log.warn(
           "Cannot create backend API client since agentless mode is disabled, "
-              + "and agent does not support EVP proxy");
+          + "and agent does not support EVP proxy"
+      );
     }
     return backendApi;
   }
 
-  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  /**
+   * Creates an authenticated API client that sends data directly to a Datadog intake.
+   */
   public BackendApi createDirectIntakeApi(Intake intake) {
     return createDirectIntakeApi(intake, true);
   }
 
-  /** Creates an authenticated API client that sends data directly to a Datadog intake. */
+  /**
+   * Creates an authenticated API client that sends data directly to a Datadog intake.
+   */
   public BackendApi createDirectIntakeApi(Intake intake, boolean responseCompression) {
     HttpUrl agentlessUrl = HttpUrl.get(intake.getAgentlessUrl(config));
     String apiKey = config.getApiKey();
     if (apiKey == null || apiKey.isEmpty()) {
       throw new FatalAgentMisconfigurationError(
-          "Agentless mode is enabled and API key is not set. Please set DD_API_KEY");
+          "Agentless mode is enabled and API key is not set. Please set DD_API_KEY"
+      );
     }
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     return new IntakeApi(
@@ -61,22 +65,32 @@ public class BackendApiFactory {
         traceId,
         retryPolicyFactory(),
         sharedCommunicationObjects.getIntakeHttpClient(),
-        responseCompression);
+        responseCompression
+    );
   }
 
-  /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
+  /**
+   * Creates an API client that uses the specified retry policy with a compatible local proxy.
+   */
   public @Nullable BackendApi createEvpProxyApi(Intake intake) {
     return createEvpProxyApi(intake, true);
   }
 
-  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  /**
+   * Creates an API client that sends data through a compatible local EVP proxy.
+   */
   public @Nullable BackendApi createEvpProxyApi(Intake intake, boolean responseCompression) {
     return createEvpProxyApi(intake, responseCompression, retryPolicyFactory());
   }
 
-  /** Creates an API client that sends data through a compatible local EVP proxy. */
+  /**
+   * Creates an API client that sends data through a compatible local EVP proxy.
+   */
   public @Nullable BackendApi createEvpProxyApi(
-      Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory
+  ) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     featuresDiscovery.discoverIfOutdated();
@@ -90,7 +104,8 @@ public class BackendApiFactory {
         "Creating EVP proxy client for {} using endpoint {} with responseCompression={}",
         intake,
         evpProxyEndpoint,
-        responseCompression);
+        responseCompression
+    );
     HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
     String subdomain = intake.getUrlPrefix();
     return new EvpProxyApi(
@@ -99,7 +114,8 @@ public class BackendApiFactory {
         subdomain,
         retryPolicyFactory,
         sharedCommunicationObjects.agentHttpClient,
-        responseCompression);
+        responseCompression
+    );
   }
 
   private static HttpRetryPolicy.Factory retryPolicyFactory() {

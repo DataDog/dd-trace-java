@@ -2,7 +2,6 @@ package datadog.crashtracking.buildid;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.slf4j.Logger;
@@ -38,10 +37,14 @@ public class BuildIdExtractorIntegrationTest {
   }
 
   @TableTest({
-    "scenario                                         | resource                             | expectedBuildId                   ",
-    "PE32+ single debug entry                         | buildid/pe/pe32plus-single-entry.dll | 12345678ABCDEF0123456789ABCDEF011 ",
-    "PE32 single debug entry                          | buildid/pe/pe32-single-entry.dll     | DEADBEEF12345678DEADBEEF123456782 ",
-    "PE32+ multiple debug entries, CodeView is second | buildid/pe/pe32plus-multi-entry.dll  | CAFEBABEBEEFDEADCAFEBABEBEEFDEADff"
+    "scenario                                         | resource                          ",
+    "                                                 | expectedBuildId                   ",
+    "PE32+ single debug entry                         | buildid/pe/pe32plus-single-       ",
+    "entry.dll                                        | 12345678ABCDEF0123456789ABCDEF011 ",
+    "PE32 single debug entry                          | buildid/pe/pe32-single-entry.     ",
+    "dll                                              | DEADBEEF12345678DEADBEEF123456782 ",
+    "PE32+ multiple debug entries, CodeView is second | buildid/pe/pe32plus-multi-        ",
+    "entry.dll                                        | CAFEBABEBEEFDEADCAFEBABEBEEFDEADff"
   })
   void testPeBuildIdExtraction(String resource, String expectedBuildId) throws Exception {
     Path file = Paths.get(getClass().getClassLoader().getResource(resource).toURI());

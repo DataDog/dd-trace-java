@@ -1,7 +1,6 @@
 package datadog.opentelemetry.shim.trace;
 
 import static datadog.opentelemetry.shim.trace.OtelConventions.SPAN_KIND_INTERNAL;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import io.opentelemetry.api.trace.SpanBuilder;
@@ -11,9 +10,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 final class OtelTracer implements Tracer {
   private static final String INSTRUMENTATION_NAME = otelInstrumentationName();
-
   private final OtelInstrumentationScope instrumentationScope;
-
   private final AgentTracer.TracerAPI tracer;
 
   OtelTracer(OtelInstrumentationScope instrumentationScope) {

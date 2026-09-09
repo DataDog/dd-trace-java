@@ -15,8 +15,9 @@ public final class SecurityManagerCheck {
   }
 
   public static final int runTestJvm(
-      Class<? extends TestSecurityManager> securityManagerClass, boolean printStreams)
-      throws Exception {
+      Class<? extends TestSecurityManager> securityManagerClass,
+      boolean printStreams
+  ) throws Exception {
     File jarFile =
         IntegrationTestUtils.createJarFileWithClasses(requiredClasses(securityManagerClass));
     try {
@@ -26,24 +27,27 @@ public final class SecurityManagerCheck {
           SecurityManagerCheck.mainArgs(),
           SecurityManagerCheck.envVars(),
           jarFile,
-          printStreams);
+          printStreams
+      );
     } finally {
       jarFile.delete();
     }
   }
 
   public static final Class<?>[] requiredClasses(
-      Class<? extends TestSecurityManager> securityManagerClass) {
+      Class<? extends TestSecurityManager> securityManagerClass
+  ) {
     return new Class<?>[] {
-      SecurityManagerCheck.class,
-      securityManagerClass,
-      TestSecurityManager.class,
-      CustomSecurityManager.class
+        SecurityManagerCheck.class,
+        securityManagerClass,
+        TestSecurityManager.class,
+        CustomSecurityManager.class
     };
   }
 
   public static final List<String> jvmArgs(
-      Class<? extends TestSecurityManager> securityManagerClass) {
+      Class<? extends TestSecurityManager> securityManagerClass
+  ) {
     return Collections.singletonList("-Djava.security.manager=" + securityManagerClass.getName());
   }
 

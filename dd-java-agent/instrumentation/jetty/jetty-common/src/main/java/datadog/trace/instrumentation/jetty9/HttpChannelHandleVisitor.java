@@ -11,7 +11,12 @@ public class HttpChannelHandleVisitor extends ClassVisitor {
 
   @Override
   public MethodVisitor visitMethod(
-      int access, String name, String descriptor, String signature, String[] exceptions) {
+      int access,
+      String name,
+      String descriptor,
+      String signature,
+      String[] exceptions
+  ) {
     MethodVisitor superVisitor = super.visitMethod(access, name, descriptor, signature, exceptions);
     if ((name.equals("run") || name.equals("handle"))
         && (descriptor.equals("()V") || descriptor.equals("()Z"))) {

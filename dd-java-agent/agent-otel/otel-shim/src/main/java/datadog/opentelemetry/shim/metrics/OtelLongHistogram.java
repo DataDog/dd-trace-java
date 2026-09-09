@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage.newHistogramStorage;
 import static java.util.stream.Collectors.toList;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
@@ -42,7 +41,8 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
     if (value < 0) {
       RATELIMITED_LOGGER.warn(
           "Histograms can only record non-negative values. Instrument {} has recorded a negative value.",
-          storage.getInstrumentName());
+          storage.getInstrumentName()
+      );
     } else {
       storage.recordLong(value, attributes);
     }
@@ -77,12 +77,16 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
     }
 
     @Override
-    @SuppressFBWarnings("DCN") // match OTel in catching and logging NPE
+    // match OTel in catching and logging NPE
+    @SuppressFBWarnings("DCN")
     public LongHistogramBuilder setExplicitBucketBoundariesAdvice(List<Long> bucketBoundaries) {
       try {
         Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
-        this.bucketBoundaries =
-            validateBoundaries(bucketBoundaries.stream().map(Long::doubleValue).collect(toList()));
+        this.bucketBoundaries = validateBoundaries(bucketBoundaries
+          .stream()
+          .map(Long::doubleValue)
+          .collect(toList())
+        );
       } catch (IllegalArgumentException | NullPointerException e) {
         LOGGER.warn("Error setting explicit bucket boundaries advice: {}", e.getMessage());
       }
@@ -91,9 +95,10 @@ final class OtelLongHistogram extends OtelInstrument implements LongHistogram {
 
     @Override
     public LongHistogram build() {
-      return new OtelLongHistogram(
-          meter.registerStorage(
-              builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
+      return new OtelLongHistogram(meter.registerStorage(builder, descriptor -> newHistogramStorage(
+          descriptor,
+          bucketBoundaries
+      )));
     }
   }
 }

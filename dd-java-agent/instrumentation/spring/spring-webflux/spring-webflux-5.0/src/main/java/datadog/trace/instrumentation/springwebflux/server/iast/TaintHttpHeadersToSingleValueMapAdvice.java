@@ -23,7 +23,8 @@ class TaintHttpHeadersToSingleValueMapAdvice {
   public static void after(
       @Advice.This Object self,
       @Advice.Return Map<String, String> values,
-      @ActiveRequestContext RequestContext reqCtx) {
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || values == null || values.isEmpty()) {
       return;

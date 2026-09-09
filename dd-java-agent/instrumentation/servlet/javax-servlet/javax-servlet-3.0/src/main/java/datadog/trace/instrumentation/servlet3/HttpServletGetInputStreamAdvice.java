@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -24,7 +23,8 @@ class HttpServletGetInputStreamAdvice {
   static void after(
       @Advice.This final HttpServletRequest req,
       @Advice.Return(readOnly = false) ServletInputStream is,
-      @ActiveRequestContext RequestContext reqCtx) {
+      @ActiveRequestContext RequestContext reqCtx
+  ) {
     if (is == null) {
       return;
     }

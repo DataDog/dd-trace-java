@@ -7,7 +7,6 @@ import java.lang.reflect.Type;
 
 @SuppressForbidden
 public class FieldInjectionApp {
-
   public static void main(String... args) {
     for (String className : args) {
       try {

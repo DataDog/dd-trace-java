@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.liberty23;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import com.ibm.ws.http.channel.internal.inbound.HttpInboundServiceContextImpl;
 import com.ibm.wsspi.bytebuffer.WsByteBuffer;
 import com.ibm.wsspi.genericbnf.HeaderField;
@@ -31,7 +30,10 @@ public class LibertyBlockingHelper {
   private static final WsByteBuffer[] EMPTY_BUFFER_ARRAY = new WsByteBuffer[0];
 
   public static BlockingException syncBufferEnter(
-      HttpInboundServiceContextImpl thiz, WsByteBuffer[] buffers, AgentSpan span) {
+      HttpInboundServiceContextImpl thiz,
+      WsByteBuffer[] buffers,
+      AgentSpan span
+  ) {
     if (thiz.isMessageSent() || thiz.headersSent()) {
       return null;
     }
@@ -74,7 +76,6 @@ public class LibertyBlockingHelper {
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
       return null;
     }
-
     // block
     response.clear();
 
@@ -87,9 +88,10 @@ public class LibertyBlockingHelper {
     BlockingContentType bct = rba.getBlockingContentType();
     final WsByteBuffer[] bufferArray;
     if (bct != BlockingContentType.NONE) {
-      BlockingActionHelper.TemplateType type =
-          BlockingActionHelper.determineTemplateType(
-              bct, thiz.getRequest().getHeader("Accept").asString());
+      BlockingActionHelper.TemplateType type = BlockingActionHelper.determineTemplateType(
+          bct,
+          thiz.getRequest().getHeader("Accept").asString()
+      );
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       response.setHeader("Content-length", Integer.toString(template.length));
       response.setHeader("Content-type", BlockingActionHelper.getContentType(type));
@@ -101,7 +103,8 @@ public class LibertyBlockingHelper {
 
     BlockingException be = new BlockingException("Blocked response (syncBufferEnter)");
     try {
-      thiz.reinit(thiz.getTSC()); // parsingComplete()
+      // parsingComplete()
+      thiz.reinit(thiz.getTSC());
       thiz.finishResponseMessage(bufferArray);
     } catch (Exception e) {
       log.warn("Error committing blocking response", e);

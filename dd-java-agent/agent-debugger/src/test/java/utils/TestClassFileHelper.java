@@ -1,7 +1,6 @@
 package utils;
 
 import static datadog.trace.util.Strings.getResourceName;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

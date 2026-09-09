@@ -3,7 +3,6 @@ package datadog.trace.api.civisibility.domain;
 import java.util.List;
 
 public class BuildSessionSettings {
-
   private final boolean coverageReportUploadEnabled;
   private final List<String> coverageIncludedPackages;
   private final List<String> coverageExcludedPackages;
@@ -11,7 +10,8 @@ public class BuildSessionSettings {
   public BuildSessionSettings(
       boolean coverageReportUploadEnabled,
       List<String> coverageIncludedPackages,
-      List<String> coverageExcludedPackages) {
+      List<String> coverageExcludedPackages
+  ) {
     this.coverageReportUploadEnabled = coverageReportUploadEnabled;
     this.coverageIncludedPackages = coverageIncludedPackages;
     this.coverageExcludedPackages = coverageExcludedPackages;

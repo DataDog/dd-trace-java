@@ -11,7 +11,6 @@ import datadog.trace.api.iast.telemetry.Verbosity;
 import javax.annotation.Nonnull;
 
 public class TelemetryRequestStartedHandler extends RequestStartedHandler {
-
   public TelemetryRequestStartedHandler(@Nonnull final Dependencies dependencies) {
     super(dependencies);
   }

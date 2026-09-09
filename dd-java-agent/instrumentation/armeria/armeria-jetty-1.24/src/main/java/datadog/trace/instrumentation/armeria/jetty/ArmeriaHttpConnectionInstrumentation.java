@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.armeria.jetty;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.linecorp.armeria.server.ServiceRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -13,7 +12,9 @@ import org.eclipse.jetty.server.HttpChannel;
 
 @AutoService(InstrumenterModule.class)
 public class ArmeriaHttpConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ArmeriaHttpConnectionInstrumentation() {
     super("armeria-jetty", "armeria");
   }
@@ -30,15 +31,15 @@ public class ArmeriaHttpConnectionInstrumentation extends InstrumenterModule.Tra
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AttributeKeys",
-    };
+    return new String[] {packageName + ".AttributeKeys"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), getClass().getName() + "$JettyHttpChannelCaptureAdvice");
+        isConstructor(),
+        getClass().getName() + "$JettyHttpChannelCaptureAdvice"
+    );
   }
 
   public static class JettyHttpChannelCaptureAdvice {

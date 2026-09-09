@@ -24,8 +24,8 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
       @Nonnull String name,
       long maxSize,
       @Nonnull Duration maxAge,
-      @Nonnull Map<String, String> eventSettings)
-      throws IOException {
+      @Nonnull Map<String, String> eventSettings
+  ) throws IOException {
     this.name = name;
     this.helper = helper;
 
@@ -38,14 +38,14 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
     try {
       log.debug("Stopping recording {}", name);
       helper.stopRecording(recordingId);
-      OracleJdkRecordingData data =
-          new OracleJdkRecordingData(
-              name,
-              recordingId,
-              start,
-              getEndTime(helper, recordingId, Instant.now()),
-              ProfilingSnapshot.Kind.PERIODIC,
-              helper);
+      OracleJdkRecordingData data = new OracleJdkRecordingData(
+          name,
+          recordingId,
+          start,
+          getEndTime(helper, recordingId, Instant.now()),
+          ProfilingSnapshot.Kind.PERIODIC,
+          helper
+      );
       log.debug("Recording {} has been stopped and its data collected", name);
       return data;
     } catch (IOException e) {
@@ -61,7 +61,9 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
   @Override
   @Nonnull
   public OracleJdkRecordingData snapshot(
-      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
+      @Nonnull final Instant start,
+      @Nonnull ProfilingSnapshot.Kind kind
+  ) {
     log.debug("Taking recording snapshot for time range {} - {}", start, Instant.now());
     ObjectName targetName = recordingId;
     try {
@@ -71,7 +73,13 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
 
       targetName = helper.cloneRecording(targetName);
       return new OracleJdkRecordingData(
-          name, targetName, start, getEndTime(helper, targetName, Instant.now()), kind, helper);
+          name,
+          targetName,
+          start,
+          getEndTime(helper, targetName, Instant.now()),
+          kind,
+          helper
+      );
     } catch (IOException e) {
       throw new RuntimeException("Unable to take snapshot for recording " + name, e);
     }
@@ -87,14 +95,18 @@ public class OracleJdkOngoingRecording implements OngoingRecording {
   }
 
   private static Instant getEndTime(
-      JfrMBeanHelper helper, ObjectName recordingId, Instant defaultEndTime) {
+      JfrMBeanHelper helper,
+      ObjectName recordingId,
+      Instant defaultEndTime
+  ) {
     try {
       return helper.getDataEndTime(recordingId);
     } catch (IOException e) {
       log.debug(
           "Unable to retrieve the data end time for recording {}. ({})",
           recordingId.getKeyProperty("name"),
-          e.toString());
+          e.toString()
+      );
     }
     return defaultEndTime;
   }

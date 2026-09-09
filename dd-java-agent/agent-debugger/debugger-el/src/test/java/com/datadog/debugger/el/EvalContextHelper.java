@@ -9,13 +9,14 @@ import java.time.Duration;
 import java.util.Map;
 
 public class EvalContextHelper {
-
   public static final Duration TEST_TIMEOUT = Duration.ofMillis(1000);
 
   public static EvalContext createEvalContext(Object instance) {
     // create a higher timeout for test to avoid flakiness
     return new EvalContext(
-        createResolver(instance), TimeoutChecker.create(Config.get(), TEST_TIMEOUT));
+        createResolver(instance),
+        TimeoutChecker.create(Config.get(), TEST_TIMEOUT)
+    );
   }
 
   // specify lower timeout to test timeout checker
@@ -30,7 +31,9 @@ public class EvalContextHelper {
   }
 
   public static ValueReferenceResolver createResolver(
-      Map<String, Object> args, Map<String, Object> locals) {
+      Map<String, Object> args,
+      Map<String, Object> locals
+  ) {
     CapturedContext.CapturedValue[] argValues = null;
     if (args != null) {
       argValues = new CapturedContext.CapturedValue[args.size()];
@@ -45,21 +48,23 @@ public class EvalContextHelper {
   }
 
   private static void fillValues(
-      Map<String, Object> fields, CapturedContext.CapturedValue[] fieldValues) {
+      Map<String, Object> fields,
+      CapturedContext.CapturedValue[] fieldValues
+  ) {
     int index = 0;
     for (Map.Entry<String, Object> entry : fields.entrySet()) {
       Object value = entry.getValue();
       if (Redaction.isRedactedKeyword(entry.getKey())) {
-        fieldValues[index++] =
-            CapturedContext.CapturedValue.redacted(
-                entry.getKey(),
-                value != null ? value.getClass().getTypeName() : Object.class.getTypeName());
+        fieldValues[index++] = CapturedContext.CapturedValue.redacted(
+            entry.getKey(),
+            value != null ? value.getClass().getTypeName() : Object.class.getTypeName()
+        );
       } else {
-        fieldValues[index++] =
-            CapturedContext.CapturedValue.of(
-                entry.getKey(),
-                value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
-                value);
+        fieldValues[index++] = CapturedContext.CapturedValue.of(
+            entry.getKey(),
+            value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
+            value
+        );
       }
     }
   }

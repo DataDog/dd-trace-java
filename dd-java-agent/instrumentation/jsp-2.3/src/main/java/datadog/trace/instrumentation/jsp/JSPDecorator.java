@@ -59,7 +59,6 @@ public class JSPDecorator extends BaseDecorator {
     if (forwardOrigin instanceof String) {
       span.setTag("jsp.forwardOrigin", forwardOrigin.toString());
     }
-
     // add the request URL as a tag to provide better context when looking at spans produced by
     // actions. Tomcat 9 has relative path symbols in the value returned from
     // HttpServletRequest#getRequestURL(),

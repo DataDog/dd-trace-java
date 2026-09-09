@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.dbm;
 import static datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter.containsTraceComment;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 /**
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.Test;
  * {@code [from, to)} boundary semantics are unit-tested on {@code Strings.regionContains}.)
  */
 class SharedDBCommenterContainsTraceCommentTest {
-
   @Test
   void delegate_wholeString() {
     assertTrue(containsTraceComment("ddps='svc',dde='test'"));

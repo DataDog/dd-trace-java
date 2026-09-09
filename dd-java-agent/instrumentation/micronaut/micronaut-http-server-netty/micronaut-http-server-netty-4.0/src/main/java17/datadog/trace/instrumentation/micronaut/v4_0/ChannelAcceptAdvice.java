@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.PARENT_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.micronaut.v4_0.MicronautDecorator.SPAN_ATTRIBUTE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.server.netty.NettyHttpRequest;
@@ -15,7 +14,8 @@ import net.bytebuddy.asm.Advice;
 public class ChannelAcceptAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beginRequest(
-      @Advice.FieldValue("nettyRequest") final NettyHttpRequest request) {
+      @Advice.FieldValue("nettyRequest") final NettyHttpRequest request
+  ) {
     final AgentSpan nettySpan = activeSpan();
 
     if (request == null || nettySpan == null) {

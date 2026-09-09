@@ -12,7 +12,6 @@ import static java.util.EnumSet.of;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-
 import datadog.remoteconfig.Product;
 import datadog.smoketest.backend.AgentBackend;
 import datadog.smoketest.backend.RemoteConfig;
@@ -42,17 +41,15 @@ class AppSecActivationSmokeTest {
   private static final String APPLICATION_JAR =
       System.getProperty("datadog.smoketest.shadowJar.path");
   private static final EnumSet<Product> ASM_RULE_PRODUCTS = of(ASM, ASM_DD, ASM_DATA);
-
   // Inline backend owned by the app; held as a field so the test can push and read remote-config.
   static final AgentBackend agent = AgentBackend.testAgent();
-
   @RegisterExtension
-  static final SmokeCliApp app =
-      SmokeCliApp.named("appsec-activation")
-          .mainClass(AppSecApplication.class, APPLICATION_JAR)
-          .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
-          .backend(agent)
-          .build();
+  static final SmokeCliApp app = SmokeCliApp
+    .named("appsec-activation")
+    .mainClass(AppSecApplication.class, APPLICATION_JAR)
+    .jvmArgs("-Ddd.remote_config.enabled=true", "-Ddd.remote_config.poll_interval.seconds=1")
+    .backend(agent)
+    .build();
 
   @Test
   void activatesAppSecViaRemoteConfig() {
@@ -60,33 +57,37 @@ class AppSecActivationSmokeTest {
 
     RemoteConfig remoteConfig = agent.remoteConfig();
     Telemetry telemetry = agent.telemetry();
-
     // AppSec is enabled but inactive: a poll that has not subscribed to any ASM rule product yet
     // advertises the ASM_ACTIVATION capability, but not ASM_CUSTOM_RULES.
-    Map<String, Object> beforeActivation =
-        remoteConfig.waitForRequest(
-            request -> disjoint(decodeProducts(request), ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
+    Map<String, Object> beforeActivation = remoteConfig.waitForRequest(
+        request -> disjoint(decodeProducts(request), ASM_RULE_PRODUCTS),
+        TIMEOUT_IN_SECONDS
+    );
     long capabilities = RemoteConfig.capabilities(beforeActivation);
     assertTrue(hasCapability(capabilities, CAPABILITY_ASM_ACTIVATION), "ASM_ACTIVATION advertised");
     assertFalse(
         hasCapability(capabilities, CAPABILITY_ASM_CUSTOM_RULES),
-        "ASM_CUSTOM_RULES not advertised while inactive");
-
+        "ASM_CUSTOM_RULES not advertised while inactive"
+    );
     // Activate AppSec via Remote Config.
     remoteConfig.setConfig(
-        "datadog/2/ASM_FEATURES/asm_features_activation/config", "{\"asm\":{\"enabled\":true}}");
-
+        "datadog/2/ASM_FEATURES/asm_features_activation/config",
+        "{\"asm\":{\"enabled\":true}}"
+    );
     // The tracer reports the applied change via a telemetry configuration event.
     telemetry.waitForFlat(
-        AppSecActivationSmokeTest::appsecEnabledFromRemoteConfig, TIMEOUT_IN_SECONDS);
-
+        AppSecActivationSmokeTest::appsecEnabledFromRemoteConfig,
+        TIMEOUT_IN_SECONDS
+    );
     // Now active: the tracer subscribes to the ASM rule products and advertises ASM_CUSTOM_RULES.
-    Map<String, Object> afterActivation =
-        remoteConfig.waitForRequest(
-            request -> decodeProducts(request).containsAll(ASM_RULE_PRODUCTS), TIMEOUT_IN_SECONDS);
+    Map<String, Object> afterActivation = remoteConfig.waitForRequest(
+        request -> decodeProducts(request).containsAll(ASM_RULE_PRODUCTS),
+        TIMEOUT_IN_SECONDS
+    );
     assertTrue(
         hasCapability(RemoteConfig.capabilities(afterActivation), CAPABILITY_ASM_CUSTOM_RULES),
-        "ASM_CUSTOM_RULES advertised after activation");
+        "ASM_CUSTOM_RULES advertised after activation"
+    );
   }
 
   // A flattened telemetry event whose payload records DD_APPSEC_ENABLED=true from remote config.

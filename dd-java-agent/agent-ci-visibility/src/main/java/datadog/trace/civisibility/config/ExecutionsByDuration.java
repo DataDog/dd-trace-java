@@ -40,7 +40,8 @@ public final class ExecutionsByDuration {
   public static class Serializer {
     public static void serialize(
         datadog.trace.civisibility.ipc.serialization.Serializer serializer,
-        ExecutionsByDuration executionsByDuration) {
+        ExecutionsByDuration executionsByDuration
+    ) {
       serializer.write(executionsByDuration.durationMillis);
       serializer.write(executionsByDuration.executions);
     }
@@ -48,7 +49,8 @@ public final class ExecutionsByDuration {
     public static ExecutionsByDuration deserialize(ByteBuffer buf) {
       return new ExecutionsByDuration(
           datadog.trace.civisibility.ipc.serialization.Serializer.readLong(buf),
-          datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf));
+          datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf)
+      );
     }
   }
 }

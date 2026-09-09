@@ -13,12 +13,12 @@ import org.owasp.esapi.codecs.Codec;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class EncoderCallSite {
-
   @CallSite.After("java.lang.String org.owasp.esapi.Encoder.encodeForHTML(java.lang.String)")
   public static String afterEncodeForHTML(
       @CallSite.This final Encoder encoder,
       @CallSite.Argument(0) @Nonnull final String input,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -34,7 +34,8 @@ public class EncoderCallSite {
   public static String afterCanonicalize1(
       @CallSite.This final Encoder encoder,
       @CallSite.Argument(0) @Nonnull final String input,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -46,13 +47,13 @@ public class EncoderCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String org.owasp.esapi.Encoder.canonicalize(java.lang.String, boolean)")
+  @CallSite.After("java.lang.String org.owasp.esapi.Encoder.canonicalize(java.lang.String, boolean)")
   public static String afterCanonicalize2(
       @CallSite.This final Encoder encoder,
       @CallSite.Argument(0) @Nonnull final String input,
       @CallSite.Argument(1) final boolean strict,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -64,14 +65,15 @@ public class EncoderCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String org.owasp.esapi.Encoder.canonicalize(java.lang.String, boolean, boolean)")
+  @CallSite.After("java.lang.String org.owasp.esapi.Encoder.canonicalize(java.lang.String, "
+      + "boolean, boolean)")
   public static String afterCanonicalize3(
       @CallSite.This final Encoder encoder,
       @CallSite.Argument(0) @Nonnull final String input,
       @CallSite.Argument(1) final boolean strict,
       @CallSite.Argument(2) final boolean restrictMixed,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -87,7 +89,8 @@ public class EncoderCallSite {
   public static String afterEncodeForLDAP(
       @CallSite.This final Encoder encoder,
       @CallSite.Argument(0) @Nonnull final String input,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -99,18 +102,18 @@ public class EncoderCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String org.owasp.esapi.Encoder.encodeForOS(org.owasp.esapi.codecs.Codec, java.lang.String)")
+  @CallSite.After("java.lang.String org.owasp.esapi.Encoder.encodeForOS(org.owasp.esapi.codecs."
+      + "Codec, java.lang.String)")
   public static String afterEncodeForOS(
       @CallSite.This final Encoder encoder,
       @CallSite.Argument(0) @Nonnull final Codec codec,
       @CallSite.Argument(1) @Nonnull final String input,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
-        module.taintStringIfTainted(
-            result, input, false, VulnerabilityMarks.COMMAND_INJECTION_MARK);
+        module.taintStringIfTainted(result, input, false, VulnerabilityMarks.COMMAND_INJECTION_MARK);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterEncodeForOS threw", e);
       }
@@ -118,13 +121,14 @@ public class EncoderCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String org.owasp.esapi.Encoder.encodeForSQL(org.owasp.esapi.codecs.Codec, java.lang.String)")
+  @CallSite.After("java.lang.String org.owasp.esapi.Encoder.encodeForSQL(org.owasp.esapi.codecs."
+      + "Codec, java.lang.String)")
   public static String afterEncodeForSQL(
       @CallSite.This final Encoder encoder,
       @CallSite.Argument(0) @Nonnull final Codec codec,
       @CallSite.Argument(1) @Nonnull final String input,
-      @CallSite.Return final String result) {
+      @CallSite.Return final String result
+  ) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

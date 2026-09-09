@@ -3,7 +3,6 @@ package datadog.trace.civisibility.writer.ddintake;
 import static datadog.communication.http.OkHttpUtils.gzippedRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.jsonRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -36,7 +35,6 @@ import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 
 public class CiTestCovMapperV2 implements RemoteMapper {
-
   private static final byte[] VERSION = "version".getBytes(StandardCharsets.UTF_8);
   private static final byte[] COVERAGES = "coverages".getBytes(StandardCharsets.UTF_8);
   private static final byte[] TEST_SESSION_ID = "test_session_id".getBytes(StandardCharsets.UTF_8);
@@ -45,7 +43,6 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   private static final byte[] FILES = "files".getBytes(StandardCharsets.UTF_8);
   private static final byte[] FILENAME = "filename".getBytes(StandardCharsets.UTF_8);
   private static final byte[] BITMAP = "bitmap".getBytes(StandardCharsets.UTF_8);
-
   private final int size;
   private final GrowableBuffer headerBuffer;
   private final MsgPackWriter headerWriter;
@@ -160,11 +157,13 @@ public class CiTestCovMapperV2 implements RemoteMapper {
     metricCollector.add(
         CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_EVENTS_COUNT,
         eventCount,
-        Endpoint.CODE_COVERAGE);
+        Endpoint.CODE_COVERAGE
+    );
     metricCollector.add(
         CiVisibilityDistributionMetric.ENDPOINT_PAYLOAD_EVENTS_SERIALIZATION_MS,
         serializationTimeMillis,
-        Endpoint.CODE_COVERAGE);
+        Endpoint.CODE_COVERAGE
+    );
 
     return new PayloadV2(compressionEnabled).withHeader(headerBuffer.slice());
   }
@@ -186,13 +185,10 @@ public class CiTestCovMapperV2 implements RemoteMapper {
   }
 
   private static class PayloadV2 extends Payload {
-
     // backend requires _some_ JSON to be present
     private static final RequestBody DUMMY_JSON_BODY =
         jsonRequestBodyOf("{\"dummy\":true}".getBytes(StandardCharsets.UTF_8));
-
     private final boolean compressionEnabled;
-
     ByteBuffer header = null;
 
     private PayloadV2(boolean compressionEnabled) {
@@ -249,12 +245,11 @@ public class CiTestCovMapperV2 implements RemoteMapper {
       }
       RequestBody coverageBody = msgpackRequestBodyOf(buffers);
 
-      MultipartBody multipartBody =
-          new MultipartBody.Builder()
-              .setType(MultipartBody.FORM)
-              .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
-              .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
-              .build();
+      MultipartBody multipartBody = new MultipartBody.Builder()
+        .setType(MultipartBody.FORM)
+        .addFormDataPart("coverage1", "coverage1.msgpack", coverageBody)
+        .addFormDataPart("event", "event.json", DUMMY_JSON_BODY)
+        .build();
 
       return compressionEnabled ? gzippedRequestBodyOf(multipartBody) : multipartBody;
     }

@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -71,10 +70,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
 public class ThreadSafeMapD1Benchmark {
-
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
-
   static final String[] KEYS = new String[N_KEYS];
 
   static {
@@ -118,7 +115,9 @@ public class ThreadSafeMapD1Benchmark {
     }
   }
 
-  /** Per-thread cursor so each thread cycles through keys independently. */
+  /**
+   * Per-thread cursor so each thread cycles through keys independently.
+   */
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;

@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -24,8 +23,9 @@ import org.apache.synapse.transport.passthru.SourceRequest;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseServerWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public SynapseServerWorkerInstrumentation() {
     super("synapse3-server", "synapse3");
   }
@@ -38,22 +38,25 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".SynapseServerDecorator",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".SynapseServerDecorator"
     };
   }
 
   @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor()
-            .and(takesArgument(0, named("org.apache.synapse.transport.passthru.SourceRequest"))),
-        getClass().getName() + "$NewServerWorkerAdvice");
+        isConstructor().and(
+            takesArgument(0, named("org.apache.synapse.transport.passthru.SourceRequest"))
+        ),
+        getClass().getName() + "$NewServerWorkerAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(named("run")).and(takesNoArguments()),
-        getClass().getName() + "$ServerWorkerResponseAdvice");
+        getClass().getName() + "$ServerWorkerResponseAdvice"
+    );
   }
 
   public static final class NewServerWorkerAdvice {
@@ -69,7 +72,8 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
   public static final class ServerWorkerResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginResponse(
-        @Advice.FieldValue("request") final SourceRequest request) {
+        @Advice.FieldValue("request") final SourceRequest request
+    ) {
       Object continuation =
           request.getConnection().getContext().removeAttribute(SYNAPSE_CONTINUATION_KEY);
       return continuation instanceof ContextContinuation
@@ -81,7 +85,8 @@ public final class SynapseServerWorkerInstrumentation extends InstrumenterModule
     public static void responseReady(
         @Advice.Enter final ContextScope scope,
         @Advice.FieldValue("request") final SourceRequest request,
-        @Advice.Thrown final Throwable error) {
+        @Advice.Thrown final Throwable error
+    ) {
       if (null == scope) {
         return;
       }

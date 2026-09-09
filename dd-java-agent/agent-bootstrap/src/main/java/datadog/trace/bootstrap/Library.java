@@ -4,10 +4,11 @@ import datadog.environment.EnvironmentVariables;
 import java.util.EnumSet;
 import org.slf4j.Logger;
 
-/** Tracks third-party libraries that may need special handling during agent startup. */
+/**
+ * Tracks third-party libraries that may need special handling during agent startup.
+ */
 public enum Library {
   WILDFLY;
-
   /**
    * Best-effort detection of libraries potentially used by the application. This is called at boot
    * so we need to be very careful how many checks happen here. Some library use may not be visible

@@ -20,7 +20,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -41,7 +40,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class RequestDispatcherInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public RequestDispatcherInstrumentation() {
     super("servlet", "servlet-dispatcher");
   }
@@ -59,9 +60,9 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet.ServletRequestSetter",
-      "datadog.trace.instrumentation.servlet.SpanNameCache",
-      packageName + ".RequestDispatcherDecorator",
+        "datadog.trace.instrumentation.servlet.ServletRequestSetter",
+        "datadog.trace.instrumentation.servlet.SpanNameCache",
+        packageName + ".RequestDispatcherDecorator"
     };
   }
 
@@ -73,23 +74,24 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        // error is Jetty's method that doesn't delegate to forward or include
         namedOneOf("forward", "include", "error")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
-        getClass().getName() + "$RequestDispatcherAdvice");
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+          // error is Jetty's method that doesn't delegate to forward or include
+          .and(isPublic()),
+        getClass().getName() + "$RequestDispatcherAdvice"
+    );
   }
 
   public static class RequestDispatcherAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope start(
         @Advice.Origin("#m") final String method,
         @Advice.This final RequestDispatcher dispatcher,
         @Advice.Local("_requestContext") Object requestContext,
-        @Advice.Argument(0) final ServletRequest request) {
+        @Advice.Argument(0) final ServletRequest request
+    ) {
       final AgentSpan parentSpan = activeSpan();
 
       final Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
@@ -115,11 +117,11 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
         parent = servletSpan.spanContext();
       }
 
-      final AgentSpan span =
-          startSpan(
-              JAVA_WEB_SERVLET_DISPATCHER.toString(),
-              SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX),
-              parent);
+      final AgentSpan span = startSpan(
+          JAVA_WEB_SERVLET_DISPATCHER.toString(),
+          SPAN_NAME_CACHE.computeIfAbsent(method, SERVLET_PREFIX),
+          parent
+      );
       DECORATE.afterStart(span);
       span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
       span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
@@ -128,10 +130,8 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
           InstrumentationContext.get(RequestDispatcher.class, String.class).get(dispatcher);
       span.setResourceName(target);
       span.setSpanType(InternalSpanTypes.HTTP_SERVER);
-
       // In case we lose context, inject trace into to the request.
       DECORATE.injectContext(span, request, SETTER);
-
       // temporarily replace from request to avoid spring resource name bubbling up:
       requestContext = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
 
@@ -148,7 +148,8 @@ public final class RequestDispatcherInstrumentation extends InstrumenterModule.T
         @Advice.Local("_requestContext") final Object requestContext,
         @Advice.Argument(0) final ServletRequest request,
         @Advice.Argument(1) final ServletResponse response,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (scope == null) {
         return;
       }

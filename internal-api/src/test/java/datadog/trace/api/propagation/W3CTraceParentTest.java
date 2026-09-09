@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -16,11 +15,15 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class W3CTraceParentTest {
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("buildProducesCorrectFormatArguments")
   void buildProducesCorrectFormat(
-      String scenario, DDTraceId traceId, long spanId, boolean isSampled, String expected) {
+      String scenario,
+      DDTraceId traceId,
+      long spanId,
+      boolean isSampled,
+      String expected
+  ) {
     assertEquals(expected, W3CTraceParent.from(traceId, spanId, isSampled));
   }
 
@@ -31,25 +34,30 @@ public class W3CTraceParentTest {
             DDTraceId.from(1),
             2L,
             true,
-            "00-00000000000000000000000000000001-0000000000000002-01"),
+            "00-00000000000000000000000000000001-0000000000000002-01"
+        ),
         arguments(
             "not sampled",
             DDTraceId.from(1),
             2L,
             false,
-            "00-00000000000000000000000000000001-0000000000000002-00"),
+            "00-00000000000000000000000000000001-0000000000000002-00"
+        ),
         arguments(
             "W3C example",
             DDTraceId.fromHex("0af7651916cd43dd8448eb211c80319c"),
             0x00f067aa0ba902b7L,
             true,
-            "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"),
+            "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01"
+        ),
         arguments(
             "Long.MAX_VALUE ids",
             DDTraceId.from(Long.MAX_VALUE),
             Long.MAX_VALUE,
             true,
-            "00-00000000000000007fffffffffffffff-7fffffffffffffff-01"));
+            "00-00000000000000007fffffffffffffff-7fffffffffffffff-01"
+        )
+    );
   }
 
   @Test
@@ -72,7 +80,9 @@ public class W3CTraceParentTest {
     when(context.getSamplingPriority()).thenReturn(1);
 
     assertEquals(
-        "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01", W3CTraceParent.from(span));
+        "00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01",
+        W3CTraceParent.from(span)
+    );
   }
 
   @Test
@@ -86,6 +96,8 @@ public class W3CTraceParentTest {
     when(context.getSamplingPriority()).thenReturn(0);
 
     assertEquals(
-        "00-00000000000000000000000000000001-0000000000000002-00", W3CTraceParent.from(span));
+        "00-00000000000000000000000000000001-0000000000000002-00",
+        W3CTraceParent.from(span)
+    );
   }
 }

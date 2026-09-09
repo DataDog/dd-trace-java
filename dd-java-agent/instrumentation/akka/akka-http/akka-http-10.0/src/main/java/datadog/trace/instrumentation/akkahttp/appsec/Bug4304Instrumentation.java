@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import akka.stream.stage.GraphStageLogic;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,8 +29,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class Bug4304Instrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice
+{
   public Bug4304Instrumentation() {
     super("akka-http");
   }
@@ -44,12 +44,12 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
+        packageName + ".AkkaBlockResponseFunction",
+        packageName + ".BlockingResponseHelper",
+        packageName + ".ScalaListCollector",
+        "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
+        "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
+        "datadog.trace.instrumentation.akkahttp.UriAdapter"
     };
   }
 
@@ -61,21 +61,23 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("akka.http.impl.engine.server.HttpServerBluePrint$ControllerStage$$anon$")
-        .and(HierarchyMatchers.extendsClass(named("akka.stream.stage.GraphStageLogic")))
-        .and(MatchesOneHundredContinueStageAnonClass.INSTANCE);
+      .and(HierarchyMatchers.extendsClass(named("akka.stream.stage.GraphStageLogic")))
+      .and(MatchesOneHundredContinueStageAnonClass.INSTANCE);
   }
 
   public static class MatchesOneHundredContinueStageAnonClass
-      implements ElementMatcher<TypeDescription> {
+      implements ElementMatcher<TypeDescription>
+  {
     public static final ElementMatcher<TypeDescription> INSTANCE =
         new MatchesOneHundredContinueStageAnonClass();
 
-    private MatchesOneHundredContinueStageAnonClass() {}
+    private MatchesOneHundredContinueStageAnonClass() {
+    }
 
-    private static final Pattern ANON_CLASS_PATTERN =
-        Pattern.compile(
-            "akka\\.http\\.impl\\.engine\\.server\\.HttpServerBluePrint\\$ControllerStage\\$\\$anon\\$"
-                + "\\d+\\$OneHundredContinueStage\\$\\$anon\\$\\d+");
+    private static final Pattern ANON_CLASS_PATTERN = Pattern.compile(
+        "akka\\.http\\.impl\\.engine\\.server\\.HttpServerBluePrint\\$ControllerStage\\$\\$anon\\$"
+        + "\\d+\\$OneHundredContinueStage\\$\\$anon\\$\\d+"
+    );
 
     @Override
     public boolean matches(TypeDescription td) {
@@ -91,7 +93,9 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), Bug4304Instrumentation.class.getName() + "$GraphStageLogicAdvice");
+        isConstructor(),
+        Bug4304Instrumentation.class.getName() + "$GraphStageLogicAdvice"
+    );
   }
 
   static class GraphStageLogicAdvice {
@@ -102,7 +106,8 @@ public class Bug4304Instrumentation extends InstrumenterModule.AppSec
     @SuppressForbidden
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(@Advice.This GraphStageLogic thiz)
-        throws NoSuchFieldException, IllegalAccessException {
+        throws NoSuchFieldException,
+        IllegalAccessException {
       AgentSpan span = activeSpan();
       RequestContext reqCtx;
       if (span == null

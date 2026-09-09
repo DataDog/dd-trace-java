@@ -10,10 +10,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
  * @see <a href="https://www.w3.org/TR/trace-context/#traceparent-header">W3C Trace Context</a>
  */
 public final class W3CTraceParent {
-
   private static final int TRACE_PARENT_LENGTH = 55;
 
-  private W3CTraceParent() {}
+  private W3CTraceParent() {
+  }
 
   /**
    * Builds a W3C traceparent header value from the given trace context components.

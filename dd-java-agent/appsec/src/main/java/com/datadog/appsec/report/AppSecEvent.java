@@ -2,25 +2,19 @@ package com.datadog.appsec.report;
 
 import static com.datadog.appsec.ddwaf.WAFResultData.Rule;
 import static com.datadog.appsec.ddwaf.WAFResultData.RuleMatch;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public class AppSecEvent {
-
   @com.squareup.moshi.Json(name = "rule")
   private Rule rule;
-
   @com.squareup.moshi.Json(name = "rule_matches")
   private List<RuleMatch> ruleMatches = new ArrayList<>();
-
   @com.squareup.moshi.Json(name = "span_id")
   private Long spanId;
-
   @com.squareup.moshi.Json(name = "stack_id")
   private String stackId;
-
   @com.squareup.moshi.Json(name = "security_response_id")
   private String securityResponseId;
 
@@ -47,10 +41,11 @@ public class AppSecEvent {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append(AppSecEvent.class.getName())
-        .append('@')
-        .append(Integer.toHexString(System.identityHashCode(this)))
-        .append('[');
+    sb
+      .append(AppSecEvent.class.getName())
+      .append('@')
+      .append(Integer.toHexString(System.identityHashCode(this)))
+      .append('[');
     sb.append("rule");
     sb.append('=');
     sb.append(((this.rule == null) ? "<null>" : this.rule));
@@ -84,9 +79,8 @@ public class AppSecEvent {
     result = ((result * 31) + ((this.ruleMatches == null) ? 0 : this.ruleMatches.hashCode()));
     result = ((result * 31) + ((this.spanId == null) ? 0 : this.spanId.hashCode()));
     result = ((result * 31) + ((this.stackId == null) ? 0 : this.stackId.hashCode()));
-    result =
-        ((result * 31)
-            + ((this.securityResponseId == null) ? 0 : this.securityResponseId.hashCode()));
+    result = ((result * 31)
+        + ((this.securityResponseId == null) ? 0 : this.securityResponseId.hashCode()));
     return result;
   }
 
@@ -107,7 +101,6 @@ public class AppSecEvent {
   }
 
   public static class Builder {
-
     protected AppSecEvent instance;
 
     public Builder() {

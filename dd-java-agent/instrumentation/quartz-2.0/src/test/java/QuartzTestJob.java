@@ -11,7 +11,8 @@ public class QuartzTestJob implements Job {
   public void execute(JobExecutionContext context) {
     try {
       Scheduler scheduler = context.getScheduler();
-      scheduler.standby(); // prevent subsequent cron fires from racing with test assertions
+      // prevent subsequent cron fires from racing with test assertions
+      scheduler.standby();
 
       CountDownLatch latch = (CountDownLatch) scheduler.getContext().get("latch");
       latch.countDown();

@@ -7,16 +7,22 @@ import javax.management.ObjectName;
 import javax.management.StandardMBean;
 
 public class CustomMBeanServerBuilder extends MBeanServerBuilder {
-  public interface TestMBean {}
+  public interface TestMBean {
+  }
 
   @Override
   public MBeanServer newMBeanServer(
-      final String defaultDomain, final MBeanServer outer, final MBeanServerDelegate delegate) {
+      final String defaultDomain,
+      final MBeanServer outer,
+      final MBeanServerDelegate delegate
+  ) {
     final MBeanServer mBeanServer = super.newMBeanServer(defaultDomain, outer, delegate);
     try {
       mBeanServer.registerMBean(
-          new StandardMBean(new TestMBean() {}, TestMBean.class),
-          new ObjectName("test:name=custom"));
+          new StandardMBean(new TestMBean() {
+          }, TestMBean.class),
+          new ObjectName("test:name=custom")
+      );
     } catch (final Exception e) {
       throw new IllegalStateException(e);
     }

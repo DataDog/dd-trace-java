@@ -3,7 +3,6 @@ package datadog.trace.civisibility.domain;
 import static datadog.json.JsonMapper.toJson;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpanWithoutScope;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
@@ -56,9 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestImpl implements DDTest {
-
   private static final Logger log = LoggerFactory.getLogger(TestImpl.class);
-
   private final CiVisibilityMetricCollector metricCollector;
   private final ExecutionResults executionResults;
   private final TestFrameworkInstrumentation instrumentation;
@@ -94,7 +91,8 @@ public class TestImpl implements DDTest {
       ExecutionResults executionResults,
       @Nonnull ConfigurationErrors configurationErrors,
       @Nonnull Collection<LibraryCapability> capabilities,
-      Consumer<AgentSpan> onSpanFinish) {
+      Consumer<AgentSpan> onSpanFinish
+  ) {
     this.instrumentation = instrumentation;
     this.metricCollector = metricCollector;
     this.sessionId = moduleSpanContext.getTraceId();
@@ -109,12 +107,12 @@ public class TestImpl implements DDTest {
     this.context = new TestContextImpl(coverageStore);
 
     AgentSpanContext traceContext = new TagContext(CIConstants.CIAPP_TEST_ORIGIN, null);
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
-            .ignoreActiveSpan()
-            .asChildOf(traceContext)
-            .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer
+      .get()
+      .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test")
+      .ignoreActiveSpan()
+      .asChildOf(traceContext)
+      .withRequestContextData(RequestContextSlot.CI_VISIBILITY, context);
 
     if (startTime != null) {
       startMicros = startTime;
@@ -147,7 +145,13 @@ public class TestImpl implements DDTest {
 
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(
-          span, testClass, testMethod, sourcePathResolver, linesResolver, codeowners);
+          span,
+          testClass,
+          testMethod,
+          sourcePathResolver,
+          linesResolver,
+          codeowners
+      );
     }
 
     if (itrCorrelationId != null) {
@@ -179,7 +183,8 @@ public class TestImpl implements DDTest {
       Method testMethod,
       SourcePathResolver sourcePathResolver,
       LinesResolver linesResolver,
-      Codeowners codeowners) {
+      Codeowners codeowners
+  ) {
     if (testClass == null) {
       return;
     }
@@ -260,25 +265,26 @@ public class TestImpl implements DDTest {
     final AgentSpan activeSpan = AgentTracer.activeSpan();
     if (activeSpan == null) {
       throw new IllegalStateException(
-          "No active span present, it is possible that end() was called multiple times");
+          "No active span present, it is possible that end() was called multiple times"
+      );
     }
 
     if (activeSpan != this.span) {
       throw new IllegalStateException(
           "Active span does not correspond to the finished test, "
-              + "it is possible that end() was called multiple times "
-              + "or an operation that was started by the test is still in progress; "
-              + "active span is: "
-              + activeSpan
-              + "; "
-              + "expected span is: "
-              + this.span);
+          + "it is possible that end() was called multiple times "
+          + "or an operation that was started by the test is still in progress; "
+          + "active span is: "
+          + activeSpan
+          + "; "
+          + "expected span is: "
+          + this.span
+      );
     }
 
     InstrumentationTestBridge.fireBeforeTestEnd(context);
 
     CoveragePerTestBridge.removeThreadLocalCoverageProbes();
-
     // do not process coverage reports for skipped tests
     if (span.getTag(Tags.TEST_STATUS) != TestStatus.skip) {
       CoverageStore coverageStore = context.getCoverageStore();
@@ -314,18 +320,17 @@ public class TestImpl implements DDTest {
         span.getTag(Tags.TEST_IS_MODIFIED) != null ? IsModified.TRUE : null,
         span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_QUARANTINED) != null ? IsQuarantined.TRUE : null,
         span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_TEST_DISABLED) != null ? IsDisabled.TRUE : null,
-        span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX) != null
-            ? IsAttemptToFix.TRUE
-            : null,
+        span.getTag(Tags.TEST_TEST_MANAGEMENT_IS_ATTEMPT_TO_FIX) != null ? IsAttemptToFix.TRUE : null,
         span.getTag(Tags.TEST_IS_RETRY) != null ? IsRetry.TRUE : null,
         span.getTag(Tags.TEST_HAS_FAILED_ALL_RETRIES) != null ? HasFailedAllRetries.TRUE : null,
         retryReason instanceof TagValue ? (TagValue) retryReason : null,
         debugInfoCaptured ? FailedTestReplayEnabled.TestMetric.TRUE : null,
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
-            ? BrowserDriver.SELENIUM
-            : null,
-        span.getTag(Tags.TEST_ANDROID_API_LEVEL) != null ? IsAndroidEmulated.TRUE : null);
+        ? BrowserDriver.SELENIUM
+        : null,
+        span.getTag(Tags.TEST_ANDROID_API_LEVEL) != null ? IsAndroidEmulated.TRUE : null
+    );
   }
 
   /**
@@ -345,7 +350,6 @@ public class TestImpl implements DDTest {
   private void closeOutstandingSpans() {
     AgentSpan activeSpan;
     while ((activeSpan = AgentTracer.activeSpan()) != null) {
-
       if (activeSpan == this.span || activeSpan.getTag(Tags.TEST_SESSION_ID) != null) {
         // encountered this span or another CI Visibility span (test, suite, module, session)
         break;

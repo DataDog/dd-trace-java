@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNoneOf;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CucumberInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public CucumberInstrumentation() {
     super("cucumber", "cucumber-5");
   }
@@ -30,7 +30,7 @@ public class CucumberInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(namedNoneOf("io.cucumber.core.runner.CoreStepDefinition"));
+      .and(namedNoneOf("io.cucumber.core.runner.CoreStepDefinition"));
   }
 
   @Override
@@ -42,13 +42,16 @@ public class CucumberInstrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("execute").and(takesArguments(Object[].class)),
-        CucumberInstrumentation.class.getName() + "$CucumberAdvice");
+        CucumberInstrumentation.class.getName() + "$CucumberAdvice"
+    );
   }
 
   public static class CucumberAdvice {
     @Advice.OnMethodEnter
     public static AgentScope onCucumberStepStart(
-        @Advice.This StepDefinition step, @Advice.Argument(0) Object[] arguments) {
+        @Advice.This StepDefinition step,
+        @Advice.Argument(0) Object[] arguments
+    ) {
       return CucumberStepDecorator.DECORATE.onStepStart(step, arguments);
     }
 

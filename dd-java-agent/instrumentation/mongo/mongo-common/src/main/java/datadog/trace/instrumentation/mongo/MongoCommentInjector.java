@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,10 +19,11 @@ import org.slf4j.LoggerFactory;
  */
 public class MongoCommentInjector {
   private static final Logger log = LoggerFactory.getLogger(MongoCommentInjector.class);
-
   public static final boolean INJECT_COMMENT = Config.get().isDbmCommentInjectionEnabled();
 
-  /** Main entry point for MongoDB command comment injection */
+  /**
+   * Main entry point for MongoDB command comment injection
+   */
   public static BsonDocument injectComment(String dbmComment, BsonDocument originalBsonDocument) {
     if (!INJECT_COMMENT) {
       return originalBsonDocument;
@@ -45,20 +45,22 @@ public class MongoCommentInjector {
           return command;
         }
       }
-
       // No existing comment found, default to adding a "comment" field
       command.put("comment", new BsonString(dbmComment));
       return command;
     } catch (Exception e) {
       log.warn(
           "Linking Database Monitoring profiles to spans is not supported for the following query type: {}. "
-              + "To disable this feature please set the following environment variable: DD_DBM_PROPAGATION_MODE=disabled",
-          originalBsonDocument.getClass().getSimpleName());
+          + "To disable this feature please set the following environment variable: DD_DBM_PROPAGATION_MODE=disabled",
+          originalBsonDocument.getClass().getSimpleName()
+      );
       return originalBsonDocument;
     }
   }
 
-  /** Build comment content using SharedDBCommenter */
+  /**
+   * Build comment content using SharedDBCommenter
+   */
   public static String buildComment(AgentSpan dbSpan, String hostname, String dbName) {
     if (!INJECT_COMMENT) {
       return null;
@@ -67,22 +69,20 @@ public class MongoCommentInjector {
     if (dbSpan.forceSamplingDecision() == null) {
       return null;
     }
-
     // Set the DBM trace injected tag
     dbSpan.setTag(DBM_TRACE_INJECTED, true);
-
     // Extract connection details
     String dbService = dbSpan.getServiceName();
-    String traceParent =
-        Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
-            ? W3CTraceParent.from(dbSpan)
-            : null;
-
+    String traceParent = Config.get().getDbmPropagationMode().equals(DBM_PROPAGATION_MODE_FULL)
+        ? W3CTraceParent.from(dbSpan)
+        : null;
     // Use shared comment builder directly
     return SharedDBCommenter.buildComment(dbService, "mongodb", hostname, dbName, traceParent);
   }
 
-  /** Merge comment with existing comment values */
+  /**
+   * Merge comment with existing comment values
+   */
   private static BsonValue mergeComment(BsonValue existingComment, String dbmComment) {
     if (existingComment == null) {
       return new BsonString(dbmComment);
@@ -91,7 +91,8 @@ public class MongoCommentInjector {
     if (existingComment.isString()) {
       String existingStr = existingComment.asString().getValue();
       if (SharedDBCommenter.containsTraceComment(existingStr)) {
-        return existingComment; // Already has trace comment, avoid duplication
+        // Already has trace comment, avoid duplication
+        return existingComment;
       }
       // String concatenation with comma separator
       return new BsonString(existingStr + "," + dbmComment);
@@ -101,14 +102,14 @@ public class MongoCommentInjector {
       for (BsonValue element : commentArray) {
         if (element.isString()
             && SharedDBCommenter.containsTraceComment(element.asString().getValue())) {
-          return existingComment; // Already has trace comment, avoid duplication
+          // Already has trace comment, avoid duplication
+          return existingComment;
         }
       }
       // Append to existing array
       commentArray.add(new BsonString(dbmComment));
       return commentArray;
     }
-
     // Incompatible type, preserve existing comment unchanged
     return existingComment;
   }

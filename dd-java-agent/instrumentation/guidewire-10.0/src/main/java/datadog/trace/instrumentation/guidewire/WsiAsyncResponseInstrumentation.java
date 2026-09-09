@@ -10,7 +10,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -43,8 +42,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class WsiAsyncResponseInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final String ASYNC_RESPONSE = "gw.internal.xml.ws.AsyncResponseImpl";
 
   public WsiAsyncResponseInstrumentation() {
@@ -76,7 +76,9 @@ public final class WsiAsyncResponseInstrumentation extends InstrumenterModule.Co
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
     transformer.applyAdvice(
-        named("run").and(takesArguments(0)).and(isPublic()), getClass().getName() + "$Activate");
+        named("run").and(takesArguments(0)).and(isPublic()),
+        getClass().getName() + "$Activate"
+    );
   }
 
   public static final class Capture {

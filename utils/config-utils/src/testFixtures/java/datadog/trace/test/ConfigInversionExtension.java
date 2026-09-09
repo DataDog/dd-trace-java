@@ -16,7 +16,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * automatic discovery. Requires {@code junit.jupiter.extensions.autodetection.enabled=true}.
  */
 public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCallback {
-
   private StrictnessPolicy previousPolicy;
 
   @Override
@@ -33,8 +32,9 @@ public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCall
     if (!unsupported.isEmpty()) {
       throw new AssertionError(
           "Unsupported configurations found during test. "
-              + "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  "
-              + String.join("\n  ", unsupported));
+          + "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  "
+          + String.join("\n  ", unsupported)
+      );
     }
   }
 }

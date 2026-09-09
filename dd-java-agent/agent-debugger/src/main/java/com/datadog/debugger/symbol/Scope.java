@@ -4,7 +4,6 @@ import com.squareup.moshi.Json;
 import java.util.List;
 
 public class Scope {
-
   public static class LineRange {
     final int start;
     final int end;
@@ -17,27 +16,19 @@ public class Scope {
 
   @Json(name = "scope_type")
   private final ScopeType scopeType;
-
   @Json(name = "source_file")
   private final String sourceFile;
-
   @Json(name = "start_line")
   private final int startLine;
-
   @Json(name = "end_line")
   private final int endLine;
-
   @Json(name = "has_injectible_lines")
   private final boolean hasInjectibleLines;
-
   @Json(name = "injectible_lines")
   private final List<LineRange> injectibleLines;
-
   private final String name;
-
   @Json(name = "language_specifics")
   private final LanguageSpecifics languageSpecifics;
-
   private final List<Symbol> symbols;
   private final List<Scope> scopes;
 
@@ -51,7 +42,8 @@ public class Scope {
       List<LineRange> injectibleLines,
       LanguageSpecifics languageSpecifics,
       List<Symbol> symbols,
-      List<Scope> scopes) {
+      List<Scope> scopes
+  ) {
     this.scopeType = scopeType;
     this.sourceFile = sourceFile;
     this.startLine = startLine;
@@ -128,8 +120,7 @@ public class Scope {
         + '}';
   }
 
-  public static Builder builder(
-      ScopeType scopeType, String sourceFile, int startLine, int endLine) {
+  public static Builder builder(ScopeType scopeType, String sourceFile, int startLine, int endLine) {
     return new Builder(scopeType, sourceFile, startLine, endLine);
   }
 
@@ -193,7 +184,8 @@ public class Scope {
           injectibleLines,
           languageSpecifics,
           symbols,
-          scopes);
+          scopes
+      );
     }
   }
 }

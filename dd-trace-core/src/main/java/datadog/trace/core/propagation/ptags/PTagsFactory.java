@@ -7,7 +7,6 @@ import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RAT
 import static datadog.trace.core.propagation.ptags.PTagsCodec.ORG_PROPAGATION_MARKER_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
-
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -25,9 +24,7 @@ import javax.annotation.Nonnull;
 
 public class PTagsFactory implements PropagationTags.Factory {
   static final String PROPAGATION_ERROR_TAG_KEY = "_dd.propagation_error";
-
   private final EnumMap<HeaderType, PTagsCodec> DEC_ENC_MAP = new EnumMap<>(HeaderType.class);
-
   private final int xDatadogTagsLimit;
 
   public PTagsFactory(int xDatadogTagsLimit) {
@@ -71,14 +68,16 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
       int productTraceSource,
-      TagValue orgPropagationMarkerTagValue) {
+      TagValue orgPropagationMarkerTagValue
+  ) {
     return new PTags(
         this,
         tagPairs,
         decisionMakerTagValue,
         traceIdTagValue,
         productTraceSource,
-        orgPropagationMarkerTagValue);
+        orgPropagationMarkerTagValue
+    );
   }
 
   PropagationTags createInvalid(String error) {
@@ -87,65 +86,50 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   static class PTags extends PropagationTags {
     private static final String EMPTY = "";
-
     protected final PTagsFactory factory;
-
     // tags that don't require any modifications and propagated as-is
     private final List<TagElement> tagPairs;
-
-    @SuppressFBWarnings(
-        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-        justification = "This field is never accessed concurrently")
+    @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "This "
+        + "field is never accessed concurrently")
     private boolean canChangeDecisionMaker;
-
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
-
     private static final AtomicIntegerFieldUpdater<PTags> TRACE_SOURCE_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(PTags.class, "traceSource");
-
     private volatile int traceSource;
     private volatile String debugPropagation;
-
     private volatile double knuthSamplingRate = Double.NaN;
     private volatile TagValue knuthSamplingRateTagValue;
-
     private volatile TagValue orgPropagationMarkerTagValue;
-
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
     // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
     private static volatile double cachedKsrRate = Double.NaN;
     private static volatile TagValue cachedKsrTagValue;
-
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
-
     private volatile int samplingPriority;
     private volatile CharSequence origin;
     private volatile String[] headerCache = null;
-
-    /** The high-order 64 bits of the trace id. */
+    /**
+     * The high-order 64 bits of the trace id.
+     */
     private volatile long traceIdHighOrderBits;
-
     /**
      * The zero-padded lower-case 16 character hexadecimal representation of the high-order 64 bits
      * of the trace id, wrapped into a {@link TagValue}, <code>null</code> if not set.
      */
     private volatile TagValue traceIdHighOrderBitsHexTagValue;
-
     /**
      * The original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C tracestate
      * header</a> value.
      */
     protected volatile String tracestate;
-
     /**
      * The {@link PTagsFactory#PROPAGATION_ERROR_TAG_KEY propagation tag error} value, {@code null
      * if no error while parsing header}.
      */
     protected volatile String error;
-
     /**
      * The last parent span id using the 16-characters zero padded hexadecimal representation,
      * {@code null} if not set.
@@ -158,7 +142,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
         int traceSource,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue
+    ) {
       this(
           factory,
           tagPairs,
@@ -168,7 +153,8 @@ public class PTagsFactory implements PropagationTags.Factory {
           PrioritySampling.UNSET,
           null,
           null,
-          orgPropagationMarkerTagValue);
+          orgPropagationMarkerTagValue
+      );
     }
 
     PTags(
@@ -180,7 +166,8 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId,
-        TagValue orgPropagationMarkerTagValue) {
+        TagValue orgPropagationMarkerTagValue
+    ) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -193,26 +180,29 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
-        this.traceIdHighOrderBits =
-            LongStringUtils.parseUnsignedLongHex(
-                traceIdHighOrderBitsHex, 0, traceIdHighOrderBitsHex.length(), true);
+        this.traceIdHighOrderBits = LongStringUtils.parseUnsignedLongHex(
+            traceIdHighOrderBitsHex,
+            0,
+            traceIdHighOrderBitsHex.length(),
+            true
+        );
       }
       this.traceIdHighOrderBitsHexTagValue = traceIdTagValue;
       this.error = null;
     }
 
     static PTags withError(PTagsFactory factory, String error) {
-      PTags pTags =
-          new PTags(
-              factory,
-              null,
-              null,
-              null,
-              ProductTraceSource.UNSET,
-              PrioritySampling.UNSET,
-              null,
-              null,
-              null);
+      PTags pTags = new PTags(
+          factory,
+          null,
+          null,
+          null,
+          ProductTraceSource.UNSET,
+          PrioritySampling.UNSET,
+          null,
+          null,
+          null
+      );
       pTags.error = error;
       return pTags;
     }
@@ -266,21 +256,17 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void addTraceSource(final int product) {
-      TRACE_SOURCE_UPDATER.updateAndGet(
-          this,
-          currentValue -> {
-            // If the product is already marked, return the same value (no change)
-            if (ProductTraceSource.isProductMarked(currentValue, product)) {
-              return currentValue;
-            }
-
-            // Invalidate cached headers (atomic context ensures correctness)
-            clearCachedHeader(DATADOG);
-            clearCachedHeader(W3C);
-
-            // Set the bit for the given product
-            return ProductTraceSource.updateProduct(currentValue, product);
-          });
+      TRACE_SOURCE_UPDATER.updateAndGet(this, currentValue -> {
+        // If the product is already marked, return the same value (no change)
+        if (ProductTraceSource.isProductMarked(currentValue, product)) {
+          return currentValue;
+        }
+        // Invalidate cached headers (atomic context ensures correctness)
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        // Set the bit for the given product
+        return ProductTraceSource.updateProduct(currentValue, product);
+      });
     }
 
     @Override
@@ -329,19 +315,27 @@ public class PTagsFactory implements PropagationTags.Factory {
      * <p>Uses char-array arithmetic to avoid {@link java.util.Formatter} allocations entirely.
      */
     static String formatKnuthSamplingRate(double rate) {
-      if (rate <= 0.0) return "0";
-      if (rate >= 1.0) return "1";
-
+      if (rate <= 0.0) {
+        return "0";
+      }
+      if (rate >= 1.0) {
+        return "1";
+      }
       // Round to 6 decimal places.
       long rounded = Math.round(rate * 1_000_000L);
-      if (rounded == 0) return "0";
-      if (rounded >= 1_000_000L) return "1";
-
+      if (rounded == 0) {
+        return "0";
+      }
+      if (rounded >= 1_000_000L) {
+        return "1";
+      }
       // Build "0.DDDDDD" and trim trailing zeros in a single right-to-left pass.
-      char[] buf = new char[8]; // "0." + 6 digits
+      // "0." + 6 digits
+      char[] buf = new char[8];
       buf[0] = '0';
       buf[1] = '.';
-      int end = 2; // exclusive end; updated on first non-zero digit found from the right
+      // exclusive end; updated on first non-zero digit found from the right
+      int end = 2;
       for (int i = 7; i >= 2; i--) {
         int d = (int) (rounded % 10);
         rounded /= 10;
@@ -407,10 +401,9 @@ public class PTagsFactory implements PropagationTags.Factory {
     public void updateTraceIdHighOrderBits(long highOrderBits) {
       if (traceIdHighOrderBits != highOrderBits) {
         traceIdHighOrderBits = highOrderBits;
-        traceIdHighOrderBitsHexTagValue =
-            highOrderBits == 0
-                ? null
-                : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
+        traceIdHighOrderBitsHexTagValue = highOrderBits == 0
+            ? null
+            : TagValue.from(LongStringUtils.toHexStringPadded(highOrderBits, 16));
         clearCachedHeader(DATADOG);
       }
     }
@@ -506,19 +499,23 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
-        size =
-            PTagsCodec.calcXDatadogTagsSize(
-                size, ORG_PROPAGATION_MARKER_TAG, getOrgPropagationMarkerTagValue());
+        size = PTagsCodec.calcXDatadogTagsSize(
+            size,
+            KNUTH_SAMPLING_RATE_TAG,
+            getKnuthSamplingRateTagValue()
+        );
+        size = PTagsCodec.calcXDatadogTagsSize(
+            size,
+            ORG_PROPAGATION_MARKER_TAG,
+            getOrgPropagationMarkerTagValue()
+        );
         int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
-          size =
-              PTagsCodec.calcXDatadogTagsSize(
-                  size,
-                  TRACE_SOURCE_TAG,
-                  TagValue.from(ProductTraceSource.getBitfieldHex(currentProductTraceSource)));
+          size = PTagsCodec.calcXDatadogTagsSize(
+              size,
+              TRACE_SOURCE_TAG,
+              TagValue.from(ProductTraceSource.getBitfieldHex(currentProductTraceSource))
+          );
         }
         xDatadogTagsSize = size;
       }

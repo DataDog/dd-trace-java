@@ -13,9 +13,7 @@ import org.thymeleaf.templateresolver.StringTemplateResolver;
 @Controller
 @RequestMapping("/xss")
 public class XssController {
-
   private static final String TEMPLATE = "<p th:utext=\"${xss}\">Test!</p>";
-
   private static final String BIG_TEMPLATE =
       new String(new char[500]).replace('\0', 'A') + "<p th:utext=\"${xss}\">Test!</p>";
 

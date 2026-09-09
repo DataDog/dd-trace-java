@@ -2,7 +2,6 @@ package datadog.trace.bootstrap;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -15,11 +14,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Thread safe telemetry class used to relay information about tracer activation. */
+/**
+ * Thread safe telemetry class used to relay information about tracer activation.
+ */
 public abstract class BootstrapInitializationTelemetry {
   private static final int DEFAULT_MAX_TAGS = 5;
 
-  /** Returns a singleton no op instance of initialization telemetry */
+  /**
+   * Returns a singleton no op instance of initialization telemetry
+   */
   public static BootstrapInitializationTelemetry noOpInstance() {
     return NoOp.INSTANCE;
   }
@@ -70,7 +73,8 @@ public abstract class BootstrapInitializationTelemetry {
   public static final class NoOp extends BootstrapInitializationTelemetry {
     static final NoOp INSTANCE = new NoOp();
 
-    private NoOp() {}
+    private NoOp() {
+    }
 
     @Override
     public void initMetaInfo(String attr, String value) {}
@@ -96,9 +100,7 @@ public abstract class BootstrapInitializationTelemetry {
 
   public static final class JsonBased extends BootstrapInitializationTelemetry {
     private final JsonSender sender;
-
     private final Telemetry telemetry;
-
     // one way false to true
     private volatile boolean incomplete = false;
 
@@ -131,7 +133,6 @@ public abstract class BootstrapInitializationTelemetry {
         cause = cause.getCause();
       }
       causes.add("error_type:" + t.getClass().getName());
-
       // Limit the number of tags to avoid overpopulating the JSON payload.
       int maxTags = maxTags();
       int numCauses = causes.size();
@@ -318,7 +319,6 @@ public abstract class BootstrapInitializationTelemetry {
     @Override
     public void run() {
       ProcessBuilder builder = new ProcessBuilder(forwarderPath, "library_entrypoint");
-
       // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
       try (final Closeable ignored = muteTracing()) {
         byte[] payload = telemetry.toString().getBytes(StandardCharsets.UTF_8);

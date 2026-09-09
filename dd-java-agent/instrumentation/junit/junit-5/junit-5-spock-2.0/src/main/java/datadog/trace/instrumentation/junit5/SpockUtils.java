@@ -26,15 +26,11 @@ import org.spockframework.runtime.model.FeatureMetadata;
 import org.spockframework.runtime.model.SpecElementInfo;
 
 public class SpockUtils {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(SpockUtils.class);
-
   private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
       new datadog.trace.util.MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
-
   private static final MethodHandle GET_TEST_TAGS =
       METHOD_HANDLES.method("org.spockframework.runtime.model.ITestTaggable", "getTestTags");
-
   private static final MethodHandle GET_TEST_TAG_VALUE =
       METHOD_HANDLES.method("org.spockframework.runtime.model.TestTag", "getValue");
 
@@ -43,9 +39,12 @@ public class SpockUtils {
         JUnitPlatformUtils.ENGINE_ID_SPOCK,
         SpockUtils::toTestIdentifier,
         SpockUtils::toTestSourceData,
-        SpockUtils::shouldBeTraced);
+        SpockUtils::shouldBeTraced
+    );
     RetryDescriptorFactories.register(
-        JUnitPlatformUtils.ENGINE_ID_SPOCK, new SpockRetryDescriptorFactory());
+        JUnitPlatformUtils.ENGINE_ID_SPOCK,
+        new SpockRetryDescriptorFactory()
+    );
   }
 
   /*
@@ -68,7 +67,6 @@ public class SpockUtils {
         junitPlatformTestTags.add(junitPlatformTestTag);
       }
       return junitPlatformTestTags;
-
     } catch (Throwable throwable) {
       LOGGER.warn("Could not get tags from a spock node", throwable);
       return Collections.emptyList();
@@ -95,7 +93,6 @@ public class SpockUtils {
       String testParameters =
           JUnitPlatformUtils.getParameters(testDescriptor, methodSource, displayName);
       return new TestIdentifier(testSuiteName, displayName, testParameters);
-
     } else {
       return null;
     }
@@ -119,7 +116,10 @@ public class SpockUtils {
     // We want to filter out iteration nodes to avoid reporting the same test twice,
     // but keep them for parameterized tests to report each set of parameters as a separate test.
     return !(testDescriptor instanceof IterationNode)
-        || testDescriptor.getParent().map(c -> c instanceof ParameterizedFeatureNode).orElse(false);
+        || testDescriptor
+          .getParent()
+          .map(c -> c instanceof ParameterizedFeatureNode)
+          .orElse(false);
   }
 
   private static Method getTestMethod(MethodSource methodSource) {
@@ -144,7 +144,6 @@ public class SpockUtils {
           return declaredMethod;
         }
       }
-
     } catch (Throwable e) {
       LOGGER.warn("Could not get test method from method source", e);
     }

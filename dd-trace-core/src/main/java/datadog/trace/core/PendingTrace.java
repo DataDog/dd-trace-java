@@ -42,7 +42,6 @@ import org.slf4j.LoggerFactory;
  * that case. <br>
  */
 public class PendingTrace extends TraceCollector implements PendingTraceBuffer.Element {
-
   private static final Logger log = LoggerFactory.getLogger(PendingTrace.class);
 
   static class Factory implements TraceCollector.Factory {
@@ -57,7 +56,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
         PendingTraceBuffer pendingTraceBuffer,
         TimeSource timeSource,
         boolean strictTraceWrites,
-        HealthMetrics healthMetrics) {
+        HealthMetrics healthMetrics
+    ) {
       this.tracer = tracer;
       this.pendingTraceBuffer = pendingTraceBuffer;
       this.timeSource = timeSource;
@@ -79,64 +79,53 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
           timeSource,
           traceConfig,
           strictTraceWrites,
-          healthMetrics);
+          healthMetrics
+      );
     }
   }
 
   private static final List<DDSpan> EMPTY = new ArrayList<>(0);
-
   private final DDTraceId traceId;
   private final PendingTraceBuffer pendingTraceBuffer;
   private final boolean strictTraceWrites;
   private final HealthMetrics healthMetrics;
-
   /**
    * Contains finished spans. If the long-running trace feature is enabled it also contains running
    * spans that can be written.
    */
   private final ConcurrentLinkedDeque<DDSpan> spans;
-
   private volatile int completedSpanCount = 0;
   private static final AtomicIntegerFieldUpdater<PendingTrace> COMPLETED_SPAN_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "completedSpanCount");
-
   private volatile int pendingReferenceCount = 0;
   private static final AtomicIntegerFieldUpdater<PendingTrace> PENDING_REFERENCE_COUNT =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "pendingReferenceCount");
-
   private volatile int isEnqueued = 0;
   private static final AtomicIntegerFieldUpdater<PendingTrace> IS_ENQUEUED =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "isEnqueued");
-
   private volatile int longRunningTrackedState = LongRunningTracesTracker.UNDEFINED;
   private static final AtomicIntegerFieldUpdater<PendingTrace> LONG_RUNNING_STATE =
       AtomicIntegerFieldUpdater.newUpdater(PendingTrace.class, "longRunningTrackedState");
-
   private volatile long runningTraceStartTimeNano = 0;
   private static final AtomicLongFieldUpdater<PendingTrace> RUNNING_TRACE_START_TIME_NANO =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "runningTraceStartTimeNano");
   private volatile long lastWriteTimeNano = 0;
   private static final AtomicLongFieldUpdater<PendingTrace> LAST_WRITE_TIME_NANO =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastWriteTimeNano");
-
   /**
    * During a trace there are cases where the root span must be accessed (e.g. priority sampling and
    * trace-search tags). These use cases are an obstacle to span-streaming.
    */
   private volatile DDSpan rootSpan = null;
-
   private static final AtomicReferenceFieldUpdater<PendingTrace, DDSpan> ROOT_SPAN =
       AtomicReferenceFieldUpdater.newUpdater(PendingTrace.class, DDSpan.class, "rootSpan");
-
   private volatile boolean rootSpanWritten = false;
-
   /**
    * Updated with the latest nanoTicks each time getCurrentTimeNano is called (at the start and
    * finish of each span). Uses lazySet for writes (release-store semantics) since the value is only
    * read for approximate timeout detection by the PendingTraceBuffer background thread.
    */
   private volatile long lastReferenced = 0;
-
   private static final AtomicLongFieldUpdater<PendingTrace> LAST_REFERENCED =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastReferenced");
 
@@ -148,7 +137,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       @Nonnull TimeSource timeSource,
       ConfigSnapshot traceConfig,
       boolean strictTraceWrites,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics
+  ) {
     super(tracer, traceConfig != null ? traceConfig : tracer.captureTraceConfig(), timeSource);
     this.traceId = traceId;
     this.pendingTraceBuffer = pendingTraceBuffer;
@@ -200,7 +190,9 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   private void trackRunningTrace(final DDSpan span) {
     if (!compareAndSetLongRunningState(
-        LongRunningTracesTracker.UNDEFINED, LongRunningTracesTracker.TO_TRACK)) {
+        LongRunningTracesTracker.UNDEFINED,
+        LongRunningTracesTracker.TO_TRACK
+    )) {
       return;
     }
     RUNNING_TRACE_START_TIME_NANO.set(this, span.getStartTime());
@@ -331,17 +323,14 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       return PublishState.ROOT_BUFFERED;
     } else if (addedSpan && partialFlushMinSpans > 0 && size() >= partialFlushMinSpans) {
       // Trace is getting too big, write anything completed.
-
       // DQH - We only trigger a partial flush, when a span has just been added
       // This prevents a bunch of threads which are only performing scope/context operations
       // from all fighting to perform the partialFlush after the threshold is crossed.
-
       // This is an important optimization for virtual threads where a continuation might
       // be created even though no span is created.  In that situation, virtual threads
       // can end up fighting to perform the partialFlush.  And even trying to perform a
       // partialFlush requires taking the PendingTrace lock which can lead to unmounting
       // the virtual thread from its carrier thread.
-
       partialFlush();
       return PublishState.PARTIAL_FLUSH;
     } else if (rootSpanWritten) {
@@ -352,7 +341,9 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     return PublishState.PENDING;
   }
 
-  /** Important to note: may be called multiple times. */
+  /**
+   * Important to note: may be called multiple times.
+   */
   private void partialFlush() {
     int size = write(true);
     healthMetrics.onPartialFlush(size);
@@ -361,7 +352,9 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     }
   }
 
-  /** Important to note: may be called multiple times. */
+  /**
+   * Important to note: may be called multiple times.
+   */
   @Override
   public void write() {
     write(false);
@@ -436,7 +429,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
         }
         if (writeRunningSpans) {
           span.setLongRunningVersion(
-              (int) TimeUnit.NANOSECONDS.toMillis(nowNano - span.getStartTime()));
+              (int) TimeUnit.NANOSECONDS.toMillis(nowNano - span.getStartTime())
+          );
           trace.add(span);
         }
       }
@@ -476,7 +470,9 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   @Override
   public boolean writeOnBufferFull() {
     return !compareAndSetLongRunningState(
-        LongRunningTracesTracker.TO_TRACK, LongRunningTracesTracker.NOT_TRACKED);
+        LongRunningTracesTracker.TO_TRACK,
+        LongRunningTracesTracker.NOT_TRACKED
+    );
   }
 
   /**
@@ -497,10 +493,10 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     TraceCollector traceCollector = ddSpan.spanContext().getTraceCollector();
     if (!(traceCollector instanceof PendingTrace)) {
       throw new IllegalArgumentException(
-          "Expected "
-              + PendingTrace.class.getName()
-              + ", got "
-              + traceCollector.getClass().getName());
+          "Expected " + PendingTrace.class.getName() + ", got " + traceCollector
+            .getClass()
+            .getName()
+      );
     }
     PendingTrace trace = (PendingTrace) traceCollector;
     return trace.getLastWriteTime() - span.getStartTime();

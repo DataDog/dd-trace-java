@@ -6,18 +6,17 @@ import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-/** Tracks which CI Visibility backend requests failed. */
+/**
+ * Tracks which CI Visibility backend requests failed.
+ */
 public class ConfigurationErrors {
-
   public static final ConfigurationErrors NONE =
       new ConfigurationErrors(false, false, false, false, false);
-
   private static final int SETTINGS_FLAG = 1;
   private static final int SKIPPABLE_TESTS_FLAG = 2;
   private static final int FLAKY_TESTS_FLAG = 4;
   private static final int KNOWN_TESTS_FLAG = 8;
   private static final int TEST_MANAGEMENT_TESTS_FLAG = 16;
-
   private final boolean settings;
   private final boolean skippableTests;
   private final boolean flakyTests;
@@ -29,7 +28,8 @@ public class ConfigurationErrors {
       boolean skippableTests,
       boolean flakyTests,
       boolean knownTests,
-      boolean testManagementTests) {
+      boolean testManagementTests
+  ) {
     this.settings = settings;
     this.skippableTests = skippableTests;
     this.flakyTests = flakyTests;
@@ -60,13 +60,11 @@ public class ConfigurationErrors {
   }
 
   public static void serialize(Serializer s, ConfigurationErrors errors) {
-    byte flags =
-        (byte)
-            ((errors.settings ? SETTINGS_FLAG : 0)
-                | (errors.skippableTests ? SKIPPABLE_TESTS_FLAG : 0)
-                | (errors.flakyTests ? FLAKY_TESTS_FLAG : 0)
-                | (errors.knownTests ? KNOWN_TESTS_FLAG : 0)
-                | (errors.testManagementTests ? TEST_MANAGEMENT_TESTS_FLAG : 0));
+    byte flags = (byte) ((errors.settings ? SETTINGS_FLAG : 0)
+        | (errors.skippableTests ? SKIPPABLE_TESTS_FLAG : 0)
+        | (errors.flakyTests ? FLAKY_TESTS_FLAG : 0)
+        | (errors.knownTests ? KNOWN_TESTS_FLAG : 0)
+        | (errors.testManagementTests ? TEST_MANAGEMENT_TESTS_FLAG : 0));
     s.write(flags);
   }
 
@@ -80,7 +78,8 @@ public class ConfigurationErrors {
         (flags & SKIPPABLE_TESTS_FLAG) != 0,
         (flags & FLAKY_TESTS_FLAG) != 0,
         (flags & KNOWN_TESTS_FLAG) != 0,
-        (flags & TEST_MANAGEMENT_TESTS_FLAG) != 0);
+        (flags & TEST_MANAGEMENT_TESTS_FLAG) != 0
+    );
   }
 
   @Override

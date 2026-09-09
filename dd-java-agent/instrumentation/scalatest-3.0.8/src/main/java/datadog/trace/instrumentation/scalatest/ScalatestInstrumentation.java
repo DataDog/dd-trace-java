@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.scalatest;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,8 +13,9 @@ import org.scalatest.events.Event;
 
 @AutoService(InstrumenterModule.class)
 public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public ScalatestInstrumentation() {
     super("ci-visibility", "scalatest");
   }
@@ -23,30 +23,33 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.scalatest.DispatchReporter", "org.scalatest.tools.TestSortingReporter",
+        "org.scalatest.DispatchReporter",
+        "org.scalatest.tools.TestSortingReporter"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".execution.SuppressedTestFailedException",
-      packageName + ".ScalatestUtils",
-      packageName + ".RunContext",
-      packageName + ".DatadogReporter",
+        packageName + ".execution.SuppressedTestFailedException",
+        packageName + ".ScalatestUtils",
+        packageName + ".RunContext",
+        packageName + ".DatadogReporter"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("apply")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.scalatest.events.Event"))),
-        ScalatestInstrumentation.class.getName() + "$DispatchEventAdvice");
+        named("apply").and(takesArguments(1)).and(
+            takesArgument(0, named("org.scalatest.events.Event"))
+        ),
+        ScalatestInstrumentation.class.getName() + "$DispatchEventAdvice"
+    );
     transformer.applyAdvice(
         named("fireReadyEvents"),
-        ScalatestInstrumentation.class.getName() + "$SuppressAsyncEventsAdvice");
+        ScalatestInstrumentation.class.getName() + "$SuppressAsyncEventsAdvice"
+    );
   }
 
   public static class DispatchEventAdvice {
@@ -56,7 +59,6 @@ public class ScalatestInstrumentation extends InstrumenterModule.CiVisibility
         // nested call
         return;
       }
-
       // Instead of registering our reporter using Scalatest's standard "-C" argument,
       // we hook into internal reporter.
       // The reason is that Scalatest invokes registered reporters in a separate thread,

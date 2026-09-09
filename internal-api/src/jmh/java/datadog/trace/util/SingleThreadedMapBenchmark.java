@@ -57,10 +57,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @State(Scope.Thread)
 public class SingleThreadedMapBenchmark {
-  static final String[] INSERTION_KEYS = {
-    "foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"
-  };
-
+  static final String[] INSERTION_KEYS =
+      {"foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"};
   // Distinct String instances so lookups exercise equals(), not identity.
   static final String[] EQUAL_KEYS = newEqualKeys();
 
@@ -80,7 +78,8 @@ public class SingleThreadedMapBenchmark {
 
   static TagMap fillTagMap(TagMap map) {
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      map.set(INSERTION_KEYS[i], i); // primitive support
+      // primitive support
+      map.set(INSERTION_KEYS[i], i);
     }
     return map;
   }
@@ -104,7 +103,8 @@ public class SingleThreadedMapBenchmark {
     // enforced by the class, not left to each caller to declare correctly.
     static final IntEntryKeyStrategy INSTANCE = new IntEntryKeyStrategy();
 
-    private IntEntryKeyStrategy() {}
+    private IntEntryKeyStrategy() {
+    }
 
     @Override
     public boolean matches(IntEntry entry, String key) {
@@ -113,7 +113,8 @@ public class SingleThreadedMapBenchmark {
 
     @Override
     public long hashOf(IntEntry entry) {
-      return entry.key.hashCode(); // consistent with the default hashKey
+      // consistent with the default hashKey
+      return entry.key.hashCode();
     }
   }
 
@@ -124,16 +125,17 @@ public class SingleThreadedMapBenchmark {
   // win is structural (the constant INSTANCE's exact type propagated through the inlined get), not
   // a
   // CHA bet that would deopt when a second subclass loads.
-
   // Second matches impl -> MatchingStrategy.matches is polymorphic.
   static final class DecoyMatchStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
     static final DecoyMatchStrategy INSTANCE = new DecoyMatchStrategy();
 
-    private DecoyMatchStrategy() {}
+    private DecoyMatchStrategy() {
+    }
 
     @Override
     public boolean matches(IntEntry entry, String key) {
-      return key == entry.key; // deliberately different body from IntEntryKeyStrategy
+      // deliberately different body from IntEntryKeyStrategy
+      return key == entry.key;
     }
 
     @Override
@@ -146,7 +148,8 @@ public class SingleThreadedMapBenchmark {
   static final class DecoyHashKeyStrategy extends FlatHashtable.EntryStrategy<IntEntry, String> {
     static final DecoyHashKeyStrategy INSTANCE = new DecoyHashKeyStrategy();
 
-    private DecoyHashKeyStrategy() {}
+    private DecoyHashKeyStrategy() {
+    }
 
     @Override
     public long hashKey(String key) {
@@ -167,9 +170,8 @@ public class SingleThreadedMapBenchmark {
   // Referenced only so these three concrete implementors load at benchmark class-init, before the
   // hot method compiles — see the CHA-defeat note above.
   @SuppressWarnings("unused")
-  static final Object[] CHA_DEFEAT = {
-    IntEntryKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashKeyStrategy.INSTANCE
-  };
+  static final Object[] CHA_DEFEAT =
+      {IntEntryKeyStrategy.INSTANCE, DecoyMatchStrategy.INSTANCE, DecoyHashKeyStrategy.INSTANCE};
 
   static IntEntry[] newFilledFlat() {
     // Sized to the key count (FlatHashtable is fixed-capacity, no resize): load factor <= 0.5.
@@ -203,12 +205,13 @@ public class SingleThreadedMapBenchmark {
   }
 
   String nextLookupKey() {
-    if (++index >= EQUAL_KEYS.length) index = 0;
+    if (++index >= EQUAL_KEYS.length) {
+      index = 0;
+    }
     return EQUAL_KEYS[index];
   }
 
   // ---- construction: build cost + allocation ----
-
   @Benchmark
   public Map<String, Integer> create_hashMap() {
     HashMap<String, Integer> map = new HashMap<>();
@@ -255,7 +258,8 @@ public class SingleThreadedMapBenchmark {
   public TagMap create_tagMap_via_ledger() {
     TagMap.Ledger ledger = TagMap.ledger();
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      ledger.set(INSERTION_KEYS[i], i); // primitive support
+      // primitive support
+      ledger.set(INSERTION_KEYS[i], i);
     }
     return ledger.build();
   }
@@ -266,7 +270,6 @@ public class SingleThreadedMapBenchmark {
   }
 
   // ---- copy ----
-
   @Benchmark
   public Map<String, Integer> clone_hashMap() {
     return new HashMap<>(hashMap);
@@ -295,7 +298,6 @@ public class SingleThreadedMapBenchmark {
   }
 
   // ---- read: unsynchronized baseline vs uncontended synchronized (biased-locking story) ----
-
   @Benchmark
   public Integer get_hashMap() {
     return hashMap.get(nextLookupKey());
@@ -334,12 +336,9 @@ public class SingleThreadedMapBenchmark {
   @Benchmark
   public void iterate_flatHashtable(Blackhole blackhole) {
     // Context-passing forEach: blackhole rides through as context, so the lambda doesn't capture.
-    FlatHashtable.forEach(
-        flatTable,
-        blackhole,
-        (bh, e) -> {
-          bh.consume(e.key);
-          bh.consume(e.value);
-        });
+    FlatHashtable.forEach(flatTable, blackhole, (bh, e) -> {
+      bh.consume(e.key);
+      bh.consume(e.value);
+    });
   }
 }

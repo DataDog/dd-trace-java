@@ -5,12 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.core.monitor.HealthMetrics;
 import org.junit.jupiter.api.Test;
 
 class CoreHandlersTest {
-
   @Test
   void resetReportsBlockedCountForExhaustedHandler() {
     CoreHandlers handlers = new CoreHandlers();
@@ -67,7 +65,6 @@ class CoreHandlersTest {
     assertEquals("tracer_blocked_value", handlers.spanKind.register("overflow").toString());
 
     handlers.reset(HealthMetrics.NO_OP, new CardinalityLimitReporter());
-
     // Overflow value should now be accepted as a real value.
     assertNotEquals("tracer_blocked_value", handlers.spanKind.register("overflow").toString());
     assertEquals("overflow", handlers.spanKind.register("overflow").toString());
@@ -85,7 +82,9 @@ class CoreHandlersTest {
     verifyNoMoreInteractions(metrics);
   }
 
-  /** Fills {@code handler} to its cardinality limit then registers one more to block it. */
+  /**
+   * Fills {@code handler} to its cardinality limit then registers one more to block it.
+   */
   private static void exhaustAndBlock(PropertyCardinalityHandler handler, int limit) {
     for (int i = 0; i < limit; i++) {
       handler.register("value-" + i);

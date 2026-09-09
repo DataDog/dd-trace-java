@@ -3,15 +3,15 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
 import java.util.Set;
 
 public class CalleeBenchmarkInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public CalleeBenchmarkInstrumentation() {
     super("callee");
   }
@@ -25,7 +25,8 @@ public class CalleeBenchmarkInstrumentation extends InstrumenterModule
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getParameter").and(takesArguments(String.class)).and(returns(String.class)),
-        CallSiteBenchmarkHelper.class.getName());
+        CallSiteBenchmarkHelper.class.getName()
+    );
   }
 
   @Override
@@ -43,5 +44,6 @@ public class CalleeBenchmarkInstrumentation extends InstrumenterModule
     return true;
   }
 
-  public static class Muzzle extends ReferenceMatcher {}
+  public static class Muzzle extends ReferenceMatcher {
+  }
 }

@@ -8,15 +8,16 @@ public abstract class TestInstrumentationClasses {
   static final Reference[] SOME_ADVICE_REFS;
 
   static {
-    Map<String, Reference> references =
-        ReferenceCreator.createReferencesFrom(
-            SomeAdvice.class.getName(), SomeAdvice.class.getClassLoader());
+    Map<String, Reference> references = ReferenceCreator.createReferencesFrom(
+        SomeAdvice.class.getName(),
+        SomeAdvice.class.getClassLoader()
+    );
     SOME_ADVICE_REFS = references.values().toArray(new Reference[0]);
   }
 
   public abstract static class BaseInst extends InstrumenterModule
-      implements Instrumenter.HasMethodAdvice {
-
+      implements Instrumenter.HasMethodAdvice
+  {
     public BaseInst() {
       super("test");
     }
@@ -37,7 +38,8 @@ public abstract class TestInstrumentationClasses {
     @Override
     public String[] helperClassNames() {
       return new String[] {
-        HelperClass.class.getName(), HelperClass.NestedHelperClass.class.getName(),
+          HelperClass.class.getName(),
+          HelperClass.NestedHelperClass.class.getName()
       };
     }
 
@@ -52,7 +54,8 @@ public abstract class TestInstrumentationClasses {
     @Override
     public String[] helperClassNames() {
       return new String[] {
-        HelperClass.NestedHelperClass.class.getName(), HelperClass.class.getName(),
+          HelperClass.NestedHelperClass.class.getName(),
+          HelperClass.class.getName()
       };
     }
 
@@ -66,9 +69,7 @@ public abstract class TestInstrumentationClasses {
   public static class InvalidMissingHelperInst extends BaseInst {
     @Override
     public String[] helperClassNames() {
-      return new String[] {
-        HelperClass.NestedHelperClass.class.getName(),
-      };
+      return new String[] {HelperClass.NestedHelperClass.class.getName()};
     }
 
     public static class Muzzle {
@@ -90,10 +91,10 @@ public abstract class TestInstrumentationClasses {
     @Override
     public String[] helperClassNames() {
       return new String[] {
-        AdviceParameter.class.getName(),
-        AdviceMethodReturn.class.getName(),
-        AdviceReference.class.getName(),
-        AdviceStaticReference.class.getName(),
+          AdviceParameter.class.getName(),
+          AdviceMethodReturn.class.getName(),
+          AdviceReference.class.getName(),
+          AdviceStaticReference.class.getName()
       };
     }
 
@@ -112,9 +113,11 @@ public abstract class TestInstrumentationClasses {
     }
   }
 
-  public interface AdviceParameter {}
+  public interface AdviceParameter {
+  }
 
-  public interface AdviceMethodReturn {}
+  public interface AdviceMethodReturn {
+  }
 
   public static class AdviceReference {
     public void doSomething() {}

@@ -1,7 +1,6 @@
 package datadog.trace.logging.intake;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.trace.api.Config;
@@ -19,12 +18,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LogsWriterImpl implements LogsWriter {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(LogsWriterImpl.class);
-
   private static final long POLLING_THREAD_SHUTDOWN_TIMEOUT_MILLIS = 5_000;
   private static final int ENQUEUE_LOG_TIMEOUT_MILLIS = 1_000;
-
   private final Map<String, Object> commonTags;
   private final BackendApiFactory apiFactory;
   private final Intake intake;
@@ -42,17 +38,20 @@ public class LogsWriterImpl implements LogsWriter {
     commonTags.put("hostname", config.getHostName());
 
     messageQueue = new ArrayBlockingQueue<>(config.getAgentlessLogSubmissionQueueSize());
-    messagePollingThread =
-        AgentThreadFactory.newAgentThread(
-            AgentThreadFactory.AgentThread.LOGS_INTAKE, this::logPollingLoop);
+    messagePollingThread = AgentThreadFactory.newAgentThread(
+        AgentThreadFactory.AgentThread.LOGS_INTAKE,
+        this::logPollingLoop
+    );
   }
 
   @Override
   public void start() {
     try {
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(AGENT_THREAD_GROUP, this::shutdown, "dd-logs-intake-shutdown-hook"));
+      Runtime
+        .getRuntime()
+        .addShutdownHook(
+            new Thread(AGENT_THREAD_GROUP, this::shutdown, "dd-logs-intake-shutdown-hook")
+        );
       messagePollingThread.start();
     } catch (final IllegalStateException ex) {
       // The JVM is already shutting down.
@@ -98,7 +97,6 @@ public class LogsWriterImpl implements LogsWriter {
         batch.add(messageQueue.take());
         messageQueue.drainTo(batch);
         logsDispatcher.dispatch(batch);
-
       } catch (InterruptedException e) {
         break;
       }

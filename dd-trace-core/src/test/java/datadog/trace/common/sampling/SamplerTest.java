@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -23,7 +22,6 @@ import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.Test;
 
 class SamplerTest extends DDJavaSpecification {
-
   @WithConfig(key = APM_TRACING_ENABLED, value = "false")
   @WithConfig(key = APPSEC_ENABLED, value = "true")
   @Test
@@ -112,8 +110,7 @@ class SamplerTest extends DDJavaSpecification {
 
   @WithConfig(key = TRACE_OTEL_EXPORTER, value = "otlp")
   @Test
-  void
-      parentBasedAlwaysOnSamplerReplacesRateByServiceTraceSamplerWhenOtlpEnabledWithDefaultPrioritySampling() {
+  void parentBasedAlwaysOnSamplerReplacesRateByServiceTraceSamplerWhenOtlpEnabledWithDefaultPrioritySampling() {
     Config config = Config.get();
 
     Sampler sampler = Sampler.Builder.forConfig(config, null);

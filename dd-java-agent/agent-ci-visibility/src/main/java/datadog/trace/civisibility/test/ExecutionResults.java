@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 
 public class ExecutionResults {
-
   private final LongAdder testsSkippedByItr = new LongAdder();
   private final AtomicBoolean hasFailedTestReplayTests = new AtomicBoolean();
 

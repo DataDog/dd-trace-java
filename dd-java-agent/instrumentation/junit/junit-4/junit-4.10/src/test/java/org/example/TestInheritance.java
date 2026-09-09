@@ -1,3 +1,4 @@
 package org.example;
 
-public class TestInheritance extends BaseTestInheritance {}
+public class TestInheritance extends BaseTestInheritance {
+}

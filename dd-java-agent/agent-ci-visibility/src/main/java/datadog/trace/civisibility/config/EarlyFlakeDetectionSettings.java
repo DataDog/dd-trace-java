@@ -11,10 +11,8 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public class EarlyFlakeDetectionSettings {
-
   public static final EarlyFlakeDetectionSettings DEFAULT =
       new EarlyFlakeDetectionSettings(false, Collections.emptyList(), -1);
-
   private final boolean enabled;
   private final List<ExecutionsByDuration> executionsByDuration;
   private final int faultySessionThreshold;
@@ -22,7 +20,8 @@ public class EarlyFlakeDetectionSettings {
   public EarlyFlakeDetectionSettings(
       boolean enabled,
       List<ExecutionsByDuration> executionsByDuration,
-      int faultySessionThreshold) {
+      int faultySessionThreshold
+  ) {
     this.enabled = enabled;
     this.executionsByDuration = executionsByDuration;
     this.faultySessionThreshold = faultySessionThreshold;
@@ -62,7 +61,8 @@ public class EarlyFlakeDetectionSettings {
   public static final class Serializer {
     public static void serialize(
         datadog.trace.civisibility.ipc.serialization.Serializer serializer,
-        EarlyFlakeDetectionSettings settings) {
+        EarlyFlakeDetectionSettings settings
+    ) {
       if (!settings.enabled) {
         serializer.write((byte) 0);
         return;
@@ -80,9 +80,10 @@ public class EarlyFlakeDetectionSettings {
 
       int faultySessionThreshold =
           datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
-      List<ExecutionsByDuration> executionsByDuration =
-          datadog.trace.civisibility.ipc.serialization.Serializer.readList(
-              buf, ExecutionsByDuration.Serializer::deserialize);
+      List<ExecutionsByDuration> executionsByDuration = datadog.trace.civisibility.ipc.serialization.Serializer.readList(
+          buf,
+          ExecutionsByDuration.Serializer::deserialize
+      );
       return new EarlyFlakeDetectionSettings(enabled, executionsByDuration, faultySessionThreshold);
     }
   }
@@ -116,7 +117,8 @@ public class EarlyFlakeDetectionSettings {
       return new EarlyFlakeDetectionSettings(
           enabled != null ? enabled : false,
           executionsByDuration,
-          faultySessionThreshold != null ? faultySessionThreshold.intValue() : -1);
+          faultySessionThreshold != null ? faultySessionThreshold.intValue() : -1
+      );
     }
 
     private static long parseDuration(String duration) {

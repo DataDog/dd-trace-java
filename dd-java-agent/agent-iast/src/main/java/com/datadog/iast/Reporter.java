@@ -3,7 +3,6 @@ package com.datadog.iast;
 import static com.datadog.iast.IastTag.Enabled.ANALYZED;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
-
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.taint.TaintedObjects;
@@ -34,16 +33,14 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Reports IAST vulnerabilities. */
+/**
+ * Reports IAST vulnerabilities.
+ */
 public class Reporter {
-
   private static final Logger LOG = LoggerFactory.getLogger(Reporter.class);
-
   private static final String IAST_TAG = "iast";
-
   private static final String VULNERABILITY_SPAN_NAME = "vulnerability";
   public static final String METASTRUCT_VULNERABILITY = "vulnerability";
-
   private final Predicate<Vulnerability> duplicated;
 
   Reporter() {
@@ -52,9 +49,8 @@ public class Reporter {
 
   public Reporter(final Config config, @Nullable final AgentTaskScheduler taskScheduler) {
     this(
-        config.isIastDeduplicationEnabled()
-            ? new HashBasedDeduplication(taskScheduler)
-            : v -> false);
+        config.isIastDeduplicationEnabled() ? new HashBasedDeduplication(taskScheduler) : v -> false
+    );
   }
 
   Reporter(final Predicate<Vulnerability> duplicate) {
@@ -79,7 +75,9 @@ public class Reporter {
   }
 
   private void reportVulnerability(
-      @Nonnull final AgentSpan span, @Nonnull final Vulnerability vulnerability) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final Vulnerability vulnerability
+  ) {
     final VulnerabilityBatch batch = getOrCreateVulnerabilityBatch(span);
     if (batch != null) {
       batch.add(vulnerability);
@@ -104,7 +102,10 @@ public class Reporter {
     List<StackTraceFrame> frames = StackUtils.generateUserCodeStackTrace();
     StackTraceEvent stackTraceEvent = new StackTraceEvent(frames, DEFAULT_LANGUAGE, index, null);
     StackUtils.addStacktraceEventsToMetaStruct(
-        reqCtx, METASTRUCT_VULNERABILITY, Collections.singletonList(stackTraceEvent));
+        reqCtx,
+        METASTRUCT_VULNERABILITY,
+        Collections.singletonList(stackTraceEvent)
+    );
     return stackTraceEvent.getId();
   }
 
@@ -137,20 +138,17 @@ public class Reporter {
       segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
       return batch;
     }
-
     // TODO: can we do better here? (maybe create a new span)
     LOG.debug(SEND_TELEMETRY, "Cannot attach vulnerability to span, current={}", current);
     return null;
   }
 
   private AgentSpan startNewSpan() {
-    final AgentSpanContext tagContext =
-        new TagContext()
-            .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE, true));
-    final AgentSpan span =
-        tracer()
-            .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)
-            .setSpanType(InternalSpanTypes.VULNERABILITY);
+    final AgentSpanContext tagContext = new TagContext()
+      .withRequestContextDataIast(new IastRequestContext(TaintedObjects.NoOp.INSTANCE, true));
+    final AgentSpan span = tracer()
+      .startSpan("iast", VULNERABILITY_SPAN_NAME, tagContext)
+      .setSpanType(InternalSpanTypes.VULNERABILITY);
     ANALYZED.setTag(span);
     return span;
   }
@@ -164,11 +162,8 @@ public class Reporter {
    * care about thread safety too much as an occasional duplicated report is not a big deal.
    */
   protected static class HashBasedDeduplication implements Predicate<Vulnerability> {
-
     private static final int DEFAULT_MAX_SIZE = 1000;
-
     private final int maxSize;
-
     private final Set<Long> hashes;
 
     public HashBasedDeduplication(@Nullable final AgentTaskScheduler taskScheduler) {

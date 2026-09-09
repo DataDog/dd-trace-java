@@ -14,9 +14,7 @@ import javax.annotation.Nonnull;
 
 public final class PeerServiceCalculator extends TagsPostProcessor {
   private final NamingSchema.ForPeerService peerServiceNaming;
-
   private final Map<String, String> peerServiceMapping;
-
   private final boolean canRemap;
 
   public PeerServiceCalculator() {
@@ -26,7 +24,8 @@ public final class PeerServiceCalculator extends TagsPostProcessor {
   @VisibleForTesting
   PeerServiceCalculator(
       @Nonnull final NamingSchema.ForPeerService peerServiceNaming,
-      @Nonnull final Map<String, String> peerServiceMapping) {
+      @Nonnull final Map<String, String> peerServiceMapping
+  ) {
     this.peerServiceNaming = peerServiceNaming;
     this.peerServiceMapping = peerServiceMapping;
     this.canRemap = !peerServiceMapping.isEmpty();
@@ -34,7 +33,10 @@ public final class PeerServiceCalculator extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagMap unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks
+  ) {
     Object peerService = unsafeTags.getObject(Tags.PEER_SERVICE);
     // the user set it
     if (peerService != null) {

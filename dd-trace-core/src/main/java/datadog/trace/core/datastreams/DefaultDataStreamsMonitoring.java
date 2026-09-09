@@ -12,7 +12,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DATA_STREAMS_MONITORING;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -57,15 +56,12 @@ import org.slf4j.LoggerFactory;
 
 public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, EventListener {
   private static final Logger log = LoggerFactory.getLogger(DefaultDataStreamsMonitoring.class);
-
   static final long FEATURE_CHECK_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(5);
   static final long MAX_TRANSACTION_CONTAINER_SIZE = 1024 * 512;
-
   private static final StatsPoint REPORT =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
   private static final StatsPoint POISON_PILL =
       new StatsPoint(DataStreamsTags.EMPTY, 0, 0, 0, 0, 0, 0, 0, null);
-
   private final Map<Long, Map<String, StatsBucket>> timeToBucket = new HashMap<>();
   private final MessagePassingQueue<InboxItem> inbox = Queues.mpscArrayQueue(1024);
   private final DatastreamsPayloadWriter payloadWriter;
@@ -81,17 +77,16 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   private volatile boolean agentSupportsDataStreams = false;
   private volatile boolean configSupportsDataStreams = false;
   private static final ThreadLocal<String> serviceNameOverride = new ThreadLocal<>();
-
   // contains a list of active extractors by type. Thread-safe via volatile with immutable
   // snapshots.
-  private volatile Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>>
-      extractorsByType;
+  private volatile Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>> extractorsByType;
 
   public DefaultDataStreamsMonitoring(
       Config config,
       SharedCommunicationObjects sharedCommunicationObjects,
       TimeSource timeSource,
-      Supplier<TraceConfig> traceConfigSupplier) {
+      Supplier<TraceConfig> traceConfigSupplier
+  ) {
     this(
         new OkHttpSink(
             sharedCommunicationObjects.agentHttpClient,
@@ -99,11 +94,13 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             V01_DATASTREAMS_ENDPOINT,
             false,
             true,
-            Collections.emptyMap()),
+            Collections.emptyMap()
+        ),
         sharedCommunicationObjects.featuresDiscovery(config),
         timeSource,
         traceConfigSupplier,
-        config);
+        config
+    );
   }
 
   public DefaultDataStreamsMonitoring(
@@ -111,15 +108,21 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       DDAgentFeaturesDiscovery features,
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier,
-      Config config) {
+      Config config
+  ) {
     this(
         sink,
         features,
         timeSource,
         traceConfigSupplier,
         new MsgPackDatastreamsPayloadWriter(
-            sink, config.getWellKnownTags(), DDTraceCoreInfo.VERSION, config.getPrimaryTag()),
-        Config.get().getDataStreamsBucketDurationNanoseconds());
+            sink,
+            config.getWellKnownTags(),
+            DDTraceCoreInfo.VERSION,
+            config.getPrimaryTag()
+        ),
+        Config.get().getDataStreamsBucketDurationNanoseconds()
+    );
   }
 
   public DefaultDataStreamsMonitoring(
@@ -128,7 +131,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       TimeSource timeSource,
       Supplier<TraceConfig> traceConfigSupplier,
       DatastreamsPayloadWriter payloadWriter,
-      long bucketDurationNanos) {
+      long bucketDurationNanos
+  ) {
     this.features = features;
     this.timeSource = timeSource;
     this.traceConfigSupplier = traceConfigSupplier;
@@ -145,14 +149,15 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void start() {
     checkDynamicConfig();
-    cancellation =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                new ReportTask(),
-                this,
-                bucketDurationNanos,
-                bucketDurationNanos,
-                TimeUnit.NANOSECONDS);
+    cancellation = AgentTaskScheduler
+      .get()
+      .scheduleAtFixedRate(
+          new ReportTask(),
+          this,
+          bucketDurationNanos,
+          bucketDurationNanos,
+          TimeUnit.NANOSECONDS
+      );
     thread.start();
   }
 
@@ -186,7 +191,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void trackTransaction(String transactionId, String checkpointName) {
     inbox.offer(
-        new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName));
+        new TransactionInfo(transactionId, timeSource.getCurrentTimeNanos(), checkpointName)
+    );
   }
 
   @Override
@@ -194,7 +200,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       AgentSpan span,
       DataStreamsTransactionExtractor.Type extractorType,
       Object source,
-      TransactionSourceReader sourceReader) {
+      TransactionSourceReader sourceReader
+  ) {
     if (!supportsDataStreams || source == null || extractorsByType == null) {
       return;
     }
@@ -236,12 +243,12 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   @Override
   public void mergePathwayContextIntoSpan(AgentSpan span, DataStreamsContextCarrier carrier) {
     if (span instanceof DDSpan) {
-      DefaultPathwayContext pathwayContext =
-          DefaultPathwayContext.extract(
-              carrier,
-              DataStreamsContextCarrierAdapter.INSTANCE,
-              this.timeSource,
-              getThreadServiceName());
+      DefaultPathwayContext pathwayContext = DefaultPathwayContext.extract(
+          carrier,
+          DataStreamsContextCarrierAdapter.INSTANCE,
+          this.timeSource,
+          getThreadServiceName()
+      );
       ((DDSpan) span).spanContext().mergePathwayContext(pathwayContext);
     }
   }
@@ -258,7 +265,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       int schemaId,
       boolean isSuccess,
       boolean isKey,
-      String operation) {
+      String operation
+  ) {
     inbox.offer(
         new SchemaRegistryUsage(
             topic,
@@ -268,12 +276,18 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             isKey,
             operation,
             timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
+            getThreadServiceName()
+        )
+    );
   }
 
   @Override
   public void reportKafkaConfig(
-      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {
+      String type,
+      String kafkaClusterId,
+      String consumerGroup,
+      Map<String, String> config
+  ) {
     inbox.offer(
         new KafkaConfigReport(
             type,
@@ -281,7 +295,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             consumerGroup,
             config,
             timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
+            getThreadServiceName()
+        )
+    );
   }
 
   @Override
@@ -290,7 +306,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
       String consumerGroup,
       String memberId,
       int generationId,
-      String memberProtocol) {
+      String memberProtocol
+  ) {
     inbox.offer(
         new KafkaConfigReport(
             "kafka_consumer",
@@ -301,7 +318,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
             memberProtocol,
             Collections.<String, String>emptyMap(),
             timeSource.getCurrentTimeNanos(),
-            getThreadServiceName()));
+            getThreadServiceName()
+        )
+    );
   }
 
   @Override
@@ -322,7 +341,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   public void setConsumeCheckpoint(
-      String type, String source, DataStreamsContextCarrier carrier, Boolean isManual) {
+      String type,
+      String source,
+      DataStreamsContextCarrier carrier,
+      Boolean isManual
+  ) {
     if (type == null || type.isEmpty() || source == null || source.isEmpty()) {
       log.warn("setConsumeCheckpoint should be called with non-empty type and source");
       return;
@@ -346,7 +369,11 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   public void setProduceCheckpoint(
-      String type, String target, DataStreamsContextCarrier carrier, boolean manualCheckpoint) {
+      String type,
+      String target,
+      DataStreamsContextCarrier carrier,
+      boolean manualCheckpoint
+  ) {
     if (type == null || type.isEmpty() || target == null || target.isEmpty()) {
       log.warn("SetProduceCheckpoint should be called with non-empty type and target");
       return;
@@ -366,7 +393,10 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
     DataStreamsContext dsmContext = fromTags(tags);
     this.propagator.inject(
-        span.with(dsmContext), carrier, DataStreamsContextCarrierAdapter.INSTANCE);
+        span.with(dsmContext),
+        carrier,
+        DataStreamsContextCarrierAdapter.INSTANCE
+    );
   }
 
   @Override
@@ -388,18 +418,18 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private class InboxProcessor implements Runnable {
-
     private StatsBucket getStatsBucket(final long timestamp, final String serviceNameOverride) {
       long bucket = currentBucket(timestamp);
       Map<String, StatsBucket> statsBucketMap =
           timeToBucket.computeIfAbsent(bucket, startTime -> new HashMap<>(1));
-      return statsBucketMap.computeIfAbsent(
-          serviceNameOverride, s -> new StatsBucket(bucket, bucketDurationNanos));
+      return statsBucketMap.computeIfAbsent(serviceNameOverride, s -> new StatsBucket(
+          bucket,
+          bucketDurationNanos
+      ));
     }
 
     @Override
     public void run() {
-
       if (features.getDataStreamsEndpoint() == null) {
         features.discoverIfOutdated();
       }
@@ -444,7 +474,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               StatsPoint statsPoint = (StatsPoint) payload;
               StatsBucket statsBucket =
                   getStatsBucket(
-                      statsPoint.getTimestampNanos(), statsPoint.getServiceNameOverride());
+                      statsPoint.getTimestampNanos(),
+                      statsPoint.getServiceNameOverride()
+              );
               statsBucket.addPoint(statsPoint);
             } else if (payload instanceof Backlog) {
               Backlog backlog = (Backlog) payload;
@@ -471,7 +503,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
               KafkaConfigReport configReport = (KafkaConfigReport) payload;
               StatsBucket statsBucket =
                   getStatsBucket(
-                      configReport.getTimestampNanos(), configReport.getServiceNameOverride());
+                      configReport.getTimestampNanos(),
+                      configReport.getServiceNameOverride()
+              );
               statsBucket.addKafkaConfig(configReport);
             }
           }
@@ -488,7 +522,6 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
 
   private void flush(long timestampNanos) {
     long currentBucket = currentBucket(timestampNanos);
-
     // stats are grouped by time buckets and service names
     Map<String, List<StatsBucket>> includedBuckets = new HashMap<>();
     Iterator<Map.Entry<Long, Map<String, StatsBucket>>> mapIterator =
@@ -556,11 +589,9 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     if (extractors == null) {
       return;
     }
-
     // Build a new immutable snapshot
     Map<DataStreamsTransactionExtractor.Type, List<DataStreamsTransactionExtractor>> newMap =
         new EnumMap<>(DataStreamsTransactionExtractor.Type.class);
-
     // we support up to MAX_NUM_EXTRACTORS
     for (int i = 0; i < Math.min(extractors.size(), MAX_NUM_EXTRACTORS); i++) {
       DataStreamsTransactionExtractor extractor = extractors.get(i);
@@ -588,8 +619,7 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
     } else if (!oldValue && agentSupportsDataStreams && configSupportsDataStreams) {
       log.info("Agent upgrade detected. Enabling data streams because it is now supported");
     } else if (!oldValue && agentSupportsDataStreams && !configSupportsDataStreams) {
-      log.info(
-          "Agent upgrade detected. Not enabling data streams because it is disabled by config");
+      log.info("Agent upgrade detected. Not enabling data streams because it is disabled by config");
     }
 
     supportsDataStreams = agentSupportsDataStreams && configSupportsDataStreams;
@@ -598,7 +628,8 @@ public class DefaultDataStreamsMonitoring implements DataStreamsMonitoring, Even
   }
 
   private static final class ReportTask
-      implements AgentTaskScheduler.Task<DefaultDataStreamsMonitoring> {
+      implements AgentTaskScheduler.Task<DefaultDataStreamsMonitoring>
+  {
     @Override
     public void run(DefaultDataStreamsMonitoring target) {
       target.report();

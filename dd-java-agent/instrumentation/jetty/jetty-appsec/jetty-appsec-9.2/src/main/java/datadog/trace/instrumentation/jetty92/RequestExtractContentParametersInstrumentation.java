@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -28,7 +27,9 @@ import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
 public class RequestExtractContentParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";
 
   public RequestExtractContentParametersInstrumentation() {
@@ -49,24 +50,30 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)),
-        getClass().getName() + "$ExtractContentParametersAdvice");
+        getClass().getName() + "$ExtractContentParametersAdvice"
+    );
     transformer.applyAdvice(
         named("getParts")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.eclipse.jetty.util.MultiMap"))),
-        getClass().getName() + "$GetPartsAdvice");
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.eclipse.jetty.util.MultiMap"))),
+        getClass().getName() + "$GetPartsAdvice"
+    );
     transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+        named("getParts").and(takesArguments(0)),
+        getClass().getName() + "$GetFilenamesAdvice"
+    );
     transformer.applyAdvice(
         named("getParts").and(takesArguments(1)),
-        getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
+        getClass().getName() + "$GetFilenamesFromMultiPartAdvice"
+    );
   }
 
-  private static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withMethod(new String[0], 0, "extractContentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .build();
+  private static final Reference REQUEST_REFERENCE = new Reference.Builder(
+      "org.eclipse.jetty.server.Request"
+  )
+    .withMethod(new String[0], 0, "extractContentParameters", MULTI_MAP_INTERNAL_NAME)
+    .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -79,7 +86,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     static void after(
         @Advice.Return MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (map == null || map.isEmpty() || t != null) {
         return;
       }
@@ -116,7 +124,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (!proceed) {
         return;
       }
@@ -164,8 +173,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            final Object multiPartInputStream) {
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC) final Object multiPartInputStream
+    ) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class);
       return callDepth == 0 && contentParameters == null && multiPartInputStream == null;
     }
@@ -175,7 +184,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
@@ -206,7 +216,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(MultipartHelper.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;

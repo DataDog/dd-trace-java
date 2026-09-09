@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,9 @@ import org.apache.http.HttpHost;
 
 @AutoService(InstrumenterModule.class)
 public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public IastHttpHostInstrumentation() {
     super("httpcore", "apache-httpcore", "apache-http-core");
   }
@@ -31,17 +31,21 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArguments(String.class, int.class, String.class)),
-        IastHttpHostInstrumentation.class.getName() + "$CtorAdvice");
+        IastHttpHostInstrumentation.class.getName() + "$CtorAdvice"
+    );
     transformer.applyAdvice(
         named("toURI").and(isMethod()).and(takesArguments(0)),
-        IastHttpHostInstrumentation.class.getName() + "$ToUriAdvice");
+        IastHttpHostInstrumentation.class.getName() + "$ToUriAdvice"
+    );
   }
 
   public static class CtorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterCtor(
-        @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
+        @Advice.This final Object self,
+        @Advice.Argument(0) final Object argument
+    ) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         module.taintObjectIfTainted(self, argument);
@@ -50,7 +54,7 @@ public class IastHttpHostInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class ToUriAdvice {
-    @Advice.OnMethodExit()
+    @Advice.OnMethodExit
     @Propagation
     public static void methodExit(@Advice.This HttpHost self, @Advice.Return String result) {
       final PropagationModule propagationModule = InstrumentationBridge.PROPAGATION;

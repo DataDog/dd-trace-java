@@ -9,7 +9,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -31,7 +30,6 @@ import okhttp3.RequestBody;
 import okio.Buffer;
 
 final class FlagEvaluationTestSupport {
-
   static final long REALISTIC_EVAL_MS = 1_760_000_000_000L;
   static final JsonAdapter<Map<String, Object>> JSON_MAP;
 
@@ -41,7 +39,8 @@ final class FlagEvaluationTestSupport {
     JSON_MAP = moshi.adapter(type);
   }
 
-  private FlagEvaluationTestSupport() {}
+  private FlagEvaluationTestSupport() {
+  }
 
   static Supplier<BackendApi> backendApiSupplier(final BackendApiFactory factory) {
     return () -> factory.createBackendApi(Intake.EVENT_PLATFORM, false);
@@ -57,7 +56,8 @@ final class FlagEvaluationTestSupport {
       final String allocationKey,
       final String targetingKey,
       final long evalTimeMs,
-      final Map<String, Object> attrs) {
+      final Map<String, Object> attrs
+  ) {
     return new FlagEvalEvent(flagKey, variant, allocationKey, targetingKey, evalTimeMs, attrs);
   }
 
@@ -68,7 +68,8 @@ final class FlagEvaluationTestSupport {
       final String targetingKey,
       final long evalTimeMs,
       final boolean observeFullEvaluationData,
-      final Map<String, Object> attrs) {
+      final Map<String, Object> attrs
+  ) {
     return new FlagEvalEvent(
         flagKey,
         variant,
@@ -77,13 +78,24 @@ final class FlagEvaluationTestSupport {
         null,
         evalTimeMs,
         observeFullEvaluationData,
-        attrs);
+        attrs
+    );
   }
 
   static FlagEvalEvent errorEvent(
-      final String flagKey, final String errorMessage, final long evalTimeMs) {
+      final String flagKey,
+      final String errorMessage,
+      final long evalTimeMs
+  ) {
     return new FlagEvalEvent(
-        flagKey, null, null, null, errorMessage, evalTimeMs, java.util.Collections.emptyMap());
+        flagKey,
+        null,
+        null,
+        null,
+        errorMessage,
+        evalTimeMs,
+        java.util.Collections.emptyMap()
+    );
   }
 
   static FlagEvalEvent simpleEvent(final String flagKey, final String variant) {
@@ -109,17 +121,18 @@ final class FlagEvaluationTestSupport {
     return new TestWriterSetup(handler, mockEvp, factory);
   }
 
-  static TestWriterSetup buildTestWriter(
-      final BackendApi mockEvp, final int payloadSizeLimitBytes) {
+  static TestWriterSetup buildTestWriter(final BackendApi mockEvp, final int payloadSizeLimitBytes) {
     final BackendApiFactory factory = mock(BackendApiFactory.class);
     when(factory.createBackendApi(any(), anyBoolean())).thenReturn(mockEvp);
 
     final Map<String, String> context = new HashMap<>();
     context.put("service", "test-service");
 
-    final FlagEvaluationWriterImpl.SerializingHandlerForTest handler =
-        FlagEvaluationWriterImpl.createHandlerForTest(
-            backendApiSupplier(factory), context, payloadSizeLimitBytes);
+    final FlagEvaluationWriterImpl.SerializingHandlerForTest handler = FlagEvaluationWriterImpl.createHandlerForTest(
+        backendApiSupplier(factory),
+        context,
+        payloadSizeLimitBytes
+    );
 
     return new TestWriterSetup(handler, mockEvp, factory);
   }
@@ -133,11 +146,10 @@ final class FlagEvaluationTestSupport {
   static List<CapturedJson> flushAndCaptureAll(final TestWriterSetup setup) throws Exception {
     final List<RequestBody> captured = new ArrayList<>();
     when(setup.mockEvp.post(eq("flagevaluation"), any(RequestBody.class), any(), any(), eq(false)))
-        .thenAnswer(
-            inv -> {
-              captured.add(inv.getArgument(1));
-              return null;
-            });
+      .thenAnswer(inv -> {
+        captured.add(inv.getArgument(1));
+        return null;
+      });
     setup.handler.drainAndAggregate();
     setup.handler.flush();
     final List<CapturedJson> json = new ArrayList<>();
@@ -162,7 +174,8 @@ final class FlagEvaluationTestSupport {
   static long metricSum(
       final Collection<? extends MetricCollector.Metric> metrics,
       final String metricName,
-      final String tag) {
+      final String tag
+  ) {
     long sum = 0;
     for (final MetricCollector.Metric metric : metrics) {
       if (!metricName.equals(metric.metricName)) {
@@ -227,7 +240,8 @@ final class FlagEvaluationTestSupport {
     TestWriterSetup(
         final FlagEvaluationWriterImpl.SerializingHandlerForTest handler,
         final BackendApi mockEvp,
-        final BackendApiFactory factory) {
+        final BackendApiFactory factory
+    ) {
       this.handler = handler;
       this.mockEvp = mockEvp;
       this.factory = factory;

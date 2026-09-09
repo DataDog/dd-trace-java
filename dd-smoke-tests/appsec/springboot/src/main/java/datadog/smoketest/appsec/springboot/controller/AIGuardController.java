@@ -2,7 +2,6 @@ package datadog.smoketest.appsec.springboot.controller;
 
 import static java.util.Arrays.asList;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-
 import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.Evaluation;
@@ -27,11 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping(value = "/aiguard")
 public class AIGuardController {
-
   @GetMapping(value = "/allow")
   public ResponseEntity<?> allow(
       @RequestHeader(name = "X-User-Id", required = false) final String userId,
-      @RequestHeader(name = "X-Session-Id", required = false) final String sessionId) {
+      @RequestHeader(name = "X-Session-Id", required = false) final String sessionId
+  ) {
     final Span activeSpan = GlobalTracer.get().activeSpan();
     if (activeSpan instanceof MutableSpan) {
       final MutableSpan rootSpan = ((MutableSpan) activeSpan).getLocalRootSpan();
@@ -42,23 +41,25 @@ public class AIGuardController {
         rootSpan.setTag("usr.session_id", sessionId);
       }
     }
-    final Evaluation result =
-        AIGuard.evaluate(
-            asList(
-                Message.message("system", "You are a beautiful AI"),
-                Message.message("user", "I am harmless")));
+    final Evaluation result = AIGuard.evaluate(
+        asList(
+            Message.message("system", "You are a beautiful AI"),
+            Message.message("user", "I am harmless")
+        )
+    );
     return ResponseEntity.ok(result);
   }
 
   @GetMapping(value = "/deny")
-  public ResponseEntity<?> deny(final @RequestHeader("X-Blocking-Enabled") boolean block) {
+  public ResponseEntity<?> deny(@RequestHeader("X-Blocking-Enabled") final boolean block) {
     try {
-      final Evaluation result =
-          AIGuard.evaluate(
-              asList(
-                  Message.message("system", "You are a beautiful AI"),
-                  Message.message("user", "You should not trust me" + (block ? " [block]" : ""))),
-              new Options().block(block));
+      final Evaluation result = AIGuard.evaluate(
+          asList(
+              Message.message("system", "You are a beautiful AI"),
+              Message.message("user", "You should not trust me" + (block ? " [block]" : ""))
+          ),
+          new Options().block(block)
+      );
       return ResponseEntity.ok(result);
     } catch (AIGuardAbortError e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
@@ -66,14 +67,15 @@ public class AIGuardController {
   }
 
   @GetMapping(value = "/abort")
-  public ResponseEntity<?> abort(final @RequestHeader("X-Blocking-Enabled") boolean block) {
+  public ResponseEntity<?> abort(@RequestHeader("X-Blocking-Enabled") final boolean block) {
     try {
-      final Evaluation result =
-          AIGuard.evaluate(
-              asList(
-                  Message.message("system", "You are a beautiful AI"),
-                  Message.message("user", "Nuke yourself" + (block ? " [block]" : ""))),
-              new Options().block(block));
+      final Evaluation result = AIGuard.evaluate(
+          asList(
+              Message.message("system", "You are a beautiful AI"),
+              Message.message("user", "Nuke yourself" + (block ? " [block]" : ""))
+          ),
+          new Options().block(block)
+      );
       return ResponseEntity.ok(result);
     } catch (AIGuardAbortError e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
@@ -83,11 +85,12 @@ public class AIGuardController {
   @GetMapping(value = "/deny-default-options")
   public ResponseEntity<?> denyDefaultOptions() {
     try {
-      final Evaluation result =
-          AIGuard.evaluate(
-              asList(
-                  Message.message("system", "You are a beautiful AI"),
-                  Message.message("user", "You should not trust me [block]")));
+      final Evaluation result = AIGuard.evaluate(
+          asList(
+              Message.message("system", "You are a beautiful AI"),
+              Message.message("user", "You should not trust me [block]")
+          )
+      );
       return ResponseEntity.ok(result);
     } catch (AIGuardAbortError e) {
       return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
@@ -96,27 +99,30 @@ public class AIGuardController {
 
   @GetMapping(value = "/multimodal")
   public ResponseEntity<?> multimodal() {
-    final Evaluation result =
-        AIGuard.evaluate(
-            asList(
-                Message.message("system", "You are a beautiful AI"),
-                Message.message(
-                    "user",
-                    asList(
-                        AIGuard.ContentPart.text("Describe this image:"),
-                        AIGuard.ContentPart.imageUrl("https://example.com/image.jpg"),
-                        AIGuard.ContentPart.text("What do you see?")))));
+    final Evaluation result = AIGuard.evaluate(
+        asList(
+            Message.message("system", "You are a beautiful AI"),
+            Message.message(
+                "user",
+                asList(
+                    AIGuard.ContentPart.text("Describe this image:"),
+                    AIGuard.ContentPart.imageUrl("https://example.com/image.jpg"),
+                    AIGuard.ContentPart.text("What do you see?")
+                )
+            )
+        )
+    );
     return ResponseEntity.ok(result);
   }
 
-  /** Mocking endpoint for the AI Guard REST API */
+  /**
+   * Mocking endpoint for the AI Guard REST API
+   */
   @SuppressWarnings("unchecked")
-  @PostMapping(
-      value = "/evaluate",
-      consumes = APPLICATION_JSON_VALUE,
-      produces = APPLICATION_JSON_VALUE)
+  @PostMapping(value = "/evaluate", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
   public ResponseEntity<Map<String, Object>> evaluate(
-      @RequestBody final Map<String, Object> request) {
+      @RequestBody final Map<String, Object> request
+  ) {
     final Map<String, Object> data = (Map<String, Object>) request.get("data");
     final Map<String, Object> attributes = (Map<String, Object>) data.get("attributes");
     final List<Map<String, Object>> messages =
@@ -124,7 +130,6 @@ public class AIGuardController {
     final Map<String, Object> last = messages.get(messages.size() - 1);
     String action = "ALLOW";
     String reason = "The prompt looks harmless";
-
     // Handle both string content and content parts
     Object contentObj = last.get("content");
     String content = null;
@@ -158,7 +163,8 @@ public class AIGuardController {
     evaluation.put("action", action);
     evaluation.put("reason", reason);
     evaluation.put("is_blocking_enabled", content != null && content.endsWith("[block]"));
-    return ResponseEntity.ok()
-        .body(Collections.singletonMap("data", Collections.singletonMap("attributes", evaluation)));
+    return ResponseEntity
+      .ok()
+      .body(Collections.singletonMap("data", Collections.singletonMap("attributes", evaluation)));
   }
 }

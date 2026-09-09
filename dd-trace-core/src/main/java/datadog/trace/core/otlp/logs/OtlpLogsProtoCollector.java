@@ -6,7 +6,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpResourceProto.RESOURCE_MESSAGE;
 import static datadog.trace.core.otlp.logs.OtlpLogsProto.recordLogRecordMessage;
 import static datadog.trace.core.otlp.logs.OtlpLogsProto.recordScopedLogsMessage;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.logs.data.OtelLogRecordProcessor;
@@ -31,21 +30,20 @@ import java.util.function.ObjIntConsumer;
  * has been chunked we add the enclosing resource logs message to the start of the payload.
  */
 public final class OtlpLogsProtoCollector extends OtlpLogsCollector
-    implements OtlpLogsVisitor, OtlpScopedLogsVisitor {
-
+    implements OtlpLogsVisitor,
+    OtlpScopedLogsVisitor
+{
   public static final OtlpLogsProtoCollector INSTANCE = new OtlpLogsProtoCollector();
-
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
-
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
   private int scopedBytes;
   private int logRecordCount;
-
   private OtelInstrumentationScope currentScope;
 
-  private OtlpLogsProtoCollector() {}
+  private OtlpLogsProtoCollector() {
+  }
 
   /**
    * Collects OpenTelemetry logs and marshals them into a chunked payload.
@@ -67,15 +65,18 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
     }
   }
 
-  /** Prepare temporary elements to collect logs data. */
+  /**
+   * Prepare temporary elements to collect logs data.
+   */
   private void start() {
     logRecordCount = 0;
-
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
   }
 
-  /** Cleanup elements used to collect logs data. */
+  /**
+   * Cleanup elements used to collect logs data.
+   */
   private void stop() {
     buf.reset();
     protobuf.reset();
@@ -122,10 +123,8 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
     if (payloadBytes == 0) {
       return OtlpPayload.EMPTY;
     }
-
     // prepend the canned resource chunk
     payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
-
     // finally prepend the total length of all collected chunks
     protobuf.recordMessage(buf, 1, payloadBytes);
     return protobuf.toPayload();
@@ -133,12 +132,10 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
 
   // called once we've processed all logs in a specific scope
   private void completeScope() {
-
     // add scoped logs message prefix to its nested chunks and promote to payload
     if (scopedBytes > 0) {
       payloadBytes += recordScopedLogsMessage(buf, currentScope, scopedBytes, protobuf);
     }
-
     // reset temporary elements for next scope
     currentScope = null;
     scopedBytes = 0;

@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -33,9 +32,9 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice
+{
   private final String className = CaseInsensitiveHeadersInstrumentation.class.getName();
 
   public CaseInsensitiveHeadersInstrumentation() {
@@ -61,24 +60,28 @@ public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Ia
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("get"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
-        className + "$GetAdvice");
+          .and(isPublic())
+          .and(named("get"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class)),
+        className + "$GetAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("getAll"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
-        className + "$GetAllAdvice");
+          .and(isPublic())
+          .and(named("getAll"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class)),
+        className + "$GetAllAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesNoArguments()),
-        className + "$EntriesAdvice");
+        className + "$EntriesAdvice"
+    );
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("names")).and(takesNoArguments()),
-        className + "$NamesAdvice");
+        className + "$NamesAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -89,12 +92,18 @@ public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Ia
         @Advice.This final Object self,
         @Advice.Argument(0) final String name,
         @Advice.Return final String result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         propagation.taintStringIfTainted(
-            ctx, result, self, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+            ctx,
+            result,
+            self,
+            SourceTypes.REQUEST_PARAMETER_VALUE,
+            name
+        );
       }
     }
   }
@@ -107,7 +116,8 @@ public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Ia
         @Advice.This final Object self,
         @Advice.Argument(0) final String name,
         @Advice.Return final Collection<String> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -127,7 +137,8 @@ public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Ia
     public static void afterEntries(
         @Advice.This final Object self,
         @Advice.Return final List<Map.Entry<String, String>> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -153,7 +164,8 @@ public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Ia
     public static void afterNames(
         @Advice.This final Object self,
         @Advice.Return final Set<String> result,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       final PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation != null && result != null && !result.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

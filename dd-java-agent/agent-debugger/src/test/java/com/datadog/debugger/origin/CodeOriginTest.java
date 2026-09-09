@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import static utils.TestHelper.setFieldInConfig;
-
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.codeorigin.DefaultCodeOriginRecorder;
 import com.datadog.debugger.probe.CodeOriginProbe;
@@ -60,35 +59,29 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class CodeOriginTest extends CapturingTestBase {
-
   private static final ProbeId CODE_ORIGIN_ID1 = new ProbeId("code origin 1", 0);
-
   private static final ProbeId CODE_ORIGIN_ID2 = new ProbeId("code origin 2", 0);
-
   private static final ProbeId CODE_ORIGIN_DOUBLE_ENTRY_ID =
       new ProbeId("double entry code origin", 0);
-
   private static final int MAX_FRAMES = 20;
-
   private DefaultCodeOriginRecorder codeOriginRecorder;
-
   private TestSnapshotListener listener;
-
   private TestTraceInterceptor traceInterceptor;
-
-  public static ClassNameFilter classNameFilter =
-      new ClassNameFiltering(
-          new HashSet<>(
-              asList(
-                  "sun",
-                  "org.junit",
-                  "java.",
-                  "org.gradle",
-                  "com.sun",
-                  "worker.org.gradle",
-                  "datadog",
-                  "com.datadog.debugger.probe",
-                  "com.datadog.debugger.codeorigin")));
+  public static ClassNameFilter classNameFilter = new ClassNameFiltering(
+      new HashSet<>(
+          asList(
+              "sun",
+              "org.junit",
+              "java.",
+              "org.gradle",
+              "com.sun",
+              "worker.org.gradle",
+              "datadog",
+              "com.datadog.debugger.probe",
+              "com.datadog.debugger.codeorigin"
+          )
+      )
+  );
 
   @Override
   @BeforeEach
@@ -106,17 +99,14 @@ public class CodeOriginTest extends CapturingTestBase {
     setFieldInConfig(InstrumenterConfig.get(), "codeOriginEnabled", true);
 
     new AgentBuilder.Default()
-        .with(RedefinitionStrategy.RETRANSFORMATION)
-        .with(InitializationStrategy.NoOp.INSTANCE)
-        .with(TypeStrategy.Default.REDEFINE)
-        .type(nameStartsWith("com.datadog.debugger."))
-        .transform(
-            (builder, typeDescription, classLoader, module, protectionDomain) ->
-                builder.visit(
-                    Advice.to(CodeOriginTestAdvice.class)
-                        .on(new Conjunction<>(isMethod(), isAnnotatedWith(CodeOrigin.class)))))
-    //        .installOn(instr)
-    ;
+      .with(RedefinitionStrategy.RETRANSFORMATION)
+      .with(InitializationStrategy.NoOp.INSTANCE)
+      .with(TypeStrategy.Default.REDEFINE)
+      .type(nameStartsWith("com.datadog.debugger."))
+      .transform((builder, typeDescription, classLoader, module, protectionDomain) -> builder.visit(Advice
+        .to(CodeOriginTestAdvice.class)
+        .on(new Conjunction<>(isMethod(), isAnnotatedWith(CodeOrigin.class)))
+      ));
   }
 
   @Test
@@ -142,8 +132,10 @@ public class CodeOriginTest extends CapturingTestBase {
   @Test
   public void withLogProbe() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin03";
-    installProbes(
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()").captureSnapshot(true).build());
+    installProbes(createProbeBuilder(PROBE_ID, CLASS_NAME, "entry", "()")
+      .captureSnapshot(true)
+      .build()
+    );
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "entry", "()", true);
     codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "exit", "()", false);
@@ -158,13 +150,15 @@ public class CodeOriginTest extends CapturingTestBase {
         new CodeOriginProbe(
             CODE_ORIGIN_ID1,
             true,
-            Where.of(
-                className, "entry", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID1))),
+            Where.of(className, "entry", "()", ""
+            + getLineForLineProbe(className, CODE_ORIGIN_ID1))
+        ),
         new CodeOriginProbe(
             CODE_ORIGIN_ID2,
             false,
-            Where.of(
-                className, "exit", "()", "" + getLineForLineProbe(className, CODE_ORIGIN_ID2))),
+            Where.of(className, "exit", "()", ""
+            + getLineForLineProbe(className, CODE_ORIGIN_ID2))
+        ),
         new CodeOriginProbe(
             CODE_ORIGIN_DOUBLE_ENTRY_ID,
             true,
@@ -172,7 +166,10 @@ public class CodeOriginTest extends CapturingTestBase {
                 className,
                 "doubleEntry",
                 "()",
-                "" + getLineForLineProbe(className, CODE_ORIGIN_DOUBLE_ENTRY_ID))));
+                "" + getLineForLineProbe(className, CODE_ORIGIN_DOUBLE_ENTRY_ID)
+            )
+        )
+    );
     final Class<?> testClass = compileAndLoadClass(className);
     checkResults(testClass, "fullTrace", 0);
     List<? extends MutableSpan> trace = traceInterceptor.getTrace();
@@ -185,7 +182,8 @@ public class CodeOriginTest extends CapturingTestBase {
   public void stackDepth() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     installProbes(
-        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(CLASS_NAME, "exit", "()", "39")));
+        new CodeOriginProbe(CODE_ORIGIN_ID1, true, Where.of(CLASS_NAME, "exit", "()", "39"))
+    );
 
     Class<?> testClass = compileAndLoadClass("com.datadog.debugger.CodeOrigin04");
     countFrames(testClass, 10);
@@ -195,12 +193,13 @@ public class CodeOriginTest extends CapturingTestBase {
   private void countFrames(Class<?> testClass, int loops) {
     int result = Reflect.onClass(testClass).call("main", loops).get();
     assertEquals(loops, result);
-    long count =
-        traceInterceptor.getTrace().stream()
-            .filter(s -> s.getOperationName().equals("exit"))
-            .flatMap(s -> s.getTags().keySet().stream())
-            .filter(key -> key.contains("frames") && key.endsWith("method"))
-            .count();
+    long count = traceInterceptor
+      .getTrace()
+      .stream()
+      .filter(s -> s.getOperationName().equals("exit"))
+      .flatMap(s -> s.getTags().keySet().stream())
+      .filter(key -> key.contains("frames") && key.endsWith("method"))
+      .count();
     assertTrue(count <= MAX_FRAMES);
   }
 
@@ -216,28 +215,34 @@ public class CodeOriginTest extends CapturingTestBase {
   @Disabled("Exit spans are disabled for now")
   public void testCaptureCodeOriginExit() {
     installProbes();
-    CodeOriginProbe probe =
-        codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin(false));
+    CodeOriginProbe probe = codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin(false));
     assertNotNull(probe);
     assertFalse(probe.entrySpanProbe());
   }
 
   @Test
   public void testCaptureCodeOriginWithExplicitInfo()
-      throws IOException, URISyntaxException, NoSuchMethodException {
+      throws IOException,
+      URISyntaxException,
+      NoSuchMethodException {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     installProbes();
-    CodeOriginProbe probe =
-        codeOriginRecorder.getProbe(
-            codeOriginRecorder.captureCodeOrigin(CLASS_NAME, "main", "(I)", true));
+    CodeOriginProbe probe = codeOriginRecorder.getProbe(codeOriginRecorder.captureCodeOrigin(
+        CLASS_NAME,
+        "main",
+        "(I)",
+        true
+    ));
     assertNotNull(probe, "The probe should have been created.");
     assertTrue(probe.entrySpanProbe(), "Should be an entry probe.");
   }
 
   @Test
   public void testDuplicateInstrumentations()
-      throws IOException, URISyntaxException, NoSuchMethodException {
+      throws IOException,
+      URISyntaxException,
+      NoSuchMethodException {
     final String CLASS_NAME = "com.datadog.debugger.CodeOrigin04";
     final Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     installProbes();
@@ -264,10 +269,10 @@ public class CodeOriginTest extends CapturingTestBase {
     assertEquals(3, spans.size());
     assertEquals("main", spans.get(2).getLocalRootSpan().getOperationName());
 
-    List<DDSpan> list =
-        spans.stream()
-            .filter(span -> !span.getOperationName().equals("exit"))
-            .collect(Collectors.toList());
+    List<DDSpan> list = spans
+      .stream()
+      .filter(span -> !span.getOperationName().equals("exit"))
+      .collect(Collectors.toList());
 
     for (DDSpan span : list) {
       checkCodeOriginTags(span, snapshotsExpected != 0);
@@ -275,13 +280,18 @@ public class CodeOriginTest extends CapturingTestBase {
 
     assertEquals(
         snapshotsExpected,
-        listener.snapshots.stream()
-            .filter(s -> s.getCaptures().getEntry() != null && s.getCaptures().getReturn() != null)
-            .collect(Collectors.toList())
-            .size());
+        listener.snapshots
+          .stream()
+          .filter(s -> s.getCaptures().getEntry() != null && s.getCaptures().getReturn() != null)
+          .collect(Collectors.toList())
+          .size()
+    );
 
     Optional<DDSpan> exit =
-        spans.stream().filter(span -> span.getOperationName().equals("exit")).findFirst();
+        spans
+      .stream()
+      .filter(span -> span.getOperationName().equals("exit"))
+      .findFirst();
     assertTrue(exit.isPresent());
     exit.ifPresent(span -> checkExitSpanTags(span, false));
   }
@@ -291,16 +301,16 @@ public class CodeOriginTest extends CapturingTestBase {
     listener = super.installProbes(probes);
 
     DebuggerContext.initClassNameFilter(classNameFilter);
-    codeOriginRecorder =
-        new DefaultCodeOriginRecorder(
-            config,
-            configurationUpdater,
-            new AgentTaskScheduler(TASK_SCHEDULER) {
-              @Override
-              public void execute(Runnable target) {
-                target.run();
-              }
-            });
+    codeOriginRecorder = new DefaultCodeOriginRecorder(
+        config,
+        configurationUpdater,
+        new AgentTaskScheduler(TASK_SCHEDULER) {
+          @Override
+          public void execute(Runnable target) {
+            target.run();
+          }
+        }
+    );
     DebuggerContext.initCodeOrigin(codeOriginRecorder);
 
     return listener;
@@ -324,13 +334,18 @@ public class CodeOriginTest extends CapturingTestBase {
         span.getTag(key),
         format(
             "'%s' key missing in '%s' span. current keys:  %s",
-            key, span.getOperationName(), ldKeys(span)));
+            key,
+            span.getOperationName(),
+            ldKeys(span)
+        )
+    );
   }
 
   private static void assertKeyNotPresent(MutableSpan span, String key) {
     assertNull(
         span.getTag(key),
-        format("'%s' key found in '%s' span when it shouldn't be.", key, span.getOperationName()));
+        format("'%s' key found in '%s' span when it shouldn't be.", key, span.getOperationName())
+    );
   }
 
   private static void checkExitSpanTags(DDSpan span, boolean includeSnapshot) {
@@ -345,8 +360,11 @@ public class CodeOriginTest extends CapturingTestBase {
   }
 
   private static Set<String> ldKeys(MutableSpan span) {
-    return span.getTags().keySet().stream()
-        .filter(key -> key.startsWith(DD_CODE_ORIGIN_PREFIX))
-        .collect(Collectors.toCollection(TreeSet::new));
+    return span
+      .getTags()
+      .keySet()
+      .stream()
+      .filter(key -> key.startsWith(DD_CODE_ORIGIN_PREFIX))
+      .collect(Collectors.toCollection(TreeSet::new));
   }
 }

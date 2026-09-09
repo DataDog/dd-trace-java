@@ -7,7 +7,6 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.isTrue;
 import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.junit.utils.assertions.Matcher;
@@ -54,7 +53,6 @@ public final class SpanMatcher {
   private final Map<String, Matcher<String>> metaMatchers;
   private final Map<String, Matcher<Number>> metricMatchers;
   private final Map<String, Matcher<?>> metaStructMatchers;
-
   private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
   private SpanMatcher() {
@@ -320,10 +318,10 @@ public final class SpanMatcher {
     List<DecodedSpanLink> links = span.getLinks();
     if (links.size() != this.linkMatchers.length) {
       assertionFailure()
-          .message("Unexpected span link count")
-          .expected(this.linkMatchers.length)
-          .actual(links.size())
-          .buildAndThrow();
+        .message("Unexpected span link count")
+        .expected(this.linkMatchers.length)
+        .actual(links.size())
+        .buildAndThrow();
     }
     for (int i = 0; i < this.linkMatchers.length; i++) {
       this.linkMatchers[i].assertLink(trace, links.get(i), i);
@@ -342,7 +340,8 @@ public final class SpanMatcher {
       assertValue(
           entry.getValue(),
           metrics.get(entry.getKey()),
-          "Unexpected metric '" + entry.getKey() + "'");
+          "Unexpected metric '" + entry.getKey() + "'"
+      );
     }
   }
 
@@ -353,7 +352,8 @@ public final class SpanMatcher {
       assertValue(
           (Matcher<Object>) entry.getValue(),
           metaStruct.get(key),
-          "Unexpected meta_struct '" + key + "'");
+          "Unexpected meta_struct '" + key + "'"
+      );
     }
   }
 }

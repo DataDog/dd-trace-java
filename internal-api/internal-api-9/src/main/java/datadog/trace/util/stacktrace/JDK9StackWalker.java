@@ -7,7 +7,6 @@ import java.util.stream.Stream;
 
 @SuppressForbidden
 public class JDK9StackWalker extends AbstractStackWalker {
-
   private static final java.lang.StackWalker walker;
   private static final StackMapper mapper;
 
@@ -32,7 +31,11 @@ public class JDK9StackWalker extends AbstractStackWalker {
    */
   private static StackTraceElement mapFrameForJ9(final java.lang.StackWalker.StackFrame frame) {
     return new StackTraceElement(
-        frame.getClassName(), frame.getMethodName(), frame.getFileName(), frame.getLineNumber());
+        frame.getClassName(),
+        frame.getMethodName(),
+        frame.getFileName(),
+        frame.getLineNumber()
+    );
   }
 
   private static java.lang.StackWalker newStackWalker() {
@@ -56,5 +59,7 @@ public class JDK9StackWalker extends AbstractStackWalker {
   }
 
   private interface StackMapper
-      extends Function<java.lang.StackWalker.StackFrame, StackTraceElement> {}
+      extends Function<java.lang.StackWalker.StackFrame, StackTraceElement>
+  {
+  }
 }

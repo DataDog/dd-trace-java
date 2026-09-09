@@ -99,7 +99,8 @@ public abstract class RateSamplingRule {
         final String resourceGlob,
         final Map<String, String> tags,
         final RateSampler sampler,
-        final byte samplingMechanism) {
+        final byte samplingMechanism
+    ) {
       super(sampler, samplingMechanism);
 
       serviceMatcher = Matchers.compileGlob(serviceGlob);
@@ -126,7 +127,8 @@ public abstract class RateSamplingRule {
         final String serviceName,
         final String operationName,
         final RateSampler sampler,
-        final SimpleRateLimiter rateLimiter) {
+        final SimpleRateLimiter rateLimiter
+    ) {
       super(sampler);
 
       serviceMatcher = Matchers.compileGlob(serviceName);

@@ -16,7 +16,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class Serializer {
-
   private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
   public void write(byte b) {
@@ -84,7 +83,8 @@ public class Serializer {
   public <K, V> void write(
       Map<K, V> m,
       BiConsumer<Serializer, K> keySerializer,
-      BiConsumer<Serializer, V> valueSerializer) {
+      BiConsumer<Serializer, V> valueSerializer
+  ) {
     if (m == null) {
       write(-1);
       return;
@@ -153,7 +153,9 @@ public class Serializer {
   }
 
   public static <T> List<T> readList(
-      ByteBuffer byteBuffer, Function<ByteBuffer, T> elementDeserializer) {
+      ByteBuffer byteBuffer,
+      Function<ByteBuffer, T> elementDeserializer
+  ) {
     int size = byteBuffer.getInt();
     if (size == -1) {
       return null;
@@ -166,7 +168,9 @@ public class Serializer {
   }
 
   public static <T> Set<T> readSet(
-      ByteBuffer byteBuffer, Function<ByteBuffer, T> elementDeserializer) {
+      ByteBuffer byteBuffer,
+      Function<ByteBuffer, T> elementDeserializer
+  ) {
     List<T> list = readList(byteBuffer, elementDeserializer);
     return list != null ? new HashSet<>(list) : null;
   }
@@ -178,7 +182,8 @@ public class Serializer {
   public static <K, V> Map<K, V> readMap(
       ByteBuffer byteBuffer,
       Function<ByteBuffer, K> keyDeserializer,
-      Function<ByteBuffer, V> valueDeserializer) {
+      Function<ByteBuffer, V> valueDeserializer
+  ) {
     int size = byteBuffer.getInt();
     if (size == -1) {
       return null;
@@ -191,7 +196,8 @@ public class Serializer {
       ByteBuffer byteBuffer,
       Supplier<Map<K, V>> mapSupplier,
       Function<ByteBuffer, K> keyDeserializer,
-      Function<ByteBuffer, V> valueDeserializer) {
+      Function<ByteBuffer, V> valueDeserializer
+  ) {
     int size = byteBuffer.getInt();
     if (size == -1) {
       return null;
@@ -205,7 +211,8 @@ public class Serializer {
       Map<K, V> m,
       Function<ByteBuffer, K> keyDeserializer,
       Function<ByteBuffer, V> valueDeserializer,
-      int size) {
+      int size
+  ) {
     for (int i = 0; i < size; i++) {
       m.put(keyDeserializer.apply(byteBuffer), valueDeserializer.apply(byteBuffer));
     }

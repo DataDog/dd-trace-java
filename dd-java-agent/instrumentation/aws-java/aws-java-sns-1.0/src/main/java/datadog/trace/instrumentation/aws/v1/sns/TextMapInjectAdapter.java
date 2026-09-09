@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.aws.v1.sns;
 import datadog.context.propagation.CarrierSetter;
 
 public class TextMapInjectAdapter implements CarrierSetter<StringBuilder> {
-
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
   @Override

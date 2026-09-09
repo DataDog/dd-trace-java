@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.debugger.util;
 import java.time.Duration;
 
 public class WallTimeoutChecker implements TimeoutChecker {
-
   private final long start;
   private final Duration timeOut;
 

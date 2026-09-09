@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.couchbase_31.client;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -11,8 +10,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public CoreEnvironmentBuilderInstrumentation() {
     super("couchbase", "couchbase-3");
   }
@@ -20,10 +20,10 @@ public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CouchbaseClientDecorator",
-      packageName + ".DatadogRequestSpan",
-      packageName + ".DatadogRequestTracer",
-      packageName + ".SeedNodeHelper",
+        packageName + ".CouchbaseClientDecorator",
+        packageName + ".DatadogRequestSpan",
+        packageName + ".DatadogRequestTracer",
+        packageName + ".SeedNodeHelper"
     };
   }
 
@@ -39,11 +39,10 @@ public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tr
 
   private static final Reference TRACING_IDENTIFIERS_REFERENCE =
       new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
-
-  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
-      new Reference.Builder(
-              "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
-          .build();
+  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE = new Reference.Builder(
+      "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent"
+  )
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {

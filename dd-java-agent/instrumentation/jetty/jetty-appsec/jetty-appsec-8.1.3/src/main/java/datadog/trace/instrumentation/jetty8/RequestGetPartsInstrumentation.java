@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty8;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -29,7 +28,9 @@ import net.bytebuddy.utility.OpenedClassReader;
 
 @AutoService(InstrumenterModule.class)
 public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public RequestGetPartsInstrumentation() {
     super("jetty");
   }
@@ -42,17 +43,21 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PartHelper", packageName + ".PartHelper$MpiGetPartsHolder"
+        packageName + ".PartHelper",
+        packageName + ".PartHelper$MpiGetPartsHolder"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+        named("getParts").and(takesArguments(0)),
+        getClass().getName() + "$GetFilenamesAdvice"
+    );
     transformer.applyAdvice(
         named("getPart").and(takesArguments(1)).and(takesArgument(0, String.class)),
-        getClass().getName() + "$GetPartAdvice");
+        getClass().getName() + "$GetPartAdvice"
+    );
   }
 
   @Override
@@ -61,7 +66,8 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   public static class RequestImplementationClassLoaderMatcher
-      extends ElementMatcher.Junction.ForNonNullValues<ClassLoader> {
+      extends ElementMatcher.Junction.ForNonNullValues<ClassLoader>
+  {
     public static final ElementMatcher.Junction<ClassLoader> INSTANCE =
         new RequestImplementationClassLoaderMatcher();
 
@@ -94,7 +100,12 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
     @Override
     public FieldVisitor visitField(
-        int access, String name, String descriptor, String signature, Object value) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        Object value
+    ) {
       if (name.equals("_contentParameters")) {
         foundField[0] = true;
       }
@@ -103,12 +114,22 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions
+    ) {
       if (name.equals("getParts") && "()Ljava/util/Collection;".equals(descriptor)) {
         return new MethodVisitor(OpenedClassReader.ASM_API) {
           @Override
           public void visitMethodInsn(
-              int opcode, String owner, String name, String descriptor, boolean isInterface) {
+              int opcode,
+              String owner,
+              String name,
+              String descriptor,
+              boolean isInterface
+          ) {
             if (opcode == Opcodes.INVOKEVIRTUAL
                 && name.equals("getParameters")
                 && descriptor.equals("()Lorg/eclipse/jetty/util/MultiMap;")) {
@@ -125,8 +146,8 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   public static class GetFilenamesAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            final Object multiPartInputStream) {
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC) final Object multiPartInputStream
+    ) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
       // _multiPartInputStream is null before the first parse; non-null on cached repeat calls.
       // In Jetty 9.0/9.1, getPart(String) delegates to getParts() internally, triggering both
@@ -142,17 +163,17 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
         @Advice.Enter boolean proceed,
         @Advice.Return Collection<?> parts,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      BlockingException contentBlock =
-          bodyBlock == null && filenamesBlock == null
-              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
-              : null;
+      BlockingException contentBlock = bodyBlock == null && filenamesBlock == null
+          ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+          : null;
       t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }
@@ -170,8 +191,8 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   public static class GetPartAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            Object multiPartInputStream) {
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC) Object multiPartInputStream
+    ) {
       // _multiPartInputStream is null before the first parse. Once set, all parts are cached and
       // events have already fired (either here or in GetFilenamesAdvice). Skip on repeat calls.
       return CallDepthThreadLocalMap.incrementCallDepth(Part.class) == 0
@@ -182,10 +203,10 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Part part,
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            Object multiPartInputStream,
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC) Object multiPartInputStream,
         @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       CallDepthThreadLocalMap.decrementCallDepth(Part.class);
       if (!proceed || t != null) {
         return;
@@ -196,10 +217,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
       BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      BlockingException contentBlock =
-          bodyBlock == null && filenamesBlock == null
-              ? PartHelper.fireFilesContentEvent(parts, reqCtx)
-              : null;
+      BlockingException contentBlock = bodyBlock == null && filenamesBlock == null
+          ? PartHelper.fireFilesContentEvent(parts, reqCtx)
+          : null;
       t = bodyBlock != null ? bodyBlock : (filenamesBlock != null ? filenamesBlock : contentBlock);
     }
   }

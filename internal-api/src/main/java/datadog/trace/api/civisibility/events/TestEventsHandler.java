@@ -16,7 +16,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
-
   /**
    * @param testFramework Name of the testing framework that executes the suite.
    * @param instrumentation Instrumentation that emits the event. Can differ from the testing
@@ -33,7 +32,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Collection<String> categories,
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation,
-      @Nullable Long startTime);
+      @Nullable Long startTime
+  );
 
   void onTestSuiteSkip(SuiteKey descriptor, @Nullable String reason);
 
@@ -65,7 +65,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       @Nullable Long startTime,
-      @Nullable TestExecutionTracker testExecutionTracker);
+      @Nullable TestExecutionTracker testExecutionTracker
+  );
 
   void onTestSkip(TestKey descriptor, @Nullable String reason);
 
@@ -74,7 +75,8 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
   void onTestFinish(
       TestKey descriptor,
       @Nullable Long endTime,
-      @Nullable TestExecutionTracker testExecutionTracker);
+      @Nullable TestExecutionTracker testExecutionTracker
+  );
 
   void onTestIgnore(
       SuiteKey suiteDescriptor,
@@ -86,11 +88,15 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
       @Nullable Collection<String> categories,
       @Nonnull TestSourceData testSourceData,
       @Nullable String reason,
-      @Nullable TestExecutionTracker testExecutionTracker);
+      @Nullable TestExecutionTracker testExecutionTracker
+  );
 
   @Nonnull
   TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData source, Collection<String> testTags);
+      TestIdentifier test,
+      TestSourceData source,
+      Collection<String> testTags
+  );
 
   /**
    * Returns the priority of the test execution that can be used for ordering tests. The higher the
@@ -115,6 +121,7 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
         String component,
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
         @Nullable ContextStore<TestKey, DDTest> testStore,
-        Collection<LibraryCapability> capabilities);
+        Collection<LibraryCapability> capabilities
+    );
   }
 }

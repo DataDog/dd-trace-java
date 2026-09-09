@@ -47,16 +47,16 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Services that need repository root location to be instantiated. The scope is session. */
+/**
+ * Services that need repository root location to be instantiated. The scope is session.
+ */
 public class CiVisibilityRepoServices {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilityRepoServices.class);
-
-  @Nullable final String repoRoot;
+  @Nullable
+  final String repoRoot;
   final String moduleName;
   final Provider ciProvider;
   final Map<String, String> ciTags;
-
   final GitDataUploader gitDataUploader;
   final RepoIndexProvider repoIndexProvider;
   final Codeowners codeowners;
@@ -73,9 +73,13 @@ public class CiVisibilityRepoServices {
 
     GitClient gitClient = services.gitClientFactory.create(repoRoot);
     GitRepoUnshallow gitRepoUnshallow = new GitRepoUnshallow(services.config, gitClient);
-    PullRequestInfo pullRequestInfo =
-        buildPullRequestInfo(
-            services.config, services.environment, ciProviderInfo, gitClient, gitRepoUnshallow);
+    PullRequestInfo pullRequestInfo = buildPullRequestInfo(
+        services.config,
+        services.environment,
+        ciProviderInfo,
+        gitClient,
+        gitRepoUnshallow
+    );
 
     if (!pullRequestInfo.isEmpty()) {
       LOGGER.info("PR detected: {}", pullRequestInfo);
@@ -88,15 +92,15 @@ public class CiVisibilityRepoServices {
       LOGGER.info("[bazel mode] Skipping git data upload");
       gitDataUploader = () -> CompletableFuture.completedFuture(null);
     } else {
-      gitDataUploader =
-          buildGitDataUploader(
-              services.config,
-              services.metricCollector,
-              services.gitInfoProvider,
-              gitClient,
-              gitRepoUnshallow,
-              services.backendApi,
-              repoRoot);
+      gitDataUploader = buildGitDataUploader(
+          services.config,
+          services.metricCollector,
+          services.gitInfoProvider,
+          gitClient,
+          gitRepoUnshallow,
+          services.backendApi,
+          repoRoot
+      );
     }
 
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
@@ -106,17 +110,17 @@ public class CiVisibilityRepoServices {
     if (services.processHierarchy.isChild()) {
       executionSettingsFactory = buildExecutionSettingsFetcher(services.signalClientFactory);
     } else {
-      executionSettingsFactory =
-          buildExecutionSettingsFactory(
-              services.processHierarchy,
-              services.config,
-              services.metricCollector,
-              services.backendApi,
-              gitClient,
-              gitRepoUnshallow,
-              gitDataUploader,
-              pullRequestInfo,
-              repoRoot);
+      executionSettingsFactory = buildExecutionSettingsFactory(
+          services.processHierarchy,
+          services.config,
+          services.metricCollector,
+          services.backendApi,
+          gitClient,
+          gitRepoUnshallow,
+          gitDataUploader,
+          pullRequestInfo,
+          repoRoot
+      );
     }
   }
 
@@ -126,13 +130,13 @@ public class CiVisibilityRepoServices {
       CiEnvironment environment,
       CIProviderInfo ciProviderInfo,
       GitClient gitClient,
-      GitRepoUnshallow gitRepoUnshallow) {
+      GitRepoUnshallow gitRepoUnshallow
+  ) {
     PullRequestInfo userInfo = buildUserPullRequestInfo(config, environment, gitClient);
 
     if (userInfo.isComplete()) {
       return userInfo;
     }
-
     // complete with CI vars if user didn't provide all information
     PullRequestInfo ciInfo =
         PullRequestInfo.coalesce(userInfo, ciProviderInfo.buildPullRequestInfo());
@@ -142,7 +146,9 @@ public class CiVisibilityRepoServices {
       try {
         CommitInfo commitInfo = gitClient.getCommitInfo(headSha, true);
         return PullRequestInfo.coalesce(
-            ciInfo, new PullRequestInfo(null, null, null, commitInfo, null));
+            ciInfo,
+            new PullRequestInfo(null, null, null, commitInfo, null)
+        );
       } catch (Exception ignored) {
       }
     }
@@ -151,19 +157,21 @@ public class CiVisibilityRepoServices {
 
   @Nonnull
   private static PullRequestInfo buildUserPullRequestInfo(
-      Config config, CiEnvironment environment, GitClient gitClient) {
-    PullRequestInfo userInfo =
-        new PullRequestInfo(
-            config.getGitPullRequestBaseBranch(),
-            config.getGitPullRequestBaseBranchSha(),
-            null,
-            new CommitInfo(config.getGitCommitHeadSha()),
-            null);
+      Config config,
+      CiEnvironment environment,
+      GitClient gitClient
+  ) {
+    PullRequestInfo userInfo = new PullRequestInfo(
+        config.getGitPullRequestBaseBranch(),
+        config.getGitPullRequestBaseBranchSha(),
+        null,
+        new CommitInfo(config.getGitCommitHeadSha()),
+        null
+    );
 
     if (userInfo.isComplete()) {
       return userInfo;
     }
-
     // ddci specific vars
     String targetSha = environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA);
     String sourceSha = environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA);
@@ -177,13 +185,13 @@ public class CiVisibilityRepoServices {
       }
     }
 
-    PullRequestInfo ddCiInfo =
-        new PullRequestInfo(
-            null,
-            mergeBase,
-            null,
-            new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
-            null);
+    PullRequestInfo ddCiInfo = new PullRequestInfo(
+        null,
+        mergeBase,
+        null,
+        new CommitInfo(environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA)),
+        null
+    );
 
     return PullRequestInfo.coalesce(userInfo, ddCiInfo);
   }
@@ -202,16 +210,13 @@ public class CiVisibilityRepoServices {
     String ciWorkspace = ciInfo.getCiWorkspace();
     if (Strings.isNotBlank(ciWorkspace)) {
       return ciWorkspace;
-
     } else {
       try {
         return gitClientFactory.create(".").getRepoRoot();
-
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOGGER.error("Interrupted while getting repo root", e);
         return null;
-
       } catch (Exception e) {
         LOGGER.error("Error while getting repo root", e);
         return null;
@@ -235,14 +240,14 @@ public class CiVisibilityRepoServices {
   }
 
   private static ExecutionSettingsFactory buildExecutionSettingsFetcher(
-      SignalClient.Factory signalClientFactory) {
+      SignalClient.Factory signalClientFactory
+  ) {
     return (JvmInfo jvmInfo, String moduleName) -> {
       try (SignalClient signalClient = signalClientFactory.create()) {
         ExecutionSettingsRequest request =
             new ExecutionSettingsRequest(moduleName, JvmInfo.CURRENT_JVM);
         ExecutionSettingsResponse response = (ExecutionSettingsResponse) signalClient.send(request);
         return response.getSettings();
-
       } catch (Exception e) {
         LOGGER.error("Could not get module execution settings from parent process", e);
         return ExecutionSettings.EMPTY;
@@ -259,35 +264,38 @@ public class CiVisibilityRepoServices {
       GitRepoUnshallow gitRepoUnshallow,
       GitDataUploader gitDataUploader,
       PullRequestInfo pullRequestInfo,
-      @Nullable String repoRoot) {
+      @Nullable String repoRoot
+  ) {
     ConfigurationApi configurationApi;
     BazelMode bazelMode = BazelMode.get();
     if (bazelMode.isManifestModeEnabled()) {
       LOGGER.info("[bazel mode] Manifest mode detected. Using file-based configuration API");
-      configurationApi =
-          new FileBasedConfigurationApi(
-              toPathOrNull(bazelMode.getSettingsPath()),
-              null,
-              toPathOrNull(bazelMode.getFlakyTestsPath()),
-              toPathOrNull(bazelMode.getKnownTestsPath()),
-              toPathOrNull(bazelMode.getTestManagementPath()));
+      configurationApi = new FileBasedConfigurationApi(
+          toPathOrNull(bazelMode.getSettingsPath()),
+          null,
+          toPathOrNull(bazelMode.getFlakyTestsPath()),
+          toPathOrNull(bazelMode.getKnownTestsPath()),
+          toPathOrNull(bazelMode.getTestManagementPath())
+      );
     } else if (backendApi == null) {
       LOGGER.warn(
-          "Remote config and skippable tests requests will be skipped since backend API client could not be created");
+          "Remote config and skippable tests requests will be skipped since backend API "
+          + "client could not be created"
+      );
       configurationApi = ConfigurationApi.NO_OP;
     } else {
       configurationApi = new ConfigurationApiImpl(backendApi, metricCollector);
     }
 
-    ExecutionSettingsFactoryImpl factory =
-        new ExecutionSettingsFactoryImpl(
-            config,
-            configurationApi,
-            gitClient,
-            gitRepoUnshallow,
-            gitDataUploader,
-            pullRequestInfo,
-            repoRoot);
+    ExecutionSettingsFactoryImpl factory = new ExecutionSettingsFactoryImpl(
+        config,
+        configurationApi,
+        gitClient,
+        gitRepoUnshallow,
+        gitDataUploader,
+        pullRequestInfo,
+        repoRoot
+    );
     if (processHierarchy.isHeadless()) {
       return factory;
     } else {
@@ -307,20 +315,23 @@ public class CiVisibilityRepoServices {
       GitClient gitClient,
       GitRepoUnshallow gitRepoUnshallow,
       BackendApi backendApi,
-      @Nullable String repoRoot) {
+      @Nullable String repoRoot
+  ) {
     if (!config.isCiVisibilityGitUploadEnabled()) {
       return () -> CompletableFuture.completedFuture(null);
     }
 
     if (backendApi == null) {
       LOGGER.warn(
-          "Git tree data upload will be skipped since backend API client could not be created");
+          "Git tree data upload will be skipped since backend API client could not be created"
+      );
       return () -> CompletableFuture.completedFuture(null);
     }
 
     if (repoRoot == null) {
       LOGGER.warn(
-          "Git tree data upload will be skipped since Git repository path could not be determined");
+          "Git tree data upload will be skipped since Git repository path could not be determined"
+      );
       return () -> CompletableFuture.completedFuture(null);
     }
 
@@ -334,15 +345,17 @@ public class CiVisibilityRepoServices {
         gitRepoUnshallow,
         gitInfoProvider,
         repoRoot,
-        remoteName);
+        remoteName
+    );
   }
 
   private static SourcePathResolver buildSourcePathResolver(
-      @Nullable String repoRoot, RepoIndexProvider indexProvider) {
-    SourcePathResolver compilerAidedResolver =
-        repoRoot != null
-            ? new CompilerAidedSourcePathResolver(repoRoot)
-            : NoOpSourcePathResolver.INSTANCE;
+      @Nullable String repoRoot,
+      RepoIndexProvider indexProvider
+  ) {
+    SourcePathResolver compilerAidedResolver = repoRoot != null
+        ? new CompilerAidedSourcePathResolver(repoRoot)
+        : NoOpSourcePathResolver.INSTANCE;
     RepoIndexSourcePathResolver indexResolver = new RepoIndexSourcePathResolver(indexProvider);
     return new BestEffortSourcePathResolver(compilerAidedResolver, indexResolver);
   }

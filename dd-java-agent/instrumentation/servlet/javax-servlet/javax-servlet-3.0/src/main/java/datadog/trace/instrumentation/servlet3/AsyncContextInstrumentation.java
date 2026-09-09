@@ -15,7 +15,6 @@ import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DD_CONTEX
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DD_SERVLET_PATH_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,8 +29,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class AsyncContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public AsyncContextInstrumentation() {
     super("servlet", "servlet-3");
   }
@@ -54,13 +54,13 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AsyncDispatcherDecorator",
-      packageName + ".FinishAsyncDispatchListener",
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".Servlet3Decorator",
-      packageName + ".ServletRequestURIAdapter",
+        packageName + ".AsyncDispatcherDecorator",
+        packageName + ".FinishAsyncDispatchListener",
+        packageName + ".HttpServletExtractAdapter",
+        packageName + ".HttpServletExtractAdapter$Request",
+        packageName + ".HttpServletExtractAdapter$Response",
+        packageName + ".Servlet3Decorator",
+        packageName + ".ServletRequestURIAdapter"
     };
   }
 
@@ -68,7 +68,8 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("dispatch")),
-        AsyncContextInstrumentation.class.getName() + "$DispatchAdvice");
+        AsyncContextInstrumentation.class.getName() + "$DispatchAdvice"
+    );
   }
 
   /**
@@ -77,10 +78,11 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
    * FinishAsyncDispatchListener#onStartAsync}
    */
   public static class DispatchAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean enter(
-        @Advice.This final AsyncContext context, @Advice.AllArguments final Object[] args) {
+        @Advice.This final AsyncContext context,
+        @Advice.AllArguments final Object[] args
+    ) {
       final int depth = CallDepthThreadLocalMap.incrementCallDepth(AsyncContext.class);
       if (depth > 0) {
         return false;
@@ -103,7 +105,6 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
       // However, when using Jetty without servlets (directly org.eclipse.jetty.server.Handler),
       // that's not the case (see jetty's HandleAdvice)
       DECORATE.afterStart(span);
-
       // These are pulled from attributes because jetty clears them from the request too early.
       span.setTag(SERVLET_CONTEXT, request.getAttribute(DD_CONTEXT_PATH_ATTRIBUTE));
       span.setTag(SERVLET_PATH, request.getAttribute(DD_SERVLET_PATH_ATTRIBUTE));
@@ -117,7 +118,6 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
       } else if (args.length == 2 && args[1] instanceof String) {
         span.setResourceName((String) args[1]);
       }
-
       // We can't register FinishAsyncDispatchListener here.
       // The dispatch may happen on an onTimeout/onError, and adding listeners
       // when listeners are being iterated on causes a ConcurrentModificationException on jetty

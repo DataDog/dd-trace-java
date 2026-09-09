@@ -5,34 +5,34 @@ import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.Config;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-/** implements a StatsD client for internal debugger agent metrics */
+/**
+ * implements a StatsD client for internal debugger agent metrics
+ */
 public class DebuggerMetrics implements StatsDClient {
-
   private static DebuggerMetrics INSTANCE = null;
-
   private static final String STATSD_NAMESPACE_PREFIX = "datadog.debugger";
-
   private final StatsDClient statsd;
 
   private DebuggerMetrics(Config config) {
     if (config.isDynamicInstrumentationMetricsEnabled()) {
-
-      statsd =
-          DDAgentStatsDClientManager.statsDClientManager()
-              .statsDClient(
-                  config.getJmxFetchStatsdHost(),
-                  config.getJmxFetchStatsdPort(),
-                  config.getDogStatsDNamedPipe(),
-                  STATSD_NAMESPACE_PREFIX,
-                  new String[0]);
+      statsd = DDAgentStatsDClientManager
+        .statsDClientManager()
+        .statsDClient(
+            config.getJmxFetchStatsdHost(),
+            config.getJmxFetchStatsdPort(),
+            config.getDogStatsDNamedPipe(),
+            STATSD_NAMESPACE_PREFIX,
+            new String[0]
+        );
     } else {
       statsd = StatsDClient.NO_OP;
     }
   }
 
-  @SuppressFBWarnings(
-      value = {"USO_UNSAFE_METHOD_SYNCHRONIZATION", "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"},
-      justification = "Agent-internal singleton; neither Class object nor instance monitor escapes")
+  @SuppressFBWarnings(value = {
+      "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"
+  }, justification = "Agent-internal singleton; neither Class object nor instance monitor escapes")
   public static synchronized DebuggerMetrics getInstance(Config config) {
     if (INSTANCE == null) {
       INSTANCE = new DebuggerMetrics(config);

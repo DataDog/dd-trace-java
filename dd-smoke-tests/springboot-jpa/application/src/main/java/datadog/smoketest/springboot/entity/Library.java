@@ -23,17 +23,13 @@ import lombok.Setter;
 @Setter
 @EqualsAndHashCode(of = "id")
 public class Library {
-
   @Id
   @GeneratedValue(strategy = GenerationType.SEQUENCE)
   private int id;
-
   private String name;
-
   @OneToMany(cascade = CascadeType.ALL)
   @JoinColumn(name = "library_id")
   private List<Book> books;
-
   private int updateCount;
 
   public void increaseUpdateCount() {

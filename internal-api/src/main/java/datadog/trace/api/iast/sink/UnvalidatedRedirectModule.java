@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface UnvalidatedRedirectModule extends IastModule {
-
   void onRedirect(@Nullable String value);
 
   void onRedirect(@Nonnull String value, @Nonnull String clazz, @Nonnull String method);

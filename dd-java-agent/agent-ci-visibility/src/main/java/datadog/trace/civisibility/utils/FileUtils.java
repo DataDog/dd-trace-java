@@ -14,28 +14,25 @@ import org.slf4j.LoggerFactory;
 
 @SuppressForbidden
 public abstract class FileUtils {
-
   private static final Logger log = LoggerFactory.getLogger(FileUtils.class);
 
-  private FileUtils() {}
+  private FileUtils() {
+  }
 
   public static void delete(Path directory) throws IOException {
-    Files.walkFileTree(
-        directory,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.delete(file);
-            return FileVisitResult.CONTINUE;
-          }
+    Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.delete(file);
+        return FileVisitResult.CONTINUE;
+      }
 
-          @Override
-          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-            Files.delete(dir);
-            return FileVisitResult.CONTINUE;
-          }
-        });
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        Files.delete(dir);
+        return FileVisitResult.CONTINUE;
+      }
+    });
   }
 
   /**
@@ -48,7 +45,10 @@ public abstract class FileUtils {
    * @return the parent path that contains the target file.
    */
   public static Path findParentPathBackwards(
-      final Path current, final String target, final boolean isTargetDirectory) {
+      final Path current,
+      final String target,
+      final boolean isTargetDirectory
+  ) {
     if (current == null || target == null || target.isEmpty()) {
       return null;
     }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
 // coverage
 public final class CoreTracerTest2 {
   static final CoreTracer TRACER = CoreTracer.builder().build();
-
   static final ReusableSingleSpanBuilderThreadLocalCache CACHE =
       new ReusableSingleSpanBuilderThreadLocalCache(TRACER);
 
@@ -32,7 +30,6 @@ public final class CoreTracerTest2 {
     // buildSpan allows for constructing multiple spans from each returned CoreSpanBuilder
     // so buildSpan cannot recycle objects - even when SpanBuilder reuse is enabled
     CoreSpanBuilder builder1 = TRACER.buildSpan("foo", "bar");
-
     // need to build/start a span to prove that builder isn't being recycled
     builder1.start();
 
@@ -101,11 +98,9 @@ public final class CoreTracerTest2 {
   public void spanBuilderReuse_abandoned() {
     // Doesn't call reuseSpanBuilder(String, CharSeq) directly, since that will fail when the Config
     // is disabled
-
     ReusableSingleSpanBuilder abandonedBuilder =
         CoreTracer.reuseSingleSpanBuilder(TRACER, CACHE, "foo", "bar");
     assertTrue(abandonedBuilder.inUse);
-
     // Requesting the next builder will replace the previous one in the thread local cache
     // This is done so that an abandoned builder doesn't permanently burn the cache for a thread
     ReusableSingleSpanBuilder builder1 =
@@ -199,8 +194,8 @@ public final class CoreTracerTest2 {
   public void interceptEmptyList() {
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
     TraceInterceptors interceptors = interceptors((list) -> SpanList.of(span));
-
-    SpanList list = new SpanList(0); // not using EMPTY deliberately
+    // not using EMPTY deliberately
+    SpanList list = new SpanList(0);
     List<DDSpan> interceptedList = CoreTracer.interceptCompleteTrace(interceptors, list);
     assertTrue(interceptedList.isEmpty());
   }
@@ -231,17 +226,13 @@ public final class CoreTracerTest2 {
   @Test
   public void interceptAlteredList() {
     // This is an unlikely case and arguably not something we need to support
-
     DDSpan substituteSpan = (DDSpan) TRACER.startSpan("sub", "sub");
-    TraceInterceptors interceptors =
-        interceptors(
-            (list) -> list,
-            (list) -> {
-              List erasedList = (List) list;
-              erasedList.clear();
-              erasedList.add(substituteSpan);
-              return erasedList;
-            });
+    TraceInterceptors interceptors = interceptors((list) -> list, (list) -> {
+      List erasedList = (List) list;
+      erasedList.clear();
+      erasedList.add(substituteSpan);
+      return erasedList;
+    });
 
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
     SpanList list = SpanList.of(span);
@@ -257,19 +248,19 @@ public final class CoreTracerTest2 {
       int priority = i;
       TestInterceptor interceptor = interceptors[i];
 
-      traceInterceptors.add(
-          new TraceInterceptor() {
-            @Override
-            public int priority() {
-              return priority;
-            }
+      traceInterceptors.add(new TraceInterceptor() {
+        @Override
+        public int priority() {
+          return priority;
+        }
 
-            @Override
-            public Collection<? extends MutableSpan> onTraceComplete(
-                Collection<? extends MutableSpan> trace) {
-              return interceptor.onTraceComplete(trace);
-            }
-          });
+        @Override
+        public Collection<? extends MutableSpan> onTraceComplete(
+            Collection<? extends MutableSpan> trace
+        ) {
+          return interceptor.onTraceComplete(trace);
+        }
+      });
     }
     return traceInterceptors;
   }

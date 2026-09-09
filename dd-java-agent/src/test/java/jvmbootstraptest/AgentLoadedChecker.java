@@ -11,7 +11,8 @@ public class AgentLoadedChecker {
 
     if (agentClass.getClassLoader() != null) {
       throw new RuntimeException(
-          "Agent loaded into classloader other than bootstrap: " + agentClass.getClassLoader());
+          "Agent loaded into classloader other than bootstrap: " + agentClass.getClassLoader()
+      );
     }
   }
 }

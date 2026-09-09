@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static java.util.Collections.emptyList;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
@@ -13,7 +12,8 @@ import java.util.Map;
 class NoopSpanContext implements AgentSpanContext.Extracted {
   static final NoopSpanContext INSTANCE = new NoopSpanContext();
 
-  NoopSpanContext() {}
+  NoopSpanContext() {
+  }
 
   @Override
   public DDTraceId getTraceId() {

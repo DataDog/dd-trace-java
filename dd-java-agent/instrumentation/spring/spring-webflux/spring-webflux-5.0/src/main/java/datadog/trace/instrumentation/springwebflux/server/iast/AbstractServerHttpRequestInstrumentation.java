@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -21,8 +20,9 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class AbstractServerHttpRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public AbstractServerHttpRequestInstrumentation() {
     super("spring-webflux");
   }
@@ -36,7 +36,8 @@ public class AbstractServerHttpRequestInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("getHeaders")).and(takesArguments(0)),
-        getClass().getName() + "$TaintHeadersAdvice");
+        getClass().getName() + "$TaintHeadersAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -44,7 +45,9 @@ public class AbstractServerHttpRequestInstrumentation extends InstrumenterModule
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void after(
-        @Advice.Return Object object, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return Object object,
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;

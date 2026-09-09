@@ -9,7 +9,6 @@ import static datadog.trace.core.otlp.common.OtlpResourceJson.RESOURCE_FRAGMENT;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsJson.closeMetric;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsJson.openMetric;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsJson.writeDataPointValue;
-
 import datadog.json.JsonWriter;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -40,29 +39,25 @@ import java.util.function.Consumer;
  * collector's behavior.
  */
 public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
-    implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
-
+    implements OtlpMetricsVisitor,
+    OtlpScopedMetricsVisitor,
+    OtlpMetricVisitor
+{
   private final TimeSource timeSource;
-
   private final boolean forceHistogramDelta;
-
   // resource fragment prepended to every payload; lets callers pick the plain vendor-neutral
   // resource or the datadog-attrs variant (datadog.runtime_id / process tags)
   private final String resourceFragment;
-
   private long startNanos;
   private long endNanos;
   private String startNanosStr;
   private String endNanosStr;
-
   private JsonWriter writer;
   private boolean anyDataPointWritten;
   private boolean scopeStarted;
   private boolean metricStarted;
   private boolean dataPointStarted;
-
   private final LazyJsonArray attributesArray = new LazyJsonArray();
-
   private OtelInstrumentationScope currentScope;
   private OtelInstrumentDescriptor currentMetric;
 
@@ -75,7 +70,10 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
   }
 
   OtlpMetricsJsonCollector(
-      TimeSource timeSource, boolean forceHistogramDelta, String resourceFragment) {
+      TimeSource timeSource,
+      boolean forceHistogramDelta,
+      String resourceFragment
+  ) {
     this.timeSource = timeSource;
     this.endNanos = timeSource.getCurrentTimeNanos();
     this.forceHistogramDelta = forceHistogramDelta;
@@ -98,8 +96,7 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
   }
 
   @Override
-  OtlpPayload collectMetrics(
-      Consumer<OtlpMetricsVisitor> registry, long startNanos, long endNanos) {
+  OtlpPayload collectMetrics(Consumer<OtlpMetricsVisitor> registry, long startNanos, long endNanos) {
     startWithWindow(startNanos, endNanos);
     return run(registry);
   }
@@ -113,7 +110,9 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
     }
   }
 
-  /** Prepare temporary elements to collect metrics data. */
+  /**
+   * Prepare temporary elements to collect metrics data.
+   */
   private void start() {
     // shift interval to cover last collection to now
     startNanos = endNanos;
@@ -139,7 +138,9 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
     writer.name("scopeMetrics").beginArray();
   }
 
-  /** Cleanup elements used to collect metrics data. */
+  /**
+   * Cleanup elements used to collect metrics data.
+   */
   private void stop() {
     attributesArray.reset();
 
@@ -188,15 +189,14 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
     attributesArray.closeIfOpen(writer);
 
     OtelInstrumentType metricType = currentMetric.getType();
-
     // gauges don't have a start time (no aggregation temporality)
     if (metricType != GAUGE && metricType != OBSERVABLE_GAUGE) {
       writer.name("startTimeUnixNano").value(startNanosStr);
     }
     writer.name("timeUnixNano").value(endNanosStr);
     writeDataPointValue(writer, point);
-
-    writer.endObject(); // data point
+    // data point
+    writer.endObject();
 
     dataPointStarted = false;
     anyDataPointWritten = true;
@@ -234,11 +234,14 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
     if (currentScope != null) {
       completeScope();
     }
-
-    writer.endArray(); // scopeMetrics
-    writer.endObject(); // resourceMetrics[0]
-    writer.endArray(); // resourceMetrics
-    writer.endObject(); // root
+    // scopeMetrics
+    writer.endArray();
+    // resourceMetrics[0]
+    writer.endObject();
+    // resourceMetrics
+    writer.endArray();
+    // root
+    writer.endObject();
 
     if (!anyDataPointWritten) {
       return OtlpPayload.EMPTY;
@@ -255,11 +258,12 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
     }
 
     if (scopeStarted) {
-      writer.endArray(); // metrics
-      writer.endObject(); // scopeMetrics[0]
+      // metrics
+      writer.endArray();
+      // scopeMetrics[0]
+      writer.endObject();
       scopeStarted = false;
     }
-
     // reset temporary elements for next scope
     currentScope = null;
   }
@@ -270,7 +274,6 @@ public final class OtlpMetricsJsonCollector extends OtlpMetricsCollector
       closeMetric(writer);
       metricStarted = false;
     }
-
     // reset temporary elements for next metric
     currentMetric = null;
   }

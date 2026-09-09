@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.profiling.RecordingData;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class DatadogProfilerRecordingTest {
-
   private DatadogProfiler profiler;
   private DatadogProfilerRecording recording;
 
@@ -27,7 +25,9 @@ class DatadogProfilerRecordingTest {
   void setup() throws Exception {
     assumeTrue(OperatingSystem.isLinux());
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available"
+    );
     profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     Assumptions.assumeFalse(profiler.isActive());
     recording = (DatadogProfilerRecording) profiler.start();
@@ -46,7 +46,9 @@ class DatadogProfilerRecordingTest {
   @Test
   void testClose() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available"
+    );
     assertTrue(Files.exists(recording.getRecordingFile()));
     recording.close();
     assertFalse(Files.exists(recording.getRecordingFile()));
@@ -55,7 +57,9 @@ class DatadogProfilerRecordingTest {
   @Test
   void testStop() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available"
+    );
     RecordingData data = recording.stop();
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));
@@ -64,7 +68,9 @@ class DatadogProfilerRecordingTest {
   @Test
   void testSnapshot() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available"
+    );
     RecordingData data = recording.snapshot(Instant.now());
     assertNotNull(data);
     assertTrue(Files.exists(recording.getRecordingFile()));

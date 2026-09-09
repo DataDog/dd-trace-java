@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 final class DatadogProfilerRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfilerRecording.class);
-
   private final DatadogProfiler profiler;
   private volatile Path recordingFile;
   private final Instant started = Instant.now();
@@ -35,7 +34,11 @@ final class DatadogProfilerRecording implements OngoingRecording {
   public RecordingData stop() {
     profiler.stopProfiler();
     return new DatadogProfilerRecordingData(
-        recordingFile, started, Instant.now(), ProfilingSnapshot.Kind.ON_SHUTDOWN);
+        recordingFile,
+        started,
+        Instant.now(),
+        ProfilingSnapshot.Kind.ON_SHUTDOWN
+    );
   }
 
   @VisibleForTesting

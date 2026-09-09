@@ -17,29 +17,25 @@ final class TagCardinalityHandler {
   // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
   // Practical limits are 8..512; this cap is well beyond any realistic configuration.
   private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
-
   private final String tag;
   private final int cardinalityLimit;
   private final int maxValueLength;
   private final int capacityMask;
-
-  /** See {@link PropertyCardinalityHandler}'s field of the same name. */
+  /**
+   * See {@link PropertyCardinalityHandler}'s field of the same name.
+   */
   private final boolean useBlockedSentinel;
-
   private String[] curKeys;
   private UTF8BytesString[] curValues;
   private String[] priorKeys;
   private UTF8BytesString[] priorValues;
   private int curSize;
-
   private UTF8BytesString cacheBlocked = null;
-
   /**
    * Values collapsed by the per-cycle cardinality (distinct-value) budget in the current cycle.
    * Returned and zeroed by {@link #reset()}. Surfaces as the {@code collapsed:} health-metric tag.
    */
   private long collapsedCount;
-
   /**
    * Values collapsed by the per-value length cap in the current cycle. Always 0 when {@code
    * maxValueLength} is unbounded (e.g. peer tags). Read via {@link #oversizedCount()} before {@link
@@ -63,13 +59,18 @@ final class TagCardinalityHandler {
   }
 
   TagCardinalityHandler(
-      String tag, int cardinalityLimit, boolean useBlockedSentinel, int maxValueLength) {
+      String tag,
+      int cardinalityLimit,
+      boolean useBlockedSentinel,
+      int maxValueLength
+  ) {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
     if (cardinalityLimit > MAX_CARDINALITY_LIMIT) {
       throw new IllegalArgumentException(
-          "cardinalityLimit must be at most " + MAX_CARDINALITY_LIMIT + ": " + cardinalityLimit);
+          "cardinalityLimit must be at most " + MAX_CARDINALITY_LIMIT + ": " + cardinalityLimit
+      );
     }
     this.tag = tag;
     this.cardinalityLimit = cardinalityLimit;
@@ -91,11 +92,9 @@ final class TagCardinalityHandler {
    * {@code h ^ (h >>> 16)} calculation folds high hash bits into the low bits, which reduces
    * clustering when values share similar low-bit hash patterns.
    */
-  @SuppressFBWarnings(
-      value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ",
-      justification =
-          "Intentional identity fast-path: the reference check short-circuits the .equals() call"
-              + " when the stored key and probe value are the same instance.")
+  @SuppressFBWarnings(value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ", justification =
+      "Intentional identity fast-path: the reference check short-circuits the .equals() call"
+      + " when the stored key and probe value are the same instance.")
   UTF8BytesString register(String value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
@@ -110,7 +109,6 @@ final class TagCardinalityHandler {
     // current-cycle table and, on miss, for the prior-cycle table.
     int h = value.hashCode();
     int start = (h ^ (h >>> 16)) & this.capacityMask;
-
     // Look for the raw value in the current-cycle table.
     int slot = start;
     String existing;
@@ -142,10 +140,9 @@ final class TagCardinalityHandler {
     }
     // Reuse the previous encoded "tag:value" UTF8 value if present; otherwise
     // create it from the fixed tag name and the raw value.
-    UTF8BytesString utf8 =
-        priorKey != null
-            ? this.priorValues[priorSlot]
-            : UTF8BytesString.create(this.tag + ":" + value);
+    UTF8BytesString utf8 = priorKey != null
+        ? this.priorValues[priorSlot]
+        : UTF8BytesString.create(this.tag + ":" + value);
     // If still within budget, remember the raw value and its encoded UTF8
     // output in the current-cycle table.
     if (!capExhausted) {
@@ -160,7 +157,9 @@ final class TagCardinalityHandler {
 
   private UTF8BytesString tracerBlockedValue() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
-    if (cacheBlocked != null) return cacheBlocked;
+    if (cacheBlocked != null) {
+      return cacheBlocked;
+    }
 
     this.cacheBlocked = cacheBlocked = UTF8BytesString.create(this.tag + ":tracer_blocked_value");
     return cacheBlocked;

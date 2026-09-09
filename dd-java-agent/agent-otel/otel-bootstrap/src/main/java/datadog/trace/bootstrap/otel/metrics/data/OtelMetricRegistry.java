@@ -10,27 +10,30 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-/** Tracks metric storage and observable callbacks by instrumentation scope. */
+/**
+ * Tracks metric storage and observable callbacks by instrumentation scope.
+ */
 public final class OtelMetricRegistry {
   public static final OtelMetricRegistry INSTANCE = new OtelMetricRegistry();
-
-  private final Map<OtelInstrumentationScope, Map<OtelInstrumentDescriptor, OtelMetricStorage>>
-      scopedStorage = new ConcurrentHashMap<>();
-
+  private final Map<OtelInstrumentationScope, Map<OtelInstrumentDescriptor, OtelMetricStorage>> scopedStorage =
+      new ConcurrentHashMap<>();
   private final Map<OtelInstrumentationScope, List<OtelObservable>> scopedObservables =
       new ConcurrentHashMap<>();
 
   public OtelMetricStorage registerStorage(
       OtelInstrumentationScope instrumentationScope,
       OtelInstrumentDescriptor descriptor,
-      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
+      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory
+  ) {
     return scopedStorage
-        .computeIfAbsent(instrumentationScope, unused -> new ConcurrentHashMap<>())
-        .computeIfAbsent(descriptor, storageFactory);
+      .computeIfAbsent(instrumentationScope, unused -> new ConcurrentHashMap<>())
+      .computeIfAbsent(descriptor, storageFactory);
   }
 
   public void registerObservable(
-      OtelInstrumentationScope instrumentationScope, OtelObservable observable) {
+      OtelInstrumentationScope instrumentationScope,
+      OtelObservable observable
+  ) {
     List<OtelObservable> observables =
         scopedObservables.computeIfAbsent(instrumentationScope, unused -> new ArrayList<>());
     synchronized (observables) {
@@ -39,7 +42,9 @@ public final class OtelMetricRegistry {
   }
 
   public boolean unregisterObservable(
-      OtelInstrumentationScope instrumentationScope, OtelObservable observable) {
+      OtelInstrumentationScope instrumentationScope,
+      OtelObservable observable
+  ) {
     List<OtelObservable> observables = scopedObservables.get(instrumentationScope);
     if (observables == null) {
       return false;
@@ -50,15 +55,18 @@ public final class OtelMetricRegistry {
   }
 
   public void collectMetrics(OtlpMetricsVisitor visitor) {
-    scopedStorage.forEach(
-        (scope, storage) ->
-            collectScopedMetrics(scope, storage, visitor.visitScopedMetrics(scope)));
+    scopedStorage.forEach((scope, storage) -> collectScopedMetrics(
+        scope,
+        storage,
+        visitor.visitScopedMetrics(scope)
+    ));
   }
 
   private void collectScopedMetrics(
       OtelInstrumentationScope instrumentationScope,
       Map<OtelInstrumentDescriptor, OtelMetricStorage> storage,
-      OtlpScopedMetricsVisitor visitor) {
+      OtlpScopedMetricsVisitor visitor
+  ) {
     List<OtelObservable> observables = scopedObservables.get(instrumentationScope);
     if (observables != null) {
       // take local snapshot of current observables

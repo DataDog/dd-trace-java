@@ -20,7 +20,6 @@ import static io.opentelemetry.api.trace.SpanKind.PRODUCER;
 import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.lang.Boolean.parseBoolean;
 import static java.util.Locale.ROOT;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -38,10 +37,10 @@ public final class OtelConventions {
   static final String SPAN_TYPE = "span.type";
   static final String ANALYTICS_EVENT_SPECIFIC_ATTRIBUTES = "analytics.event";
   static final String HTTP_RESPONSE_STATUS_CODE_ATTRIBUTE = "http.response.status_code";
-
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelConventions.class);
 
-  private OtelConventions() {}
+  private OtelConventions() {
+  }
 
   /**
    * Convert OpenTelemetry {@link SpanKind} to {@link Tags#SPAN_KIND} value.
@@ -144,7 +143,9 @@ public final class OtelConventions {
   }
 
   public static void applySpanEventExceptionAttributesAsTags(
-      AgentSpan span, Attributes exceptionAttributes) {
+      AgentSpan span,
+      Attributes exceptionAttributes
+  ) {
     span.setTag(ERROR_MSG, exceptionAttributes.get(EXCEPTION_MESSAGE_ATTRIBUTE_KEY));
     span.setTag(ERROR_TYPE, exceptionAttributes.get(EXCEPTION_TYPE_ATTRIBUTE_KEY));
     span.setTag(ERROR_STACK, exceptionAttributes.get(EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY));
@@ -176,7 +177,10 @@ public final class OtelConventions {
      */
     String messagingSystem = getStringAttribute(span, "messaging.system");
     String messagingOperation = getStringAttribute(span, "messaging.operation");
-    if ((spanKind == CONSUMER || spanKind == PRODUCER || spanKind == CLIENT || spanKind == SERVER)
+    if ((spanKind == CONSUMER
+        || spanKind == PRODUCER
+        || spanKind == CLIENT
+        || spanKind == SERVER)
         && messagingSystem != null
         && messagingOperation != null) {
       return messagingSystem + "." + messagingOperation;
@@ -258,40 +262,39 @@ public final class OtelConventions {
       return SpanAttributes.EMPTY;
     }
     SpanAttributes.Builder builder = SpanAttributes.builder();
-    attributes.forEach(
-        (attributeKey, value) -> {
-          String key = attributeKey.getKey();
-          switch (attributeKey.getType()) {
-            case STRING:
-              builder.put(key, (String) value);
-              break;
-            case BOOLEAN:
-              builder.put(key, (boolean) value);
-              break;
-            case LONG:
-              builder.put(key, (long) value);
-              break;
-            case DOUBLE:
-              builder.put(key, (double) value);
-              break;
-            case STRING_ARRAY:
-              //noinspection unchecked
-              builder.putStringArray(key, (List<String>) value);
-              break;
-            case BOOLEAN_ARRAY:
-              //noinspection unchecked
-              builder.putBooleanArray(key, (List<Boolean>) value);
-              break;
-            case LONG_ARRAY:
-              //noinspection unchecked
-              builder.putLongArray(key, (List<Long>) value);
-              break;
-            case DOUBLE_ARRAY:
-              //noinspection unchecked
-              builder.putDoubleArray(key, (List<Double>) value);
-              break;
-          }
-        });
+    attributes.forEach((attributeKey, value) -> {
+      String key = attributeKey.getKey();
+      switch (attributeKey.getType()) {
+        case STRING:
+          builder.put(key, (String) value);
+          break;
+        case BOOLEAN:
+          builder.put(key, (boolean) value);
+          break;
+        case LONG:
+          builder.put(key, (long) value);
+          break;
+        case DOUBLE:
+          builder.put(key, (double) value);
+          break;
+        case STRING_ARRAY:
+          //noinspection unchecked
+          builder.putStringArray(key, (List<String>) value);
+          break;
+        case BOOLEAN_ARRAY:
+          //noinspection unchecked
+          builder.putBooleanArray(key, (List<Boolean>) value);
+          break;
+        case LONG_ARRAY:
+          //noinspection unchecked
+          builder.putLongArray(key, (List<Long>) value);
+          break;
+        case DOUBLE_ARRAY:
+          //noinspection unchecked
+          builder.putDoubleArray(key, (List<Double>) value);
+          break;
+      }
+    });
     return builder.build();
   }
 }

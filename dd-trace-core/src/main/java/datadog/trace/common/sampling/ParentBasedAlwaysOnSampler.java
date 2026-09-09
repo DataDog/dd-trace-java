@@ -11,7 +11,6 @@ import datadog.trace.core.CoreSpan;
  * which is handled by the context propagation layer.
  */
 public class ParentBasedAlwaysOnSampler implements Sampler, PrioritySampler {
-
   @Override
   public <T extends CoreSpan<T>> boolean sample(final T span) {
     return true;

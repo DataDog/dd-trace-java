@@ -6,9 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestRuntimeSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestRuntimeSuite.class);
-
   private final Runtime runtime;
 
   public TestRuntimeSuite(final Runtime runtime) {
@@ -43,8 +41,7 @@ public class TestRuntimeSuite {
     return result;
   }
 
-  public Process exec(final String command, final String[] envp, final File file)
-      throws IOException {
+  public Process exec(final String command, final String[] envp, final File file) throws IOException {
     LOGGER.debug("Before runtime exec {} {} {}", command, envp, file);
     final Process result = runtime.exec(command, envp, file);
     LOGGER.debug("After runtime exec {}", result);

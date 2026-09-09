@@ -1,14 +1,12 @@
 package opentelemetry127.logs;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.logs.Logger;
 import org.junit.jupiter.api.Test;
 
 abstract class OpenTelemetryLogsActivationTest extends AbstractInstrumentationTest {
-
   abstract boolean shouldBeInjected();
 
   @Test
@@ -17,11 +15,13 @@ abstract class OpenTelemetryLogsActivationTest extends AbstractInstrumentationTe
     if (shouldBeInjected()) {
       assertTrue(
           logger.getClass().getName().endsWith(".OtelLogger"),
-          "Expected OtelLogger but got: " + logger.getClass().getName());
+          "Expected OtelLogger but got: " + logger.getClass().getName()
+      );
     } else {
       assertTrue(
           logger.getClass().getName().endsWith(".DefaultLogger"),
-          "Expected DefaultLogger but got: " + logger.getClass().getName());
+          "Expected DefaultLogger but got: " + logger.getClass().getName()
+      );
     }
   }
 }

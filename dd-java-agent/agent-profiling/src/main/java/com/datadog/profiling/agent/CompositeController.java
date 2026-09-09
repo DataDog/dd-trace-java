@@ -3,7 +3,6 @@ package com.datadog.profiling.agent;
 import static datadog.environment.OperatingSystem.isLinux;
 import static datadog.environment.OperatingSystem.isMacOs;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.OngoingRecording;
@@ -41,9 +40,7 @@ import org.slf4j.LoggerFactory;
  * concatenating their outputs.
  */
 public class CompositeController implements Controller {
-
   private static final Logger log = LoggerFactory.getLogger(CompositeController.class);
-
   private final List<Controller> controllers;
 
   public CompositeController(List<Controller> controllers) {
@@ -59,8 +56,9 @@ public class CompositeController implements Controller {
   @Nonnull
   @Override
   public OngoingRecording createRecording(
-      @Nonnull String recordingName, ControllerContext.Snapshot context)
-      throws UnsupportedEnvironmentException {
+      @Nonnull String recordingName,
+      ControllerContext.Snapshot context
+  ) throws UnsupportedEnvironmentException {
     List<OngoingRecording> recordings = new ArrayList<>(controllers.size());
     for (Controller controller : controllers) {
       recordings.add(controller.createRecording(recordingName, context));
@@ -69,7 +67,6 @@ public class CompositeController implements Controller {
   }
 
   private static class CompositeOngoingRecording implements OngoingRecording {
-
     private final List<OngoingRecording> recordings;
 
     private CompositeOngoingRecording(List<OngoingRecording> recordings) {
@@ -94,8 +91,11 @@ public class CompositeController implements Controller {
     }
 
     private RecordingData compose(Function<OngoingRecording, RecordingData> recorder) {
-      return new CompositeRecordingData(
-          recordings.stream().map(recorder).collect(Collectors.toList()));
+      return new CompositeRecordingData(recordings
+        .stream()
+        .map(recorder)
+        .collect(Collectors.toList())
+      );
     }
   }
 
@@ -147,8 +147,7 @@ public class CompositeController implements Controller {
     List<Controller> controllers = new ArrayList<>();
     boolean isOracleJDK8 = JavaVirtualMachine.isOracleJDK8();
     boolean isDatadogProfilerEnabled = Config.get().isDatadogProfilerEnabled();
-    boolean isJfrEnabled =
-        !provider.getBoolean(ProfilingConfig.PROFILING_DEBUG_JFR_DISABLED, false);
+    boolean isJfrEnabled = !provider.getBoolean(ProfilingConfig.PROFILING_DEBUG_JFR_DISABLED, false);
     if (!isJfrEnabled) {
       log.warn(SEND_TELEMETRY, "JFR is disabled by configuration");
     } else {
@@ -165,11 +164,13 @@ public class CompositeController implements Controller {
           if (Platform.hasJfr()) {
             controllers.add(OpenJdkController.instance(provider));
           } else {
-            ProfilerFlareLogger.getInstance()
-                .log(
-                    "JFR is not available on this platform: {}, {}",
-                    OperatingSystem.type(),
-                    OperatingSystem.architecture());
+            ProfilerFlareLogger
+              .getInstance()
+              .log(
+                  "JFR is not available on this platform: {}, {}",
+                  OperatingSystem.type(),
+                  OperatingSystem.architecture()
+              );
           }
         } catch (Throwable t) {
           ProfilerFlareLogger.getInstance().log("Failed to load openjdk profiler", t);
@@ -187,15 +188,19 @@ public class CompositeController implements Controller {
         Throwable rootCause = error.getCause() == null ? error : error.getCause();
         context.setDatadogProfilerUnavailableReason(rootCause.getMessage());
         if (!isLinux()) {
-          ProfilerFlareLogger.getInstance()
-              .log("Datadog profiler only supported on Linux", rootCause);
+          ProfilerFlareLogger.getInstance().log(
+              "Datadog profiler only supported on Linux",
+              rootCause
+          );
         } else {
-          ProfilerFlareLogger.getInstance()
-              .log(
-                  "Failed to instantiate Datadog profiler on {} {}",
-                  OperatingSystem.type(),
-                  OperatingSystem.architecture(),
-                  rootCause);
+          ProfilerFlareLogger
+            .getInstance()
+            .log(
+                "Failed to instantiate Datadog profiler on {} {}",
+                OperatingSystem.type(),
+                OperatingSystem.architecture(),
+                rootCause
+            );
         }
       }
     } else {
@@ -214,7 +219,8 @@ public class CompositeController implements Controller {
     controllers.forEach(controller -> controller.configure(context));
     if (controllers.isEmpty()) {
       throw new UnsupportedEnvironmentException(
-          getFixProposalMessage(isDatadogProfilerEnabled, isJfrEnabled));
+          getFixProposalMessage(isDatadogProfilerEnabled, isJfrEnabled)
+      );
     } else if (controllers.size() == 1) {
       return controllers.get(0);
     }
@@ -223,18 +229,18 @@ public class CompositeController implements Controller {
 
   private static String getFixProposalMessage(boolean datadogProfilerEnabled, boolean jfrEnabled) {
     if (!datadogProfilerEnabled && !jfrEnabled) {
-      return "Profiling is disabled by configuration. Please, make sure that your configuration is correct.";
+      return "Profiling is disabled by configuration. Please, make sure that your configuration "
+          + "is correct.";
     }
     final String javaVendor = SystemProperties.getOrDefault("java.vendor", "unknown");
     final String javaVersion = SystemProperties.getOrDefault("java.version", "unknown");
     final String javaRuntimeName = SystemProperties.getOrDefault("java.runtime.name", "unknown");
-    final String message =
-        "Not enabling profiling for vendor="
-            + javaVendor
-            + ", version="
-            + javaVersion
-            + ", runtimeName="
-            + javaRuntimeName;
+    final String message = "Not enabling profiling for vendor="
+        + javaVendor
+        + ", version="
+        + javaVersion
+        + ", runtimeName="
+        + javaRuntimeName;
     try {
       if (javaVersion == null) {
         return message;

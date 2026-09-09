@@ -17,7 +17,8 @@ public interface OrderedCallback {
 
   /* Note: not consistent with equals(). */
   final class CallbackPriorityComparator implements Comparator<OrderedCallback> {
-    private CallbackPriorityComparator() {}
+    private CallbackPriorityComparator() {
+    }
 
     public static final CallbackPriorityComparator INSTANCE = new CallbackPriorityComparator();
 

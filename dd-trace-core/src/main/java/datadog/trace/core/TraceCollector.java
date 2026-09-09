@@ -11,9 +11,10 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import javax.annotation.Nonnull;
 
 public abstract class TraceCollector implements AgentTraceCollector {
-
   interface Factory {
-    /** Used by tests and benchmarks. */
+    /**
+     * Used by tests and benchmarks.
+     */
     TraceCollector create(@Nonnull DDTraceId traceId);
 
     TraceCollector create(@Nonnull DDTraceId traceId, CoreTracer.ConfigSnapshot traceConfig);
@@ -30,13 +31,15 @@ public abstract class TraceCollector implements AgentTraceCollector {
   protected final CoreTracer tracer;
   protected final CoreTracer.ConfigSnapshot traceConfig;
   protected final TimeSource timeSource;
-
   private volatile long endToEndStartTime;
   private static final AtomicLongFieldUpdater<TraceCollector> END_TO_END_START_TIME =
       AtomicLongFieldUpdater.newUpdater(TraceCollector.class, "endToEndStartTime");
 
   protected TraceCollector(
-      CoreTracer tracer, CoreTracer.ConfigSnapshot traceConfig, TimeSource timeSource) {
+      CoreTracer tracer,
+      CoreTracer.ConfigSnapshot traceConfig,
+      TimeSource timeSource
+  ) {
     this.tracer = tracer;
     this.traceConfig = traceConfig;
     this.timeSource = timeSource;
@@ -66,10 +69,11 @@ public abstract class TraceCollector implements AgentTraceCollector {
     if (traceConfig.sampler instanceof PrioritySampler && rootSpan != null) {
       // Skip sampler override when _dd.p.ts is marked for ASM or AI Guard.
       if ((!Config.get().isApmTracingEnabled()
-              && !ProductTraceSource.isProductMarked(
-                  rootSpan.spanContext().getPropagationTags().getTraceSource(),
-                  ProductTraceSource.ASM,
-                  ProductTraceSource.AI_GUARD))
+          && !ProductTraceSource.isProductMarked(
+              rootSpan.spanContext().getPropagationTags().getTraceSource(),
+              ProductTraceSource.ASM,
+              ProductTraceSource.AI_GUARD
+      ))
           || rootSpan.spanContext().getSamplingPriority() == PrioritySampling.UNSET) {
         ((PrioritySampler) traceConfig.sampler).setSamplingPriority(rootSpan);
       }

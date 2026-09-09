@@ -11,7 +11,9 @@ import org.springframework.web.servlet.mvc.AbstractController;
 public class SimpleIastController extends AbstractController {
   @Override
   protected ModelAndView handleRequestInternal(
-      HttpServletRequest request, HttpServletResponse response) throws Exception {
+      HttpServletRequest request,
+      HttpServletResponse response
+  ) throws Exception {
     Map<String, String> vars =
         (Map<String, String>) request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
     PrintWriter printWriter = response.getWriter();

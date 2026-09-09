@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.api.time.SystemTimeSource;
@@ -52,10 +51,10 @@ public class TempLocationManagerTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "test1"})
   void testFromConfig(String subPath) throws Exception {
-    Path myDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    Path myDir = Files.createTempDirectory(
+        "ddprof-test-",
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+    );
     myDir.toFile().deleteOnExit();
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
@@ -78,10 +77,10 @@ public class TempLocationManagerTest {
 
   @Test
   void testFromConfigNotWritable() throws Exception {
-    Path myDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------")));
+    Path myDir = Files.createTempDirectory(
+        "ddprof-test-",
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("r-x------"))
+    );
     myDir.toFile().deleteOnExit();
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
@@ -92,22 +91,23 @@ public class TempLocationManagerTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "test1"})
   void testCleanup(String subPath) throws Exception {
-    Path myDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    Path myDir = Files.createTempDirectory(
+        "ddprof-test-",
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+    );
     myDir.toFile().deleteOnExit();
     TempLocationManager tempLocationManager =
         instance(myDir, false, TempLocationManager.CleanupHook.EMPTY);
     Path tempDir = tempLocationManager.getTempDir(Paths.get(subPath));
     assertNotNull(tempDir);
-
     // fake temp location
     Path fakeTempDir = myDir.resolve(TempLocationManager.getBaseTempDirName()).resolve("pid_fake");
     Files.createDirectories(fakeTempDir);
     Path tmpFile = Files.createFile(fakeTempDir.resolve("test.txt"));
-    tmpFile.toFile().deleteOnExit(); // make sure this is deleted at exit
-    fakeTempDir.toFile().deleteOnExit(); // also this one
+    // make sure this is deleted at exit
+    tmpFile.toFile().deleteOnExit();
+    // also this one
+    fakeTempDir.toFile().deleteOnExit();
     boolean rslt = tempLocationManager.cleanup();
     // fake temp location should be deleted, real temp location should be kept
     assertTrue(rslt, "cleanup should succeed");
@@ -131,17 +131,18 @@ public class TempLocationManagerTest {
      * 2. Main thread deletes file, signals via proceedSignal latch
      * 3. Cleanup thread continues and completes
      */
-    Path baseDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    Path baseDir = Files.createTempDirectory(
+        "ddprof-test-",
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+    );
     baseDir.toFile().deleteOnExit();
 
     Path fakeTempDir =
         baseDir.resolve(TempLocationManager.getBaseTempDirName() + "/pid_fake/scratch");
     Files.createDirectories(
         fakeTempDir,
-        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+    );
     Path fakeTempFile = fakeTempDir.resolve("libxxx.so");
     Files.createFile(fakeTempFile);
 
@@ -153,52 +154,49 @@ public class TempLocationManagerTest {
     AtomicBoolean withTimeout = new AtomicBoolean(false);
     AtomicReference<Throwable> cleanupError = new AtomicReference<>();
 
-    TempLocationManager.CleanupHook blocker =
-        new TempLocationManager.CleanupHook() {
-          private void syncPoint(boolean timeout) {
-            withTimeout.compareAndSet(false, timeout);
-            hookReached.countDown();
-            try {
-              if (!proceedSignal.await(30, TimeUnit.SECONDS)) {
-                cleanupError.set(
-                    new AssertionError("Cleanup thread: proceed signal timeout after 30s"));
-              }
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              cleanupError.set(e);
-            }
+    TempLocationManager.CleanupHook blocker = new TempLocationManager.CleanupHook() {
+      private void syncPoint(boolean timeout) {
+        withTimeout.compareAndSet(false, timeout);
+        hookReached.countDown();
+        try {
+          if (!proceedSignal.await(30, TimeUnit.SECONDS)) {
+            cleanupError.set(new AssertionError("Cleanup thread: proceed signal timeout after 30s"));
           }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          cleanupError.set(e);
+        }
+      }
 
-          @Override
-          public FileVisitResult preVisitDirectory(
-              Path dir, BasicFileAttributes attrs, boolean timeout) throws IOException {
-            if (section.equals("preVisitDirectory") && dir.equals(fakeTempDir)) {
-              syncPoint(timeout);
-            }
-            return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs, timeout);
-          }
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs, boolean timeout)
+          throws IOException {
+        if (section.equals("preVisitDirectory") && dir.equals(fakeTempDir)) {
+          syncPoint(timeout);
+        }
+        return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs, timeout);
+      }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs, boolean timeout)
-              throws IOException {
-            if (section.equals("visitFile") && file.equals(fakeTempFile)) {
-              syncPoint(timeout);
-            }
-            return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
-          }
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs, boolean timeout)
+          throws IOException {
+        if (section.equals("visitFile") && file.equals(fakeTempFile)) {
+          syncPoint(timeout);
+        }
+        return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
+      }
 
-          @Override
-          public FileVisitResult postVisitDirectory(Path dir, IOException exc, boolean timeout)
-              throws IOException {
-            if (section.equals("postVisitDirectory") && dir.equals(fakeTempDir)) {
-              syncPoint(timeout);
-            }
-            return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc, timeout);
-          }
-        };
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc, boolean timeout)
+          throws IOException {
+        if (section.equals("postVisitDirectory") && dir.equals(fakeTempDir)) {
+          syncPoint(timeout);
+        }
+        return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc, timeout);
+      }
+    };
 
     TempLocationManager mgr = instance(baseDir, false, blocker);
-
     // Run cleanup on a dedicated thread instead of the shared AgentTaskScheduler
     // worker, which can be queued behind cleanup tasks scheduled by other tests.
     Thread cleanupThread = new Thread(mgr::cleanup, "test-cleanup");
@@ -208,7 +206,8 @@ public class TempLocationManagerTest {
     try {
       assertTrue(
           hookReached.await(30, TimeUnit.SECONDS),
-          "Cleanup thread should reach hook within 30 seconds");
+          "Cleanup thread should reach hook within 30 seconds"
+      );
       // The visitor may have already deleted the file by this point; tolerate.
       Files.deleteIfExists(fakeTempFile);
       proceedSignal.countDown();
@@ -246,50 +245,49 @@ public class TempLocationManagerTest {
 
     AtomicBoolean withTimeout = new AtomicBoolean(false);
     AtomicBoolean timeAdvanced = new AtomicBoolean(false);
-    TempLocationManager.CleanupHook delayer =
-        new TempLocationManager.CleanupHook() {
-          private void maybeAdvanceTime() {
-            // Only advance time once, and only for failure case
-            if (!shouldSucceed && timeAdvanced.compareAndSet(false, true)) {
-              // Advance well past the timeout
-              timeSource.advance(TimeUnit.MILLISECONDS.toNanos(timeoutMs * 10));
-            }
-          }
+    TempLocationManager.CleanupHook delayer = new TempLocationManager.CleanupHook() {
+      private void maybeAdvanceTime() {
+        // Only advance time once, and only for failure case
+        if (!shouldSucceed && timeAdvanced.compareAndSet(false, true)) {
+          // Advance well past the timeout
+          timeSource.advance(TimeUnit.MILLISECONDS.toNanos(timeoutMs * 10));
+        }
+      }
 
-          @Override
-          public FileVisitResult preVisitDirectory(
-              Path dir, BasicFileAttributes attrs, boolean timeout) throws IOException {
-            withTimeout.compareAndSet(false, timeout);
-            if (section.equals("preVisitDirectory")) {
-              maybeAdvanceTime();
-            }
-            return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs, timeout);
-          }
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs, boolean timeout)
+          throws IOException {
+        withTimeout.compareAndSet(false, timeout);
+        if (section.equals("preVisitDirectory")) {
+          maybeAdvanceTime();
+        }
+        return TempLocationManager.CleanupHook.super.preVisitDirectory(dir, attrs, timeout);
+      }
 
-          @Override
-          public FileVisitResult postVisitDirectory(Path dir, IOException exc, boolean timeout)
-              throws IOException {
-            withTimeout.compareAndSet(false, timeout);
-            if (section.equals("postVisitDirectory")) {
-              maybeAdvanceTime();
-            }
-            return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc, timeout);
-          }
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc, boolean timeout)
+          throws IOException {
+        withTimeout.compareAndSet(false, timeout);
+        if (section.equals("postVisitDirectory")) {
+          maybeAdvanceTime();
+        }
+        return TempLocationManager.CleanupHook.super.postVisitDirectory(dir, exc, timeout);
+      }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs, boolean timeout)
-              throws IOException {
-            withTimeout.compareAndSet(false, timeout);
-            if (section.equals("visitFile")) {
-              maybeAdvanceTime();
-            }
-            return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
-          }
-        };
-    Path baseDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs, boolean timeout)
+          throws IOException {
+        withTimeout.compareAndSet(false, timeout);
+        if (section.equals("visitFile")) {
+          maybeAdvanceTime();
+        }
+        return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
+      }
+    };
+    Path baseDir = Files.createTempDirectory(
+        "ddprof-test-",
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+    );
     baseDir.toFile().deleteOnExit();
     TempLocationManager instance = instance(baseDir, false, delayer, timeSource);
     Path mytempdir = instance.getTempDir();
@@ -301,13 +299,13 @@ public class TempLocationManagerTest {
     timeSource.set(TimeUnit.MILLISECONDS.toNanos(System.currentTimeMillis()));
     boolean rslt = instance.cleanup(timeoutMs, TimeUnit.MILLISECONDS);
     assertEquals(shouldSucceed, rslt);
-    assertNotEquals(shouldSucceed, withTimeout.get()); // timeout = !shouldSucceed
+    // timeout = !shouldSucceed
+    assertNotEquals(shouldSucceed, withTimeout.get());
   }
 
   private static Stream<Arguments> timeoutTestArguments() {
     List<Arguments> argumentsList = new ArrayList<>();
-    for (String intercepted :
-        new String[] {"preVisitDirectory", "visitFile", "postVisitDirectory"}) {
+    for (String intercepted : new String[] {"preVisitDirectory", "visitFile", "postVisitDirectory"}) {
       argumentsList.add(Arguments.of(true, intercepted));
       argumentsList.add(Arguments.of(false, intercepted));
     }
@@ -315,7 +313,10 @@ public class TempLocationManagerTest {
   }
 
   private TempLocationManager instance(
-      Path baseDir, boolean withStartupCleanup, TempLocationManager.CleanupHook cleanupHook) {
+      Path baseDir,
+      boolean withStartupCleanup,
+      TempLocationManager.CleanupHook cleanupHook
+  ) {
     return instance(baseDir, withStartupCleanup, cleanupHook, SystemTimeSource.INSTANCE);
   }
 
@@ -323,14 +324,21 @@ public class TempLocationManagerTest {
       Path baseDir,
       boolean withStartupCleanup,
       TempLocationManager.CleanupHook cleanupHook,
-      TimeSource timeSource) {
+      TimeSource timeSource
+  ) {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, baseDir.toString());
     props.put(
         ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-        "0"); // to force immediate cleanup; must be a string value!
+        // to force immediate cleanup; must be a string value!
+        "0"
+    );
 
     return new TempLocationManager(
-        ConfigProvider.withPropertiesOverride(props), withStartupCleanup, cleanupHook, timeSource);
+        ConfigProvider.withPropertiesOverride(props),
+        withStartupCleanup,
+        cleanupHook,
+        timeSource
+    );
   }
 }

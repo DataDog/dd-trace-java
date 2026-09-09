@@ -20,22 +20,19 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
-/** Scans helper classes to find what classes they depend on and what order to load them. */
+/**
+ * Scans helper classes to find what classes they depend on and what order to load them.
+ */
 public final class HelperScanner extends ClassVisitor {
   static final int READER_OPTIONS = ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES;
-
   static final ClassFileLocator locator =
       ClassFileLocator.ForClassLoader.of(Utils.getAgentClassLoader());
-
   final MethodScanner methodScanner = new MethodScanner();
-
   final Consumer<String> REQUIRES = this::requiresClass;
   final Consumer<String> USES = this::usesClass;
-
   final Map<String, Set<String>> classGraph = new LinkedHashMap<>();
   final Set<String> search = new HashSet<>();
   final Set<String> visited = new HashSet<>();
-
   String className;
   Set<String> requires;
   Set<String> uses;
@@ -44,7 +41,9 @@ public final class HelperScanner extends ClassVisitor {
     super(Opcodes.ASM7, null);
   }
 
-  /** Expands helper class names to include any non-bootstrap classes they depend on. */
+  /**
+   * Expands helper class names to include any non-bootstrap classes they depend on.
+   */
   public static String[] withClassDependencies(String... helperClassNames) {
     return new HelperScanner().simulateClassLoading(helperClassNames);
   }
@@ -64,7 +63,6 @@ public final class HelperScanner extends ClassVisitor {
       // keep root names in the final list even if they're not loadable at this point
       classGraph.put(className, Collections.emptySet());
     }
-
     // scan each class in turn, adding new types to the work queue
     while ((className = workQueue.pollFirst()) != null) {
       if (visited.add(className)) {
@@ -88,7 +86,6 @@ public final class HelperScanner extends ClassVisitor {
     for (String className : classGraph.keySet()) {
       removeCycles(className);
     }
-
     // load types without any dependencies, then load those satisfied by what's loaded so far...
     // (this assumes that the class graph has had cycles removed and is a directed acyclic graph)
     Set<String> loaded = new LinkedHashSet<>();
@@ -110,7 +107,9 @@ public final class HelperScanner extends ClassVisitor {
     return loaded.toArray(new String[0]);
   }
 
-  /** Simple depth-first search to make sure we end up with a directed acyclic graph. */
+  /**
+   * Simple depth-first search to make sure we end up with a directed acyclic graph.
+   */
   void removeCycles(String className) {
     if (visited.add(className)) {
       search.add(className);
@@ -119,7 +118,8 @@ public final class HelperScanner extends ClassVisitor {
         String nextName = itr.next();
         if (search.contains(nextName) // cycle detected, remove link to break it
             || !classGraph.containsKey(nextName) // remove any non-loadable types
-            || nextName.startsWith(className + "$")) { // skip links to inner types
+            || nextName.startsWith(className + "$")) {
+          // skip links to inner types
           itr.remove();
         } else {
           removeCycles(nextName);
@@ -129,7 +129,9 @@ public final class HelperScanner extends ClassVisitor {
     }
   }
 
-  /** Types that contribute to the helper class shape/hierarchy are required at load-time. */
+  /**
+   * Types that contribute to the helper class shape/hierarchy are required at load-time.
+   */
   @Override
   public void visit(
       final int version,
@@ -137,7 +139,8 @@ public final class HelperScanner extends ClassVisitor {
       final String name,
       final String signature,
       final String superName,
-      final String[] interfaces) {
+      final String[] interfaces
+  ) {
     record(superName, REQUIRES);
     record(interfaces, REQUIRES);
   }
@@ -155,7 +158,8 @@ public final class HelperScanner extends ClassVisitor {
       final String name,
       final String descriptor,
       final String signature,
-      final Object value) {
+      final Object value
+  ) {
     // Field types are resolved lazily by the JVM, not during defineClass.
     // Using USES (not REQUIRES) avoids false dependency cycles that can break
     // topological sort ordering for superclass/interface relationships.
@@ -169,7 +173,8 @@ public final class HelperScanner extends ClassVisitor {
       final String name,
       final String descriptor,
       final String signature,
-      final String[] exceptions) {
+      final String[] exceptions
+  ) {
     // Method parameter/return types and declared exceptions are resolved lazily
     // by the JVM, not during defineClass. Only superclass and interfaces are
     // eagerly resolved, which are handled by visit().
@@ -178,7 +183,9 @@ public final class HelperScanner extends ClassVisitor {
     return methodScanner;
   }
 
-  /** Attempts to find all types used in method instructions by the helper class. */
+  /**
+   * Attempts to find all types used in method instructions by the helper class.
+   */
   class MethodScanner extends MethodVisitor {
     MethodScanner() {
       super(Opcodes.ASM7, null);
@@ -186,7 +193,11 @@ public final class HelperScanner extends ClassVisitor {
 
     @Override
     public void visitFieldInsn(
-        final int opcode, final String owner, final String name, final String descriptor) {
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor
+    ) {
       record(Type.getObjectType(owner), USES);
       record(Type.getType(descriptor), USES);
     }
@@ -197,7 +208,8 @@ public final class HelperScanner extends ClassVisitor {
         final String owner,
         final String name,
         final String descriptor,
-        final boolean isInterface) {
+        final boolean isInterface
+    ) {
       record(Type.getObjectType(owner), USES);
       record(Type.getMethodType(descriptor), USES);
     }
@@ -212,7 +224,8 @@ public final class HelperScanner extends ClassVisitor {
         String name,
         String descriptor,
         Handle bootstrapMethodHandle,
-        Object... bootstrapMethodArguments) {
+        Object... bootstrapMethodArguments
+    ) {
       record(Type.getType(descriptor), USES);
       record(bootstrapMethodHandle, USES);
       for (Object value : bootstrapMethodArguments) {
@@ -234,13 +247,17 @@ public final class HelperScanner extends ClassVisitor {
     }
   }
 
-  /** Marks a class as required; the helper won't load if this class hasn't been loaded first. */
+  /**
+   * Marks a class as required; the helper won't load if this class hasn't been loaded first.
+   */
   void requiresClass(String className) {
     requires.add(className);
     uses.add(className);
   }
 
-  /** Marks a class as used; the helper doesn't need it at load time but may use it when called. */
+  /**
+   * Marks a class as used; the helper doesn't need it at load time but may use it when called.
+   */
   void usesClass(String className) {
     uses.add(className);
   }

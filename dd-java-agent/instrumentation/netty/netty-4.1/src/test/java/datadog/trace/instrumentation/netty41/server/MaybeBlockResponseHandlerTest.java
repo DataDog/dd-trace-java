@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -42,9 +41,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class MaybeBlockResponseHandlerTest extends AbstractInstrumentationTest {
-
   private static final HttpResponseStatus EARLY_HINTS = new HttpResponseStatus(103, "Early Hints");
-
   private Object appSecSubscriptions;
   private boolean originalAppSecActive;
 
@@ -141,20 +138,19 @@ class MaybeBlockResponseHandlerTest extends AbstractInstrumentationTest {
     originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
     ActiveSubsystems.APPSEC_ACTIVE = true;
 
-    subscriptions.registerCallback(
-        EVENTS.requestStarted(),
-        new Supplier<Flow<Object>>() {
-          @Override
-          public Flow<Object> get() {
-            return new Flow.ResultFlow<>(new Object());
-          }
-        });
+    subscriptions.registerCallback(EVENTS.requestStarted(), new Supplier<Flow<Object>>() {
+      @Override
+      public Flow<Object> get() {
+        return new Flow.ResultFlow<>(new Object());
+      }
+    });
     subscriptions.registerCallback(
         EVENTS.responseHeader(),
         new TriConsumer<RequestContext, String, String>() {
           @Override
           public void accept(RequestContext requestContext, String name, String value) {}
-        });
+        }
+    );
     subscriptions.registerCallback(
         EVENTS.responseHeaderDone(),
         new Function<RequestContext, Flow<Void>>() {
@@ -167,6 +163,7 @@ class MaybeBlockResponseHandlerTest extends AbstractInstrumentationTest {
               }
             };
           }
-        });
+        }
+    );
   }
 }

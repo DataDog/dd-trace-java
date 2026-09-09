@@ -23,8 +23,7 @@ public class OpenAiHttpClientForTests implements HttpClient {
 
   @Nonnull
   @Override
-  public HttpResponse execute(
-      @Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
+  public HttpResponse execute(@Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
     HttpResponse response = delegate.execute(request, requestOptions);
     return wrapIfNeeded(request, response);
   }
@@ -32,10 +31,12 @@ public class OpenAiHttpClientForTests implements HttpClient {
   @Nonnull
   @Override
   public CompletableFuture<HttpResponse> executeAsync(
-      @Nonnull HttpRequest request, @Nonnull RequestOptions requestOptions) {
+      @Nonnull HttpRequest request,
+      @Nonnull RequestOptions requestOptions
+  ) {
     return delegate
-        .executeAsync(request, requestOptions)
-        .thenApply(response -> wrapIfNeeded(request, response));
+      .executeAsync(request, requestOptions)
+      .thenApply(response -> wrapIfNeeded(request, response));
   }
 
   @Override
@@ -57,8 +58,7 @@ public class OpenAiHttpClientForTests implements HttpClient {
     private final Path recordsDir;
     private final ByteArrayOutputStream responseBody;
 
-    private ResponseRequestInterceptor(
-        HttpRequest request, HttpResponse response, Path recordsDir) {
+    private ResponseRequestInterceptor(HttpRequest request, HttpResponse response, Path recordsDir) {
       this.request = request;
       this.response = response;
       this.recordsDir = recordsDir;

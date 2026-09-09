@@ -3,7 +3,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.OkHttpUtils;
@@ -22,23 +21,22 @@ import okhttp3.HttpUrl;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled(
-    "The agent in CI doesn't have a valid API key. Unlike metrics and traces, data streams fails in this case")
+@Disabled("The agent in CI doesn't have a valid API key. Unlike metrics and traces, data "
+    + "streams fails in this case")
 class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
-
   @Test
   void sendingStatsBucketToAgentShouldNotifyWithOkEvent() throws ReflectiveOperationException {
     SharedCommunicationObjects sharedCommunicationObjects = new SharedCommunicationObjects();
     sharedCommunicationObjects.createRemaining(Config.get());
 
-    OkHttpSink sink =
-        new OkHttpSink(
-            OkHttpUtils.buildHttpClient(HttpUrl.parse(Config.get().getAgentUrl()), 5000L),
-            Config.get().getAgentUrl(),
-            DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
-            false,
-            true,
-            Collections.emptyMap());
+    OkHttpSink sink = new OkHttpSink(
+        OkHttpUtils.buildHttpClient(HttpUrl.parse(Config.get().getAgentUrl()), 5000L),
+        Config.get().getAgentUrl(),
+        DDAgentFeaturesDiscovery.V01_DATASTREAMS_ENDPOINT,
+        false,
+        true,
+        Collections.emptyMap()
+    );
 
     BlockingListener listener = new BlockingListener();
     sink.register(listener);
@@ -50,15 +48,19 @@ class DataStreamsIntegrationTest extends AbstractTraceAgentTest {
 
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
         sharedCommunicationObjects.featuresDiscovery(Config.get());
-    try (DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink, ddAgentFeaturesDiscovery, timeSource, () -> traceConfig, Config.get())) {
-
+    try (DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        ddAgentFeaturesDiscovery,
+        timeSource,
+        () -> traceConfig,
+        Config.get()
+    )) {
       dataStreams.start();
       DataStreamsTags tags =
           DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
       dataStreams.add(
-          new StatsPoint(tags, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+          new StatsPoint(tags, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null)
+      );
       timeSource.advance(Config.get().getDataStreamsBucketDurationNanoseconds());
       dataStreams.report();
       dataStreams.report();

@@ -10,9 +10,10 @@ public class DeleteFieldAdvice {
   public static void onExit(
       @Advice.Argument(0) ResolvedJavaField field,
       @Advice.Return(readOnly = false) ResolvedJavaField result,
-      @Advice.FieldValue("SUBSTITUTION_DELETE") Delete SUBSTITUTION_DELETE) {
+      @Advice.FieldValue("SUBSTITUTION_DELETE") Delete SUBSTITUTION_DELETE
+  ) {
     if ("datadog.trace.bootstrap.DatadogClassLoader"
-        .equals(field.getDeclaringClass().toClassName())) {
+      .equals(field.getDeclaringClass().toClassName())) {
       result = new AnnotatedField(field, SUBSTITUTION_DELETE);
     }
   }

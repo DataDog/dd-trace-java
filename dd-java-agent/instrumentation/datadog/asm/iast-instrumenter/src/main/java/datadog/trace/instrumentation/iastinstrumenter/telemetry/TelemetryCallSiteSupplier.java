@@ -8,7 +8,6 @@ import java.util.Iterator;
 import javax.annotation.Nonnull;
 
 public class TelemetryCallSiteSupplier implements CallSiteSupplier {
-
   private final Verbosity verbosity;
   private final CallSiteSupplier delegate;
 
@@ -24,12 +23,13 @@ public class TelemetryCallSiteSupplier implements CallSiteSupplier {
   }
 
   private static class IteratorAdapter implements Iterator<CallSites> {
-
     private final Verbosity verbosity;
     private final Iterator<CallSites> delegate;
 
     private IteratorAdapter(
-        @Nonnull final Verbosity verbosity, @Nonnull final Iterator<CallSites> delegate) {
+        @Nonnull final Verbosity verbosity,
+        @Nonnull final Iterator<CallSites> delegate
+    ) {
       this.verbosity = verbosity;
       this.delegate = delegate;
     }

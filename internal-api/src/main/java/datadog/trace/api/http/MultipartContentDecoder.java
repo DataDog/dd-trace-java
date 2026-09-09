@@ -7,9 +7,10 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 
-/** Decodes multipart file content bytes to String using the per-part Content-Type charset. */
+/**
+ * Decodes multipart file content bytes to String using the per-part Content-Type charset.
+ */
 public final class MultipartContentDecoder {
-
   public static String readInputStream(InputStream is, int maxBytes, String contentType)
       throws IOException {
     byte[] buf = new byte[maxBytes];
@@ -23,14 +24,16 @@ public final class MultipartContentDecoder {
 
   public static String decodeBytes(byte[] buf, int length, String contentType) {
     Charset charset = extractCharset(contentType);
-    if (charset == null) charset = Charset.defaultCharset();
+    if (charset == null) {
+      charset = Charset.defaultCharset();
+    }
     try {
       return charset
-          .newDecoder()
-          .onMalformedInput(CodingErrorAction.REPLACE)
-          .onUnmappableCharacter(CodingErrorAction.REPLACE)
-          .decode(ByteBuffer.wrap(buf, 0, length))
-          .toString();
+        .newDecoder()
+        .onMalformedInput(CodingErrorAction.REPLACE)
+        .onUnmappableCharacter(CodingErrorAction.REPLACE)
+        .decode(ByteBuffer.wrap(buf, 0, length))
+        .toString();
     } catch (CharacterCodingException e) {
       // unreachable: CodingErrorAction.REPLACE never throws CharacterCodingException
       throw new IllegalStateException(e);
@@ -38,11 +41,15 @@ public final class MultipartContentDecoder {
   }
 
   public static Charset extractCharset(String contentType) {
-    if (contentType == null) return null;
+    if (contentType == null) {
+      return null;
+    }
     int searchFrom = 0;
     while (true) {
       int idx = indexOfIgnoreAsciiCase(contentType, "charset=", searchFrom);
-      if (idx < 0) return null;
+      if (idx < 0) {
+        return null;
+      }
       // Require a parameter boundary before "charset=" so "xcharset=..." is not matched
       if (idx == 0 || contentType.charAt(idx - 1) == ';' || contentType.charAt(idx - 1) == ' ') {
         int nameStart = idx + 8;
@@ -71,8 +78,7 @@ public final class MultipartContentDecoder {
   private static int indexOfIgnoreAsciiCase(String s, String needle, int fromIndex) {
     int sLen = s.length();
     int nLen = needle.length();
-    outer:
-    for (int i = fromIndex, max = sLen - nLen; i <= max; i++) {
+    outer: for (int i = fromIndex, max = sLen - nLen; i <= max; i++) {
       for (int j = 0; j < nLen; j++) {
         if (Character.toLowerCase(s.charAt(i + j)) != needle.charAt(j)) {
           continue outer;
@@ -83,5 +89,6 @@ public final class MultipartContentDecoder {
     return -1;
   }
 
-  private MultipartContentDecoder() {}
+  private MultipartContentDecoder() {
+  }
 }

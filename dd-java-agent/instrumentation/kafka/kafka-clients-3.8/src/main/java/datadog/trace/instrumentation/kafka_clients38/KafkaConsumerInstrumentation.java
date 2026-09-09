@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,15 +19,17 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaConsumerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public KafkaConsumerInstrumentation() {
     super("kafka", "kafka-3.8");
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+    // since 3.8
+    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy");
   }
 
   @Override
@@ -36,10 +37,12 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
     Map<String, String> contextStores = new HashMap<>(2);
     contextStores.put(
         "org.apache.kafka.clients.Metadata",
-        "datadog.trace.instrumentation.kafka_common.MetadataState");
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
+    );
     contextStores.put(
         "org.apache.kafka.clients.consumer.ConsumerRecords",
-        "datadog.trace.instrumentation.kafka_clients38.KafkaConsumerInfo");
+        "datadog.trace.instrumentation.kafka_clients38.KafkaConsumerInfo"
+    );
     return Collections.unmodifiableMap(contextStores);
   }
 
@@ -51,21 +54,21 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TextMapInjectAdapterInterface",
-      packageName + ".KafkaConsumerInfo",
-      packageName + ".KafkaConsumerInstrumentationHelper",
-      packageName + ".KafkaDecorator",
-      packageName + ".TextMapExtractAdapter",
-      packageName + ".TracingIterableDelegator",
-      packageName + ".TracingIterable",
-      packageName + ".TracingIterator",
-      packageName + ".TracingList",
-      packageName + ".TracingListIterator",
-      packageName + ".TextMapInjectAdapter",
-      "datadog.trace.instrumentation.kafka_common.Utils",
-      "datadog.trace.instrumentation.kafka_common.StreamingContext",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
+        packageName + ".TextMapInjectAdapterInterface",
+        packageName + ".KafkaConsumerInfo",
+        packageName + ".KafkaConsumerInstrumentationHelper",
+        packageName + ".KafkaDecorator",
+        packageName + ".TextMapExtractAdapter",
+        packageName + ".TracingIterableDelegator",
+        packageName + ".TracingIterable",
+        packageName + ".TracingIterator",
+        packageName + ".TracingList",
+        packageName + ".TracingListIterator",
+        packageName + ".TextMapInjectAdapter",
+        "datadog.trace.instrumentation.kafka_common.Utils",
+        "datadog.trace.instrumentation.kafka_common.StreamingContext",
+        "datadog.trace.instrumentation.kafka_common.PendingConfig",
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
     };
   }
 
@@ -73,24 +76,27 @@ public final class KafkaConsumerInstrumentation extends InstrumenterModule.Traci
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("records"))
-            .and(takesArgument(0, String.class))
-            .and(returns(Iterable.class)),
-        packageName + ".IterableAdvice");
+          .and(isPublic())
+          .and(named("records"))
+          .and(takesArgument(0, String.class))
+          .and(returns(Iterable.class)),
+        packageName + ".IterableAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("records"))
-            .and(takesArgument(0, named("org.apache.kafka.common.TopicPartition")))
-            .and(returns(List.class)),
-        packageName + ".ListAdvice");
+          .and(isPublic())
+          .and(named("records"))
+          .and(takesArgument(0, named("org.apache.kafka.common.TopicPartition")))
+          .and(returns(List.class)),
+        packageName + ".ListAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("iterator"))
-            .and(takesArguments(0))
-            .and(returns(Iterator.class)),
-        packageName + ".IteratorAdvice");
+          .and(isPublic())
+          .and(named("iterator"))
+          .and(takesArguments(0))
+          .and(returns(Iterator.class)),
+        packageName + ".IteratorAdvice"
+    );
   }
 }

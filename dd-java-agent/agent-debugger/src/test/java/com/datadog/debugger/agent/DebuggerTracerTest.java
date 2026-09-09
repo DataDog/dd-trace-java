@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class DebuggerTracerTest {
-
   private static final ProbeId SPAN_ID = new ProbeId("spanProbe-id", 1);
 
   @AfterEach
@@ -38,9 +36,12 @@ class DebuggerTracerTest {
     assertEquals(0, underlyingSpan.getDurationNano());
     assertEquals(
         "dd.dynamic.span",
-        ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getSpanName());
+        ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getSpanName()
+    );
     assertEquals(
-        "a-span", ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getResourceName());
+        "a-span",
+        ((DebuggerTracer.DebuggerSpanImpl) span).currentScope.span().getResourceName()
+    );
     span.finish();
     assertNotEquals(0, underlyingSpan.getDurationNano());
     verify(probeStatusSink).addEmitting(eq(SPAN_ID.getEncodedId()));

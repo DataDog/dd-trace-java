@@ -32,7 +32,9 @@ public class DDCollectAllTestClassesExecutor implements Action<String> {
     TestFrameworkInstrumentation framework = JUnit4Utils.classToFramework(clazz);
     if (framework == TestFrameworkInstrumentation.JUNIT4) {
       TestEventsHandlerHolder.start(
-          TestFrameworkInstrumentation.JUNIT4, JUnit4Utils.capabilities(true));
+          TestFrameworkInstrumentation.JUNIT4,
+          JUnit4Utils.capabilities(true)
+      );
     }
 
     testClasses.add(clazz);
@@ -40,8 +42,10 @@ public class DDCollectAllTestClassesExecutor implements Action<String> {
 
   public void processAllTestClasses() {
     testClasses.sort(
-        new JUnit4FailFastClassOrderer(
-            TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+        new JUnit4FailFastClassOrderer(TestEventsHandlerHolder.HANDLERS.get(
+            TestFrameworkInstrumentation.JUNIT4
+        ))
+    );
 
     for (Class<?> clazz : testClasses) {
       delegate.execute(clazz.getName());

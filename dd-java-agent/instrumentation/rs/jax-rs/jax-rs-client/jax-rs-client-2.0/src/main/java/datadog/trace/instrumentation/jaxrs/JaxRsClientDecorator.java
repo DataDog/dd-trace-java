@@ -7,10 +7,10 @@ import javax.ws.rs.client.ClientRequestContext;
 import javax.ws.rs.client.ClientResponseContext;
 
 public class JaxRsClientDecorator
-    extends HttpClientDecorator<ClientRequestContext, ClientResponseContext> {
+    extends HttpClientDecorator<ClientRequestContext, ClientResponseContext>
+{
   public static final CharSequence JAX_RS_CLIENT = UTF8BytesString.create("jax-rs.client");
   public static final JaxRsClientDecorator DECORATE = new JaxRsClientDecorator();
-
   public static final CharSequence JAX_RS_CLIENT_CALL =
       UTF8BytesString.create(DECORATE.operationName());
 

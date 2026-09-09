@@ -1,7 +1,6 @@
 package datadog.smoketest.springboot.controller;
 
 import static java.util.Arrays.asList;
-
 import datadog.smoketest.springboot.entity.Author;
 import datadog.smoketest.springboot.entity.Book;
 import datadog.smoketest.springboot.entity.Library;
@@ -28,9 +27,7 @@ import org.springframework.web.bind.support.SessionStatus;
 @SessionAttributes(LibraryController.COMMAND_NAME)
 @RequiredArgsConstructor
 public class LibraryController {
-
   public static final String COMMAND_NAME = "library";
-
   private final LibraryService libraryService;
 
   @GetMapping("/{id}")
@@ -40,27 +37,35 @@ public class LibraryController {
 
   @GetMapping
   public ResponseEntity<Integer> create() {
-    final Library library =
-        Library.builder()
-            .books(
-                asList(
-                    Book.builder()
-                        .title("The Lord of the Rings")
-                        .owner(Owner.builder().name("Peter Jackson").build())
-                        .authors(
-                            asList(
-                                Author.builder().name("J.R.R Tolkien").build(),
-                                Author.builder().name("Peter Jackson").build()))
-                        .build(),
-                    Book.builder()
-                        .title("The Hobbit")
-                        .owner(Owner.builder().name("Edith Tolkien").build())
-                        .authors(
-                            asList(
-                                Author.builder().name("J.R.R Tolkien").build(),
-                                Author.builder().name("Edith Tolkien").build()))
-                        .build()))
-            .build();
+    final Library library = Library
+      .builder()
+      .books(
+          asList(
+              Book
+                .builder()
+                .title("The Lord of the Rings")
+                .owner(Owner.builder().name("Peter Jackson").build())
+                .authors(
+                    asList(
+                        Author.builder().name("J.R.R Tolkien").build(),
+                        Author.builder().name("Peter Jackson").build()
+                    )
+                )
+                .build(),
+              Book
+                .builder()
+                .title("The Hobbit")
+                .owner(Owner.builder().name("Edith Tolkien").build())
+                .authors(
+                    asList(
+                        Author.builder().name("J.R.R Tolkien").build(),
+                        Author.builder().name("Edith Tolkien").build()
+                    )
+                )
+                .build()
+          )
+      )
+      .build();
     libraryService.save(library);
     return ResponseEntity.ok(library.getId());
   }
@@ -74,7 +79,9 @@ public class LibraryController {
 
   @GetMapping("/update")
   public String update(
-      @ModelAttribute(COMMAND_NAME) final Library library, final SessionStatus sessionStatus) {
+      @ModelAttribute(COMMAND_NAME) final Library library,
+      final SessionStatus sessionStatus
+  ) {
     libraryService.update(library);
     sessionStatus.setComplete();
     return "redirect:/library/" + library.getId();
@@ -84,7 +91,8 @@ public class LibraryController {
   public ResponseEntity<String> addToSession(
       @RequestParam("mode") final String mode,
       @PathVariable final int id,
-      final HttpServletRequest request) {
+      final HttpServletRequest request
+  ) {
     final Library library = libraryService.findLibraryById(id);
     final Book book = library.getBooks().get(0);
     final HttpSession session = request.getSession();
@@ -98,7 +106,9 @@ public class LibraryController {
 
   @GetMapping("/session/validate")
   public ResponseEntity<Boolean> validateSession(
-      @RequestParam("mode") final String mode, final HttpServletRequest request) {
+      @RequestParam("mode") final String mode,
+      final HttpServletRequest request
+  ) {
     final HttpSession session = request.getSession();
     final Object sessionItem = session.getAttribute(mode);
     final boolean loaded;

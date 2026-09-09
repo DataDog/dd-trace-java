@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.openai.core.ClientOptions;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.models.embeddings.CreateEmbeddingResponse;
@@ -21,8 +20,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public class EmbeddingServiceInstrumentation
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithTypeStructure
+{
   @Override
   public String instrumentedType() {
     return "com.openai.services.blocking.EmbeddingServiceImpl$WithRawResponseImpl";
@@ -32,10 +32,11 @@ public class EmbeddingServiceInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("create"))
-            .and(takesArgument(0, named("com.openai.models.embeddings.EmbeddingCreateParams")))
-            .and(returns(named("com.openai.core.http.HttpResponseFor"))),
-        getClass().getName() + "$CreateAdvice");
+          .and(named("create"))
+          .and(takesArgument(0, named("com.openai.models.embeddings.EmbeddingCreateParams")))
+          .and(returns(named("com.openai.core.http.HttpResponseFor"))),
+        getClass().getName() + "$CreateAdvice"
+    );
   }
 
   @Override
@@ -47,7 +48,8 @@ public class EmbeddingServiceInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(
         @Advice.Argument(0) final EmbeddingCreateParams params,
-        @Advice.FieldValue("clientOptions") ClientOptions clientOptions) {
+        @Advice.FieldValue("clientOptions") ClientOptions clientOptions
+    ) {
       AgentSpan span = DECORATE.startSpan(clientOptions);
       EmbeddingDecorator.DECORATE.withEmbeddingCreateParams(span, params);
       return activateSpan(span);
@@ -57,14 +59,17 @@ public class EmbeddingServiceInstrumentation
     public static void exit(
         @Advice.Enter final AgentScope scope,
         @Advice.Return(readOnly = false) HttpResponseFor<CreateEmbeddingResponse> response,
-        @Advice.Thrown final Throwable err) {
+        @Advice.Thrown final Throwable err
+    ) {
       AgentSpan span = scope.span();
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpResponseWrapper.wrap(
-                response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
+        response = HttpResponseWrapper.wrap(
+            response,
+            span,
+            EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse
+        );
       }
       scope.close();
     }

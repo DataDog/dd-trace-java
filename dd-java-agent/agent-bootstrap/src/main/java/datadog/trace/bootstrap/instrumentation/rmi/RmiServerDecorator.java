@@ -11,9 +11,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class RmiServerDecorator extends ServerDecorator {
   public static final CharSequence RMI_SERVER = UTF8BytesString.create("rmi-server");
   public static final RmiServerDecorator DECORATE = new RmiServerDecorator();
-  public static final CharSequence RMI_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForProtocol("rmi"));
+  public static final CharSequence RMI_REQUEST = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .server()
+    .operationForProtocol("rmi")
+  );
 
   @Override
   protected String[] instrumentationNames() {

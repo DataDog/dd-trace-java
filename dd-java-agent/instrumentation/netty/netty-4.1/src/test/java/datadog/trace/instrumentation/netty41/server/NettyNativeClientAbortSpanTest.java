@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -46,10 +45,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 
 public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest {
-
   private static final String PATH = "/native-broken-pipe";
-  private static final String NATIVE_IO_EXCEPTION =
-      "io.netty.channel.unix.Errors$NativeIoException";
+  private static final String NATIVE_IO_EXCEPTION = "io.netty.channel.unix.Errors$NativeIoException";
   private static final String WRITEV_ADDRESSES_FAILURE_PREFIX = "writevAddresses(..) failed";
   private static final String WRITEV_SYSCALL_FAILURE_PREFIX = "syscall:writev(..) failed";
   private static final String BROKEN_PIPE_MESSAGE_SUFFIX = ": Broken pipe";
@@ -65,24 +62,23 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
     EventLoopGroup worker = transport.newEventLoopGroup(1);
     Channel server = null;
     try {
-      server =
-          new ServerBootstrap()
-              .group(boss, worker)
-              .channel(transport.serverSocketChannelClass)
-              .childOption(
-                  ChannelOption.WRITE_BUFFER_WATER_MARK,
-                  new WriteBufferWaterMark(32 * 1024, 64 * 1024))
-              .childHandler(
-                  new ChannelInitializer<Channel>() {
-                    @Override
-                    protected void initChannel(Channel ch) {
-                      ch.pipeline().addLast(new HttpServerCodec());
-                      ch.pipeline().addLast(handler);
-                    }
-                  })
-              .bind("127.0.0.1", 0)
-              .sync()
-              .channel();
+      server = new ServerBootstrap()
+        .group(boss, worker)
+        .channel(transport.serverSocketChannelClass)
+        .childOption(
+            ChannelOption.WRITE_BUFFER_WATER_MARK,
+            new WriteBufferWaterMark(32 * 1024, 64 * 1024)
+        )
+        .childHandler(new ChannelInitializer<Channel>() {
+          @Override
+          protected void initChannel(Channel ch) {
+            ch.pipeline().addLast(new HttpServerCodec());
+            ch.pipeline().addLast(handler);
+          }
+        })
+        .bind("127.0.0.1", 0)
+        .sync()
+        .channel();
 
       int port = ((InetSocketAddress) server.localAddress()).getPort();
       try (Socket socket = new Socket("127.0.0.1", port)) {
@@ -96,9 +92,9 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
 
       Throwable failure = handler.awaitFailure();
       assertEquals(NATIVE_IO_EXCEPTION, failure.getClass().getName());
-      assertTrue(
-          isExpectedClientAbortMessage(failure.getMessage()),
-          () -> "unexpected native write failure message: " + failure.getMessage());
+      assertTrue(isExpectedClientAbortMessage(failure.getMessage()), () ->
+          "unexpected native write failure message: "
+          + failure.getMessage());
 
       writer.waitForTraces(1);
       DDSpan span = writer.firstTrace().get(0);
@@ -123,14 +119,15 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
   private static boolean isExpectedClientAbortMessage(String message) {
     return message != null
         && (message.startsWith(WRITEV_ADDRESSES_FAILURE_PREFIX)
-            || message.startsWith(WRITEV_SYSCALL_FAILURE_PREFIX))
+        || message.startsWith(WRITEV_SYSCALL_FAILURE_PREFIX))
         && (message.endsWith(BROKEN_PIPE_MESSAGE_SUFFIX)
-            || message.endsWith(CONNECTION_RESET_MESSAGE_SUFFIX));
+        || message.endsWith(CONNECTION_RESET_MESSAGE_SUFFIX));
   }
 
   @ChannelHandler.Sharable
   private static final class NativeBrokenPipeHandler
-      extends SimpleChannelInboundHandler<HttpRequest> {
+      extends SimpleChannelInboundHandler<HttpRequest>
+  {
     private final AtomicBoolean failureRecorded = new AtomicBoolean();
     private final BlockingQueue<Throwable> failures = new LinkedBlockingQueue<>();
 
@@ -144,8 +141,9 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
       DefaultHttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
       response.headers().set(TRANSFER_ENCODING, CHUNKED);
       ctx.write(response);
-      ctx.writeAndFlush(new DefaultHttpContent(ctx.alloc().buffer(1).writeByte(1)))
-          .addListener(future -> writeCancelledResponseTail(ctx));
+      ctx
+        .writeAndFlush(new DefaultHttpContent(ctx.alloc().buffer(1).writeByte(1)))
+        .addListener(future -> writeCancelledResponseTail(ctx));
     }
 
     private void writeCancelledResponseTail(ChannelHandlerContext ctx) {
@@ -154,16 +152,17 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
         content.writeZero(content.writableBytes());
         ctx.write(new DefaultHttpContent(content));
       }
-      ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
-          .addListener(
-              future -> {
-                if (future.isSuccess()) {
-                  failures.offer(
-                      new AssertionError("cancelled response tail write unexpectedly succeeded"));
-                } else if (failureRecorded.compareAndSet(false, true)) {
-                  failures.offer(future.cause());
-                }
-              });
+      ctx
+        .writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT)
+        .addListener(future -> {
+          if (future.isSuccess()) {
+            failures.offer(
+                new AssertionError("cancelled response tail write unexpectedly succeeded")
+            );
+          } else if (failureRecorded.compareAndSet(false, true)) {
+            failures.offer(future.cause());
+          }
+        });
     }
 
     private Throwable awaitFailure() throws InterruptedException, TimeoutException {
@@ -190,7 +189,8 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
 
     private NativeTransport(
         Constructor<? extends EventLoopGroup> eventLoopGroupConstructor,
-        Class<? extends ServerChannel> serverSocketChannelClass) {
+        Class<? extends ServerChannel> serverSocketChannelClass
+    ) {
       this.available = true;
       this.unavailableReason = null;
       this.eventLoopGroupConstructor = eventLoopGroupConstructor;
@@ -204,19 +204,25 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
             "kqueue",
             "io.netty.channel.kqueue.KQueue",
             "io.netty.channel.kqueue.KQueueEventLoopGroup",
-            "io.netty.channel.kqueue.KQueueServerSocketChannel");
+            "io.netty.channel.kqueue.KQueueServerSocketChannel"
+        );
       } else if (osName.contains("linux")) {
         return load(
             "epoll",
             "io.netty.channel.epoll.Epoll",
             "io.netty.channel.epoll.EpollEventLoopGroup",
-            "io.netty.channel.epoll.EpollServerSocketChannel");
+            "io.netty.channel.epoll.EpollServerSocketChannel"
+        );
       }
       return new NativeTransport("Netty native transport is not supported on " + osName);
     }
 
     private static NativeTransport load(
-        String name, String availabilityClass, String eventLoopGroupClass, String channelClass) {
+        String name,
+        String availabilityClass,
+        String eventLoopGroupClass,
+        String channelClass
+    ) {
       try {
         Class<?> availability = Class.forName(availabilityClass);
         Method isAvailable = availability.getMethod("isAvailable");
@@ -224,10 +230,11 @@ public class NettyNativeClientAbortSpanTest extends AbstractInstrumentationTest 
           return new NativeTransport(name + " is not available");
         }
         return new NativeTransport(
-            Class.forName(eventLoopGroupClass)
-                .asSubclass(EventLoopGroup.class)
-                .getConstructor(int.class),
-            Class.forName(channelClass).asSubclass(ServerChannel.class));
+            Class.forName(eventLoopGroupClass).asSubclass(EventLoopGroup.class).getConstructor(
+                int.class
+            ),
+            Class.forName(channelClass).asSubclass(ServerChannel.class)
+        );
       } catch (Throwable error) {
         return new NativeTransport(name + " could not be loaded: " + error);
       }

@@ -1,7 +1,6 @@
 package com.datadog.iast.model;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import com.datadog.iast.model.json.SourceIndex;
 import com.datadog.iast.util.Ranged;
 import java.util.HashSet;
@@ -13,10 +12,13 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class Range implements Ranged {
-
-  private final @Nonnegative int start;
-  private final @Nonnegative int length;
-  private final @Nonnull @SourceIndex Source source;
+  @Nonnegative
+  private final int start;
+  @Nonnegative
+  private final int length;
+  @Nonnull
+  @SourceIndex
+  private final Source source;
   private final int marks;
 
   public Range(final int start, final int length, @Nonnull final Source source, final int marks) {
@@ -54,16 +56,18 @@ public final class Range implements Ranged {
       return false;
     }
     Range range = (Range) o;
-    return start == range.start && length == range.length && Objects.equals(source, range.source);
+    return start == range.start
+        && length == range.length
+        && Objects.equals(source, range.source);
   }
 
   @Override
   public String toString() {
     return new StringJoiner(", ", Range.class.getSimpleName() + "[", "]")
-        .add("start=" + start)
-        .add("length=" + length)
-        .add("source=" + source)
-        .toString();
+      .add("start=" + start)
+      .add("length=" + length)
+      .add("source=" + source)
+      .toString();
   }
 
   @Override
@@ -86,13 +90,19 @@ public final class Range implements Ranged {
     return (marks & mark) != NOT_MARKED;
   }
 
-  /** Creates a version of the range without weak references to be used in vulnerabilities */
+  /**
+   * Creates a version of the range without weak references to be used in vulnerabilities
+   */
   public Range consolidate() {
     if (!source.isReference()) {
       return this;
     }
     return new Range(
-        start, length, new Source(source.getOrigin(), source.getName(), source.getValue()), marks);
+        start,
+        length,
+        new Source(source.getOrigin(), source.getName(), source.getValue()),
+        marks
+    );
   }
 
   public @Nullable Set<VulnerabilityType> getMarkedVulnerabilities() {

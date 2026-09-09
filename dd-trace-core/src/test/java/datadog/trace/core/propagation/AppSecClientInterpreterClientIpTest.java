@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -62,41 +61,56 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
                 "Datadog",
                 DatadogHttpCodec::newExtractor,
                 headers(DatadogHttpCodec.TRACE_ID_KEY, "1", DatadogHttpCodec.SPAN_ID_KEY, "2"),
-                true)),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "B3",
                 B3HttpCodec::newExtractor,
                 headers(B3HttpCodec.TRACE_ID_KEY, "1", B3HttpCodec.SPAN_ID_KEY, "2"),
-                true)),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "W3C",
                 W3CHttpCodec::newExtractor,
                 headers(
                     W3CHttpCodec.TRACE_PARENT_KEY,
-                    "00-00000000000000000000000000000001-0000000000000002-01"),
-                true)),
+                    "00-00000000000000000000000000000001-0000000000000002-01"
+                ),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "Haystack",
                 HaystackHttpCodec::newExtractor,
                 headers(HaystackHttpCodec.TRACE_ID_KEY, "1", HaystackHttpCodec.SPAN_ID_KEY, "2"),
-                true)),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "XRay",
                 XRayHttpCodec::newExtractor,
                 headers(
                     XRayHttpCodec.X_AMZN_TRACE_ID,
-                    "Root=1-00000000-000000000000000000000001;Parent=0000000000000002"),
-                true)),
+                    "Root=1-00000000-000000000000000000000001;Parent=0000000000000002"
+                ),
+                true
+            )
+        ),
         arguments(
             new Style(
                 "None",
                 NoneCodec::newExtractor,
                 headers(DatadogHttpCodec.TRACE_ID_KEY, "1", DatadogHttpCodec.SPAN_ID_KEY, "2"),
-                false)));
+                false
+            )
+        )
+    );
   }
 
   @ParameterizedTest(name = "{0}")
@@ -116,7 +130,6 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
         HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8",
         HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9");
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals("some-user-agent", context.getUserAgent());
@@ -135,8 +148,8 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
   @MethodSource("styles")
   void extractEmptyHeadersReturnsNull(Style style) {
     this.extractor = buildExtractor(style.factory);
-    assertNull(
-        this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap())
+    );
   }
 
   @ParameterizedTest(name = "{0}")
@@ -167,10 +180,10 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
 
-    TagContext tagOnly =
-        this.extractor.extract(
-            headers("X-Forwarded-For", forwardedIp, "X-Forwarded-Port", forwardedPort),
-            stringValuesMap());
+    TagContext tagOnly = this.extractor.extract(
+        headers("X-Forwarded-For", forwardedIp, "X-Forwarded-Port", forwardedPort),
+        stringValuesMap()
+    );
 
     assertNotNull(tagOnly);
     assertFalse(tagOnly instanceof ExtractedContext);
@@ -244,7 +257,9 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
     }
   }
 
-  /** A propagation style under test: its extractor factory and minimal valid trace headers. */
+  /**
+   * A propagation style under test: its extractor factory and minimal valid trace headers.
+   */
   static final class Style {
     final String name;
     final BiFunction<Config, Supplier<TraceConfig>, HttpCodec.Extractor> factory;
@@ -255,7 +270,8 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
         String name,
         BiFunction<Config, Supplier<TraceConfig>, HttpCodec.Extractor> factory,
         Map<String, String> minimalTraceHeaders,
-        boolean buildsExtractedContext) {
+        boolean buildsExtractedContext
+    ) {
       this.name = name;
       this.factory = factory;
       this.minimalTraceHeaders = minimalTraceHeaders;

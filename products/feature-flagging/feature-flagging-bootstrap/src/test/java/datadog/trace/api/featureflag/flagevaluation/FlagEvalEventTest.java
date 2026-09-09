@@ -5,13 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Collections;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FlagEvalEventTest {
-
   @Test
   void storesFieldsWithContextAttributes() {
     final Map<String, Object> attrs = Collections.singletonMap("tier", "gold");
@@ -49,6 +47,7 @@ class FlagEvalEventTest {
   void storesExplicitObserveFullEvaluationData() {
     final Map<String, Object> attrs = Collections.emptyMap();
     assertTrue(
-        new FlagEvalEvent("f", "on", "a", "t", null, 1L, true, attrs).observeFullEvaluationData);
+        new FlagEvalEvent("f", "on", "a", "t", null, 1L, true, attrs).observeFullEvaluationData
+    );
   }
 }

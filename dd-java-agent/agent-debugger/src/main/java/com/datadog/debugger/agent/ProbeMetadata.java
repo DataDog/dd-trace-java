@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 
 public class ProbeMetadata {
   private static final Logger LOGGER = LoggerFactory.getLogger(ProbeMetadata.class);
-
   private int size;
   private Object lock = new Object();
   private volatile AtomicReferenceArray<ProbeImplementation> probeImplementations =
@@ -31,7 +30,8 @@ public class ProbeMetadata {
       LOGGER.debug(
           "Assigned probeId={} to ProbeMetadata Idx={}",
           probeImplementation.getProbeId().getEncodedId(),
-          idx);
+          idx
+      );
       size++;
       return idx;
     }

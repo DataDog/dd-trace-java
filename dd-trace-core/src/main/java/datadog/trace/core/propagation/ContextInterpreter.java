@@ -14,7 +14,6 @@ import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_HOST_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PORT_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_FORWARDED_PROTO_KEY;
 import static datadog.trace.core.propagation.HttpCodec.X_REAL_IP_KEY;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -40,21 +39,16 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class ContextInterpreter implements AgentPropagation.KeyClassifier {
   private static final Logger LOG = LoggerFactory.getLogger(ContextInterpreter.class);
-
   private TraceConfig traceConfig;
-
   protected Map<String, String> headerTags;
   protected Map<String, String> baggageMapping;
-
   protected DDTraceId traceId;
   protected long spanId;
   protected int samplingPriority;
   protected TagMap.Ledger tagLedger;
   protected Map<String, String> baggage;
-
   private int baggageItemCount;
   private int baggageBytes;
-
   protected CharSequence lastParentId;
   protected CharSequence origin;
   protected long endToEndStartTime;
@@ -62,7 +56,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   protected boolean fullContext;
   protected final PropagationTags.Factory propagationTagsFactory;
   protected PropagationTags propagationTags;
-
   private TagContext.HttpHeaders httpHeaders;
   private final String customIpHeaderName;
   private final boolean clientIpResolutionEnabled;
@@ -72,7 +65,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   private final boolean requestHeaderTagsCommaAllowed;
   private final int baggageMaxItems;
   private final int baggageMaxBytes;
-
   protected static final boolean LOG_EXTRACT_HEADER_NAMES = Config.get().isLogExtractHeaderNames();
   private static final DDCache<String, String> CACHE = DDCaches.newFixedSizeCache(64);
 
@@ -167,7 +159,6 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     if (value == null || !collectIpHeaders) {
       return false;
     }
-
     // May be ends with 'ip' ?
     char last = Character.toLowerCase(key.charAt(key.length() - 1));
     if (last == 'p') {
@@ -211,10 +202,12 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     final String mappedKey = headerTags.get(lowerCaseKey);
     if (null != mappedKey) {
       tagLedger()
-          .set(
-              mappedKey,
-              HttpCodec.decode(
-                  requestHeaderTagsCommaAllowed ? value : HttpCodec.firstHeaderValue(value)));
+        .set(
+            mappedKey,
+            HttpCodec.decode(
+                requestHeaderTagsCommaAllowed ? value : HttpCodec.firstHeaderValue(value)
+            )
+        );
       return true;
     }
     return false;
@@ -243,10 +236,9 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
       return false;
     }
 
-    final long projectedBytes =
-        oldValue == null
-            ? (long) baggageBytes + key.length() + value.length()
-            : (long) baggageBytes + value.length() - oldValue.length();
+    final long projectedBytes = oldValue == null
+        ? (long) baggageBytes + key.length() + value.length()
+        : (long) baggageBytes + value.length() - oldValue.length();
 
     if (projectedBytes > baggageMaxBytes) {
       LOG.debug("Dropping baggage item {}: byte limit {} reached", key, baggageMaxBytes);
@@ -270,17 +262,18 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
     samplingPriority = PrioritySampling.UNSET;
     origin = null;
     endToEndStartTime = 0;
-    if (tagLedger != null) tagLedger.reset();
+    if (tagLedger != null) {
+      tagLedger.reset();
+    }
     baggage = Collections.emptyMap();
     baggageItemCount = 0;
     baggageBytes = 0;
     valid = true;
     fullContext = true;
     httpHeaders = null;
-    collectIpHeaders =
-        this.clientIpWithoutAppSec
-            || this.clientIpResolutionEnabled
-                && (ActiveSubsystems.APPSEC_ACTIVE || this.aiGuardEnabled);
+    collectIpHeaders = this.clientIpWithoutAppSec
+        || this.clientIpResolutionEnabled
+        && (ActiveSubsystems.APPSEC_ACTIVE || this.aiGuardEnabled);
     headerTags = traceConfig.getRequestHeaderTags();
     baggageMapping = traceConfig.getBaggageMapping();
     propagationTags = null;
@@ -305,7 +298,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             httpHeaders,
             propagationTags,
             traceConfig,
-            style());
+            style()
+        );
       } else if (origin != null
           || (tagLedger != null && !tagLedger.isDefinitelyEmpty())
           || httpHeaders != null
@@ -319,7 +313,8 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
             samplingPriorityOrDefault(traceId, samplingPriority),
             traceConfig,
             style(),
-            DDTraceId.ZERO);
+            DDTraceId.ZERO
+        );
       }
     }
     return null;

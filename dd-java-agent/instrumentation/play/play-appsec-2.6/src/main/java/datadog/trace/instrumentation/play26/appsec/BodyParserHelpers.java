@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.play26.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.DoubleNode;
@@ -59,23 +58,19 @@ import scala.xml.NodeSeq;
 import scala.xml.Text;
 
 public class BodyParserHelpers {
-
   public static final int MAX_CONVERSION_DEPTH = 10;
   private static final Logger log = LoggerFactory.getLogger(BodyParserHelpers.class);
   public static final int MAX_RECURSION = 15;
-
   // Cached via reflection to avoid embedding a hard binary reference to
   // files():Lscala/collection/Seq; — the return type changed to
   // Lscala/collection/immutable/Seq; in Scala 2.13 (Play 2.7+), which would
   // cause muzzle to disable the instrumentation for Play 2.7.
   private static final Method MULTIPART_FILES_METHOD;
-
   // Cached via reflection: FilePart.ref() returns the generic file reference (TemporaryFile in
   // Play 2.5/2.6), and TemporaryFile.file() returns java.io.File. Using reflection avoids
   // embedding bytecode references to TemporaryFile that could break muzzle.
   private static final Method FILE_PART_REF;
   private static final Method TEMP_FILE_FILE;
-
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
@@ -94,12 +89,13 @@ public class BodyParserHelpers {
     } catch (Exception ignored) {
     }
     try {
-      file =
-          Class.forName(
-                  "play.api.libs.Files$TemporaryFile",
-                  false,
-                  BodyParserHelpers.class.getClassLoader())
-              .getMethod("file");
+      file = Class
+        .forName(
+            "play.api.libs.Files$TemporaryFile",
+            false,
+            BodyParserHelpers.class.getClassLoader()
+        )
+        .getMethod("file");
     } catch (Exception ignored) {
     }
     FILE_PART_REF = ref;
@@ -107,26 +103,27 @@ public class BodyParserHelpers {
   }
 
   private static JFunction1<
-          scala.collection.immutable.Map<String, Seq<String>>,
-          scala.collection.immutable.Map<String, Seq<String>>>
-      HANDLE_URL_ENCODED = BodyParserHelpers::handleUrlEncoded;
+      scala.collection.immutable.Map<String, Seq<String>>,
+      scala.collection.immutable.Map<String, Seq<String>>> HANDLE_URL_ENCODED =
+      BodyParserHelpers::handleUrlEncoded;
   private static JFunction1<String, String> HANDLE_TEXT = BodyParserHelpers::handleText;
   private static JFunction1<MultipartFormData<?>, MultipartFormData<?>> HANDLE_MULTIPART_FORM_DATA =
       BodyParserHelpers::handleMultipartFormData;
   private static JFunction1<JsValue, JsValue> HANDLE_JSON = BodyParserHelpers::handleJson;
   private static JFunction1<NodeSeq, NodeSeq> HANDLE_XML = BodyParserHelpers::handleXml;
 
-  private BodyParserHelpers() {}
+  private BodyParserHelpers() {
+  }
 
   public static Function1<
-          scala.collection.immutable.Map<String, Seq<String>>,
-          scala.collection.immutable.Map<String, Seq<String>>>
-      getHandleUrlEncodedMapF() {
+      scala.collection.immutable.Map<String, Seq<String>>,
+      scala.collection.immutable.Map<String, Seq<String>>> getHandleUrlEncodedMapF() {
     return HANDLE_URL_ENCODED;
   }
 
   private static scala.collection.immutable.Map<String, Seq<String>> handleUrlEncoded(
-      scala.collection.immutable.Map<String, Seq<String>> data) {
+      scala.collection.immutable.Map<String, Seq<String>> data
+  ) {
     if (data == null || data.isEmpty()) {
       return data;
     }
@@ -158,8 +155,7 @@ public class BodyParserHelpers {
     return s;
   }
 
-  public static Function1<MultipartFormData<?>, MultipartFormData<?>>
-      getHandleMultipartFormDataF() {
+  public static Function1<MultipartFormData<?>, MultipartFormData<?>> getHandleMultipartFormDataF() {
     return HANDLE_MULTIPART_FORM_DATA;
   }
 
@@ -183,11 +179,14 @@ public class BodyParserHelpers {
         Object files = MULTIPART_FILES_METHOD.invoke(data);
         if (files instanceof scala.collection.Iterable) {
           handleMultipartFilenames(
-              new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
+              new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator())
+          );
         }
       }
     } catch (BlockingException be) {
-      if (pendingBlock == null) pendingBlock = be;
+      if (pendingBlock == null) {
+        pendingBlock = be;
+      }
     } catch (Exception e) {
       log.debug("Error handling multipartFormData filenames", e);
     }
@@ -198,7 +197,8 @@ public class BodyParserHelpers {
           Object files = MULTIPART_FILES_METHOD.invoke(data);
           if (files instanceof scala.collection.Iterable) {
             handleMultipartFilesContent(
-                new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
+                new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator())
+            );
           }
         }
       } catch (BlockingException be) {
@@ -208,7 +208,9 @@ public class BodyParserHelpers {
       }
     }
 
-    if (pendingBlock != null) throw pendingBlock;
+    if (pendingBlock != null) {
+      throw pendingBlock;
+    }
     return data;
   }
 
@@ -252,7 +254,8 @@ public class BodyParserHelpers {
   private static void executeFilenamesCallback(
       RequestContext reqCtx,
       BiFunction<RequestContext, List<String>, Flow<Void>> callback,
-      List<String> filenames) {
+      List<String> filenames
+  ) {
     Flow<Void> flow = callback.apply(reqCtx, filenames);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
@@ -337,7 +340,8 @@ public class BodyParserHelpers {
   private static void executeFilesContentCallback(
       RequestContext reqCtx,
       BiFunction<RequestContext, List<String>, Flow<Void>> callback,
-      List<String> contents) {
+      List<String> contents
+  ) {
     Flow<Void> flow = callback.apply(reqCtx, contents);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
@@ -400,7 +404,8 @@ public class BodyParserHelpers {
       RequestContext reqCtx,
       BiFunction<RequestContext, Object, Flow<Void>> callback,
       Object conv,
-      String details) {
+      String details
+  ) {
     Flow<Void> flow = callback.apply(reqCtx, conv);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
@@ -483,7 +488,6 @@ public class BodyParserHelpers {
     if (callback == null) {
       return;
     }
-
     // callback execution
     executeCallback(reqCtx, callback, o, source);
   }
@@ -628,7 +632,6 @@ public class BodyParserHelpers {
 
     Element documentElement = ret.getDocumentElement();
     Object obj = convertW3cNode(documentElement, MAX_RECURSION);
-
     // pass wrapped in a list for consistency with NodeSeq (scala) variant
     handleArbitraryPostDataWithSpanError(Collections.singletonList(obj), source);
   }

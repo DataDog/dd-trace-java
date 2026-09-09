@@ -4,7 +4,6 @@ import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
@@ -28,9 +27,12 @@ import java.util.Set;
 import java.util.function.Function;
 
 public class GrpcClientDecorator extends ClientDecorator {
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().client().operationForProtocol("grpc"));
+  public static final CharSequence OPERATION_NAME = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .client()
+    .operationForProtocol("grpc")
+  );
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("armeria-grpc-client");
   public static final CharSequence GRPC_MESSAGE = UTF8BytesString.create("grpc.message");
 
@@ -39,20 +41,17 @@ public class GrpcClientDecorator extends ClientDecorator {
   }
 
   public static final GrpcClientDecorator DECORATE = new GrpcClientDecorator();
-
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredOutboundMethods();
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getGrpcClientErrorStatuses();
-
   private static final ClassValue<UTF8BytesString> MESSAGE_TYPES =
       GenericClassValue.of(
-          // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
-          new Function<Class<?>, UTF8BytesString>() {
-            @Override
-            public UTF8BytesString apply(Class<?> input) {
-              return UTF8BytesString.create(input.getName());
-            }
-          });
-
+      // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
+  new Function<Class<?>, UTF8BytesString>() {
+    @Override
+    public UTF8BytesString apply(Class<?> input) {
+      return UTF8BytesString.create(input.getName());
+    }
+  });
   private static final DDCache<String, String> RPC_SERVICE_CACHE = DDCaches.newFixedSizeCache(64);
 
   public UTF8BytesString requestMessageType(MethodDescriptor<?, ?> method) {
@@ -65,8 +64,9 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   private UTF8BytesString messageType(MethodDescriptor.Marshaller<?> marshaller) {
     return marshaller instanceof MethodDescriptor.ReflectableMarshaller
-        ? MESSAGE_TYPES.get(
-            ((MethodDescriptor.ReflectableMarshaller<?>) marshaller).getMessageClass())
+        ? MESSAGE_TYPES.get(((MethodDescriptor.ReflectableMarshaller<?>) marshaller)
+      .getMessageClass()
+    )
         : null;
   }
 
@@ -94,15 +94,17 @@ public class GrpcClientDecorator extends ClientDecorator {
     if (IGNORED_METHODS.contains(method.getFullMethodName())) {
       return AgentTracer.blackholeSpan();
     }
-    AgentSpan span =
-        startSpan(COMPONENT_NAME.toString(), OPERATION_NAME)
-            .setTag("request.type", requestMessageType(method))
-            .setTag("response.type", responseMessageType(method))
-            // method.getServiceName() may not be available on some grpc versions
-            .setTag(
-                Tags.RPC_SERVICE,
-                RPC_SERVICE_CACHE.computeIfAbsent(
-                    method.getFullMethodName(), MethodDescriptor::extractFullServiceName));
+    AgentSpan span = startSpan(COMPONENT_NAME.toString(), OPERATION_NAME)
+      .setTag("request.type", requestMessageType(method))
+      .setTag("response.type", responseMessageType(method))
+      // method.getServiceName() may not be available on some grpc versions
+      .setTag(
+          Tags.RPC_SERVICE,
+          RPC_SERVICE_CACHE.computeIfAbsent(
+              method.getFullMethodName(),
+              MethodDescriptor::extractFullServiceName
+          )
+      );
     span.setResourceName(method.getFullMethodName());
     afterStart(span);
     return span;
@@ -116,12 +118,10 @@ public class GrpcClientDecorator extends ClientDecorator {
   }
 
   public void onClose(final AgentSpan span, final Status status) {
-
     span.setTag("status.code", status.getCode().name());
     span.setTag("grpc.status.code", status.getCode().name());
     span.setTag(InstrumentationTags.GRPC_STATUS_CODE, status.getCode().value());
     span.setTag("status.description", status.getDescription());
-
     // TODO why is there a mismatch between client / server for calling the onError method?
     onError(span, status.getCause());
     span.setError(CLIENT_ERROR_STATUSES.get(status.getCode().value()));

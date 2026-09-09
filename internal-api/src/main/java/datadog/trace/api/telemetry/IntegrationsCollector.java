@@ -8,20 +8,19 @@ import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class IntegrationsCollector {
-
   private static final IntegrationsCollector INSTANCE = new IntegrationsCollector();
   private final Queue<Integration> integrations = new LinkedBlockingQueue<>();
 
-  private IntegrationsCollector() {}
+  private IntegrationsCollector() {
+  }
 
   public static IntegrationsCollector get() {
     return INSTANCE;
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification =
-          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_METHOD_SYNCHRONIZATION", justification = "All "
+      + "production callers are agent-owned and do not synchronize on this monitor; "
+      + "locking prevents updates from interleaving with draining.")
   public synchronized void update(Iterable<String> names, boolean enabled) {
     Integration i = new Integration();
     i.names = names;
@@ -30,10 +29,9 @@ public class IntegrationsCollector {
     integrations.offer(i);
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_METHOD_SYNCHRONIZATION",
-      justification =
-          "All production callers are agent-owned and do not synchronize on this monitor; locking prevents updates from interleaving with draining.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_METHOD_SYNCHRONIZATION", justification = "All "
+      + "production callers are agent-owned and do not synchronize on this monitor; "
+      + "locking prevents updates from interleaving with draining.")
   public synchronized Map<String, Boolean> drain() {
     if (integrations.isEmpty()) {
       return Collections.emptyMap();

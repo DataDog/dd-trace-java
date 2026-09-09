@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
@@ -28,7 +27,6 @@ import org.tabletest.junit.TableTest;
 
 @DisabledIf("datadog.environment.JavaVirtualMachine#isJ9")
 class FootprintForkedTest {
-
   private static final Random RANDOM = new Random(0);
 
   @BeforeAll
@@ -38,40 +36,47 @@ class FootprintForkedTest {
   }
 
   @TableTest({
-    "scenario                       | operationCardinality | servicePerOperation | resourceNamesPerService | typesPerOperation | errorRate",
-    "5 ops 10 resources 0% errors   | 5                    | 1                   | 10                      | 2                 | 0.00     ",
-    "5 ops 100 resources 0% errors  | 5                    | 1                   | 100                     | 2                 | 0.00     ",
-    "5 ops 10 resources 1% errors   | 5                    | 1                   | 10                      | 2                 | 0.01     ",
-    "5 ops 100 resources 1% errors  | 5                    | 1                   | 100                     | 2                 | 0.01     ",
-    "10 ops 100 resources 0% errors | 10                   | 1                   | 100                     | 2                 | 0.00     ",
-    "10 ops 100 resources 1% errors | 10                   | 1                   | 100                     | 2                 | 0.01     "
+    "scenario                       | operationCardinality | servicePerOperation |     ",
+    "resourceNamesPerService | typesPerOperation | errorRate                           ",
+    "5 ops 10 resources 0% errors   | 5                    | 1                   | 10  ",
+    "                    | 2                 | 0.00                                    ",
+    "5 ops 100 resources 0% errors  | 5                    | 1                   | 100 ",
+    "                    | 2                 | 0.00                                    ",
+    "5 ops 10 resources 1% errors   | 5                    | 1                   | 10  ",
+    "                    | 2                 | 0.01                                    ",
+    "5 ops 100 resources 1% errors  | 5                    | 1                   | 100 ",
+    "                    | 2                 | 0.01                                    ",
+    "10 ops 100 resources 0% errors | 10                   | 1                   | 100 ",
+    "                    | 2                 | 0.00                                    ",
+    "10 ops 100 resources 1% errors | 10                   | 1                   | 100 ",
+    "                    | 2                 | 0.01                                    "
   })
   void footprintLessThan10MB(
       int operationCardinality,
       int servicePerOperation,
       int resourceNamesPerService,
       int typesPerOperation,
-      double errorRate)
-      throws Exception {
+      double errorRate
+  ) throws Exception {
     CountDownLatch latch = new CountDownLatch(1);
     ValidatingSink sink = new ValidatingSink(latch);
     DDAgentFeaturesDiscovery features =
         mock(DDAgentFeaturesDiscovery.class, withSettings().stubOnly());
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(emptySet());
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language"),
-            emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            1000,
-            1000,
-            100,
-            SECONDS,
-            false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language"),
+        emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        features,
+        HealthMetrics.NO_OP,
+        sink,
+        1000,
+        1000,
+        100,
+        SECONDS,
+        false
+    );
     // Measuring the AggregateTable directly (rather than the whole ClientStatsAggregator) avoids
     // both the 'features' mock (mocks are heavyweight, e.g. around 22MiB) and the aggregator's
     // background Thread, whose ThreadGroup transitively references every other live thread in the
@@ -79,7 +84,6 @@ class FootprintForkedTest {
     long baseline = footprint(aggregator.aggregator().aggregates());
     aggregator.start();
     try {
-
       // lots of traces are published
       String[] operations = randomNames(operationCardinality);
       Map<String, String[]> serviceNamesByOperation =
@@ -99,19 +103,20 @@ class FootprintForkedTest {
         String resourceName =
             resourceNames[ThreadLocalRandom.current().nextInt(resourceNames.length)];
         boolean isError = ThreadLocalRandom.current().nextInt(traceCount) < errorThreshold;
-        aggregator.publish(
-            Collections.singletonList(
-                new SimpleSpan(
-                    serviceName,
-                    operation,
-                    resourceName,
-                    type,
-                    true,
-                    true,
-                    isError,
-                    System.nanoTime(),
-                    isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01),
-                    200)));
+        aggregator.publish(Collections.singletonList(
+            new SimpleSpan(
+                serviceName,
+                operation,
+                resourceName,
+                type,
+                true,
+                true,
+                isError,
+                System.nanoTime(),
+                isError ? expDistributedNanoseconds(0.99) : expDistributedNanoseconds(0.01),
+                200
+            )
+        ));
       }
       if (!aggregator.report()) {
         int attempts = 0;
@@ -145,7 +150,9 @@ class FootprintForkedTest {
   }
 
   private static Map<String, String[]> scopedRandomNames(
-      Collection<String[]> parents, int childCardinality) {
+      Collection<String[]> parents,
+      int childCardinality
+  ) {
     Map<String, String[]> things = new HashMap<>();
     for (String[] parent : parents) {
       for (String p : parent) {
@@ -166,7 +173,6 @@ class FootprintForkedTest {
   }
 
   private static class ValidatingSink implements Sink {
-
     final CountDownLatch latch;
 
     ValidatingSink(CountDownLatch latch) {

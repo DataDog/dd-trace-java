@@ -8,7 +8,6 @@ import static com.datadog.debugger.instrumentation.Types.DEBUGGER_SPAN_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
-
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
@@ -32,7 +31,8 @@ public class SpanInstrumenter extends Instrumenter {
       SpanProbe spanProbe,
       MethodInfo methodInfo,
       List<DiagnosticMessage> diagnostics,
-      List<Integer> probeIndices) {
+      List<Integer> probeIndices
+  ) {
     super(spanProbe, methodInfo, diagnostics, probeIndices);
   }
 
@@ -53,7 +53,8 @@ public class SpanInstrumenter extends Instrumenter {
     InsnList handler = createCatchHandler(handlerLabel);
     methodNode.instructions.add(handler);
     methodNode.tryCatchBlocks.add(
-        new TryCatchBlockNode(initSpanLabel, endLabel, handlerLabel, null));
+        new TryCatchBlockNode(initSpanLabel, endLabel, handlerLabel, null)
+    );
     methodNode.instructions.insert(methodEnterLabel, insnList);
     return InstrumentationResult.Status.INSTALLED;
   }
@@ -90,7 +91,10 @@ public class SpanInstrumenter extends Instrumenter {
         DEBUGGER_SPAN_TYPE,
         STRING_TYPE,
         STRING_TYPE,
-        Types.asArray(STRING_TYPE, 1)); // tags
+        Types
+          // tags
+          .asArray(STRING_TYPE, 1)
+    );
     // stack: [span]
     insnList.add(new VarInsnNode(Opcodes.ASTORE, spanVar));
     // stack: []
@@ -119,7 +123,8 @@ public class SpanInstrumenter extends Instrumenter {
       LabelNode afterLabel = classFileLines.getLineLabel(till);
       if (beforeLabel == null || afterLabel == null) {
         reportError(
-            "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
+            "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine
+        );
         return InstrumentationResult.Status.ERROR;
       }
       spanVar = newVar(DEBUGGER_SPAN_TYPE);
@@ -130,7 +135,8 @@ public class SpanInstrumenter extends Instrumenter {
       InsnList handler = createCatchHandler(handlerLabel);
       methodNode.instructions.add(handler);
       methodNode.tryCatchBlocks.add(
-          new TryCatchBlockNode(initSpanLabel, afterLabel, handlerLabel, null));
+          new TryCatchBlockNode(initSpanLabel, afterLabel, handlerLabel, null)
+      );
       InsnList finishSpanInsnList = new InsnList();
       debuggerSpanFinish(finishSpanInsnList);
       methodNode.instructions.insert(afterLabel, finishSpanInsnList);

@@ -6,9 +6,9 @@ import java.util.LinkedList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** */
+/**
+ */
 public interface RangedDeque<E extends Ranged> {
-
   @Nullable
   E poll();
 
@@ -24,16 +24,13 @@ public interface RangedDeque<E extends Ranged> {
   }
 
   static <E extends Ranged> RangedDeque<E> forArray(@Nullable final E[] array) {
-    return array == null || array.length == 0
-        ? new EmptyRangedDequeue<>()
-        : new ArrayQueue<>(array);
+    return array == null || array.length == 0 ? new EmptyRangedDequeue<>() : new ArrayQueue<>(array);
   }
 
   abstract class BaseRangedDequeue<E extends Ranged> implements RangedDeque<E> {
-
     private final Deque<E> head = new LinkedList<>();
-
-    @Nullable protected E next;
+    @Nullable
+    protected E next;
 
     @Nullable
     @Override
@@ -72,7 +69,6 @@ public interface RangedDeque<E extends Ranged> {
   }
 
   class EmptyRangedDequeue<E extends Ranged> extends BaseRangedDequeue<E> {
-
     @Nullable
     @Override
     protected E internalPoll() {
@@ -81,7 +77,6 @@ public interface RangedDeque<E extends Ranged> {
   }
 
   class TokenizerQueue extends BaseRangedDequeue<Ranged> {
-
     private final Tokenizer tokenizer;
 
     TokenizerQueue(final Tokenizer tokenizer) {
@@ -97,7 +92,6 @@ public interface RangedDeque<E extends Ranged> {
   }
 
   class ArrayQueue<E extends Ranged> extends BaseRangedDequeue<E> {
-
     private final E[] array;
     private int index;
 

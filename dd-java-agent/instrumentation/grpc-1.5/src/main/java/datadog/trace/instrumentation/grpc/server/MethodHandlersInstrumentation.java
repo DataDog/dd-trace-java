@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin
 import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
@@ -13,7 +12,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class MethodHandlersInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private static final ElementMatcher<TypeDescription> METHOD_HANDLERS =
       nameEndsWith("$MethodHandlers");
 
@@ -31,11 +32,11 @@ public class MethodHandlersInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor().and(takesArguments(2)),
-        "datadog.trace.instrumentation.grpc.server.MethodHandlersInstrumentation$BuildAdvice");
+        "datadog.trace.instrumentation.grpc.server.MethodHandlersInstrumentation$BuildAdvice"
+    );
   }
 
   public static class BuildAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) Object serviceImpl) {
       try {
@@ -59,7 +60,8 @@ public class MethodHandlersInstrumentation
               marker();
               captureCodeOrigin(
                   serviceClass.getDeclaredMethod(method.getName(), method.getParameterTypes()),
-                  true);
+                  true
+              );
             } catch (Throwable e) {
               // service method not overridden on the impl.  skipping instrumentation.
             }

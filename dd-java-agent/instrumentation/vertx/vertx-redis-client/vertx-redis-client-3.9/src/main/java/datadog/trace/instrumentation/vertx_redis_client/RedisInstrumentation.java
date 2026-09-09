@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,7 +18,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RedisInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public RedisInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
@@ -36,51 +37,56 @@ public class RedisInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ResponseHandlerWrapper",
-      packageName + ".ResponseHandler",
-      packageName + ".VertxRedisClientDecorator",
+        packageName + ".ResponseHandlerWrapper",
+        packageName + ".ResponseHandler",
+        packageName + ".VertxRedisClientDecorator"
     };
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.vertx.redis.client.Redis",
-      "io.vertx.redis.client.impl.RedisClient",
-      "io.vertx.redis.client.impl.RedisClusterClient",
-      "io.vertx.redis.client.impl.RedisSentinelClient",
-      "io.vertx.redis.client.impl.RedisConnectionImpl",
-      "io.vertx.redis.client.impl.RedisClusterConnection",
-      "io.vertx.redis.client.impl.RedisStandaloneConnection", // added in 4.x
+        "io.vertx.redis.client.Redis",
+        "io.vertx.redis.client.impl.RedisClient",
+        "io.vertx.redis.client.impl.RedisClusterClient",
+        "io.vertx.redis.client.impl.RedisSentinelClient",
+        "io.vertx.redis.client.impl.RedisConnectionImpl",
+        "io.vertx.redis.client.impl.RedisClusterConnection",
+        // added in 4.x
+        "io.vertx.redis.client.impl.RedisStandaloneConnection"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("io.vertx.redis.client.Request")))
-            .and(takesArgument(1, named("io.vertx.core.Handler"))),
-        packageName + ".RedisSendAdvice");
+          .and(isPublic())
+          .and(named("send"))
+          .and(takesArgument(0, named("io.vertx.redis.client.Request")))
+          .and(takesArgument(1, named("io.vertx.core.Handler"))),
+        packageName + ".RedisSendAdvice"
+    );
 
     transformer.applyAdvice(
         isDeclaredBy(
-                namedOneOf(
-                    "io.vertx.redis.client.impl.RedisConnectionImpl",
-                    "io.vertx.redis.client.impl.RedisStandaloneConnection"))
-            .and(isConstructor())
-            .and(takesArgument(3, named("io.vertx.core.net.NetSocket"))),
-        packageName + ".RedisConnectionConstructAdvice");
+            namedOneOf(
+                "io.vertx.redis.client.impl.RedisConnectionImpl",
+                "io.vertx.redis.client.impl.RedisStandaloneConnection"
+            )
+        )
+          .and(isConstructor())
+          .and(takesArgument(3, named("io.vertx.core.net.NetSocket"))),
+        packageName + ".RedisConnectionConstructAdvice"
+    );
 
     transformer.applyAdvice(
         isPublic()
-            .and(named("send"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.vertx.redis.client.Request")))
-            .and(returns(named("io.vertx.core.Future"))),
-        packageName + ".RedisFutureSendAdvice");
+          .and(named("send"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.vertx.redis.client.Request")))
+          .and(returns(named("io.vertx.core.Future"))),
+        packageName + ".RedisFutureSendAdvice"
+    );
   }
 }

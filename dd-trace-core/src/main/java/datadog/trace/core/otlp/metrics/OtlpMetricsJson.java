@@ -8,7 +8,6 @@ import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.HISTOGRAM_T
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.OBSERVABLE_COUNTER_TEMPORALITY;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY_CUMULATIVE;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY_DELTA;
-
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
@@ -16,11 +15,16 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 
-/** Provides writers for OpenTelemetry's "metrics.proto" JSON encoding. */
+/**
+ * Provides writers for OpenTelemetry's "metrics.proto" JSON encoding.
+ */
 public final class OtlpMetricsJson {
-  private OtlpMetricsJson() {}
+  private OtlpMetricsJson() {
+  }
 
-  /** Opens a {@code Metric} JSON object, up to and including its {@code dataPoints} array. */
+  /**
+   * Opens a {@code Metric} JSON object, up to and including its {@code dataPoints} array.
+   */
   public static void openMetric(JsonWriter writer, OtelInstrumentDescriptor descriptor) {
     openMetric(writer, descriptor, false);
   }
@@ -32,7 +36,10 @@ public final class OtlpMetricsJson {
    * deltas).
    */
   public static void openMetric(
-      JsonWriter writer, OtelInstrumentDescriptor descriptor, boolean forceDelta) {
+      JsonWriter writer,
+      OtelInstrumentDescriptor descriptor,
+      boolean forceDelta
+  ) {
     writer.beginObject();
     writer.name("name").value(descriptor.getName().toString());
     if (descriptor.getDescription() != null) {
@@ -68,8 +75,8 @@ public final class OtlpMetricsJson {
       case HISTOGRAM:
         writer.name("histogram").beginObject();
         writer
-            .name("aggregationTemporality")
-            .value(forceDelta ? TEMPORALITY_DELTA : HISTOGRAM_TEMPORALITY);
+          .name("aggregationTemporality")
+          .value(forceDelta ? TEMPORALITY_DELTA : HISTOGRAM_TEMPORALITY);
         break;
       default:
         throw new IllegalArgumentException("Unknown instrument type: " + descriptor.getType());
@@ -78,14 +85,21 @@ public final class OtlpMetricsJson {
     writer.name("dataPoints").beginArray();
   }
 
-  /** Closes a {@code Metric} JSON object previously opened by {@link #openMetric}. */
+  /**
+   * Closes a {@code Metric} JSON object previously opened by {@link #openMetric}.
+   */
   public static void closeMetric(JsonWriter writer) {
-    writer.endArray(); // dataPoints
-    writer.endObject(); // gauge|sum|histogram
-    writer.endObject(); // metric
+    // dataPoints
+    writer.endArray();
+    // gauge|sum|histogram
+    writer.endObject();
+    // metric
+    writer.endObject();
   }
 
-  /** Writes a data point's value fields into the currently open data point object. */
+  /**
+   * Writes a data point's value fields into the currently open data point object.
+   */
   public static void writeDataPointValue(JsonWriter writer, OtlpDataPoint point) {
     if (point instanceof OtlpDoublePoint) {
       writer.name("asDouble");
@@ -93,7 +107,8 @@ public final class OtlpMetricsJson {
     } else if (point instanceof OtlpLongPoint) {
       // int64 fields are encoded as decimal strings, per the OTLP JSON encoding spec
       writer.name("asInt").value(Long.toString(((OtlpLongPoint) point).value));
-    } else { // must be a histogram point
+    } else {
+      // must be a histogram point
       OtlpHistogramPoint histogram = (OtlpHistogramPoint) point;
       writer.name("count").value(Long.toString((long) histogram.count));
       writer.name("sum");
@@ -109,7 +124,8 @@ public final class OtlpMetricsJson {
           if (!Double.isInfinite(bucketBoundary)) {
             writer.value(bucketBoundary);
           } else {
-            hasOverflow = true; // don't write the overflow boundary
+            // don't write the overflow boundary
+            hasOverflow = true;
           }
         }
         writer.endArray();
@@ -118,7 +134,8 @@ public final class OtlpMetricsJson {
         for (double bucketCount : histogram.bucketCounts) {
           writer.value(Long.toString((long) bucketCount));
         }
-        if (!hasOverflow) { // write one more count than boundaries
+        if (!hasOverflow) {
+          // write one more count than boundaries
           writer.value("0");
         }
         writer.endArray();

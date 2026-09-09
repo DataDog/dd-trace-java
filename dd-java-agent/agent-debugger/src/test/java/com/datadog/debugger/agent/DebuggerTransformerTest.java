@@ -11,7 +11,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.TestClassFileHelper.getClassFileBytes;
-
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -80,12 +79,9 @@ public class DebuggerTransformerTest {
   static final String SCOPED_VAR_NAME = "scoped";
   static final String SCOPED_VAR_TYPE = "int";
   static final Object SCOPED_VAR_VALUE = 10;
-
   private static Instrumentation instr;
   private static Template classTemplate;
-
   private static Tracer noopTracer;
-
   private static final CapturedContext.CapturedValue[] CORRELATION_FIELDS =
       new CapturedContext.CapturedValue[2];
 
@@ -93,31 +89,35 @@ public class DebuggerTransformerTest {
   static void setupAll() throws Exception {
     // disable tracer integration
     System.setProperty("dd." + TraceInstrumentationConfig.TRACE_ENABLED, "false");
-
     // setup the tracer
     noopTracer = GlobalTracer.get();
     Tracer mockTracer = mock(Tracer.class);
     when(mockTracer.getTraceId()).thenReturn("1");
     when(mockTracer.getSpanId()).thenReturn("2");
     GlobalTracer.forceRegister(mockTracer);
-
     // prepare the correlation fields golden muster
-    CORRELATION_FIELDS[0] =
-        CapturedContext.CapturedValue.of(
-            "dd.trace_id", "java.lang.String", mockTracer.getTraceId());
-    CORRELATION_FIELDS[1] =
-        CapturedContext.CapturedValue.of("dd.span_id", "java.lang.String", mockTracer.getSpanId());
+    CORRELATION_FIELDS[0] = CapturedContext.CapturedValue.of(
+        "dd.trace_id",
+        "java.lang.String",
+        mockTracer.getTraceId()
+    );
+    CORRELATION_FIELDS[1] = CapturedContext.CapturedValue.of(
+        "dd.span_id",
+        "java.lang.String",
+        mockTracer.getSpanId()
+    );
 
     instr = ByteBuddyAgent.install();
     freemarker.template.Configuration cfg =
         new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_29);
     cfg.setBooleanFormat("c");
-    classTemplate =
-        new Template(
-            "classTemplate",
-            new InputStreamReader(
-                DebuggerTransformerTest.class.getResourceAsStream("/TargetClass.ftlh")),
-            cfg);
+    classTemplate = new Template(
+        "classTemplate",
+        new InputStreamReader(DebuggerTransformerTest.class
+          .getResourceAsStream("/TargetClass.ftlh")
+        ),
+        cfg
+    );
     // TODO asserts are operating on 'toString()' which requires keeping the underlying object so we
     // just disable serialization for now
     DebuggerContext.initValueSerializer(null);
@@ -152,17 +152,18 @@ public class DebuggerTransformerTest {
       }
       LogProbe logProbe =
           LogProbe.builder().where("java.util.ArrayList", "add").probeId("", 0).build();
-      DebuggerTransformer debuggerTransformer =
-          new DebuggerTransformer(
-              config,
-              new ProbeMetadata(),
-              new Configuration(SERVICE_NAME, Collections.singletonList(logProbe)));
+      DebuggerTransformer debuggerTransformer = new DebuggerTransformer(
+          config,
+          new ProbeMetadata(),
+          new Configuration(SERVICE_NAME, Collections.singletonList(logProbe))
+      );
       debuggerTransformer.transform(
           ClassLoader.getSystemClassLoader(),
           "java.util.ArrayList",
           ArrayList.class,
           null,
-          getClassFileBytes(ArrayList.class));
+          getClassFileBytes(ArrayList.class)
+      );
       assertTrue(instrumentedClassFile.exists());
       assertTrue(origClassFile.exists());
       assertTrue(instrumentedClassFile.delete());
@@ -177,7 +178,8 @@ public class DebuggerTransformerTest {
     doTestMultiProbes(
         Class::getName,
         new ProbeTestInfo(ArrayList.class, "add"),
-        new ProbeTestInfo(HashMap.class, "<init>", "void ()"));
+        new ProbeTestInfo(HashMap.class, "<init>", "void ()")
+    );
   }
 
   @Test
@@ -185,42 +187,47 @@ public class DebuggerTransformerTest {
     doTestMultiProbes(
         Class::getSimpleName,
         new ProbeTestInfo(ArrayList.class, "add"),
-        new ProbeTestInfo(HashMap.class, "<init>", "void ()"));
+        new ProbeTestInfo(HashMap.class, "<init>", "void ()")
+    );
   }
 
   private void doTestMultiProbes(
-      Function<Class<?>, String> getClassName, ProbeTestInfo... probeInfos) {
+      Function<Class<?>, String> getClassName,
+      ProbeTestInfo... probeInfos
+  ) {
     Config config = createConfig();
     List<LogProbe> logProbes = new ArrayList<>();
     for (ProbeTestInfo probeInfo : probeInfos) {
       String className = getClassName.apply(probeInfo.clazz);
-      LogProbe logProbe =
-          LogProbe.builder()
-              .where(className, probeInfo.methodName, probeInfo.signature)
-              .probeId("", 0)
-              .build();
+      LogProbe logProbe = LogProbe
+        .builder()
+        .where(className, probeInfo.methodName, probeInfo.signature)
+        .probeId("", 0)
+        .build();
       logProbes.add(logProbe);
     }
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
     DebuggerTransformer debuggerTransformer =
         new DebuggerTransformer(config, new ProbeMetadata(), configuration);
     for (ProbeTestInfo probeInfo : probeInfos) {
-      byte[] newClassBuffer =
-          debuggerTransformer.transform(
-              ClassLoader.getSystemClassLoader(),
-              probeInfo.clazz.getName(), // always FQN
-              probeInfo.clazz,
-              null,
-              getClassFileBytes(probeInfo.clazz));
+      byte[] newClassBuffer = debuggerTransformer.transform(
+          ClassLoader.getSystemClassLoader(),
+          probeInfo.clazz
+            // always FQN
+            .getName(),
+          probeInfo.clazz,
+          null,
+          getClassFileBytes(probeInfo.clazz)
+      );
       Assertions.assertNotNull(newClassBuffer);
     }
-    byte[] newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java.util.HashSet",
-            HashSet.class,
-            null,
-            getClassFileBytes(HashSet.class));
+    byte[] newClassBuffer = debuggerTransformer.transform(
+        ClassLoader.getSystemClassLoader(),
+        "java.util.HashSet",
+        HashSet.class,
+        null,
+        getClassFileBytes(HashSet.class)
+    );
     assertNull(newClassBuffer);
   }
 
@@ -243,30 +250,32 @@ public class DebuggerTransformerTest {
   @Test
   public void testBlockedProbes() {
     Config config = createConfig();
-    List<LogProbe> logProbes =
-        Arrays.asList(
-            LogProbe.builder()
-                .language(LANGUAGE)
-                .probeId(PROBE_ID)
-                .where("java.lang.String", "toString")
-                .build());
+    List<LogProbe> logProbes = Arrays.asList(LogProbe
+      .builder()
+      .language(LANGUAGE)
+      .probeId(PROBE_ID)
+      .where("java.lang.String", "toString")
+      .build()
+    );
     Configuration configuration = new Configuration(SERVICE_NAME, logProbes);
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
-    DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(
+    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(
+        config,
+        configuration,
+        ((definition, result) -> lastResult.set(result)),
+        new ProbeMetadata(),
+        new DebuggerSink(
             config,
-            configuration,
-            ((definition, result) -> lastResult.set(result)),
-            new ProbeMetadata(),
-            new DebuggerSink(
-                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
-    byte[] newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java.lang.String",
-            String.class,
-            null,
-            getClassFileBytes(String.class));
+            new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)
+        )
+    );
+    byte[] newClassBuffer = debuggerTransformer.transform(
+        ClassLoader.getSystemClassLoader(),
+        "java.lang.String",
+        String.class,
+        null,
+        getClassFileBytes(String.class)
+    );
     assertNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
     assertTrue(lastResult.get().isBlocked());
@@ -281,21 +290,24 @@ public class DebuggerTransformerTest {
     Configuration configuration =
         new Configuration(SERVICE_NAME, Collections.singletonList(logProbe));
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
-    DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(
+    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(
+        config,
+        configuration,
+        ((definition, result) -> lastResult.set(result)),
+        new ProbeMetadata(),
+        new DebuggerSink(
             config,
-            configuration,
-            ((definition, result) -> lastResult.set(result)),
-            new ProbeMetadata(),
-            new DebuggerSink(
-                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
-    byte[] newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java.util.ArrayList",
-            null, // classBeingRedefined
-            null,
-            getClassFileBytes(ArrayList.class));
+            new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)
+        )
+    );
+    byte[] newClassBuffer = debuggerTransformer.transform(
+        ClassLoader.getSystemClassLoader(),
+        "java.util.ArrayList",
+        // classBeingRedefined
+        null,
+        null,
+        getClassFileBytes(ArrayList.class)
+    );
     Assertions.assertNotNull(newClassBuffer);
     Assertions.assertNotNull(lastResult.get());
     Assertions.assertFalse(lastResult.get().isBlocked());
@@ -304,9 +316,8 @@ public class DebuggerTransformerTest {
   }
 
   @Test
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Issue with J9: Flaky")
+  @DisabledIf(value = "datadog.environment.JavaVirtualMachine#isJ9", disabledReason = "Issue "
+      + "with J9: Flaky")
   public void classGenerationFailed() {
     Config config = createConfig();
     final String CLASS_NAME = ArrayList.class.getTypeName();
@@ -317,28 +328,29 @@ public class DebuggerTransformerTest {
     LogProbe logProbe2 =
         LogProbe.builder().probeId("logprobe2", 0).where(CLASS_NAME, METHOD_NAME).build();
     Configuration configuration =
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .add(mockProbe, logProbe1, logProbe2)
-            .build();
+        Configuration
+      .builder()
+      .setService(SERVICE_NAME)
+      .add(mockProbe, logProbe1, logProbe2)
+      .build();
     AtomicReference<InstrumentationResult> lastResult = new AtomicReference<>(null);
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-    DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            ((definition, result) -> lastResult.set(result)),
-            new ProbeMetadata(),
-            listener);
+    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(
+        config,
+        configuration,
+        ((definition, result) -> lastResult.set(result)),
+        new ProbeMetadata(),
+        listener
+    );
     DebuggerAgentHelper.injectSink(listener);
-    byte[] newClassBuffer =
-        debuggerTransformer.transform(
-            ClassLoader.getSystemClassLoader(),
-            "java/util/ArrayList",
-            null,
-            null,
-            getClassFileBytes(ArrayList.class));
+    byte[] newClassBuffer = debuggerTransformer.transform(
+        ClassLoader.getSystemClassLoader(),
+        "java/util/ArrayList",
+        null,
+        null,
+        getClassFileBytes(ArrayList.class)
+    );
     assertNull(newClassBuffer);
     ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
@@ -346,30 +358,27 @@ public class DebuggerTransformerTest {
     assertEquals("logprobe1", probeIdCaptor.getAllValues().get(0).getId());
     assertEquals("logprobe2", probeIdCaptor.getAllValues().get(1).getId());
     assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(2).getId());
-    assertTrue(
-        strCaptor
-            .getAllValues()
-            .get(0)
-            .startsWith(
-                "Instrumentation failed for "
-                    + CLASS_NAME
-                    + ": org.objectweb.asm.MethodTooLargeException:"));
-    assertTrue(
-        strCaptor
-            .getAllValues()
-            .get(1)
-            .startsWith(
-                "Instrumentation failed for "
-                    + CLASS_NAME
-                    + ": org.objectweb.asm.MethodTooLargeException:"));
-    assertTrue(
-        strCaptor
-            .getAllValues()
-            .get(2)
-            .startsWith(
-                "Instrumentation failed for "
-                    + CLASS_NAME
-                    + ": org.objectweb.asm.MethodTooLargeException:"));
+    assertTrue(strCaptor
+      .getAllValues()
+      .get(0)
+      .startsWith(
+          "Instrumentation failed for " + CLASS_NAME + ": org.objectweb.asm.MethodTooLargeException:"
+      )
+    );
+    assertTrue(strCaptor
+      .getAllValues()
+      .get(1)
+      .startsWith(
+          "Instrumentation failed for " + CLASS_NAME + ": org.objectweb.asm.MethodTooLargeException:"
+      )
+    );
+    assertTrue(strCaptor
+      .getAllValues()
+      .get(2)
+      .startsWith(
+          "Instrumentation failed for " + CLASS_NAME + ": org.objectweb.asm.MethodTooLargeException:"
+      )
+    );
   }
 
   @Test
@@ -381,31 +390,36 @@ public class DebuggerTransformerTest {
     SpanProbe spanProbe = createMock(SpanProbe.class, invocationOrder, "span");
     SpanDecorationProbe spanDecorationProbe =
         createMock(SpanDecorationProbe.class, invocationOrder, "spanDecoration");
-    Configuration configuration =
-        Configuration.builder()
-            .add(spanDecorationProbe)
-            .add(spanProbe)
-            .add(metricProbe)
-            .add(logProbe)
-            .build();
-    DebuggerTransformer debuggerTransformer =
-        new DebuggerTransformer(
+    Configuration configuration = Configuration
+      .builder()
+      .add(spanDecorationProbe)
+      .add(spanProbe)
+      .add(metricProbe)
+      .add(logProbe)
+      .build();
+    DebuggerTransformer debuggerTransformer = new DebuggerTransformer(
+        config,
+        configuration,
+          (definition, result) -> {
+            if (result.isInstalled()) {
+              invocationOrder.add(definition);
+            }
+          },
+        new ProbeMetadata(),
+        new DebuggerSink(
             config,
-            configuration,
-            (definition, result) -> {
-              if (result.isInstalled()) {
-                invocationOrder.add(definition);
-              }
-            },
-            new ProbeMetadata(),
-            new DebuggerSink(
-                config, new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)));
+            new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false)
+        )
+    );
     debuggerTransformer.transform(
         ClassLoader.getSystemClassLoader(),
-        ArrayList.class.getName(), // always FQN
+        ArrayList.class
+          // always FQN
+          .getName(),
         ArrayList.class,
         null,
-        getClassFileBytes(ArrayList.class));
+        getClassFileBytes(ArrayList.class)
+    );
     assertEquals(4, invocationOrder.size());
     assertEquals(metricProbe, invocationOrder.get(0));
     assertEquals(logProbe, invocationOrder.get(1));
@@ -414,14 +428,14 @@ public class DebuggerTransformerTest {
   }
 
   <T extends ProbeDefinition> T createMock(
-      Class<T> clazz, List<ProbeDefinition> invocationOrder, String id) {
+      Class<T> clazz,
+      List<ProbeDefinition> invocationOrder,
+      String id
+  ) {
     ProbeDefinition mock = mock(clazz);
-    doAnswer(
-            invocation -> {
-              return InstrumentationResult.Status.INSTALLED;
-            })
-        .when(mock)
-        .instrument(any(), anyList(), anyList());
+    doAnswer(invocation -> {
+      return InstrumentationResult.Status.INSTALLED;
+    }).when(mock).instrument(any(), anyList(), anyList());
     when(mock.getProbeId()).thenReturn(new ProbeId(id, 0));
     Where where = Where.of(ArrayList.class.getName(), "add", "(Object)");
     when(mock.getWhere()).thenReturn(where);
@@ -430,22 +444,23 @@ public class DebuggerTransformerTest {
 
   private Config createConfig() {
     Config config = mock(Config.class);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     return config;
   }
 
   private static class MockProbe extends SpanProbe {
-
     public MockProbe(ProbeId probeId, Where where) {
       super(LANGUAGE, probeId, null, where);
     }
 
     @Override
     public InstrumentationResult.Status instrument(
-        MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+        MethodInfo methodInfo,
+        List<DiagnosticMessage> diagnostics,
+        List<Integer> probeIndices
+    ) {
       // Build a single TABLESWITCH with enough case entries (4 bytes each) to push the
       // method's bytecode past the 65535-byte limit, while keeping the ASM tree
       // instruction *count* tiny so that dataflow analysis (computeFrames) stays cheap

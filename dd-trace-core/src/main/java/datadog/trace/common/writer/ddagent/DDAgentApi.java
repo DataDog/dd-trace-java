@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -26,12 +25,12 @@ import okhttp3.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The API pointing to a DD agent */
+/**
+ * The API pointing to a DD agent
+ */
 public class DDAgentApi extends RemoteApi {
-
   public static final String DATADOG_META_TRACER_VERSION = "Datadog-Meta-Tracer-Version";
   private static final Logger log = LoggerFactory.getLogger(DDAgentApi.class);
-
   private static final String DATADOG_CLIENT_COMPUTED_STATS = "Datadog-Client-Computed-Stats";
   // this is not intended to be a toggled feature,
   // rather it identifies this tracer as one which has computed top level status
@@ -41,22 +40,17 @@ public class DDAgentApi extends RemoteApi {
   private static final String DATADOG_DROPPED_TRACE_COUNT = "Datadog-Client-Dropped-P0-Traces";
   private static final String DATADOG_DROPPED_SPAN_COUNT = "Datadog-Client-Dropped-P0-Spans";
   private static final String DATADOG_AGENT_STATE = "Datadog-Agent-State";
-
   private final List<RemoteResponseListener> responseListeners = new ArrayList<>();
   private final boolean nativeMetricsEnabled;
-
   private final Recording sendPayloadTimer;
   private final Counter agentErrorCounter;
-
-  private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(
-              Types.newParameterizedType(
-                  Map.class,
-                  String.class,
-                  Types.newParameterizedType(Map.class, String.class, Double.class)));
-
+  private static final JsonAdapter<Map<String, Map<String, Number>>> RESPONSE_ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(
+        Map.class,
+        String.class,
+        Types.newParameterizedType(Map.class, String.class, Double.class)
+    ));
   private final DDAgentFeaturesDiscovery featuresDiscovery;
   private final OkHttpClient httpClient;
   private final HttpUrl agentUrl;
@@ -67,7 +61,8 @@ public class DDAgentApi extends RemoteApi {
       HttpUrl agentUrl,
       DDAgentFeaturesDiscovery featuresDiscovery,
       Monitoring monitoring,
-      boolean nativeMetricsEnabled) {
+      boolean nativeMetricsEnabled
+  ) {
     super(false);
     this.featuresDiscovery = featuresDiscovery;
     this.agentUrl = agentUrl;
@@ -102,26 +97,27 @@ public class DDAgentApi extends RemoteApi {
 
     HttpUrl tracesUrl = agentUrl.resolve(tracesEndpoint);
     try {
-      final Request request =
-          prepareRequest(tracesUrl, headers)
-              .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
-              .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
-              .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
-              .addHeader(
-                  DATADOG_CLIENT_COMPUTED_STATS,
-                  Config.get().isOtelTracesSpanMetricsEnabled()
-                          || (nativeMetricsEnabled && featuresDiscovery.supportsMetrics())
-                          // Disabling the computation agent-side of the APM trace metrics by
-                          // pretending it was already done by the library
-                          || !Config.get().isApmTracingEnabled()
-                      ? "true"
-                      : "")
-              .put(payload.toRequest())
-              .build();
+      final Request request = prepareRequest(tracesUrl, headers)
+        .addHeader(X_DATADOG_TRACE_COUNT, Integer.toString(payload.traceCount()))
+        .addHeader(DATADOG_DROPPED_TRACE_COUNT, Long.toString(payload.droppedTraces()))
+        .addHeader(DATADOG_DROPPED_SPAN_COUNT, Long.toString(payload.droppedSpans()))
+        .addHeader(
+            DATADOG_CLIENT_COMPUTED_STATS,
+                Config.get().isOtelTracesSpanMetricsEnabled()
+            || (nativeMetricsEnabled && featuresDiscovery.supportsMetrics())
+            // Disabling the computation agent-side of the APM trace metrics by
+            // pretending it was already done by the library
+            || !Config.get().isApmTracingEnabled()
+            ? "true"
+            : ""
+        )
+        .put(payload.toRequest())
+        .build();
       this.totalTraces += payload.traceCount();
       this.receivedTraces += payload.traceCount();
       try (final Recording recording = sendPayloadTimer.start();
-          final okhttp3.Response response = httpClient.newCall(request).execute()) {
+          final okhttp3.Response response = httpClient.newCall(request).execute()
+      ) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
 
         String responseString = getResponseBody(response);

@@ -47,56 +47,58 @@ public class Resolver {
 
             FileInfo fileInfo =
                 getByPath(
-                    context.resolvedStratum.getFileInfo(), eli.getFileInfo().getInputFilePath());
+                    context.resolvedStratum.getFileInfo(),
+                    eli.getFileInfo().getInputFilePath()
+            );
             if (fileInfo == null) {
               fileInfo = eli.getFileInfo();
               context.resolvedStratum.getFileInfo().add(fileInfo);
             }
             if (completeCount > 0) {
-              LineInfo rli =
-                  new LineInfo(
-                      fileInfo,
-                      eli.getInputStartLine(),
-                      completeCount,
-                      oli.getOutputStartLine() + difference * oli.getOutputLineIncrement(),
-                      eli.getOutputLineIncrement() * oli.getOutputLineIncrement());
+              LineInfo rli = new LineInfo(
+                  fileInfo,
+                  eli.getInputStartLine(),
+                  completeCount,
+                  oli.getOutputStartLine() + difference * oli.getOutputLineIncrement(),
+                  eli.getOutputLineIncrement() * oli.getOutputLineIncrement()
+              );
 
               context.resolvedStratum.addLineInfo(rli);
-              LineInfo neli =
-                  new LineInfo(
-                      fileInfo,
-                      eli.getInputStartLine() + completeCount,
-                      eli.getRepeatCount() - completeCount,
-                      eli.getOutputStartLine() + completeCount * eli.getOutputLineIncrement(),
-                      eli.getOutputLineIncrement());
+              LineInfo neli = new LineInfo(
+                  fileInfo,
+                  eli.getInputStartLine() + completeCount,
+                  eli.getRepeatCount() - completeCount,
+                  eli.getOutputStartLine() + completeCount * eli.getOutputLineIncrement(),
+                  eli.getOutputLineIncrement()
+              );
 
               resolve(context, neli);
             } else {
-              LineInfo rli =
-                  new LineInfo(
-                      fileInfo,
-                      eli.getInputStartLine(),
-                      1,
-                      oli.getOutputStartLine() + difference * oli.getOutputLineIncrement(),
-                      available);
+              LineInfo rli = new LineInfo(
+                  fileInfo,
+                  eli.getInputStartLine(),
+                  1,
+                  oli.getOutputStartLine() + difference * oli.getOutputLineIncrement(),
+                  available
+              );
 
               context.resolvedStratum.addLineInfo(rli);
-              LineInfo neli =
-                  new LineInfo(
-                      fileInfo,
-                      eli.getInputStartLine(),
-                      1,
-                      eli.getOutputStartLine() + available,
-                      eli.getOutputLineIncrement() - available);
+              LineInfo neli = new LineInfo(
+                  fileInfo,
+                  eli.getInputStartLine(),
+                  1,
+                  eli.getOutputStartLine() + available,
+                  eli.getOutputLineIncrement() - available
+              );
 
               resolve(context, neli);
-              neli =
-                  new LineInfo(
-                      fileInfo,
-                      eli.getInputStartLine() + 1,
-                      eli.getRepeatCount() - 1,
-                      eli.getOutputStartLine() + eli.getOutputLineIncrement(),
-                      eli.getOutputLineIncrement());
+              neli = new LineInfo(
+                  fileInfo,
+                  eli.getInputStartLine() + 1,
+                  eli.getRepeatCount() - 1,
+                  eli.getOutputStartLine() + eli.getOutputLineIncrement(),
+                  eli.getOutputLineIncrement()
+              );
 
               resolve(context, neli);
             }
@@ -116,20 +118,17 @@ public class Resolver {
   }
 
   private static class Context {
-
     StratumExt outerStratum;
-
     String outerFileName;
-
     StratumExt resolvedStratum;
-
     StratumExt embeddedStratum;
 
     public Context(
         final StratumExt outerStratum,
         final String outerFileName,
         final StratumExt resolvedStratum,
-        final StratumExt embeddedStratum) {
+        final StratumExt embeddedStratum
+    ) {
       this.outerStratum = outerStratum;
       this.outerFileName = outerFileName;
       this.resolvedStratum = resolvedStratum;
@@ -150,7 +149,8 @@ public class Resolver {
     for (Iterator<LineInfo> iter = stratum.getLineInfo().iterator(); iter.hasNext(); ) {
       LineInfo lineInfo = iter.next();
       for (int i = 0; i < lineInfo.getRepeatCount(); i++) {
-        int outputStartLine = lineInfo.getOutputStartLine() + i * lineInfo.getOutputLineIncrement();
+        int outputStartLine = lineInfo.getOutputStartLine()
+            + i * lineInfo.getOutputLineIncrement();
         int outputEndLine =
             Math.max(outputStartLine, outputStartLine + lineInfo.getOutputLineIncrement() - 1);
         if (outputStartLine <= lineNum && lineNum <= outputEndLine) {
@@ -160,12 +160,12 @@ public class Resolver {
           if (bfOutputStartLine <= outputStartLine && outputEndLine <= bfOutputEndLine) {
             bestFitLineInfo = lineInfo;
             bestFitLineNum = lineInfo.getInputStartLine() + i;
-            bfOutputStartLine =
-                bestFitLineInfo.getOutputStartLine() + i * bestFitLineInfo.getOutputLineIncrement();
-            bfOutputEndLine =
-                Math.max(
-                    bfOutputStartLine,
-                    bfOutputStartLine + bestFitLineInfo.getOutputLineIncrement() - 1);
+            bfOutputStartLine = bestFitLineInfo.getOutputStartLine()
+                + i * bestFitLineInfo.getOutputLineIncrement();
+            bfOutputEndLine = Math.max(
+                bfOutputStartLine,
+                bfOutputStartLine + bestFitLineInfo.getOutputLineIncrement() - 1
+            );
           }
         }
       }

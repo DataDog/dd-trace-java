@@ -7,29 +7,28 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.StringReader;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ScaCveDatabaseTest {
-
   private static final String MINIMAL_JSON =
       "{\"version\":1,\"entries\":["
-          + "{\"vuln_id\":\"GHSA-test-1234-5678\","
-          + "\"artifact\":\"com.example:lib\","
-          + "\"version_ranges\":[\"< 2.0.0\"],"
-          + "\"symbols\":["
-          + "{\"class\":\"com/example/Foo\",\"method\":\"dangerousOp\"},"
-          + "{\"class\":\"com/example/Bar\",\"method\":\"dangerousOp\"}"
-          + "]}]}";
+      + "{\"vuln_id\":\"GHSA-test-1234-5678\","
+      + "\"artifact\":\"com.example:lib\","
+      + "\"version_ranges\":[\"< 2.0.0\"],"
+      + "\"symbols\":["
+      + "{\"class\":\"com/example/Foo\",\"method\":\"dangerousOp\"},"
+      + "{\"class\":\"com/example/Bar\",\"method\":\"dangerousOp\"}"
+      + "]}]}";
 
   @Test
   void loadsFromJson() throws Exception {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(MINIMAL_JSON));
 
     assertFalse(db.isEmpty());
-    assertEquals(2, db.size()); // 2 unique class names
+    // 2 unique class names
+    assertEquals(2, db.size());
   }
 
   @Test
@@ -62,11 +61,11 @@ class ScaCveDatabaseTest {
   void malformedEntryIsSkipped() throws Exception {
     String json =
         "{\"version\":1,\"entries\":["
-            + "{\"vuln_id\":null,\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 2.0.0\"],\"symbols\":[{\"class\":\"com/example/Foo\",\"method\":\"op\"}]},"
-            + "{\"vuln_id\":\"GHSA-good-0000-0000\",\"artifact\":\"com.example:other\","
-            + "\"version_ranges\":[\"< 1.0.0\"],\"symbols\":[{\"class\":\"com/example/Good\",\"method\":\"op\"}]}"
-            + "]}";
+        + "{\"vuln_id\":null,\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 2.0.0\"],\"symbols\":[{\"class\":\"com/example/Foo\",\"method\":\"op\"}]},"
+        + "{\"vuln_id\":\"GHSA-good-0000-0000\",\"artifact\":\"com.example:other\","
+        + "\"version_ranges\":[\"< 1.0.0\"],\"symbols\":[{\"class\":\"com/example/Good\",\"method\":\"op\"}]}"
+        + "]}";
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
 
@@ -80,10 +79,10 @@ class ScaCveDatabaseTest {
     // If all symbols in an entry are null-method, the whole entry is dropped.
     String json =
         "{\"version\":1,\"entries\":["
-            + "{\"vuln_id\":\"GHSA-null-method\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 1.0.0\"],"
-            + "\"symbols\":[{\"class\":\"com/example/Foo\",\"method\":null}]}"
-            + "]}";
+        + "{\"vuln_id\":\"GHSA-null-method\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 1.0.0\"],"
+        + "\"symbols\":[{\"class\":\"com/example/Foo\",\"method\":null}]}"
+        + "]}";
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
 
     assertTrue(db.isEmpty(), "Entry with all null-method symbols must be dropped");
@@ -94,13 +93,13 @@ class ScaCveDatabaseTest {
     // When an entry has a mix of null-method and valid symbols, only the valid ones are kept.
     String json =
         "{\"version\":1,\"entries\":["
-            + "{\"vuln_id\":\"GHSA-mixed-method\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 1.0.0\"],"
-            + "\"symbols\":["
-            + "{\"class\":\"com/example/Foo\",\"method\":null},"
-            + "{\"class\":\"com/example/Foo\",\"method\":\"readValue\"}"
-            + "]}"
-            + "]}";
+        + "{\"vuln_id\":\"GHSA-mixed-method\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 1.0.0\"],"
+        + "\"symbols\":["
+        + "{\"class\":\"com/example/Foo\",\"method\":null},"
+        + "{\"class\":\"com/example/Foo\",\"method\":\"readValue\"}"
+        + "]}"
+        + "]}";
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
 
     List<ScaEntry> entries = db.entriesForClass("com/example/Foo");
@@ -114,11 +113,11 @@ class ScaCveDatabaseTest {
   void multipleEntriesForSameClass() throws Exception {
     String json =
         "{\"version\":1,\"entries\":["
-            + "{\"vuln_id\":\"GHSA-aaaa-0001-0001\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 2.0.0\"],\"symbols\":[{\"class\":\"com/example/Shared\",\"method\":\"op\"}]},"
-            + "{\"vuln_id\":\"GHSA-bbbb-0002-0002\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 3.0.0\"],\"symbols\":[{\"class\":\"com/example/Shared\",\"method\":\"op\"}]}"
-            + "]}";
+        + "{\"vuln_id\":\"GHSA-aaaa-0001-0001\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 2.0.0\"],\"symbols\":[{\"class\":\"com/example/Shared\",\"method\":\"op\"}]},"
+        + "{\"vuln_id\":\"GHSA-bbbb-0002-0002\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 3.0.0\"],\"symbols\":[{\"class\":\"com/example/Shared\",\"method\":\"op\"}]}"
+        + "]}";
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
 
@@ -145,9 +144,9 @@ class ScaCveDatabaseTest {
     ScaEntry entry = new ScaEntry("GHSA-entry", "com.example:lib", ranges, symbols);
 
     assertThrows(UnsupportedOperationException.class, () -> entry.versionRanges().add("< 3.0.0"));
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> entry.symbols().add(new ScaSymbol("com/example/Bar", "op")));
+    assertThrows(UnsupportedOperationException.class, () -> entry
+      .symbols()
+      .add(new ScaSymbol("com/example/Bar", "op")));
   }
 
   @Test
@@ -157,11 +156,11 @@ class ScaCveDatabaseTest {
     // twice into each method, producing redundant bootstrap calls on every invocation.
     String json =
         "{\"version\":1,\"entries\":["
-            + "{\"vuln_id\":\"GHSA-mjmj-j48q-9wg2\",\"artifact\":\"org.yaml:snakeyaml\","
-            + "\"version_ranges\":[\"<= 1.33\"],\"symbols\":["
-            + "{\"class\":\"org/yaml/snakeyaml/Yaml\",\"method\":\"load\"},"
-            + "{\"class\":\"org/yaml/snakeyaml/Yaml\",\"method\":\"loadAll\"}"
-            + "]}]}";
+        + "{\"vuln_id\":\"GHSA-mjmj-j48q-9wg2\",\"artifact\":\"org.yaml:snakeyaml\","
+        + "\"version_ranges\":[\"<= 1.33\"],\"symbols\":["
+        + "{\"class\":\"org/yaml/snakeyaml/Yaml\",\"method\":\"load\"},"
+        + "{\"class\":\"org/yaml/snakeyaml/Yaml\",\"method\":\"loadAll\"}"
+        + "]}]}";
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
 
@@ -189,7 +188,12 @@ class ScaCveDatabaseTest {
     assertNotNull(entries, "junrar LocalFolderExtractor should be in the database");
     assertFalse(entries.isEmpty());
     assertTrue(
-        entries.get(0).symbols().stream().allMatch(s -> s.method() != null),
-        "all symbols must be method-level");
+        entries
+          .get(0)
+          .symbols()
+          .stream()
+          .allMatch(s -> s.method() != null),
+        "all symbols must be method-level"
+    );
   }
 }

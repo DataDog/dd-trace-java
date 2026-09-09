@@ -20,7 +20,10 @@ public class OtelTracer implements Tracer {
   private final TypeConverter converter;
 
   OtelTracer(
-      final String tracerName, final AgentTracer.TracerAPI tracer, final TypeConverter converter) {
+      final String tracerName,
+      final AgentTracer.TracerAPI tracer,
+      final TypeConverter converter
+  ) {
     this.tracerName = tracerName;
     this.tracer = tracer;
     this.converter = converter;
@@ -87,7 +90,9 @@ public class OtelTracer implements Tracer {
 
     @Override
     public Span.Builder addLink(
-        final SpanContext spanContext, final Map<String, AttributeValue> attributes) {
+        final SpanContext spanContext,
+        final Map<String, AttributeValue> attributes
+    ) {
       if (!parentSet) {
         delegate.asChildOf(converter.toContext(spanContext));
       }
@@ -142,8 +147,8 @@ public class OtelTracer implements Tracer {
           delegate.withTag(key, value.getBooleanValue());
           break;
         default:
-          // Unsupported.... Ignoring.
       }
+      // Unsupported.... Ignoring.
       return this;
     }
 

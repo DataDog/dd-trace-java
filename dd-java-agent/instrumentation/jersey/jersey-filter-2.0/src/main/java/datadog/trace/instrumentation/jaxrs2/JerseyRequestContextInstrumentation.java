@@ -27,7 +27,6 @@ public class JerseyRequestContextInstrumentation extends AbstractRequestContextI
 
       if (context.getProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED) == null
           && uriInfo instanceof ResourceInfo) {
-
         final ResourceInfo resourceInfo = (ResourceInfo) uriInfo;
         final Method method = resourceInfo.getResourceMethod();
         final Class resourceClass = resourceInfo.getResourceClass();
@@ -40,7 +39,9 @@ public class JerseyRequestContextInstrumentation extends AbstractRequestContextI
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable
+    ) {
       RequestFilterHelper.closeSpanAndScope(scope, throwable);
     }
   }

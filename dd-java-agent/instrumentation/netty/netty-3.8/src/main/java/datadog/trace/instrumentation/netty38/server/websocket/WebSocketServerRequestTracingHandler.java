@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.netty38.server.websocket;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtractor.MESSAGE_TYPE_TEXT;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -20,11 +19,11 @@ import org.jboss.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketFrame;
 
 public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamHandler {
-
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
   public WebSocketServerRequestTracingHandler(
-      final ContextStore<Channel, ChannelTraceContext> contextStore) {
+      final ContextStore<Channel, ChannelTraceContext> contextStore
+  ) {
     this.contextStore = contextStore;
   }
 
@@ -36,14 +35,14 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
 
       ChannelTraceContext traceContext = this.contextStore.get(channel);
       if (traceContext != null) {
-
         HandlerContext.Receiver receiverContext = traceContext.getReceiverHandlerContext();
         if (receiverContext == null) {
           HandlerContext.Sender sessionState = traceContext.getSenderHandlerContext();
           if (sessionState != null) {
-            receiverContext =
-                new HandlerContext.Receiver(
-                    sessionState.getHandshakeSpan(), channel.getId().toString());
+            receiverContext = new HandlerContext.Receiver(
+                sessionState.getHandshakeSpan(),
+                channel.getId().toString()
+            );
             traceContext.setReceiverHandlerContext(receiverContext);
           }
         }
@@ -52,9 +51,11 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
             // WebSocket Read Text Start
             TextWebSocketFrame textFrame = (TextWebSocketFrame) frame;
 
-            final AgentSpan span =
-                DECORATE.startInboundFrameSpan(
-                    receiverContext, textFrame.getText(), textFrame.isFinalFragment());
+            final AgentSpan span = DECORATE.startInboundFrameSpan(
+                receiverContext,
+                textFrame.getText(),
+                textFrame.isFinalFragment()
+            );
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
               // WebSocket Read Text Start
@@ -70,11 +71,11 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
           if (frame instanceof BinaryWebSocketFrame) {
             // WebSocket Read Binary Start
             BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
-            final AgentSpan span =
-                DECORATE.startInboundFrameSpan(
-                    receiverContext,
-                    binaryFrame.getBinaryData().array(),
-                    binaryFrame.isFinalFragment());
+            final AgentSpan span = DECORATE.startInboundFrameSpan(
+                receiverContext,
+                binaryFrame.getBinaryData().array(),
+                binaryFrame.isFinalFragment()
+            );
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
             } finally {
@@ -91,13 +92,13 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
           if (frame instanceof ContinuationWebSocketFrame) {
             ContinuationWebSocketFrame continuationWebSocketFrame =
                 (ContinuationWebSocketFrame) frame;
-            final AgentSpan span =
-                DECORATE.startInboundFrameSpan(
-                    receiverContext,
-                    MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
-                        ? continuationWebSocketFrame.getText()
-                        : continuationWebSocketFrame.getBinaryData().array(),
-                    continuationWebSocketFrame.isFinalFragment());
+            final AgentSpan span = DECORATE.startInboundFrameSpan(
+                receiverContext,
+                MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
+                ? continuationWebSocketFrame.getText()
+                : continuationWebSocketFrame.getBinaryData().array(),
+                continuationWebSocketFrame.isFinalFragment()
+            );
             try (final ContextScope scope = activateSpan(span)) {
               ctx.sendUpstream(event);
             } finally {
@@ -129,7 +130,7 @@ public class WebSocketServerRequestTracingHandler extends SimpleChannelUpstreamH
         }
       }
     }
-
-    ctx.sendUpstream(event); // superclass does not throw
+    // superclass does not throw
+    ctx.sendUpstream(event);
   }
 }

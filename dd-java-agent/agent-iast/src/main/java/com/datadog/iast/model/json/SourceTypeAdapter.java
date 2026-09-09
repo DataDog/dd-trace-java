@@ -8,7 +8,6 @@ import datadog.trace.api.iast.SourceTypes;
 import java.io.IOException;
 
 class SourceTypeAdapter {
-
   @ToJson
   void toJson(JsonWriter writer, @SourceTypeString byte value) throws IOException {
     final String stringValue = SourceTypes.toString(value);

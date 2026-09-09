@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.twilio.TwilioClientDecorator.TWILIO_
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -25,11 +24,14 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Instrument the Twilio SDK to identify calls as a seperate service. */
+/**
+ * Instrument the Twilio SDK to identify calls as a seperate service.
+ */
 @AutoService(InstrumenterModule.class)
 public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public TwilioAsyncInstrumentation() {
     super("twilio-sdk");
   }
@@ -42,10 +44,13 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
-    return "com.twilio.base.Resource"; // implies existence of Twilio service classes
+    // implies existence of Twilio service classes
+    return "com.twilio.base.Resource";
   }
 
-  /** Match any child class of the base Twilio service classes. */
+  /**
+   * Match any child class of the base Twilio service classes.
+   */
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(
@@ -54,20 +59,26 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
             "com.twilio.base.Deleter",
             "com.twilio.base.Fetcher",
             "com.twilio.base.Reader",
-            "com.twilio.base.Updater"));
+            "com.twilio.base.Updater"
+        )
+    );
   }
 
-  /** Return the helper classes which will be available for use in instrumentation. */
+  /**
+   * Return the helper classes which will be available for use in instrumentation.
+   */
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TwilioClientDecorator",
-      packageName + ".TwilioClientDecorator$1",
-      packageName + ".SpanFinishingCallback",
+        packageName + ".TwilioClientDecorator",
+        packageName + ".TwilioClientDecorator$1",
+        packageName + ".SpanFinishingCallback"
     };
   }
 
-  /** Return bytebuddy transformers for instrumenting the Twilio SDK. */
+  /**
+   * Return bytebuddy transformers for instrumenting the Twilio SDK.
+   */
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     /*
@@ -78,20 +89,25 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
     */
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("createAsync", "deleteAsync", "readAsync", "fetchAsync", "updateAsync"))
-            .and(isPublic())
-            .and(returns(named("com.google.common.util.concurrent.ListenableFuture"))),
-        TwilioAsyncInstrumentation.class.getName() + "$TwilioClientAsyncAdvice");
+          .and(namedOneOf("createAsync", "deleteAsync", "readAsync", "fetchAsync", "updateAsync"))
+          .and(isPublic())
+          .and(returns(named("com.google.common.util.concurrent.ListenableFuture"))),
+        TwilioAsyncInstrumentation.class.getName() + "$TwilioClientAsyncAdvice"
+    );
   }
 
-  /** Advice for instrumenting Twilio service classes. */
+  /**
+   * Advice for instrumenting Twilio service classes.
+   */
   public static class TwilioClientAsyncAdvice {
-
-    /** Method entry instrumentation. */
+    /**
+     * Method entry instrumentation.
+     */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
-        @Advice.This final Object that, @Advice.Origin("#m") final String methodName) {
-
+        @Advice.This final Object that,
+        @Advice.Origin("#m") final String methodName
+    ) {
       // Ensure that we only create a span for the top-level Twilio client method; except in the
       // case of async operations where we want visibility into how long the task was delayed from
       // starting. Our call depth checker does not span threads, so the async case is handled
@@ -100,23 +116,24 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
       if (callDepth > 0) {
         return null;
       }
-
       // Don't automatically close the span with the scope if we're executing an async method
       final AgentSpan span = startSpan("twilio-sdk", TWILIO_SDK);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
-
       // Enable async propagation, so the newly spawned task will be associated back with this
       // original trace.
       return activateSpan(span);
     }
 
-    /** Method exit instrumentation. */
+    /**
+     * Method exit instrumentation.
+     */
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable throwable,
-        @Advice.Return final ListenableFuture response) {
+        @Advice.Return final ListenableFuture response
+    ) {
       if (scope == null) {
         return;
       }
@@ -135,7 +152,8 @@ public class TwilioAsyncInstrumentation extends InstrumenterModule.Tracing
         Futures.addCallback(response, new SpanFinishingCallback(span), Twilio.getExecutorService());
         scope.close();
       }
-      CallDepthThreadLocalMap.reset(Twilio.class); // reset call depth count
+      // reset call depth count
+      CallDepthThreadLocalMap.reset(Twilio.class);
     }
   }
 }

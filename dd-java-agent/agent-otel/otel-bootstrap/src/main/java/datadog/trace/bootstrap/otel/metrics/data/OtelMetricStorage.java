@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.otel.metrics.data;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
@@ -28,34 +27,32 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Stores and aggregates metrics data for a given instrument. */
+/**
+ * Stores and aggregates metrics data for a given instrument.
+ */
 public final class OtelMetricStorage {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelMetricStorage.class);
   private static final RatelimitedLogger RATELIMITED_LOGGER =
       new RatelimitedLogger(LOGGER, 5, TimeUnit.MINUTES);
-
   private static final OtlpConfig.Temporality TEMPORALITY_PREFERENCE =
       Config.get().getOtlpMetricsTemporalityPreference();
-
   private static final int CARDINALITY_LIMIT = Config.get().getMetricsOtelCardinalityLimit();
-
   private static final Attributes CARDINALITY_OVERFLOW =
       Attributes.builder().put("otel.metric.overflow", true).build();
-
-  private static final Map<ClassLoader, BiConsumer<Object, OtlpAttributeVisitor>>
-      ATTRIBUTE_READERS = Collections.synchronizedMap(new WeakHashMap<>());
-
+  private static final Map<ClassLoader, BiConsumer<Object, OtlpAttributeVisitor>> ATTRIBUTE_READERS =
+      Collections.synchronizedMap(new WeakHashMap<>());
   private final OtelInstrumentDescriptor descriptor;
   private final boolean resetOnCollect;
   private final boolean toggleRecordings;
   private final Function<Object, OtelAggregator> aggregatorSupplier;
   private volatile Recording currentRecording;
-
   // only used with DELTA temporality
   private Recording previousRecording;
 
   private OtelMetricStorage(
-      OtelInstrumentDescriptor descriptor, Supplier<OtelAggregator> aggregatorSupplier) {
+      OtelInstrumentDescriptor descriptor,
+      Supplier<OtelAggregator> aggregatorSupplier
+  ) {
     this.descriptor = descriptor;
     this.resetOnCollect = shouldResetOnCollect(descriptor.getType());
     // no need to toggle if not resetting on collect, or if it's an observable instrument
@@ -68,7 +65,9 @@ public final class OtelMetricStorage {
     }
   }
 
-  /** Should storage reset on collect? (Depends on instrument type and temporality preference.) */
+  /**
+   * Should storage reset on collect? (Depends on instrument type and temporality preference.)
+   */
   private static boolean shouldResetOnCollect(OtelInstrumentType type) {
     switch (TEMPORALITY_PREFERENCE) {
       case DELTA:
@@ -108,7 +107,9 @@ public final class OtelMetricStorage {
   }
 
   public static OtelMetricStorage newHistogramStorage(
-      OtelInstrumentDescriptor descriptor, List<Double> bucketBoundaries) {
+      OtelInstrumentDescriptor descriptor,
+      List<Double> bucketBoundaries
+  ) {
     return new OtelMetricStorage(descriptor, () -> new OtelHistogramSketch(bucketBoundaries));
   }
 
@@ -137,9 +138,11 @@ public final class OtelMetricStorage {
   public void recordDouble(double value, Object attributes) {
     if (Double.isNaN(value)) {
       LOGGER.debug(
-          "Instrument {} has recorded measurement Not-a-Number (NaN) value with attributes {}. Dropping measurement.",
+          "Instrument {} has recorded measurement Not-a-Number (NaN) value with attributes {}"
+          + ". Dropping measurement.",
           getInstrumentName(),
-          attributes);
+          attributes
+      );
       return;
     }
     if (toggleRecordings) {
@@ -165,8 +168,10 @@ public final class OtelMetricStorage {
       RATELIMITED_LOGGER.warn(
           "Instrument {} has exceeded the maximum allowed cardinality ({}).",
           descriptor.getName(),
-          CARDINALITY_LIMIT);
-      attributes = CARDINALITY_OVERFLOW; // write data to overflow
+          CARDINALITY_LIMIT
+      );
+      // write data to overflow
+      attributes = CARDINALITY_OVERFLOW;
     }
     return aggregators.computeIfAbsent(attributes, aggregatorSupplier);
   }
@@ -180,11 +185,15 @@ public final class OtelMetricStorage {
   }
 
   public static void registerAttributeReader(
-      ClassLoader cl, BiConsumer<Object, OtlpAttributeVisitor> reader) {
+      ClassLoader cl,
+      BiConsumer<Object, OtlpAttributeVisitor> reader
+  ) {
     ATTRIBUTE_READERS.put(cl, reader);
   }
 
-  /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
+  /**
+   * Collect data for CUMULATIVE temporality, keeping aggregators for future writes.
+   */
   private void doCollect(OtlpMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
     collectDataPoints(currentRecording.aggregators, visitor, OtelAggregator::collect);
@@ -196,23 +205,21 @@ public final class OtelMetricStorage {
    * <p>Each collect request toggles between two groups of aggregators: current / previous.
    */
   private void doCollectAndReset(OtlpMetricVisitor visitor) {
-
     // capture _current_ recording for collection, its aggregators will be reset at the end
     final Recording recording = currentRecording;
 
     if (toggleRecordings) {
       // publish fresh recording for new writers, using aggregators from _previous_ recording
       currentRecording = new Recording(previousRecording);
-
       // notify writers that the captured recording is about to be reset
       ACTIVITY.addAndGet(recording, RESET_PENDING);
       while (recording.activity > 1) {
-        Thread.yield(); // other threads are still writing to this recording
+        // other threads are still writing to this recording
+        Thread.yield();
       }
     }
 
     Map<Object, OtelAggregator> aggregators = recording.aggregators;
-
     // avoid churn: only remove empty aggregators if we're over cardinality
     if (aggregators.size() >= CARDINALITY_LIMIT) {
       aggregators.values().removeIf(OtelAggregator::isEmpty);
@@ -228,7 +235,8 @@ public final class OtelMetricStorage {
   private void collectDataPoints(
       Map<Object, OtelAggregator> aggregators,
       OtlpMetricVisitor visitor,
-      Function<OtelAggregator, OtlpDataPoint> collect) {
+      Function<OtelAggregator, OtlpDataPoint> collect
+  ) {
     BiConsumer<Object, OtlpAttributeVisitor> attributesReader = null;
     ClassLoader attributesClassLoader = null;
 
@@ -270,16 +278,13 @@ public final class OtelMetricStorage {
 
   static final AtomicIntegerFieldUpdater<Recording> ACTIVITY =
       AtomicIntegerFieldUpdater.newUpdater(Recording.class, "activity");
-
   // first activity bit indicates if this recording is about to be reset
   private static final int RESET_PENDING = 1;
-
   // the other activity bits indicate how many threads are writing to it
   private static final int WRITER = 2;
 
   static final class Recording {
     final Map<Object, OtelAggregator> aggregators;
-
     transient volatile int activity;
 
     Recording() {

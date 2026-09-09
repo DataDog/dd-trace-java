@@ -18,18 +18,21 @@ import org.jetbrains.kotlin.config.Services;
 
 public class KotlinHelper {
   public static Class<?> compileAndLoad(
-      String className, String sourceFileName, List<File> outputFilesToDelete) {
+      String className,
+      String sourceFileName,
+      List<File> outputFilesToDelete
+  ) {
     K2JVMCompiler compiler = new K2JVMCompiler();
     K2JVMCompilerArguments args = compiler.createArguments();
     args.setFreeArgs(Collections.singletonList(sourceFileName));
     String compilerOutputDir = "/tmp/" + CapturedSnapshotTest.class.getSimpleName() + "-kotlin";
     args.setDestination(compilerOutputDir);
     args.setClasspath(System.getProperty("java.class.path"));
-    ExitCode exitCode =
-        compiler.exec(
-            new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
-            Services.EMPTY,
-            args);
+    ExitCode exitCode = compiler.exec(
+        new PrintingMessageCollector(System.out, MessageRenderer.WITHOUT_PATHS, true),
+        Services.EMPTY,
+        args
+    );
 
     if (exitCode.getCode() != 0) {
       throw new RuntimeException("Kotlin compilation failed");
@@ -51,10 +54,11 @@ public class KotlinHelper {
       return;
     }
     try {
-      Files.walk(dir.toPath())
-          .sorted(Comparator.reverseOrder())
-          .map(Path::toFile)
-          .forEach(outputFilesToDelete::add);
+      Files
+        .walk(dir.toPath())
+        .sorted(Comparator.reverseOrder())
+        .map(Path::toFile)
+        .forEach(outputFilesToDelete::add);
     } catch (IOException ex) {
       ex.printStackTrace();
     }

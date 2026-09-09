@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -15,18 +14,17 @@ import java.util.LinkedList;
 
 public final class TestLibraryLoadingListener implements LibraryLoadingListener {
   private final LinkedList<Check> checks;
-
   private Check failedCheck = null;
   private Throwable failedCause = null;
-
   // By design, listeners are supposed to receive the underlying cause not a LibraryLoadException
   // directly
   static final ThrowableCheck NOT_LIB_LOAD_EXCEPTION =
       (t) -> {
-        assertFalse(
-            t instanceof LibraryLoadException,
-            "LibraryLoadException - instead of underlying cause");
-      };
+    assertFalse(
+        t instanceof LibraryLoadException,
+        "LibraryLoadException - instead of underlying cause"
+    );
+  };
 
   public TestLibraryLoadingListener() {
     this.checks = new LinkedList<>();
@@ -41,28 +39,32 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectResolveDynamic(
-      String expectedComponent, String expectedLibName) {
+      String expectedComponent,
+      String expectedLibName
+  ) {
     return this.expectResolveDynamic(new LibCheck(expectedComponent, expectedLibName));
   }
 
   public TestLibraryLoadingListener expectResolveDynamic(
-      PlatformSpec expectedPlatformSpec, String expectedLibName) {
+      PlatformSpec expectedPlatformSpec,
+      String expectedLibName
+  ) {
     return this.expectResolveDynamic(new LibCheck(expectedPlatformSpec, expectedLibName));
   }
 
   private TestLibraryLoadingListener expectResolveDynamic(LibCheck libCheck) {
-    return this.addCheck(
-        new Check("onResolveDynamic %s", libCheck) {
-          @Override
-          public void onResolveDynamic(
-              PlatformSpec platformSpec,
-              String optionalComponent,
-              String libName,
-              boolean isPreloaded,
-              URL optionalUrl) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-          }
-        });
+    return this.addCheck(new Check("onResolveDynamic %s", libCheck) {
+      @Override
+      public void onResolveDynamic(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          boolean isPreloaded,
+          URL optionalUrl
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectResolvePreloaded(String expectedLibName) {
@@ -70,19 +72,19 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectResolvePreloaded(LibCheck libCheck) {
-    return this.addCheck(
-        new Check("onResolveDynamic:preloaded %s", libCheck) {
-          @Override
-          public void onResolveDynamic(
-              PlatformSpec platformSpec,
-              String optionalComponent,
-              String libName,
-              boolean isPreloaded,
-              URL optionalUrl) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-            assertTrue(isPreloaded);
-          }
-        });
+    return this.addCheck(new Check("onResolveDynamic:preloaded %s", libCheck) {
+      @Override
+      public void onResolveDynamic(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          boolean isPreloaded,
+          URL optionalUrl
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+        assertTrue(isPreloaded);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectResolveDynamicFailure(String expectedLibName) {
@@ -90,9 +92,13 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectResolveDynamicFailure(
-      String expectedLibName, Throwable expectedThrowable) {
-    return this.expectResolveDynamicFailure(
-        new LibCheck(expectedLibName), (t) -> assertSame(expectedThrowable, t));
+      String expectedLibName,
+      Throwable expectedThrowable
+  ) {
+    return this.expectResolveDynamicFailure(new LibCheck(expectedLibName), (t) -> assertSame(
+        expectedThrowable,
+        t
+    ));
   }
 
   private TestLibraryLoadingListener expectResolveDynamicFailure(LibCheck libCheck) {
@@ -100,19 +106,21 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectResolveDynamicFailure(
-      LibCheck libCheck, ThrowableCheck throwableCheck) {
-    return this.addCheck(
-        new Check("onResolveDynamicFailure %s", libCheck) {
-          @Override
-          public void onResolveDynamicFailure(
-              PlatformSpec platformSpec,
-              String optionalComponent,
-              String libName,
-              Throwable optionalCause) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-            throwableCheck.assertMatches(optionalCause);
-          }
-        });
+      LibCheck libCheck,
+      ThrowableCheck throwableCheck
+  ) {
+    return this.addCheck(new Check("onResolveDynamicFailure %s", libCheck) {
+      @Override
+      public void onResolveDynamicFailure(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          Throwable optionalCause
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+        throwableCheck.assertMatches(optionalCause);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectLoad(String expectedLibName) {
@@ -124,18 +132,18 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectLoad(LibCheck libCheck) {
-    return this.addCheck(
-        new Check("onLoad %s", libCheck) {
-          @Override
-          public void onLoad(
-              PlatformSpec platformSpec,
-              String optionalComponent,
-              String libName,
-              boolean isPreloaded,
-              Path optionalLibPath) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-          }
-        });
+    return this.addCheck(new Check("onLoad %s", libCheck) {
+      @Override
+      public void onLoad(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          boolean isPreloaded,
+          Path optionalLibPath
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectLoadPreloaded(String expectedLibName) {
@@ -143,19 +151,19 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectLoadPreloaded(LibCheck libCheck) {
-    return this.addCheck(
-        new Check("onLoad:preloaded %s", libCheck) {
-          @Override
-          public void onLoad(
-              PlatformSpec platformSpec,
-              String optionalComponent,
-              String libName,
-              boolean isPreloaded,
-              Path optionalLibPath) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-            assertTrue(isPreloaded);
-          }
-        });
+    return this.addCheck(new Check("onLoad:preloaded %s", libCheck) {
+      @Override
+      public void onLoad(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          boolean isPreloaded,
+          Path optionalLibPath
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+        assertTrue(isPreloaded);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectLoadFailure(String expectedLibName) {
@@ -163,7 +171,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectLoadFailure(
-      String expectedComponent, String expectedLibName) {
+      String expectedComponent,
+      String expectedLibName
+  ) {
     return this.expectLoadFailure(new LibCheck(expectedComponent, expectedLibName));
   }
 
@@ -172,19 +182,21 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectLoadFailure(
-      LibCheck libCheck, ThrowableCheck throwableCheck) {
-    return this.addCheck(
-        new Check("onLoadFailure %s", libCheck) {
-          @Override
-          public void onLoadFailure(
-              PlatformSpec platformSpec,
-              String optionalComponent,
-              String libName,
-              Throwable optionalCause) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-            throwableCheck.assertMatches(optionalCause);
-          }
-        });
+      LibCheck libCheck,
+      ThrowableCheck throwableCheck
+  ) {
+    return this.addCheck(new Check("onLoadFailure %s", libCheck) {
+      @Override
+      public void onLoadFailure(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          Throwable optionalCause
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+        throwableCheck.assertMatches(optionalCause);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectTempFileCreated(String expectedLibName) {
@@ -192,20 +204,25 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectTempFileCreated(
-      String expectedComponent, String expectedLibName) {
+      String expectedComponent,
+      String expectedLibName
+  ) {
     return this.expectTempFileCreated(new LibCheck(expectedComponent, expectedLibName));
   }
 
   private TestLibraryLoadingListener expectTempFileCreated(LibCheck libCheck) {
-    return this.addCheck(
-        new Check("onTempFileCreated %s", libCheck) {
-          @Override
-          public void onTempFileCreated(
-              PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-            assertNotNull(tempFile);
-          }
-        });
+    return this.addCheck(new Check("onTempFileCreated %s", libCheck) {
+      @Override
+      public void onTempFileCreated(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          Path tempFile
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+        assertNotNull(tempFile);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectTempFileCreationFailure(String expectedLibName) {
@@ -217,22 +234,24 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   private TestLibraryLoadingListener expectTempFileCreationFailure(
-      LibCheck libCheck, ThrowableCheck throwableCheck) {
-    return this.addCheck(
-        new Check("onTempFileCreationFailure %s", libCheck) {
-          @Override
-          public void onTempFileCreationFailure(
-              PlatformSpec platformSpec,
-              String optionalComponent,
-              String libName,
-              Path tempDir,
-              String libExt,
-              Throwable optionalCause) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-            assertNotNull(tempDir);
-            assertNotNull(libExt);
-          }
-        });
+      LibCheck libCheck,
+      ThrowableCheck throwableCheck
+  ) {
+    return this.addCheck(new Check("onTempFileCreationFailure %s", libCheck) {
+      @Override
+      public void onTempFileCreationFailure(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          Path tempDir,
+          String libExt,
+          Throwable optionalCause
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+        assertNotNull(tempDir);
+        assertNotNull(libExt);
+      }
+    });
   }
 
   public TestLibraryLoadingListener expectTempFileCleanup(String expectedLibName) {
@@ -240,20 +259,25 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public TestLibraryLoadingListener expectTempFileCleanup(
-      String expectedComponent, String expectedLibName) {
+      String expectedComponent,
+      String expectedLibName
+  ) {
     return this.expectTempFileCleanup(new LibCheck(expectedComponent, expectedLibName));
   }
 
   TestLibraryLoadingListener expectTempFileCleanup(LibCheck libCheck) {
-    return this.addCheck(
-        new Check("onTempFileCreationCleanup %s", libCheck) {
-          @Override
-          public void onTempFileCleanup(
-              PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-            libCheck.assertMatches(platformSpec, optionalComponent, libName);
-            assertNotNull(tempFile);
-          }
-        });
+    return this.addCheck(new Check("onTempFileCreationCleanup %s", libCheck) {
+      @Override
+      public void onTempFileCleanup(
+          PlatformSpec platformSpec,
+          String optionalComponent,
+          String libName,
+          Path tempFile
+      ) {
+        libCheck.assertMatches(platformSpec, optionalComponent, libName);
+        assertNotNull(tempFile);
+      }
+    });
   }
 
   public TestLibraryLoadingListener copy() {
@@ -270,7 +294,6 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         throw e;
       }
     }
-
     // written this way for better debugging
     assertEquals(Collections.emptyList(), this.checks);
   }
@@ -281,11 +304,15 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      URL optionalUrl) {
-    this.nextCheck(
-        check ->
-            check.onResolveDynamic(
-                platformSpec, optionalComponent, libName, isPreloaded, optionalUrl));
+      URL optionalUrl
+  ) {
+    this.nextCheck(check -> check.onResolveDynamic(
+        platformSpec,
+        optionalComponent,
+        libName,
+        isPreloaded,
+        optionalUrl
+    ));
   }
 
   @Override
@@ -293,10 +320,14 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {
-    this.nextCheck(
-        check ->
-            check.onResolveDynamicFailure(platformSpec, optionalComponent, libName, optionalCause));
+      Throwable optionalCause
+  ) {
+    this.nextCheck(check -> check.onResolveDynamicFailure(
+        platformSpec,
+        optionalComponent,
+        libName,
+        optionalCause
+    ));
   }
 
   @Override
@@ -305,10 +336,15 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String optionalComponent,
       String libName,
       boolean isPreloaded,
-      Path optionalLibPath) {
-    this.nextCheck(
-        check ->
-            check.onLoad(platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath));
+      Path optionalLibPath
+  ) {
+    this.nextCheck(check -> check.onLoad(
+        platformSpec,
+        optionalComponent,
+        libName,
+        isPreloaded,
+        optionalLibPath
+    ));
   }
 
   @Override
@@ -316,16 +352,29 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       PlatformSpec platformSpec,
       String optionalComponent,
       String libName,
-      Throwable optionalCause) {
-    this.nextCheck(
-        check -> check.onLoadFailure(platformSpec, optionalComponent, libName, optionalCause));
+      Throwable optionalCause
+  ) {
+    this.nextCheck(check -> check.onLoadFailure(
+        platformSpec,
+        optionalComponent,
+        libName,
+        optionalCause
+    ));
   }
 
   @Override
   public void onTempFileCreated(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-    this.nextCheck(
-        check -> check.onTempFileCreated(platformSpec, optionalComponent, libName, tempFile));
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile
+  ) {
+    this.nextCheck(check -> check.onTempFileCreated(
+        platformSpec,
+        optionalComponent,
+        libName,
+        tempFile
+    ));
   }
 
   @Override
@@ -335,18 +384,31 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       String libName,
       Path tempDir,
       String libExt,
-      Throwable optionalCause) {
-    this.nextCheck(
-        check ->
-            check.onTempFileCreationFailure(
-                platformSpec, optionalComponent, libName, tempDir, libExt, optionalCause));
+      Throwable optionalCause
+  ) {
+    this.nextCheck(check -> check.onTempFileCreationFailure(
+        platformSpec,
+        optionalComponent,
+        libName,
+        tempDir,
+        libExt,
+        optionalCause
+    ));
   }
 
   @Override
   public void onTempFileCleanup(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
-    this.nextCheck(
-        check -> check.onTempFileCleanup(platformSpec, optionalComponent, libName, tempFile));
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile
+  ) {
+    this.nextCheck(check -> check.onTempFileCleanup(
+        platformSpec,
+        optionalComponent,
+        libName,
+        tempFile
+    ));
   }
 
   public TestLibraryLoadingListener addCheck(Check check) {
@@ -367,8 +429,8 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
   }
 
   public abstract static class Check implements LibraryLoadingListener {
-    static final Check NOTHING = new Check("nothing") {};
-
+    static final Check NOTHING = new Check("nothing") {
+    };
     private final String name;
 
     Check(String nameFormat, Object... nameArgs) {
@@ -385,9 +447,16 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String optionalComponent,
         String libName,
         boolean isPreloaded,
-        Path optionalLibPath) {
+        Path optionalLibPath
+    ) {
       this.fallback(
-          "onLoad", platformSpec, optionalComponent, libName, isPreloaded, optionalLibPath);
+          "onLoad",
+          platformSpec,
+          optionalComponent,
+          libName,
+          isPreloaded,
+          optionalLibPath
+      );
     }
 
     @Override
@@ -395,7 +464,8 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         PlatformSpec platformSpec,
         String optionalComponent,
         String libName,
-        Throwable optionalCause) {
+        Throwable optionalCause
+    ) {
       this.fallback("onLoadFailure", platformSpec, optionalComponent, libName, optionalCause);
     }
 
@@ -405,9 +475,16 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String optionalComponent,
         String libName,
         boolean isPreloaded,
-        URL optionalUrl) {
+        URL optionalUrl
+    ) {
       this.fallback(
-          "onResolveDynamic", platformSpec, optionalComponent, libName, isPreloaded, optionalUrl);
+          "onResolveDynamic",
+          platformSpec,
+          optionalComponent,
+          libName,
+          isPreloaded,
+          optionalUrl
+      );
     }
 
     @Override
@@ -415,14 +492,24 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         PlatformSpec platformSpec,
         String optionalComponent,
         String libName,
-        Throwable optionalCause) {
+        Throwable optionalCause
+    ) {
       this.fallback(
-          "onResolveDynamicFailure", platformSpec, optionalComponent, libName, optionalCause);
+          "onResolveDynamicFailure",
+          platformSpec,
+          optionalComponent,
+          libName,
+          optionalCause
+      );
     }
 
     @Override
     public void onTempFileCreated(
-        PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
+        PlatformSpec platformSpec,
+        String optionalComponent,
+        String libName,
+        Path tempFile
+    ) {
       this.fallback("onTmepFileCreated", platformSpec, optionalComponent, libName, tempFile);
     }
 
@@ -433,7 +520,8 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
         String libName,
         Path tempDir,
         String libExt,
-        Throwable optionalCause) {
+        Throwable optionalCause
+    ) {
       this.fallback(
           "onTempFileCreationFailure",
           platformSpec,
@@ -441,12 +529,17 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
           libName,
           tempDir,
           libExt,
-          optionalCause);
+          optionalCause
+      );
     }
 
     @Override
     public void onTempFileCleanup(
-        PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
+        PlatformSpec platformSpec,
+        String optionalComponent,
+        String libName,
+        Path tempFile
+    ) {
       this.fallback("onTempFileCleanup", platformSpec, optionalComponent, libName, tempFile);
     }
 
@@ -459,7 +552,9 @@ public final class TestLibraryLoadingListener implements LibraryLoadingListener 
       builder.append(methodName);
       builder.append('(');
       for (int i = 0; i < args.length; ++i) {
-        if (i != 0) builder.append(", ");
+        if (i != 0) {
+          builder.append(", ");
+        }
         builder.append(args[i]);
       }
       builder.append(')');

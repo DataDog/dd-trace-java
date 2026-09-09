@@ -35,7 +35,11 @@ public class TomcatBlockingHelper {
   }
 
   public static void commitBlockingResponse(
-      TraceSegment segment, Request request, Response resp, Flow.Action.RequestBlockingAction rba) {
+      TraceSegment segment,
+      Request request,
+      Response resp,
+      Flow.Action.RequestBlockingAction rba
+  ) {
     commitBlockingResponse(
         segment,
         request,
@@ -43,7 +47,8 @@ public class TomcatBlockingHelper {
         rba.getStatusCode(),
         rba.getBlockingContentType(),
         rba.getExtraHeaders(),
-        rba.getSecurityResponseId());
+        rba.getSecurityResponseId()
+    );
   }
 
   public static boolean commitBlockingResponse(
@@ -53,7 +58,8 @@ public class TomcatBlockingHelper {
       int statusCode,
       BlockingContentType templateType,
       Map<String, String> extraHeaders,
-      String securityResponseId) {
+      String securityResponseId
+  ) {
     if (GET_OUTPUT_STREAM == null) {
       return false;
     }
@@ -61,7 +67,6 @@ public class TomcatBlockingHelper {
     if (!start(resp, httpCode)) {
       return true;
     }
-
     // tomcat, if it sees an exception when dispatching, may set the status code to 500
     // on the response, even if the response has already been committed
     request.setAttribute(TomcatDecorator.DD_REAL_STATUS_CODE, httpCode);
@@ -84,8 +89,11 @@ public class TomcatBlockingHelper {
   }
 
   private static void tryWriteWithOutputStream(
-      Request request, Response resp, BlockingContentType templateType, String securityResponseId)
-      throws Throwable {
+      Request request,
+      Response resp,
+      BlockingContentType templateType,
+      String securityResponseId
+  ) throws Throwable {
     OutputStream os = (OutputStream) GET_OUTPUT_STREAM.invoke(resp);
     if (templateType != BlockingContentType.NONE) {
       TemplateType type =
@@ -100,8 +108,11 @@ public class TomcatBlockingHelper {
   }
 
   private static void tryWriteWithWriter(
-      Request request, Response resp, BlockingContentType templateType, String securityResponseId)
-      throws IOException {
+      Request request,
+      Response resp,
+      BlockingContentType templateType,
+      String securityResponseId
+  ) throws IOException {
     PrintWriter writer = resp.getWriter();
     if (templateType != BlockingContentType.NONE) {
       TemplateType type =
@@ -112,7 +123,8 @@ public class TomcatBlockingHelper {
       resp.setHeader("Content-length", Integer.toString(template.length));
       if ("utf-8".equalsIgnoreCase(resp.getCharacterEncoding())) {
         resp.setHeader("Content-length", Integer.toString(template.length));
-      } // otherwise we don't really know the size after encoding, so don't set the header
+      }
+      // otherwise we don't really know the size after encoding, so don't set the header
       resp.setHeader("Content-type", BlockingActionHelper.getContentType(type));
       writer.write(templateStr);
     }

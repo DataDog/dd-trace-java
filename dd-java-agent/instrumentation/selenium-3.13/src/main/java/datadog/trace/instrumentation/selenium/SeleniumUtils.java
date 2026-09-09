@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.selenium;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
@@ -23,12 +22,11 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
 public abstract class SeleniumUtils {
-
   public static final String SELENIUM_VERSION = getSeleniumVersion();
-
   private static final String RUM_CONTEXT_COOKIE_NAME = "datadog-ci-visibility-test-execution-id";
 
-  private SeleniumUtils() {}
+  private SeleniumUtils() {
+  }
 
   @Nullable
   private static String getSeleniumVersion() {
@@ -47,7 +45,6 @@ public abstract class SeleniumUtils {
         manifestProperties.load(manifestStream);
         return manifestProperties.getProperty("Selenium-Version");
       }
-
     } catch (Exception e) {
       return null;
     }
@@ -153,10 +150,10 @@ public abstract class SeleniumUtils {
     Capabilities capabilities = SeleniumUtils.getCapabilities(driver);
     if (capabilities != null) {
       String browserName = capabilities.getBrowserName();
-      String browserVersion =
-          String.valueOf(
-              Optional.ofNullable(capabilities.getCapability("browserVersion"))
-                  .orElse(Optional.ofNullable(capabilities.getCapability("version")).orElse("")));
+      String browserVersion = String.valueOf(Optional
+        .ofNullable(capabilities.getCapability("browserVersion"))
+        .orElse(Optional.ofNullable(capabilities.getCapability("version")).orElse(""))
+      );
       span.setTag(Tags.TEST_BROWSER_NAME, browserName);
       span.setTag(Tags.TEST_BROWSER_VERSION, browserVersion);
     }
@@ -179,7 +176,6 @@ public abstract class SeleniumUtils {
     try {
       Method getCapabilitiesMethod = driverClass.getMethod("getCapabilities");
       return (Capabilities) getCapabilitiesMethod.invoke(driver);
-
     } catch (Exception e) {
       return null;
     }
@@ -191,7 +187,8 @@ public abstract class SeleniumUtils {
 
   private static void stopRumSession(JavascriptExecutor js) {
     js.executeScript(
-        "if (window.DD_RUM && window.DD_RUM.stopSession) { window.DD_RUM.stopSession(); }");
+        "if (window.DD_RUM && window.DD_RUM.stopSession) { window.DD_RUM.stopSession(); }"
+    );
     try {
       Thread.sleep(Config.get().getCiVisibilityRumFlushWaitMillis());
     } catch (InterruptedException e) {

@@ -13,10 +13,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@Controller()
+@Controller
 @RequestMapping("/xss")
 public class XssController {
-
   private static final String DIRECTORY_TEMPLATES_TEST = "resources/main/templates";
   private static final String DIRECTORY_TEMPLATES_RUN =
       "dd-smoke-tests/springboot-freemarker/src/main/resources/templates";
@@ -25,8 +24,8 @@ public class XssController {
   public void freemarker(
       @RequestParam(name = "name") String name,
       @RequestParam(name = "templateName") String templateName,
-      final HttpServletResponse response)
-      throws IOException, TemplateException {
+      final HttpServletResponse response
+  ) throws IOException, TemplateException {
     Configuration cfg = new Configuration();
     cfg.setDirectoryForTemplateLoading(new File(DIRECTORY_TEMPLATES_TEST));
     Template template = cfg.getTemplate(templateName);

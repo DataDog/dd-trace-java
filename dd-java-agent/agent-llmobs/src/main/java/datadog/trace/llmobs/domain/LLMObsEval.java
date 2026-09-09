@@ -14,15 +14,12 @@ import javax.annotation.Nullable;
 public abstract class LLMObsEval {
   private static final String METRIC_TYPE_SCORE = "score";
   private static final String METRIC_TYPE_CATEGORICAL = "categorical";
-
   private static final String EVENT_KIND_EVALUATION = "evaluation";
-
   /**
    * Discriminates evaluations from feedback, mirroring dd-trace-py and dd-trace-js. Purely
    * additive: the rest of the v1 payload is unchanged.
    */
   public final String event_kind = EVENT_KIND_EVALUATION;
-
   public final String trace_id;
   public final String span_id;
   public final long timestamp_ms;
@@ -38,7 +35,8 @@ public abstract class LLMObsEval {
       String mlApp,
       String metricType,
       String label,
-      Map<String, Object> tags) {
+      Map<String, Object> tags
+  ) {
     this.trace_id = traceID;
     this.span_id = spanID;
     this.timestamp_ms = timestampMs;
@@ -62,8 +60,7 @@ public abstract class LLMObsEval {
   public static final class Adapter extends JsonAdapter<LLMObsEval> {
     private final Moshi moshi = new Moshi.Builder().build();
     private final JsonAdapter<Score> scoreJsonAdapter = moshi.adapter(Score.class);
-    private final JsonAdapter<Categorical> categoricalJsonAdapter =
-        moshi.adapter(Categorical.class);
+    private final JsonAdapter<Categorical> categoricalJsonAdapter = moshi.adapter(Categorical.class);
 
     @Nullable
     @Override
@@ -96,7 +93,8 @@ public abstract class LLMObsEval {
         String mlApp,
         String label,
         Map<String, Object> tags,
-        double scoreValue) {
+        double scoreValue
+    ) {
       super(traceID, String.valueOf(spanID), timestampMS, mlApp, METRIC_TYPE_SCORE, label, tags);
       this.score_value = scoreValue;
     }
@@ -112,7 +110,8 @@ public abstract class LLMObsEval {
         String mlApp,
         String label,
         Map<String, Object> tags,
-        String categoricalValue) {
+        String categoricalValue
+    ) {
       super(
           traceID,
           String.valueOf(spanID),
@@ -120,7 +119,8 @@ public abstract class LLMObsEval {
           mlApp,
           METRIC_TYPE_CATEGORICAL,
           label,
-          tags);
+          tags
+      );
       this.categorical_value = categoricalValue;
     }
   }

@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackAc
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -22,8 +21,9 @@ import org.apache.pekko.dispatch.Envelope;
 
 @AutoService(InstrumenterModule.class)
 public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public PekkoActorCellInstrumentation() {
     super("pekko_actor_receive", "pekko_actor", "pekko_concurrent", "java_concurrent");
   }
@@ -40,8 +40,8 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
-        isMethod().and(named("invoke")), getClass().getName() + "$InvokeAdvice");
+    transformer.applyAdvice(isMethod().and(named("invoke")), getClass().getName()
+        + "$InvokeAdvice");
   }
 
   /**
@@ -59,12 +59,13 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Context enter(
         @Advice.Argument(value = 0) Envelope envelope,
-        @Advice.Local("taskScope") ContextScope taskScope) {
-
+        @Advice.Local("taskScope") ContextScope taskScope
+    ) {
       // do this before checkpointing, as the envelope's task scope may already be active
-      taskScope =
-          AdviceUtils.startTaskScope(
-              InstrumentationContext.get(Envelope.class, State.class), envelope);
+      taskScope = AdviceUtils.startTaskScope(
+          InstrumentationContext.get(Envelope.class, State.class),
+          envelope
+      );
 
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         // remember the currently active scope so we can roll back to this point
@@ -78,15 +79,14 @@ public class PekkoActorCellInstrumentation extends InstrumenterModule.ContextTra
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.Local("taskScope") ContextScope taskScope,
-        @Advice.Enter Context checkpointContext) {
-
+        @Advice.Enter Context checkpointContext
+    ) {
       if (checkpointContext == null) {
         // Clean up any leaking scopes from pekko-streams/pekko-http etc.
         rollbackActiveToCheckpoint();
       } else {
         checkpointContext.swap();
       }
-
       // close envelope's task scope if we previously started it
       if (taskScope != null) {
         taskScope.close();

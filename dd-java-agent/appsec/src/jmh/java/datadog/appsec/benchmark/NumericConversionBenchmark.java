@@ -3,7 +3,6 @@ package datadog.appsec.benchmark;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.internal.TraceSegment;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -36,7 +35,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 3)
 public class NumericConversionBenchmark {
-
   static {
     BenchmarkUtil.disableLogging();
   }
@@ -89,7 +87,8 @@ public class NumericConversionBenchmark {
   @Benchmark
   public void validLargeNumber(Blackhole blackhole) {
     context.reportDerivatives(
-        singletonMap("test_attr", singletonMap("value", "9223372036854775807")));
+        singletonMap("test_attr", singletonMap("value", "9223372036854775807"))
+    );
     boolean result = context.commitDerivatives(mockTraceSegment);
     blackhole.consume(result);
   }
@@ -185,7 +184,8 @@ public class NumericConversionBenchmark {
   @Benchmark
   public void overflowLongMax(Blackhole blackhole) {
     context.reportDerivatives(
-        singletonMap("test_attr", singletonMap("value", "9223372036854775808")));
+        singletonMap("test_attr", singletonMap("value", "9223372036854775808"))
+    );
     boolean result = context.commitDerivatives(mockTraceSegment);
     blackhole.consume(result);
   }
@@ -193,7 +193,8 @@ public class NumericConversionBenchmark {
   @Benchmark
   public void overflowVeryLarge(Blackhole blackhole) {
     context.reportDerivatives(
-        singletonMap("test_attr", singletonMap("value", "99999999999999999999999")));
+        singletonMap("test_attr", singletonMap("value", "99999999999999999999999"))
+    );
     boolean result = context.commitDerivatives(mockTraceSegment);
     blackhole.consume(result);
   }
@@ -213,7 +214,6 @@ public class NumericConversionBenchmark {
 
     context.reportDerivatives(singletonMap("attr4", singletonMap("value", "")));
     blackhole.consume(context.commitDerivatives(mockTraceSegment));
-
     // Valid (20%)
     context.reportDerivatives(singletonMap("attr5", singletonMap("value", "42")));
     blackhole.consume(context.commitDerivatives(mockTraceSegment));

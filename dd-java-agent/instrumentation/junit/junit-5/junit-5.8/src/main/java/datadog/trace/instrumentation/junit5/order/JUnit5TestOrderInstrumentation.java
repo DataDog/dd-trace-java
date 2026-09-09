@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit5.order;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,8 +22,9 @@ import org.junit.jupiter.engine.config.JupiterConfiguration;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
@@ -50,11 +50,11 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".JUnitPlatformUtils",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".JUnit5OrderUtils",
-      packageName + ".FailFastClassOrderer",
-      packageName + ".FailFastMethodOrderer",
+        parentPackageName + ".JUnitPlatformUtils",
+        parentPackageName + ".TestEventsHandlerHolder",
+        packageName + ".JUnit5OrderUtils",
+        packageName + ".FailFastClassOrderer",
+        packageName + ".FailFastMethodOrderer"
     };
   }
 
@@ -62,10 +62,12 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getDefaultTestClassOrderer"),
-        JUnit5TestOrderInstrumentation.class.getName() + "$ClassOrdererAdvice");
+        JUnit5TestOrderInstrumentation.class.getName() + "$ClassOrdererAdvice"
+    );
     transformer.applyAdvice(
         named("getDefaultTestMethodOrderer"),
-        JUnit5TestOrderInstrumentation.class.getName() + "$MethodOrdererAdvice");
+        JUnit5TestOrderInstrumentation.class.getName() + "$MethodOrdererAdvice"
+    );
   }
 
   public static class ClassOrdererAdvice {
@@ -76,18 +78,20 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
 
     @Advice.OnMethodExit
     public static void onGetClassOrdererExit(
-        @Advice.Return(readOnly = false) Optional<ClassOrderer> classOrderer) {
+        @Advice.Return(readOnly = false) Optional<ClassOrderer> classOrderer
+    ) {
       if (CallDepthThreadLocalMap.decrementCallDepth(JupiterConfiguration.class) != 0) {
         // nested call
         return;
       }
       String testOrder = Config.get().getCiVisibilityTestOrder();
       if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
-        classOrderer =
-            Optional.of(
-                new FailFastClassOrderer(
-                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
-                    classOrderer.orElse(null)));
+        classOrderer = Optional.of(
+            new FailFastClassOrderer(
+                TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
+                classOrderer.orElse(null)
+            )
+        );
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }
@@ -102,18 +106,20 @@ public class JUnit5TestOrderInstrumentation extends InstrumenterModule.CiVisibil
 
     @Advice.OnMethodExit
     public static void onGetMethodOrdererExit(
-        @Advice.Return(readOnly = false) Optional<MethodOrderer> methodOrderer) {
+        @Advice.Return(readOnly = false) Optional<MethodOrderer> methodOrderer
+    ) {
       if (CallDepthThreadLocalMap.decrementCallDepth(JupiterConfiguration.class) != 0) {
         // nested call
         return;
       }
       String testOrder = Config.get().getCiVisibilityTestOrder();
       if (CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(testOrder)) {
-        methodOrderer =
-            Optional.of(
-                new FailFastMethodOrderer(
-                    TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
-                    methodOrderer.orElse(null)));
+        methodOrderer = Optional.of(
+            new FailFastMethodOrderer(
+                TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT5),
+                methodOrderer.orElse(null)
+            )
+        );
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }

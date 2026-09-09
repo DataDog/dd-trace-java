@@ -13,7 +13,8 @@ import javax.annotation.Nullable;
  * sync as protocols/endpoints evolve.
  */
 final class OtlpMetricsSenderFactory {
-  private OtlpMetricsSenderFactory() {}
+  private OtlpMetricsSenderFactory() {
+  }
 
   /**
    * Builds the sender for {@code config}'s OTLP metrics protocol, or {@code null} if the protocol
@@ -28,7 +29,8 @@ final class OtlpMetricsSenderFactory {
             "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
             config.getOtlpMetricsHeaders(),
             config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
+            config.getOtlpMetricsCompression()
+        );
       case HTTP_PROTOBUF:
       case HTTP_JSON:
         return new OtlpHttpSender(
@@ -36,7 +38,8 @@ final class OtlpMetricsSenderFactory {
             "/v1/metrics",
             config.getOtlpMetricsHeaders(),
             config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
+            config.getOtlpMetricsCompression()
+        );
       default:
         return null;
     }

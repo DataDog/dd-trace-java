@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.AdversarialMetricsBenchmark.CountingHealthMetrics;
 import datadog.trace.core.CoreSpan;
@@ -49,7 +48,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @Fork(1)
 public class HighCardinalityPeerMetricsBenchmark {
-
   private ClientStatsAggregator aggregator;
   private CountingHealthMetrics health;
 
@@ -61,18 +59,20 @@ public class HighCardinalityPeerMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new CountingHealthMetrics();
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
+    this.aggregator = new ClientStatsAggregator(
+        new WellKnownTags("", "", "", "", "", ""),
+        Collections.emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"),
+            Collections.emptySet()
+        ),
+        this.health,
+        new ClientStatsAggregatorBenchmark.NullSink(),
+        2048,
+        2048,
+        false
+    );
     this.aggregator.start();
   }
 
@@ -81,7 +81,8 @@ public class HighCardinalityPeerMetricsBenchmark {
   public void tearDown() {
     aggregator.close();
     System.err.println(
-        "[HIGH_CARD_PEER] drops over the trial (8 threads, warmup + measurement combined):");
+        "[HIGH_CARD_PEER] drops over the trial (8 threads, warmup + measurement combined):"
+    );
     System.err.println("  onStatsInboxFull         = " + health.inboxFull.sum());
     System.err.println("  onStatsAggregateDropped  = " + health.aggregateDropped.sum());
   }

@@ -3,7 +3,9 @@ package datadog.trace.bootstrap.debugger;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.util.List;
 
-/** Probe information associated with a snapshot */
+/**
+ * Probe information associated with a snapshot
+ */
 public interface ProbeImplementation {
   ProbeImplementation UNKNOWN =
       new NoopProbeImplementation(new ProbeId("UNKNOWN", 0), ProbeLocation.UNKNOWN);
@@ -20,12 +22,14 @@ public interface ProbeImplementation {
       CapturedContext context,
       CapturedContext.Status status,
       MethodLocation methodLocation,
-      boolean singleProbe);
+      boolean singleProbe
+  );
 
   void commit(
       CapturedContext entryContext,
       CapturedContext exitContext,
-      List<CapturedContext.CapturedThrowable> caughtExceptions);
+      List<CapturedContext.CapturedThrowable> caughtExceptions
+  );
 
   void commit(CapturedContext lineContext, int line);
 
@@ -53,7 +57,8 @@ public interface ProbeImplementation {
         MethodLocation evaluateAt,
         boolean captureSnapshot,
         DebuggerScript<Boolean> script,
-        String tags) {
+        String tags
+    ) {
       this.id = id;
       this.version = version;
       this.location = location;
@@ -88,13 +93,15 @@ public interface ProbeImplementation {
         CapturedContext context,
         CapturedContext.Status status,
         MethodLocation methodLocation,
-        boolean singleProbe) {}
+        boolean singleProbe
+    ) {}
 
     @Override
     public void commit(
         CapturedContext entryContext,
         CapturedContext exitContext,
-        List<CapturedContext.CapturedThrowable> caughtExceptions) {}
+        List<CapturedContext.CapturedThrowable> caughtExceptions
+    ) {}
 
     @Override
     public void commit(CapturedContext lineContext, int line) {}

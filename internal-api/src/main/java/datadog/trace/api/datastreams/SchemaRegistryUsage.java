@@ -22,7 +22,8 @@ public class SchemaRegistryUsage implements InboxItem {
       boolean isKey,
       String operation,
       long timestampNanos,
-      String serviceNameOverride) {
+      String serviceNameOverride
+  ) {
     this.topic = topic;
     this.clusterId = clusterId;
     this.schemaId = schemaId;

@@ -11,7 +11,6 @@ import jdk.jfr.FlightRecorder;
 
 public class AllocatorHistogram extends ClassValue<AtomicLong[]> {
   private final List<WeakReference<Class<?>>> refs = new CopyOnWriteArrayList<>();
-
   private final EventType eventType;
   private final Runnable eventHook;
 
@@ -21,7 +20,9 @@ public class AllocatorHistogram extends ClassValue<AtomicLong[]> {
     JfrHelper.addPeriodicEvent(DirectAllocationTotalEvent.class, eventHook);
   }
 
-  /** Remove this instance from JFR periodic events callbacks */
+  /**
+   * Remove this instance from JFR periodic events callbacks
+   */
   void deregister() {
     FlightRecorder.removePeriodicEvent(eventHook);
   }

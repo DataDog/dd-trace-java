@@ -9,10 +9,11 @@ import java.util.function.Function;
  * the profiling-scrubber module.
  */
 public final class JfrScrubber {
-
   private final Function<String, Scrubber.ScrubField> scrubDefinition;
 
-  /** Package-private: use {@link DefaultScrubDefinition#create} to obtain an instance. */
+  /**
+   * Package-private: use {@link DefaultScrubDefinition#create} to obtain an instance.
+   */
   JfrScrubber(Function<String, Scrubber.ScrubField> scrubDefinition) {
     this.scrubDefinition = scrubDefinition;
   }

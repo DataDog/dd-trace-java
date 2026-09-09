@@ -9,12 +9,14 @@ import org.eclipse.jetty.util.Callback;
 
 public class SendResponseCbAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-  public static boolean /* skip */ before(
+  public static boolean /* skip */
+  before(
       @Advice.This HttpChannel connection,
       @Advice.Argument(0) HttpGenerator.ResponseInfo responseInfo,
       @Advice.Argument(3) Callback cb,
       @Advice.FieldValue("_committed") AtomicBoolean _committed,
-      @Advice.FieldValue("_transport") HttpTransport _transport) {
+      @Advice.FieldValue("_transport") HttpTransport _transport
+  ) {
     return JettyCommitResponseHelper.before(connection, responseInfo, _transport, _committed, cb);
   }
 }

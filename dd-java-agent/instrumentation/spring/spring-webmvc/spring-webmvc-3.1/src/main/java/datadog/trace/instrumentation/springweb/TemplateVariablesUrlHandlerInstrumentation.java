@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -32,11 +31,14 @@ import javax.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Obtain template and matrix variables for AbstractUrlHandlerMapping */
+/**
+ * Obtain template and matrix variables for AbstractUrlHandlerMapping
+ */
 @AutoService(InstrumenterModule.class)
 public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private Advice.PostProcessor.Factory postProcessorFactory;
 
   public TemplateVariablesUrlHandlerInstrumentation() {
@@ -60,20 +62,22 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
 
   @Override
   public String instrumentedType() {
-    return "org.springframework.web.servlet.handler.AbstractUrlHandlerMapping$UriTemplateVariablesHandlerInterceptor";
+    return "org.springframework.web.servlet.handler."
+        + "AbstractUrlHandlerMapping$UriTemplateVariablesHandlerInterceptor";
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("preHandle"))
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
-            .and(takesArgument(2, Object.class)),
-        TemplateVariablesUrlHandlerInstrumentation.class.getName() + "$InterceptorPreHandleAdvice");
+          .and(isPublic())
+          .and(named("preHandle"))
+          .and(takesArguments(3))
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
+          .and(takesArgument(2, Object.class)),
+        TemplateVariablesUrlHandlerInstrumentation.class.getName() + "$InterceptorPreHandleAdvice"
+    );
   }
 
   @Override
@@ -90,7 +94,8 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     public static void after(
         @Advice.Argument(0) final HttpServletRequest req,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Thrown(readOnly = false) Throwable t
+    ) {
       if (t != null) {
         return;
       }
@@ -113,8 +118,8 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
       if (reqCtx == null) {
         return;
       }
-
-      { // appsec
+      {
+        // appsec
         Object appSecRequestContext = reqCtx.getData(RequestContextSlot.APPSEC);
         if (appSecRequestContext != null) {
           CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
@@ -129,15 +134,15 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
               if (brf != null) {
                 brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
               }
-              t =
-                  new BlockingException(
-                      "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)");
+              t = new BlockingException(
+                  "Blocked request (for UriTemplateVariablesHandlerInterceptor/preHandle)"
+              );
             }
           }
         }
       }
-
-      { // iast
+      {
+        // iast
         IastContext iastRequestContext = reqCtx.getData(RequestContextSlot.IAST);
         if (iastRequestContext != null) {
           PropagationModule module = InstrumentationBridge.PROPAGATION;
@@ -146,10 +151,15 @@ public class TemplateVariablesUrlHandlerInstrumentation extends InstrumenterModu
               String parameterName = e.getKey();
               String value = e.getValue();
               if (parameterName == null || value == null) {
-                continue; // should not happen
+                // should not happen
+                continue;
               }
               module.taintString(
-                  iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+                  iastRequestContext,
+                  value,
+                  SourceTypes.REQUEST_PATH_PARAMETER,
+                  parameterName
+              );
             }
           }
         }

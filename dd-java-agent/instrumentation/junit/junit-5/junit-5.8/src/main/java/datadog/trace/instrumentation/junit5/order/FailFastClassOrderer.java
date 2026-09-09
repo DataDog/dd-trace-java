@@ -13,14 +13,15 @@ import org.junit.jupiter.api.ClassOrdererContext;
 import org.junit.platform.engine.TestDescriptor;
 
 public class FailFastClassOrderer implements ClassOrderer {
-
   private final TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler;
-  private final @Nullable ClassOrderer delegate;
+  @Nullable
+  private final ClassOrderer delegate;
   private final Comparator<ClassDescriptor> executionOrderComparator;
 
   public FailFastClassOrderer(
       TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler,
-      @Nullable ClassOrderer delegate) {
+      @Nullable ClassOrderer delegate
+  ) {
     this.testEventsHandler = testEventsHandler;
     this.delegate = delegate;
     this.executionOrderComparator = Comparator.comparing(this::classExecutionPriority).reversed();
@@ -46,7 +47,6 @@ public class FailFastClassOrderer implements ClassOrderer {
     if (children.isEmpty()) {
       return 0;
     }
-
     // there's no specific meaning to the average of children priorities,
     // it is just a heuristic to try to favor classes with higher percentage of failure-prone tests
     int childrenPrioritySum = 0;

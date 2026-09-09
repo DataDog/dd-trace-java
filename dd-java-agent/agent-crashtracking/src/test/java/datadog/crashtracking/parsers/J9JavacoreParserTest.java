@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.crashtracking.dto.CrashLog;
 import datadog.crashtracking.dto.StackFrame;
 import java.io.BufferedReader;
@@ -20,55 +19,46 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 public class J9JavacoreParserTest {
-
   @Test
   public void testParseGpfCrash() throws Exception {
     // Given
     final String uuid = UUID.randomUUID().toString();
     String javacoreContent = readFileAsString("sample-j9-javacore-gpf.txt");
-
     // When
     final CrashLog crashLog = new J9JavacoreParser().parse(uuid, javacoreContent);
-
     // Then
     assertNotNull(crashLog);
     assertEquals(uuid, crashLog.uuid);
     assertFalse(crashLog.incomplete);
     assertEquals("1.0", crashLog.dataSchemaVersion);
-
     // Signal info
     assertNotNull(crashLog.sigInfo);
     assertEquals("SIGSEGV", crashLog.sigInfo.name);
     assertEquals(11, crashLog.sigInfo.number);
-
     // Process info
     assertNotNull(crashLog.procInfo);
     assertEquals(12345, crashLog.procInfo.pid);
-
     // Error info
     assertNotNull(crashLog.error);
     assertEquals("SIGSEGV", crashLog.error.kind);
     assertEquals("Process terminated by signal SIGSEGV", crashLog.error.message);
     assertEquals("main", crashLog.error.threadName);
-
     // Stack trace
     assertNotNull(crashLog.error.stack);
     assertNotNull(crashLog.error.stack.frames);
     assertTrue(crashLog.error.stack.frames.length > 0);
-
     // Check first Java frame
     assertEquals("com/example/NativeLibrary.crash", crashLog.error.stack.frames[0].function);
     assertNull(crashLog.error.stack.frames[0].path);
     assertEquals("native", crashLog.error.stack.frames[0].frameType);
-
     // Check second Java frame with source info
     assertEquals("com/example/CrashingApp.triggerCrash", crashLog.error.stack.frames[1].function);
     assertEquals("CrashingApp.java", crashLog.error.stack.frames[1].path);
     assertEquals("java", crashLog.error.stack.frames[1].frameType);
     assertEquals(Integer.valueOf(42), crashLog.error.stack.frames[1].line);
-
     // Check native frames are present
-    assertTrue(crashLog.error.stack.frames.length >= 4); // 3 java + native frames
+    // 3 java + native frames
+    assertTrue(crashLog.error.stack.frames.length >= 4);
 
     assertNotNull(crashLog.osInfo);
   }
@@ -92,8 +82,10 @@ public class J9JavacoreParserTest {
     assertTrue(crashLog.experimental.ucontext.containsKey(pcRegister));
     assertTrue(crashLog.experimental.ucontext.containsKey(spRegister));
     assertNotNull(crashLog.experimental.runtimeArgs);
-    assertTrue(
-        crashLog.experimental.runtimeArgs.stream().anyMatch(arg -> arg.startsWith("-Xdump:java:")));
+    assertTrue(crashLog.experimental.runtimeArgs
+      .stream()
+      .anyMatch(arg -> arg.startsWith("-Xdump:java:"))
+    );
   }
 
   @Test
@@ -101,30 +93,24 @@ public class J9JavacoreParserTest {
     // Given
     final String uuid = UUID.randomUUID().toString();
     String javacoreContent = readFileAsString("sample-j9-javacore-oom.txt");
-
     // When
     final CrashLog crashLog = new J9JavacoreParser().parse(uuid, javacoreContent);
-
     // Then
     assertNotNull(crashLog);
     assertEquals(uuid, crashLog.uuid);
     assertFalse(crashLog.incomplete);
-
     // Error should be OutOfMemory type
     assertNotNull(crashLog.error);
     assertEquals("OutOfMemory", crashLog.error.kind);
     assertTrue(crashLog.error.message.contains("OutOfMemory"));
     assertEquals("worker-thread-1", crashLog.error.threadName);
-
     // Process info
     assertNotNull(crashLog.procInfo);
     assertEquals(54321, crashLog.procInfo.pid);
-
     // Stack trace should show the allocation path
     assertNotNull(crashLog.error.stack);
     assertNotNull(crashLog.error.stack.frames);
     assertTrue(crashLog.error.stack.frames.length > 0);
-
     // Check that ArrayList.grow is in the stack (where OOM typically occurs)
     boolean foundGrow = false;
     for (StackFrame frame : crashLog.error.stack.frames) {
@@ -145,14 +131,12 @@ public class J9JavacoreParserTest {
     // An incomplete javacore that's missing the THREADS section
     String incompleteJavacore =
         "0SECTION       TITLE subcomponent dump routine\n"
-            + "NULL           ===============================\n"
-            + "1TICHARSET     UTF-8\n"
-            + "1TISIGINFO     Dump Event \"gpf\" (00002000) received\n"
-            + "1TIDATETIME    Date: 2024/08/25 at 15:55:09:123\n";
-
+        + "NULL           ===============================\n"
+        + "1TICHARSET     UTF-8\n"
+        + "1TISIGINFO     Dump Event \"gpf\" (00002000) received\n"
+        + "1TIDATETIME    Date: 2024/08/25 at 15:55:09:123\n";
     // When
     final CrashLog crashLog = new J9JavacoreParser().parse(uuid, incompleteJavacore);
-
     // Then
     assertNotNull(crashLog);
     assertTrue(crashLog.incomplete);
@@ -165,27 +149,25 @@ public class J9JavacoreParserTest {
     final String uuid = UUID.randomUUID().toString();
     String javacoreContent =
         "0SECTION       TITLE subcomponent dump routine\n"
-            + "NULL           ===============================\n"
-            + "1TICHARSET     UTF-8\n"
-            + "1TISIGINFO     Dump Event \"abort\" (00000020) received\n"
-            + "1TIDATETIME    Date: 2024/10/01 at 08:30:00:000\n"
-            + "NULL           ------------------------------------------------------------------------\n"
-            + "0SECTION       ENVINFO subcomponent dump routine\n"
-            + "NULL           =================================\n"
-            + "1CIPROCESSID   Process ID: 99999\n"
-            + "NULL           ------------------------------------------------------------------------\n"
-            + "0SECTION       THREADS subcomponent dump routine\n"
-            + "NULL           =================================\n"
-            + "1XMCURTHDINFO  Current thread: \"abort-thread\" (J9VMThread:0x00000001)\n"
-            + "NULL\n"
-            + "3XMTHREADINFO      \"abort-thread\" J9VMThread:0x00000001, state:R, prio=5\n"
-            + "3XMTHREADINFO3           Java callstack:\n"
-            + "4XESTACKTRACE                at java/lang/Runtime.exit(Runtime.java:123)\n"
-            + "NULL\n";
-
+        + "NULL           ===============================\n"
+        + "1TICHARSET     UTF-8\n"
+        + "1TISIGINFO     Dump Event \"abort\" (00000020) received\n"
+        + "1TIDATETIME    Date: 2024/10/01 at 08:30:00:000\n"
+        + "NULL           ------------------------------------------------------------------------\n"
+        + "0SECTION       ENVINFO subcomponent dump routine\n"
+        + "NULL           =================================\n"
+        + "1CIPROCESSID   Process ID: 99999\n"
+        + "NULL           ------------------------------------------------------------------------\n"
+        + "0SECTION       THREADS subcomponent dump routine\n"
+        + "NULL           =================================\n"
+        + "1XMCURTHDINFO  Current thread: \"abort-thread\" (J9VMThread:0x00000001)\n"
+        + "NULL\n"
+        + "3XMTHREADINFO      \"abort-thread\" J9VMThread:0x00000001, state:R, prio=5\n"
+        + "3XMTHREADINFO3           Java callstack:\n"
+        + "4XESTACKTRACE                at java/lang/Runtime.exit(Runtime.java:123)\n"
+        + "NULL\n";
     // When
     final CrashLog crashLog = new J9JavacoreParser().parse(uuid, javacoreContent);
-
     // Then
     assertNotNull(crashLog);
     assertNotNull(crashLog.sigInfo);
@@ -200,24 +182,28 @@ public class J9JavacoreParserTest {
     // Given
     final String uuid = UUID.randomUUID().toString();
     String javacoreContent = readFileAsString("sample-j9-javacore-gpf.txt");
-
     // When
     final CrashLog crashLog = new J9JavacoreParser().parse(uuid, javacoreContent);
-
     // Then - timestamp should be in ISO format
     assertNotNull(crashLog.timestamp);
     // Should be ISO-8601 format with offset
     assertTrue(
         crashLog.timestamp.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*"),
-        "Expected ISO-8601 format, got: " + crashLog.timestamp);
+        "Expected ISO-8601 format, got: " + crashLog.timestamp
+    );
   }
 
   @TableTest({
-    "scenario        | filename                          | expectedJreVersion                                                              ",
-    "OpenJ9 11 GPF   | sample-j9-javacore-gpf.txt        | JRE 11.0.12 Linux amd64-64                                                      ",
-    "OpenJ9 17 OOM   | sample-j9-javacore-oom.txt        | JRE 17.0.6 Linux amd64-64                                                       ",
-    "OpenJ9 11 aarch | sample-openj9-11-javacore-gpf.txt | JRE 11 Linux aarch64-64 (build 11.0.28+6)                                       ",
-    "IBM J9 8        | sample-ibmj9-8-javacore-gpf.txt   | JRE 1.8.0 Linux amd64-64 (build 8.0.8.51 - pxa6480sr8fp51-20250819_01(SR8 FP51))"
+    "scenario        | filename                          | expectedJreVersion          ",
+    "                                                                                  ",
+    "OpenJ9 11 GPF   | sample-j9-javacore-gpf.txt        | JRE 11.0.12 Linux amd64-64  ",
+    "                                                                                  ",
+    "OpenJ9 17 OOM   | sample-j9-javacore-oom.txt        | JRE 17.0.6 Linux amd64-64   ",
+    "                                                                                  ",
+    "OpenJ9 11 aarch | sample-openj9-11-javacore-gpf.txt | JRE 11 Linux aarch64-64     ",
+    "(build 11.0.28+6)                                                                 ",
+    "IBM J9 8        | sample-ibmj9-8-javacore-gpf.txt   | JRE 1.8.0 Linux amd64-64    ",
+    "(build 8.0.8.51 - pxa6480sr8fp51-20250819_01(SR8 FP51))                           "
   })
   public void testRuntimeInfoParsing(String filename, String expectedJreVersion) throws Exception {
     CrashLog crashLog =
@@ -234,11 +220,11 @@ public class J9JavacoreParserTest {
     // A javacore with a THREADS section but no 1TISIGINFO line
     String javacoreContent =
         "0SECTION       TITLE subcomponent dump routine\n"
-            + "NULL           ===============================\n"
-            + "1TICHARSET     UTF-8\n"
-            + "NULL           ------------------------------------------------------------------------\n"
-            + "0SECTION       THREADS subcomponent dump routine\n"
-            + "NULL           =================================\n";
+        + "NULL           ===============================\n"
+        + "1TICHARSET     UTF-8\n"
+        + "NULL           ------------------------------------------------------------------------\n"
+        + "0SECTION       THREADS subcomponent dump routine\n"
+        + "NULL           =================================\n";
 
     CrashLog result = new J9JavacoreParser().parse(UUID.randomUUID().toString(), javacoreContent);
 
@@ -250,9 +236,10 @@ public class J9JavacoreParserTest {
   private String readFileAsString(String resource) throws IOException {
     try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
       return new BufferedReader(
-              new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8))
-          .lines()
-          .collect(Collectors.joining("\n"));
+          new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8)
+      )
+        .lines()
+        .collect(Collectors.joining("\n"));
     }
   }
 }

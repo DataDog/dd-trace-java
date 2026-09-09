@@ -11,10 +11,14 @@ public final class NativeLibraryHelper {
   private static final ConcurrentHashMap<Long, Pair<String, String>> SYMBOLS_MAP =
       new ConcurrentHashMap<>();
 
-  private NativeLibraryHelper() {}
+  private NativeLibraryHelper() {
+  }
 
   public static void onSymbolLookup(
-      final String libraryName, final String symbol, final long address) {
+      final String libraryName,
+      final String symbol,
+      final long address
+  ) {
     if (libraryName != null && !libraryName.isEmpty()) {
       if (FFMNativeMethodDecorator.isMethodTraced(libraryName, symbol)) {
         SYMBOLS_MAP.put(address, Pair.of(libraryName, symbol));

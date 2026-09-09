@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,7 +23,9 @@ import org.junit.runner.manipulation.Sorter;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4TestSorterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   private final String parentPackageName =
       Strings.getPackageName(JUnit4Instrumentation.class.getName());
 
@@ -45,17 +46,17 @@ public class JUnit4TestSorterInstrumentation extends InstrumenterModule.CiVisibi
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named(hierarchyMarkerType()))
-        .and(implementsInterface(named("org.junit.runner.manipulation.Sortable")));
+      .and(implementsInterface(named("org.junit.runner.manipulation.Sortable")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".SkippedByDatadog",
-      parentPackageName + ".TracingListener",
-      parentPackageName + ".JUnit4Utils",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailFastDescriptionComparator",
+        parentPackageName + ".SkippedByDatadog",
+        parentPackageName + ".TracingListener",
+        parentPackageName + ".JUnit4Utils",
+        parentPackageName + ".TestEventsHandlerHolder",
+        packageName + ".FailFastDescriptionComparator"
     };
   }
 
@@ -63,7 +64,8 @@ public class JUnit4TestSorterInstrumentation extends InstrumenterModule.CiVisibi
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("sort").and(takesArgument(0, named("org.junit.runner.manipulation.Sorter"))),
-        JUnit4TestSorterInstrumentation.class.getName() + "$SorterAdvice");
+        JUnit4TestSorterInstrumentation.class.getName() + "$SorterAdvice"
+    );
   }
 
   public static class SorterAdvice {

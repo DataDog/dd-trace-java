@@ -22,19 +22,15 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Benchmark)
 public class TracerMapperMap {
   private static final int SPAN_COUNT = 1000;
-
   private static final TraceMapperV0_4 mapperV4 = new TraceMapperV0_4();
   private static final TraceMapperV0_5 mapperV5 = new TraceMapperV0_5();
   private static final TraceMapperV1 mapperV1 = new TraceMapperV1();
-
   private static final CoreTracer tracer =
       CoreTracer.builder().writer(new LoggingWriter()).strictTraceWrites(true).build();
-
   private final List<DDSpan> spans = new ArrayList<>(SPAN_COUNT);
   private final List<DDSpan> enrichedSpans = new ArrayList<>(SPAN_COUNT);
   private final List<DDSpan> spansWithOrigin = new ArrayList<>(SPAN_COUNT);
   private final List<DDSpan> enrichedSpansWithOrigin = new ArrayList<>(SPAN_COUNT);
-
   private MsgPackWriter writer;
 
   @Setup(Level.Trial)
@@ -141,7 +137,9 @@ public class TracerMapperMap {
             null,
             NoopPathwayContext.INSTANCE,
             false,
-            null),
-        null);
+            null
+        ),
+        null
+    );
   }
 }

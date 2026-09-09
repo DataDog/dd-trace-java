@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrument
 import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
@@ -24,53 +23,61 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public class RejectedExecutionHandlerInstrumentation
     implements Instrumenter.ForBootstrap,
-        Instrumenter.CanShortcutTypeMatching,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get()
-        .isIntegrationShortcutMatchingEnabled(
-            asList(EXECUTOR_INSTRUMENTATION_NAME, "rejected-execution-handler"), false);
+    return InstrumenterConfig
+      .get()
+      .isIntegrationShortcutMatchingEnabled(
+          asList(EXECUTOR_INSTRUMENTATION_NAME, "rejected-execution-handler"),
+          false
+      );
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "java.util.concurrent.ThreadPoolExecutor$AbortPolicy",
-      "java.util.concurrent.ThreadPoolExecutor$DiscardPolicy",
-      "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
-      "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy"
+        "java.util.concurrent.ThreadPoolExecutor$AbortPolicy",
+        "java.util.concurrent.ThreadPoolExecutor$DiscardPolicy",
+        "java.util.concurrent.ThreadPoolExecutor$DiscardOldestPolicy",
+        "java.util.concurrent.ThreadPoolExecutor$CallerRunsPolicy"
     };
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(
-        named("java.util.concurrent.RejectedExecutionHandler")
-            .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));
+    return implementsInterface(named("java.util.concurrent.RejectedExecutionHandler")
+      .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler"))
+    );
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            // JDK or netty
-            .and(namedOneOf("rejectedExecution", "rejected"))
-            // must not constrain or use second parameter
-            .and(takesArgument(0, named("java.lang.Runnable"))),
-        getClass().getName() + "$Reject");
+          // JDK or netty
+          .and(namedOneOf("rejectedExecution", "rejected"))
+          // must not constrain or use second parameter
+          .and(takesArgument(0, named("java.lang.Runnable"))),
+        getClass().getName() + "$Reject"
+    );
   }
 
   public static final class Reject {
     // remove our wrapper before calling the handler (save wrapper, so we can cancel it later)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static Wrapper<?> handle(
-        @Advice.This Object zis, @Advice.Argument(readOnly = false, value = 0) Runnable runnable) {
+        @Advice.This Object zis,
+        @Advice.Argument(readOnly = false, value = 0) Runnable runnable
+    ) {
       Wrapper<?> wrapper = null;
       if (runnable instanceof Wrapper) {
         wrapper = (Wrapper<?>) runnable;
@@ -89,7 +96,9 @@ public class RejectedExecutionHandlerInstrumentation
     // which is preferable to cancelling the continuation
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void reject(
-        @Advice.Enter Wrapper<?> wrapper, @Advice.Argument(value = 0) Runnable runnable) {
+        @Advice.Enter Wrapper<?> wrapper,
+        @Advice.Argument(value = 0) Runnable runnable
+    ) {
       // not handling rejected work (which will often not manifest in an exception being thrown)
       // leads to unclosed continuations when executors get busy
       // note that this does not handle rejection mechanisms used in Scala, so those need to be
@@ -100,7 +109,8 @@ public class RejectedExecutionHandlerInstrumentation
         if (runnable instanceof RunnableFuture) {
           cancelTask(
               InstrumentationContext.get(RunnableFuture.class, State.class),
-              (RunnableFuture<?>) runnable);
+              (RunnableFuture<?>) runnable
+          );
         }
         // paranoid about double instrumentation until RunnableInstrumentation is removed
         cancelTask(InstrumentationContext.get(Runnable.class, State.class), runnable);

@@ -2,7 +2,6 @@ package datadog.trace.api.sampling;
 
 import static datadog.trace.api.sampling.AdaptiveSamplerBenchmark.ITERATION_TIME_MILLIS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -24,28 +23,24 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Benchmark)
 public class AdaptiveSamplerBenchmark {
-
   public static final int ITERATION_TIME_MILLIS = 1000;
   public static final int BUDGET_LOOKBACK = 16;
-
   @Param("5000")
   int samplesPerWindow;
-
   @Param("500")
   long durationWindowMillis;
-
   private AdaptiveSampler sampler;
 
   @Setup(Level.Iteration)
   public void setup() {
     int averageLookback = (int) (ITERATION_TIME_MILLIS / durationWindowMillis);
-    sampler =
-        new AdaptiveSampler(
-            Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
-            samplesPerWindow,
-            averageLookback,
-            BUDGET_LOOKBACK,
-            true);
+    sampler = new AdaptiveSampler(
+        Duration.of(durationWindowMillis, ChronoUnit.MILLIS),
+        samplesPerWindow,
+        averageLookback,
+        BUDGET_LOOKBACK,
+        true
+    );
   }
 
   @Threads(4)

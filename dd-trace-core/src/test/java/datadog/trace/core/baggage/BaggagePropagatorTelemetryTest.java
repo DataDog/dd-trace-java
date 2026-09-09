@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class BaggagePropagatorTelemetryTest {
-
   private static final CarrierVisitor<Map<String, String>> MAP_VISITOR = Map::forEach;
 
   @BeforeEach
@@ -130,22 +128,29 @@ class BaggagePropagatorTelemetryTest {
     collector.prepareMetrics();
     Collection<CoreMetric> metrics = collector.drain();
 
-    List<CoreMetric> foundMetrics =
-        metrics.stream()
-            .filter(m -> m.metricName.startsWith("context_header_style."))
-            .collect(Collectors.toList());
+    List<CoreMetric> foundMetrics = metrics
+      .stream()
+      .filter(m -> m.metricName.startsWith("context_header_style."))
+      .collect(Collectors.toList());
     assertTrue(foundMetrics.isEmpty());
   }
 
   private static @Nullable CoreMetric metricFromName(Collection<CoreMetric> metrics, String name) {
-    return metrics.stream().filter(m -> name.equals(m.metricName)).findFirst().orElse(null);
+    return metrics
+      .stream()
+      .filter(m -> name.equals(m.metricName))
+      .findFirst()
+      .orElse(null);
   }
 
   private static @Nullable CoreMetric truncateMetricFromName(
-      Collection<CoreMetric> metrics, String name) {
-    return metrics.stream()
-        .filter(m -> "context_header.truncated".equals(m.metricName) && m.tags.contains(name))
-        .findFirst()
-        .orElse(null);
+      Collection<CoreMetric> metrics,
+      String name
+  ) {
+    return metrics
+      .stream()
+      .filter(m -> "context_header.truncated".equals(m.metricName) && m.tags.contains(name))
+      .findFirst()
+      .orElse(null);
   }
 }

@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.muzzle;
 
 import static datadog.trace.util.Strings.getClassName;
 import static datadog.trace.util.Strings.getResourceName;
-
 import datadog.trace.agent.tooling.AdviceShader;
 import datadog.trace.bootstrap.Constants;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -23,7 +22,9 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
-/** Visit a class and collect all references made by the visited class. */
+/**
+ * Visit a class and collect all references made by the visited class.
+ */
 // Additional things we could check
 // - annotations on class
 // - outer class
@@ -37,10 +38,10 @@ public class ReferenceCreator extends ClassVisitor {
    * from the method advice and helper classes.
    */
   private static final String REFERENCE_CREATION_PACKAGE = "datadog.trace.instrumentation.";
-
   private static final int UNDEFINED_LINE = -1;
-
-  /** Set containing name+descriptor signatures of Object methods. */
+  /**
+   * Set containing name+descriptor signatures of Object methods.
+   */
   private static final Set<String> OBJECT_METHODS = new HashSet<>();
 
   static {
@@ -60,8 +61,10 @@ public class ReferenceCreator extends ClassVisitor {
    */
   @SuppressForbidden
   public static Map<String, Reference> createReferencesFrom(
-      final String entryPointClassName, final AdviceShader adviceShader, final ClassLoader loader)
-      throws IllegalStateException {
+      final String entryPointClassName,
+      final AdviceShader adviceShader,
+      final ClassLoader loader
+  ) throws IllegalStateException {
     final Set<String> visitedSources = new HashSet<>();
     final Map<String, Reference> references = new LinkedHashMap<>();
 
@@ -99,7 +102,6 @@ public class ReferenceCreator extends ClassVisitor {
             references.put(entry.getKey(), toMerge.merge(entry.getValue()));
           }
         }
-
       } catch (final Throwable t) {
         throw new IllegalStateException("Error reading class " + className, t);
       }
@@ -108,7 +110,9 @@ public class ReferenceCreator extends ClassVisitor {
   }
 
   public static Map<String, Reference> createReferencesFrom(
-      final String entryPointClassName, final ClassLoader loader) {
+      final String entryPointClassName,
+      final ClassLoader loader
+  ) {
     return createReferencesFrom(entryPointClassName, null, loader);
   }
 
@@ -125,7 +129,8 @@ public class ReferenceCreator extends ClassVisitor {
    */
   private static int computeMinimumClassAccess(final String from, final String to) {
     if (from.equalsIgnoreCase(to)) {
-      return 0; // same access; nothing to assert
+      // same access; nothing to assert
+      return 0;
     } else if (samePackage(from, to)) {
       return Reference.EXPECTS_NON_PRIVATE;
     } else {
@@ -140,7 +145,8 @@ public class ReferenceCreator extends ClassVisitor {
    */
   private static int computeMinimumFieldAccess(final String from, final String to) {
     if (from.equalsIgnoreCase(to)) {
-      return 0; // same access; nothing to assert
+      // same access; nothing to assert
+      return 0;
     } else if (samePackage(from, to)) {
       return Reference.EXPECTS_NON_PRIVATE;
     } else {
@@ -157,7 +163,8 @@ public class ReferenceCreator extends ClassVisitor {
    */
   private static int computeMinimumMethodAccess(final String from, final String to) {
     if (from.equalsIgnoreCase(to)) {
-      return 0; // same access; nothing to assert
+      // same access; nothing to assert
+      return 0;
     } else {
       // Additional references: check the type hierarchy of FROM to distinguish public from
       // protected
@@ -206,21 +213,23 @@ public class ReferenceCreator extends ClassVisitor {
       final String name,
       final String signature,
       final String superName,
-      final String[] interfaces) {
+      final String[] interfaces
+  ) {
     refSourceClassName = getClassName(name);
     Type refSourceType = Type.getType("L" + name + ";");
     refSourceTypeInternalName = refSourceType.getInternalName();
-
     // Add references to each of the interfaces.
     for (String iface : interfaces) {
       if (!ignoreReference(iface)) {
-        addReference(
-            new Reference.Builder(iface)
-                .withSource(
-                    refSourceClassName,
-                    UNDEFINED_LINE) // We don't have a specific line number to use.
-                .withFlag(Reference.EXPECTS_PUBLIC)
-                .build());
+        addReference(new Reference.Builder(iface)
+          .withSource(
+              refSourceClassName,
+              // We don't have a specific line number to use.
+              UNDEFINED_LINE
+          )
+          .withFlag(Reference.EXPECTS_PUBLIC)
+          .build()
+        );
       }
     }
     // the super type is handled by the method visitor to the constructor.
@@ -233,10 +242,10 @@ public class ReferenceCreator extends ClassVisitor {
       final String name,
       final String descriptor,
       final String signature,
-      final Object value) {
+      final Object value
+  ) {
     // Additional references we could check
     // - annotations on field
-
     // intentionally not creating refs to fields here.
     // Will create refs in method instructions to include line numbers.
     return super.visitField(access, name, descriptor, signature, value);
@@ -248,11 +257,17 @@ public class ReferenceCreator extends ClassVisitor {
       final String name,
       final String descriptor,
       final String signature,
-      final String[] exceptions) {
+      final String[] exceptions
+  ) {
     // Additional references we could check
     // - Classes in signature (return type, params) and visible from this package
-    return new AdviceReferenceMethodVisitor(
-        super.visitMethod(access, name, descriptor, signature, exceptions));
+    return new AdviceReferenceMethodVisitor(super.visitMethod(
+        access,
+        name,
+        descriptor,
+        signature,
+        exceptions
+    ));
   }
 
   private class AdviceReferenceMethodVisitor extends MethodVisitor {
@@ -270,11 +285,14 @@ public class ReferenceCreator extends ClassVisitor {
 
     @Override
     public void visitFieldInsn(
-        final int opcode, final String owner, final String name, final String descriptor) {
+        final int opcode,
+        final String owner,
+        final String name,
+        final String descriptor
+    ) {
       if (ignoreReference(owner)) {
         return;
       }
-
       // Additional references we could check
       // * DONE owner class
       //   * DONE owner class has a field (name)
@@ -284,44 +302,43 @@ public class ReferenceCreator extends ClassVisitor {
       //
       // * DONE field-source class (descriptor)
       //   * DONE field-source visibility from this point (PRIVATE?)
-
       final Type ownerType =
           owner.startsWith("[")
-              ? underlyingType(Type.getType(owner))
-              : Type.getType("L" + owner + ";");
+          ? underlyingType(Type.getType(owner))
+          : Type.getType("L" + owner + ";");
       final Type fieldType = Type.getType(descriptor);
 
       String ownerTypeInternalName = ownerType.getInternalName();
 
       int fieldFlags = 0;
       fieldFlags |= computeMinimumFieldAccess(refSourceTypeInternalName, ownerTypeInternalName);
-      fieldFlags |=
-          opcode == Opcodes.GETSTATIC || opcode == Opcodes.PUTSTATIC
-              ? Reference.EXPECTS_STATIC
-              : Reference.EXPECTS_NON_STATIC;
+      fieldFlags |= opcode == Opcodes.GETSTATIC || opcode == Opcodes.PUTSTATIC
+          ? Reference.EXPECTS_STATIC
+          : Reference.EXPECTS_NON_STATIC;
 
-      addReference(
-          new Reference.Builder(ownerTypeInternalName)
-              .withSource(refSourceClassName, currentLineNumber)
-              .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
-              .withField(
-                  new String[] {refSourceClassName + ":" + currentLineNumber},
-                  fieldFlags,
-                  name,
-                  fieldType)
-              .build());
+      addReference(new Reference.Builder(ownerTypeInternalName)
+        .withSource(refSourceClassName, currentLineNumber)
+        .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
+        .withField(
+            new String[] {refSourceClassName + ":" + currentLineNumber},
+            fieldFlags,
+            name,
+            fieldType
+        )
+        .build()
+      );
 
       final Type underlyingFieldType = underlyingType(fieldType);
       String underlyingFieldTypeInternalName = underlyingFieldType.getInternalName();
       if (underlyingFieldType.getSort() == Type.OBJECT
           && !ignoreReference(underlyingFieldTypeInternalName)) {
-        addReference(
-            new Reference.Builder(underlyingFieldTypeInternalName)
-                .withSource(refSourceClassName, currentLineNumber)
-                .withFlag(
-                    computeMinimumClassAccess(
-                        refSourceTypeInternalName, underlyingFieldTypeInternalName))
-                .build());
+        addReference(new Reference.Builder(underlyingFieldTypeInternalName)
+          .withSource(refSourceClassName, currentLineNumber)
+          .withFlag(
+              computeMinimumClassAccess(refSourceTypeInternalName, underlyingFieldTypeInternalName)
+          )
+          .build()
+        );
       }
       super.visitFieldInsn(opcode, owner, name, descriptor);
     }
@@ -332,11 +349,11 @@ public class ReferenceCreator extends ClassVisitor {
         final String owner,
         final String name,
         final String descriptor,
-        final boolean isInterface) {
+        final boolean isInterface
+    ) {
       if (ignoreReference(owner) || ignoreObjectMethod(name, descriptor)) {
         return;
       }
-
       // Additional references we could check
       // * DONE name of method owner's class
       //   * DONE is the owner an interface?
@@ -347,17 +364,16 @@ public class ReferenceCreator extends ClassVisitor {
       //   * params classes
       //   * return type
       final Type methodType = Type.getMethodType(descriptor);
-
-      { // ref for method return type
+      {
+        // ref for method return type
         final Type returnType = underlyingType(methodType.getReturnType());
         String returnTypeInternalName = returnType.getInternalName();
         if (returnType.getSort() == Type.OBJECT && !ignoreReference(returnTypeInternalName)) {
-          addReference(
-              new Reference.Builder(returnTypeInternalName)
-                  .withSource(refSourceClassName, currentLineNumber)
-                  .withFlag(
-                      computeMinimumClassAccess(refSourceTypeInternalName, returnTypeInternalName))
-                  .build());
+          addReference(new Reference.Builder(returnTypeInternalName)
+            .withSource(refSourceClassName, currentLineNumber)
+            .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, returnTypeInternalName))
+            .build()
+          );
         }
       }
       // refs for method param types
@@ -365,38 +381,39 @@ public class ReferenceCreator extends ClassVisitor {
         paramType = underlyingType(paramType);
         String paramTypeInternalName = paramType.getInternalName();
         if (paramType.getSort() == Type.OBJECT && !ignoreReference(paramTypeInternalName)) {
-          addReference(
-              new Reference.Builder(paramTypeInternalName)
-                  .withSource(refSourceClassName, currentLineNumber)
-                  .withFlag(
-                      computeMinimumClassAccess(refSourceTypeInternalName, paramTypeInternalName))
-                  .build());
+          addReference(new Reference.Builder(paramTypeInternalName)
+            .withSource(refSourceClassName, currentLineNumber)
+            .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, paramTypeInternalName))
+            .build()
+          );
         }
       }
 
       final Type ownerType =
           owner.startsWith("[")
-              ? underlyingType(Type.getType(owner))
-              : Type.getType("L" + owner + ";");
+          ? underlyingType(Type.getType(owner))
+          : Type.getType("L" + owner + ";");
       String ownerTypeInternalName = ownerType.getInternalName();
 
       int methodFlags = 0;
-      methodFlags |=
-          opcode == Opcodes.INVOKESTATIC ? Reference.EXPECTS_STATIC : Reference.EXPECTS_NON_STATIC;
+      methodFlags |= opcode == Opcodes.INVOKESTATIC
+          ? Reference.EXPECTS_STATIC
+          : Reference.EXPECTS_NON_STATIC;
       methodFlags |= computeMinimumMethodAccess(refSourceTypeInternalName, ownerTypeInternalName);
 
-      addReference(
-          new Reference.Builder(ownerTypeInternalName)
-              .withSource(refSourceClassName, currentLineNumber)
-              .withFlag(isInterface ? Reference.EXPECTS_INTERFACE : Reference.EXPECTS_NON_INTERFACE)
-              .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
-              .withMethod(
-                  new String[] {refSourceClassName + ":" + currentLineNumber},
-                  methodFlags,
-                  name,
-                  methodType.getReturnType(),
-                  methodType.getArgumentTypes())
-              .build());
+      addReference(new Reference.Builder(ownerTypeInternalName)
+        .withSource(refSourceClassName, currentLineNumber)
+        .withFlag(isInterface ? Reference.EXPECTS_INTERFACE : Reference.EXPECTS_NON_INTERFACE)
+        .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, ownerTypeInternalName))
+        .withMethod(
+            new String[] {refSourceClassName + ":" + currentLineNumber},
+            methodFlags,
+            name,
+            methodType.getReturnType(),
+            methodType.getArgumentTypes()
+        )
+        .build()
+      );
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
     }
 
@@ -411,12 +428,11 @@ public class ReferenceCreator extends ClassVisitor {
         return;
       }
 
-      addReference(
-          new Reference.Builder(type.getInternalName())
-              .withSource(refSourceClassName, currentLineNumber)
-              .withFlag(
-                  computeMinimumClassAccess(refSourceTypeInternalName, type.getInternalName()))
-              .build());
+      addReference(new Reference.Builder(type.getInternalName())
+        .withSource(refSourceClassName, currentLineNumber)
+        .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, type.getInternalName()))
+        .build()
+      );
       super.visitTypeInsn(opcode, stype);
     }
 
@@ -425,31 +441,40 @@ public class ReferenceCreator extends ClassVisitor {
         String name,
         String descriptor,
         Handle bootstrapMethodHandle,
-        Object... bootstrapMethodArguments) {
+        Object... bootstrapMethodArguments
+    ) {
       // This part might be unnecessary...
-      addReference(
-          new Reference.Builder(bootstrapMethodHandle.getOwner())
-              .withSource(refSourceClassName, currentLineNumber)
-              .withFlag(
-                  computeMinimumClassAccess(
-                      refSourceTypeInternalName,
-                      Type.getObjectType(bootstrapMethodHandle.getOwner()).getInternalName()))
-              .build());
+      addReference(new Reference.Builder(bootstrapMethodHandle.getOwner())
+        .withSource(refSourceClassName, currentLineNumber)
+        .withFlag(
+            computeMinimumClassAccess(
+                refSourceTypeInternalName,
+                Type.getObjectType(bootstrapMethodHandle.getOwner()).getInternalName()
+            )
+        )
+        .build()
+      );
       for (Object arg : bootstrapMethodArguments) {
         if (arg instanceof Handle) {
           Handle handle = (Handle) arg;
-          addReference(
-              new Reference.Builder(handle.getOwner())
-                  .withSource(refSourceClassName, currentLineNumber)
-                  .withFlag(
-                      computeMinimumClassAccess(
-                          refSourceTypeInternalName,
-                          Type.getObjectType(handle.getOwner()).getInternalName()))
-                  .build());
+          addReference(new Reference.Builder(handle.getOwner())
+            .withSource(refSourceClassName, currentLineNumber)
+            .withFlag(
+                computeMinimumClassAccess(
+                    refSourceTypeInternalName,
+                    Type.getObjectType(handle.getOwner()).getInternalName()
+                )
+            )
+            .build()
+          );
         }
       }
       super.visitInvokeDynamicInsn(
-          name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+          name,
+          descriptor,
+          bootstrapMethodHandle,
+          bootstrapMethodArguments
+      );
     }
 
     @Override
@@ -458,11 +483,11 @@ public class ReferenceCreator extends ClassVisitor {
         final Type type = underlyingType((Type) value);
         String typeInternalName = type.getInternalName();
         if (type.getSort() == Type.OBJECT && !ignoreReference(typeInternalName)) {
-          addReference(
-              new Reference.Builder(typeInternalName)
-                  .withSource(refSourceClassName, currentLineNumber)
-                  .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, typeInternalName))
-                  .build());
+          addReference(new Reference.Builder(typeInternalName)
+            .withSource(refSourceClassName, currentLineNumber)
+            .withFlag(computeMinimumClassAccess(refSourceTypeInternalName, typeInternalName))
+            .build()
+          );
         }
       }
       super.visitLdcInsn(value);
@@ -480,7 +505,8 @@ public class ReferenceCreator extends ClassVisitor {
     if (dottedName.startsWith("[")) {
       int componentMarker = dottedName.lastIndexOf("[L");
       if (componentMarker < 0) {
-        return true; // ignore primitive array references
+        // ignore primitive array references
+        return true;
       } else {
         dottedName = dottedName.substring(componentMarker + 2);
       }

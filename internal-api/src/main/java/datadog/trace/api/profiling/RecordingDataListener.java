@@ -15,7 +15,9 @@
  */
 package datadog.trace.api.profiling;
 
-/** Listener for getting notified when new recording data is becoming available. */
+/**
+ * Listener for getting notified when new recording data is becoming available.
+ */
 public interface RecordingDataListener {
   /**
    * Called when new recording data becomes available. Handle quickly, e.g. typically schedule

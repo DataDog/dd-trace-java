@@ -36,8 +36,9 @@ public interface DataBundle extends Iterable<Map.Entry<Address<?>, Object>> {
 
     @Override
     public Collection<Address<?>> getAllAddresses() {
-      return Stream.concat(db1.getAllAddresses().stream(), db2.getAllAddresses().stream())
-          .collect(Collectors.toList());
+      return Stream
+        .concat(db1.getAllAddresses().stream(), db2.getAllAddresses().stream())
+        .collect(Collectors.toList());
     }
 
     @Override

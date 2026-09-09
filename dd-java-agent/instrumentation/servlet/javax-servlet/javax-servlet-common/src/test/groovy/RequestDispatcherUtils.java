@@ -1,5 +1,4 @@
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -26,7 +25,10 @@ public class RequestDispatcherUtils {
   }
 
   public RequestDispatcherUtils(
-      final ServletRequest req, final ServletResponse resp, final ServletException toThrow) {
+      final ServletRequest req,
+      final ServletResponse resp,
+      final ServletException toThrow
+  ) {
     this.req = req;
     this.resp = resp;
     this.toThrow = toThrow;
@@ -41,7 +43,6 @@ public class RequestDispatcherUtils {
   /* RequestDispatcher can't be visible to groovy otherwise things break, so everything is
    * encapsulated in here where groovy doesn't need to access it.
    */
-
   void forward(final String target) throws ServletException, IOException {
     new TestContext().getRequestDispatcher(target).forward(req, resp);
   }
@@ -178,14 +179,12 @@ public class RequestDispatcherUtils {
     @Override
     public void forward(final ServletRequest servletRequest, final ServletResponse servletResponse)
         throws ServletException {
-      runUnderTrace(
-          "forward-child",
-          new Callable<Object>() {
-            @Override
-            public Object call() throws Exception {
-              return null;
-            }
-          });
+      runUnderTrace("forward-child", new Callable<Object>() {
+        @Override
+        public Object call() throws Exception {
+          return null;
+        }
+      });
       if (toThrow != null) {
         throw toThrow;
       }
@@ -194,14 +193,12 @@ public class RequestDispatcherUtils {
     @Override
     public void include(final ServletRequest servletRequest, final ServletResponse servletResponse)
         throws ServletException {
-      runUnderTrace(
-          "include-child",
-          new Callable<Object>() {
-            @Override
-            public Object call() throws Exception {
-              return null;
-            }
-          });
+      runUnderTrace("include-child", new Callable<Object>() {
+        @Override
+        public Object call() throws Exception {
+          return null;
+        }
+      });
       if (toThrow != null) {
         throw toThrow;
       }

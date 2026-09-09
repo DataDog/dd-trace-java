@@ -24,12 +24,10 @@ import java.util.function.Consumer;
  * bucket chains silently.
  */
 final class AggregateTable {
-
   private final Hashtable.Entry[] buckets;
   private final int maxAggregates;
   private final AggregateEntry.Canonical canonical;
   private int size;
-
   /**
    * Bucket index where the last {@link #evictOneStale} successfully removed an entry. The next call
    * resumes from this bucket so a fast-evicting workload doesn't repeatedly re-walk the same hot
@@ -46,7 +44,10 @@ final class AggregateTable {
   }
 
   AggregateTable(
-      int maxAggregates, CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
+      int maxAggregates,
+      CoreHandlers handlers,
+      AdditionalTagsSchema additionalTagsSchema
+  ) {
     this.buckets = Hashtable.Support.create(maxAggregates, Hashtable.Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
     this.canonical = new AggregateEntry.Canonical(handlers, additionalTagsSchema);
@@ -72,7 +73,8 @@ final class AggregateTable {
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populateFrom(snapshot);
     long keyHash = canonical.keyHash;
-    for (AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
+    for (
+        AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
         candidate != null;
         candidate = candidate.next()) {
       if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
@@ -113,7 +115,9 @@ final class AggregateTable {
         || evictOneStaleInRange(0, evictCursor);
   }
 
-  /** Scans {@code [startBucket, endBucket)} for the first stale entry and unlinks it. */
+  /**
+   * Scans {@code [startBucket, endBucket)} for the first stale entry and unlinks it.
+   */
   private boolean evictOneStaleInRange(int startBucket, int endBucket) {
     MutatingTableIterator<AggregateEntry> iter =
         Hashtable.Support.mutatingTableIterator(buckets, startBucket, endBucket);
@@ -143,11 +147,15 @@ final class AggregateTable {
     Hashtable.Support.forEach(buckets, context, consumer);
   }
 
-  /** Removes entries whose {@code getHitCount() == 0}. */
+  /**
+   * Removes entries whose {@code getHitCount() == 0}.
+   */
   void expungeStaleAggregates() {
-    for (MutatingTableIterator<AggregateEntry> iter =
-            Hashtable.Support.mutatingTableIterator(buckets);
-        iter.hasNext(); ) {
+    for (
+        MutatingTableIterator<AggregateEntry> iter =
+        Hashtable.Support.mutatingTableIterator(buckets);
+        iter.hasNext();
+        ) {
       AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
         iter.remove();

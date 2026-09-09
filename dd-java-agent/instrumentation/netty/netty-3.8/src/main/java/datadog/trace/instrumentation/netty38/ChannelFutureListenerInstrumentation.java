@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecora
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.NETTY_CONNECT;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -28,12 +27,14 @@ import org.jboss.netty.channel.ChannelFuture;
 
 @AutoService(InstrumenterModule.class)
 public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public ChannelFutureListenerInstrumentation() {
     super(
         NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME,
-        NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES);
+        NettyChannelPipelineInstrumentation.ADDITIONAL_INSTRUMENTATION_NAMES
+    );
   }
 
   @Override
@@ -49,20 +50,20 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".util.CombinedSimpleChannelHandler",
-      packageName + ".AbstractNettyAdvice",
-      packageName + ".ChannelTraceContext",
-      packageName + ".ChannelTraceContext$Factory",
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.NettyHttpServerDecorator$IgnoreBlockingExceptionHandler",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockAllWritesHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler",
-      packageName + ".server.MaybeBlockResponseHandler",
+        packageName + ".util.CombinedSimpleChannelHandler",
+        packageName + ".AbstractNettyAdvice",
+        packageName + ".ChannelTraceContext",
+        packageName + ".ChannelTraceContext$Factory",
+        packageName + ".server.ResponseExtractAdapter",
+        packageName + ".server.NettyHttpServerDecorator",
+        packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+        packageName + ".server.NettyHttpServerDecorator$IgnoreBlockingExceptionHandler",
+        packageName + ".server.BlockingResponseHandler",
+        packageName + ".server.BlockAllWritesHandler",
+        packageName + ".server.HttpServerRequestTracingHandler",
+        packageName + ".server.HttpServerResponseTracingHandler",
+        packageName + ".server.HttpServerTracingHandler",
+        packageName + ".server.MaybeBlockResponseHandler"
     };
   }
 
@@ -70,15 +71,18 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("operationComplete"))
-            .and(takesArgument(0, named("org.jboss.netty.channel.ChannelFuture"))),
-        ChannelFutureListenerInstrumentation.class.getName() + "$OperationCompleteAdvice");
+          .and(named("operationComplete"))
+          .and(takesArgument(0, named("org.jboss.netty.channel.ChannelFuture"))),
+        ChannelFutureListenerInstrumentation.class.getName() + "$OperationCompleteAdvice"
+    );
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
+        "org.jboss.netty.channel.Channel",
+        packageName + ".ChannelTraceContext"
+    );
   }
 
   public static class OperationCompleteAdvice extends AbstractNettyAdvice {
@@ -97,10 +101,9 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       final ContextStore<Channel, ChannelTraceContext> contextStore =
           InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
-      final ContextContinuation continuation =
-          contextStore
-              .getOrCreate(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
-              .getConnectionContinuation();
+      final ContextContinuation continuation = contextStore
+        .getOrCreate(future.getChannel(), ChannelTraceContext.Factory.INSTANCE)
+        .getConnectionContinuation();
       contextStore.get(future.getChannel()).setConnectionContinuation(null);
       if (continuation == null) {
         return null;

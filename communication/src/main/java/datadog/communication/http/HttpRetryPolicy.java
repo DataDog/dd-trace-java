@@ -38,16 +38,13 @@ import org.slf4j.LoggerFactory;
  */
 @NotThreadSafe
 public class HttpRetryPolicy implements AutoCloseable {
-
   private static final Logger log = LoggerFactory.getLogger(HttpRetryPolicy.class);
-
   private static final int NO_RESPONSE_RECEIVED = -1;
   private static final int TOO_MANY_REQUESTS_HTTP_CODE = 429;
   private static final String X_RATELIMIT_RESET_HTTP_HEADER = "x-ratelimit-reset";
   private static final int RATE_LIMIT_RESET_TIME_UNDEFINED = -1;
   private static final int MAX_ALLOWED_WAIT_TIME_SECONDS = 10;
   private static final int RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS = 401;
-
   private int retriesLeft;
   private long delay;
   private boolean interrupted;
@@ -61,7 +58,11 @@ public class HttpRetryPolicy implements AutoCloseable {
    * retry loop while supplying their own response, exception, and backoff rules.
    */
   protected HttpRetryPolicy(
-      int retriesLeft, long delay, double delayFactor, boolean suppressInterrupts) {
+      int retriesLeft,
+      long delay,
+      double delayFactor,
+      boolean suppressInterrupts
+  ) {
     this.retriesLeft = retriesLeft;
     this.delay = delay;
     this.delayFactor = delayFactor;
@@ -96,24 +97,23 @@ public class HttpRetryPolicy implements AutoCloseable {
     if (responseCode == TOO_MANY_REQUESTS_HTTP_CODE) {
       long waitTimeSeconds = getRateLimitResetTime(response);
       if (waitTimeSeconds == RATE_LIMIT_RESET_TIME_UNDEFINED) {
-        retriesLeft--; // doing a regular retry if proper reset time was not provided
+        // doing a regular retry if proper reset time was not provided
+        retriesLeft--;
         return true;
       }
 
       if (waitTimeSeconds > MAX_ALLOWED_WAIT_TIME_SECONDS) {
-        return false; // too long to wait, will not retry
+        // too long to wait, will not retry
+        return false;
       }
 
       retriesLeft = 0;
-      delay =
-          TimeUnit.SECONDS.toMillis(waitTimeSeconds)
-              + ThreadLocalRandom.current().nextInt(RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS);
+      delay = TimeUnit.SECONDS.toMillis(waitTimeSeconds)
+          + ThreadLocalRandom.current().nextInt(RATE_LIMIT_DELAY_RANDOM_COMPONENT_MAX_MILLIS);
       return true;
-
     } else if (responseCode >= 500 || responseCode == NO_RESPONSE_RECEIVED) {
       retriesLeft--;
       return true;
-
     } else {
       return false;
     }
@@ -132,7 +132,8 @@ public class HttpRetryPolicy implements AutoCloseable {
           "Could not parse {} header contents: {}",
           X_RATELIMIT_RESET_HTTP_HEADER,
           rateLimitHeader,
-          e);
+          e
+      );
       return RATE_LIMIT_RESET_TIME_UNDEFINED;
     }
   }
@@ -166,7 +167,6 @@ public class HttpRetryPolicy implements AutoCloseable {
 
   public static class Factory {
     public static final Factory NEVER_RETRY = new Factory(0, 0, 0);
-
     private final int maxRetries;
     private final long initialDelay;
     private final double delayFactor;

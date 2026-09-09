@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static datadog.trace.api.Config.isDatadogProfilerEnablementOverridden;
 import static datadog.trace.api.Config.isDatadogProfilerSafeInCurrentEnvironment;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
@@ -24,8 +23,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class StatusLogger extends JsonAdapter<Config>
-    implements AgentTaskScheduler.Task<Config>, JsonAdapter.Factory {
-
+    implements AgentTaskScheduler.Task<Config>,
+    JsonAdapter.Factory
+{
   public static void logStatus(Config config) {
     AgentTaskScheduler.get().schedule(new StatusLogger(), config, 500, MILLISECONDS);
   }
@@ -36,7 +36,8 @@ public final class StatusLogger extends JsonAdapter<Config>
     if (log.isInfoEnabled()) {
       log.info(
           "DATADOG TRACER CONFIGURATION {}",
-          new Moshi.Builder().add(this).build().adapter(Config.class).toJson(config));
+          new Moshi.Builder().add(this).build().adapter(Config.class).toJson(config)
+      );
     }
     if (log.isDebugEnabled()) {
       log.debug("class path: {}", System.getProperty("java.class.path"));
@@ -194,8 +195,7 @@ public final class StatusLogger extends JsonAdapter<Config>
     writer.endObject();
   }
 
-  private static void writeObjectMap(JsonWriter writer, Map<String, Object> map)
-      throws IOException {
+  private static void writeObjectMap(JsonWriter writer, Map<String, Object> map) throws IOException {
     writer.beginObject();
     for (Map.Entry<String, Object> entry : map.entrySet()) {
       writer.name(entry.getKey());

@@ -7,7 +7,9 @@ import javax.jms.MessageProducer;
 import javax.jms.Queue;
 import javax.jms.QueueSender;
 
-/** Wraps a real {@link MessageProducer} but simulates a JMS 1.0 provider. */
+/**
+ * Wraps a real {@link MessageProducer} but simulates a JMS 1.0 provider.
+ */
 public class Jms10QueueSender implements QueueSender {
   private final MessageProducer delegate;
   private final Queue queue;
@@ -18,7 +20,6 @@ public class Jms10QueueSender implements QueueSender {
   }
 
   // --- JMS 1.1-only methods — not present in JMS 1.0 ---
-
   @Override
   public Destination getDestination() {
     throw new AbstractMethodError("JMS 1.0 provider does not implement getDestination()");
@@ -31,13 +32,16 @@ public class Jms10QueueSender implements QueueSender {
 
   @Override
   public void send(
-      Destination destination, Message message, int deliveryMode, int priority, long timeToLive)
-      throws JMSException {
+      Destination destination,
+      Message message,
+      int deliveryMode,
+      int priority,
+      long timeToLive
+  ) throws JMSException {
     delegate.send(destination, message, deliveryMode, priority, timeToLive);
   }
 
   // --- JMS 1.0 QueueSender methods ---
-
   @Override
   public Queue getQueue() {
     return queue;
@@ -66,7 +70,6 @@ public class Jms10QueueSender implements QueueSender {
   }
 
   // --- MessageProducer config methods ---
-
   @Override
   public void close() throws JMSException {
     delegate.close();

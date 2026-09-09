@@ -12,7 +12,8 @@ public class MultiCapturedContextInstrumenter extends CapturedContextInstrumente
       List<Integer> probeIndices,
       boolean captureSnapshot,
       boolean captureEntry,
-      Limits limits) {
+      Limits limits
+  ) {
     super(definition, methodInfo, diagnostics, probeIndices, captureSnapshot, captureEntry, limits);
   }
 }

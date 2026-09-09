@@ -15,15 +15,15 @@ public class ChatCompletionModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CommonTags",
-      packageName + ".ChatCompletionDecorator",
-      packageName + ".OpenAiDecorator",
-      packageName + ".JsonValueUtils",
-      packageName + ".HttpResponseWrapper",
-      packageName + ".HttpStreamResponseWrapper",
-      packageName + ".HttpStreamResponseStreamWrapper",
-      packageName + ".ToolCallExtractor",
-      packageName + ".ToolCallExtractor$1"
+        packageName + ".CommonTags",
+        packageName + ".ChatCompletionDecorator",
+        packageName + ".OpenAiDecorator",
+        packageName + ".JsonValueUtils",
+        packageName + ".HttpResponseWrapper",
+        packageName + ".HttpStreamResponseWrapper",
+        packageName + ".HttpStreamResponseStreamWrapper",
+        packageName + ".ToolCallExtractor",
+        packageName + ".ToolCallExtractor$1"
     };
   }
 
@@ -31,6 +31,7 @@ public class ChatCompletionModule extends InstrumenterModule.Tracing {
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
         new ChatCompletionServiceAsyncInstrumentation(),
-        new ChatCompletionServiceInstrumentation());
+        new ChatCompletionServiceInstrumentation()
+    );
   }
 }

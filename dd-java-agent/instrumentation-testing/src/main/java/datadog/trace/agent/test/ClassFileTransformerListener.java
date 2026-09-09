@@ -1,7 +1,6 @@
 package datadog.trace.agent.test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.google.common.collect.Sets;
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores;
 import datadog.trace.bootstrap.InstrumentationErrors;
@@ -14,7 +13,6 @@ import net.bytebuddy.utility.JavaModule;
 import net.bytebuddy.utility.nullability.MaybeNull;
 
 public class ClassFileTransformerListener implements AgentBuilder.Listener {
-
   final Set<String> transformedClassesNames = Sets.newConcurrentHashSet();
   final Set<TypeDescription> transformedClassesTypes = Sets.newConcurrentHashSet();
 
@@ -24,19 +22,22 @@ public class ClassFileTransformerListener implements AgentBuilder.Listener {
       @MaybeNull ClassLoader classLoader,
       @MaybeNull JavaModule module,
       boolean loaded,
-      DynamicType dynamicType) {
+      DynamicType dynamicType
+  ) {
     this.transformedClassesNames.add(typeDescription.getActualName());
     this.transformedClassesTypes.add(typeDescription);
   }
 
-  @SuppressForbidden // Allows System.out.println
+  // Allows System.out.println
+  @SuppressForbidden
   @Override
   public void onError(
       String typeName,
       ClassLoader classLoader,
       JavaModule module,
       boolean loaded,
-      Throwable throwable) {
+      Throwable throwable
+  ) {
     // Incorrect* classes assert on incorrect api usage. Error expected.
     if (typeName.startsWith("context.FieldInjectionTestInstrumentation$Incorrect")
         && throwable.getMessage().startsWith("Incorrect Context Api Usage detected.")) {
@@ -45,34 +46,49 @@ public class ClassFileTransformerListener implements AgentBuilder.Listener {
 
     InstrumentationErrors.recordError(throwable);
     System.out.println(
-        "Unexpected instrumentation error when instrumenting " + typeName + " on " + classLoader);
+        "Unexpected instrumentation error when instrumenting " + typeName + " on " + classLoader
+    );
     throwable.printStackTrace();
   }
 
   @Override
   public void onDiscovery(
-      String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
+      String typeName,
+      ClassLoader classLoader,
+      JavaModule module,
+      boolean loaded
+  ) {
     // Nothing special to do
   }
 
   @Override
   public void onIgnored(
-      TypeDescription typeDescription, ClassLoader classLoader, JavaModule module, boolean loaded) {
+      TypeDescription typeDescription,
+      ClassLoader classLoader,
+      JavaModule module,
+      boolean loaded
+  ) {
     // Nothing special to do
   }
 
   @Override
   public void onComplete(
-      String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
+      String typeName,
+      ClassLoader classLoader,
+      JavaModule module,
+      boolean loaded
+  ) {
     // Nothing special to do
   }
 
   public void verify() {
     // Check effectively transformed classes that should have been ignored
     assertTrue(
-        this.transformedClassesTypes.stream()
-            .map(TypeDescription::getActualName)
-            .noneMatch(GlobalIgnores::isAdditionallyIgnored),
-        "Transformed classes match global libraries ignore matcher");
+        this.transformedClassesTypes
+          .stream()
+          .map(TypeDescription::getActualName)
+          .noneMatch(GlobalIgnores::isAdditionallyIgnored),
+        "Transformed classes match global libraries ignore matcher"
+    );
   }
 }

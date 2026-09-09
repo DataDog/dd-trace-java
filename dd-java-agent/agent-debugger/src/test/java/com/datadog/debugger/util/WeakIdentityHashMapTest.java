@@ -2,13 +2,11 @@ package com.datadog.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Test;
 
 class WeakIdentityHashMapTest {
-
   @Test
   public void referenceEq() {
     WeakIdentityHashMap<Object, Object> map = new WeakIdentityHashMap<>();
@@ -23,7 +21,8 @@ class WeakIdentityHashMapTest {
   public void weakKey() {
     WeakIdentityHashMap<Object, Object> map = new WeakIdentityHashMap<>();
     map.put(new BadClass(), new Object());
-    System.gc(); // clear weak reference
+    // clear weak reference
+    System.gc();
     int count = 0;
     // size method will trigger a check on the reference queue and eventually purge the stale entry
     while (map.size() > 0 && count < 1000) {

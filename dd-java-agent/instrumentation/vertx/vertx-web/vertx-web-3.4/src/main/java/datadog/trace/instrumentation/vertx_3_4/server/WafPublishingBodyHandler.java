@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -72,7 +71,8 @@ public class WafPublishingBodyHandler implements Handler<Buffer> {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
         throw new BlockingException(
-            "Blocked request (for Buffer/toString or Buffer/toJson{Object,Array})");
+            "Blocked request (for Buffer/toString or Buffer/toJson{Object,Array})"
+        );
       }
     }
 

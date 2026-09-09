@@ -4,13 +4,17 @@ import com.datadoghq.sketch.ddsketch.DDSketch;
 import datadog.metrics.api.HistogramWithSum;
 import java.util.NoSuchElementException;
 
-/** Adds exact summary statistics to the DDSketch wrapper */
+/**
+ * Adds exact summary statistics to the DDSketch wrapper
+ */
 public final class DDSketchHistogramWithSum extends DDSketchHistogram implements HistogramWithSum {
   private double sum;
   // We use a compensated sum to avoid accumulating rounding errors.
   // See https://en.wikipedia.org/wiki/Kahan_summation_algorithm.
-  private double sumCompensation; // Low order bits of sum
-  private double simpleSum; // Used to compute right sum for non-finite inputs
+  // Low order bits of sum
+  private double sumCompensation;
+  // Used to compute right sum for non-finite inputs
+  private double simpleSum;
   private double min = Double.POSITIVE_INFINITY;
   private double max = Double.NEGATIVE_INFINITY;
 
@@ -78,7 +82,8 @@ public final class DDSketchHistogramWithSum extends DDSketchHistogram implements
 
   private void sumWithCompensation(double value) {
     final double tmp = value - sumCompensation;
-    final double velvel = sum + tmp; // Little wolf of rounding error
+    // Little wolf of rounding error
+    final double velvel = sum + tmp;
     sumCompensation = (velvel - sum) - tmp;
     sum = velvel;
   }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 @WithConfig(key = "trace.scope.iteration.keep.alive", value = "1")
 class IterationSpansForkedTest extends DDCoreJavaSpecification {
-
   ListWriter writer;
   CoreTracer tracer;
   StatsDClient statsDClient;
@@ -72,7 +70,6 @@ class IterationSpansForkedTest extends DDCoreJavaSpecification {
     assertSame(span3, scope3.span());
     assertSame(span3, tracer.activeSpan());
     assertFalse(spanFinished(span3));
-
     // 'next3' should time out & finish after 1s
     writer.waitForTraces(3);
 
@@ -165,7 +162,6 @@ class IterationSpansForkedTest extends DDCoreJavaSpecification {
     assertSame(span1A2, scope1A2.span());
     assertSame(span1A2, tracer.activeSpan());
     assertFalse(spanFinished(span1A2));
-
     // closing the intervening scope will close & finish 'next1A2'
     scope1A.close();
     span1A.finish();
@@ -174,7 +170,6 @@ class IterationSpansForkedTest extends DDCoreJavaSpecification {
     assertTrue(spanFinished(span1A));
     assertFalse(spanFinished(span1));
     assertTrue(writer.isEmpty());
-
     // 'next1' should time out & finish after 1s to complete the trace
     writer.waitForTraces(1);
 

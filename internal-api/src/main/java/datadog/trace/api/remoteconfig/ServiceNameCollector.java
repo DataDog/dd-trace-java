@@ -1,7 +1,6 @@
 package datadog.trace.api.remoteconfig;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
@@ -14,11 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ServiceNameCollector {
-
   private static final Logger log = LoggerFactory.getLogger(ServiceNameCollector.class);
-
   private static final int MAX_EXTRA_SERVICE = Config.get().getRemoteConfigMaxExtraServices();
-
   // This is not final to allow mocking it on tests
   private static ServiceNameCollector INSTANCE = new ServiceNameCollector();
 
@@ -28,7 +24,6 @@ public class ServiceNameCollector {
 
   private final ConcurrentHashMap<String, String> services =
       new ConcurrentHashMap<>(MAX_EXTRA_SERVICE);
-
   volatile boolean limitReachedLogged = false;
 
   private ServiceNameCollector() {
@@ -45,7 +40,8 @@ public class ServiceNameCollector {
             SEND_TELEMETRY,
             "extra service limit({}) reached: service {} can't be added",
             MAX_EXTRA_SERVICE,
-            serviceName);
+            serviceName
+        );
         limitReachedLogged = true;
       }
       return;

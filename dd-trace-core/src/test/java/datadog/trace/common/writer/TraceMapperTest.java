@@ -3,7 +3,6 @@ package datadog.trace.common.writer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.GrowableBuffer;
@@ -23,17 +22,14 @@ import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
 class TraceMapperTest extends DDCoreJavaSpecification {
-
   @Test
   void testTraceMapperV05() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpan span =
-        (DDSpan)
-            tracer
-                .buildSpan("datadog", null)
-                .withTag("service.name", "my-service")
-                .withTag("elasticsearch.version", "7.0")
-                .start();
+    DDSpan span = (DDSpan) tracer
+      .buildSpan("datadog", null)
+      .withTag("service.name", "my-service")
+      .withTag("elasticsearch.version", "7.0")
+      .start();
     span.setBaggageItem("baggage", "item");
     span.spanContext().setDataTop("mydata", "[1,2,3]");
     List<DDSpan> trace = Collections.singletonList(span);
@@ -43,7 +39,6 @@ class TraceMapperTest extends DDCoreJavaSpecification {
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink));
     packer.format(trace, traceMapper);
     packer.flush();
-
     // only top-level statements in Spock then-blocks are power assertions;
     // expressions inside for-loops are not, so we only assert the critical outcomes
     assertNotNull(sink.captured);
@@ -115,7 +110,6 @@ class TraceMapperTest extends DDCoreJavaSpecification {
   }
 
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {
-
     ByteBuffer captured;
 
     @Override

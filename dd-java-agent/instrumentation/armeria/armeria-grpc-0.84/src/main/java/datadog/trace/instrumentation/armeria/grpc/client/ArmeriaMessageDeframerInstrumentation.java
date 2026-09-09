@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -18,8 +17,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class ArmeriaMessageDeframerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   @Override
   public String hierarchyMarkerType() {
     return "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer";
@@ -34,21 +34,28 @@ public class ArmeriaMessageDeframerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer$Listener"))),
-        getClass().getName() + "$CaptureClientCallArg0");
+          .and(
+              takesArgument(
+                  0,
+                  named("com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer$Listener")
+              )
+          ),
+        getClass().getName() + "$CaptureClientCallArg0"
+    );
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(
-                    2, named("com.linecorp.armeria.internal.common.grpc.TransportStatusListener"))),
-        getClass().getName() + "$CaptureClientCallArg2");
+          .and(
+              takesArgument(
+                  2,
+                  named("com.linecorp.armeria.internal.common.grpc.TransportStatusListener")
+              )
+          ),
+        getClass().getName() + "$CaptureClientCallArg2"
+    );
     transformer.applyAdvice(
         isMethod().and(named("process").or(named("deframe"))),
-        getClass().getName() + "$ActivateSpan");
+        getClass().getName() + "$ActivateSpan"
+    );
   }
 
   public static final class CaptureClientCallArg0 {
@@ -56,10 +63,12 @@ public class ArmeriaMessageDeframerInstrumentation
     @Advice.OnMethodExit
     public static void capture(
         @Advice.This ArmeriaMessageDeframer messageDeframer,
-        @Advice.Argument(0) Object clientCall) {
+        @Advice.Argument(0) Object clientCall
+    ) {
       if (clientCall instanceof ClientCall) {
-        InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
-            .put(messageDeframer, (ClientCall) clientCall);
+        InstrumentationContext
+          .get(ArmeriaMessageDeframer.class, ClientCall.class)
+          .put(messageDeframer, (ClientCall) clientCall);
       }
     }
   }
@@ -69,10 +78,12 @@ public class ArmeriaMessageDeframerInstrumentation
     @Advice.OnMethodExit
     public static void capture(
         @Advice.This ArmeriaMessageDeframer messageDeframer,
-        @Advice.Argument(2) Object clientCall) {
+        @Advice.Argument(2) Object clientCall
+    ) {
       if (clientCall instanceof ClientCall) {
-        InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
-            .put(messageDeframer, (ClientCall) clientCall);
+        InstrumentationContext
+          .get(ArmeriaMessageDeframer.class, ClientCall.class)
+          .put(messageDeframer, (ClientCall) clientCall);
       }
     }
   }
@@ -81,9 +92,9 @@ public class ArmeriaMessageDeframerInstrumentation
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ArmeriaMessageDeframer messageDeframer) {
-      ClientCall clientCall =
-          InstrumentationContext.get(ArmeriaMessageDeframer.class, ClientCall.class)
-              .get(messageDeframer);
+      ClientCall clientCall = InstrumentationContext
+        .get(ArmeriaMessageDeframer.class, ClientCall.class)
+        .get(messageDeframer);
       if (clientCall != null) {
         AgentSpan span =
             InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(clientCall);

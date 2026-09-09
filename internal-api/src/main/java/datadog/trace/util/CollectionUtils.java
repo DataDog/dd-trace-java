@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -13,7 +12,6 @@ import java.util.Map;
 import java.util.Set;
 
 public final class CollectionUtils {
-
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
   private static final MethodHandle IMMUTABLE_COPY_OF_SET = findCopyOf(Set.class, Collection.class);
   private static final MethodHandle IMMUTABLE_COPY_OF_LIST =

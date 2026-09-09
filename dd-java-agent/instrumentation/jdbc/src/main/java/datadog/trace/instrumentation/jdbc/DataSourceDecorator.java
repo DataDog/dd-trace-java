@@ -8,7 +8,6 @@ public class DataSourceDecorator extends BaseDecorator {
       UTF8BytesString.create("database.connection");
   public static final CharSequence JAVA_JDBC_CONNECTION =
       UTF8BytesString.create("java-jdbc-connection");
-
   public static final DataSourceDecorator DECORATE = new DataSourceDecorator();
 
   @Override

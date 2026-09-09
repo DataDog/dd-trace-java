@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.OPERATION_NAME;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -20,7 +19,8 @@ public class SendAsyncAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
-      @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler) {
+      @Advice.Argument(value = 1, readOnly = false) HttpResponse.BodyHandler<?> bodyHandler
+  ) {
     try {
       if (DECORATE.isAgentRequest(httpRequest)) {
         return null;
@@ -45,7 +45,6 @@ public class SendAsyncAdvice {
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpRequest);
-
       // propagation is done by another instrumentation since Headers are immutable
       return scope;
     } catch (BlockingException e) {
@@ -61,7 +60,8 @@ public class SendAsyncAdvice {
       @Advice.Enter final AgentScope scope,
       @Advice.Argument(value = 0) final HttpRequest httpRequest,
       @Advice.Return(readOnly = false) CompletableFuture<HttpResponse<?>> future,
-      @Advice.Thrown final Throwable throwable) {
+      @Advice.Thrown final Throwable throwable
+  ) {
     if (scope == null) {
       return;
     }
@@ -75,7 +75,6 @@ public class SendAsyncAdvice {
       DECORATE.beforeFinish(span);
       scope.close();
       span.finish();
-
     } else {
       future = future.whenComplete(new ResponseConsumer(span));
       scope.close();

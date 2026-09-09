@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.lang;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -15,20 +14,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isExperimentalPropagationEnabled"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isExperimentalPropagationEnabled"
+})
 public class StringExperimentalCallSite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(StringExperimentalCallSite.class);
 
-  @CallSite.After(
-      "java.lang.String java.lang.String.replace(java.lang.CharSequence, java.lang.CharSequence)")
+  @CallSite.After("java.lang.String java.lang.String.replace(java.lang.CharSequence, java.lang."
+      + "CharSequence)")
   public static String afterReplaceCharSeq(
       @CallSite.This @Nonnull final String self,
       @CallSite.Argument(0) final CharSequence oldCharSeq,
       @CallSite.Argument(1) final CharSequence newCharSeq,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     String newReplaced = "";
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
@@ -44,9 +44,11 @@ public class StringExperimentalCallSite {
     if (!result.equals(newReplaced)) {
       LOGGER.debug(
           SEND_TELEMETRY,
-          "afterReplaceCharSeq failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
+          "afterReplaceCharSeq failed due to a different result between original replace and "
+          + "new replace, originalLength: {}, newLength: {}",
           result.length(),
-          newReplaced != null ? newReplaced.length() : 0);
+          newReplaced != null ? newReplaced.length() : 0
+      );
 
       return result;
     }
@@ -54,14 +56,14 @@ public class StringExperimentalCallSite {
     return newReplaced;
   }
 
-  @CallSite.After(
-      "java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
+  @CallSite.After("java.lang.String java.lang.String.replaceAll(java.lang.String, java.lang.String)")
   @SuppressForbidden
   public static String afterReplaceAll(
       @CallSite.This final String self,
       @CallSite.Argument(0) final String regex,
       @CallSite.Argument(1) final String replacement,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     String newReplaced = "";
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
@@ -77,9 +79,11 @@ public class StringExperimentalCallSite {
     if (!result.equals(newReplaced)) {
       LOGGER.debug(
           SEND_TELEMETRY,
-          "afterReplaceAll failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
+          "afterReplaceAll failed due to a different result between original replace and new "
+          + "replace, originalLength: {}, newLength: {}",
           result.length(),
-          newReplaced != null ? newReplaced.length() : 0);
+          newReplaced != null ? newReplaced.length() : 0
+      );
 
       return result;
     }
@@ -87,14 +91,15 @@ public class StringExperimentalCallSite {
     return newReplaced;
   }
 
-  @CallSite.After(
-      "java.lang.String java.lang.String.replaceFirst(java.lang.String, java.lang.String)")
+  @CallSite.After("java.lang.String java.lang.String.replaceFirst(java.lang.String, java.lang."
+      + "String)")
   @SuppressForbidden
   public static String afterReplaceFirst(
       @CallSite.This final String self,
       @CallSite.Argument(0) final String regex,
       @CallSite.Argument(1) final String replacement,
-      @CallSite.Return @Nonnull final String result) {
+      @CallSite.Return @Nonnull final String result
+  ) {
     String newReplaced = "";
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
@@ -110,9 +115,11 @@ public class StringExperimentalCallSite {
     if (!result.equals(newReplaced)) {
       LOGGER.debug(
           SEND_TELEMETRY,
-          "afterReplaceFirst failed due to a different result between original replace and new replace, originalLength: {}, newLength: {}",
+          "afterReplaceFirst failed due to a different result between original replace and "
+          + "new replace, originalLength: {}, newLength: {}",
           result.length(),
-          newReplaced != null ? newReplaced.length() : 0);
+          newReplaced != null ? newReplaced.length() : 0
+      );
 
       return result;
     }

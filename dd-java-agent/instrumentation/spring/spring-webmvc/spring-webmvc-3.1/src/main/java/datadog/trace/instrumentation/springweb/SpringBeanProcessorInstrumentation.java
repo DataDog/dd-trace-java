@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springweb;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,9 @@ import org.springframework.beans.factory.config.BeanDefinition;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public SpringBeanProcessorInstrumentation() {
     super("spring-web");
   }
@@ -32,10 +33,10 @@ public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Traci
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("processBean"))
-            .and(
-                takesArgument(3, named("org.springframework.beans.factory.config.BeanDefinition"))),
-        SpringBeanProcessorInstrumentation.class.getName() + "$SkipBeanClassAdvice");
+          .and(named("processBean"))
+          .and(takesArgument(3, named("org.springframework.beans.factory.config.BeanDefinition"))),
+        SpringBeanProcessorInstrumentation.class.getName() + "$SkipBeanClassAdvice"
+    );
   }
 
   @Override
@@ -48,9 +49,11 @@ public class SpringBeanProcessorInstrumentation extends InstrumenterModule.Traci
     public static Class<?> onEnter(@Advice.Argument(3) final BeanDefinition beanDefinition) {
       String className = beanDefinition.getBeanClassName();
       if (null != className && className.startsWith("datadog.trace.instrumentation.")) {
-        return Object.class; // skip the original method and return this value instead
+        // skip the original method and return this value instead
+        return Object.class;
       } else {
-        return null; // continue on to call the original method and return its value
+        // continue on to call the original method and return its value
+        return null;
       }
     }
   }

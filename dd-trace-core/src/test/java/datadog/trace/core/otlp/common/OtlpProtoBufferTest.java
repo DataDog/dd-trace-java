@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.communication.serialization.GrowableBuffer;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
  * appropriate.
  */
 class OtlpProtoBufferTest {
-
   private OtlpProtoBuffer buffer;
 
   @BeforeEach
@@ -32,8 +30,9 @@ class OtlpProtoBufferTest {
   }
 
   // ─── helpers ─────────────────────────────────────────────────────────────
-
-  /** Reads all available bytes from the buffer without consuming the underlying state. */
+  /**
+   * Reads all available bytes from the buffer without consuming the underlying state.
+   */
   private static byte[] readAll(OtlpProtoBuffer buf) {
     ByteBuffer bb = buf.flip();
     byte[] bytes = new byte[bb.remaining()];
@@ -41,7 +40,9 @@ class OtlpProtoBufferTest {
     return bytes;
   }
 
-  /** Creates a pre-filled GrowableBuffer containing the given bytes. */
+  /**
+   * Creates a pre-filled GrowableBuffer containing the given bytes.
+   */
   private static GrowableBuffer growable(byte... body) {
     GrowableBuffer buf = new GrowableBuffer(Math.max(1, body.length));
     if (body.length > 0) {
@@ -51,7 +52,6 @@ class OtlpProtoBufferTest {
   }
 
   // ─── initial state ───────────────────────────────────────────────────────
-
   @Test
   void initialBufferIsEmpty() {
     assertEquals(0, buffer.flip().remaining());
@@ -67,13 +67,12 @@ class OtlpProtoBufferTest {
   @Test
   void constructorRejectsCapacityExceedingMaxCapacity() {
     // rounds up to a power of two above MAX_CAPACITY_BYTES; must reject before allocating
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new OtlpProtoBuffer(OtlpProtoBuffer.MAX_CAPACITY_BYTES + 1));
+    assertThrows(IllegalArgumentException.class, () -> new OtlpProtoBuffer(
+        OtlpProtoBuffer.MAX_CAPACITY_BYTES + 1
+    ));
   }
 
   // ─── recordMessage(GrowableBuffer, int) ──────────────────────────────────
-
   @Test
   void recordsSingleByteMessage() throws IOException {
     // tag for field 1 = (1<<3)|2 = 10 → 1 varint byte; length=1 → 1 byte; body=1 → total 3
@@ -135,7 +134,6 @@ class OtlpProtoBufferTest {
 
     buf.put((byte) 0x01);
     buffer.recordMessage(buf, 1);
-
     // After reset the buffer should accept new writes immediately
     buf.put((byte) 0x02);
     buffer.recordMessage(buf, 2);
@@ -153,11 +151,11 @@ class OtlpProtoBufferTest {
     // OtlpProtoBuffer growth must not prevent the finally-block reset on the GrowableBuffer
     OtlpProtoBuffer tinyBuf = new OtlpProtoBuffer(1);
     GrowableBuffer buf = new GrowableBuffer(16);
-
-    buf.put(new byte[50]); // forces OtlpProtoBuffer growth
+    // forces OtlpProtoBuffer growth
+    buf.put(new byte[50]);
     tinyBuf.recordMessage(buf, 1);
-
-    buf.put((byte) 0x42); // reuse after reset
+    // reuse after reset
+    buf.put((byte) 0x42);
     tinyBuf.recordMessage(buf, 2);
 
     CodedInputStream in = CodedInputStream.newInstance(readAll(tinyBuf));
@@ -169,7 +167,6 @@ class OtlpProtoBufferTest {
   }
 
   // ─── recordMessage(GrowableBuffer, int, int bytesSoFar) ──────────────────
-
   @Test
   void bytesSoFarIncreasesEncodedLength() {
     // field 1, body 1 byte, bytesSoFar 3 → encoded length = 4
@@ -197,7 +194,6 @@ class OtlpProtoBufferTest {
   }
 
   // ─── recordMessage(byte[]) ────────────────────────────────────────────────
-
   @Test
   void recordsByteArrayDirectly() {
     // hand-crafted protobuf: field 1 (tag=0x0A), length 3, body [1, 2, 3]
@@ -227,11 +223,12 @@ class OtlpProtoBufferTest {
   }
 
   // ─── message ordering ────────────────────────────────────────────────────
-
   @Test
   void messagesAppearInReverseInsertionOrder() throws IOException {
-    buffer.recordMessage(growable((byte) 0x01), 1); // first inserted
-    buffer.recordMessage(growable((byte) 0x02), 2); // second → appears first in output
+    // first inserted
+    buffer.recordMessage(growable((byte) 0x01), 1);
+    // second → appears first in output
+    buffer.recordMessage(growable((byte) 0x02), 2);
 
     CodedInputStream in = CodedInputStream.newInstance(readAll(buffer));
     assertEquals(2, WireFormat.getTagFieldNumber(in.readTag()), "field 2 (last) should be first");
@@ -258,8 +255,10 @@ class OtlpProtoBufferTest {
   @Test
   void byteArrayAndGrowableMessagesInterleaveInReverseOrder() throws IOException {
     // field 1 hand-encoded: tag=0x0A, length=1, body=0x11
-    buffer.recordMessage(new byte[] {0x0A, 0x01, 0x11}); // first
-    buffer.recordMessage(growable((byte) 0x22), 2); // second → first in output
+    // first
+    buffer.recordMessage(new byte[] {0x0A, 0x01, 0x11});
+    // second → first in output
+    buffer.recordMessage(growable((byte) 0x22), 2);
 
     CodedInputStream in = CodedInputStream.newInstance(readAll(buffer));
     assertEquals(2, WireFormat.getTagFieldNumber(in.readTag()), "GrowableBuffer message first");
@@ -270,7 +269,6 @@ class OtlpProtoBufferTest {
   }
 
   // ─── flip() ──────────────────────────────────────────────────────────────
-
   @Test
   void flipReturnsCorrectByteCount() {
     // tag(1) + length(1) + body(2) = 4 bytes
@@ -285,7 +283,6 @@ class OtlpProtoBufferTest {
   }
 
   // ─── toPayload() ─────────────────────────────────────────────────────────
-
   @Test
   void toPayloadHasProtobufContentType() {
     assertEquals("application/x-protobuf", buffer.toPayload().getContentType());
@@ -301,7 +298,6 @@ class OtlpProtoBufferTest {
   @Test
   void toPayloadContentMatchesFlip() {
     buffer.recordMessage(growable((byte) 0xDE, (byte) 0xAD), 5);
-
     // Capture expected bytes before toPayload(): both share the same ByteBuffer, so readAll
     // must not consume the position that toPayload() will later restore via flip().
     byte[] expected = readAll(buffer);
@@ -316,12 +312,13 @@ class OtlpProtoBufferTest {
   @Test
   void toPayloadContentIsReadOnly() {
     buffer.recordMessage(growable((byte) 1), 1);
-    assertThrows(
-        ReadOnlyBufferException.class, () -> buffer.toPayload().getContent().put((byte) 0));
+    assertThrows(ReadOnlyBufferException.class, () -> buffer
+      .toPayload()
+      .getContent()
+      .put((byte) 0));
   }
 
   // ─── reset() ─────────────────────────────────────────────────────────────
-
   @Test
   void resetClearsBuffer() {
     buffer.recordMessage(growable((byte) 1), 1);
@@ -353,7 +350,6 @@ class OtlpProtoBufferTest {
 
     buf.reset();
     assertEquals(0, buf.flip().remaining());
-
     // Should continue to function correctly after shrink
     int size = buf.recordMessage(growable((byte) 0x42), 1);
     assertEquals(3, size);
@@ -368,7 +364,6 @@ class OtlpProtoBufferTest {
     assertTrue(expectedLength > 0);
 
     buffer.reset();
-
     // contentLength is eagerly captured in the payload constructor and unaffected by reset
     assertEquals(expectedLength, payload.getContentLength());
   }
@@ -402,11 +397,13 @@ class OtlpProtoBufferTest {
     byte[] actual = new byte[content.remaining()];
     content.get(actual);
     assertArrayEquals(
-        expected, actual, "reset() on a grown buffer must not corrupt existing payload content");
+        expected,
+        actual,
+        "reset() on a grown buffer must not corrupt existing payload content"
+    );
   }
 
   // ─── buffer growth ────────────────────────────────────────────────────────
-
   @Test
   void bufferAccommodatesMessageLargerThanInitialCapacity() {
     OtlpProtoBuffer buf = new OtlpProtoBuffer(4);
@@ -420,8 +417,10 @@ class OtlpProtoBufferTest {
   void growthPreservesAlreadyRecordedMessages() throws IOException {
     // initialCapacity=4; first message fills it exactly, second triggers growth
     OtlpProtoBuffer buf = new OtlpProtoBuffer(4);
-    buf.recordMessage(growable((byte) 0x01, (byte) 0x02), 1); // tag+len+2body = 4 bytes
-    buf.recordMessage(growable((byte) 0x03, (byte) 0x04), 2); // 4 more bytes → forces growth
+    // tag+len+2body = 4 bytes
+    buf.recordMessage(growable((byte) 0x01, (byte) 0x02), 1);
+    // 4 more bytes → forces growth
+    buf.recordMessage(growable((byte) 0x03, (byte) 0x04), 2);
 
     byte[] bytes = readAll(buf);
     assertEquals(8, bytes.length);

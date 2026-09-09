@@ -4,7 +4,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.api.ProtocolVersion.V0_4;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -31,12 +30,9 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
 public class TracerConnectionReliabilityTest extends DDJavaSpecification {
-
   static final int FEATURES_DISCOVERY_MIN_DELAY = 10;
-
   static OkHttpClient client;
   static JsonAdapter<List<List<SentTraces>>> traceJsonAdapter;
-
   int agentContainerPort;
   CoreTracer tracer;
 
@@ -45,9 +41,10 @@ public class TracerConnectionReliabilityTest extends DDJavaSpecification {
     client = new OkHttpClient();
     // Create body parser for /test/traces route
     Moshi moshi = new Moshi.Builder().build();
-    Type type =
-        Types.newParameterizedType(
-            List.class, Types.newParameterizedType(List.class, SentTraces.class));
+    Type type = Types.newParameterizedType(
+        List.class,
+        Types.newParameterizedType(List.class, SentTraces.class)
+    );
     traceJsonAdapter = moshi.adapter(type);
   }
 
@@ -65,12 +62,12 @@ public class TracerConnectionReliabilityTest extends DDJavaSpecification {
         new FixedTraceEndpointFeaturesDiscovery(sharedCommunicationObjects);
     sharedCommunicationObjects.setFeaturesDiscovery(fixedFeaturesDiscovery);
 
-    tracer =
-        CoreTracer.builder()
-            .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
-            .withProperties(properties)
-            .sharedCommunicationObjects(sharedCommunicationObjects)
-            .build();
+    tracer = CoreTracer
+      .builder()
+      .idGenerationStrategy(IdGenerationStrategy.fromName("SEQUENTIAL"))
+      .withProperties(properties)
+      .sharedCommunicationObjects(sharedCommunicationObjects)
+      .build();
   }
 
   @AfterEach
@@ -130,14 +127,15 @@ public class TracerConnectionReliabilityTest extends DDJavaSpecification {
   GenericContainer startTestAgentContainer() {
     //noinspection GrDeprecatedAPIUsage Use FixedHostPortGenericContainer against deprecation
     // because we need to know the exposed to configure the tracer at start
-    GenericContainer agentContainer =
-        new FixedHostPortGenericContainer(
-                "registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.64.1")
-            .withFixedExposedPort(agentContainerPort, DEFAULT_TRACE_AGENT_PORT)
-            .withEnv(
-                "ENABLED_CHECKS",
-                "trace_count_header,meta_tracer_version_header,trace_content_length")
-            .waitingFor(Wait.forHttp("/test/traces"));
+    GenericContainer agentContainer = new FixedHostPortGenericContainer(
+        "registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.64.1"
+    )
+      .withFixedExposedPort(agentContainerPort, DEFAULT_TRACE_AGENT_PORT)
+      .withEnv(
+          "ENABLED_CHECKS",
+          "trace_count_header,meta_tracer_version_header,trace_content_length"
+      )
+      .waitingFor(Wait.forHttp("/test/traces"));
     agentContainer.start();
     return agentContainer;
   }
@@ -156,10 +154,9 @@ public class TracerConnectionReliabilityTest extends DDJavaSpecification {
   }
 
   int getTraceCount(GenericContainer agentContainer) throws IOException {
-    Request request =
-        new Request.Builder()
-            .url("http://" + agentContainer.getHost() + ":" + agentContainerPort + "/test/traces")
-            .build();
+    Request request = new Request.Builder()
+      .url("http://" + agentContainer.getHost() + ":" + agentContainerPort + "/test/traces")
+      .build();
     String body = client.newCall(request).execute().body().string();
     return traceJsonAdapter.fromJson(body).size();
   }

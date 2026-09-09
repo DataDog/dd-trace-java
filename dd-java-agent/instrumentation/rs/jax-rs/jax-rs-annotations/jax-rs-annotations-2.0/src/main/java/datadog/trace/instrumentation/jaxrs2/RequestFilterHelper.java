@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_CONTROLLER;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_REQUEST_ABORT;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.Method;
@@ -14,8 +13,10 @@ import javax.ws.rs.container.ContainerRequestContext;
 
 public class RequestFilterHelper {
   public static AgentScope createOrUpdateAbortSpan(
-      final ContainerRequestContext context, final Class resourceClass, final Method method) {
-
+      final ContainerRequestContext context,
+      final Class resourceClass,
+      final Method method
+  ) {
     if (method != null && resourceClass != null) {
       context.setProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED, true);
       // The ordering of the specific and general abort instrumentation is unspecified

@@ -9,9 +9,10 @@ import java.nio.file.Path;
 import java.util.Collection;
 import javax.annotation.Nullable;
 
-/** Test session abstraction that is used by build system instrumentations (e.g. Maven, Gradle) */
+/**
+ * Test session abstraction that is used by build system instrumentations (e.g. Maven, Gradle)
+ */
 public interface BuildSystemSession {
-
   void setTag(String key, Object value);
 
   void setErrorInfo(Throwable error);
@@ -24,7 +25,8 @@ public interface BuildSystemSession {
       BuildModuleLayout moduleLayout,
       JvmInfo jvmInfo,
       @Nullable Collection<Path> classpath,
-      @Nullable JavaAgent jacocoAgent);
+      @Nullable JavaAgent jacocoAgent
+  );
 
   AgentSpan testTaskStart(String taskName);
 
@@ -36,6 +38,7 @@ public interface BuildSystemSession {
         Path projectRoot,
         String startCommand,
         String buildSystemName,
-        Long startTime);
+        Long startTime
+    );
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.iastinstrumenter.service;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,11 +16,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class CallSitesLoader {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CallSitesLoader.class);
   private static final int CALL_SITE_COUNT = 64;
 
-  private CallSitesLoader() {}
+  private CallSitesLoader() {
+  }
 
   public static <E> List<E> load(final ClassLoader classLoader, final Class<?>... spiInterfaces) {
     if (spiInterfaces == null || spiInterfaces.length == 0) {
@@ -40,8 +39,10 @@ public abstract class CallSitesLoader {
       }
       if (services.size() > CALL_SITE_COUNT) {
         LOGGER.debug(
-            "Call site count has gone over the expected threshold CALL_SITE_COUNT={}, consider setting a bigger value",
-            CALL_SITE_COUNT);
+            "Call site count has gone over the expected threshold CALL_SITE_COUNT={}, consider "
+            + "setting a bigger value",
+            CALL_SITE_COUNT
+        );
       }
       return services;
     } catch (final IOException e) {
@@ -50,7 +51,9 @@ public abstract class CallSitesLoader {
   }
 
   private static String[] loadServiceNames(
-      final ClassLoader loader, final Class<?>... spiInterfaces) throws IOException {
+      final ClassLoader loader,
+      final Class<?>... spiInterfaces
+  ) throws IOException {
     Set<String> lines = new LinkedHashSet<>();
     for (final Class<?> spi : spiInterfaces) {
       Enumeration<URL> urls = loader.getResources("META-INF/services/" + spi.getName());

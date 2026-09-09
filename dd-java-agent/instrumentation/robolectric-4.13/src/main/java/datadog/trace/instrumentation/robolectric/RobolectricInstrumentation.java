@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.robolectric;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class RobolectricInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public RobolectricInstrumentation() {
     super("ci-visibility", "robolectric");
   }
@@ -43,7 +43,9 @@ public class RobolectricInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("setUpApplicationState"), getClass().getName() + "$SetUpApplicationStateAdvice");
+        named("setUpApplicationState"),
+        getClass().getName() + "$SetUpApplicationStateAdvice"
+    );
   }
 
   public static class SetUpApplicationStateAdvice {

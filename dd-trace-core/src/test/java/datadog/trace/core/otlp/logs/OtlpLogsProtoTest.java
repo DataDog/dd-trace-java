@@ -14,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.DD128bTraceId;
@@ -71,11 +70,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * </pre>
  */
 class OtlpLogsProtoTest {
-
   static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
-
   // ── well-known scopes ──────────────────────────────────────────────────────
-
   static final OtelInstrumentationScope DEFAULT_SCOPE =
       new OtelInstrumentationScope("test.logger", null, null);
   static final OtelInstrumentationScope VERSIONED_SCOPE =
@@ -84,38 +80,47 @@ class OtlpLogsProtoTest {
       new OtelInstrumentationScope("io.example", "1.0", "https://opentelemetry.io/schemas/1.0");
 
   // ── spec class ─────────────────────────────────────────────────────────────
-
   static final class LogSpec {
-    /** Instrumentation scope for this log record → drives ScopeLogs grouping. */
+    /**
+     * Instrumentation scope for this log record → drives ScopeLogs grouping.
+     */
     OtelInstrumentationScope scope;
-
-    /** time_unix_nano (proto field 1). */
+    /**
+     * time_unix_nano (proto field 1).
+     */
     final long timestampNanos;
-
-    /** observed_time_unix_nano (proto field 11). */
+    /**
+     * observed_time_unix_nano (proto field 11).
+     */
     final long observedNanos;
-
-    /** severity_number (proto field 2). */
+    /**
+     * severity_number (proto field 2).
+     */
     int severityNumber;
-
-    /** severity_text (proto field 3); {@code null} → field absent. */
-    @Nullable String severityText;
-
-    /** body.string_value (proto field 5 → AnyValue field 1); {@code null} → field absent. */
-    @Nullable final String body;
-
-    /** Extra attributes written via {@code visitAttribute} before the log record. */
+    /**
+     * severity_text (proto field 3); {@code null} → field absent.
+     */
+    @Nullable
+    String severityText;
+    /**
+     * body.string_value (proto field 5 → AnyValue field 1); {@code null} → field absent.
+     */
+    @Nullable
+    final String body;
+    /**
+     * Extra attributes written via {@code visitAttribute} before the log record.
+     */
     Map<String, Object> attrs;
-
     /**
      * If ≥ 0, index into the pre-built span list for the span context, encoding trace_id, span_id,
      * and flags. If -1, no span context → those fields absent.
      */
     int spanContextIndex;
-
-    /** event_name (proto field 12); {@code null} → field absent. */
-    @Nullable String eventName;
-
+    /**
+     * event_name (proto field 12); {@code null} → field absent.
+     */
+    @Nullable
+    String eventName;
     /**
      * If true, the span at {@code spanContextIndex} is started under a known 128-bit trace ID so
      * the high-order bytes of trace_id are non-zero.
@@ -180,11 +185,12 @@ class OtlpLogsProtoTest {
   }
 
   // ── shorthand builders ─────────────────────────────────────────────────────
-
   private static final long BASE_NANOS = 1_700_000_000_000_000_000L;
-  private static final long OBSERVED_OFFSET_NANOS = 1_000_000L; // 1 ms
-
-  /** A known 128-bit trace ID; high-order bits are non-zero to exercise the encoding path. */
+  // 1 ms
+  private static final long OBSERVED_OFFSET_NANOS = 1_000_000L;
+  /**
+   * A known 128-bit trace ID; high-order bits are non-zero to exercise the encoding path.
+   */
   static final DD128bTraceId TRACE_ID_128BIT =
       DD128bTraceId.from(0x0123456789abcdefL, 0xfedcba9876543210L);
 
@@ -196,8 +202,7 @@ class OtlpLogsProtoTest {
     return new LogSpec(body).scope(scope);
   }
 
-  private static LogSpec severityLog(
-      int severityNumber, @Nullable String severityText, String body) {
+  private static LogSpec severityLog(int severityNumber, @Nullable String severityText, String body) {
     return new LogSpec(body).severity(severityNumber, severityText);
   }
 
@@ -226,69 +231,86 @@ class OtlpLogsProtoTest {
   }
 
   // ── test cases ─────────────────────────────────────────────────────────────
-
   static Stream<Arguments> cases() {
     return Stream.of(
-
-        // ── empty ─────────────────────────────────────────────────────────────
-        Arguments.of("empty — no log records produces empty payload", emptyList()),
-
-        // ── minimal ───────────────────────────────────────────────────────────
-        Arguments.of("minimal log record — INFO with body", asList(infoLog("Hello, World!"))),
-
-        // ── severity ──────────────────────────────────────────────────────────
+        Arguments
+          // ── empty ─────────────────────────────────────────────────────────────
+          .of("empty — no log records produces empty payload", emptyList()),
+        Arguments
+          // ── minimal ───────────────────────────────────────────────────────────
+          .of("minimal log record — INFO with body", asList(infoLog("Hello, World!"))),
+        Arguments
+          // ── severity ──────────────────────────────────────────────────────────
+          .of(
+              "TRACE severity — severity_number=1, severity_text=TRACE",
+              asList(severityLog(1, "TRACE", "trace message"))
+          ),
         Arguments.of(
-            "TRACE severity — severity_number=1, severity_text=TRACE",
-            asList(severityLog(1, "TRACE", "trace message"))),
+            "DEBUG severity — severity_number=5",
+            asList(severityLog(5, "DEBUG", "debug message"))
+        ),
         Arguments.of(
-            "DEBUG severity — severity_number=5", asList(severityLog(5, "DEBUG", "debug message"))),
-        Arguments.of(
-            "WARN severity — severity_number=13", asList(severityLog(13, "WARN", "warn message"))),
+            "WARN severity — severity_number=13",
+            asList(severityLog(13, "WARN", "warn message"))
+        ),
         Arguments.of(
             "ERROR severity — severity_number=17",
-            asList(severityLog(17, "ERROR", "error message"))),
+            asList(severityLog(17, "ERROR", "error message"))
+        ),
         Arguments.of(
             "FATAL severity — severity_number=21",
-            asList(severityLog(21, "FATAL", "fatal message"))),
+            asList(severityLog(21, "FATAL", "fatal message"))
+        ),
         Arguments.of(
             "null severity text — severity_text field absent",
-            asList(severityLog(9, null, "no severity text"))),
-
-        // ── body ──────────────────────────────────────────────────────────────
-        Arguments.of("empty body string — body.string_value is empty", asList(infoLog(""))),
+            asList(severityLog(9, null, "no severity text"))
+        ),
+        Arguments
+          // ── body ──────────────────────────────────────────────────────────────
+          .of("empty body string — body.string_value is empty", asList(infoLog(""))),
         Arguments.of(
             "Unicode body — UTF-8 multi-byte chars encoded correctly",
-            asList(infoLog("日本語テスト emoji 🎉"))),
-
-        // ── span context ──────────────────────────────────────────────────────
-        Arguments.of(
-            "log with span context — trace_id and span_id encoded, SAMPLED flag set",
-            asList(infoLog("no context"), contextLog("with context", 0))),
+            asList(infoLog("日本語テスト emoji 🎉"))
+        ),
+        Arguments
+          // ── span context ──────────────────────────────────────────────────────
+          .of(
+              "log with span context — trace_id and span_id encoded, SAMPLED flag set",
+              asList(infoLog("no context"), contextLog("with context", 0))
+          ),
         Arguments.of(
             "log with 128-bit trace ID — high-order trace_id bytes non-zero",
-            asList(contextLog("128-bit trace", 0).use128BitTraceId())),
-
-        // ── event name ────────────────────────────────────────────────────────
-        Arguments.of(
-            "log with event name — event_name field written",
-            asList(eventLog("button clicked", "user.interaction"))),
+            asList(contextLog("128-bit trace", 0).use128BitTraceId())
+        ),
+        Arguments
+          // ── event name ────────────────────────────────────────────────────────
+          .of(
+              "log with event name — event_name field written",
+              asList(eventLog("button clicked", "user.interaction"))
+          ),
         Arguments.of("null event name — event_name field absent", asList(infoLog("no event name"))),
         Arguments.of(
             "event-only log — body absent when null, event_name field present",
-            asList(eventOnlyLog("user.interaction"))),
-
-        // ── attributes ────────────────────────────────────────────────────────
-        Arguments.of(
-            "log with string attribute",
-            asList(taggedLog("tagged", attrs("service.name", "my-service")))),
+            asList(eventOnlyLog("user.interaction"))
+        ),
+        Arguments
+          // ── attributes ────────────────────────────────────────────────────────
+          .of(
+              "log with string attribute",
+              asList(taggedLog("tagged", attrs("service.name", "my-service")))
+          ),
         Arguments.of(
             "log with long attribute",
-            asList(taggedLog("tagged", attrs("http.status_code", 200L)))),
+            asList(taggedLog("tagged", attrs("http.status_code", 200L)))
+        ),
         Arguments.of(
             "log with boolean attribute",
-            asList(taggedLog("tagged", attrs("error", Boolean.TRUE)))),
+            asList(taggedLog("tagged", attrs("error", Boolean.TRUE)))
+        ),
         Arguments.of(
-            "log with double attribute", asList(taggedLog("tagged", attrs("latency.ms", 3.14)))),
+            "log with double attribute",
+            asList(taggedLog("tagged", attrs("latency.ms", 3.14)))
+        ),
         Arguments.of(
             "log with multiple mixed attributes",
             asList(
@@ -302,61 +324,68 @@ class OtlpLogsProtoTest {
                         "error",
                         Boolean.TRUE,
                         "latency.ms",
-                        1.5)))),
-
-        // ── instrumentation scope ─────────────────────────────────────────────
-        Arguments.of(
-            "versioned scope — scope name and version written",
-            asList(scopedLog(VERSIONED_SCOPE, "versioned log"))),
+                        1.5
+                    )
+                )
+            )
+        ),
+        Arguments
+          // ── instrumentation scope ─────────────────────────────────────────────
+          .of(
+              "versioned scope — scope name and version written",
+              asList(scopedLog(VERSIONED_SCOPE, "versioned log"))
+          ),
         Arguments.of(
             "scope with schema URL — schema_url field written in ScopeLogs",
-            asList(scopedLog(SCHEMA_SCOPE, "schema log"))),
-
-        // ── multiple log records ───────────────────────────────────────────────
-        Arguments.of(
-            "multiple log records under same scope",
-            asList(infoLog("first"), infoLog("second"), severityLog(17, "ERROR", "third"))),
-
-        // ── multiple scopes ────────────────────────────────────────────────────
-        Arguments.of(
-            "multiple scopes — each scope produces its own ScopeLogs entry",
-            asList(
-                scopedLog(DEFAULT_SCOPE, "scope A record"),
-                scopedLog(VERSIONED_SCOPE, "scope B record"))));
+            asList(scopedLog(SCHEMA_SCOPE, "schema log"))
+        ),
+        Arguments
+          // ── multiple log records ───────────────────────────────────────────────
+          .of(
+              "multiple log records under same scope",
+              asList(infoLog("first"), infoLog("second"), severityLog(17, "ERROR", "third"))
+          ),
+        Arguments
+          // ── multiple scopes ────────────────────────────────────────────────────
+          .of(
+              "multiple scopes — each scope produces its own ScopeLogs entry",
+              asList(
+                  scopedLog(DEFAULT_SCOPE, "scope A record"),
+                  scopedLog(VERSIONED_SCOPE, "scope B record")
+              )
+          )
+    );
   }
 
   // ── parameterized test ────────────────────────────────────────────────────
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("cases")
   void testCollectLogs(String caseName, List<LogSpec> specs) throws IOException {
     List<DDSpan> spans = buildSpans(specs);
 
-    OtlpPayload payload =
-        OtlpLogsProtoCollector.INSTANCE.collectLogs(
-            (visitor, interval) -> {
-              for (List<LogSpec> scopeGroup : groupByScope(specs).values()) {
-                OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(scopeGroup.get(0).scope);
-                for (LogSpec spec : scopeGroup) {
-                  for (Map.Entry<String, Object> attr : spec.attrs.entrySet()) {
-                    scoped.visitAttribute(
-                        attrType(attr.getValue()), attr.getKey(), attr.getValue());
-                  }
-                  scoped.visitLogRecord(
-                      new OtlpLogRecord(
-                          spec.scope,
-                          spec.timestampNanos,
-                          spec.observedNanos,
-                          spec.severityNumber,
-                          spec.severityText,
-                          spec.body,
-                          emptyMap(),
-                          resolveContext(spans, spec),
-                          spec.eventName));
-                }
-              }
-            },
-            0);
+    OtlpPayload payload = OtlpLogsProtoCollector.INSTANCE.collectLogs((visitor, interval) -> {
+      for (List<LogSpec> scopeGroup : groupByScope(specs).values()) {
+        OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(scopeGroup.get(0).scope);
+        for (LogSpec spec : scopeGroup) {
+          for (Map.Entry<String, Object> attr : spec.attrs.entrySet()) {
+            scoped.visitAttribute(attrType(attr.getValue()), attr.getKey(), attr.getValue());
+          }
+          scoped.visitLogRecord(
+              new OtlpLogRecord(
+                  spec.scope,
+                  spec.timestampNanos,
+                  spec.observedNanos,
+                  spec.severityNumber,
+                  spec.severityText,
+                  spec.body,
+                  emptyMap(),
+                  resolveContext(spans, spec),
+                  spec.eventName
+              )
+          );
+        }
+      }
+    }, 0);
 
     if (specs.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty specs must produce empty payload");
@@ -364,7 +393,6 @@ class OtlpLogsProtoTest {
     }
 
     assertTrue(payload.getContentLength() > 0, "non-empty specs must produce bytes");
-
     // ── parse LogsData ────────────────────────────────────────────────────
     CodedInputStream logsData = CodedInputStream.newInstance(payload.getContent());
     int logsTag = logsData.readTag();
@@ -372,7 +400,6 @@ class OtlpLogsProtoTest {
     assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(logsTag));
     CodedInputStream resourceLogs = logsData.readBytes().newCodedInput();
     assertTrue(logsData.isAtEnd(), "expected exactly one ResourceLogs");
-
     // ── parse ResourceLogs ────────────────────────────────────────────────
     boolean resourceFound = false;
     List<byte[]> scopeBlobs = new ArrayList<>();
@@ -391,13 +418,13 @@ class OtlpLogsProtoTest {
       }
     }
     assertTrue(resourceFound, "Resource must be present in ResourceLogs [" + caseName + "]");
-
     // ── verify ScopeLogs groups (order-insensitive) ───────────────────────
     Map<String, List<LogSpec>> expectedByScopeName = groupByScope(specs);
     assertEquals(
         expectedByScopeName.size(),
         scopeBlobs.size(),
-        "ScopeLogs count mismatch [" + caseName + "]");
+        "ScopeLogs count mismatch [" + caseName + "]"
+    );
 
     for (byte[] scopeBlob : scopeBlobs) {
       ParsedScope parsedScope = parseScopeLogs(CodedInputStream.newInstance(scopeBlob), caseName);
@@ -412,23 +439,29 @@ class OtlpLogsProtoTest {
       assertEquals(
           group.size(),
           parsedScope.logRecordBlobs.size(),
-          "LogRecord count in scope " + parsedScope.name + " [" + caseName + "]");
+          "LogRecord count in scope " + parsedScope.name + " [" + caseName + "]"
+      );
       for (byte[] recordBlob : parsedScope.logRecordBlobs) {
         String key = parseLogKey(recordBlob);
         LogSpec spec = expectedByKey.get(key);
         assertNotNull(spec, "unexpected log record with key '" + key + "' [" + caseName + "]");
         verifyLogRecord(
-            CodedInputStream.newInstance(recordBlob), spec, resolveContext(spans, spec), caseName);
+            CodedInputStream.newInstance(recordBlob),
+            spec,
+            resolveContext(spans, spec),
+            caseName
+        );
       }
     }
   }
 
   // ── span construction ─────────────────────────────────────────────────────
-
   private static List<DDSpan> buildSpans(List<LogSpec> specs) {
     int maxIndex = -1;
     for (LogSpec spec : specs) {
-      if (spec.spanContextIndex > maxIndex) maxIndex = spec.spanContextIndex;
+      if (spec.spanContextIndex > maxIndex) {
+        maxIndex = spec.spanContextIndex;
+      }
     }
     if (maxIndex < 0) {
       return new ArrayList<>();
@@ -444,14 +477,14 @@ class OtlpLogsProtoTest {
       }
       AgentSpan span;
       if (refSpec != null && refSpec.use128BitTraceId) {
-        ExtractedContext parent128 =
-            new ExtractedContext(
-                TRACE_ID_128BIT,
-                0L,
-                PrioritySampling.UNSET,
-                null,
-                PropagationTags.factory().empty(),
-                TracePropagationStyle.DATADOG);
+        ExtractedContext parent128 = new ExtractedContext(
+            TRACE_ID_128BIT,
+            0L,
+            PrioritySampling.UNSET,
+            null,
+            PropagationTags.factory().empty(),
+            TracePropagationStyle.DATADOG
+        );
         span = TRACER.startSpan("test", "test.op.128", parent128, 0L);
       } else {
         span = TRACER.startSpan("test", "test.op", 0L);
@@ -477,17 +510,17 @@ class OtlpLogsProtoTest {
   }
 
   // ── grouping helper ───────────────────────────────────────────────────────
-
   private static Map<String, List<LogSpec>> groupByScope(List<LogSpec> specs) {
     Map<String, List<LogSpec>> groups = new LinkedHashMap<>();
     for (LogSpec spec : specs) {
-      groups.computeIfAbsent(spec.scope.getName().toString(), k -> new ArrayList<>()).add(spec);
+      groups
+        .computeIfAbsent(spec.scope.getName().toString(), k -> new ArrayList<>())
+        .add(spec);
     }
     return groups;
   }
 
   // ── verification helpers ──────────────────────────────────────────────────
-
   /**
    * Parses a {@code Resource} message body and asserts it contains a {@code service.name}
    * attribute.
@@ -557,13 +590,20 @@ class OtlpLogsProtoTest {
     return new ParsedScope(name, version, schemaUrl, logRecords);
   }
 
-  /** Verifies that a parsed scope's identity fields match the expected scope. */
+  /**
+   * Verifies that a parsed scope's identity fields match the expected scope.
+   */
   private static void verifyScope(
-      ParsedScope parsed, OtelInstrumentationScope expected, String caseName) {
+      ParsedScope parsed,
+      OtelInstrumentationScope expected,
+      String caseName
+  ) {
     assertEquals(
-        expected.getName().toString(), parsed.name, "scope.name mismatch [" + caseName + "]");
-    String expectedVersion =
-        expected.getVersion() != null ? expected.getVersion().toString() : null;
+        expected.getName().toString(),
+        parsed.name,
+        "scope.name mismatch [" + caseName + "]"
+    );
+    String expectedVersion = expected.getVersion() != null ? expected.getVersion().toString() : null;
     assertEquals(expectedVersion, parsed.version, "scope.version mismatch [" + caseName + "]");
     String expectedSchemaUrl =
         expected.getSchemaUrl() != null ? expected.getSchemaUrl().toString() : null;
@@ -580,8 +620,11 @@ class OtlpLogsProtoTest {
    * </pre>
    */
   private static void verifyLogRecord(
-      CodedInputStream logRecord, LogSpec spec, @Nullable AgentSpanContext ctx, String caseName)
-      throws IOException {
+      CodedInputStream logRecord,
+      LogSpec spec,
+      @Nullable AgentSpanContext ctx,
+      String caseName
+  ) throws IOException {
     long parsedTimestamp = -1;
     long parsedObserved = -1;
     int parsedSeverityNumber = -1;
@@ -632,31 +675,35 @@ class OtlpLogsProtoTest {
           logRecord.skipField(tag);
       }
     }
-
     // ── timestamps ────────────────────────────────────────────────────────────
+    assertEquals(spec.timestampNanos, parsedTimestamp, "time_unix_nano mismatch ["
+        + caseName
+        + "]");
     assertEquals(
-        spec.timestampNanos, parsedTimestamp, "time_unix_nano mismatch [" + caseName + "]");
-    assertEquals(
-        spec.observedNanos, parsedObserved, "observed_time_unix_nano mismatch [" + caseName + "]");
-
+        spec.observedNanos,
+        parsedObserved,
+        "observed_time_unix_nano mismatch [" + caseName + "]"
+    );
     // ── severity ──────────────────────────────────────────────────────────────
     assertEquals(
-        spec.severityNumber, parsedSeverityNumber, "severity_number mismatch [" + caseName + "]");
-    assertEquals(
-        spec.severityText, parsedSeverityText, "severity_text mismatch [" + caseName + "]");
-
+        spec.severityNumber,
+        parsedSeverityNumber,
+        "severity_number mismatch [" + caseName + "]"
+    );
+    assertEquals(spec.severityText, parsedSeverityText, "severity_text mismatch ["
+        + caseName
+        + "]");
     // ── body ──────────────────────────────────────────────────────────────────
     assertEquals(spec.body, parsedBody, "body mismatch [" + caseName + "]");
-
     // ── event_name ────────────────────────────────────────────────────────────
     assertEquals(spec.eventName, parsedEventName, "event_name mismatch [" + caseName + "]");
-
     // ── attributes ────────────────────────────────────────────────────────────
     for (String key : spec.attrs.keySet()) {
       assertTrue(
-          attrKeys.contains(key), "attribute '" + key + "' must be present [" + caseName + "]");
+          attrKeys.contains(key),
+          "attribute '" + key + "' must be present [" + caseName + "]"
+      );
     }
-
     // ── span context fields (trace_id=9, span_id=10, flags=8) ─────────────────
     if (ctx == null) {
       assertNull(parsedTraceId, "trace_id must be absent when no span context [" + caseName + "]");
@@ -668,24 +715,28 @@ class OtlpLogsProtoTest {
       assertNotNull(parsedSpanId, "span_id must be present [" + caseName + "]");
       assertEquals(8, parsedSpanId.length, "span_id must be 8 bytes [" + caseName + "]");
       assertEquals(
-          ctx.getSpanId(), readBigEndianLong(parsedSpanId), "span_id mismatch [" + caseName + "]");
+          ctx.getSpanId(),
+          readBigEndianLong(parsedSpanId),
+          "span_id mismatch [" + caseName + "]"
+      );
       if (ctx.getSamplingPriority() > 0) {
         assertTrue(
             (parsedFlags & SAMPLED_TRACE_FLAG) != 0,
-            "SAMPLED flag must be set in flags [" + caseName + "]");
+            "SAMPLED flag must be set in flags [" + caseName + "]"
+        );
       }
       if (spec.use128BitTraceId) {
         long highOrderBytes = readBigEndianLong(parsedTraceId);
         assertNotEquals(
             0L,
             highOrderBytes,
-            "128-bit trace_id high-order bytes must be non-zero [" + caseName + "]");
+            "128-bit trace_id high-order bytes must be non-zero [" + caseName + "]"
+        );
       }
     }
   }
 
   // ── proto parsing helpers ─────────────────────────────────────────────────
-
   private static String logKey(LogSpec spec) {
     return spec.body != null ? spec.body : "~event:" + spec.eventName;
   }
@@ -739,16 +790,28 @@ class OtlpLogsProtoTest {
     return null;
   }
 
-  /** Returns the {@link OtlpAttributeVisitor} type constant for a given value. */
+  /**
+   * Returns the {@link OtlpAttributeVisitor} type constant for a given value.
+   */
   private static int attrType(Object value) {
-    if (value instanceof String) return STRING_ATTRIBUTE;
-    if (value instanceof Boolean) return BOOLEAN_ATTRIBUTE;
-    if (value instanceof Long) return LONG_ATTRIBUTE;
-    if (value instanceof Double) return DOUBLE_ATTRIBUTE;
+    if (value instanceof String) {
+      return STRING_ATTRIBUTE;
+    }
+    if (value instanceof Boolean) {
+      return BOOLEAN_ATTRIBUTE;
+    }
+    if (value instanceof Long) {
+      return LONG_ATTRIBUTE;
+    }
+    if (value instanceof Double) {
+      return DOUBLE_ATTRIBUTE;
+    }
     throw new IllegalArgumentException("Unsupported attribute type: " + value.getClass());
   }
 
-  /** Reads a big-endian 64-bit value from the first 8 bytes of the given array. */
+  /**
+   * Reads a big-endian 64-bit value from the first 8 bytes of the given array.
+   */
   private static long readBigEndianLong(byte[] bytes) {
     long value = 0;
     for (int i = 0; i < 8; i++) {

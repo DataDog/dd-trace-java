@@ -5,7 +5,6 @@ import datadog.trace.api.telemetry.MetricCollector;
 import javax.annotation.Nonnull;
 
 public class IastMetricPeriodicAction extends MetricPeriodicAction {
-
   @Override
   @Nonnull
   public MetricCollector collector() {

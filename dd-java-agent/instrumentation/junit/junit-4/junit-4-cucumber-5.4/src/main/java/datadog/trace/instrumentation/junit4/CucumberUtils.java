@@ -26,15 +26,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class CucumberUtils {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CucumberUtils.class);
-
   private static final ClassLoader CUCUMBER_CLASS_LOADER = ClassLoaders.getDefaultClassLoader();
 
   public static String getVersion() {
-    try (InputStream cucumberPropsStream =
-        CUCUMBER_CLASS_LOADER.getResourceAsStream(
-            "META-INF/maven/io.cucumber/cucumber-junit/pom.properties")) {
+    try (InputStream cucumberPropsStream = CUCUMBER_CLASS_LOADER.getResourceAsStream(
+        "META-INF/maven/io.cucumber/cucumber-junit/pom.properties"
+    )) {
       Properties cucumberProps = new Properties();
       cucumberProps.load(cucumberPropsStream);
       String version = cucumberProps.getProperty("version");
@@ -51,7 +49,6 @@ public abstract class CucumberUtils {
       "io.cucumber.junit.PickleRunners$NoStepDescriptions";
   private static final String WITH_STEP_PICKLE_RUNNER_CLASSNAME =
       "io.cucumber.junit.PickleRunners$WithStepDescriptions";
-
   private static final MethodHandles REFLECTION = new MethodHandles(CUCUMBER_CLASS_LOADER);
   private static final MethodHandle FEATURE_GETTER =
       REFLECTION.privateFieldGetter("io.cucumber.junit.FeatureRunner", "feature");
@@ -67,18 +64,18 @@ public abstract class CucumberUtils {
       REFLECTION.privateFieldGetter(NO_STEP_PICKLE_RUNNER_CLASSNAME, "pickle");
   private static final MethodHandle PICKLE_RUNNER_WITH_STEP_GET_PICKLE =
       REFLECTION.privateFieldGetter(WITH_STEP_PICKLE_RUNNER_CLASSNAME, "pickle");
+  public static final List<LibraryCapability> CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX
+  );
 
-  public static final List<LibraryCapability> CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
-
-  private CucumberUtils() {}
+  private CucumberUtils() {
+  }
 
   public static Map<Object, Pickle> getPicklesById(List<ParentRunner<?>> featureRunners) {
     Map<Object, Pickle> pickleById = new HashMap<>();
@@ -129,10 +126,10 @@ public abstract class CucumberUtils {
   public static String getTestNameForScenario(Description scenarioDescription) {
     String scenarioDescriptionString = scenarioDescription.toString();
     int featureNameStart = getFeatureNameStartIdx(scenarioDescriptionString);
-    if (featureNameStart > 0) { // if featureNameStart == 0, then test name is empty and of no use
+    if (featureNameStart > 0) {
+      // if featureNameStart == 0, then test name is empty and of no use
       return scenarioDescriptionString.substring(0, featureNameStart);
     }
-
     // fallback to default method
     String methodName = scenarioDescription.getMethodName();
     if (Strings.isNotBlank(methodName)) {
@@ -174,13 +171,18 @@ public abstract class CucumberUtils {
       return REFLECTION.invoke(PICKLE_ID_URI_GETTER, pickleId);
     } catch (Exception e) {
       LOGGER.error(
-          "Could not retrieve unique ID from scenario description {}", scenarioDescription, e);
+          "Could not retrieve unique ID from scenario description {}",
+          scenarioDescription,
+          e
+      );
       return null;
     }
   }
 
   public static Description getPickleRunnerDescription(
-      Object /* io.cucumber.junit.PickleRunners.PickleRunner */ runner) {
+      Object /* io.cucumber.junit.PickleRunners.PickleRunner */
+      runner
+  ) {
     return REFLECTION.invoke(PICKLE_RUNNER_GET_DESCRIPTION, runner);
   }
 
@@ -222,7 +224,8 @@ public abstract class CucumberUtils {
     List<String> pickleTags = pickle.getTags();
     List<String> categories = new ArrayList<>(pickleTags.size());
     for (String tag : pickleTags) {
-      categories.add(tag.substring(1)); // remove leading "@"
+      // remove leading "@"
+      categories.add(tag.substring(1));
     }
     return categories;
   }
@@ -230,15 +233,15 @@ public abstract class CucumberUtils {
   public static final class MuzzleHelper {
     public static Reference[] additionalMuzzleReferences() {
       return new Reference[] {
-        new Reference.Builder("io.cucumber.junit.FeatureRunner")
-            .withField(new String[0], 0, "feature", "Lio/cucumber/core/gherkin/Feature;")
-            .build(),
-        new Reference.Builder("io.cucumber.junit.PickleRunners$PickleId")
-            .withField(new String[0], 0, "uri", "Ljava/net/URI;")
-            .build(),
-        new Reference.Builder("io.cucumber.junit.PickleRunners$PickleRunner")
-            .withMethod(new String[0], 0, "getDescription", "Lorg/junit/runner/Description;")
-            .build()
+          new Reference.Builder("io.cucumber.junit.FeatureRunner")
+        .withField(new String[0], 0, "feature", "Lio/cucumber/core/gherkin/Feature;")
+        .build(),
+          new Reference.Builder("io.cucumber.junit.PickleRunners$PickleId")
+        .withField(new String[0], 0, "uri", "Ljava/net/URI;")
+        .build(),
+          new Reference.Builder("io.cucumber.junit.PickleRunners$PickleRunner")
+        .withMethod(new String[0], 0, "getDescription", "Lorg/junit/runner/Description;")
+        .build()
       };
     }
   }

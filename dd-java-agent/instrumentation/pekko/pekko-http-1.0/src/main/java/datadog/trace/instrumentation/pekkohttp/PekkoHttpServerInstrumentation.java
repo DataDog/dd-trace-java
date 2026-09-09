@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -51,7 +50,9 @@ import org.apache.pekko.stream.scaladsl.Flow;
  */
 @AutoService(InstrumenterModule.class)
 public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public PekkoHttpServerInstrumentation() {
     super("pekko-http", "pekko-http-server");
   }
@@ -64,33 +65,33 @@ public final class PekkoHttpServerInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".DatadogWrapperHelper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$2",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$3",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$4",
-      packageName + ".PekkoHttpServerHeaders",
-      packageName + ".PekkoHttpServerDecorator",
-      packageName + ".UriAdapter",
+        packageName + ".DatadogWrapperHelper",
+        packageName + ".DatadogServerRequestResponseFlowWrapper",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$2",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$3",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$4",
+        packageName + ".PekkoHttpServerHeaders",
+        packageName + ".PekkoHttpServerDecorator",
+        packageName + ".UriAdapter"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("bindAndHandle")
-            .and(takesArgument(0, named("org.apache.pekko.stream.scaladsl.Flow"))),
-        getClass().getName() + "$PekkoHttpBindAndHandleAdvice");
+        named("bindAndHandle").and(takesArgument(0, named("org.apache.pekko.stream.scaladsl.Flow"))),
+        getClass().getName() + "$PekkoHttpBindAndHandleAdvice"
+    );
   }
 
   public static class PekkoHttpBindAndHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
-        @Advice.Argument(value = 0, readOnly = false)
-            Flow<HttpRequest, HttpResponse, NotUsed> handler,
-        @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
+        @Advice.Argument(value = 0, readOnly = false) Flow<HttpRequest, HttpResponse, NotUsed> handler,
+        @Advice.Argument(value = 4, readOnly = false) ServerSettings settings
+    ) {
       if (CallDepthThreadLocalMap.incrementCallDepth(HttpExt.class) == 0) {
         final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =
             BidiFlow.fromGraph(new DatadogServerRequestResponseFlowWrapper(settings));

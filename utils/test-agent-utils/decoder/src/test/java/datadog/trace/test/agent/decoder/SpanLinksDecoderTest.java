@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,13 +42,13 @@ class SpanLinksDecoderTest {
 
   @Test
   void decodesFullLink() {
-    List<DecodedSpanLink> links =
-        fromTag(
-            "[{\"trace_id\":\""
-                + TRACE_ID_128
-                + "\",\"span_id\":\"a\",\"flags\":1,"
-                + "\"tracestate\":\"dd=s:1\","
-                + "\"attributes\":{\"link.kind\":\"span-pointer\",\"ptr.dir\":\"d\"}}]");
+    List<DecodedSpanLink> links = fromTag(
+        "[{\"trace_id\":\""
+        + TRACE_ID_128
+        + "\",\"span_id\":\"a\",\"flags\":1,"
+        + "\"tracestate\":\"dd=s:1\","
+        + "\"attributes\":{\"link.kind\":\"span-pointer\",\"ptr.dir\":\"d\"}}]"
+    );
 
     DecodedSpanLink link = links.get(0);
     assertEquals(0xaL, link.getSpanId(), "an unpadded span id decodes");
@@ -63,11 +62,11 @@ class SpanLinksDecoderTest {
 
   @Test
   void preservesLinkOrderAndDecodesUnsignedSpanIds() {
-    List<DecodedSpanLink> links =
-        fromTag(
-            "[{\"trace_id\":\"0\",\"span_id\":\"1\"},"
-                + "{\"trace_id\":\"0\",\"span_id\":\"ffffffffffffffff\"},"
-                + "{\"trace_id\":\"0\",\"span_id\":\"2\"}]");
+    List<DecodedSpanLink> links = fromTag(
+        "[{\"trace_id\":\"0\",\"span_id\":\"1\"},"
+        + "{\"trace_id\":\"0\",\"span_id\":\"ffffffffffffffff\"},"
+        + "{\"trace_id\":\"0\",\"span_id\":\"2\"}]"
+    );
 
     assertEquals(3, links.size());
     assertEquals(1L, links.get(0).getSpanId());
@@ -84,8 +83,11 @@ class SpanLinksDecoderTest {
 
   @Test
   void unknownKeysAreIgnored() {
-    DecodedSpanLink link =
-        fromTag("[{\"trace_id\":\"1\",\"span_id\":\"1\",\"something_new\":\"whatever\"}]").get(0);
+    DecodedSpanLink link = fromTag(
+        "[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"1\\\",\\\"something_new\\\":"
+        + "\\\"whatever\\\"}]"
+    )
+      .get(0);
 
     assertEquals(1L, link.getTraceId());
   }
@@ -94,13 +96,20 @@ class SpanLinksDecoderTest {
   void malformedTagsThrow() {
     assertThrows(IllegalStateException.class, () -> fromTag("not json"), "malformed JSON");
     assertThrows(
-        IllegalStateException.class, () -> fromTag("[{\"span_id\":\"1\"}]"), "missing trace_id");
+        IllegalStateException.class,
+        () -> fromTag("[{\"span_id\":\"1\"}]"),
+        "missing trace_id"
+    );
     assertThrows(
-        IllegalStateException.class, () -> fromTag("[{\"trace_id\":\"1\"}]"), "missing span_id");
+        IllegalStateException.class,
+        () -> fromTag("[{\"trace_id\":\"1\"}]"),
+        "missing span_id"
+    );
     assertThrows(
         IllegalStateException.class,
         () -> fromTag("[{\"trace_id\":\"1\",\"span_id\":\"zz\"}]"),
-        "malformed span id");
+        "malformed span id"
+    );
     assertThrows(IllegalStateException.class, () -> fromTag("[null]"), "null link entry");
   }
 
@@ -143,21 +152,22 @@ class SpanLinksDecoderTest {
   @Test
   void decodedSpanExposesLinksAndKeepsTheTagVisible() {
     String tag = "[{\\\"trace_id\\\":\\\"" + TRACE_ID_128 + "\\\",\\\"span_id\\\":\\\"a\\\"}]";
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{\""
-            + SPAN_LINKS_TAG
-            + "\":\""
-            + tag
-            + "\"}}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{\""
+        + SPAN_LINKS_TAG
+        + "\":\""
+        + tag
+        + "\"}}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
     assertEquals(1, span.getLinks().size());
     assertEquals(0xaL, span.getLinks().get(0).getSpanId());
     assertNotNull(
-        span.getMeta().get(SPAN_LINKS_TAG), "the tag stays visible as the untyped meta entry");
+        span.getMeta().get(SPAN_LINKS_TAG),
+        "the tag stays visible as the untyped meta entry"
+    );
   }
 
   @Test
@@ -166,11 +176,11 @@ class SpanLinksDecoderTest {
     // with decimal identifiers, rather than into the meta tag.
     String json =
         "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{},"
-            + "\"span_links\":[{\"trace_id\":11068046444225730559,\"trace_id_high\":1234,"
-            + "\"span_id\":10,\"flags\":1,\"tracestate\":\"dd=s:1\","
-            + "\"attributes\":{\"link.kind\":\"span-pointer\"}}]}]]";
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{},"
+        + "\"span_links\":[{\"trace_id\":11068046444225730559,\"trace_id_high\":1234,"
+        + "\"span_id\":10,\"flags\":1,\"tracestate\":\"dd=s:1\","
+        + "\"attributes\":{\"link.kind\":\"span-pointer\"}}]}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
@@ -179,7 +189,8 @@ class SpanLinksDecoderTest {
     assertEquals(
         Long.parseUnsignedLong("11068046444225730559"),
         link.getTraceId(),
-        "an unsigned id above Long.MAX_VALUE survives");
+        "an unsigned id above Long.MAX_VALUE survives"
+    );
     assertEquals(10L, link.getSpanId());
     assertEquals((byte) 1, link.getTraceFlags());
     assertEquals("dd=s:1", link.getTraceState());
@@ -188,13 +199,12 @@ class SpanLinksDecoderTest {
 
   @Test
   void structuredSpanLinksFieldWinsOverTheMetaTag() {
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{\""
-            + SPAN_LINKS_TAG
-            + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
-            + "\"span_links\":[{\"trace_id\":1,\"span_id\":7}]}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{\""
+        + SPAN_LINKS_TAG
+        + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
+        + "\"span_links\":[{\"trace_id\":1,\"span_id\":7}]}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
@@ -206,13 +216,12 @@ class SpanLinksDecoderTest {
   void anEmptyStructuredSpanLinksFieldWinsOverTheMetaTag() {
     // A v1.0 payload always carries the span_links field, so an empty one means the span has no
     // link, whichever legacy meta tag the payload also holds.
-    String json =
-        "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{\""
-            + SPAN_LINKS_TAG
-            + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
-            + "\"span_links\":[]}]]";
+    String json = "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{\""
+        + SPAN_LINKS_TAG
+        + "\":\"[{\\\"trace_id\\\":\\\"1\\\",\\\"span_id\\\":\\\"99\\\"}]\"},"
+        + "\"span_links\":[]}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 
@@ -223,8 +232,8 @@ class SpanLinksDecoderTest {
   void decodedSpanWithoutTheTagExposesNoLink() {
     String json =
         "[[{\"service\":\"s\",\"name\":\"n\",\"resource\":\"r\","
-            + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
-            + "\"metrics\":{},\"meta\":{}}]]";
+        + "\"trace_id\":1,\"span_id\":1,\"parent_id\":0,\"start\":0,\"duration\":1,\"error\":0,"
+        + "\"metrics\":{},\"meta\":{}}]]";
 
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
 

@@ -43,7 +43,6 @@ public class OpenJ9CrashtrackingTestApplication {
 
     System.out.println("===> Crash script ready, crashing JVM via Unsafe.putAddress(0L, 0L)...");
     System.out.flush();
-
     // Write to address 0 via sun.misc.Unsafe to trigger a SIGSEGV (GPF event).
     // Unsafe.getLong(0L) was not enough on OpenJ9 here; it threw a NullPointerException instead.
     Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");

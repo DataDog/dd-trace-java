@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.stream.Stream;
@@ -16,7 +15,6 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class MatchersTest {
-
   @ParameterizedTest
   @NullSource
   @ValueSource(strings = {"*", "**"})
@@ -104,7 +102,8 @@ class MatchersTest {
         arguments("^ matches ^", "^", "^", true),
         arguments("() matches ()", "()", "()", true),
         arguments("(*) matches (-)", "(*)", "(-)", true),
-        arguments("$ matches $", "$", "$", true));
+        arguments("$ matches $", "$", "$", true)
+    );
   }
 
   @ParameterizedTest(name = "{0}")

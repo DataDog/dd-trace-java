@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -93,17 +92,16 @@ public class TraceAssemblyBenchmark {
   private static final String INSTRUMENTATION_NAME = "bench";
   private static final String ROOT_OPERATION = "servlet.request";
   private static final String CHILD_OPERATION = "servlet.handler";
-
   private static final String COMPONENT_VALUE = "tomcat-server";
   private static final String HTTP_METHOD_VALUE = "GET";
   private static final String HTTP_ROUTE_VALUE = "/owners/{ownerId}";
   private static final String HTTP_URL_VALUE = "http://localhost:8080/owners/42";
   private static final int HTTP_STATUS_VALUE = 200;
-
-  /** Number of child spans under the root — the axis that turns per-child cost into a slope. */
+  /**
+   * Number of child spans under the root — the axis that turns per-child cost into a slope.
+   */
   @Param({"1", "5", "20"})
   int childCount;
-
   CoreTracer tracer;
 
   @Setup
@@ -116,7 +114,9 @@ public class TraceAssemblyBenchmark {
     this.tracer.close();
   }
 
-  /** Web-server root + {@code childCount} children, each finished; whole trace dropped. */
+  /**
+   * Web-server root + {@code childCount} children, each finished; whole trace dropped.
+   */
   @Benchmark
   public void webServerTrace() {
     AgentSpan root = tracer.buildSpan(INSTRUMENTATION_NAME, ROOT_OPERATION).start();

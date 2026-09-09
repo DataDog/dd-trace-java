@@ -19,9 +19,14 @@ public class UserController {
   public String register(
       @RequestParam("username") String username,
       @RequestParam("password") String password,
-      Model model) {
-    userDetailsManager.createUser(
-        User.withUsername(username).password("{noop}" + password).roles("USER").build());
+      Model model
+  ) {
+    userDetailsManager.createUser(User
+      .withUsername(username)
+      .password("{noop}" + password)
+      .roles("USER")
+      .build()
+    );
     model.addAttribute("username", username);
     return "created";
   }

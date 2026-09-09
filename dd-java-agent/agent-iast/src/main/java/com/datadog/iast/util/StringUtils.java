@@ -9,15 +9,17 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public abstract class StringUtils {
-
-  private StringUtils() {}
+  private StringUtils() {
+  }
 
   /**
    * Checks if the string ends with the selected suffix ignoring case. Note that this method does
    * not take locale into account.
    */
   public static boolean endsWithIgnoreCase(
-      @Nonnull final String value, @Nonnull final String suffix) {
+      @Nonnull final String value,
+      @Nonnull final String suffix
+  ) {
     if (value.length() < suffix.length()) {
       return false;
     }
@@ -45,7 +47,9 @@ public abstract class StringUtils {
     return start >= end ? "" : value.substring(start, end);
   }
 
-  /** Returns how many leading whitespaces are between the start and the end of the string */
+  /**
+   * Returns how many leading whitespaces are between the start and the end of the string
+   */
   @Nonnull
   public static int leadingWhitespaces(@Nonnull final String value, int start, int end) {
     int whitespaces = start;
@@ -74,7 +78,8 @@ public abstract class StringUtils {
       String replacement,
       Range[] ranges,
       @Nullable Range[] rangesInput,
-      int numOfReplacements) {
+      int numOfReplacements
+  ) {
     if (numOfReplacements <= 0) {
       return target;
     }
@@ -86,7 +91,6 @@ public abstract class StringUtils {
 
       int firstRange = 0;
       int newLength = replacement.length();
-
       // In case there is a '\' or '$' in the replacement string we need to make a
       // quoteReplacement
       // If there is no '\' or '$' it will return the same string.
@@ -137,7 +141,6 @@ public abstract class StringUtils {
               canAddRange = newRanges.add(rangesInput, start + offset);
               rangesAdded = true;
             }
-
             // If the replaced value ends in the range
           } else if (rangeEnd >= end) {
             Range[] splittedRanges =
@@ -164,7 +167,6 @@ public abstract class StringUtils {
 
           firstRange++;
         }
-
         // In case there are no ranges
         if (rangesInput != null && !rangesAdded && canAddRange) {
           canAddRange = newRanges.add(rangesInput, start + offset);
@@ -178,7 +180,6 @@ public abstract class StringUtils {
           result = matcher.find();
         }
       } while (result && numOfReplacements > 0);
-
       // In the case there is no tainted object
       if (firstRange < ranges.length && canAddRange) {
         for (int i = firstRange; i < ranges.length && canAddRange; i++) {

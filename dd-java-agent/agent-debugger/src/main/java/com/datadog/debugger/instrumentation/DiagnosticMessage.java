@@ -4,7 +4,9 @@ import com.datadog.debugger.agent.Generated;
 import java.time.Instant;
 import java.util.Objects;
 
-/** Stores status information of a probe and instrumentation result */
+/**
+ * Stores status information of a probe and instrumentation result
+ */
 public final class DiagnosticMessage {
   public enum Kind {
     INFO,
@@ -67,8 +69,12 @@ public final class DiagnosticMessage {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     DiagnosticMessage that = (DiagnosticMessage) o;
     return timestamp == that.timestamp
         && kind == that.kind

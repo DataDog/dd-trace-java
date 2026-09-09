@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -21,7 +20,9 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public HttpRequestParserInstrumentation() {
     super("undertow", "undertow-2.2", "undertow-request-parse");
   }
@@ -36,14 +37,14 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowBlockResponseFunction",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response"
+        packageName + ".HttpServerExchangeURIDataAdapter",
+        packageName + ".UndertowDecorator",
+        packageName + ".UndertowBlockingHandler",
+        packageName + ".IgnoreSendAttribute",
+        packageName + ".UndertowBlockResponseFunction",
+        packageName + ".UndertowExtractAdapter",
+        packageName + ".UndertowExtractAdapter$Request",
+        packageName + ".UndertowExtractAdapter$Response"
     };
   }
 
@@ -56,16 +57,18 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("handle"))
-            .and(takesArgument(2, named("io.undertow.server.HttpServerExchange"))),
-        getClass().getName() + "$RequestParseFailureAdvice");
+          .and(named("handle"))
+          .and(takesArgument(2, named("io.undertow.server.HttpServerExchange"))),
+        getClass().getName() + "$RequestParseFailureAdvice"
+    );
   }
 
   public static class RequestParseFailureAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterRequestParse(
         @Advice.Argument(2) final HttpServerExchange exchange,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (throwable == null) {
         return;
       }

@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -49,7 +48,9 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
 
   @Override
   protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier
+  ) {
     return W3CHttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
@@ -67,42 +68,101 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario                              | traceparent                                                 | tpValid | traceId                  | spanId       | priority    ",
-    "null traceparent                      |                                                             | false   |                          | 0            | UNSET       ",
-    "all zeros trace id                    | '00-00000000000000000000000000000000-123456789abcdef0-01'   | false   |                          | 0            | UNSET       ",
-    "too long trace id                     | '00-123456789abcdef00000000000000000-123456789abcdef0-01'   | false   |                          | 0            | UNSET       ",
-    "all zeros span id                     | '00-00000000000000000000000000000001-0000000000000000-01'   | false   |                          | 0            | UNSET       ",
-    "valid keep                            | '00-00000000000000000000000000000001-123456789abcdef0-01'   | true    | TRACE_ID_ONE             | SPAN_ID_TEST | SAMPLER_KEEP",
-    "leading tab                           | '\t00-00000000000000000000000000000001-123456789abcdef0-01' | true    | TRACE_ID_ONE             | SPAN_ID_TEST | SAMPLER_KEEP",
-    "trailing tab                          | '00-00000000000000000000000000000001-123456789abcdef0-01\t' | true    | TRACE_ID_ONE             | SPAN_ID_TEST | SAMPLER_KEEP",
-    "surrounding spaces                    | ' 00-00000000000000000000000000000001-123456789abcdef0-01 ' | true    | TRACE_ID_ONE             | SPAN_ID_TEST | SAMPLER_KEEP",
-    "max span id keep                      | '00-0000000000000000ffffffffffffffff-ffffffffffffffff-01'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | SPAN_ID_MAX  | SAMPLER_KEEP",
-    "max span id drop                      | '00-0000000000000000ffffffffffffffff-ffffffffffffffff-00'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | SPAN_ID_MAX  | SAMPLER_DROP",
-    "low max trace id drop                 | '00-123456789abcdef0ffffffffffffffff-123456789abcdef0-00'   | true    | TRACE_ID_LOW_MAX         | SPAN_ID_TEST | SAMPLER_DROP",
-    "uppercase F in trace id low part      | '00-123456789abcdef0ffffffffffffffFf-123456789abcdef0-00'   | false   |                          | 0            | UNSET       ",
-    "uppercase F in trace id high part     | '00-123456789abcdeF0ffffffffffffffff-123456789abcdef0-00'   | false   |                          | 0            | UNSET       ",
-    "uppercase F in trace id mid           | '00-123456789abcdef0fffffffffFffffff-123456789abcdef0-00'   | false   |                          | 0            | UNSET       ",
-    "uppercase A in span id                | '00-123456789abcdef0ffffffffffffffff-123456789Abcdef0-00'   | false   |                          | 0            | UNSET       ",
-    "unicode a-umlaut in trace id start    | '00-123456789äbcdef0ffffffffffffffff-123456789abcdef0-00'   | false   |                          | 0            | UNSET       ",
-    "unicode a-umlaut in trace id mid      | '00-123456789abcdef0ffffffffäfffffff-123456789abcdef0-00'   | false   |                          | 0            | UNSET       ",
-    "unicode a-umlaut in span id           | '00-123456789abcdef0ffffffffffffffff-123456789äbcdef0-00'   | false   |                          | 0            | UNSET       ",
-    "version 01 flags 02                   | '01-00000000000000000000000000000001-0000000000000001-02'   | true    | TRACE_ID_ONE             | SPAN_ID_ONE  | SAMPLER_DROP",
-    "too long version                      | '000-0000000000000000000000000000001-0000000000000001-01'   | false   |                          | 0            | UNSET       ",
-    "space inside trace id                 | '00-0000000000000000000000000000001 -0000000000000001-01'   | false   |                          | 0            | UNSET       ",
-    "trace id too short                    | '00-0000000000000000000000000000001-0000000000000001-01'    | false   |                          | 0            | UNSET       ",
-    "span id too short                     | '00-00000000000000000000000000000001-000000000000001-01'    | false   |                          | 0            | UNSET       ",
-    "flags too short                       | '00-00000000000000000000000000000001-0000000000000001-0'    | false   |                          | 0            | UNSET       ",
-    "version ff invalid                    | 'ff-00000000000000000000000000000001-0000000000000001-00'   | false   |                          | 0            | UNSET       ",
-    "version fe flags 02                   | 'fe-00000000000000000000000000000001-0000000000000001-02'   | true    | TRACE_ID_ONE             | SPAN_ID_ONE  | SAMPLER_DROP",
-    "extra data with version 00            | '00-00000000000000000000000000000001-0000000000000001-03-0' | false   |                          | 0            | UNSET       ",
-    "invalid separator after flags with fe | 'fe-00000000000000000000000000000001-0000000000000001-02.0' | false   |                          | 0            | UNSET       "
+    "scenario                              | traceparent                               ",
+    "                  | tpValid | traceId                  | spanId       | priority  ",
+    "                                                                                  ",
+    "null traceparent                      |                                           ",
+    "                  | false   |                          | 0            | UNSET     ",
+    "                                                                                  ",
+    "all zeros trace id                    | '00-00000000000000000000000000000000-     ",
+    "123456789abcdef0-01'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "too long trace id                     | '00-123456789abcdef00000000000000000-     ",
+    "123456789abcdef0-01'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "all zeros span id                     | '00-00000000000000000000000000000001-     ",
+    "0000000000000000-01'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "valid keep                            | '00-00000000000000000000000000000001-     ",
+    "123456789abcdef0-01'   | true    | TRACE_ID_ONE             | SPAN_ID_TEST |      ",
+    "SAMPLER_KEEP                                                                      ",
+    "leading tab                           | '\\t00-00000000000000000000000000000001-  ",
+    "123456789abcdef0-01' | true    | TRACE_ID_ONE             | SPAN_ID_TEST |        ",
+    "SAMPLER_KEEP                                                                      ",
+    "trailing tab                          | '00-00000000000000000000000000000001-     ",
+    "123456789abcdef0-01\\t' | true    | TRACE_ID_ONE             | SPAN_ID_TEST |     ",
+    "SAMPLER_KEEP                                                                      ",
+    "surrounding spaces                    | ' 00-00000000000000000000000000000001-    ",
+    "123456789abcdef0-01 ' | true    | TRACE_ID_ONE             | SPAN_ID_TEST |       ",
+    "SAMPLER_KEEP                                                                      ",
+    "max span id keep                      | '00-0000000000000000ffffffffffffffff-     ",
+    "ffffffffffffffff-01'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | SPAN_ID_MAX  |      ",
+    "SAMPLER_KEEP                                                                      ",
+    "max span id drop                      | '00-0000000000000000ffffffffffffffff-     ",
+    "ffffffffffffffff-00'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | SPAN_ID_MAX  |      ",
+    "SAMPLER_DROP                                                                      ",
+    "low max trace id drop                 | '00-123456789abcdef0ffffffffffffffff-     ",
+    "123456789abcdef0-00'   | true    | TRACE_ID_LOW_MAX         | SPAN_ID_TEST |      ",
+    "SAMPLER_DROP                                                                      ",
+    "uppercase F in trace id low part      | '00-123456789abcdef0ffffffffffffffFf-     ",
+    "123456789abcdef0-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "uppercase F in trace id high part     | '00-123456789abcdeF0ffffffffffffffff-     ",
+    "123456789abcdef0-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "uppercase F in trace id mid           | '00-123456789abcdef0fffffffffFffffff-     ",
+    "123456789abcdef0-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "uppercase A in span id                | '00-123456789abcdef0ffffffffffffffff-     ",
+    "123456789Abcdef0-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "unicode a-umlaut in trace id start    | '00-123456789äbcdef0ffffffffffffffff-     ",
+    "123456789abcdef0-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "unicode a-umlaut in trace id mid      | '00-123456789abcdef0ffffffffäfffffff-     ",
+    "123456789abcdef0-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "unicode a-umlaut in span id           | '00-123456789abcdef0ffffffffffffffff-     ",
+    "123456789äbcdef0-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "version 01 flags 02                   | '01-00000000000000000000000000000001-     ",
+    "0000000000000001-02'   | true    | TRACE_ID_ONE             | SPAN_ID_ONE  |      ",
+    "SAMPLER_DROP                                                                      ",
+    "too long version                      | '000-0000000000000000000000000000001-     ",
+    "0000000000000001-01'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "space inside trace id                 | '00-0000000000000000000000000000001 -     ",
+    "0000000000000001-01'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "trace id too short                    | '00-0000000000000000000000000000001-      ",
+    "0000000000000001-01'    | false   |                          | 0            |     ",
+    "UNSET                                                                             ",
+    "span id too short                     | '00-00000000000000000000000000000001-     ",
+    "000000000000001-01'    | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "flags too short                       | '00-00000000000000000000000000000001-     ",
+    "0000000000000001-0'    | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "version ff invalid                    | 'ff-00000000000000000000000000000001-     ",
+    "0000000000000001-00'   | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "version fe flags 02                   | 'fe-00000000000000000000000000000001-     ",
+    "0000000000000001-02'   | true    | TRACE_ID_ONE             | SPAN_ID_ONE  |      ",
+    "SAMPLER_DROP                                                                      ",
+    "extra data with version 00            | '00-00000000000000000000000000000001-     ",
+    "0000000000000001-03-0' | false   |                          | 0            |      ",
+    "UNSET                                                                             ",
+    "invalid separator after flags with fe | 'fe-00000000000000000000000000000001-     ",
+    "0000000000000001-02.0' | false   |                          | 0            |      ",
+    "UNSET                                                                             "
   })
   void extractTraceparent(
       String traceparent,
       boolean tpValid,
       @ConvertWith(TraceIdTestConverter.class) DDTraceId traceId,
       @ConvertWith(SpanIdTestConverter.class) long spanId,
-      @ConvertWith(PrioritySamplingConverter.class) byte priority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte priority
+  ) {
     Map<String, String> headers = headers(TRACE_PARENT_KEY, traceparent);
 
     TagContext result = this.extractor.extract(headers, stringValuesMap());
@@ -125,29 +185,62 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario                                      | traceparent                                               | tracestate                  | priority     | decisionMaker             | origin",
-    "keep empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-01' | ''                          | SAMPLER_KEEP | SamplingMechanism.DEFAULT |       ",
-    "drop empty state                              | '00-00000000000000000000000000000001-123456789abcdef0-00' | ''                          | SAMPLER_DROP |                           |       ",
-    "keep with user keep state                     | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some'             | USER_KEEP    |                           | some  ",
-    "keep with trailing element separator          | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;'            | USER_KEEP    |                           | some  ",
-    "keep with trailing separator and OWS          | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some; \t'         | USER_KEEP    |                           | some  ",
-    "keep with trailing separator OWS before comma | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;  ,x=y'      | USER_KEEP    |                           | some  ",
-    "skip empty element in middle                  | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;;o:some'            | USER_KEEP    |                           | some  ",
-    "skip leading separator                        | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=;s:2;o:some'            | USER_KEEP    |                           | some  ",
-    "skip bare element in middle                   | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;flag;o:some'        | USER_KEEP    |                           | some  ",
-    "skip multiple bare elements in middle         | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;flag1;flag2;o:some' | USER_KEEP    |                           | some  ",
-    "keep with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;t.dm:-4'     | USER_KEEP    | SamplingMechanism.MANUAL  | some  ",
-    "drop with user keep state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:2;o:some;t.dm:-4'     | SAMPLER_DROP |                           | some  ",
-    "drop with user drop state                     | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some'            | USER_DROP    |                           | some  ",
-    "drop with user drop state and manual dm       | '00-00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some;t.dm:-4'    | USER_DROP    | SamplingMechanism.MANUAL  | some  ",
-    "keep overrides user drop state with manual dm | '00-00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:-1;o:some;t.dm:-4'    | SAMPLER_KEEP | SamplingMechanism.DEFAULT | some  "
+    "scenario                                      | traceparent                       ",
+    "                        | tracestate                  | priority     |            ",
+    "decisionMaker             | origin                                                ",
+    "keep empty state                              | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | ''                        ",
+    "  | SAMPLER_KEEP | SamplingMechanism.DEFAULT |                                    ",
+    "drop empty state                              | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-00' | ''                        ",
+    "  | SAMPLER_DROP |                           |                                    ",
+    "keep with user keep state                     | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some'           ",
+    "  | USER_KEEP    |                           | some                               ",
+    "keep with trailing element separator          | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;'          ",
+    "  | USER_KEEP    |                           | some                               ",
+    "keep with trailing separator and OWS          | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some; \\t'      ",
+    "   | USER_KEEP    |                           | some                              ",
+    "keep with trailing separator OWS before comma | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;  ,x=y'    ",
+    "  | USER_KEEP    |                           | some                               ",
+    "skip empty element in middle                  | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;;o:some'          ",
+    "  | USER_KEEP    |                           | some                               ",
+    "skip leading separator                        | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=;s:2;o:some'          ",
+    "  | USER_KEEP    |                           | some                               ",
+    "skip bare element in middle                   | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;flag;o:some'      ",
+    "  | USER_KEEP    |                           | some                               ",
+    "skip multiple bare elements in middle         | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;flag1;flag2;o:    ",
+    "some' | USER_KEEP    |                           | some                           ",
+    "keep with user keep state and manual dm       | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:2;o:some;t.dm:-4'   ",
+    "  | USER_KEEP    | SamplingMechanism.MANUAL  | some                               ",
+    "drop with user keep state and manual dm       | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:2;o:some;t.dm:-4'   ",
+    "  | SAMPLER_DROP |                           | some                               ",
+    "drop with user drop state                     | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some'          ",
+    "  | USER_DROP    |                           | some                               ",
+    "drop with user drop state and manual dm       | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-00' | 'dd=s:-1;o:some;t.dm:-4'  ",
+    "  | USER_DROP    | SamplingMechanism.MANUAL  | some                               ",
+    "keep overrides user drop state with manual dm | '00-                              ",
+    "00000000000000000000000000000001-123456789abcdef0-01' | 'dd=s:-1;o:some;t.dm:-4'  ",
+    "  | SAMPLER_KEEP | SamplingMechanism.DEFAULT | some                               "
   })
   void extractTraceparentTracestateAndHttpHeaders(
       String traceparent,
       String tracestate,
       @ConvertWith(PrioritySamplingConverter.class) byte priority,
       @ConvertWith(SamplingMechanismConverter.class) Byte decisionMaker,
-      String origin) {
+      String origin
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
@@ -160,7 +253,6 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -210,7 +302,6 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
     );
     // spotless:on
-
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     assertEquals(TRACE_ID_ONE, context.getTraceId());
@@ -226,10 +317,14 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario                   | tpValid | traceparent                                              ",
-    "invalid all-zeros trace id | false   | '00-00000000000000000000000000000000-123456789abcdef0-01'",
-    "invalid all-zeros span id  | false   | '00-00000000000000000000000000000001-0000000000000000-01'",
-    "valid traceparent          | true    | '00-00000000000000000000000000000001-0000000000000001-01'"
+    "scenario                   | tpValid | traceparent                                ",
+    "                                                                                  ",
+    "invalid all-zeros trace id | false   | '00-00000000000000000000000000000000-      ",
+    "123456789abcdef0-01'                                                              ",
+    "invalid all-zeros span id  | false   | '00-00000000000000000000000000000001-      ",
+    "0000000000000000-01'                                                              ",
+    "valid traceparent          | true    | '00-00000000000000000000000000000001-      ",
+    "0000000000000001-01'                                                              "
   })
   void baggageIsMappedOnContextCreation(boolean tpValid, String traceparent) {
     // spotless:off
@@ -241,7 +336,6 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_ARBITRARY_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertNotNull(context);
@@ -257,19 +351,25 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario         | traceparent                                               | tracestate                  | consistent",
-    "empty state      | '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | ''                          | true      ",
-    "consistent tid   | '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | 'dd=t.tid:123456789abcdef0' | true      ",
-    "inconsistent tid | '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | 'dd=t.tid:123456789abcdef1' | false     "
+    "scenario         | traceparent                                               |    ",
+    "tracestate                  | consistent                                          ",
+    "empty state      | '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' | '' ",
+    "                         | true                                                   ",
+    "consistent tid   | '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' |    ",
+    "'dd=t.tid:123456789abcdef0' | true                                                ",
+    "inconsistent tid | '00-123456789abcdef00fedcba987654321-123456789abcdef0-01' |    ",
+    "'dd=t.tid:123456789abcdef1' | false                                               "
   })
   void markInconsistentTidAsPropagationError(
-      String traceparent, String tracestate, boolean consistent) {
+      String traceparent,
+      String tracestate,
+      boolean consistent
+  ) {
     // spotless:off
     Map<String, String> headers = headers(
         TRACE_PARENT_KEY, traceparent,
         TRACE_STATE_KEY, tracestate);
     // spotless:on
-
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     String tid = tracestate.isEmpty() ? "" : tracestate.substring(9);

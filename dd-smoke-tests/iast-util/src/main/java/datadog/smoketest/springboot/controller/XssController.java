@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/xss")
 public class XssController {
-
   @GetMapping("/write")
   public void write(final HttpServletRequest request, final HttpServletResponse response) {
     try {

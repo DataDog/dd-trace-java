@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.profiling.controller.ControllerContext;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
@@ -28,13 +27,13 @@ import org.mockito.quality.Strictness;
 // see https://github.com/mockito/mockito/issues/1540
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class OpenJdkOngoingRecordingTest {
-
   private static final String TEST_NAME = "recording name";
-
-  @Mock private Instant start;
-  @Mock private Instant end;
-  @Mock private Recording recording;
-
+  @Mock
+  private Instant start;
+  @Mock
+  private Instant end;
+  @Mock
+  private Recording recording;
   private OpenJdkOngoingRecording ongoingRecording;
 
   @BeforeEach
@@ -43,8 +42,11 @@ public class OpenJdkOngoingRecordingTest {
     when(recording.getState()).thenReturn(RecordingState.RUNNING);
     when(recording.getName()).thenReturn(TEST_NAME);
 
-    ongoingRecording =
-        new OpenJdkOngoingRecording(recording, new ControllerContext().snapshot(), true);
+    ongoingRecording = new OpenJdkOngoingRecording(
+        recording,
+        new ControllerContext().snapshot(),
+        true
+    );
   }
 
   @Test
@@ -60,11 +62,9 @@ public class OpenJdkOngoingRecordingTest {
   public void testStopOnStopped() {
     when(recording.getState()).thenReturn(RecordingState.STOPPED);
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          ongoingRecording.stop();
-        });
+    assertThrows(IllegalStateException.class, () -> {
+      ongoingRecording.stop();
+    });
 
     verify(recording, never()).stop();
   }
@@ -77,12 +77,13 @@ public class OpenJdkOngoingRecordingTest {
     assertEquals(start, recordingData.getStart());
     assertEquals(
         ((OpenJdkRecordingData) recordingData).getRecording().getStopTime(),
-        recordingData.getEnd());
+        recordingData.getEnd()
+    );
     assertNotEquals(
         recording,
         ((OpenJdkRecordingData) recordingData).getRecording(),
-        "make sure we didn't get our mocked recording");
-
+        "make sure we didn't get our mocked recording"
+    );
     // We got real recording so we should clean it up
     recordingData.release();
 
@@ -93,11 +94,9 @@ public class OpenJdkOngoingRecordingTest {
   public void testSnapshotOnStopped() {
     when(recording.getState()).thenReturn(RecordingState.STOPPED);
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          ongoingRecording.snapshot(start);
-        });
+    assertThrows(IllegalStateException.class, () -> {
+      ongoingRecording.snapshot(start);
+    });
 
     verify(recording, never()).stop();
   }

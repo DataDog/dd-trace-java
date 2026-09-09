@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRA
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-
 import datadog.json.JsonWriter;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -16,16 +15,23 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import java.util.List;
 
-/** Provides writers for OpenTelemetry's "common.proto" JSON encoding. */
+/**
+ * Provides writers for OpenTelemetry's "common.proto" JSON encoding.
+ */
 public final class OtlpCommonJson {
-  private OtlpCommonJson() {}
+  private OtlpCommonJson() {
+  }
 
-  /** Hex-encodes a 128-bit trace id, per the OTLP JSON encoding spec. */
+  /**
+   * Hex-encodes a 128-bit trace id, per the OTLP JSON encoding spec.
+   */
   public static String hexTraceId(DDTraceId traceId) {
     return traceId.toHexString();
   }
 
-  /** Hex-encodes a 64-bit span/parent id, per the OTLP JSON encoding spec. */
+  /**
+   * Hex-encodes a 64-bit span/parent id, per the OTLP JSON encoding spec.
+   */
   public static String hexSpanId(long spanId) {
     return DDSpanId.toHexStringPadded(spanId);
   }
@@ -39,7 +45,9 @@ public final class OtlpCommonJson {
     writer.endObject();
   }
 
-  /** Writes a scope's {@code "scope"} and optional sibling {@code "schemaUrl"} fields. */
+  /**
+   * Writes a scope's {@code "scope"} and optional sibling {@code "schemaUrl"} fields.
+   */
   public static void writeScopeAndSchema(JsonWriter writer, OtelInstrumentationScope scope) {
     writer.name("scope");
     writeInstrumentationScope(writer, scope);
@@ -48,7 +56,9 @@ public final class OtlpCommonJson {
     }
   }
 
-  /** Writes one {@code KeyValue} JSON object: {@code {"key":...,"value":{...}}}. */
+  /**
+   * Writes one {@code KeyValue} JSON object: {@code {"key":...,"value":{...}}}.
+   */
   @SuppressWarnings("unchecked")
   public static void writeAttribute(JsonWriter writer, int type, CharSequence key, Object value) {
     writeAttributeKey(writer, key);
@@ -149,7 +159,9 @@ public final class OtlpCommonJson {
     writer.endObject();
   }
 
-  /** Writes a double per the OTLP/ProtoJSON encoding spec: NaN/Infinity as JSON strings. */
+  /**
+   * Writes a double per the OTLP/ProtoJSON encoding spec: NaN/Infinity as JSON strings.
+   */
   public static void writeDouble(JsonWriter writer, double value) {
     if (Double.isNaN(value)) {
       writer.value("NaN");

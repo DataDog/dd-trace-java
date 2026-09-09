@@ -1,15 +1,12 @@
 package datadog.trace.api.iast.util;
 
 public class Cookie {
-
   private final String cookieName;
   private final String cookieValue;
   private final boolean secure;
   private final String sameSite;
   private final boolean httpOnly;
-
   private final Integer expiresYear;
-
   private final Integer maxAge;
 
   public Cookie(
@@ -19,7 +16,8 @@ public class Cookie {
       boolean httpOnly,
       String sameSite,
       Integer expiresYear,
-      Integer maxAge) {
+      Integer maxAge
+  ) {
     this.cookieName = cookieName;
     this.cookieValue = cookieValue;
     this.secure = secure;
@@ -67,9 +65,7 @@ public class Cookie {
     private boolean secure = false;
     private boolean httpOnly = false;
     private String sameSite = null;
-
     private Integer expiresYear = null;
-
     private Integer maxAge = null;
 
     public Builder(final String name) {

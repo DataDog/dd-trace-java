@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.rediscala;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import akka.actor.ActorRef;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,7 +17,9 @@ import redis.RedisClientActorLike;
 
 @AutoService(InstrumenterModule.class)
 public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public RedisClientActorInstrumentation() {
     super("rediscala", "redis", "rediscala-connection");
   }
@@ -47,7 +48,8 @@ public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("onConnect")),
-        RedisClientActorInstrumentation.class.getName() + "$ConnectionAdvice");
+        RedisClientActorInstrumentation.class.getName() + "$ConnectionAdvice"
+    );
   }
 
   public static class ConnectionAdvice {
@@ -56,9 +58,9 @@ public class RedisClientActorInstrumentation extends InstrumenterModule.Tracing
       if (thiz.redisConnection() != null) {
         final Object tmpDbIndex = thiz.db().isDefined() ? thiz.db().get() : null;
         final int dbIndex = (tmpDbIndex instanceof Number) ? ((Number) tmpDbIndex).intValue() : 0;
-        InstrumentationContext.get(ActorRef.class, RedisConnectionInfo.class)
-            .put(
-                thiz.redisConnection(), new RedisConnectionInfo(thiz.host(), thiz.port(), dbIndex));
+        InstrumentationContext
+          .get(ActorRef.class, RedisConnectionInfo.class)
+          .put(thiz.redisConnection(), new RedisConnectionInfo(thiz.host(), thiz.port(), dbIndex));
       }
     }
   }

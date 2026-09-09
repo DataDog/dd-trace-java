@@ -2,7 +2,6 @@ package datadog.trace.test.agent.decoder.v04.raw;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
@@ -43,9 +42,8 @@ public class SpanV04 implements DecodedSpan {
       int size = unpacker.unpackMapHeader();
       if (size != 12 && size != 13) {
         throw new IllegalArgumentException(
-            "Wrong span element map size "
-                + size
-                + ". Expected 12 (plain) or 13 (with meta_struct).");
+            "Wrong span element map size " + size + ". Expected 12 (plain) or 13 (with meta_struct)."
+        );
       }
 
       String service = unpackString("service", unpacker);
@@ -87,7 +85,8 @@ public class SpanV04 implements DecodedSpan {
           metrics,
           meta,
           metaStruct,
-          links);
+          links
+      );
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -102,7 +101,8 @@ public class SpanV04 implements DecodedSpan {
     int metricsSize = unpacker.unpackMapHeader();
     if (metricsSize < 0) {
       throw new IllegalArgumentException(
-          "Negative meta map size " + metricsSize + " for span " + spanId);
+          "Negative meta map size " + metricsSize + " for span " + spanId
+      );
     }
     Map<String, Number> metrics = new HashMap<>(metricsSize);
     for (int i = 0; i < metricsSize; i++) {
@@ -116,7 +116,8 @@ public class SpanV04 implements DecodedSpan {
     int metaSize = unpacker.unpackMapHeader();
     if (metaSize < 0) {
       throw new IllegalArgumentException(
-          "Negative meta map size " + metaSize + " for span " + spanId);
+          "Negative meta map size " + metaSize + " for span " + spanId
+      );
     }
     Map<String, String> meta = new HashMap<>(metaSize);
     for (int i = 0; i < metaSize; i++) {
@@ -130,7 +131,8 @@ public class SpanV04 implements DecodedSpan {
     int metaSize = unpacker.unpackMapHeader();
     if (metaSize < 0) {
       throw new IllegalArgumentException(
-          "Negative meta map size " + metaSize + " for span " + spanId);
+          "Negative meta map size " + metaSize + " for span " + spanId
+      );
     }
     Map<String, Object> result = new HashMap<>(metaSize);
     for (int i = 0; i < metaSize; i++) {
@@ -182,7 +184,8 @@ public class SpanV04 implements DecodedSpan {
           break;
         default:
           throw new IllegalArgumentException(
-              "Failed to decode number. Unexpected value type " + valueType);
+              "Failed to decode number. Unexpected value type " + valueType
+          );
       }
     } catch (IOException e) {
       throw new IllegalArgumentException("Failed to decode number.", e);
@@ -226,12 +229,15 @@ public class SpanV04 implements DecodedSpan {
         final Map<String, Object> resultMap = new HashMap<>(map.size());
         for (final Map.Entry<Value, Value> entry : map.entrySet()) {
           resultMap.put(
-              entry.getKey().asStringValue().asString(), convertValueToObject(entry.getValue()));
+              entry.getKey().asStringValue().asString(),
+              convertValueToObject(entry.getValue())
+          );
         }
         return resultMap;
       default:
         throw new IllegalArgumentException(
-            "Failed to convert value to object. Unexpected value type " + value.getValueType());
+            "Failed to convert value to object. Unexpected value type " + value.getValueType()
+        );
     }
   }
 
@@ -264,7 +270,8 @@ public class SpanV04 implements DecodedSpan {
       Map<String, Number> metrics,
       Map<String, String> meta,
       Map<String, Object> metaStruct,
-      List<DecodedSpanLink> links) {
+      List<DecodedSpanLink> links
+  ) {
     this.service = service;
     this.name = name;
     this.resource = resource;

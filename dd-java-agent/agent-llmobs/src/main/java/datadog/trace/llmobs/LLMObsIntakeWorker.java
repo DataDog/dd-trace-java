@@ -2,7 +2,6 @@ package datadog.trace.llmobs;
 
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
@@ -32,15 +31,14 @@ import org.slf4j.LoggerFactory;
  * @param <T> the payload type this worker submits
  */
 public class LLMObsIntakeWorker<T> implements AutoCloseable {
-
   private static final String INTAKE_API_DOMAIN = "api";
-
   private static final String EVP_SUBDOMAIN_HEADER_NAME = "X-Datadog-EVP-Subdomain";
   private static final String DD_API_KEY_HEADER_NAME = "DD-API-KEY";
-
   private static final Logger log = LoggerFactory.getLogger(LLMObsIntakeWorker.class);
 
-  /** Serializes a whole batch into the request body sent to the intake. */
+  /**
+   * Serializes a whole batch into the request body sent to the intake.
+   */
   public interface BatchSerializer<T> {
     String toJson(List<T> batch);
   }
@@ -57,7 +55,8 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
       final TimeUnit timeUnit,
       final SharedCommunicationObjects sco,
       final Config config,
-      final BatchSerializer<T> serializer) {
+      final BatchSerializer<T> serializer
+  ) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
 
     boolean isAgentless = config.isLlmObsAgentlessEnabled();
@@ -68,19 +67,26 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
     Headers headers;
     HttpUrl submissionUrl;
     if (isAgentless) {
-      submissionUrl =
-          HttpUrl.get("https://" + INTAKE_API_DOMAIN + "." + config.getSite() + "/" + apiPath);
+      submissionUrl = HttpUrl.get(
+          "https://" + INTAKE_API_DOMAIN + "." + config.getSite() + "/" + apiPath
+      );
       headers = Headers.of(DD_API_KEY_HEADER_NAME, config.getApiKey());
     } else {
-      submissionUrl =
-          HttpUrl.get(
-              sco.agentUrl.toString() + DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT + apiPath);
+      submissionUrl = HttpUrl.get(
+          sco.agentUrl.toString() + DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT + apiPath
+      );
       headers = Headers.of(EVP_SUBDOMAIN_HEADER_NAME, INTAKE_API_DOMAIN);
     }
 
-    SerializingHandler<T> serializingHandler =
-        new SerializingHandler<>(
-            payloadDescription, queue, flushInterval, timeUnit, submissionUrl, headers, serializer);
+    SerializingHandler<T> serializingHandler = new SerializingHandler<>(
+        payloadDescription,
+        queue,
+        flushInterval,
+        timeUnit,
+        submissionUrl,
+        headers,
+        serializer
+    );
     this.serializerThread = newAgentThread(agentThread, serializingHandler);
   }
 
@@ -102,20 +108,16 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
   }
 
   public static class SerializingHandler<T> implements Runnable {
-
     private static final Logger log = LoggerFactory.getLogger(SerializingHandler.class);
     private static final int FLUSH_THRESHOLD = 50;
-
     private final String payloadDescription;
     private final MessagePassingBlockingQueue<T> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
-
     private final BatchSerializer<T> serializer;
     private final OkHttpClient httpClient;
     private final HttpUrl submissionUrl;
     private final Headers headers;
-
     private final List<T> buffer = new ArrayList<>();
 
     public SerializingHandler(
@@ -125,7 +127,8 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
         final TimeUnit timeUnit,
         final HttpUrl submissionUrl,
         final Headers headers,
-        final BatchSerializer<T> serializer) {
+        final BatchSerializer<T> serializer
+    ) {
       this.payloadDescription = payloadDescription;
       this.queue = queue;
       this.serializer = serializer;
@@ -149,7 +152,8 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
       log.debug(
           "{} processor worker exited. submitting stopped. unsubmitted payloads left: {}",
           payloadDescription,
-          !queuesAreEmpty());
+          !queuesAreEmpty()
+      );
     }
 
     private void runDutyCycle() throws InterruptedException {
@@ -185,7 +189,8 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
               "Could not serialize {} payloads, dropping {} of them",
               payloadDescription,
               this.buffer.size(),
-              e);
+              e
+          );
           this.buffer.clear();
           return;
         }
@@ -197,19 +202,20 @@ public class LLMObsIntakeWorker<T> implements AutoCloseable {
 
         try (okhttp3.Response response =
             OkHttpUtils.sendWithRetries(httpClient, retryPolicyFactory, request)) {
-
           if (response.isSuccessful()) {
             log.debug(
                 "successfully flushed {} request with {} payloads",
                 payloadDescription,
-                this.buffer.size());
+                this.buffer.size()
+            );
             this.buffer.clear();
           } else {
             log.error(
                 "Could not submit {} (HTTP code {}) {}",
                 payloadDescription,
                 response.code(),
-                response.body() != null ? response.body().string() : "");
+                response.body() != null ? response.body().string() : ""
+            );
           }
         } catch (Exception e) {
           log.error("Could not submit " + payloadDescription, e);

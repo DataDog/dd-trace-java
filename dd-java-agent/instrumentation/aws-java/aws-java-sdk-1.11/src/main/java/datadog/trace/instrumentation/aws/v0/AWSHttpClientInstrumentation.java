@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.CONTEXT_CONTEXT_KEY;
 import static datadog.trace.instrumentation.aws.v0.OnErrorDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.Request;
 import com.amazonaws.handlers.RequestHandler2;
@@ -22,7 +21,9 @@ import net.bytebuddy.asm.Advice;
  * {@link RequestHandler2#afterError} is not called.
  */
 public class AWSHttpClientInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   private final String namespace;
 
   public AWSHttpClientInstrumentation(String namespace) {
@@ -38,20 +39,21 @@ public class AWSHttpClientInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(named("doExecute")),
-        AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice");
+        AWSHttpClientInstrumentation.class.getName() + "$HttpClientAdvice"
+    );
   }
 
   public static class HttpClientAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
         @Advice.Argument(value = 0, optional = true) final Request<?> request,
-        @Advice.Thrown final Throwable throwable) {
-
+        @Advice.Thrown final Throwable throwable
+    ) {
       final AgentSpan activeSpan = activeSpan();
       // check name in case TracingRequestHandler failed to activate the span
       if (activeSpan != null
           && (AwsNameCache.spanName(request).equals(activeSpan.getSpanName())
-              || !activeSpan.isValid())) {
+          || !activeSpan.isValid())) {
         closeActive();
       }
 

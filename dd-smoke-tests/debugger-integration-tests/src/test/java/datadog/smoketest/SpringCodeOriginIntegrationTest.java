@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -17,55 +16,71 @@ import org.junit.jupiter.api.condition.DisabledIf;
 
 @NonRetryable
 public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest {
-
   private boolean traceReceived;
 
   @Override
   protected ProcessBuilder createProcessBuilder(Path logFilePath, String... params) {
     List<String> commandParams = getDebuggerCommandParams();
-    commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
+    // explicitly enable tracer
+    commandParams.add("-Ddd.trace.enabled=true");
     commandParams.add("-Ddd.code.origin.for.spans.enabled=true");
     commandParams.add("-Ddd.code.origin.for.spans.interface.support=true");
     return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+        commandParams,
+        logFilePath,
+        getAppClass(),
+        params
+    );
   }
 
   @Test
   @DisplayName("testRegularController")
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(value = "datadog.environment.JavaVirtualMachine#isJ9", disabledReason = "Flaky on "
+      + "J9 JVMs")
   void testRegularController() throws Exception {
     registerTraceListener(this::receiveGreetingTrace);
     String httpPort = startSpringApp(Collections.emptyList());
-    sendRequest(httpPort, "/greeting"); // trigger CodeOriginProbe instrumentation
+    // trigger CodeOriginProbe instrumentation
+    sendRequest(httpPort, "/greeting");
     waitForSpecificLogLine(
         logFilePath,
         "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done",
         Duration.ofMillis(100),
-        Duration.ofSeconds(30)); // wait for instrumentation to be done
-    sendRequest(httpPort, "/greeting"); // generate first span with tags
-    processRequests(
-        () -> traceReceived, () -> String.format("Timeout! traceReceived=%s", traceReceived));
+        Duration
+          // wait for instrumentation to be done
+          .ofSeconds(30)
+    );
+    // generate first span with tags
+    sendRequest(httpPort, "/greeting");
+    processRequests(() -> traceReceived, () -> String.format(
+        "Timeout! traceReceived=%s",
+        traceReceived
+    ));
   }
 
   @Test
   @DisplayName("testInterfacedController")
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(value = "datadog.environment.JavaVirtualMachine#isJ9", disabledReason = "Flaky on "
+      + "J9 JVMs")
   void testInterfacedController() throws Exception {
     registerTraceListener(this::receiveProcessTrace);
     String httpPort = startSpringApp(Collections.emptyList());
-    sendRequest(httpPort, "/process"); // trigger CodeOriginProbe instrumentation
+    // trigger CodeOriginProbe instrumentation
+    sendRequest(httpPort, "/process");
     waitForSpecificLogLine(
         logFilePath,
         "DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transformation done",
         Duration.ofMillis(100),
-        Duration.ofSeconds(30)); // wait for instrumentation to be done
-    sendRequest(httpPort, "/process"); // generate first span with tags
-    processRequests(
-        () -> traceReceived, () -> String.format("Timeout! traceReceived=%s", traceReceived));
+        Duration
+          // wait for instrumentation to be done
+          .ofSeconds(30)
+    );
+    // generate first span with tags
+    sendRequest(httpPort, "/process");
+    processRequests(() -> traceReceived, () -> String.format(
+        "Timeout! traceReceived=%s",
+        traceReceived
+    ));
   }
 
   private void receiveGreetingTrace(DecodedTrace decodedTrace) {
@@ -76,7 +91,8 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
         assertEquals("entry", span.getMeta().get(DDTags.DD_CODE_ORIGIN_TYPE));
         assertEquals(
             "datadog.smoketest.debugger.controller.WebController",
-            span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_TYPE));
+            span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_TYPE)
+        );
         assertEquals("WebController.java", span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_FILE));
         assertEquals("10", span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_LINE));
         assertEquals("greeting", span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_METHOD));
@@ -95,9 +111,12 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
         assertEquals("entry", span.getMeta().get(DDTags.DD_CODE_ORIGIN_TYPE));
         assertEquals(
             "datadog.smoketest.debugger.controller.InterfacedController",
-            span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_TYPE));
+            span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_TYPE)
+        );
         assertEquals(
-            "InterfacedController.java", span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_FILE));
+            "InterfacedController.java",
+            span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_FILE)
+        );
         assertEquals("11", span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_LINE));
         assertEquals("process", span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_METHOD));
         assertEquals("()", span.getMeta().get(DDTags.DD_CODE_ORIGIN_FRAME_SIGNATURE));

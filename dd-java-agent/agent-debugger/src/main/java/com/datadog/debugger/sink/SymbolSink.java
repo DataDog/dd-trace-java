@@ -2,7 +2,6 @@ package com.datadog.debugger.sink;
 
 import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_GZIP;
 import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_JSON;
-
 import com.datadog.debugger.symbol.Scope;
 import com.datadog.debugger.symbol.ScopeType;
 import com.datadog.debugger.symbol.ServiceVersion;
@@ -32,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SymbolSink {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolSink.class);
   static final int CAPACITY = 1024;
   public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
@@ -43,19 +41,18 @@ public class SymbolSink {
   // there is no defined end-of-upload point.
   private static final String EVENT_FORMAT =
       "{%n"
-          + "\"ddsource\": \"dd_debugger\",%n"
-          + "\"service\": \"%s\",%n"
-          + "\"version\": \"%s\",%n"
-          + "\"language\": \"java\",%n"
-          + "\"runtimeId\": \"%s\",%n"
-          + "\"type\": \"symdb\",%n"
-          + "\"uploadId\": \"%s\",%n"
-          + "\"batchNum\": %d,%n"
-          + "\"final\": false,%n"
-          + "\"attachmentSize\": %d%n"
-          + "}";
+      + "\"ddsource\": \"dd_debugger\",%n"
+      + "\"service\": \"%s\",%n"
+      + "\"version\": \"%s\",%n"
+      + "\"language\": \"java\",%n"
+      + "\"runtimeId\": \"%s\",%n"
+      + "\"type\": \"symdb\",%n"
+      + "\"uploadId\": \"%s\",%n"
+      + "\"batchNum\": %d,%n"
+      + "\"final\": false,%n"
+      + "\"attachmentSize\": %d%n"
+      + "}";
   static final int MAX_SYMDB_UPLOAD_SIZE = 50 * 1024 * 1024;
-
   private final String serviceName;
   private final String env;
   private final String version;
@@ -74,7 +71,8 @@ public class SymbolSink {
     this(
         config,
         new BatchUploader("SymDB", config, config.getFinalDebuggerSymDBUrl(), RETRY_POLICY),
-        MAX_SYMDB_UPLOAD_SIZE);
+        MAX_SYMDB_UPLOAD_SIZE
+    );
   }
 
   SymbolSink(Config config, BatchUploader symbolUploader, int maxPayloadSize) {
@@ -139,7 +137,9 @@ public class SymbolSink {
                 scopesToSerialize,
                 uploadId,
                 currentBatch,
-                false /* isFinal */));
+                false
+            )
+        );
         sink.flush();
       }
       doUpload(scopesToSerialize, byteArrayOutputStream.toByteArray(), isCompressed, currentBatch);
@@ -149,13 +149,18 @@ public class SymbolSink {
   }
 
   private void doUpload(
-      List<Scope> scopesToSerialize, byte[] payload, boolean isCompressed, long currentBatch) {
+      List<Scope> scopesToSerialize,
+      byte[] payload,
+      boolean isCompressed,
+      long currentBatch
+  ) {
     if (payload.length > maxPayloadSize) {
       LOGGER.warn(
           "Payload is too big: {}/{} isCompressed={}",
           payload.length,
           maxPayloadSize,
-          isCompressed);
+          isCompressed
+      );
       splitAndSend(scopesToSerialize);
       return;
     }
@@ -166,7 +171,8 @@ public class SymbolSink {
         payload.length,
         isCompressed,
         uploadId,
-        currentBatch);
+        currentBatch
+    );
     String fileName = "file.json";
     MediaType mediaType = APPLICATION_JSON;
     if (isCompressed) {
@@ -175,22 +181,25 @@ public class SymbolSink {
     }
     BatchUploader.MultiPartContent event = buildEvent(currentBatch, payload.length);
     symbolUploader.uploadAsMultipart(
-        "", event, new BatchUploader.MultiPartContent(payload, "file", fileName, mediaType));
+        "",
+        event,
+        new BatchUploader.MultiPartContent(payload, "file", fileName, mediaType)
+    );
   }
 
   private BatchUploader.MultiPartContent buildEvent(long currentBatch, int attachmentSize) {
-    byte[] eventContent =
-        String.format(
-                EVENT_FORMAT,
-                serviceName,
-                version,
-                runtimeId,
-                uploadId.toString(),
-                currentBatch,
-                attachmentSize)
-            .getBytes(StandardCharsets.UTF_8);
-    return new BatchUploader.MultiPartContent(
-        eventContent, "event", "event.json", APPLICATION_JSON);
+    byte[] eventContent = String
+      .format(
+          EVENT_FORMAT,
+          serviceName,
+          version,
+          runtimeId,
+          uploadId.toString(),
+          currentBatch,
+          attachmentSize
+      )
+      .getBytes(StandardCharsets.UTF_8);
+    return new BatchUploader.MultiPartContent(eventContent, "event", "event.json", APPLICATION_JSON);
   }
 
   private static byte[] compressPayload(byte[] jsonBytes) {
@@ -202,8 +211,7 @@ public class SymbolSink {
       LOGGER.error("Error compressing json", ex);
       return null;
     }
-    LOGGER.debug(
-        "Compressed payload from={} to={}", jsonBytes.length, byteArrayOutputStream.size());
+    LOGGER.debug("Compressed payload from={} to={}", jsonBytes.length, byteArrayOutputStream.size());
     return byteArrayOutputStream.toByteArray();
   }
 
@@ -235,8 +243,7 @@ public class SymbolSink {
         return;
       }
       if (jarScope.getScopes().size() < 2) {
-        LOGGER.warn(
-            "Cannot split jar scope with less than 2 classes scope: {}", jarScope.getName());
+        LOGGER.warn("Cannot split jar scope with less than 2 classes scope: {}", jarScope.getName());
         return;
       }
       // split the jar scope in 2 jar scopes with half of the class scopes
@@ -247,11 +254,12 @@ public class SymbolSink {
           "split jar scope {} in 2 jar scopes: {} and {}",
           jarScope.getName(),
           firstHalf.size(),
-          secondHalf.size());
-      splitAndSend(
-          Arrays.asList(
-              createJarScope(jarScope.getName(), firstHalf),
-              createJarScope(jarScope.getName(), secondHalf)));
+          secondHalf.size()
+      );
+      splitAndSend(Arrays.asList(
+          createJarScope(jarScope.getName(), firstHalf),
+          createJarScope(jarScope.getName(), secondHalf)
+      ));
     }
   }
 

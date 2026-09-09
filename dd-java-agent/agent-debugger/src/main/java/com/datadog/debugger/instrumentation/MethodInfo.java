@@ -5,7 +5,9 @@ import datadog.trace.util.Strings;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
-/** Data class to store all information related to a method (class, classloader, lines) */
+/**
+ * Data class to store all information related to a method (class, classloader, lines)
+ */
 public class MethodInfo {
   private final ClassLoader classLoader;
   private final ClassNode classNode;
@@ -16,7 +18,8 @@ public class MethodInfo {
       ClassLoader classLoader,
       ClassNode classNode,
       MethodNode methodNode,
-      ClassFileLines classFileLines) {
+      ClassFileLines classFileLines
+  ) {
     this.classLoader = classLoader;
     this.classNode = classNode;
     this.methodNode = methodNode;
@@ -61,7 +64,6 @@ public class MethodInfo {
 
   @Override
   public String toString() {
-    return String.format(
-        "MethodInfo{classNode=%s, methodNode=%s}", classNode.name, methodNode.desc);
+    return String.format("MethodInfo{classNode=%s, methodNode=%s}", classNode.name, methodNode.desc);
   }
 }

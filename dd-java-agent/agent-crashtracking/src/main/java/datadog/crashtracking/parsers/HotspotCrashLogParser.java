@@ -1,7 +1,6 @@
 package datadog.crashtracking.parsers;
 
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-
 import datadog.common.version.VersionInfo;
 import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
@@ -53,10 +52,8 @@ public final class HotspotCrashLogParser {
   private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy X", Locale.getDefault());
   private static final String OOM_MARKER = "OutOfMemory encountered: ";
-
   // all lowercased
   private static final String[] KNOWN_LIBRARY_NAMES = {"libjavaprofiler", "libddwaf", "libsqreen"};
-
   private final BuildIdCollector buildIdCollector;
 
   enum State {
@@ -86,10 +83,10 @@ public final class HotspotCrashLogParser {
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\n");
   // Groups: 1=si_signo, 2=signal name, 3=si_code, 4=si_code name,
   //         5=si_addr (null for SI_USER), 6=si_pid (null for si_addr), 7=si_uid (null for si_addr)
-  private static final Pattern SIGINFO_PARSER =
-      Pattern.compile(
-          "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+"
-              + "(?:si_addr:\\s+(0x[0-9a-fA-F]+)|si_pid:\\s+(\\d+),\\s+si_uid:\\s+(\\d+))");
+  private static final Pattern SIGINFO_PARSER = Pattern.compile(
+      "siginfo:\\s+si_signo:\\s+(\\d+)\\s+\\((\\w+)\\),\\s+si_code:\\s+(\\d+)\\s+\\(([^)]+)\\),\\s+"
+      + "(?:si_addr:\\s+(0x[0-9a-fA-F]+)|si_pid:\\s+(\\d+),\\s+si_uid:\\s+(\\d+))"
+  );
   private static final Pattern DYNAMIC_LIBS_PATH_PARSER =
       Pattern.compile("^(?:0x)?[0-9a-fA-F]+(?:-[0-9a-fA-F]+)?\\s+(?:[^\\s/\\[]+\\s+)*(.*)$");
   // Matches register entries like:
@@ -128,7 +125,9 @@ public final class HotspotCrashLogParser {
     switch (marker) {
       case 'J':
         return "compiled";
-      case 'A': // exists in JDK 11
+      case
+          // exists in JDK 11
+      'A':
         return "aot_compiled";
       case 'j':
         return "interpreted";
@@ -229,7 +228,6 @@ public final class HotspotCrashLogParser {
               if (parts.length > 1) {
                 relAddress = parts[1];
               }
-
               // Extract function name if present (after the bracket)
               // Keep the relative address offset as part of the function name
               if (libend + 3 < line.length() && !line.endsWith("]")) {
@@ -278,7 +276,8 @@ public final class HotspotCrashLogParser {
           null,
           ip,
           symbolAddress,
-          relAddress);
+          relAddress
+      );
     }
     return null;
   }
@@ -371,13 +370,12 @@ public final class HotspotCrashLogParser {
     String vmInfo = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
-    outer:
-    for (String line : lines) {
+    outer: for (String line : lines) {
       switch (state) {
         case NEW:
-          if (line.startsWith(
-              "# A fatal error has been detected by the Java Runtime Environment:")) {
-            state = State.MESSAGE; // jump directly to MESSAGE state
+          if (line.startsWith("# A fatal error has been detected by the Java Runtime Environment:")) {
+            // jump directly to MESSAGE state
+            state = State.MESSAGE;
           }
           break;
         case MESSAGE:
@@ -472,8 +470,9 @@ public final class HotspotCrashLogParser {
               currentRegisterToMemoryMapping = m.group(1);
               registerToMemoryMapping.put(currentRegisterToMemoryMapping, line.substring(m.end()));
             } else if (!currentRegisterToMemoryMapping.isEmpty()) {
-              registerToMemoryMapping.computeIfPresent(
-                  currentRegisterToMemoryMapping, (key, value) -> value + "\n" + line);
+              registerToMemoryMapping.computeIfPresent(currentRegisterToMemoryMapping, (key, value) -> value
+                  + "\n"
+                  + line);
             }
           }
           break;
@@ -555,7 +554,6 @@ public final class HotspotCrashLogParser {
       }
       previousLineBlank = line.isEmpty();
     }
-
     // PROCESS and SYSTEM sections are late enough that all critical data is captured
     if (state != State.DONE && state != State.PROCESS && state != State.SYSTEM) {
       // incomplete crash log
@@ -595,7 +593,9 @@ public final class HotspotCrashLogParser {
                 buildInfo.fileType,
                 frame.ip,
                 frame.symbolAddress,
-                frame.relativeAddress));
+                frame.relativeAddress
+            )
+        );
       } else {
         enrichedFrames.add(
             new StackFrame(
@@ -608,13 +608,18 @@ public final class HotspotCrashLogParser {
                 null,
                 frame.ip,
                 frame.symbolAddress,
-                frame.relativeAddress));
+                frame.relativeAddress
+            )
+        );
       }
     }
 
-    ErrorData error =
-        new ErrorData(
-            kind, message, threadName, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+    ErrorData error = new ErrorData(
+        kind,
+        message,
+        threadName,
+        new StackTrace(enrichedFrames.toArray(new StackFrame[0]))
+    );
     // We can not really extract the full metadata and os info from the crash log
     // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
@@ -625,21 +630,18 @@ public final class HotspotCrashLogParser {
       registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
       resolvedMapping = registerToMemoryMapping;
     }
-    RuntimeInfo runtimeInfo =
-        (jreVersion != null || javaVm != null || vmInfo != null)
-            ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
-            : null;
-    Experimental experimental =
-        !registers.isEmpty()
-                || resolvedMapping != null
-                || (runtimeArgs != null && !runtimeArgs.isEmpty())
-                || runtimeInfo != null
-            ? new Experimental(registers, resolvedMapping, runtimeArgs, runtimeInfo)
-            : null;
-    DynamicLibs files =
-        (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
-            ? new DynamicLibs(dynamicLibraryKey, dynamicLibraryLines)
-            : null;
+    RuntimeInfo runtimeInfo = (jreVersion != null || javaVm != null || vmInfo != null)
+        ? new RuntimeInfo(jreVersion, javaVm, vmInfo)
+        : null;
+    Experimental experimental = !registers.isEmpty()
+        || resolvedMapping != null
+        || (runtimeArgs != null && !runtimeArgs.isEmpty())
+        || runtimeInfo != null
+        ? new Experimental(registers, resolvedMapping, runtimeArgs, runtimeInfo)
+        : null;
+    DynamicLibs files = (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
+        ? new DynamicLibs(dynamicLibraryKey, dynamicLibraryLines)
+        : null;
     return new CrashLog(
         uuid,
         incomplete,
@@ -651,7 +653,8 @@ public final class HotspotCrashLogParser {
         sigInfo,
         "1.0",
         experimental,
-        files);
+        files
+    );
   }
 
   static String dateTimeToISO(String datetime) {
@@ -659,8 +662,9 @@ public final class HotspotCrashLogParser {
       return ZonedDateTime.parse(datetime, ZONED_DATE_TIME_FORMATTER).format(ISO_OFFSET_DATE_TIME);
     } catch (DateTimeParseException ignored) {
       try {
-        return OffsetDateTime.parse(datetime, OFFSET_DATE_TIME_FORMATTER)
-            .format(ISO_OFFSET_DATE_TIME);
+        return OffsetDateTime
+          .parse(datetime, OFFSET_DATE_TIME_FORMATTER)
+          .format(ISO_OFFSET_DATE_TIME);
       } catch (DateTimeParseException e3) {
         // Failed to parse date time
         return null;

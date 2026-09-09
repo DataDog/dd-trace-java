@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play26.appsec;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -13,11 +12,13 @@ import play.mvc.Http;
 import play.mvc.Result;
 
 public class JavaMultipartFormDataRegisterExcF
-    implements Function<Throwable, F.Either<Result, Http.MultipartFormData<Files.TemporaryFile>>> {
-  public static Function<Throwable, F.Either<Result, Http.MultipartFormData<Files.TemporaryFile>>>
-      INSTANCE = new JavaMultipartFormDataRegisterExcF();
+    implements Function<Throwable, F.Either<Result, Http.MultipartFormData<Files.TemporaryFile>>>
+{
+  public static Function<Throwable, F.Either<Result, Http.MultipartFormData<Files.TemporaryFile>>> INSTANCE =
+      new JavaMultipartFormDataRegisterExcF();
 
-  private JavaMultipartFormDataRegisterExcF() {}
+  private JavaMultipartFormDataRegisterExcF() {
+  }
 
   @Override
   public F.Either<Result, Http.MultipartFormData<Files.TemporaryFile>> apply(Throwable exc) {

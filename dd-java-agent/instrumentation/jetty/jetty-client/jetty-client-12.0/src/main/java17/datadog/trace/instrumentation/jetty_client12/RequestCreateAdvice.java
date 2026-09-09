@@ -10,7 +10,8 @@ public class RequestCreateAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void afterCreate(@Advice.This HttpRequest self) {
     self.onComplete(
-        new SpanFinishingCompleteListener(
-            InstrumentationContext.get(Request.class, AgentSpan.class)));
+        new SpanFinishingCompleteListener(InstrumentationContext.get(Request.class, AgentSpan.class)
+        )
+    );
   }
 }

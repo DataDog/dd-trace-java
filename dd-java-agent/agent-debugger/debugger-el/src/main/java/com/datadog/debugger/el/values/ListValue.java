@@ -2,7 +2,6 @@ package com.datadog.debugger.el.values;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkArrayLength;
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkCollectionSize;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
@@ -50,7 +49,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
   }
 
   public boolean isNull() {
-    return (listHolder == null || (listHolder instanceof Value && ((Value<?>) listHolder).isNull()))
+    return (listHolder == null
+        || (listHolder instanceof Value && ((Value<?>) listHolder).isNull()))
         && arrayHolder == null;
   }
 
@@ -64,7 +64,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
         return ((Collection<?>) listHolder).isEmpty();
       }
       throw new UnsupportedOperationException(
-          "Unsupported Collection class: " + listHolder.getClass().getTypeName());
+          "Unsupported Collection class: " + listHolder.getClass().getTypeName()
+      );
     } else if (listHolder instanceof Value) {
       Value<?> val = (Value<?>) listHolder;
       return val.isNull() || val.isUndefined();
@@ -81,7 +82,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
         return ((Collection<?>) listHolder).size();
       } else {
         throw new UnsupportedOperationException(
-            "Unsupported Collection class: " + listHolder.getClass().getTypeName());
+            "Unsupported Collection class: " + listHolder.getClass().getTypeName()
+        );
       }
     } else if (listHolder == Value.nullValue()) {
       return 0;
@@ -147,7 +149,8 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
         return collection.contains(val.isNull() ? null : val.getValue());
       }
       throw new UnsupportedOperationException(
-          "Unsupported Collection class: " + listHolder.getClass().getTypeName());
+          "Unsupported Collection class: " + listHolder.getClass().getTypeName()
+      );
     }
     if (arrayHolder != null) {
       int count = Array.getLength(arrayHolder);
@@ -236,15 +239,20 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
         }
       }
       throw new UnsupportedOperationException(
-          "Unsupported value class: " + objValue.getClass().getTypeName());
+          "Unsupported value class: " + objValue.getClass().getTypeName()
+      );
     }
     return false;
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ListValue listValue = (ListValue) o;
     return Objects.equals(listHolder, listValue.listHolder)
         && Objects.equals(arrayHolder, listValue.arrayHolder)

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,9 @@ import org.jboss.resteasy.client.jaxrs.internal.ClientConfiguration;
  */
 @AutoService(InstrumenterModule.class)
 public final class ResteasyClientConnectionErrorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public ResteasyClientConnectionErrorInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");
   }
@@ -34,28 +34,28 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".WrappedFuture",
-    };
+    return new String[] {packageName + ".WrappedFuture"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("invoke")),
-        ResteasyClientConnectionErrorInstrumentation.class.getName() + "$InvokeAdvice");
+        ResteasyClientConnectionErrorInstrumentation.class.getName() + "$InvokeAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("submit")).and(returns(Future.class)),
-        ResteasyClientConnectionErrorInstrumentation.class.getName() + "$SubmitAdvice");
+        ResteasyClientConnectionErrorInstrumentation.class.getName() + "$SubmitAdvice"
+    );
   }
 
   public static class InvokeAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void handleError(
         @Advice.FieldValue("configuration") final ClientConfiguration context,
-        @Advice.Thrown final Throwable throwable) {
+        @Advice.Thrown final Throwable throwable
+    ) {
       if (throwable != null) {
         final Object prop = context.getProperty(ClientTracingFilter.SPAN_PROPERTY_NAME);
         if (prop instanceof AgentSpan) {
@@ -74,11 +74,11 @@ public final class ResteasyClientConnectionErrorInstrumentation extends Instrume
   }
 
   public static class SubmitAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void handleError(
         @Advice.FieldValue("configuration") final ClientConfiguration context,
-        @Advice.Return(readOnly = false) Future<?> future) {
+        @Advice.Return(readOnly = false) Future<?> future
+    ) {
       if (!(future instanceof WrappedFuture)) {
         future = new WrappedFuture<>(future, context);
       }

@@ -30,23 +30,14 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 
 @Configuration
 public class IastConfiguration {
-
   public static final String STRING_TOPIC = "iast_string";
-
   public static final String BYTE_ARRAY_TOPIC = "iast_byteArray";
-
   public static final String BYTE_BUFFER_TOPIC = "iast_byteBuffer";
-
   public static final String JSON_TOPIC = "iast_json";
-
   public static final String REPLY_STRING_TOPIC = "iast_string_reply";
-
   public static final String REPLY_BYTE_ARRAY_TOPIC = "iast_byteArray_reply";
-
   public static final String REPLY_BYTE_BUFFER_TOPIC = "iast_byteBuffer_reply";
-
   public static final String REPLY_JSON_TOPIC = "iast_json_reply";
-
   @Value("${spring.kafka.bootstrap-servers}")
   private String boostrapServers;
 
@@ -60,7 +51,8 @@ public class IastConfiguration {
         newTopic(REPLY_STRING_TOPIC),
         newTopic(REPLY_BYTE_ARRAY_TOPIC),
         newTopic(REPLY_BYTE_BUFFER_TOPIC),
-        newTopic(REPLY_JSON_TOPIC));
+        newTopic(REPLY_JSON_TOPIC)
+    );
   }
 
   @Bean
@@ -76,7 +68,10 @@ public class IastConfiguration {
   @Bean
   public DefaultKafkaConsumerFactory<ByteBuffer, ByteBuffer> iastByteBufferConsumer() {
     return consumerFor(
-        BYTE_BUFFER_TOPIC, ByteBufferDeserializer.class, ByteBufferDeserializer.class);
+        BYTE_BUFFER_TOPIC,
+        ByteBufferDeserializer.class,
+        ByteBufferDeserializer.class
+    );
   }
 
   @Bean
@@ -93,13 +88,19 @@ public class IastConfiguration {
   @Bean
   public DefaultKafkaConsumerFactory<byte[], String> iastReplyByteArrayConsumer() {
     return consumerFor(
-        REPLY_BYTE_ARRAY_TOPIC, ByteArrayDeserializer.class, StringDeserializer.class);
+        REPLY_BYTE_ARRAY_TOPIC,
+        ByteArrayDeserializer.class,
+        StringDeserializer.class
+    );
   }
 
   @Bean
   public DefaultKafkaConsumerFactory<ByteBuffer, String> iastReplyByteBufferConsumer() {
     return consumerFor(
-        REPLY_BYTE_BUFFER_TOPIC, ByteBufferDeserializer.class, StringDeserializer.class);
+        REPLY_BYTE_BUFFER_TOPIC,
+        ByteBufferDeserializer.class,
+        StringDeserializer.class
+    );
   }
 
   @Bean
@@ -290,7 +291,8 @@ public class IastConfiguration {
 
   private <K, V> DefaultKafkaProducerFactory<K, V> producerFor(
       final Class<? extends Serializer<K>> keySerializer,
-      final Class<? extends Serializer<V>> valueSerializer) {
+      final Class<? extends Serializer<V>> valueSerializer
+  ) {
     final Map<String, Object> configProps = new HashMap<>();
     configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, boostrapServers);
     configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializer);
@@ -301,10 +303,12 @@ public class IastConfiguration {
   private <K, V> DefaultKafkaConsumerFactory<K, V> consumerFor(
       final String topic,
       final Class<? extends Deserializer<K>> keyDeserializer,
-      final Class<? extends Deserializer<V>> valueDeserializer) {
+      final Class<? extends Deserializer<V>> valueDeserializer
+  ) {
     final Map<String, Object> config = new HashMap<>();
     config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, boostrapServers);
-    config.put(ConsumerConfig.GROUP_ID_CONFIG, topic); // one group per topic
+    // one group per topic
+    config.put(ConsumerConfig.GROUP_ID_CONFIG, topic);
     config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer);
     config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer);
     if (JsonDeserializer.class.isAssignableFrom(keyDeserializer)

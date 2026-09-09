@@ -4,7 +4,6 @@ import static datadog.trace.test.junit.utils.config.WithConfigExtension.injectSy
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
@@ -14,7 +13,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class BlackholeSpanTest extends DDCoreJavaSpecification {
-
   @ValueSource(strings = {"true", "false"})
   @ParameterizedTest
   void shouldMuteTracing(String use128bitTraceId) throws Exception {

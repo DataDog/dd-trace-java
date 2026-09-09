@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -26,10 +25,14 @@ import org.apache.pekko.http.scaladsl.model.Uri;
 import scala.Tuple2;
 import scala.collection.Iterator;
 
-/** Propagates taint from a {@link Uri} to query strings fetched from it. */
+/**
+ * Propagates taint from a {@link Uri} to query strings fetched from it.
+ */
 @AutoService(InstrumenterModule.class)
 public class UriInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public UriInstrumentation() {
     super("pekko-http");
   }
@@ -43,28 +46,31 @@ public class UriInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("queryString"))
-            .and(returns(named("scala.Option")))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("java.nio.charset.Charset"))),
-        UriInstrumentation.class.getName() + "$TaintQueryStringAdvice");
+          .and(not(isStatic()))
+          .and(named("queryString"))
+          .and(returns(named("scala.Option")))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("java.nio.charset.Charset"))),
+        UriInstrumentation.class.getName() + "$TaintQueryStringAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("rawQueryString"))
-            .and(returns(named("scala.Option")))
-            .and(takesArguments(0)),
-        UriInstrumentation.class.getName() + "$TaintQueryStringAdvice");
+          .and(not(isStatic()))
+          .and(named("rawQueryString"))
+          .and(returns(named("scala.Option")))
+          .and(takesArguments(0)),
+        UriInstrumentation.class.getName() + "$TaintQueryStringAdvice"
+    );
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("query"))
-            .and(returns(named("org.apache.pekko.http.scaladsl.model.Uri$Query")))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("java.nio.charset.Charset")))
-            .and(takesArgument(1, named("org.apache.pekko.http.scaladsl.model.Uri$ParsingMode"))),
-        UriInstrumentation.class.getName() + "$TaintQueryAdvice");
+          .and(not(isStatic()))
+          .and(named("query"))
+          .and(returns(named("org.apache.pekko.http.scaladsl.model.Uri$Query")))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("java.nio.charset.Charset")))
+          .and(takesArgument(1, named("org.apache.pekko.http.scaladsl.model.Uri$ParsingMode"))),
+        UriInstrumentation.class.getName() + "$TaintQueryAdvice"
+    );
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -74,7 +80,8 @@ public class UriInstrumentation extends InstrumenterModule.Iast
     static void after(
         @Advice.This Uri uri,
         @Advice.Return scala.Option<String> ret,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       PropagationModule mod = InstrumentationBridge.PROPAGATION;
       if (mod == null || ret.isEmpty()) {
         return;
@@ -91,9 +98,11 @@ public class UriInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PARAMETER_VALUE)
     static void after(
-        @Advice.This /*Uri*/ Object uri,
+        @Advice.This /*Uri*/
+        Object uri,
         @Advice.Return Uri.Query ret,
-        @ActiveRequestContext RequestContext reqCtx) {
+        @ActiveRequestContext RequestContext reqCtx
+    ) {
       PropagationModule prop = InstrumentationBridge.PROPAGATION;
       if (prop == null || ret.isEmpty()) {
         return;

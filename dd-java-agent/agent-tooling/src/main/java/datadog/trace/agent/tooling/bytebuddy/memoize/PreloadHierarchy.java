@@ -4,7 +4,9 @@ import datadog.instrument.classmatch.ClassFile;
 import datadog.instrument.classmatch.ClassHeader;
 import datadog.trace.bootstrap.instrumentation.classloading.ClassDefining;
 
-/** Ensures superclasses and interfaces are loaded before classes that extend/implement them. */
+/**
+ * Ensures superclasses and interfaces are loaded before classes that extend/implement them.
+ */
 final class PreloadHierarchy implements ClassDefining.Observer {
   private static final PreloadHierarchy PRELOADER = new PreloadHierarchy();
 
@@ -20,7 +22,8 @@ final class PreloadHierarchy implements ClassDefining.Observer {
     try {
       // check first byte matches the standard class header
       if (bytecode[offset] != (byte) 0xCA) {
-        return; // ignore non-standard formats like J9 ROMs
+        // ignore non-standard formats like J9 ROMs
+        return;
       }
       // minimal parsing of bytecode to get name of superclass and any interfaces
       ClassHeader header = ClassFile.header(bytecode, offset);
@@ -36,7 +39,9 @@ final class PreloadHierarchy implements ClassDefining.Observer {
     }
   }
 
-  /** Attempts to preload the named class using same class-loader as the original request. */
+  /**
+   * Attempts to preload the named class using same class-loader as the original request.
+   */
   private void preload(ClassLoader loader, String internalName) throws ClassNotFoundException {
     int slot = internalName.hashCode() & RECENTLY_CHECKED_MASK;
     if (!internalName.equals(recentlyChecked[slot])) {

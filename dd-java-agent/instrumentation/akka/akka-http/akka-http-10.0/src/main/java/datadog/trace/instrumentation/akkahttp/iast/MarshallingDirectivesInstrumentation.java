@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.scaladsl.server.directives.MarshallingDirectives$;
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
@@ -28,8 +27,9 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice
+{
   public MarshallingDirectivesInstrumentation() {
     super("akka-http");
   }
@@ -37,42 +37,40 @@ public class MarshallingDirectivesInstrumentation extends InstrumenterModule.Ias
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "akka.http.scaladsl.server.directives.MarshallingDirectives$class",
-      "akka.http.scaladsl.server.directives.MarshallingDirectives",
+        "akka.http.scaladsl.server.directives.MarshallingDirectives$class",
+        "akka.http.scaladsl.server.directives.MarshallingDirectives"
     };
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintUnmarshaller",
-    };
+    return new String[] {packageName + ".helpers.TaintUnmarshaller"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isStatic())
-            .and(named("entity"))
-            .and(returns(named("akka.http.scaladsl.server.Directive")))
-            .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0, named("akka.http.scaladsl.server.directives.MarshallingDirectives")))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        MarshallingDirectivesInstrumentation.class.getName()
-            + "$TaintUnmarshallerInputOldScalaAdvice");
+          .and(isStatic())
+          .and(named("entity"))
+          .and(returns(named("akka.http.scaladsl.server.Directive")))
+          .and(takesArguments(2))
+          .and(
+              takesArgument(0, named("akka.http.scaladsl.server.directives.MarshallingDirectives"))
+          )
+          .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+        MarshallingDirectivesInstrumentation.class.getName() + "$TaintUnmarshallerInputOldScalaAdvice"
+    );
 
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("entity"))
-            .and(returns(named("akka.http.scaladsl.server.Directive")))
-            .and(takesArguments(1))
-            .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
-        MarshallingDirectivesInstrumentation.class.getName()
-            + "$TaintUnmarshallerInputNewScalaAdvice");
+          .and(not(isStatic()))
+          .and(named("entity"))
+          .and(returns(named("akka.http.scaladsl.server.Directive")))
+          .and(takesArguments(1))
+          .and(takesArgument(1, named("akka.http.scaladsl.unmarshalling.Unmarshaller"))),
+        MarshallingDirectivesInstrumentation.class.getName() + "$TaintUnmarshallerInputNewScalaAdvice"
+    );
   }
 
   static class TaintUnmarshallerInputOldScalaAdvice {

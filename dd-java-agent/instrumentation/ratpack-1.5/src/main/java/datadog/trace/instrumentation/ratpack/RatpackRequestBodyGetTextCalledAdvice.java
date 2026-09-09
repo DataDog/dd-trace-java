@@ -20,7 +20,8 @@ public class RatpackRequestBodyGetTextCalledAdvice {
       @Advice.This ByteBufBackedTypedData thiz,
       @Advice.Return String str,
       @ActiveRequestContext RequestContext reqCtx,
-      @Advice.Thrown(readOnly = false) Throwable throwable) {
+      @Advice.Thrown(readOnly = false) Throwable throwable
+  ) {
     Boolean bodyPublished =
         InstrumentationContext.get(ByteBufBackedTypedData.class, Boolean.class).get(thiz);
     if (bodyPublished == Boolean.TRUE) {
@@ -44,6 +45,7 @@ public class RatpackRequestBodyGetTextCalledAdvice {
   }
 
   public void muzzleCheck() {
-    FileIo.open(null); // added in 1.5
+    // added in 1.5
+    FileIo.open(null);
   }
 }

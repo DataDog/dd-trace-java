@@ -10,7 +10,8 @@ import java.util.TreeMap;
 import javax.annotation.Nonnull;
 
 public final class LcovReportWriter {
-  private LcovReportWriter() {}
+  private LcovReportWriter() {
+  }
 
   public static void write(Map<String, LinesCoverage> coverage, Writer out) throws IOException {
     Objects.requireNonNull(coverage, "coverage");
@@ -30,13 +31,16 @@ public final class LcovReportWriter {
       }
 
       out.write("SF:" + path + "\n");
+      // lines found (instrumented)
+      int lf = 0;
+      // lines hit (executed at least once)
+      int lh = 0;
 
-      int lf = 0; // lines found (instrumented)
-      int lh = 0; // lines hit (executed at least once)
-
-      for (int line = lc.executableLines.nextSetBit(1);
+      for (
+          int line = lc.executableLines.nextSetBit(1);
           line >= 0;
-          line = lc.executableLines.nextSetBit(line + 1)) { // skip bit 0
+          line = lc.executableLines.nextSetBit(line + 1)) {
+        // skip bit 0
         lf++;
         int count = lc.coveredLines.get(line) ? 1 : 0;
         lh += count;

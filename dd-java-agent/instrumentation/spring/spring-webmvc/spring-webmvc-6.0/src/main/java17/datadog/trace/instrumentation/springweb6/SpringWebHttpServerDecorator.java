@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,21 +18,17 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.Controller;
 
 public class SpringWebHttpServerDecorator
-    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void> {
-
+    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, HttpServletResponse, Void>
+{
   private static final String DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED =
       "datadog.filter.spring.route.applied";
-
   private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
-
   private final CharSequence component;
-
   public static final SpringWebHttpServerDecorator DECORATE =
       new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-web-controller"));
   public static final SpringWebHttpServerDecorator DECORATE_RENDER =
       new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-webmvc"));
-
   public static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
   public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
 
@@ -106,10 +101,12 @@ public class SpringWebHttpServerDecorator
       final AgentSpan span,
       final HttpServletRequest connection,
       final HttpServletRequest request,
-      final Context parentContext) {
+      final Context parentContext
+  ) {
     // FIXME: adding a filter to avoid resource name to be overridden on redirect and forwards.
     // Remove myself when jakarta.servlet will be available
-    if (request != null && request.getAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED) == null) {
+    if (request != null
+        && request.getAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED) == null) {
       final String method = request.getMethod();
       final Object bestMatchingPattern =
           request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
@@ -124,8 +121,7 @@ public class SpringWebHttpServerDecorator
     if (handler instanceof HandlerMethod) {
       // name span based on the class and method name defined in the handler
       final Method method = ((HandlerMethod) handler).getMethod();
-      span.setResourceName(
-          DECORATE.spanNameForMethod(method.getDeclaringClass(), method.getName()));
+      span.setResourceName(DECORATE.spanNameForMethod(method.getDeclaringClass(), method.getName()));
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(handler.getClass(), getMethodName(handler)));
     }

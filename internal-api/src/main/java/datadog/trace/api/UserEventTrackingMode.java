@@ -4,7 +4,6 @@ public enum UserEventTrackingMode {
   DISABLED("disabled"),
   SAFE("safe", "true", "1"),
   EXTENDED("extended");
-
   private final String value;
   private final String[] modes;
 

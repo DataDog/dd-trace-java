@@ -10,7 +10,8 @@ import scala.Tuple1;
 import scala.compat.java8.JFunction1;
 
 public class TaintRequestContextFunction
-    implements JFunction1<Tuple1<RequestContext>, Tuple1<RequestContext>> {
+    implements JFunction1<Tuple1<RequestContext>, Tuple1<RequestContext>>
+{
   public static final TaintRequestContextFunction INSTANCE = new TaintRequestContextFunction();
 
   @Override

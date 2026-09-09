@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.maven3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,9 @@ import org.codehaus.plexus.PlexusContainer;
 
 @AutoService(InstrumenterModule.class)
 public class MavenInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice
+{
   public MavenInstrumentation() {
     super("maven");
   }
@@ -35,11 +35,11 @@ public class MavenInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MavenTestExecution",
-      packageName + ".MavenUtils",
-      packageName + ".MavenExecutionListener",
-      packageName + ".MavenProjectConfigurator",
-      packageName + ".MavenLifecycleParticipant",
+        packageName + ".MavenTestExecution",
+        packageName + ".MavenUtils",
+        packageName + ".MavenExecutionListener",
+        packageName + ".MavenProjectConfigurator",
+        packageName + ".MavenLifecycleParticipant"
     };
   }
 
@@ -51,16 +51,21 @@ public class MavenInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("customizeContainer")
-            .and(takesArgument(0, named("org.codehaus.plexus.PlexusContainer"))),
-        MavenInstrumentation.class.getName() + "$MavenAdvice");
+        named("customizeContainer").and(
+            takesArgument(0, named("org.codehaus.plexus.PlexusContainer"))
+        ),
+        MavenInstrumentation.class.getName() + "$MavenAdvice"
+    );
   }
 
   public static class MavenAdvice {
     @Advice.OnMethodEnter
     public static void addLifecycleExtension(@Advice.Argument(0) final PlexusContainer container) {
       container.addComponent(
-          new MavenLifecycleParticipant(), AbstractMavenLifecycleParticipant.class, null);
+          new MavenLifecycleParticipant(),
+          AbstractMavenLifecycleParticipant.class,
+          null
+      );
     }
   }
 }

@@ -5,7 +5,6 @@ import java.util.Objects;
 
 public final class DBInfo {
   public static final DBInfo DEFAULT = new Builder().type("database").build();
-
   private final String type;
   private final String subtype;
   private final boolean fullPropagationSupport;
@@ -31,7 +30,8 @@ public final class DBInfo {
       Integer port,
       String warehouse,
       String schema,
-      String poolName) {
+      String poolName
+  ) {
     this.type = type;
     this.subtype = subtype;
     this.fullPropagationSupport = fullPropagationSupport;
@@ -62,7 +62,8 @@ public final class DBInfo {
     private Integer port;
     private String poolName;
 
-    Builder() {}
+    Builder() {
+    }
 
     Builder(
         String type,
@@ -76,7 +77,8 @@ public final class DBInfo {
         Integer port,
         String warehouse,
         String schema,
-        String poolName) {
+        String poolName
+    ) {
       this.type = type;
       this.subtype = subtype;
       this.fullPropagationSupport = fullPropagationSupport;
@@ -164,7 +166,8 @@ public final class DBInfo {
           port,
           warehouse,
           schema,
-          poolName);
+          poolName
+      );
     }
   }
 
@@ -233,13 +236,18 @@ public final class DBInfo {
         port,
         warehouse,
         schema,
-        poolName);
+        poolName
+    );
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     DBInfo dbInfo = (DBInfo) o;
     return Objects.equals(type, dbInfo.type)
         && Objects.equals(subtype, dbInfo.subtype)

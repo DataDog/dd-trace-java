@@ -18,20 +18,17 @@ import org.slf4j.LoggerFactory;
 
 public class OpenlineageParentContext implements AgentSpanContext {
   private static final Logger log = LoggerFactory.getLogger(OpenlineageParentContext.class);
-  private static final Pattern UUID =
-      Pattern.compile(
-          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
-
+  private static final Pattern UUID = Pattern.compile(
+      "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+  );
   private final DDTraceId traceId;
   private final long spanId;
-
   private final String parentJobNamespace;
   private final String parentJobName;
   private final String parentRunId;
   private final String rootParentJobNamespace;
   private final String rootParentJobName;
   private final String rootParentRunId;
-
   public static final String OPENLINEAGE_PARENT_JOB_NAMESPACE =
       "spark.openlineage.parentJobNamespace";
   public static final String OPENLINEAGE_PARENT_JOB_NAME = "spark.openlineage.parentJobName";
@@ -79,7 +76,9 @@ public class OpenlineageParentContext implements AgentSpanContext {
             parentRunId,
             rootParentJobNamespace,
             rootParentJobName,
-            rootParentRunId));
+            rootParentRunId
+        )
+    );
   }
 
   OpenlineageParentContext(
@@ -88,15 +87,19 @@ public class OpenlineageParentContext implements AgentSpanContext {
       String parentRunId,
       String rootParentJobNamespace,
       String rootParentJobName,
-      String rootParentRunId) {
+      String rootParentRunId
+  ) {
     log.debug(
-        "Creating OpenlineageParentContext with parentJobNamespace: {}, parentJobName: {}, parentRunId: {}, rootParentJobNamespace: {}, rootParentJobName: {}, rootParentRunId: {}",
+        "Creating OpenlineageParentContext with parentJobNamespace: {}, parentJobName: {}, "
+        + "parentRunId: {}, rootParentJobNamespace: {}, rootParentJobName: {}, "
+        + "rootParentRunId: {}",
         parentJobNamespace,
         parentJobName,
         parentRunId,
         rootParentJobNamespace,
         rootParentJobName,
-        rootParentRunId);
+        rootParentRunId
+    );
 
     this.parentJobNamespace = parentJobNamespace;
     this.parentJobName = parentJobName;

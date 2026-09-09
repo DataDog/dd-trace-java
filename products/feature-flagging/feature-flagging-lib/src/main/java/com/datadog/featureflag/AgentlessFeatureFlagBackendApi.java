@@ -13,12 +13,11 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sends Feature Flag events through a local EVP proxy, with a safe direct intake fallback. */
+/**
+ * Sends Feature Flag events through a local EVP proxy, with a safe direct intake fallback.
+ */
 final class AgentlessFeatureFlagBackendApi implements BackendApi {
-
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
   private final BackendApi proxyApi;
   private final Supplier<BackendApi> directApiSupplier;
   private final String eventType;
@@ -28,7 +27,8 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
   AgentlessFeatureFlagBackendApi(
       final BackendApi proxyApi,
       final Supplier<BackendApi> directApiSupplier,
-      final String eventType) {
+      final String eventType
+  ) {
     this.proxyApi = proxyApi;
     this.directApiSupplier = directApiSupplier;
     this.eventType = eventType;
@@ -41,12 +41,11 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       final RequestBody requestBody,
       final IOThrowingFunction<InputStream, T> responseParser,
       @Nullable final OkHttpUtils.CustomListener requestListener,
-      final boolean requestCompression)
-      throws IOException {
+      final boolean requestCompression
+  ) throws IOException {
     final BackendApi selectedApi = activeApi;
     try {
-      return selectedApi.post(
-          uri, requestBody, responseParser, requestListener, requestCompression);
+      return selectedApi.post(uri, requestBody, responseParser, requestListener, requestCompression);
     } catch (final IOException exception) {
       if (selectedApi != proxyApi || !isDefinitiveRejection(exception)) {
         throw exception;
@@ -80,7 +79,8 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       if (directApi != null) {
         LOGGER.debug(
             "Switching Feature Flagging {} delivery from the local EVP proxy to direct intake",
-            eventType);
+            eventType
+        );
         activeApi = directApi;
       }
       directApiCreationAttempted = true;
