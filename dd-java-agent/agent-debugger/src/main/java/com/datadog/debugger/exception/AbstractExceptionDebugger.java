@@ -55,7 +55,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   public void handleException(Throwable t, AgentSpan span) {
     if (!shouldHandleException(t, span)) {
       if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Skip handling exception: {}", t.toString());
+        LOGGER.debug("Skip handling exception: {}", t.getClass().getTypeName());
       }
       return;
     }
@@ -75,7 +75,8 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       ExceptionProbeManager.ThrowableState state =
           exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
-        LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
+        LOGGER.debug(
+            "Unable to find state for throwable: {}", innerMostException.getClass().getTypeName());
         return;
       }
       processSnapshotsAndSetTags(

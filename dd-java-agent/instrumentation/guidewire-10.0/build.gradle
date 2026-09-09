@@ -1,0 +1,23 @@
+// Guidewire is proprietary and not published to any repository, so this module has no
+// compile dependency on it: the target classes are matched purely by name at runtime.
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+tasks.named("compileJava") {
+  configureCompiler(it, 8)
+}
+
+dependencies {
+  // Not required (the module self-activates in $Activate); kept so the test also exercises the
+  // default config where RunnableInstrumentation wraps run() too — the double activation is safe.
+  testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
+  // @Trace on fixture methods, to materialize the child span whose parent we assert.
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
+}
