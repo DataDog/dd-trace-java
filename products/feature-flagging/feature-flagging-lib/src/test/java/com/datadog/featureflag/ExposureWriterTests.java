@@ -59,6 +59,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -280,6 +281,163 @@ class ExposureWriterTests {
 
       poll.eventually(() -> assertExposures(allExposures(), exposures));
     }
+  }
+
+  @Test
+  void testCloseDrainsAndFinalFlushesExactlyOnceWithoutWaitingForTheInterval() throws Exception {
+    Config config = mockConfig("shutdown-service");
+    List<ExposureEvent> exposures = buildExposures(5);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4, Long.MAX_VALUE, NANOSECONDS, sharedCommunicationObjects, config);
+
+    writer.init();
+    for (ExposureEvent exposure : exposures) {
+      writer.accept(exposure);
+    }
+
+    writer.close();
+
+    assertFalse(writer.isSerializerThreadAlive());
+    assertEquals(1, requests.size());
+    assertExposures(allExposures(), exposures);
+
+    // A repeated close and a stale listener invocation after close must neither replay the batch
+    // nor leave an event stranded in the queue.
+    writer.close();
+    writer.accept(buildExposure());
+    MILLISECONDS.sleep(200);
+    assertEquals(1, requests.size());
+    assertEquals(0, writer.queueSize());
+  }
+
+  @Test
+  void testFinalFlushRunsWithoutTheInterruptFlagSet() throws Exception {
+    BackendApi backendApi = mock(BackendApi.class);
+    AtomicBoolean interruptedDuringPost = new AtomicBoolean(true);
+    when(backendApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            invocation -> {
+              interruptedDuringPost.set(Thread.currentThread().isInterrupted());
+              return null;
+            });
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            () -> backendApi,
+            mockConfig("shutdown-service"),
+            ExposureWriterImpl.SHUTDOWN_TIMEOUT_MILLIS);
+
+    writer.init();
+    writer.accept(buildExposure());
+    writer.close();
+
+    verify(backendApi, times(1))
+        .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
+    assertFalse(
+        interruptedDuringPost.get(),
+        "The final HTTP request must not inherit the interrupt used to wake queue polling");
+    assertFalse(writer.isSerializerThreadAlive());
+  }
+
+  @Test
+  void testCloseWaitIsBoundedWhenFinalPostDoesNotReturn() throws Exception {
+    BackendApi backendApi = mock(BackendApi.class);
+    CountDownLatch postStarted = new CountDownLatch(1);
+    CountDownLatch releasePost = new CountDownLatch(1);
+    when(backendApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            invocation -> {
+              postStarted.countDown();
+              releasePost.await();
+              return null;
+            });
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            () -> backendApi,
+            mockConfig("blocked-shutdown-service"),
+            100);
+
+    try {
+      writer.init();
+      writer.accept(buildExposure());
+      long start = System.nanoTime();
+
+      writer.close();
+
+      long elapsedMillis = NANOSECONDS.toMillis(System.nanoTime() - start);
+      assertTrue(postStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
+      assertTrue(elapsedMillis < 2000, "close exceeded its configured bounded wait");
+      assertTrue(writer.isSerializerThreadAlive());
+    } finally {
+      releasePost.countDown();
+    }
+    poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
+  }
+
+  @Test
+  void testStaleGatewayDispatchCannotEnqueueAfterClose() throws Exception {
+    CountDownLatch dispatchSnapshotTaken = new CountDownLatch(1);
+    CountDownLatch releaseDispatch = new CountDownLatch(1);
+    FeatureFlaggingGateway.ExposureListener blocker =
+        ignored -> {
+          dispatchSnapshotTaken.countDown();
+          try {
+            releaseDispatch.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        };
+    FeatureFlaggingGateway.addExposureListener(blocker);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            sharedCommunicationObjects,
+            mockConfig("stale-dispatch-service"));
+    Thread dispatcher =
+        new Thread(() -> FeatureFlaggingGateway.dispatch(buildExposure()), "exposure-dispatcher");
+
+    try {
+      writer.init();
+      dispatcher.start();
+      assertTrue(dispatchSnapshotTaken.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+      writer.close();
+      releaseDispatch.countDown();
+      dispatcher.join(5000);
+
+      assertFalse(dispatcher.isAlive());
+      assertFalse(writer.isSerializerThreadAlive());
+      assertEquals(0, writer.queueSize());
+      assertTrue(requests.isEmpty());
+    } finally {
+      releaseDispatch.countDown();
+      dispatcher.join(5000);
+      FeatureFlaggingGateway.removeExposureListener(blocker);
+      writer.close();
+    }
+  }
+
+  @Test
+  void testCloseBeforeInitPreventsLaterStartAndAccept() {
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(sharedCommunicationObjects, mockConfig("never-started-service"));
+
+    writer.close();
+    writer.init();
+    writer.accept(buildExposure());
+    writer.close();
+
+    assertFalse(writer.isSerializerThreadAlive());
+    assertEquals(0, writer.queueSize());
+    assertTrue(requests.isEmpty());
   }
 
   @Test
