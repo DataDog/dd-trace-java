@@ -13,7 +13,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
@@ -70,7 +69,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onPeerConnection(span, thiz.getRedisClient().getAddr());
       DECORATE.onStatement(span, command.getCommand().getName());
-      command.getPromise().addListener(new SpanFinishListener(AgentTracer.captureSpan(span)));
+      command.getPromise().addListener(new SpanFinishListener(span.captureWithContext()));
       return activateSpan(span);
     }
 
@@ -100,7 +99,7 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
         commandResourceNames.add(commandData.getCommand().getName());
       }
       DECORATE.onStatement(span, String.join(";", commandResourceNames));
-      command.getPromise().addListener(new SpanFinishListener(AgentTracer.captureSpan(span)));
+      command.getPromise().addListener(new SpanFinishListener(span.captureWithContext()));
       return activateSpan(span);
     }
 
