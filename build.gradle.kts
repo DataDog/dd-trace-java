@@ -46,6 +46,7 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
       .lineLength(100)
       .closingParenOnNewLine(false)
       .javaLanguageLevel(25)
+    trimTrailingWhitespace()
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {

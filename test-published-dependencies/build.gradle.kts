@@ -42,6 +42,7 @@ allprojects {
           .lineLength(100)
           .closingParenOnNewLine(false)
           .javaLanguageLevel(25)
+        trimTrailingWhitespace()
       }
     }
   }
