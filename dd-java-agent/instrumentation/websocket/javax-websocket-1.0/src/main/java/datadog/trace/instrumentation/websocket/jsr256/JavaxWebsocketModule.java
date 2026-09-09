@@ -58,6 +58,8 @@ public class JavaxWebsocketModule extends InstrumenterModule.Tracing {
         new EndpointInstrumentation(namespace),
         new SessionInstrumentation(namespace),
         new MessageHandlerInstrumentation(namespace),
+        new MessageHandlerLambdaInstrumentation(namespace, "Whole"),
+        new MessageHandlerLambdaInstrumentation(namespace, "Partial"),
         new BasicRemoteEndpointInstrumentation(namespace),
         new AsyncRemoteEndpointInstrumentation(namespace));
   }

@@ -1,13 +1,17 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDTags
+import datadog.trace.bootstrap.FieldBackedContextAccessor
+import datadog.trace.bootstrap.FieldBackedContextStores
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext
 import datadog.trace.core.DDSpan
 import jakarta.websocket.ClientEndpointConfig
 import jakarta.websocket.CloseReason
 import jakarta.websocket.ContainerProvider
 import jakarta.websocket.Endpoint
+import jakarta.websocket.MessageHandler
 import jakarta.websocket.server.ServerApplicationConfig
 import jakarta.websocket.server.ServerEndpointConfig
 import net.bytebuddy.utility.RandomString
@@ -34,6 +38,7 @@ class WebsocketTest extends InstrumentationSpecification {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TRACE_CLASSES_EXCLUDE, "EndpointWrapper")
+    injectSysConfig("trace.lambda.enabled", "true")
   }
 
   def createHandshakeSpan(String spanName, String url) {
@@ -71,6 +76,40 @@ class WebsocketTest extends InstrumentationSpecification {
 
   def handshakeTags(url) {
     [(Tags.HTTP_METHOD): "GET", (Tags.HTTP_URL): url]
+  }
+
+  def "test #handlerType lambda message handler"() {
+    given:
+    String url = "ws://inmemory/test"
+    String message = RandomString.make(10)
+    def handshakeSpan = createHandshakeSpan("servlet.request", url)
+    FieldBackedContextStores.getContextStore(
+    FieldBackedContextStores.getContextStoreId(MessageHandler.name, HandlerContext.Receiver.name))
+    .put(handler, new HandlerContext.Receiver(handshakeSpan, "session"))
+
+    when:
+    if (handler instanceof MessageHandler.Partial) {
+      handler.onMessage(message, true)
+    } else {
+      handler.onMessage(message)
+    }
+
+    then:
+    handler.class.synthetic
+    handler instanceof FieldBackedContextAccessor
+    assertTraces(2, {
+      trace(1) {
+        basicSpan(it, "servlet.request", "GET /test", null, null, handshakeTags(url))
+      }
+      trace(1) {
+        websocketReceiveSpan(it, handshakeSpan, "text", message.length(), 1)
+      }
+    })
+
+    where:
+    handler                           | handlerType
+    WebsocketLambdaHandlers.whole()   | "whole"
+    WebsocketLambdaHandlers.partial() | "partial"
   }
 
   def "test full sync send and receive for endpoint #endpoint.class with #sendSize len #msgType message"() {
