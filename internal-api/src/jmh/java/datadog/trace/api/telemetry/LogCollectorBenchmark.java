@@ -17,10 +17,11 @@ import org.openjdk.jmh.annotations.Warmup;
 public class LogCollectorBenchmark {
   @State(Scope.Benchmark)
   public static class CollectorState {
-    final LogCollector collector = new LogCollector(4);
+    LogCollector collector;
 
-    @Setup(Level.Trial)
+    @Setup(Level.Iteration)
     public void setup() {
+      collector = new LogCollector(4);
       collector.addLogMessage("error", "ugh!", null);
     }
   }

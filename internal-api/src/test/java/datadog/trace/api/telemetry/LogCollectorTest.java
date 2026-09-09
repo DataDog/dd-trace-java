@@ -212,11 +212,14 @@ class LogCollectorTest {
   void rawLogMessageEqualityMatchesGrouping() {
     // Given
     LogCollector.RawLogMessage first =
-        new LogCollector.RawLogMessage("ERROR", "Message", throwableWithMethod("run", 10), "first", 1);
+        new LogCollector.RawLogMessage(
+            "ERROR", "Message", throwableWithMethod("run", 10), "first", 1);
     LogCollector.RawLogMessage equivalent =
-        new LogCollector.RawLogMessage("ERROR", "Message", throwableWithMethod("run", 10), "second", 2);
+        new LogCollector.RawLogMessage(
+            "ERROR", "Message", throwableWithMethod("run", 10), "second", 2);
     LogCollector.RawLogMessage different =
-        new LogCollector.RawLogMessage("ERROR", "Message", throwableWithMethod("runIt", 20), "first", 1);
+        new LogCollector.RawLogMessage(
+            "ERROR", "Message", throwableWithMethod("runIt", 20), "first", 1);
 
     // Then
     assertThat(first).isEqualTo(equivalent);

@@ -26,8 +26,7 @@ public class LogCollector {
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
   private static final int DEFAULT_MAX_CAPACITY = 10;
   private static final LogCollector INSTANCE = new LogCollector();
-  @VisibleForTesting
-  final ConcurrentHashtable.State<RawLogMessage> rawLogMessages;
+  @VisibleForTesting final ConcurrentHashtable.State<RawLogMessage> rawLogMessages;
 
   public static LogCollector get() {
     return INSTANCE;
@@ -128,7 +127,8 @@ public class LogCollector {
   }
 
   /**
-   * Finds a <em>log group</em> with the same <em>level</em>, <em>message</em>, and <em>throwable</em> in the selected bucket.
+   * Finds a <em>log group</em> with the same <em>level</em>, <em>message</em>, and
+   * <em>throwable</em> in the selected bucket.
    *
    * <p>Note, throwables are matched by identity or by class and stack trace.
    *
@@ -193,15 +193,13 @@ public class LogCollector {
     public final Throwable throwable;
     public final String tags;
     public final long timestamp;
-    /**
-     * Number of equivalent log messages captured when this group was drained.
-     */
+
+    /** Number of equivalent log messages captured when this group was drained. */
     public int count;
 
-    /**
-     * Live counter equivalent log messages accumulated in this group.
-     */
+    /** Live counter equivalent log messages accumulated in this group. */
     private volatile int liveOccurrenceCount = 1;
+
     private volatile StackTraceElement[] cachedStackTrace = null;
 
     public RawLogMessage(
@@ -230,9 +228,7 @@ public class LogCollector {
       LIVE_OCCURRENCE_COUNT_UPDATER.incrementAndGet(this);
     }
 
-    /**
-     * Snapshot this log's live occurrence count
-     */
+    /** Snapshot this log's live occurrence count */
     private void snapshotCount() {
       count = LIVE_OCCURRENCE_COUNT_UPDATER.get(this);
     }
