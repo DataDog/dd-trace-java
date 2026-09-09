@@ -19,7 +19,7 @@ class LogCollectorTest {
   private static final long TIMEOUT_SECONDS = 10;
 
   @Test
-  void setsTracerTime() {
+  void recordsLogGroupTimestamp() {
     // Given
     LogCollector logCollector = new LogCollector(1);
     long before = System.currentTimeMillis() / 1000;
@@ -28,14 +28,14 @@ class LogCollectorTest {
     logCollector.addLogMessage("ERROR", "Message 1", null);
 
     long after = System.currentTimeMillis() / 1000;
-    LogCollector.RawLogMessage log = singleLog(logCollector.drain());
+    LogCollector.RawLogMessage logGroup = singleLogGroup(logCollector.drain());
 
     // Then
-    assertThat(log.timestamp).isBetween(before, after);
+    assertThat(logGroup.timestamp).isBetween(before, after);
   }
 
   @Test
-  void limitsLogMessages() {
+  void limitsLogGroupsToCapacity() {
     // Given
     LogCollector logCollector = new LogCollector(3);
 
@@ -45,18 +45,18 @@ class LogCollectorTest {
     logCollector.addLogMessage("ERROR", "Message 3", null);
     logCollector.addLogMessage("ERROR", "Message 4", null);
 
-    Collection<LogCollector.RawLogMessage> logs = logCollector.drain();
+    Collection<LogCollector.RawLogMessage> logGroups = logCollector.drain();
 
     // Then
-    assertThat(logs).hasSize(3);
-    assertContainsLog(logs, "Message 1", 1);
-    assertContainsLog(logs, "Message 2", 1);
-    assertContainsLog(logs, "Message 3", 1);
-    assertThat(logs).extracting(log -> log.message).doesNotContain("Message 4");
+    assertThat(logGroups).hasSize(3);
+    assertContainsLogGroup(logGroups, "Message 1", 1);
+    assertContainsLogGroup(logGroups, "Message 2", 1);
+    assertContainsLogGroup(logGroups, "Message 3", 1);
+    assertThat(logGroups).extracting(logGroup -> logGroup.message).doesNotContain("Message 4");
   }
 
   @Test
-  void groupsMessages() {
+  void groupsEquivalentMessages() {
     // Given
     LogCollector logCollector = new LogCollector(10);
 
@@ -72,18 +72,18 @@ class LogCollectorTest {
     logCollector.addLogMessage("ERROR", "Qux Message", null);
     logCollector.addLogMessage("ERROR", "Qux Message", null);
 
-    Collection<LogCollector.RawLogMessage> logs = logCollector.drain();
+    Collection<LogCollector.RawLogMessage> logGroups = logCollector.drain();
 
     // Then
-    assertThat(logs).hasSize(4);
-    assertContainsLog(logs, "Foo Message", 1);
-    assertContainsLog(logs, "Bar Message", 2);
-    assertContainsLog(logs, "Baz Message", 3);
-    assertContainsLog(logs, "Qux Message", 4);
+    assertThat(logGroups).hasSize(4);
+    assertContainsLogGroup(logGroups, "Foo Message", 1);
+    assertContainsLogGroup(logGroups, "Bar Message", 2);
+    assertContainsLogGroup(logGroups, "Baz Message", 3);
+    assertContainsLogGroup(logGroups, "Qux Message", 4);
   }
 
   @Test
-  void countsEquivalentMessagesWhenFull() {
+  void countsEquivalentMessagesWhenTableIsFull() {
     // Given
     LogCollector logCollector = new LogCollector(1);
     logCollector.addLogMessage("ERROR", "Message", null);
@@ -92,11 +92,11 @@ class LogCollectorTest {
     logCollector.addLogMessage("ERROR", "Message", null);
 
     // Then
-    assertThat(singleLog(logCollector.drain()).count).isEqualTo(2);
+    assertThat(singleLogGroup(logCollector.drain()).count).isEqualTo(2);
   }
 
   @Test
-  void dropsNewLogGroupWhenFull() {
+  void dropsNewLogGroupWhenTableIsFull() {
     // Given
     LogCollector logCollector = new LogCollector(1);
     logCollector.addLogMessage("ERROR", "Existing message", null);
@@ -105,11 +105,11 @@ class LogCollectorTest {
     logCollector.addLogMessage("ERROR", "New message", null);
 
     // Then
-    assertThat(singleLog(logCollector.drain()).message).isEqualTo("Existing message");
+    assertThat(singleLogGroup(logCollector.drain()).message).isEqualTo("Existing message");
   }
 
   @Test
-  void reusesCapacityAfterDrain() {
+  void reusesLogGroupCapacityAfterDrain() {
     // Given
     LogCollector logCollector = new LogCollector(1);
 
@@ -117,18 +117,18 @@ class LogCollectorTest {
     logCollector.addLogMessage("ERROR", "First", null);
 
     // Then
-    assertThat(singleLog(logCollector.drain()).message).isEqualTo("First");
+    assertThat(singleLogGroup(logCollector.drain()).message).isEqualTo("First");
 
     // When
     logCollector.addLogMessage("ERROR", "Second", null);
 
     // Then
-    assertThat(singleLog(logCollector.drain()).message).isEqualTo("Second");
+    assertThat(singleLogGroup(logCollector.drain()).message).isEqualTo("Second");
     assertThat(logCollector.drain()).isEmpty();
   }
 
   @Test
-  void acceptsMessageAfterDrainDetachesFullBucket() throws Exception {
+  void acceptsNewLogGroupAfterDrainDetachesFullBucket() throws Exception {
     // Given
     LogCollector logCollector = new LogCollector(1);
     logCollector.addLogMessage("ERROR", "First", null);
@@ -138,16 +138,16 @@ class LogCollectorTest {
     FutureTask<Collection<LogCollector.RawLogMessage>> drainTask =
         new FutureTask<>(
             () -> {
-              List<LogCollector.RawLogMessage> drained = new ArrayList<>();
+              List<LogCollector.RawLogMessage> drainedLogGroups = new ArrayList<>();
               ConcurrentHashtable.drain(
                   state,
-                  drained,
-                  (logs, log) -> {
+                  drainedLogGroups,
+                  (logGroups, logGroup) -> {
                     bucketDetached.countDown();
                     await(releaseDrain);
-                    logs.add(log);
+                    logGroups.add(logGroup);
                   });
-              return drained;
+              return drainedLogGroups;
             });
     Thread drainThread = new Thread(drainTask, "log-collector-drain");
     FutureTask<Void> writerTask =
@@ -170,33 +170,33 @@ class LogCollectorTest {
     }
 
     // Then
-    Collection<LogCollector.RawLogMessage> firstDrain = await(drainTask);
+    Collection<LogCollector.RawLogMessage> firstDrainedLogGroups = await(drainTask);
     await(writerTask);
-    assertThat(singleLog(firstDrain).message).isEqualTo("First");
-    assertThat(singleLog(logCollector.drain()).message).isEqualTo("Second");
+    assertThat(singleLogGroup(firstDrainedLogGroups).message).isEqualTo("First");
+    assertThat(singleLogGroup(logCollector.drain()).message).isEqualTo("Second");
   }
 
   @Test
-  void groupsEquivalentThrowablesAndKeepsFirstMetadata() {
+  void groupsMessagesWithEquivalentThrowablesAndKeepsFirstMetadata() {
     // Given
     LogCollector logCollector = new LogCollector(2);
-    Throwable first = throwableWithMethod("run", 10);
-    Throwable second = throwableWithMethod("run", 10);
+    Throwable firstThrowable = throwableWithMethod("run", 10);
+    Throwable equivalentThrowable = throwableWithMethod("run", 10);
 
     // When
-    logCollector.addLogMessage("ERROR", "Message", first, "source:first");
-    logCollector.addLogMessage("ERROR", "Message", second, "source:second");
+    logCollector.addLogMessage("ERROR", "Message", firstThrowable, "source:first");
+    logCollector.addLogMessage("ERROR", "Message", equivalentThrowable, "source:second");
 
-    LogCollector.RawLogMessage log = singleLog(logCollector.drain());
+    LogCollector.RawLogMessage logGroup = singleLogGroup(logCollector.drain());
 
     // Then
-    assertThat(log.count).isEqualTo(2);
-    assertThat(log.throwable).isSameAs(first);
-    assertThat(log.tags).isEqualTo("source:first");
+    assertThat(logGroup.count).isEqualTo(2);
+    assertThat(logGroup.throwable).isSameAs(firstThrowable);
+    assertThat(logGroup.tags).isEqualTo("source:first");
   }
 
   @Test
-  void keepsDifferentStackTracesSeparate() {
+  void keepsMessagesWithDifferentStackTracesInSeparateGroups() {
     // Given
     LogCollector logCollector = new LogCollector(2);
 
@@ -209,7 +209,7 @@ class LogCollectorTest {
   }
 
   @Test
-  void rawLogMessageEqualityMatchesDeduplication() {
+  void rawLogMessageEqualityMatchesGrouping() {
     // Given
     LogCollector.RawLogMessage first =
         new LogCollector.RawLogMessage("ERROR", "Message", throwableWithMethod("run", 10), "first", 1);
@@ -225,7 +225,7 @@ class LogCollectorTest {
   }
 
   @Test
-  void countsConcurrentDuplicates() throws Exception {
+  void countsConcurrentEquivalentMessages() throws Exception {
     // Given
     int threadCount = 16;
     int messagesPerThread = 1_000;
@@ -239,7 +239,7 @@ class LogCollectorTest {
             executor.submit(
                 () -> {
                   await(start);
-                  for (int message = 0; message < messagesPerThread; message++) {
+                  for (int occurrence = 0; occurrence < messagesPerThread; occurrence++) {
                     logCollector.addLogMessage("ERROR", "Message", null);
                   }
                   return null;
@@ -254,16 +254,17 @@ class LogCollectorTest {
     }
 
     // Then
-    assertThat(singleLog(logCollector.drain()).count).isEqualTo(threadCount * messagesPerThread);
+    assertThat(singleLogGroup(logCollector.drain()).count)
+        .isEqualTo(threadCount * messagesPerThread);
   }
 
   @Test
-  void groupsConcurrentEquivalentThrowables() throws Exception {
+  void groupsConcurrentMessagesWithEquivalentThrowables() throws Exception {
     // Given
     int threadCount = 16;
     LogCollector logCollector = new LogCollector(2);
-    Throwable first = throwableWithMethod("run", 10);
-    logCollector.addLogMessage("ERROR", "Message", first);
+    Throwable firstThrowable = throwableWithMethod("run", 10);
+    logCollector.addLogMessage("ERROR", "Message", firstThrowable);
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
     CountDownLatch start = new CountDownLatch(1);
     Future<?>[] futures = new Future<?>[threadCount];
@@ -285,15 +286,15 @@ class LogCollectorTest {
       shutdown(executor);
     }
 
-    LogCollector.RawLogMessage log = singleLog(logCollector.drain());
+    LogCollector.RawLogMessage logGroup = singleLogGroup(logCollector.drain());
 
     // Then
-    assertThat(log.count).isEqualTo(threadCount + 1);
-    assertThat(log.throwable).isSameAs(first);
+    assertThat(logGroup.count).isEqualTo(threadCount + 1);
+    assertThat(logGroup.throwable).isSameAs(firstThrowable);
   }
 
   @Test
-  void capsConcurrentDistinctMessages() throws Exception {
+  void limitsConcurrentLogGroupsToCapacity() throws Exception {
     // Given
     int capacity = 3;
     int threadCount = 16;
@@ -325,7 +326,7 @@ class LogCollectorTest {
   }
 
   private static Throwable throwableWithMethod(String methodName, int lineNumber) {
-    Throwable throwable = new IllegalStateException("ignored by deduplication");
+    Throwable throwable = new IllegalStateException("ignored when grouping");
     throwable.setStackTrace(
         new StackTraceElement[] {
           new StackTraceElement("Example", methodName, "Example.java", lineNumber)
@@ -361,22 +362,23 @@ class LogCollectorTest {
     assertThat(executor.awaitTermination(TIMEOUT_SECONDS, SECONDS)).isTrue();
   }
 
-  private static LogCollector.RawLogMessage singleLog(Collection<LogCollector.RawLogMessage> logs) {
-    assertThat(logs).hasSize(1);
-    return logs.iterator().next();
+  private static LogCollector.RawLogMessage singleLogGroup(
+      Collection<LogCollector.RawLogMessage> logGroups) {
+    assertThat(logGroups).hasSize(1);
+    return logGroups.iterator().next();
   }
 
-  private static void assertContainsLog(
-      Collection<LogCollector.RawLogMessage> logs, String message, int count) {
-    assertThat(logs)
-        .as("logs containing message %s", message)
+  private static void assertContainsLogGroup(
+      Collection<LogCollector.RawLogMessage> logGroups, String message, int count) {
+    assertThat(logGroups)
+        .as("log group for message %s", message)
         .filteredOn(candidate -> message.equals(candidate.message))
         .singleElement()
         .satisfies(
-            log -> {
-              assertThat(log.logLevel).isEqualTo("ERROR");
-              assertThat(log.count).isEqualTo(count);
-              assertThat(log.throwable).isNull();
+            logGroup -> {
+              assertThat(logGroup.logLevel).isEqualTo("ERROR");
+              assertThat(logGroup.count).isEqualTo(count);
+              assertThat(logGroup.throwable).isNull();
             });
   }
 }
