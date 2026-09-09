@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERROR_TAG_KEY;
-
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
@@ -13,7 +12,6 @@ import java.util.Map;
 abstract class PTagsCodec {
   private static final String PROPAGATION_ERROR_INJECT_MAX_SIZE = "inject_max_size";
   private static final String PROPAGATION_ERROR_DISABLED = "disabled";
-
   protected static final TagKey DECISION_MAKER_TAG = TagKey.from("dm");
   protected static final TagKey TRACE_ID_TAG = TagKey.from("tid");
   protected static final TagKey TRACE_SOURCE_TAG = TagKey.from("ts");
@@ -33,7 +31,6 @@ abstract class PTagsCodec {
     if (estimate == 0) {
       return "";
     }
-
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
     int size = codec.appendPrefix(sb, ptags, lastParentIdOverride);
@@ -45,25 +42,28 @@ abstract class PTagsCodec {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
       }
       if (ptags.getTraceSource() != ProductTraceSource.UNSET) {
-        size =
-            codec.appendTag(
-                sb,
-                TRACE_SOURCE_TAG,
-                TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
-                size);
+        size = codec.appendTag(
+            sb,
+            TRACE_SOURCE_TAG,
+            TagValue.from(ProductTraceSource.getBitfieldHex(ptags.getTraceSource())),
+            size);
       }
       if (ptags.getDebugPropagation() != null) {
         size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
       }
       if (ptags.getKnuthSamplingRateTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
+        size = codec.appendTag(
+            sb,
+            KNUTH_SAMPLING_RATE_TAG,
+            ptags.getKnuthSamplingRateTagValue(),
+            size);
       }
       if (ptags.getOrgPropagationMarkerTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
+        size = codec.appendTag(
+            sb,
+            ORG_PROPAGATION_MARKER_TAG,
+            ptags.getOrgPropagationMarkerTagValue(),
+            size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -111,13 +111,15 @@ abstract class PTagsCodec {
     if (propagationTags.getTraceSource() != ProductTraceSource.UNSET) {
       tagMap.put(
           TRACE_SOURCE_TAG.forType(Encoding.DATADOG).toString(),
-          TagValue.from(ProductTraceSource.getBitfieldHex(propagationTags.getTraceSource()))
-              .forType(Encoding.DATADOG)
-              .toString());
+          TagValue
+            .from(ProductTraceSource.getBitfieldHex(propagationTags.getTraceSource()))
+            .forType(Encoding.DATADOG)
+            .toString());
     }
     if (propagationTags.getDebugPropagation() != null) {
       tagMap.put(
-          DEBUG_TAG.forType(Encoding.DATADOG).toString(), propagationTags.getDebugPropagation());
+          DEBUG_TAG.forType(Encoding.DATADOG).toString(),
+          propagationTags.getDebugPropagation());
     }
     if (propagationTags.getKnuthSamplingRateTagValue() != null) {
       tagMap.put(
@@ -132,10 +134,7 @@ abstract class PTagsCodec {
     if (propagationTags.getTraceIdHighOrderBitsHexTagValue() != null) {
       tagMap.put(
           TRACE_ID_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags
-              .getTraceIdHighOrderBitsHexTagValue()
-              .forType(Encoding.DATADOG)
-              .toString());
+          propagationTags.getTraceIdHighOrderBitsHexTagValue().forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());
@@ -152,9 +151,11 @@ abstract class PTagsCodec {
       }
       key = !key;
       size += tagPair.length();
-      size += 1; // tag or key separator
+      // tag or key separator
+      size += 1;
     }
-    return size == 0 ? 0 : size - 1; // exclude last separator
+    // exclude last separator
+    return size == 0 ? 0 : size - 1;
   }
 
   static int calcXDatadogTagsSize(int size, TagKey tagKey, TagValue tagValue) {

@@ -21,12 +21,9 @@ import org.slf4j.LoggerFactory;
  * @see StoredCharBody
  */
 public class StoredByteBody implements StoredBodySupplier {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(StoredByteBody.class);
-
   static final Charset UTF_8 = StandardCharsets.UTF_8;
   static final Charset ISO_8859_1 = StandardCharsets.ISO_8859_1;
-
   private final ByteBuffer undecodedData = ByteBuffer.allocate(64);
   // decoded data has double the size to allow for the (unlikely)
   // prospect that supplementary characters (2 chars) be encoded in 1 byte
@@ -94,7 +91,6 @@ public class StoredByteBody implements StoredBodySupplier {
         cb.put(undecodedData);
       }
       undecodedData.limit(undecodedData.capacity());
-
     } catch (final Throwable e) {
       LOGGER.debug("Failed to append byte buffer callback", e);
     }
@@ -155,8 +151,9 @@ public class StoredByteBody implements StoredBodySupplier {
       return;
     }
     if (charsetDecoder == null) {
-      charsetDecoder =
-          ThreadLocalCoders.decoderFor(UTF_8).onMalformedInput(CodingErrorAction.REPORT);
+      charsetDecoder = ThreadLocalCoders
+        .decoderFor(UTF_8)
+        .onMalformedInput(CodingErrorAction.REPORT);
     }
 
     this.undecodedData.flip();
@@ -191,13 +188,13 @@ public class StoredByteBody implements StoredBodySupplier {
     // reinterpreting the UTF-8 decoded sequence as latin1 will
     // possibly result in a bigger result in terms of code points,
     // so we need to make a copy
-
     CharsetEncoder encoder = ThreadLocalCoders.utf8Encoder();
     ByteBuffer utf8Encoded;
     try {
       utf8Encoded = encoder.encode(curData);
     } catch (CharacterCodingException e) {
-      throw new UndeclaredThrowableException(e); // can't happen
+      // can't happen
+      throw new UndeclaredThrowableException(e);
     }
 
     this.storedCharBody.dropData();
@@ -229,7 +226,6 @@ class ThreadLocalCoders {
   private static final int CACHE_SIZE = 3;
 
   private abstract static class Cache {
-
     // Thread-local reference to array of cached objects, in LRU order
     private final ThreadLocal<Object[]> cache = new ThreadLocal<>();
     private final int size;
@@ -242,7 +238,9 @@ class ThreadLocalCoders {
 
     private void moveToFront(Object[] oa, int i) {
       Object ob = oa[i];
-      for (int j = i; j > 0; j--) oa[j] = oa[j - 1];
+      for (int j = i; j > 0; j--) {
+        oa[j] = oa[j - 1];
+      }
       oa[0] = ob;
     }
 
@@ -256,14 +254,17 @@ class ThreadLocalCoders {
       } else {
         for (int i = 0; i < oa.length; i++) {
           Object ob = oa[i];
-          if (ob == null) continue;
+          if (ob == null) {
+            continue;
+          }
           if (hasName(ob, name)) {
-            if (i > 0) moveToFront(oa, i);
+            if (i > 0) {
+              moveToFront(oa, i);
+            }
             return ob;
           }
         }
       }
-
       // Create a new object
       Object ob = create(name);
       oa[oa.length - 1] = ob;
@@ -272,16 +273,15 @@ class ThreadLocalCoders {
     }
   }
 
-  private static final Cache DECODER_CACHE =
-      new Cache(CACHE_SIZE) {
-        boolean hasName(Object ob, Object name) {
-          return ((CharsetDecoder) ob).charset().equals(name);
-        }
+  private static final Cache DECODER_CACHE = new Cache(CACHE_SIZE) {
+    boolean hasName(Object ob, Object name) {
+      return ((CharsetDecoder) ob).charset().equals(name);
+    }
 
-        Object create(Object charset) {
-          return ((Charset) charset).newDecoder().onUnmappableCharacter(CodingErrorAction.REPLACE);
-        }
-      };
+    Object create(Object charset) {
+      return ((Charset) charset).newDecoder().onUnmappableCharacter(CodingErrorAction.REPLACE);
+    }
+  };
 
   public static CharsetDecoder decoderFor(Charset charset) {
     CharsetDecoder cd = (CharsetDecoder) DECODER_CACHE.forName(charset);
@@ -292,14 +292,14 @@ class ThreadLocalCoders {
 
   private static final ThreadLocal<CharsetEncoder> UTF8_ENCODER_CACHE =
       new ThreadLocal<CharsetEncoder>() {
-        @Override
-        protected CharsetEncoder initialValue() {
-          return StoredByteBody.UTF_8
-              .newEncoder()
-              .onUnmappableCharacter(CodingErrorAction.REPLACE)
-              .onMalformedInput(CodingErrorAction.REPLACE);
-        }
-      };
+    @Override
+    protected CharsetEncoder initialValue() {
+      return StoredByteBody.UTF_8
+        .newEncoder()
+        .onUnmappableCharacter(CodingErrorAction.REPLACE)
+        .onMalformedInput(CodingErrorAction.REPLACE);
+    }
+  };
 
   public static CharsetEncoder utf8Encoder() {
     CharsetEncoder charsetEncoder = UTF8_ENCODER_CACHE.get();

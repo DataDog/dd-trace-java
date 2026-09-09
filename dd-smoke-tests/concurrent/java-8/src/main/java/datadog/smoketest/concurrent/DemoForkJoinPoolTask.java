@@ -4,7 +4,9 @@ import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveTask;
 
-/** Test ForkJoinPool using the FJP task API. */
+/**
+ * Test ForkJoinPool using the FJP task API.
+ */
 public class DemoForkJoinPoolTask implements FibonacciCalculator {
   private final ForkJoinPool forkJoinPool;
 

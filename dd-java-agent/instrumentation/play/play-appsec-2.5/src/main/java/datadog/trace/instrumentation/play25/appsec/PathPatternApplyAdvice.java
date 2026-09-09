@@ -15,8 +15,9 @@ import scala.util.Either;
 public class PathPatternApplyAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after(
-      @Advice.Return(readOnly = false)
-          scala.Option<scala.collection.immutable.Map<String, Either<Throwable, String>>> ret,
+      @Advice.Return(readOnly = false) scala.Option<scala.collection.immutable.Map<
+      String,
+      Either<Throwable, String>>> ret,
       @Advice.Thrown(readOnly = false) Throwable t,
       @ActiveRequestContext RequestContext reqCtx) {
     if (t != null) {

@@ -8,7 +8,6 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class Resilience4jModule extends InstrumenterModule.Tracing {
-
   public Resilience4jModule() {
     super("resilience4j");
   }
@@ -16,23 +15,23 @@ public class Resilience4jModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".WrapperWithContext",
-      packageName + ".WrapperWithContext$CallableWithContext",
-      packageName + ".WrapperWithContext$CheckedRunnableWithContext",
-      packageName + ".WrapperWithContext$RunnableWithContext",
-      packageName + ".WrapperWithContext$CheckedFunctionWithContext",
-      packageName + ".WrapperWithContext$ConsumerWithContext",
-      packageName + ".WrapperWithContext$CheckedSupplierWithContext",
-      packageName + ".WrapperWithContext$CheckedConsumerWithContext",
-      packageName + ".WrapperWithContext$FunctionWithContext",
-      packageName + ".WrapperWithContext$SupplierOfCompletionStageWithContext",
-      packageName + ".WrapperWithContext$SupplierWithContext",
-      packageName + ".WrapperWithContext$SupplierOfFutureWithContext",
-      packageName + ".WrapperWithContext$FinishOnGetFuture",
-      packageName + ".Resilience4jSpanDecorator",
-      packageName + ".Resilience4jSpan",
-      packageName + ".CircuitBreakerDecorator",
-      packageName + ".RetryDecorator",
+        packageName + ".WrapperWithContext",
+        packageName + ".WrapperWithContext$CallableWithContext",
+        packageName + ".WrapperWithContext$CheckedRunnableWithContext",
+        packageName + ".WrapperWithContext$RunnableWithContext",
+        packageName + ".WrapperWithContext$CheckedFunctionWithContext",
+        packageName + ".WrapperWithContext$ConsumerWithContext",
+        packageName + ".WrapperWithContext$CheckedSupplierWithContext",
+        packageName + ".WrapperWithContext$CheckedConsumerWithContext",
+        packageName + ".WrapperWithContext$FunctionWithContext",
+        packageName + ".WrapperWithContext$SupplierOfCompletionStageWithContext",
+        packageName + ".WrapperWithContext$SupplierWithContext",
+        packageName + ".WrapperWithContext$SupplierOfFutureWithContext",
+        packageName + ".WrapperWithContext$FinishOnGetFuture",
+        packageName + ".Resilience4jSpanDecorator",
+        packageName + ".Resilience4jSpan",
+        packageName + ".CircuitBreakerDecorator",
+        packageName + ".RetryDecorator"
     };
   }
 

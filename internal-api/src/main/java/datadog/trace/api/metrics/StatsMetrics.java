@@ -25,27 +25,25 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class StatsMetrics {
   static final String COLLAPSED_SPANS = "stats.collapsed_spans";
   static final String COLLAPSED_WHOLE_KEY = "collapsed:whole_key";
-
   private static final StatsMetrics INSTANCE = new StatsMetrics();
-
   // reason tag (e.g. "collapsed:additional_metric_tags") -> counter. Created on first collapse for
   // that reason; the reason set is bounded, so this never grows unboundedly.
   private final ConcurrentMap<String, TaggedCounter> collapsedByReason = new ConcurrentHashMap<>();
-
   // The one reason counted per dropped span on the hot aggregator path (aggregate table at cap);
   // every other reason is batched once per reporting cycle. Pre-created and cached so the per-span
   // increment is a direct counter hit rather than a map lookup -- this matters precisely when a
   // cardinality explosion pins the table at cap and every arriving span is dropped, turning a cold
   // path hot. Still registered in the map above, so the telemetry drain sees it with the rest.
-  private final TaggedCounter wholeKeyCollapses =
-      this.collapsedByReason.computeIfAbsent(
-          COLLAPSED_WHOLE_KEY, tag -> new TaggedCounter(COLLAPSED_SPANS, tag));
+  private final TaggedCounter wholeKeyCollapses = this.collapsedByReason.computeIfAbsent(COLLAPSED_WHOLE_KEY, tag -> new TaggedCounter(
+      COLLAPSED_SPANS,
+      tag));
 
   public static StatsMetrics getInstance() {
     return INSTANCE;
   }
 
-  private StatsMetrics() {}
+  private StatsMetrics() {
+  }
 
   /**
    * Records {@code count} spans collapsed under the given {@code reason} tag (e.g. {@code
@@ -55,10 +53,8 @@ public final class StatsMetrics {
     if (count <= 0) {
       return;
     }
-    collapsedByReason
-        .computeIfAbsent(reason, tag -> new TaggedCounter(COLLAPSED_SPANS, tag))
-        .counter
-        .addAndGet(count);
+    collapsedByReason.computeIfAbsent(reason, tag -> new TaggedCounter(COLLAPSED_SPANS, tag)).counter.addAndGet(
+        count);
   }
 
   /**
@@ -74,7 +70,9 @@ public final class StatsMetrics {
     return this.collapsedByReason.values();
   }
 
-  /** A named, single-tag counter drained as a telemetry {@code count} metric. */
+  /**
+   * A named, single-tag counter drained as a telemetry {@code count} metric.
+   */
   public static final class TaggedCounter implements CoreCounter {
     private final String name;
     private final String tag;

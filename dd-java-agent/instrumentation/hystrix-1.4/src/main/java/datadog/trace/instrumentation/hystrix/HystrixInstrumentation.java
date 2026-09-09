@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import com.netflix.hystrix.HystrixInvokableInfo;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -16,8 +15,8 @@ import rx.Observable;
 
 @AutoService(InstrumenterModule.class)
 public class HystrixInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public HystrixInstrumentation() {
     super("hystrix");
   }
@@ -31,20 +30,21 @@ public class HystrixInstrumentation extends InstrumenterModule.Tracing
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(
         namedOneOf(
-            "com.netflix.hystrix.HystrixCommand", "com.netflix.hystrix.HystrixObservableCommand"));
+            "com.netflix.hystrix.HystrixCommand",
+            "com.netflix.hystrix.HystrixObservableCommand"));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "rx.DDTracingUtil",
-      "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
-      "datadog.trace.instrumentation.rxjava.TracedSubscriber",
-      "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
-      packageName + ".HystrixDecorator",
-      packageName + ".HystrixDecorator$1",
-      packageName + ".HystrixDecorator$ResourceNameCacheKey",
-      packageName + ".HystrixOnSubscribe",
+        "rx.DDTracingUtil",
+        "datadog.trace.instrumentation.rxjava.SpanFinishingSubscription",
+        "datadog.trace.instrumentation.rxjava.TracedSubscriber",
+        "datadog.trace.instrumentation.rxjava.TracedOnSubscribe",
+        packageName + ".HystrixDecorator",
+        packageName + ".HystrixDecorator$1",
+        packageName + ".HystrixDecorator$ResourceNameCacheKey",
+        packageName + ".HystrixOnSubscribe"
     };
   }
 
@@ -59,25 +59,21 @@ public class HystrixInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class ExecuteAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final HystrixInvokableInfo<?> command,
         @Advice.Return(readOnly = false) Observable result,
         @Advice.Thrown final Throwable throwable) {
-
       result = Observable.create(new HystrixOnSubscribe(result, command, "execute"));
     }
   }
 
   public static class FallbackAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final HystrixInvokableInfo<?> command,
         @Advice.Return(readOnly = false) Observable<?> result,
         @Advice.Thrown final Throwable throwable) {
-
       result = Observable.create(new HystrixOnSubscribe(result, command, "fallback"));
     }
   }

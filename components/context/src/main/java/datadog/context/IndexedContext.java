@@ -3,11 +3,12 @@ package datadog.context;
 import static java.lang.Math.max;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Objects.requireNonNull;
-
 import java.util.Arrays;
 import javax.annotation.Nullable;
 
-/** {@link Context} containing many values. */
+/**
+ * {@link Context} containing many values.
+ */
 final class IndexedContext implements SelfScopedContext {
   final Object[] store;
 
@@ -38,8 +39,12 @@ final class IndexedContext implements SelfScopedContext {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     IndexedContext that = (IndexedContext) o;
     return Arrays.equals(this.store, that.store);
   }

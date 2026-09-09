@@ -14,7 +14,6 @@ public enum RequestType {
   DISTRIBUTIONS("distributions"),
   MESSAGE_BATCH("message-batch"),
   APP_ENDPOINTS("app-endpoints");
-
   private final String value;
 
   RequestType(String value) {

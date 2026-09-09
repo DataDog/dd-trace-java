@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.DEFAULT_
 import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
 import static datadog.trace.test.junit.utils.assertions.Matchers.assertValue;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;

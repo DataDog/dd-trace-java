@@ -44,7 +44,9 @@ public interface HttpClient {
     return HttpProviders.get().newClientBuilder();
   }
 
-  /** Builder for constructing {@link HttpClient} instances. */
+  /**
+   * Builder for constructing {@link HttpClient} instances.
+   */
   interface Builder {
     /**
      * Sets the client timeouts, including the connection.

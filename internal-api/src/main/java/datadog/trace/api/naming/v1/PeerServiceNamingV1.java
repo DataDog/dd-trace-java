@@ -14,7 +14,6 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
   private static final Map<Object, String[]> SPECIFIC_PRECURSORS_BY_COMPONENT =
       initPrecursorsByComponent();
   private static final String[] DEFAULT_PRECURSORS = {Tags.DB_INSTANCE, Tags.PEER_HOSTNAME};
-
   private final Map<String, String> overridesByComponent;
 
   private static Map<Object, String[]> initPrecursorsByComponent() {
@@ -26,7 +25,9 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     ret.put(
         "couchbase-client",
         new String[] {
-          InstrumentationTags.COUCHBASE_SEED_NODES, "net.peer.name", Tags.PEER_HOSTNAME
+        InstrumentationTags.COUCHBASE_SEED_NODES,
+        "net.peer.name",
+        Tags.PEER_HOSTNAME
         });
 
     ret.put(
@@ -37,7 +38,6 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
     ret.put("grpc-client", rpcPrecursors);
     ret.put("armeria-grpc-client", rpcPrecursors);
     ret.put("rmi-client", rpcPrecursors);
-
     // for aws sdk we calculate eagerly to avoid doing too much complex lookups
     // this will avoid calculating defaults
     ret.put("java-aws-sdk", new String[] {});

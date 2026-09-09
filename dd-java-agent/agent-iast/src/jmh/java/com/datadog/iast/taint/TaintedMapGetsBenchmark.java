@@ -2,7 +2,6 @@ package com.datadog.iast.taint;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import com.datadog.iast.model.Range;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,10 +27,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Benchmark)
 public class TaintedMapGetsBenchmark {
-
   private static final int INITIAL_OP_COUNT = 1 << 12;
   private static final int OP_COUNT = 1024;
-
   private TaintedMap map;
   private List<Object> objectList;
   private List<Object> initialObjectList;

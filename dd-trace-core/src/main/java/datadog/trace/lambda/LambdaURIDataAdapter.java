@@ -1,7 +1,6 @@
 package datadog.trace.lambda;
 
 import static datadog.trace.lambda.LambdaEventParser.findHeader;
-
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.util.Locale;
 import java.util.Map;
@@ -40,7 +39,6 @@ class LambdaURIDataAdapter extends URIDataAdapterBase {
     }
 
     this.host = host;
-
     // Lowercased because the port default below and URIUtils.buildURL both compare the scheme
     // exactly; whitelisted because X-Forwarded-Proto is client-influenceable and arrives
     // comma-joined when duplicated, which would render as "https, http://host/path".

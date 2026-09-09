@@ -1,7 +1,6 @@
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.redis.testcontainers.RedisContainer;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -32,9 +31,8 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
 
   @BeforeEach
   void setUpRedis() throws Exception {
-    redisServer =
-        new RedisContainer(DockerImageName.parse("redis:6.2.6"))
-            .waitingFor(Wait.forListeningPort());
+    redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6"))
+      .waitingFor(Wait.forListeningPort());
     redisServer.start();
 
     host = redisServer.getHost();
@@ -94,7 +92,8 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
 
   @SuppressWarnings("unchecked")
   private static StatefulRedisConnection<String, String> connectMasterReplica(
-      RedisClient redisClient, RedisURI redisURI) throws Exception {
+      RedisClient redisClient,
+      RedisURI redisURI) throws Exception {
     // Prefer the newer MasterReplica facade when this source is compiled for latestDepTest, but
     // resolve both APIs reflectively so the same test still compiles with the Lettuce 5.0 baseline
     // and can keep compiling if the deprecated MasterSlave facade disappears later.
@@ -107,8 +106,11 @@ class Lettuce5MasterReplicaTest extends AbstractInstrumentationTest {
     Method connect =
         facade.getMethod("connect", RedisClient.class, RedisCodec.class, Iterable.class);
     try {
-      return (StatefulRedisConnection<String, String>)
-          connect.invoke(null, redisClient, StringCodec.UTF8, singletonList(redisURI));
+      return (StatefulRedisConnection<String, String>) connect.invoke(
+          null,
+          redisClient,
+          StringCodec.UTF8,
+          singletonList(redisURI));
     } catch (InvocationTargetException e) {
       Throwable cause = e.getCause();
       if (cause instanceof Exception) {

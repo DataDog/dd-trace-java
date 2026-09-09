@@ -2,7 +2,6 @@ package datadog.flare;
 
 import static datadog.common.version.VersionInfo.VERSION;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACER_FLARE;
-
 import datadog.communication.http.OkHttpUtils;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
@@ -38,26 +37,17 @@ import org.slf4j.LoggerFactory;
 
 final class TracerFlareService {
   private static final Logger log = LoggerFactory.getLogger(TracerFlareService.class);
-
   private static final String FLARE_ENDPOINT = "tracer_flare/v1";
-
   private static final String REPORT_PREFIX = "dd-java-flare-";
-
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
-
   private static final int MAX_LOGFILE_SIZE_MB = 15;
-
   private static final int MAX_LOGFILE_SIZE_BYTES = MAX_LOGFILE_SIZE_MB << 20;
-
   private final AgentTaskScheduler scheduler = new AgentTaskScheduler(TRACER_FLARE);
-
   private final Config config;
   private final OkHttpClient okHttpClient;
   private final HttpUrl flareUrl;
-
   private boolean logLevelOverridden;
   private volatile long flareStartMillis;
-
   private Scheduled<Runnable> scheduledCleanup;
 
   TracerFlareService(Config config, OkHttpClient okHttpClient, HttpUrl agentUrl) {
@@ -83,29 +73,25 @@ final class TracerFlareService {
     Path triagePath = Paths.get(config.getTriageReportDir());
     // prepare at most 10 minutes before collection of the report, to match remote flare behaviour
     scheduler.schedule(() -> prepareForFlare("triage"), delayInSeconds - 600, TimeUnit.SECONDS);
-    scheduler.schedule(
-        () -> {
-          try {
-            if (!Files.isDirectory(triagePath)) {
-              Files.createDirectories(triagePath);
-            }
-            long flareEndMillis = System.currentTimeMillis();
-            Path reportPath = triagePath.resolve(getFlareName(flareEndMillis));
-            log.info("Writing triage report to {}", reportPath);
-            Files.write(reportPath, buildFlareZip(flareStartMillis, flareEndMillis, true));
-          } catch (Throwable e) {
-            log.info("Problem writing triage report", e);
-          } finally {
-            cleanupAfterFlare();
-          }
-        },
-        delayInSeconds,
-        TimeUnit.SECONDS);
+    scheduler.schedule(() -> {
+      try {
+        if (!Files.isDirectory(triagePath)) {
+          Files.createDirectories(triagePath);
+        }
+        long flareEndMillis = System.currentTimeMillis();
+        Path reportPath = triagePath.resolve(getFlareName(flareEndMillis));
+        log.info("Writing triage report to {}", reportPath);
+        Files.write(reportPath, buildFlareZip(flareStartMillis, flareEndMillis, true));
+      } catch (Throwable e) {
+        log.info("Problem writing triage report", e);
+      } finally {
+        cleanupAfterFlare();
+      }
+    }, delayInSeconds, TimeUnit.SECONDS);
   }
 
   public synchronized void prepareForFlare(String logLevel) {
     // allow turning on debug even part way through preparation
-
     if (!log.isDebugEnabled() && "debug".equalsIgnoreCase(logLevel)) {
       GlobalLogLevelSwitcher.get().switchLevel(LogLevel.DEBUG);
       logLevelOverridden = true;
@@ -160,17 +146,17 @@ final class TracerFlareService {
 
       RequestBody report =
           RequestBody.create(
-              OCTET_STREAM, buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
+              OCTET_STREAM,
+              buildFlareZip(flareStartMillis, flareEndMillis, dumpThreads));
 
-      RequestBody form =
-          new MultipartBody.Builder()
-              .setType(MultipartBody.FORM)
-              .addFormDataPart("source", "tracer_java")
-              .addFormDataPart("case_id", caseId)
-              .addFormDataPart("email", email)
-              .addFormDataPart("hostname", hostname)
-              .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
-              .build();
+      RequestBody form = new MultipartBody.Builder()
+        .setType(MultipartBody.FORM)
+        .addFormDataPart("source", "tracer_java")
+        .addFormDataPart("case_id", caseId)
+        .addFormDataPart("email", email)
+        .addFormDataPart("hostname", hostname)
+        .addFormDataPart("flare_file", getFlareName(flareEndMillis), report)
+        .build();
 
       Request flareRequest =
           OkHttpUtils.prepareRequest(flareUrl, Collections.emptyMap()).post(form).build();
@@ -184,7 +170,6 @@ final class TracerFlareService {
           log.debug("Tracer flare sent successfully");
         }
       }
-
     } catch (IOException e) {
       log.warn("Tracer flare failed with exception: {}", e.toString());
     }
@@ -198,7 +183,6 @@ final class TracerFlareService {
       throws IOException {
     try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         ZipOutputStream zip = new ZipOutputStream(bytes)) {
-
       addPrelude(zip, startMillis, endMillis);
       addConfig(zip);
       addRuntime(zip);
@@ -212,8 +196,7 @@ final class TracerFlareService {
     }
   }
 
-  private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis)
-      throws IOException {
+  private void addPrelude(ZipOutputStream zip, long startMillis, long endMillis) throws IOException {
     TracerFlare.addText(zip, "flare_info.txt", flareInfo(startMillis, endMillis));
     TracerFlare.addText(zip, "tracer_version.txt", VERSION);
   }

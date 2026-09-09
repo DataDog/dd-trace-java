@@ -17,14 +17,13 @@ import org.slf4j.LoggerFactory;
 
 public class UrlConnectionDecorator extends UriBasedClientDecorator {
   private static final DDCache<String, CharSequence> CACHE = DDCaches.newFixedSizeCache(16);
-
   private static final Function<String, CharSequence> ADDER =
-      protocol ->
-          UTF8BytesString.create(
-              SpanNaming.instance().namingSchema().client().operationForProtocol(protocol));
-
+      protocol -> UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .client()
+    .operationForProtocol(protocol));
   private static final Logger LOGGER = LoggerFactory.getLogger(UrlConnectionDecorator.class);
-
   public static final CharSequence COMPONENT = UTF8BytesString.create("UrlConnection");
   public static final UrlConnectionDecorator DECORATE = new UrlConnectionDecorator();
 

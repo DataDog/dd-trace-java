@@ -16,10 +16,10 @@ import org.slf4j.LoggerFactory;
 public final class OtelTracerProvider implements TracerProvider {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelTracerProvider.class);
   private static final String DEFAULT_TRACER_NAME = "";
-
   public static final TracerProvider INSTANCE = new OtelTracerProvider();
-
-  /** Tracer shims, indexed by instrumentation scope. */
+  /**
+   * Tracer shims, indexed by instrumentation scope.
+   */
   private final Map<OtelInstrumentationScope, OtelTracer> tracers = new ConcurrentHashMap<>();
 
   @Override
@@ -47,7 +47,9 @@ public final class OtelTracerProvider implements TracerProvider {
     }
     return tracers.computeIfAbsent(
         new OtelInstrumentationScope(
-            instrumentationScopeName, instrumentationScopeVersion, schemaUrl),
+            instrumentationScopeName,
+            instrumentationScopeVersion,
+            schemaUrl),
         OtelTracer::new);
   }
 }

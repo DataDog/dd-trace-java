@@ -4,7 +4,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -55,7 +54,10 @@ class StatsdMetricForwarderTest {
     StatsdMetricForwarder statsdMetricForwarder =
         new StatsdMetricForwarder(Config.get(), probeStatusSink);
     statsdMetricForwarder.histogram(
-        METRIC_ID.getEncodedId(), "name", 1.0, new String[] {"foo:bar"});
+        METRIC_ID.getEncodedId(),
+        "name",
+        1.0,
+        new String[] {"foo:bar"});
     verify(probeStatusSink).addEmitting(eq(METRIC_ID.getEncodedId()));
   }
 
@@ -65,7 +67,10 @@ class StatsdMetricForwarderTest {
     StatsdMetricForwarder statsdMetricForwarder =
         new StatsdMetricForwarder(Config.get(), probeStatusSink);
     statsdMetricForwarder.distribution(
-        METRIC_ID.getEncodedId(), "name", 1, new String[] {"foo:bar"});
+        METRIC_ID.getEncodedId(),
+        "name",
+        1,
+        new String[] {"foo:bar"});
     verify(probeStatusSink).addEmitting(eq(METRIC_ID.getEncodedId()));
   }
 
@@ -75,7 +80,10 @@ class StatsdMetricForwarderTest {
     StatsdMetricForwarder statsdMetricForwarder =
         new StatsdMetricForwarder(Config.get(), probeStatusSink);
     statsdMetricForwarder.distribution(
-        METRIC_ID.getEncodedId(), "name", 1.0, new String[] {"foo:bar"});
+        METRIC_ID.getEncodedId(),
+        "name",
+        1.0,
+        new String[] {"foo:bar"});
     verify(probeStatusSink).addEmitting(eq(METRIC_ID.getEncodedId()));
   }
 

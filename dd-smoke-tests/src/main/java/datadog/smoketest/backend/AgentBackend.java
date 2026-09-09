@@ -35,10 +35,15 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * }</pre>
  */
 public abstract class AgentBackend
-    implements AutoCloseable, BeforeAllCallback, BeforeEachCallback, AfterAllCallback {
+    implements AutoCloseable,
+    BeforeAllCallback,
+    BeforeEachCallback,
+    AfterAllCallback {
   private volatile boolean registered;
 
-  /** Starts the backend and binds it to a port. Must be idempotent. */
+  /**
+   * Starts the backend and binds it to a port. Must be idempotent.
+   */
   public abstract void start();
 
   /**

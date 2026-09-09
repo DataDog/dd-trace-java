@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.domain.headless;
 
 import static datadog.trace.civisibility.domain.SpanTagsPropagator.TagMergeSpec;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.config.LibraryCapability;
@@ -30,7 +29,6 @@ import javax.annotation.Nullable;
  * <p>This class manages the session span since there is no build system instrumentation to do it.
  */
 public class HeadlessTestSession extends AbstractTestSession implements TestFrameworkSession {
-
   private final ExecutionStrategy executionStrategy;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<LibraryCapability> capabilities;
@@ -100,7 +98,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_FLAKY_TESTS, Boolean::logicalOr),
         TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_KNOWN_TESTS, Boolean::logicalOr),
         TagMergeSpec.of(
-            DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS, Boolean::logicalOr));
+            DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS,
+            Boolean::logicalOr));
   }
 
   @Override

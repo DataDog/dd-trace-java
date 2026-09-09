@@ -4,9 +4,7 @@ import datadog.trace.util.Strings;
 import java.util.Objects;
 
 public final class CommitInfo {
-  public static final CommitInfo NOOP =
-      new CommitInfo(null, PersonInfo.NOOP, PersonInfo.NOOP, null);
-
+  public static final CommitInfo NOOP = new CommitInfo(null, PersonInfo.NOOP, PersonInfo.NOOP, null);
   private final String sha;
   private final PersonInfo author;
   private final PersonInfo committer;

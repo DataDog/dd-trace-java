@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty93;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -28,7 +27,8 @@ import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
 public class RequestExtractContentParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";
 
   public RequestExtractContentParametersInstrumentation() {
@@ -51,7 +51,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
         getClass().getName() + "$ExtractContentParametersAdvice");
     transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+        named("getParts").and(takesArguments(0)),
+        getClass().getName() + "$GetFilenamesAdvice");
     transformer.applyAdvice(
         named("getParts").and(takesArguments(1)),
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
@@ -61,16 +62,16 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
   //  - _multiPartInputStream exists in 9.3.x and early 9.4.x (< 9.4.10); replaced by _multiParts
   //    in 9.4.10 (covered by jetty-appsec-9.4)
-  private static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withMethod(new String[0], 0, "extractContentParameters", "V")
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(
-              new String[0],
-              0,
-              "_multiPartInputStream",
-              "Lorg/eclipse/jetty/util/MultiPartInputStreamParser;")
-          .build();
+  private static final Reference REQUEST_REFERENCE = new Reference.Builder(
+      "org.eclipse.jetty.server.Request")
+    .withMethod(new String[0], 0, "extractContentParameters", "V")
+    .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+    .withField(
+        new String[0],
+        0,
+        "_multiPartInputStream",
+        "Lorg/eclipse/jetty/util/MultiPartInputStreamParser;")
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -139,8 +140,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            final Object multiPartInputStream) {
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC) final Object multiPartInputStream) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MultipartHelper.class);
       return callDepth == 0 && contentParameters == null && multiPartInputStream == null;
     }

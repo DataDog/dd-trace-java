@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 class SimpleSpan implements CoreSpan<SimpleSpan> {
-
   private final String serviceName;
   private final String operationName;
   private final CharSequence resourceName;
@@ -333,7 +332,10 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   public SimpleSpan setSamplingPriority(
-      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism) {
     return this;
   }
 

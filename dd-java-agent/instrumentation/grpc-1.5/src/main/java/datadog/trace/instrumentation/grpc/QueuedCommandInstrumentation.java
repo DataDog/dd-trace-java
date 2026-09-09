@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,8 +24,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class QueuedCommandInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   private static final String QUEUED_COMMAND = "io.grpc.netty.WriteQueue$QueuedCommand";
   private static final String STATE =
       "datadog.trace.bootstrap.instrumentation.java.concurrent.State";
@@ -40,11 +39,8 @@ public final class QueuedCommandInstrumentation extends InstrumenterModule.Profi
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("run")
-                    .and(
-                        takesArguments(1)
-                            .and(takesArgument(0, named("io.netty.channel.Channel"))))),
+          .and(named("run")
+            .and(takesArguments(1).and(takesArgument(0, named("io.netty.channel.Channel"))))),
         getClass().getName() + "$Run");
   }
 
@@ -56,9 +52,9 @@ public final class QueuedCommandInstrumentation extends InstrumenterModule.Profi
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.grpc.netty.WriteQueue$AbstractQueuedCommand",
-      "io.grpc.netty.WriteQueue$RunnableCommand",
-      "io.grpc.netty.SendGrpcFrameCommand"
+        "io.grpc.netty.WriteQueue$AbstractQueuedCommand",
+        "io.grpc.netty.WriteQueue$RunnableCommand",
+        "io.grpc.netty.SendGrpcFrameCommand"
     };
   }
 
@@ -74,7 +70,11 @@ public final class QueuedCommandInstrumentation extends InstrumenterModule.Profi
       //  or we could write more brittle instrumentation targeting code patterns in different gRPC
       // versions.
       QueueTimerHelper.startQueuingTimer(
-          contextStore, Channel.class, ConcurrentLinkedQueue.class, 0, command);
+          contextStore,
+          Channel.class,
+          ConcurrentLinkedQueue.class,
+          0,
+          command);
     }
   }
 

@@ -9,7 +9,6 @@ import org.thymeleaf.model.IProcessableElementTag;
 import org.thymeleaf.processor.element.IElementTagStructureHandler;
 
 public class ProcessAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   @Propagation
   public static void doProcess(

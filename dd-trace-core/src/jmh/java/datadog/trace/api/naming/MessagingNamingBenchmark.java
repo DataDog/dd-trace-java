@@ -2,7 +2,6 @@ package datadog.trace.api.naming;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.BlackholeWriter;
@@ -38,32 +37,27 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class MessagingNamingBenchmark {
-
   CoreTracer tracer;
-
   WeakHashMap<ClassLoader, String> weakCache;
-
   private static final Supplier<String> constantSupplier = () -> "constant";
-
   private final Supplier<String> complexSupplier =
       () -> {
-        String ret = weakCache.get(Thread.currentThread().getContextClassLoader());
-        if (ret == null) {
-          ret = Config.get().getServiceName();
-        }
-        return ret;
-      };
-
+    String ret = weakCache.get(Thread.currentThread().getContextClassLoader());
+    if (ret == null) {
+      ret = Config.get().getServiceName();
+    }
+    return ret;
+  };
   @Param({"false", "true"})
   boolean pinThreadServiceName;
 
   @Setup(Level.Iteration)
   public void init(Blackhole blackhole) {
-    tracer =
-        CoreTracer.builder()
-            .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
-            .strictTraceWrites(false)
-            .build();
+    tracer = CoreTracer
+      .builder()
+      .writer(new BlackholeWriter(blackhole, new TraceCounters(), 0))
+      .strictTraceWrites(false)
+      .build();
     weakCache = new WeakHashMap<>();
     if (pinThreadServiceName) {
       weakCache.put(Thread.currentThread().getContextClassLoader(), constantSupplier.get());

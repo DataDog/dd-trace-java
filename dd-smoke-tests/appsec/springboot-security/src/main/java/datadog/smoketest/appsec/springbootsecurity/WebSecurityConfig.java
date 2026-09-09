@@ -18,7 +18,6 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class WebSecurityConfig {
-
   final DataSource dataSource;
 
   public WebSecurityConfig(DataSource dataSource) {
@@ -27,15 +26,14 @@ public class WebSecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    http.authorizeRequests(
-            (requests) ->
-                requests
-                    .antMatchers("/", "/signup", "/register")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-        .formLogin((form) -> form.loginPage("/login").permitAll())
-        .logout(LogoutConfigurer::permitAll);
+    http
+      .authorizeRequests((requests) -> requests
+        .antMatchers("/", "/signup", "/register")
+        .permitAll()
+        .anyRequest()
+        .authenticated())
+      .formLogin((form) -> form.loginPage("/login").permitAll())
+      .logout(LogoutConfigurer::permitAll);
 
     return http.build();
   }
@@ -57,10 +55,12 @@ public class WebSecurityConfig {
   @DependsOn("dataSourceInitializer")
   public UserDetailsManager userDetailsService() {
     UserDetailsManager userDetailsManager = new JdbcUserDetailsManager(dataSource);
-
     // Create some default for case when user creation happens outside request
-    userDetailsManager.createUser(
-        User.withUsername("default_user").password("{noop}").roles("USER").build());
+    userDetailsManager.createUser(User
+      .withUsername("default_user")
+      .password("{noop}")
+      .roles("USER")
+      .build());
 
     return userDetailsManager;
   }

@@ -10,7 +10,6 @@ import java.util.Comparator;
 import org.junit.runner.Description;
 
 public class FailFastDescriptionComparator implements Comparator<Description> {
-
   private final TestEventsHandler<TestSuiteDescriptor, TestDescriptor> handler;
 
   public FailFastDescriptionComparator(

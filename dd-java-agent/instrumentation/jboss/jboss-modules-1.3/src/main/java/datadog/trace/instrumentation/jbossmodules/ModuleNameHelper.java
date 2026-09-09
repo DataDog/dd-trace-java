@@ -11,7 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ModuleNameHelper {
-  private ModuleNameHelper() {}
+  private ModuleNameHelper() {
+  }
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ModuleNameHelper.class);
   private static final MethodHandle MODULE_NAME_GETTER = resolveModuleNameGetter();
@@ -26,12 +27,11 @@ public class ModuleNameHelper {
       getModuleIdentifierHandle = methodHandles.method(Module.class, "getIdentifier");
       if (getModuleIdentifierHandle != null) {
         // chains the two method handle calls
-        ret =
-            java.lang.invoke.MethodHandles.filterReturnValue(
-                getModuleIdentifierHandle,
-                methodHandles.method(
-                    Class.forName("org.jboss.modules.ModuleIdentifier", false, classLoader),
-                    "getName"));
+        ret = java.lang.invoke.MethodHandles.filterReturnValue(
+            getModuleIdentifierHandle,
+            methodHandles.method(
+                Class.forName("org.jboss.modules.ModuleIdentifier", false, classLoader),
+                "getName"));
       }
     } catch (Throwable ignored) {
       // here for caution. It's already caught and logged on MethodHandles
@@ -45,7 +45,8 @@ public class ModuleNameHelper {
     }
     if (ret == null) {
       LOGGER.debug(
-          "Unable to resolve a method to establish jboss module name. If enabled, jee-split-by-deployment will not work properly");
+          "Unable to resolve a method to establish jboss module name. If enabled, jee-split-"
+          + "by-deployment will not work properly");
     }
     return ret;
   }
@@ -66,7 +67,6 @@ public class ModuleNameHelper {
   }
 
   public static String extractDeploymentName(@Nonnull final ModuleClassLoader classLoader) {
-
     final String moduleName = extractModuleName(classLoader.getModule());
     if (moduleName == null) {
       return null;

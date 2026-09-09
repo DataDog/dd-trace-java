@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class DenyListHelperTest {
-
   @Test
   public void isDeniedClass() {
     DenyListHelper denyListHelper = new DenyListHelper(null);

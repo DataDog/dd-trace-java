@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPr
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,42 +23,39 @@ import net.bytebuddy.matcher.ElementMatcher;
  * during this period.
  */
 @AutoService(InstrumenterModule.class)
-public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+public final class AsyncPropagatingDisableInstrumentation
+    extends InstrumenterModule.ContextTracking
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice {
   public AsyncPropagatingDisableInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME);
   }
 
   private static final ElementMatcher.Junction<TypeDescription> RX_WORKERS =
       nameStartsWith("rx.").and(extendsClass(named("rx.Scheduler$Worker")));
-  private static final ElementMatcher<TypeDescription> NETTY_UNSAFE =
-      namedOneOf(
-          "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
-          "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
-          "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
-          "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
-          "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
-          "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe");
+  private static final ElementMatcher<TypeDescription> NETTY_UNSAFE = namedOneOf(
+      "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+      "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+      "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+      "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+      "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+      "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe");
   private static final ElementMatcher<TypeDescription> GRPC_MANAGED_CHANNEL =
       nameEndsWith("io.grpc.internal.ManagedChannelImpl");
   private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
   private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
-
   /**
    * RxJava 3's AbstractDirectTask creates FINISHED/DISPOSED sentinel FutureTask instances in its
    * static initializer.
    */
   private static final ElementMatcher<TypeDescription> RXJAVA3_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask");
-
-  private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR =
-      namedOneOf(
-          "io.netty.util.concurrent.GlobalEventExecutor",
-          // shaded version
-          "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor");
+  private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR = namedOneOf(
+      "io.netty.util.concurrent.GlobalEventExecutor",
+      // shaded version
+      "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor");
   private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
       extendsClass(named("java.net.http.HttpClient"));
   private static final String LETTUCE_HANDSHAKE_HANDLER =
@@ -67,60 +63,62 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return false; // known type list is not complete, so always expand search to consider hierarchy
+    // known type list is not complete, so always expand search to consider hierarchy
+    return false;
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "rx.internal.operators.OperatorTimeoutBase",
-      "com.amazonaws.http.timers.request.HttpRequestTimer",
-      "io.netty.handler.timeout.WriteTimeoutHandler",
-      "java.util.concurrent.ScheduledThreadPoolExecutor",
-      "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
-      "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
-      "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
-      "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
-      "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
-      "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
-      "rx.internal.util.ObjectPool",
-      "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
-      "okhttp3.ConnectionPool",
-      "com.squareup.okhttp.ConnectionPool",
-      "org.elasticsearch.transport.netty4.Netty4TcpChannel",
-      "org.springframework.cglib.core.internal.LoadingCache",
-      "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
-      "com.datastax.oss.driver.api.core.session.SessionBuilder",
-      "org.jvnet.hk2.internal.ServiceLocatorImpl",
-      "com.zaxxer.hikari.pool.HikariPool",
-      "net.sf.ehcache.store.disk.DiskStorageFactory",
-      "org.springframework.jms.listener.DefaultMessageListenerContainer",
-      "org.apache.activemq.broker.TransactionBroker",
-      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
-      "io.reactivex.internal.schedulers.AbstractDirectTask",
-      "io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask",
-      "jdk.internal.net.http.HttpClientImpl",
-      LETTUCE_HANDSHAKE_HANDLER,
-      "io.netty.util.concurrent.GlobalEventExecutor",
-      "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
-      "com.linecorp.armeria.client.HttpClientFactory",
-      "com.linecorp.armeria.client.HttpChannelPool"
+        "rx.internal.operators.OperatorTimeoutBase",
+        "com.amazonaws.http.timers.request.HttpRequestTimer",
+        "io.netty.handler.timeout.WriteTimeoutHandler",
+        "java.util.concurrent.ScheduledThreadPoolExecutor",
+        "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+        "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
+        "io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+        "io.grpc.netty.shaded.io.netty.channel.epoll.AbstractEpollChannel$AbstractEpollUnsafe",
+        "io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+        "io.grpc.netty.shaded.io.netty.channel.kqueue.AbstractKQueueChannel$AbstractKQueueUnsafe",
+        "rx.internal.util.ObjectPool",
+        "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
+        "okhttp3.ConnectionPool",
+        "com.squareup.okhttp.ConnectionPool",
+        "org.elasticsearch.transport.netty4.Netty4TcpChannel",
+        "org.springframework.cglib.core.internal.LoadingCache",
+        "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher",
+        "com.datastax.oss.driver.api.core.session.SessionBuilder",
+        "org.jvnet.hk2.internal.ServiceLocatorImpl",
+        "com.zaxxer.hikari.pool.HikariPool",
+        "net.sf.ehcache.store.disk.DiskStorageFactory",
+        "org.springframework.jms.listener.DefaultMessageListenerContainer",
+        "org.apache.activemq.broker.TransactionBroker",
+        "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
+        "io.reactivex.internal.schedulers.AbstractDirectTask",
+        "io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask",
+        "jdk.internal.net.http.HttpClientImpl",
+        LETTUCE_HANDSHAKE_HANDLER,
+        "io.netty.util.concurrent.GlobalEventExecutor",
+        "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
+        "com.linecorp.armeria.client.HttpClientFactory",
+        "com.linecorp.armeria.client.HttpChannelPool"
     };
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // no particular marker type
+    // no particular marker type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return RX_WORKERS
-        .or(GRPC_MANAGED_CHANNEL)
-        .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
-        .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
-        .or(RXJAVA3_DISABLED_TYPE_INITIALIZERS)
-        .or(JAVA_HTTP_CLIENT);
+      .or(GRPC_MANAGED_CHANNEL)
+      .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
+      .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
+      .or(RXJAVA3_DISABLED_TYPE_INITIALIZERS)
+      .or(JAVA_HTTP_CLIENT);
   }
 
   @Override
@@ -132,52 +130,53 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         advice);
     transformer.applyAdvice(named("connect").and(isDeclaredBy(NETTY_UNSAFE)), advice);
     transformer.applyAdvice(
-        named("init")
-            .and(isDeclaredBy(named("io.grpc.internal.ServerImpl$ServerTransportListenerImpl"))),
+        named("init").and(
+            isDeclaredBy(named("io.grpc.internal.ServerImpl$ServerTransportListenerImpl"))),
         advice);
     transformer.applyAdvice(
-        named("startTimer")
-            .and(isDeclaredBy(named("com.amazonaws.http.timers.request.HttpRequestTimer"))),
+        named("startTimer").and(
+            isDeclaredBy(named("com.amazonaws.http.timers.request.HttpRequestTimer"))),
         advice);
     transformer.applyAdvice(
-        named("scheduleTimeout")
-            .and(isDeclaredBy(named("io.netty.handler.timeout.WriteTimeoutHandler"))),
+        named("scheduleTimeout").and(
+            isDeclaredBy(named("io.netty.handler.timeout.WriteTimeoutHandler"))),
         advice);
     transformer.applyAdvice(
-        named("rescheduleIdleTimer").and(isDeclaredBy(GRPC_MANAGED_CHANNEL)), advice);
+        named("rescheduleIdleTimer").and(isDeclaredBy(GRPC_MANAGED_CHANNEL)),
+        advice);
     transformer.applyAdvice(
         namedOneOf("scheduleAtFixedRate", "scheduleWithFixedDelay")
-            .and(isDeclaredBy(named("java.util.concurrent.ScheduledThreadPoolExecutor"))),
+          .and(isDeclaredBy(named("java.util.concurrent.ScheduledThreadPoolExecutor"))),
         advice);
     transformer.applyAdvice(
-        named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
+        named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))),
+        advice);
     transformer.applyAdvice(
         named("addConnection").and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
         advice);
-    transformer.applyAdvice(
-        named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
+    transformer.applyAdvice(named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
     transformer.applyAdvice(
         named("sendMessage")
-            .and(isDeclaredBy(named("org.elasticsearch.transport.netty4.Netty4TcpChannel"))),
+          .and(isDeclaredBy(named("org.elasticsearch.transport.netty4.Netty4TcpChannel"))),
         advice);
     transformer.applyAdvice(
         named("createEntry")
-            .and(isDeclaredBy(named("org.springframework.cglib.core.internal.LoadingCache"))),
+          .and(isDeclaredBy(named("org.springframework.cglib.core.internal.LoadingCache"))),
         advice);
     transformer.applyAdvice(
         named("runOnEventLoop")
-            .and(
-                isDeclaredBy(
-                    named(
-                        "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
+          .and(
+              isDeclaredBy(
+                  named(
+                      "com.datastax.oss.driver.internal.core.channel.DefaultWriteCoalescer$Flusher"))),
         advice);
     transformer.applyAdvice(
         named("buildAsync")
-            .and(isDeclaredBy(named("com.datastax.oss.driver.api.core.session.SessionBuilder"))),
+          .and(isDeclaredBy(named("com.datastax.oss.driver.api.core.session.SessionBuilder"))),
         advice);
     transformer.applyAdvice(
         namedOneOf("getInjecteeDescriptor", "getService")
-            .and(isDeclaredBy(named("org.jvnet.hk2.internal.ServiceLocatorImpl"))),
+          .and(isDeclaredBy(named("org.jvnet.hk2.internal.ServiceLocatorImpl"))),
         advice);
     transformer.applyAdvice(
         named("getConnection").and(isDeclaredBy(named("com.zaxxer.hikari.pool.HikariPool"))),
@@ -187,32 +186,36 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         advice);
     transformer.applyAdvice(
         named("doRescheduleTask")
-            .and(
-                isDeclaredBy(
-                    named("org.springframework.jms.listener.DefaultMessageListenerContainer"))),
+          .and(
+              isDeclaredBy(
+                  named("org.springframework.jms.listener.DefaultMessageListenerContainer"))),
         advice);
     transformer.applyAdvice(
-        named("beginTransaction")
-            .and(isDeclaredBy(named("org.apache.activemq.broker.TransactionBroker"))),
+        named("beginTransaction").and(
+            isDeclaredBy(named("org.apache.activemq.broker.TransactionBroker"))),
         advice);
     transformer.applyAdvice(
         named("initUnlessClosed")
-            .and(
-                isDeclaredBy(
-                    named(
-                        "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
+          .and(
+              isDeclaredBy(
+                  named("com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
         advice);
     transformer.applyAdvice(
-        isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
+        isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)),
+        advice);
     transformer.applyAdvice(
-        isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
+        isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)),
+        advice);
     transformer.applyAdvice(
-        isTypeInitializer().and(isDeclaredBy(RXJAVA3_DISABLED_TYPE_INITIALIZERS)), advice);
+        isTypeInitializer().and(isDeclaredBy(RXJAVA3_DISABLED_TYPE_INITIALIZERS)),
+        advice);
     transformer.applyAdvice(
-        isTypeInitializer().and(isDeclaredBy(NETTY_GLOBAL_EVENT_EXECUTOR)), advice);
+        isTypeInitializer().and(isDeclaredBy(NETTY_GLOBAL_EVENT_EXECUTOR)),
+        advice);
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
     transformer.applyAdvice(
-        named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
+        named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))),
+        advice);
     // armeria runs its own codec/pipeline, so the active request span captured during connection
     // pool creation and channel connect will have no consumers.
     transformer.applyAdvice(
@@ -224,7 +227,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
   }
 
   public static class DisableAsyncAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
       if (isAsyncPropagationEnabled()) {

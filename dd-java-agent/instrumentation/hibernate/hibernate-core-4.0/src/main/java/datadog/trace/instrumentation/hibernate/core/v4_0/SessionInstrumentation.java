@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -26,11 +25,11 @@ import org.hibernate.SharedSessionContract;
 import org.hibernate.Transaction;
 
 public final class SessionInstrumentation extends AbstractHibernateInstrumentation {
-
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.hibernate.internal.SessionImpl", "org.hibernate.internal.StatelessSessionImpl"
+        "org.hibernate.internal.SessionImpl",
+        "org.hibernate.internal.StatelessSessionImpl"
     };
   }
 
@@ -49,42 +48,40 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
     transformer.applyAdvice(
         isMethod().and(named("close")).and(takesArguments(0)),
         SessionInstrumentation.class.getName() + "$SessionCloseAdvice");
-
     // Session synchronous methods we want to instrument.
     transformer.applyAdvice(
         isMethod()
-            .and(
-                namedOneOf(
-                    "save",
-                    "replicate",
-                    "saveOrUpdate",
-                    "update",
-                    "merge",
-                    "persist",
-                    "lock",
-                    "refresh",
-                    "insert",
-                    "delete",
-                    // Iterator methods.
-                    "iterate",
-                    // Lazy-load methods.
-                    "immediateLoad",
-                    "internalLoad")),
+          .and(
+              namedOneOf(
+                  "save",
+                  "replicate",
+                  "saveOrUpdate",
+                  "update",
+                  "merge",
+                  "persist",
+                  "lock",
+                  "refresh",
+                  "insert",
+                  "delete",
+                  // Iterator methods.
+                  "iterate",
+                  // Lazy-load methods.
+                  "immediateLoad",
+                  "internalLoad")),
         SessionInstrumentation.class.getName() + "$SessionMethodAdvice");
     // Handle the non-generic 'get' separately.
     transformer.applyAdvice(
         isMethod()
-            .and(named("get"))
-            .and(returns(named("java.lang.Object")))
-            .and(takesArgument(0, named("java.lang.String"))),
+          .and(named("get"))
+          .and(returns(named("java.lang.Object")))
+          .and(takesArgument(0, named("java.lang.String"))),
         SessionInstrumentation.class.getName() + "$SessionMethodAdvice");
-
     // These methods return some object that we want to instrument, and so the Advice will pin the
     // current Span to the returned object using a ContextStore.
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("beginTransaction", "getTransaction"))
-            .and(returns(named("org.hibernate.Transaction"))),
+          .and(namedOneOf("beginTransaction", "getTransaction"))
+          .and(returns(named("org.hibernate.Transaction"))),
         SessionInstrumentation.class.getName() + "$GetTransactionAdvice");
 
     transformer.applyAdvice(
@@ -97,12 +94,10 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
   }
 
   public static class SessionCloseAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeSession(
         @Advice.This final SharedSessionContract session,
         @Advice.Thrown final Throwable throwable) {
-
       final ContextStore<SharedSessionContract, SessionState> contextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       final SessionState state = contextStore.get(session);
@@ -129,7 +124,6 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
   }
 
   public static class SessionMethodAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
         @Advice.This final SharedSessionContract session,
@@ -137,12 +131,15 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
         @Advice.Origin("#m") final String methodName,
         @Advice.Argument(0) final Object entity,
         @Advice.Local("startSpan") boolean startSpan) {
-
       startSpan = !SCOPE_ONLY_METHODS.contains(methodName);
       final ContextStore<SharedSessionContract, SessionState> contextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       return SessionMethodUtils.startScopeFrom(
-          contextStore, session, operationName, entity, startSpan);
+          contextStore,
+          session,
+          operationName,
+          entity,
+          startSpan);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -151,7 +148,6 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
         @Advice.Thrown final Throwable throwable,
         @Advice.Local("startSpan") final boolean startSpan,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
-
       SessionMethodUtils.closeScope(sessionState, throwable, returned, startSpan);
     }
 
@@ -165,18 +161,16 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
   }
 
   public static class GetQueryAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getQuery(
-        @Advice.This final SharedSessionContract session, @Advice.Return final Query query) {
-
+        @Advice.This final SharedSessionContract session,
+        @Advice.Return final Query query) {
       final ContextStore<SharedSessionContract, SessionState> sessionContextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       final ContextStore<Query, SessionState> queryContextStore =
           InstrumentationContext.get(Query.class, SessionState.class);
 
-      SessionMethodUtils.attachSpanFromStore(
-          sessionContextStore, session, queryContextStore, query);
+      SessionMethodUtils.attachSpanFromStore(sessionContextStore, session, queryContextStore, query);
     }
 
     /**
@@ -189,19 +183,20 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
   }
 
   public static class GetTransactionAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getTransaction(
         @Advice.This final SharedSessionContract session,
         @Advice.Return final Transaction transaction) {
-
       final ContextStore<SharedSessionContract, SessionState> sessionContextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       final ContextStore<Transaction, SessionState> transactionContextStore =
           InstrumentationContext.get(Transaction.class, SessionState.class);
 
       SessionMethodUtils.attachSpanFromStore(
-          sessionContextStore, session, transactionContextStore, transaction);
+          sessionContextStore,
+          session,
+          transactionContextStore,
+          transaction);
     }
 
     /**
@@ -214,18 +209,20 @@ public final class SessionInstrumentation extends AbstractHibernateInstrumentati
   }
 
   public static class GetCriteriaAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void getCriteria(
-        @Advice.This final SharedSessionContract session, @Advice.Return final Criteria criteria) {
-
+        @Advice.This final SharedSessionContract session,
+        @Advice.Return final Criteria criteria) {
       final ContextStore<SharedSessionContract, SessionState> sessionContextStore =
           InstrumentationContext.get(SharedSessionContract.class, SessionState.class);
       final ContextStore<Criteria, SessionState> criteriaContextStore =
           InstrumentationContext.get(Criteria.class, SessionState.class);
 
       SessionMethodUtils.attachSpanFromStore(
-          sessionContextStore, session, criteriaContextStore, criteria);
+          sessionContextStore,
+          session,
+          criteriaContextStore,
+          criteria);
     }
 
     /**

@@ -7,27 +7,29 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
 public final class Utils {
-  private Utils() {} // prevent instantiation
+  // prevent instantiation
+  private Utils() {
+  }
 
-  public static DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return new String(((Headers) source).lastHeader(headerName).value());
-            } catch (Throwable ignored) {
-              return null;
-            }
-          };
+  public static DataStreamsTransactionTracker.TransactionSourceReader DSM_TRANSACTION_SOURCE_READER =
+      (source, headerName) -> {
+    try {
+      return new String(((Headers) source).lastHeader(headerName).value());
+    } catch (Throwable ignored) {
+      return null;
+    }
+  };
 
   // this method is used in kafka-clients and kafka-streams instrumentations
   public static long computePayloadSizeBytes(ConsumerRecord<?, ?> val) {
     long headersSize = 0;
     Headers headers = val.headers();
-    if (headers != null)
+    if (headers != null) {
       for (Header h : headers) {
         int valueSize = h.value() == null ? 0 : h.value().length;
         headersSize += valueSize + h.key().getBytes(StandardCharsets.UTF_8).length;
       }
+    }
     return headersSize + val.serializedKeySize() + val.serializedValueSize();
   }
 }

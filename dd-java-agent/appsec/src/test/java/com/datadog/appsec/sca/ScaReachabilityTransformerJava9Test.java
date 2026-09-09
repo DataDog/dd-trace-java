@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import java.io.StringReader;
@@ -51,19 +50,20 @@ import org.junit.jupiter.api.condition.JRE;
  * and cannot be reached from this method.
  */
 class ScaReachabilityTransformerJava9Test {
-
-  /** Second dummy vulnerable class, distinct from {@code TargetClass}, used to test batching. */
+  /**
+   * Second dummy vulnerable class, distinct from {@code TargetClass}, used to test batching.
+   */
   public static class SecondTargetClass {
     public void method() {}
   }
 
   private static final String JACKSON_JSON =
       "{\"version\":1,\"entries\":[{"
-          + "\"vuln_id\":\"GHSA-test-jackson\","
-          + "\"artifact\":\"com.fasterxml.jackson.core:jackson-databind\","
-          + "\"version_ranges\":[\"< 999.0.0\"],"
-          + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\",\"method\":\"readValue\"}]"
-          + "}]}";
+      + "\"vuln_id\":\"GHSA-test-jackson\","
+      + "\"artifact\":\"com.fasterxml.jackson.core:jackson-databind\","
+      + "\"version_ranges\":[\"< 999.0.0\"],"
+      + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\",\"method\":\"readValue\"}]"
+      + "}]}";
 
   @AfterEach
   void resetRegistry() {
@@ -79,7 +79,7 @@ class ScaReachabilityTransformerJava9Test {
     assertFalse(
         ClassLoader.getSystemClassLoader() instanceof URLClassLoader,
         "On Java 9+, the system classloader must not be a URLClassLoader — "
-            + "this is the invariant that makes the java.class.path fallback necessary");
+        + "this is the invariant that makes the java.class.path fallback necessary");
   }
 
   @Test
@@ -97,8 +97,8 @@ class ScaReachabilityTransformerJava9Test {
     assertNotNull(
         version,
         "jackson-databind must be found via java.class.path fallback on Java 9+. "
-            + "java.class.path="
-            + System.getProperty("java.class.path", ""));
+        + "java.class.path="
+        + System.getProperty("java.class.path", ""));
   }
 
   @Test
@@ -115,7 +115,6 @@ class ScaReachabilityTransformerJava9Test {
   // ---------------------------------------------------------------------------
   // matchVersion: artifact-ID-only fallback for JARs without pom.properties
   // ---------------------------------------------------------------------------
-
   @Test
   void matchVersion_exactMatchReturnsVersion() {
     Dependency dep = new Dependency("com.github.junrar:junrar", "7.5.5", "junrar-7.5.5.jar", null);
@@ -158,7 +157,8 @@ class ScaReachabilityTransformerJava9Test {
     assertEquals(
         "7.5.5",
         ScaReachabilityTransformer.matchVersion(
-            "com.github.junrar:junrar", Arrays.asList(fallback, exact)));
+            "com.github.junrar:junrar",
+            Arrays.asList(fallback, exact)));
   }
 
   /**
@@ -190,8 +190,8 @@ class ScaReachabilityTransformerJava9Test {
     assertFalse(
         transformer.jarCache.isEmpty(),
         "jarCache must be populated by the pre-warming step that runs before retransformClasses();"
-            + " with a mock Instrumentation the transform callback never fires, so an empty jarCache"
-            + " means the pre-warm loop was not executed");
+        + " with a mock Instrumentation the transform callback never fires, so an empty jarCache"
+        + " means the pre-warm loop was not executed");
   }
 
   /**
@@ -217,11 +217,11 @@ class ScaReachabilityTransformerJava9Test {
     // matchVersion() returns null on classJarDeps → triggers findArtifactVersionInClasspath().
     String crossJarJson =
         "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-test-cross-jar\","
-            + "\"artifact\":\"com.fasterxml.jackson.core:jackson-core\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\","
-            + "\"method\":\"readValue\"}]}]}";
+        + "\"vuln_id\":\"GHSA-test-cross-jar\","
+        + "\"artifact\":\"com.fasterxml.jackson.core:jackson-core\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\","
+        + "\"method\":\"readValue\"}]}]}";
 
     Instrumentation mockInstr = mock(Instrumentation.class);
     when(mockInstr.isModifiableClass(any())).thenReturn(true);
@@ -233,7 +233,6 @@ class ScaReachabilityTransformerJava9Test {
     transformer.pendingRetransform.add(
         new ArrayList<>(singletonList(com.fasterxml.jackson.databind.ObjectMapper.class)));
     transformer.performPendingRetransforms();
-
     // jackson-core is on the test classpath (transitive dependency of jackson-databind).
     // classpathArtifactCache must be populated during pre-warm — not by the callback (which never
     // fires with a mock Instrumentation). An empty cache means findArtifactVersionInClasspath()
@@ -241,39 +240,37 @@ class ScaReachabilityTransformerJava9Test {
     assertNotNull(
         transformer.classpathArtifactCache.get("com.fasterxml.jackson.core:jackson-core"),
         "classpathArtifactCache must be populated during pre-warm for aggregator artifacts; "
-            + "if empty, findArtifactVersionInClasspath() would run under JVM retransform locks");
+        + "if empty, findArtifactVersionInClasspath() would run under JVM retransform locks");
   }
 
   @Test
   void transform_retransform_injectsCallbacksWhenVersionResolvedFromCache() throws Exception {
     String internalName =
         ScaReachabilityMethodLevelTest.TargetClass.class.getName().replace('.', '/');
-    String json =
-        "{\"version\":1,\"entries\":[{"
-            + "\"vuln_id\":\"GHSA-transform\","
-            + "\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + internalName
-            + "\",\"method\":\"vulnerableMethod\"}]"
-            + "}]}";
+    String json = "{\"version\":1,\"entries\":[{"
+        + "\"vuln_id\":\"GHSA-transform\","
+        + "\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + internalName
+        + "\",\"method\":\"vulnerableMethod\"}]"
+        + "}]}";
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(json));
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, null);
     transformer.jarCache.put(
         ScaReachabilityMethodLevelTest.TargetClass.class
-            .getProtectionDomain()
-            .getCodeSource()
-            .getLocation()
-            .toURI(),
+          .getProtectionDomain()
+          .getCodeSource()
+          .getLocation()
+          .toURI(),
         singletonList(new Dependency("com.example:lib", "1.2.3", "test.jar", null)));
 
-    byte[] transformed =
-        transformer.transform(
-            null,
-            internalName,
-            ScaReachabilityMethodLevelTest.TargetClass.class,
-            ScaReachabilityMethodLevelTest.TargetClass.class.getProtectionDomain(),
-            bytecodeOf(ScaReachabilityMethodLevelTest.TargetClass.class));
+    byte[] transformed = transformer.transform(
+        null,
+        internalName,
+        ScaReachabilityMethodLevelTest.TargetClass.class,
+        ScaReachabilityMethodLevelTest.TargetClass.class.getProtectionDomain(),
+        bytecodeOf(ScaReachabilityMethodLevelTest.TargetClass.class));
 
     assertNotNull(transformed);
     assertTrue(transformer.pendingRetransformNames.isEmpty());
@@ -290,24 +287,26 @@ class ScaReachabilityTransformerJava9Test {
   void checkAlreadyLoadedClassesSchedulesOnlyMatchingNonBootstrapClasses() throws Exception {
     String internalName =
         ScaReachabilityMethodLevelTest.TargetClass.class.getName().replace('.', '/');
-    String json =
-        "{\"version\":1,\"entries\":["
-            + "{\"vuln_id\":\"GHSA-target\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + internalName
-            + "\",\"method\":\"vulnerableMethod\"}]},"
-            + "{\"vuln_id\":\"GHSA-jdk\",\"artifact\":\"com.example:jdk\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\"java/lang/String\",\"method\":\"substring\"}]}"
-            + "]}";
+    String json = "{\"version\":1,\"entries\":["
+        + "{\"vuln_id\":\"GHSA-target\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + internalName
+        + "\",\"method\":\"vulnerableMethod\"}]},"
+        + "{\"vuln_id\":\"GHSA-jdk\",\"artifact\":\"com.example:jdk\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\"java/lang/String\",\"method\":\"substring\"}]}"
+        + "]}";
 
     Instrumentation mockInstr = mock(Instrumentation.class);
     when(mockInstr.getAllLoadedClasses())
-        .thenReturn(
-            new Class<?>[] {
-              null, String[].class, String.class, ScaReachabilityMethodLevelTest.TargetClass.class,
-            });
+      .thenReturn(
+          new Class<?>[] {
+          null,
+          String[].class,
+          String.class,
+          ScaReachabilityMethodLevelTest.TargetClass.class
+          });
     ScaReachabilityTransformer transformer =
         new ScaReachabilityTransformer(ScaCveDatabase.parse(new StringReader(json)), mockInstr);
 
@@ -325,29 +324,30 @@ class ScaReachabilityTransformerJava9Test {
     // singleton batch would turn the common (all-succeed) case into one retransformClasses() call
     // per class instead of one call for all of them; bisection only needs to kick in if this shared
     // batch actually fails on a later heartbeat.
-    String targetName =
-        ScaReachabilityMethodLevelTest.TargetClass.class.getName().replace('.', '/');
+    String targetName = ScaReachabilityMethodLevelTest.TargetClass.class
+      .getName()
+      .replace('.', '/');
     String secondName = SecondTargetClass.class.getName().replace('.', '/');
-    String json =
-        "{\"version\":1,\"entries\":["
-            + "{\"vuln_id\":\"GHSA-target\",\"artifact\":\"com.example:lib\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + targetName
-            + "\",\"method\":\"vulnerableMethod\"}]},"
-            + "{\"vuln_id\":\"GHSA-second\",\"artifact\":\"com.example:lib2\","
-            + "\"version_ranges\":[\"< 999.0.0\"],"
-            + "\"symbols\":[{\"class\":\""
-            + secondName
-            + "\",\"method\":\"method\"}]}"
-            + "]}";
+    String json = "{\"version\":1,\"entries\":["
+        + "{\"vuln_id\":\"GHSA-target\",\"artifact\":\"com.example:lib\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + targetName
+        + "\",\"method\":\"vulnerableMethod\"}]},"
+        + "{\"vuln_id\":\"GHSA-second\",\"artifact\":\"com.example:lib2\","
+        + "\"version_ranges\":[\"< 999.0.0\"],"
+        + "\"symbols\":[{\"class\":\""
+        + secondName
+        + "\",\"method\":\"method\"}]}"
+        + "]}";
 
     Instrumentation mockInstr = mock(Instrumentation.class);
     when(mockInstr.getAllLoadedClasses())
-        .thenReturn(
-            new Class<?>[] {
-              ScaReachabilityMethodLevelTest.TargetClass.class, SecondTargetClass.class,
-            });
+      .thenReturn(
+          new Class<?>[] {
+          ScaReachabilityMethodLevelTest.TargetClass.class,
+          SecondTargetClass.class
+          });
     ScaReachabilityTransformer transformer =
         new ScaReachabilityTransformer(ScaCveDatabase.parse(new StringReader(json)), mockInstr);
 
@@ -361,9 +361,9 @@ class ScaReachabilityTransformerJava9Test {
 
   @Test
   void performPendingRetransforms_noopsWithoutInstrumentation() throws Exception {
-    ScaReachabilityTransformer transformer =
-        new ScaReachabilityTransformer(
-            ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}")), null);
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(
+        ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}")),
+        null);
     transformer.pendingRetransform.add(
         singletonList(ScaReachabilityMethodLevelTest.TargetClass.class));
 
@@ -407,21 +407,20 @@ class ScaReachabilityTransformerJava9Test {
   void resolveArtifactDep_noPomJar_returnsArtifactIdOnlyName() throws Exception {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, null);
-
     // Simulate guessFallbackNoPom: dep.name is artifactId only (no groupId).
     Dependency noPomDep =
         new Dependency("jackson-databind", "2.9.0", "jackson-databind-2.9.0.jar", null);
 
-    Dependency resolved =
-        transformer.resolveArtifactDep(
-            "com.fasterxml.jackson.core:jackson-databind", singletonList(noPomDep));
+    Dependency resolved = transformer.resolveArtifactDep(
+        "com.fasterxml.jackson.core:jackson-databind",
+        singletonList(noPomDep));
 
     assertNotNull(resolved, "should resolve via artifactId-only fallback");
     assertEquals(
         "jackson-databind",
         resolved.name,
         "resolved dep.name must be the artifactId-only name from the jar, "
-            + "not entry.artifact() — so registerCve uses the same key as DependencyService");
+        + "not entry.artifact() — so registerCve uses the same key as DependencyService");
     assertEquals("2.9.0", resolved.version);
   }
 
@@ -449,8 +448,8 @@ class ScaReachabilityTransformerJava9Test {
       assertNotNull(
           version,
           "jackson-databind must be found via java.class.path even with null context classloader. "
-              + "java.class.path="
-              + System.getProperty("java.class.path", ""));
+          + "java.class.path="
+          + System.getProperty("java.class.path", ""));
     } finally {
       Thread.currentThread().setContextClassLoader(original);
     }

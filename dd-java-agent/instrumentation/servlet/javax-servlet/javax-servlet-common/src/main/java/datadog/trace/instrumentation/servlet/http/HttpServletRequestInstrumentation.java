@@ -7,7 +7,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -34,8 +33,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private static final String CLASS_NAME = HttpServletRequestInstrumentation.class.getName();
   private static final ElementMatcher.Junction<? super TypeDescription> WRAPPER_CLASS =
       named("javax.servlet.http.HttpServletRequestWrapper");
@@ -52,8 +51,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(not(WRAPPER_CLASS))
-        .and(not(extendsClass(WRAPPER_CLASS)));
+      .and(not(WRAPPER_CLASS))
+      .and(not(extendsClass(WRAPPER_CLASS)));
   }
 
   @Override
@@ -134,9 +133,12 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_VALUE, name);
+      enumeration = TaintableEnumeration.wrap(
+          ctx,
+          enumeration,
+          module,
+          SourceTypes.REQUEST_HEADER_VALUE,
+          name);
     }
   }
 
@@ -155,9 +157,12 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_HEADER_NAME, true);
+      enumeration = TaintableEnumeration.wrap(
+          ctx,
+          enumeration,
+          module,
+          SourceTypes.REQUEST_HEADER_NAME,
+          true);
     }
   }
 
@@ -246,19 +251,22 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
         return;
       }
       IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-      enumeration =
-          TaintableEnumeration.wrap(
-              ctx, enumeration, module, SourceTypes.REQUEST_PARAMETER_NAME, true);
+      enumeration = TaintableEnumeration.wrap(
+          ctx,
+          enumeration,
+          module,
+          SourceTypes.REQUEST_PARAMETER_NAME,
+          true);
     }
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetCookiesAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(
-        @Advice.Return final Cookie[] cookies, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Cookie[] cookies,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (cookies == null || cookies.length == 0) {
         return;
       }
@@ -278,7 +286,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_QUERY)
     public static void onExit(
-        @Advice.Return final String queryString, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final String queryString,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (queryString == null) {
         return;
       }
@@ -296,7 +305,8 @@ public class HttpServletRequestInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
     public static void onExit(
-        @Advice.Return final Object body, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object body,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (body == null) {
         return;
       }

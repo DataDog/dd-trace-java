@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.DDTraceId;
@@ -34,7 +33,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class FileBasedPayloadDispatcherTest {
-
   private static final ObjectMapper JSON = new ObjectMapper();
 
   @Test
@@ -64,7 +62,8 @@ class FileBasedPayloadDispatcherTest {
         new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
 
     assertTrue(dispatcher.getApis().isEmpty());
-    dispatcher.onDroppedTrace(42); // does not throw
+    // does not throw
+    dispatcher.onDroppedTrace(42);
   }
 
   @Test
@@ -97,7 +96,8 @@ class FileBasedPayloadDispatcherTest {
 
     JsonNode event = doc.get("events").get(0);
     assertEquals("test", event.get("type").asText());
-    assertEquals(2, event.get("version").asInt()); // has session/module/suite id
+    // has session/module/suite id
+    assertEquals(2, event.get("version").asInt());
     JsonNode content = event.get("content");
     assertEquals(123L, content.get(Tags.TEST_SESSION_ID).asLong());
     assertEquals(456L, content.get(Tags.TEST_MODULE_ID).asLong());
@@ -171,8 +171,10 @@ class FileBasedPayloadDispatcherTest {
     assertEquals(
         longValue.substring(0, CIConstants.MAX_META_STRING_VALUE_LENGTH),
         meta.get("custom.tag").asText());
-    assertEquals(
-        CIConstants.MAX_META_STRING_VALUE_LENGTH, meta.get("custom.tag").asText().length());
+    assertEquals(CIConstants.MAX_META_STRING_VALUE_LENGTH, meta
+      .get("custom.tag")
+      .asText()
+      .length());
     assertEquals(exactValue, meta.get("exact.tag").asText());
     assertEquals(42L, metrics.get("custom.metric").asLong());
     assertFalse(meta.has(Tags.TEST_SESSION_ID));
@@ -188,20 +190,22 @@ class FileBasedPayloadDispatcherTest {
       throws IOException {
     FileBasedPayloadDispatcher dispatcher =
         new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
-    List<CoreSpan<?>> spans =
-        Arrays.asList(
-            mockSpan(InternalSpanTypes.TEST_SESSION_END, Collections.emptyMap()),
-            mockSpan(InternalSpanTypes.TEST_MODULE_END, Collections.emptyMap()),
-            mockSpan(InternalSpanTypes.TEST_SUITE_END, Collections.emptyMap()),
-            mockSpan(InternalSpanTypes.TEST, Collections.emptyMap()),
-            mockSpan("other-span-type", Collections.emptyMap()));
+    List<CoreSpan<?>> spans = Arrays.asList(
+        mockSpan(InternalSpanTypes.TEST_SESSION_END, Collections.emptyMap()),
+        mockSpan(InternalSpanTypes.TEST_MODULE_END, Collections.emptyMap()),
+        mockSpan(InternalSpanTypes.TEST_SUITE_END, Collections.emptyMap()),
+        mockSpan(InternalSpanTypes.TEST, Collections.emptyMap()),
+        mockSpan("other-span-type", Collections.emptyMap()));
 
     dispatcher.addTrace(spans);
     dispatcher.flush();
 
     JsonNode events = JSON.readTree(listFiles(outputDir).get(0).toFile()).get("events");
     assertEquals(5, events.size());
-    assertEquals(InternalSpanTypes.TEST_SESSION_END.toString(), events.get(0).get("type").asText());
+    assertEquals(InternalSpanTypes.TEST_SESSION_END.toString(), events
+      .get(0)
+      .get("type")
+      .asText());
     assertEquals(InternalSpanTypes.TEST_MODULE_END.toString(), events.get(1).get("type").asText());
     assertEquals(InternalSpanTypes.TEST_SUITE_END.toString(), events.get(2).get("type").asText());
     assertEquals(InternalSpanTypes.TEST.toString(), events.get(3).get("type").asText());
@@ -273,8 +277,8 @@ class FileBasedPayloadDispatcherTest {
     assertFalse(Files.exists(nested));
     FileBasedPayloadDispatcher dispatcher =
         new FileBasedPayloadDispatcher(nested.toString(), "tests", TrackType.CITESTCYCLE);
-    dispatcher.addTrace(
-        Collections.singletonList(mockSpan(InternalSpanTypes.TEST, Collections.emptyMap())));
+    dispatcher.addTrace(Collections.singletonList(
+        mockSpan(InternalSpanTypes.TEST, Collections.emptyMap())));
 
     dispatcher.flush();
 
@@ -295,33 +299,27 @@ class FileBasedPayloadDispatcherTest {
     when(span.getStartTime()).thenReturn(1_000_000L);
     when(span.getDurationNano()).thenReturn(500_000L);
     when(span.getError()).thenReturn(0);
-
     // getTag is called for known top-level tags; return a value when present, else null
     when(span.getTag(any(String.class))).thenAnswer(inv -> tags.get((String) inv.getArgument(0)));
-
     // processTagsAndBaggage invokes the consumer with a Metadata built from the tags map
-    Metadata metadata =
-        new Metadata(
-            Thread.currentThread().getId(),
-            null,
-            TagMap.fromMap(tags),
-            Collections.<String, String>emptyMap(),
-            0,
-            false,
-            false,
-            null,
-            null,
-            0,
-            null,
-            null);
-    doAnswer(
-            inv -> {
-              MetadataConsumer consumer = inv.getArgument(0);
-              consumer.accept(metadata);
-              return null;
-            })
-        .when(span)
-        .processTagsAndBaggage(any(MetadataConsumer.class));
+    Metadata metadata = new Metadata(
+        Thread.currentThread().getId(),
+        null,
+        TagMap.fromMap(tags),
+        Collections.<String, String>emptyMap(),
+        0,
+        false,
+        false,
+        null,
+        null,
+        0,
+        null,
+        null);
+    doAnswer(inv -> {
+      MetadataConsumer consumer = inv.getArgument(0);
+      consumer.accept(metadata);
+      return null;
+    }).when(span).processTagsAndBaggage(any(MetadataConsumer.class));
 
     return span;
   }

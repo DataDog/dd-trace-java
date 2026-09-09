@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.junit5;
 
 import static datadog.json.JsonMapper.toJson;
-
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -40,61 +39,50 @@ import org.slf4j.LoggerFactory;
  * <p>Should you have to do something with those classes, do it in a dedicated utility class
  */
 public abstract class JUnitPlatformUtils {
-
   public static final String RETRY_DESCRIPTOR_ID_SUFFIX = "retry-attempt";
-
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitPlatformUtils.class);
-
   public static final String ENGINE_ID_CUCUMBER = "cucumber";
   public static final String ENGINE_ID_SPOCK = "spock";
-
   public static final ComparableVersion junitV58 = new ComparableVersion("5.8");
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_BASE = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> JUNIT_CAPABILITIES_ORDERING = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX,
+      LibraryCapability.FAIL_FAST);
+  public static final List<LibraryCapability> SPOCK_CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> CUCUMBER_CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
-  public static final List<LibraryCapability> JUNIT_CAPABILITIES_BASE =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
-
-  public static final List<LibraryCapability> JUNIT_CAPABILITIES_ORDERING =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX,
-          LibraryCapability.FAIL_FAST);
-
-  public static final List<LibraryCapability> SPOCK_CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
-
-  public static final List<LibraryCapability> CUCUMBER_CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
-
-  private JUnitPlatformUtils() {}
+  private JUnitPlatformUtils() {
+  }
 
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
@@ -150,9 +138,9 @@ public abstract class JUnitPlatformUtils {
     }
 
     try {
-      return ReflectionUtils.findMethod(
-              testClass, methodName, methodSource.getMethodParameterTypes())
-          .orElse(null);
+      return ReflectionUtils
+        .findMethod(testClass, methodName, methodSource.getMethodParameterTypes())
+        .orElse(null);
     } catch (JUnitException e) {
       LOGGER.debug("Could not find method {} in class {}", methodName, testClass, e);
       LOGGER.warn("Could not find test method");
@@ -161,10 +149,12 @@ public abstract class JUnitPlatformUtils {
   }
 
   public static String getParameters(
-      TestDescriptor testDescriptor, MethodSource methodSource, String displayName) {
+      TestDescriptor testDescriptor,
+      MethodSource methodSource,
+      String displayName) {
     if (isDynamicTest(testDescriptor)
         || (methodSource.getMethodParameterTypes() != null
-            && !methodSource.getMethodParameterTypes().isEmpty())) {
+        && !methodSource.getMethodParameterTypes().isEmpty())) {
       return "{\"metadata\":{\"test_name\":" + toJson(displayName) + "}}";
     }
     return null;
@@ -180,7 +170,6 @@ public abstract class JUnitPlatformUtils {
       String displayName = testDescriptor.getDisplayName();
       String testParameters = getParameters(testDescriptor, methodSource, displayName);
       return new TestIdentifier(testSuiteName, testName, testParameters);
-
     } else {
       return null;
     }
@@ -229,11 +218,9 @@ public abstract class JUnitPlatformUtils {
     if (testSource instanceof ClassSource) {
       ClassSource classSource = (ClassSource) testSource;
       return classSource.getJavaClass();
-
     } else if (testSource instanceof MethodSource) {
       MethodSource methodSource = (MethodSource) testSource;
       return getTestClass(methodSource);
-
     } else {
       return null;
     }
@@ -244,7 +231,8 @@ public abstract class JUnitPlatformUtils {
     List<UniqueId.Segment> segments = uniqueId.getSegments();
     UniqueId.Segment lastSegment = segments.get(segments.size() - 1);
     return "class".equals(lastSegment.getType()) // "regular" JUnit test class
-        || "nested-class".equals(lastSegment.getType()); // nested JUnit test class
+        || "nested-class".equals(lastSegment.getType()) // nested JUnit test class
+    ;
   }
 
   public static boolean isParameterizedTest(TestDescriptor testDescriptor) {

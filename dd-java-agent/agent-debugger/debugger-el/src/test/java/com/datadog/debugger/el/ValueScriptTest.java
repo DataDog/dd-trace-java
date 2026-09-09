@@ -3,7 +3,6 @@ package com.datadog.debugger.el;
 import static com.datadog.debugger.el.EvalContextHelper.createResolver;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.el.Values;
@@ -44,20 +43,16 @@ public class ValueScriptTest {
   public void predicates() {
     ValueScript valueScript = loadFromResource("/test_value_expr_01.json");
     // first call is longer so ideal to test timeout
-    EvaluationException evaluationException =
-        assertThrows(
-            EvaluationException.class,
-            () ->
-                valueScript.execute(
-                    createResolver(new Obj()),
-                    TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
+    EvaluationException evaluationException = assertThrows(EvaluationException.class, () -> valueScript.execute(
+        createResolver(new Obj()),
+        TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
     assertEquals("timeout (1ms)", evaluationException.getMessage());
     // test good execution
     assertEquals(
         Boolean.TRUE,
         valueScript
-            .execute(createResolver(new Obj()), TimeoutChecker.create(Config.get(), TEST_TIMEOUT))
-            .getValue());
+          .execute(createResolver(new Obj()), TimeoutChecker.create(Config.get(), TEST_TIMEOUT))
+          .getValue());
   }
 
   @Test
@@ -68,38 +63,37 @@ public class ValueScriptTest {
       assertEquals(
           Boolean.TRUE,
           valueScript
-              .execute(createResolver(new Obj()), TimeoutChecker.create(Config.get(), TEST_TIMEOUT))
-              .getValue(),
+            .execute(createResolver(new Obj()), TimeoutChecker.create(Config.get(), TEST_TIMEOUT))
+            .getValue(),
           line);
     }
   }
 
   @Test
   public void topLevelPrimitives() {
-    Object[] expectedValues =
-        new Object[] {
-          "hello",
-          "hello",
-          10,
-          100_000_000_000L,
-          2.5F,
-          3.14D,
-          "a",
-          "b",
-          5,
-          3,
-          "el",
-          Values.NULL_OBJECT,
-          Boolean.TRUE,
-          Boolean.FALSE,
-          42,
-          Integer.MAX_VALUE,
-          -42,
-          Integer.MIN_VALUE,
-          17315993717L,
-          -17315993717L,
-          3.14
-        };
+    Object[] expectedValues = new Object[] {
+        "hello",
+        "hello",
+        10,
+        100_000_000_000L,
+        2.5F,
+        3.14D,
+        "a",
+        "b",
+        5,
+        3,
+        "el",
+        Values.NULL_OBJECT,
+        Boolean.TRUE,
+        Boolean.FALSE,
+        42,
+        Integer.MAX_VALUE,
+        -42,
+        Integer.MIN_VALUE,
+        17315993717L,
+        -17315993717L,
+        3.14
+    };
     List<String> lines = loadLinesFromResource("/test_one_liner_value_expr_02.txt");
     int i = 0;
     for (String line : lines) {
@@ -107,8 +101,8 @@ public class ValueScriptTest {
       assertEquals(
           expectedValues[i],
           valueScript
-              .execute(createResolver(new Obj()), TimeoutChecker.create(Config.get(), TEST_TIMEOUT))
-              .getValue(),
+            .execute(createResolver(new Obj()), TimeoutChecker.create(Config.get(), TEST_TIMEOUT))
+            .getValue(),
           line);
       i++;
     }

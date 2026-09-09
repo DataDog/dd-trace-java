@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,8 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
@@ -41,16 +40,17 @@ public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVi
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        // JUnit 4 has a dedicated instrumentation
-        .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
-        // suites are only used to organize other test engines
-        .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
+      // JUnit 4 has a dedicated instrumentation
+      .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
+      // suites are only used to organize other test engines
+      .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".JUnitPlatformUtils", parentPackageName + ".TestEventsHandlerHolder",
+        parentPackageName + ".JUnitPlatformUtils",
+        parentPackageName + ".TestEventsHandlerHolder"
     };
   }
 
@@ -65,9 +65,8 @@ public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVi
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("discover")
-            .and(
-                takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
-                    .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
+          .and(takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
+            .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
         JUnit5ExecutionStoreInstrumentation.class.getName() + "$ContextStoreAdvice");
   }
 

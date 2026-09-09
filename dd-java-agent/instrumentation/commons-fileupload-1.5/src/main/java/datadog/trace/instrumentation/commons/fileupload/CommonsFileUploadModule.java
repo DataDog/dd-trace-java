@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.commons.fileupload;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;

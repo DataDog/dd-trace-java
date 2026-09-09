@@ -1,7 +1,6 @@
 package annotatedsample;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
@@ -11,7 +10,8 @@ import java.util.concurrent.ExecutorService;
 public class GuavaTracedMethods {
   @WithSpan
   public static ListenableFuture<String> traceAsyncListenableFuture(
-      ExecutorService executor, CountDownLatch latch) {
+      ExecutorService executor,
+      CountDownLatch latch) {
     TestFuture listenableFuture = TestFuture.ofComplete(latch, "hello");
     executor.submit(listenableFuture::start);
     return listenableFuture;
@@ -24,7 +24,9 @@ public class GuavaTracedMethods {
 
   @WithSpan
   public static ListenableFuture<?> traceAsyncFailingListenableFuture(
-      ExecutorService executor, CountDownLatch latch, Throwable exception) {
+      ExecutorService executor,
+      CountDownLatch latch,
+      Throwable exception) {
     TestFuture listenableFuture = TestFuture.ofFailing(latch, exception);
     executor.submit(listenableFuture::start);
     return listenableFuture;

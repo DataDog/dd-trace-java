@@ -2,13 +2,14 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.ANY_CLASS_LOADER;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
-
 import datadog.trace.agent.tooling.context.FieldBackedContextMatcher;
 import java.util.BitSet;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Records a single match result in the bit-set. */
+/**
+ * Records a single match result in the bit-set.
+ */
 abstract class MatchRecorder {
   protected final int id;
 
@@ -17,13 +18,18 @@ abstract class MatchRecorder {
   }
 
   public abstract void record(
-      TypeDescription type, ClassLoader classLoader, Class<?> classBeingRedefined, BitSet matches);
+      TypeDescription type,
+      ClassLoader classLoader,
+      Class<?> classBeingRedefined,
+      BitSet matches);
 
   public String describe() {
     return InstrumenterState.describe(id);
   }
 
-  /** Selects types based on a simple direct match that doesn't require further lookup. */
+  /**
+   * Selects types based on a simple direct match that doesn't require further lookup.
+   */
   static final class ForType extends MatchRecorder {
     private final ElementMatcher<TypeDescription> typeMatcher;
 
@@ -48,7 +54,9 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Selects types based on more complex matching against the type's hierarchy. */
+  /**
+   * Selects types based on more complex matching against the type's hierarchy.
+   */
   static final class ForHierarchy extends MatchRecorder {
     private final ElementMatcher<ClassLoader> hintMatcher;
     private final ElementMatcher<TypeDescription> typeMatcher;
@@ -79,13 +87,17 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Selects types that can and should have a context-store field injected. */
+  /**
+   * Selects types that can and should have a context-store field injected.
+   */
   static final class ForContextStore extends MatchRecorder {
     private final ElementMatcher<ClassLoader> activation;
     private final FieldBackedContextMatcher contextMatcher;
 
     ForContextStore(
-        int id, ElementMatcher<ClassLoader> activation, FieldBackedContextMatcher contextMatcher) {
+        int id,
+        ElementMatcher<ClassLoader> activation,
+        FieldBackedContextMatcher contextMatcher) {
       super(id);
       this.activation = activation;
       this.contextMatcher = contextMatcher;
@@ -113,7 +125,9 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Narrows the current match to eliminate incompatible types. */
+  /**
+   * Narrows the current match to eliminate incompatible types.
+   */
   static final class NarrowType extends MatchRecorder {
     private final ElementMatcher<TypeDescription> matcher;
 
@@ -140,7 +154,9 @@ abstract class MatchRecorder {
     }
   }
 
-  /** Narrows the current match to eliminate incompatible class-loaders. */
+  /**
+   * Narrows the current match to eliminate incompatible class-loaders.
+   */
   static final class NarrowLocation extends MatchRecorder {
     private final ElementMatcher<ClassLoader> matcher;
 

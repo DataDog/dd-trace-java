@@ -8,14 +8,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SymbolExtractionTransformer implements ClassFileTransformer {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractionTransformer.class);
-
   private final SymbolAggregator symbolAggregator;
   private final ClassNameFilter classNameFiltering;
 
   public SymbolExtractionTransformer(
-      SymbolAggregator symbolAggregator, ClassNameFilter classNameFiltering) {
+      SymbolAggregator symbolAggregator,
+      ClassNameFilter classNameFiltering) {
     this.symbolAggregator = symbolAggregator;
     this.classNameFiltering = classNameFiltering;
   }

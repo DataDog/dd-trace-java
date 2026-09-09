@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -62,10 +61,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
 public class HashtableD1Benchmark {
-
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
-
   static final String[] SOURCE_KEYS = new String[N_KEYS];
 
   static {
@@ -82,7 +79,9 @@ public class HashtableD1Benchmark {
     }
   }
 
-  /** Reusable iteration consumer — avoids per-call lambda capture allocation. */
+  /**
+   * Reusable iteration consumer — avoids per-call lambda capture allocation.
+   */
   static final class BhD1Consumer implements Consumer<D1Counter> {
     Blackhole bh;
 

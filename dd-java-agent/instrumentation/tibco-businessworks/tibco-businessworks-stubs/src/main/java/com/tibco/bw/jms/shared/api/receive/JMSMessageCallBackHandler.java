@@ -1,3 +1,4 @@
 package com.tibco.bw.jms.shared.api.receive;
 
-public interface JMSMessageCallBackHandler {}
+public interface JMSMessageCallBackHandler {
+}

@@ -21,17 +21,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LLMObsSystem {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(LLMObsSystem.class);
-
   private static final String CUSTOM_MODEL_VAL = "custom";
-
   private static final String EVAL_METRIC_API_PATH = "api/intake/llm-obs/v1/eval-metric";
   // Feedback is a v2 concept: submitter, the feedback-only targets and the non-score value types
   // only exist there. Evaluations deliberately stay on v1 with their existing flat payload; both
   // now carry event_kind, so the two are told apart the same way as in dd-trace-py and dd-trace-js.
   private static final String FEEDBACK_API_PATH = "api/intake/llm-obs/v2/eval-metric";
-
   private static final int QUEUE_CAPACITY = 1024;
   private static final long FLUSH_INTERVAL_MS = 100;
 
@@ -58,20 +54,20 @@ public class LLMObsSystem {
     private final LLMObsIntakeWorker<LLMObsFeedbackEvent> feedbackProcessingWorker;
 
     public LLMObsCustomFeedbackProcessor(
-        String defaultMLApp, SharedCommunicationObjects sco, Config config) {
-
+        String defaultMLApp,
+        SharedCommunicationObjects sco,
+        Config config) {
       this.defaultMLApp = defaultMLApp;
-      this.feedbackProcessingWorker =
-          new LLMObsIntakeWorker<>(
-              "feedback",
-              FEEDBACK_API_PATH,
-              AgentThread.LLMOBS_FEEDBACK_PROCESSOR,
-              QUEUE_CAPACITY,
-              FLUSH_INTERVAL_MS,
-              TimeUnit.MILLISECONDS,
-              sco,
-              config,
-              LLMObsFeedbackEvent.batchSerializer());
+      this.feedbackProcessingWorker = new LLMObsIntakeWorker<>(
+          "feedback",
+          FEEDBACK_API_PATH,
+          AgentThread.LLMOBS_FEEDBACK_PROCESSOR,
+          QUEUE_CAPACITY,
+          FLUSH_INTERVAL_MS,
+          TimeUnit.MILLISECONDS,
+          sco,
+          config,
+          LLMObsFeedbackEvent.batchSerializer());
       this.feedbackProcessingWorker.start();
     }
 
@@ -82,7 +78,6 @@ public class LLMObsSystem {
         LOGGER.error("null feedback provided, feedback not recorded");
         return;
       }
-
       // The builder never throws so that instrumented code stays safe when the agent is absent;
       // validation happens here instead, only once LLM Observability is actually enabled.
       LLMObs.Feedback.ValidationError error = feedback.validate();
@@ -111,14 +106,16 @@ public class LLMObsSystem {
     }
 
     private static void recordFeedbackTelemetry(
-        LLMObs.Feedback feedback, @Nullable String errorCode) {
+        LLMObs.Feedback feedback,
+        @Nullable String errorCode) {
       LLMObs.Feedback.MetricType metricType = feedback.getMetricType();
       LLMObs.Feedback.TargetType targetType = feedback.getTargetType();
-      LLMObsMetricCollector.get()
-          .recordFeedbackSubmitted(
-              metricType == null ? null : metricType.toString(),
-              targetType == null ? null : targetType.getWireKey(),
-              errorCode);
+      LLMObsMetricCollector
+        .get()
+        .recordFeedbackSubmitted(
+            metricType == null ? null : metricType.toString(),
+            targetType == null ? null : targetType.getWireKey(),
+            errorCode);
     }
   }
 
@@ -127,26 +124,29 @@ public class LLMObsSystem {
     private final LLMObsIntakeWorker<LLMObsEval> evalProcessingWorker;
 
     public LLMObsCustomEvalProcessor(
-        String defaultMLApp, SharedCommunicationObjects sco, Config config) {
-
+        String defaultMLApp,
+        SharedCommunicationObjects sco,
+        Config config) {
       this.defaultMLApp = defaultMLApp;
-      this.evalProcessingWorker =
-          new LLMObsIntakeWorker<>(
-              "eval metrics",
-              EVAL_METRIC_API_PATH,
-              AgentThread.LLMOBS_EVALS_PROCESSOR,
-              QUEUE_CAPACITY,
-              FLUSH_INTERVAL_MS,
-              TimeUnit.MILLISECONDS,
-              sco,
-              config,
-              LLMObsEval.batchSerializer());
+      this.evalProcessingWorker = new LLMObsIntakeWorker<>(
+          "eval metrics",
+          EVAL_METRIC_API_PATH,
+          AgentThread.LLMOBS_EVALS_PROCESSOR,
+          QUEUE_CAPACITY,
+          FLUSH_INTERVAL_MS,
+          TimeUnit.MILLISECONDS,
+          sco,
+          config,
+          LLMObsEval.batchSerializer());
       this.evalProcessingWorker.start();
     }
 
     @Override
     public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
+        LLMObsSpan llmObsSpan,
+        String label,
+        double scoreValue,
+        Map<String, Object> tags) {
       SubmitEvaluation(llmObsSpan, label, scoreValue, defaultMLApp, tags);
     }
 
@@ -167,9 +167,14 @@ public class LLMObsSystem {
       }
       String traceID = llmObsSpan.getTraceId().toHexString();
       long spanID = llmObsSpan.getSpanId();
-      LLMObsEval.Score score =
-          new LLMObsEval.Score(
-              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, scoreValue);
+      LLMObsEval.Score score = new LLMObsEval.Score(
+          traceID,
+          spanID,
+          System.currentTimeMillis(),
+          mlApp,
+          label,
+          tags,
+          scoreValue);
       if (!this.evalProcessingWorker.addToQueue(score)) {
         LOGGER.warn(
             "queue full, failed to add score eval, ml_app={}, trace_id={}, span_id={}, label={}",
@@ -182,7 +187,10 @@ public class LLMObsSystem {
 
     @Override
     public void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
+        LLMObsSpan llmObsSpan,
+        String label,
+        String categoricalValue,
+        Map<String, Object> tags) {
       SubmitEvaluation(llmObsSpan, label, categoricalValue, defaultMLApp, tags);
     }
 
@@ -203,9 +211,14 @@ public class LLMObsSystem {
       }
       String traceID = llmObsSpan.getTraceId().toHexString();
       long spanID = llmObsSpan.getSpanId();
-      LLMObsEval.Categorical category =
-          new LLMObsEval.Categorical(
-              traceID, spanID, System.currentTimeMillis(), mlApp, label, tags, categoricalValue);
+      LLMObsEval.Categorical category = new LLMObsEval.Categorical(
+          traceID,
+          spanID,
+          System.currentTimeMillis(),
+          mlApp,
+          label,
+          tags,
+          categoricalValue);
       if (!this.evalProcessingWorker.addToQueue(category)) {
         LOGGER.warn(
             "queue full, failed to add categorical eval, ml_app={}, trace_id={}, span_id={}, label={}",
@@ -218,7 +231,6 @@ public class LLMObsSystem {
   }
 
   private static class LLMObsManualSpanFactory implements LLMObs.LLMObsSpanFactory {
-
     private final String defaultMLApp;
     private final String serviceName;
     private final WellKnownTags wellKnownTags;
@@ -236,15 +248,13 @@ public class LLMObsSystem {
         String modelProvider,
         @Nullable String mlApp,
         @Nullable String sessionId) {
-
-      DDLLMObsSpan span =
-          new DDLLMObsSpan(
-              Tags.LLMOBS_LLM_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
+      DDLLMObsSpan span = new DDLLMObsSpan(
+          Tags.LLMOBS_LLM_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
 
       if (modelName == null || modelName.isEmpty()) {
         modelName = CUSTOM_MODEL_VAL;
@@ -260,7 +270,9 @@ public class LLMObsSystem {
 
     @Override
     public LLMObsSpan startAgentSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId) {
       return startAgentSpan(spanName, mlApp, sessionId, null);
     }
 
@@ -282,7 +294,9 @@ public class LLMObsSystem {
 
     @Override
     public LLMObsSpan startToolSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId) {
       return new DDLLMObsSpan(
           Tags.LLMOBS_TOOL_SPAN_KIND,
           spanName,
@@ -294,7 +308,9 @@ public class LLMObsSystem {
 
     @Override
     public LLMObsSpan startTaskSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId) {
       return new DDLLMObsSpan(
           Tags.LLMOBS_TASK_SPAN_KIND,
           spanName,
@@ -306,7 +322,9 @@ public class LLMObsSystem {
 
     @Override
     public LLMObsSpan startWorkflowSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId) {
       return new DDLLMObsSpan(
           Tags.LLMOBS_WORKFLOW_SPAN_KIND,
           spanName,
@@ -326,21 +344,22 @@ public class LLMObsSystem {
       if (modelProvider == null) {
         modelProvider = "custom";
       }
-      DDLLMObsSpan embeddingSpan =
-          new DDLLMObsSpan(
-              Tags.LLMOBS_EMBEDDING_SPAN_KIND,
-              spanName,
-              getMLApp(mlApp),
-              sessionId,
-              serviceName,
-              wellKnownTags);
+      DDLLMObsSpan embeddingSpan = new DDLLMObsSpan(
+          Tags.LLMOBS_EMBEDDING_SPAN_KIND,
+          spanName,
+          getMLApp(mlApp),
+          sessionId,
+          serviceName,
+          wellKnownTags);
       embeddingSpan.setTag(LLMObsTags.MODEL_PROVIDER, modelProvider);
       embeddingSpan.setTag(LLMObsTags.MODEL_NAME, modelName);
       return embeddingSpan;
     }
 
     public LLMObsSpan startRetrievalSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId) {
       return new DDLLMObsSpan(
           Tags.LLMOBS_RETRIEVAL_SPAN_KIND,
           spanName,

@@ -8,10 +8,10 @@ import javax.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@SuppressForbidden // Class.forName is needed to test Reflection Injection
+// Class.forName is needed to test Reflection Injection
+@SuppressForbidden
 @RestController
 public class ReflectionController {
-
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
   @GetMapping("/reflection_injection/class")

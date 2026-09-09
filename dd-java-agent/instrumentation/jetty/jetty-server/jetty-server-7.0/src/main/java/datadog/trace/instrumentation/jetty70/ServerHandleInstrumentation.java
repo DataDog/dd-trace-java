@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -19,7 +18,8 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ServerHandleInstrumentation() {
     super("jetty");
   }
@@ -32,13 +32,13 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".JettyDecorator",
+        packageName + ".RequestURIDataAdapter",
+        "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+        "datadog.trace.instrumentation.jetty.JettyBlockingHelper"
     };
   }
 
@@ -46,9 +46,9 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("handle")
-            .or(named("handleAsync"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.eclipse.jetty.server.HttpConnection"))),
+          .or(named("handleAsync"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.eclipse.jetty.server.HttpConnection"))),
         ServerHandleInstrumentation.class.getName() + "$HandleAdvice");
   }
 
@@ -59,10 +59,8 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
         @Advice.Local("request") Request req,
         @Advice.Local("agentSpan") AgentSpan span) {
       req = connection.getRequest();
-
       // First check if there's an existing context in the request (from main server span)
       Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
-
       // see comments in HandleRequestAdvice for jetty-9
       Object dispatchSpan;
       synchronized (req) {
@@ -70,7 +68,6 @@ public class ServerHandleInstrumentation extends InstrumenterModule.Tracing
       }
       if (dispatchSpan instanceof AgentSpan) {
         span = (AgentSpan) dispatchSpan;
-
         // If we have an existing context, create a new context with the dispatch span
         // Otherwise just attach the dispatch span
         if (existingContext instanceof Context) {

@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import scala.Option;
 
 final class UriAdapter extends URIRawDataAdapter {
-
   private final Uri uri;
 
   UriAdapter(Uri uri) {

@@ -2,14 +2,14 @@ package datadog.trace.instrumentation.spray;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public final class SprayHttpServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SprayHttpServerInstrumentation() {
     super("spray-http", "spray-http-server");
   }
@@ -22,15 +22,15 @@ public final class SprayHttpServerInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SprayHeaders",
-      packageName + ".SprayHeaders$Request",
-      packageName + ".SprayHeaders$Response",
-      packageName + ".SprayHelper",
-      packageName + ".SprayHelper$",
-      packageName + ".SprayHelper$$anonfun$wrapRequestContext$1",
-      packageName + ".SprayHelper$$anonfun$wrapRoute$1",
-      packageName + ".SprayHttpServerDecorator",
-      packageName + ".SprayURIAdapter"
+        packageName + ".SprayHeaders",
+        packageName + ".SprayHeaders$Request",
+        packageName + ".SprayHeaders$Response",
+        packageName + ".SprayHelper",
+        packageName + ".SprayHelper$",
+        packageName + ".SprayHelper$$anonfun$wrapRequestContext$1",
+        packageName + ".SprayHelper$$anonfun$wrapRoute$1",
+        packageName + ".SprayHttpServerDecorator",
+        packageName + ".SprayURIAdapter"
     };
   }
 

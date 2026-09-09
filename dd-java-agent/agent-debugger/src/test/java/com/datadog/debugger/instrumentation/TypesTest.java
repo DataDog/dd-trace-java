@@ -18,7 +18,6 @@ import static org.objectweb.asm.Opcodes.LALOAD;
 import static org.objectweb.asm.Opcodes.LASTORE;
 import static org.objectweb.asm.Opcodes.SALOAD;
 import static org.objectweb.asm.Opcodes.SASTORE;
-
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -35,8 +34,8 @@ class TypesTest {
   void testFromClassName(Class<?> clazz) {
     assertEquals(Type.getType(clazz), Types.fromClassName(clazz.getName()));
 
-    assertEquals(
-        Types.asArray(Type.getType(clazz), 1), Types.fromClassName(clazz.getName() + "[]"));
+    assertEquals(Types.asArray(Type.getType(clazz), 1), Types.fromClassName(clazz.getName()
+        + "[]"));
   }
 
   @ParameterizedTest
@@ -86,8 +85,7 @@ class TypesTest {
     assertThrows(IllegalArgumentException.class, () -> Types.descriptorFromSignature("int ("));
     assertThrows(IllegalArgumentException.class, () -> Types.descriptorFromSignature("int ("));
     assertThrows(IllegalArgumentException.class, () -> Types.descriptorFromSignature("int (, )"));
-    assertThrows(
-        IllegalArgumentException.class, () -> Types.descriptorFromSignature("int (a, ,b)"));
+    assertThrows(IllegalArgumentException.class, () -> Types.descriptorFromSignature("int (a, ,b)"));
   }
 
   @Test

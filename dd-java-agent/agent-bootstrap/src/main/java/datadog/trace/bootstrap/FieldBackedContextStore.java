@@ -11,7 +11,6 @@ import java.util.function.Function;
 public final class FieldBackedContextStore implements ContextStore<Object, Object> {
   private static final boolean MAP_PER_STORE =
       InstrumenterConfig.get().isRuntimeContextMapPerStore();
-
   final int storeId;
 
   FieldBackedContextStore(final int storeId) {

@@ -2,7 +2,6 @@ package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import static datadog.trace.api.iast.VulnerabilityMarks.XSS_MARK;
-
 import com.datadog.iast.taint.TaintedObject;
 import com.datadog.iast.taint.TaintedObjects;
 import com.datadog.iast.util.RangeBuilder;
@@ -15,7 +14,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CodecModuleImpl implements CodecModule {
-
   private final PropagationModule propagationModule;
 
   public CodecModuleImpl() {
@@ -28,13 +26,17 @@ public class CodecModuleImpl implements CodecModule {
 
   @Override
   public void onUrlDecode(
-      @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {
+      @Nonnull final String value,
+      @Nullable final String encoding,
+      @Nonnull final String result) {
     propagationModule.taintStringIfTainted(result, value);
   }
 
   @Override
   public void onUrlEncode(
-      @Nonnull final String value, @Nullable final String encoding, @Nonnull final String result) {
+      @Nonnull final String value,
+      @Nullable final String encoding,
+      @Nonnull final String result) {
     // the new string should be safe to be used in
     propagationModule.taintStringIfTainted(result, value, false, XSS_MARK);
   }
@@ -52,7 +54,9 @@ public class CodecModuleImpl implements CodecModule {
 
   @Override
   public void onStringGetBytes(
-      @Nonnull final String value, @Nullable final String charset, @Nonnull final byte[] result) {
+      @Nonnull final String value,
+      @Nullable final String charset,
+      @Nonnull final byte[] result) {
     propagationModule.taintObjectIfTainted(result, value);
   }
 
@@ -100,7 +104,9 @@ public class CodecModuleImpl implements CodecModule {
   }
 
   private void taintUrlIfAnyTainted(
-      @Nonnull final TaintedObjects to, @Nonnull final Object url, @Nonnull final Object... args) {
+      @Nonnull final TaintedObjects to,
+      @Nonnull final Object url,
+      @Nonnull final Object... args) {
     final String toString = url.toString();
     final RangeBuilder builder = new RangeBuilder();
     boolean hasTainted = false;

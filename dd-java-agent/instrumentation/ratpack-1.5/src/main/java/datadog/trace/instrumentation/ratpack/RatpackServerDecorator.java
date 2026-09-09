@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -79,7 +78,6 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
   }
 
   public void onContext(final AgentSpan span, final Context ctx) {
-
     String description = ctx.getPathBinding().getDescription();
     if (description == null || description.isEmpty()) {
       description = "/";
@@ -92,7 +90,9 @@ public class RatpackServerDecorator extends HttpServerDecorator<Request, Request
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull Throwable throwable,
+      byte errorPriority) {
     // Attempt to unwrap ratpack.handling.internal.HandlerException without direct reference.
     if (throwable instanceof Error && throwable.getCause() != null) {
       super.doOnError(span, throwable.getCause(), errorPriority);

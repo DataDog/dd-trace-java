@@ -11,11 +11,8 @@ import java.nio.file.Path;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
-@CallSite(
-    spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileIORaspHelper.class)
+@CallSite(spi = {IastCallSites.class, RaspCallSites.class}, helpers = FileIORaspHelper.class)
 public class PathCallSite {
-
   @CallSite.Before("java.nio.file.Path java.nio.file.Path.resolve(java.lang.String)")
   @CallSite.Before("java.nio.file.Path java.nio.file.Path.resolveSibling(java.lang.String)")
   public static void beforeResolve(@CallSite.Argument @Nullable final String other) {

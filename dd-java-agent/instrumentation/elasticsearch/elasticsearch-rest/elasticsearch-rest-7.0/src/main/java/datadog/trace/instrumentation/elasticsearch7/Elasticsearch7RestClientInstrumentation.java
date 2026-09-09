@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClien
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -25,8 +24,8 @@ import org.elasticsearch.client.ResponseListener;
 
 @AutoService(InstrumenterModule.class)
 public class Elasticsearch7RestClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public Elasticsearch7RestClientInstrumentation() {
     super("elasticsearch", "elasticsearch-rest", "elasticsearch-rest-7");
   }
@@ -40,8 +39,8 @@ public class Elasticsearch7RestClientInstrumentation extends InstrumenterModule.
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator",
-      packageName + ".RestResponseListener",
+        "datadog.trace.instrumentation.elasticsearch.ElasticsearchRestClientDecorator",
+        packageName + ".RestResponseListener"
     };
   }
 
@@ -54,27 +53,24 @@ public class Elasticsearch7RestClientInstrumentation extends InstrumenterModule.
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("performRequest"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.elasticsearch.client.Request"))),
+          .and(named("performRequest"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.elasticsearch.client.Request"))),
         Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("performRequestAsync"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.elasticsearch.client.Request")))
-            .and(takesArgument(1, named("org.elasticsearch.client.ResponseListener"))),
+          .and(named("performRequestAsync"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("org.elasticsearch.client.Request")))
+          .and(takesArgument(1, named("org.elasticsearch.client.ResponseListener"))),
         Elasticsearch7RestClientInstrumentation.class.getName() + "$ElasticsearchRestClientAdvice");
   }
 
   public static class ElasticsearchRestClientAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final Request request,
-        @Advice.Argument(value = 1, readOnly = false, optional = true)
-            ResponseListener responseListener) {
-
+        @Advice.Argument(value = 1, readOnly = false, optional = true) ResponseListener responseListener) {
       final AgentSpan span = startSpan(ELASTICSEARCH_JAVA.toString(), OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onRequest(

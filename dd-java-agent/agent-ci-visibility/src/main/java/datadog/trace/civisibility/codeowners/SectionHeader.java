@@ -8,7 +8,6 @@ import java.util.Collection;
  * section that do not declare their own).
  */
 public class SectionHeader {
-
   private final String name;
   private final Collection<String> defaultOwners;
 

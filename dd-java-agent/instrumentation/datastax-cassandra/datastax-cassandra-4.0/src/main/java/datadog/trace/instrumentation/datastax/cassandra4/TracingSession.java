@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientD
 import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.JAVA_CASSANDRA;
 import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.OPERATION_NAME;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_CASSANDRA_ASYNC_SESSION;
-
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
@@ -31,7 +30,6 @@ import javax.annotation.Nullable;
 public class TracingSession extends SessionWrapper implements CqlSession {
   private static final ExecutorService EXECUTOR_SERVICE =
       Executors.newCachedThreadPool(new AgentThreadFactory(TRACE_CASSANDRA_ASYNC_SESSION));
-
   private final String contactPoints;
 
   public TracingSession(final Session session, final String contactPoints) {
@@ -42,8 +40,8 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   @Override
   @Nullable
   public <RequestT extends Request, ResultT> ResultT execute(
-      @Nonnull RequestT request, @Nonnull GenericType<ResultT> resultType) {
-
+      @Nonnull RequestT request,
+      @Nonnull GenericType<ResultT> resultType) {
     if (request instanceof Statement && resultType.equals(Statement.SYNC)) {
       return (ResultT) wrapSyncRequest((Statement) request);
     } else if (request instanceof Statement && resultType.equals(Statement.ASYNC)) {
@@ -90,18 +88,17 @@ public class TracingSession extends SessionWrapper implements CqlSession {
       CompletionStage<AsyncResultSet> completionStage =
           getDelegate().execute(request, Statement.ASYNC);
 
-      return completionStage.whenComplete(
-          (result, throwable) -> {
-            if (result != null) {
-              DECORATE.onResponse(span, result);
-            }
+      return completionStage.whenComplete((result, throwable) -> {
+        if (result != null) {
+          DECORATE.onResponse(span, result);
+        }
 
-            if (throwable instanceof CompletionException) {
-              throwable = throwable.getCause();
-            }
-            DECORATE.onError(span, throwable);
-            span.finish();
-          });
+        if (throwable instanceof CompletionException) {
+          throwable = throwable.getCause();
+        }
+        DECORATE.onError(span, throwable);
+        span.finish();
+      });
     }
   }
 

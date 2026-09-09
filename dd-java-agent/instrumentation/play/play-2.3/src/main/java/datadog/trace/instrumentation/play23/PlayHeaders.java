@@ -7,7 +7,6 @@ import scala.collection.JavaConversions;
 import scala.collection.Seq;
 
 public abstract class PlayHeaders {
-
   public static final class Request implements AgentPropagation.ContextVisitor<Headers> {
     public static final Request GETTER = new Request();
 
@@ -26,8 +25,9 @@ public abstract class PlayHeaders {
 
     @Override
     public void forEachKey(play.api.mvc.Result carrier, AgentPropagation.KeyClassifier classifier) {
-      for (Tuple2<String, String> entry :
-          JavaConversions.asJavaIterable(carrier.header().headers())) {
+      for (Tuple2<String, String> entry : JavaConversions.asJavaIterable(carrier
+        .header()
+        .headers())) {
         if (!classifier.accept(entry._1, entry._2)) {
           return;
         }

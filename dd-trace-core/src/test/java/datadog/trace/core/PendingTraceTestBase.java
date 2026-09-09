@@ -4,7 +4,6 @@ import static datadog.trace.api.config.TracerConfig.PARTIAL_FLUSH_MIN_SPANS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import datadog.trace.common.writer.ListWriter;
@@ -22,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
 
 public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
-
   protected ListWriter writer;
   protected CoreTracer tracer;
   protected DDSpan rootSpan;
@@ -103,7 +101,8 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
 
   @Test
   void childSpansCreatedAfterWrittenReportedSeparately()
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     rootSpan.finish();
     // this shouldn't happen, but it's possible users of the api
     // may incorrectly add spans after the trace is reported.
@@ -116,15 +115,14 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     assertEquals(0, traceCollector.getPendingReferenceCount());
     assertTrue(traceCollector.getSpans().isEmpty());
     assertEquals(
-        Arrays.asList(Arrays.asList(rootSpan), Arrays.asList(childSpan)), new ArrayList<>(writer));
+        Arrays.asList(Arrays.asList(rootSpan), Arrays.asList(childSpan)),
+        new ArrayList<>(writer));
   }
 
   @Test
   void testGetCurrentTimeNano() {
-    long diffSeconds =
-        Math.abs(
-            TimeUnit.NANOSECONDS.toSeconds(traceCollector.getCurrentTimeNano())
-                - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()));
+    long diffSeconds = Math.abs(
+        TimeUnit.NANOSECONDS.toSeconds(traceCollector.getCurrentTimeNano()) - TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis()));
     // Generous 5 seconds to execute this test
     assertTrue(diffSeconds < 5, "Expected time difference < 5 seconds, got: " + diffSeconds);
   }
@@ -136,12 +134,14 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     try {
       DDSpan localRoot = (DDSpan) quickTracer.buildSpan("datadog", "root").start();
       PendingTrace trace = (PendingTrace) localRoot.spanContext().getTraceCollector();
-      DDSpan child1 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.spanContext()).start();
-      DDSpan child2 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.spanContext()).start();
+      DDSpan child1 = (DDSpan) quickTracer
+        .buildSpan("datadog", "child1")
+        .asChildOf(localRoot.spanContext())
+        .start();
+      DDSpan child2 = (DDSpan) quickTracer
+        .buildSpan("datadog", "child2")
+        .asChildOf(localRoot.spanContext())
+        .start();
 
       assertEquals(3, trace.getPendingReferenceCount());
 
@@ -181,12 +181,14 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     try {
       DDSpan localRoot = (DDSpan) quickTracer.buildSpan("datadog", "root").start();
       PendingTrace trace = (PendingTrace) localRoot.spanContext().getTraceCollector();
-      DDSpan child1 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child1").asChildOf(localRoot.spanContext()).start();
-      DDSpan child2 =
-          (DDSpan)
-              quickTracer.buildSpan("datadog", "child2").asChildOf(localRoot.spanContext()).start();
+      DDSpan child1 = (DDSpan) quickTracer
+        .buildSpan("datadog", "child1")
+        .asChildOf(localRoot.spanContext())
+        .start();
+      DDSpan child2 = (DDSpan) quickTracer
+        .buildSpan("datadog", "child2")
+        .asChildOf(localRoot.spanContext())
+        .start();
 
       assertEquals(3, trace.getPendingReferenceCount());
 
@@ -232,7 +234,8 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
   })
   // spotless:on
   void partialFlushConcurrencyTest(int threadCount, int spanCount)
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     // reduce logging noise
     Logger logger = (Logger) LoggerFactory.getLogger("datadog.trace");
     Level previousLevel = logger.getLevel();
@@ -240,28 +243,27 @@ public abstract class PendingTraceTestBase extends DDCoreJavaSpecification {
     try {
       CountDownLatch latch = new CountDownLatch(1);
       DDSpan localRoot = (DDSpan) tracer.buildSpan("test", "root").start();
-      PendingTrace localTraceCollector = (PendingTrace) localRoot.spanContext().getTraceCollector();
+      PendingTrace localTraceCollector = (PendingTrace) localRoot
+        .spanContext()
+        .getTraceCollector();
       List<Throwable> exceptions = new ArrayList<>();
 
       List<Thread> threads = new ArrayList<>(threadCount);
       for (int t = 0; t < threadCount; t++) {
-        Thread thread =
-            new Thread(
-                () -> {
-                  try {
-                    latch.await();
-                    List<DDSpan> spans = new ArrayList<>(spanCount);
-                    for (int s = 0; s < spanCount; s++) {
-                      spans.add(
-                          (DDSpan) tracer.startSpan("test", "child", localRoot.spanContext()));
-                    }
-                    for (DDSpan span : spans) {
-                      span.finish();
-                    }
-                  } catch (Throwable ex) {
-                    exceptions.add(ex);
-                  }
-                });
+        Thread thread = new Thread(() -> {
+          try {
+            latch.await();
+            List<DDSpan> spans = new ArrayList<>(spanCount);
+            for (int s = 0; s < spanCount; s++) {
+              spans.add((DDSpan) tracer.startSpan("test", "child", localRoot.spanContext()));
+            }
+            for (DDSpan span : spans) {
+              span.finish();
+            }
+          } catch (Throwable ex) {
+            exceptions.add(ex);
+          }
+        });
         thread.start();
         threads.add(thread);
       }

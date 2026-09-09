@@ -5,17 +5,14 @@ public class LLMObsTags {
   public static final String ML_APP = "ml_app";
   public static final String SESSION_ID = "session_id";
   public static final String AGENT_VERSION = "agent_version";
-
   // meta
   public static final String METADATA = "metadata";
-
   // LLM spans related
   public static final String MODEL_NAME = "model_name";
   public static final String MODEL_VERSION = "model_version";
   public static final String MODEL_PROVIDER = "model_provider";
   public static final String TOOL_DEFINITIONS = "tool_definitions";
   public static final String AGENT_MANIFEST = "agent_manifest";
-
   // Agent attribution
   public static final String PAGENT_SPAN_ID = "pagent_span_id";
   public static final String PAGENT_NAME = "pagent_name";

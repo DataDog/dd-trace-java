@@ -4,7 +4,6 @@ import static com.amazon.sqs.javamessaging.SQSMessagingClientConstants.STRING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.amazon.sqs.javamessaging.message.SQSMessage;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
@@ -19,8 +18,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SqsJmsMessageInstrumentation() {
     super("jms");
   }
@@ -57,15 +56,16 @@ public class SqsJmsMessageInstrumentation extends AbstractSqsInstrumentation
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.Argument(2) Message sqsMessage, @Advice.FieldValue("properties") Map properties)
-        throws JMSException {
+        @Advice.Argument(2) Message sqsMessage,
+        @Advice.FieldValue("properties") Map properties) throws JMSException {
       if (Config.get().isSqsPropagationEnabled()) {
         Map<String, String> systemAttributes = sqsMessage.getAttributes();
         if (null != systemAttributes) {
           String awsTraceHeader = systemAttributes.get("AWSTraceHeader");
           if (null != awsTraceHeader && !awsTraceHeader.isEmpty()) {
             properties.put(
-                "x__dash__amzn__dash__trace__dash__id", // X-Amzn-Trace-Id, encoded for JMS
+                // X-Amzn-Trace-Id, encoded for JMS
+                "x__dash__amzn__dash__trace__dash__id",
                 new SQSMessage.JMSMessagePropertyValue(awsTraceHeader, STRING));
           }
         }

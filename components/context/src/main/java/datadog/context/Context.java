@@ -2,7 +2,6 @@ package datadog.context;
 
 import static datadog.context.ContextProviders.binder;
 import static datadog.context.ContextProviders.manager;
-
 import javax.annotation.Nullable;
 
 /**

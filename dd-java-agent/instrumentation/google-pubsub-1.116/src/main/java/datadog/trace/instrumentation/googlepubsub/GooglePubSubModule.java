@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,12 +23,12 @@ public class GooglePubSubModule extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PubSubDecorator",
-      packageName + ".PubSubDecorator$RegexExtractor",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TextMapExtractAdapter",
-      packageName + ".MessageReceiverWrapper",
-      packageName + ".MessageReceiverWithAckResponseWrapper",
+        packageName + ".PubSubDecorator",
+        packageName + ".PubSubDecorator$RegexExtractor",
+        packageName + ".TextMapInjectAdapter",
+        packageName + ".TextMapExtractAdapter",
+        packageName + ".MessageReceiverWrapper",
+        packageName + ".MessageReceiverWithAckResponseWrapper"
     };
   }
 

@@ -4,10 +4,13 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import java.io.Closeable;
 
-/** An object which can propagate a datadog trace across multiple threads. */
+/**
+ * An object which can propagate a datadog trace across multiple threads.
+ */
 public interface TraceScope extends Closeable {
-
-  /** Close the activated context and allow any underlying spans to finish. */
+  /**
+   * Close the activated context and allow any underlying spans to finish.
+   */
   @Override
   void close();
 
@@ -17,7 +20,6 @@ public interface TraceScope extends Closeable {
    * on each continuation to avoid discarding traces.
    */
   interface Continuation {
-
     /**
      * Prevent the trace attached to this scope from reporting until the continuation is explicitly
      * cancelled. You must call {@link #cancel()} at some point to avoid discarding traces.
@@ -37,7 +39,9 @@ public interface TraceScope extends Closeable {
      */
     TraceScope activate();
 
-    /** Allow trace to stop waiting on this continuation for reporting. */
+    /**
+     * Allow trace to stop waiting on this continuation for reporting.
+     */
     void cancel();
   }
 

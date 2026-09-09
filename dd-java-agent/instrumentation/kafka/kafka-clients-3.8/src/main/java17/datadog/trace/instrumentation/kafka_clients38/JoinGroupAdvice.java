@@ -18,9 +18,9 @@ public class JoinGroupAdvice {
     if (memberId == null || memberId.isEmpty()) {
       return;
     }
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .get(coordinator);
+    KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext
+      .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+      .get(coordinator);
     if (kafkaConsumerInfo == null) {
       return;
     }
@@ -37,7 +37,11 @@ public class JoinGroupAdvice {
       clusterId = metadataState != null ? metadataState.clusterId : null;
     }
     if (KafkaConfigHelper.reportConsumerGroupMember(
-        clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
+        clusterId,
+        consumerGroup,
+        memberId,
+        generationId,
+        memberProtocol)) {
       kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
     }
   }

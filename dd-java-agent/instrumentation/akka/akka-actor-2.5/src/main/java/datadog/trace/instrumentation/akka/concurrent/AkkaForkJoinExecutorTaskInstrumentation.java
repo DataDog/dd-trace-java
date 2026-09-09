@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -28,8 +27,8 @@ import net.bytebuddy.asm.Advice;
 public final class AkkaForkJoinExecutorTaskInstrumentation
     extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType,
-        Instrumenter.ForConfiguredType,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.ForConfiguredType,
+    Instrumenter.HasMethodAdvice {
   public AkkaForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }

@@ -19,34 +19,27 @@ import org.slf4j.LoggerFactory;
  * only the first launch in the JVM is traced
  */
 public class SparkLauncherListener implements SparkAppHandle.Listener {
-
   private static final Logger log = LoggerFactory.getLogger(SparkLauncherListener.class);
-
   static volatile AgentSpan launcherSpan;
-
   private static volatile boolean shutdownHookRegistered = false;
-
   private static long spanStartTimeMs = 0L;
   private static long connectedTimeMs = 0L;
   private static long submittedTimeMs = 0L;
   private static long runningTimeMs = 0L;
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Listener class not exposed to application code; locking on its Class is safe")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Listen"
+      + "er class not exposed to application code; locking on its Class is safe")
   public static synchronized void createLauncherSpan(Object launcher) {
     if (launcherSpan != null) {
       return;
     }
 
     AgentTracer.TracerAPI tracer = AgentTracer.get();
-    AgentSpan span =
-        tracer
-            .buildSpan("spark-launcher", "spark.launcher.launch")
-            .withSpanType("spark")
-            .withResourceName("SparkLauncher.startApplication")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("spark-launcher", "spark.launcher.launch")
+      .withSpanType("spark")
+      .withResourceName("SparkLauncher.startApplication")
+      .start();
     span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.DATA_JOBS);
     setLauncherConfigTags(span, launcher);
     captureEmrStepId(span);
@@ -58,27 +51,22 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
 
     if (!shutdownHookRegistered) {
       shutdownHookRegistered = true;
-      Runtime.getRuntime()
-          .addShutdownHook(
-              new Thread(
-                  () -> {
-                    synchronized (SparkLauncherListener.class) {
-                      AgentSpan s = launcherSpan;
-                      if (s != null) {
-                        log.info("Finishing spark.launcher span from shutdown hook");
-                        setTimingMetrics(s);
-                        s.finish();
-                        launcherSpan = null;
-                      }
-                    }
-                  }));
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        synchronized (SparkLauncherListener.class) {
+          AgentSpan s = launcherSpan;
+          if (s != null) {
+            log.info("Finishing spark.launcher span from shutdown hook");
+            setTimingMetrics(s);
+            s.finish();
+            launcherSpan = null;
+          }
+        }
+      }));
     }
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Listener class not exposed to application code; locking on its Class is safe")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Listen"
+      + "er class not exposed to application code; locking on its Class is safe")
   public static synchronized void finishSpan(boolean isError, String errorMessage) {
     AgentSpan span = launcherSpan;
     if (span == null) {
@@ -94,10 +82,8 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
     launcherSpan = null;
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Listener class not exposed to application code; locking on its Class is safe")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Listen"
+      + "er class not exposed to application code; locking on its Class is safe")
   public static synchronized void finishSpanWithThrowable(Throwable throwable) {
     AgentSpan span = launcherSpan;
     if (span == null) {
@@ -243,7 +229,11 @@ public class SparkLauncherListener implements SparkAppHandle.Listener {
   }
 
   private static void setStringFieldAsTag(
-      AgentSpan span, Object obj, Class<?> clazz, String fieldName, String tagName) {
+      AgentSpan span,
+      Object obj,
+      Class<?> clazz,
+      String fieldName,
+      String tagName) {
     try {
       Field field = clazz.getDeclaredField(fieldName);
       field.setAccessible(true);

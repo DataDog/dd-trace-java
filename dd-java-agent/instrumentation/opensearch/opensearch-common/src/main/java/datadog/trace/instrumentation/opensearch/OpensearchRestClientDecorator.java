@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.opensearch;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -18,16 +17,15 @@ import org.apache.http.HttpEntity;
 import org.opensearch.client.Response;
 
 public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
-
   private static final int MAX_OPENSEARCH_BODY_CONTENT_LENGTH = 25000;
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("opensearch");
-
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().database().operation("opensearch.rest"));
+  public static final CharSequence OPERATION_NAME = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .database()
+    .operation("opensearch.rest"));
   public static final CharSequence OPENSEARCH_JAVA = UTF8BytesString.create("opensearch-java");
-
   public static final OpensearchRestClientDecorator DECORATE = new OpensearchRestClientDecorator();
 
   @Override
@@ -103,11 +101,7 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
         } else {
           span.setTag(
               "opensearch.body",
-              "<body size "
-                  + contentLength
-                  + " exceeds limit of "
-                  + MAX_OPENSEARCH_BODY_CONTENT_LENGTH
-                  + ">");
+              "<body size " + contentLength + " exceeds limit of " + MAX_OPENSEARCH_BODY_CONTENT_LENGTH + ">");
         }
       }
     }
@@ -116,8 +110,10 @@ public class OpensearchRestClientDecorator extends DBTypeProcessingDatabaseClien
       if (parameters != null) {
         StringBuilder queryParametersStringBuilder = new StringBuilder();
         for (Map.Entry<String, String> parameter : parameters.entrySet()) {
-          queryParametersStringBuilder.append(
-              parameter.getKey() + "=" + parameter.getValue() + "&");
+          queryParametersStringBuilder.append(parameter.getKey()
+              + "="
+              + parameter.getValue()
+              + "&");
         }
         if (queryParametersStringBuilder.length() >= 1) {
           queryParametersStringBuilder.deleteCharAt(queryParametersStringBuilder.length() - 1);

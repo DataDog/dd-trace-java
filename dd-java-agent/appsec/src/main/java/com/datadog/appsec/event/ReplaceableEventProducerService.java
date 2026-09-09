@@ -24,8 +24,7 @@ public class ReplaceableEventProducerService implements EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext reqCtx,
       DataBundle newData,
-      GatewayContext gwCtx)
-      throws ExpiredSubscriberInfoException {
+      GatewayContext gwCtx) throws ExpiredSubscriberInfoException {
     return cur.publishDataEvent(subscribers, reqCtx, newData, gwCtx);
   }
 

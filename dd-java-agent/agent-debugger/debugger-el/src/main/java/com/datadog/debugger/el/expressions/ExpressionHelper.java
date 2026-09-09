@@ -16,13 +16,15 @@ public class ExpressionHelper {
   public static void throwRedactedException(Expression<?> expr) {
     String strExpr = PrettyPrintVisitor.print(expr);
     throw new RedactedException(
-        "Could not evaluate the expression because '" + strExpr + "' was redacted", strExpr);
+        "Could not evaluate the expression because '" + strExpr + "' was redacted",
+        strExpr);
   }
 
   public static void checkTimeout(TimeoutChecker checker, Expression<?> expr) {
     if (checker.isTimedOut()) {
       throw new EvaluationTimeOutException(
-          "timeout (" + checker.getTimeOut().toMillis() + "ms)", PrettyPrintVisitor.print(expr));
+          "timeout (" + checker.getTimeOut().toMillis() + "ms)",
+          PrettyPrintVisitor.print(expr));
     }
   }
 
@@ -32,7 +34,8 @@ public class ExpressionHelper {
     }
     if (val.length() > MAX_STRING_LENGTH) {
       throw new EvaluationException(
-          "string too large (>" + MAX_STRING_LENGTH + ")", PrettyPrintVisitor.print(expr));
+          "string too large (>" + MAX_STRING_LENGTH + ")",
+          PrettyPrintVisitor.print(expr));
     }
   }
 
@@ -42,14 +45,16 @@ public class ExpressionHelper {
     }
     if (collection.size() > MAX_COLLECTION_ITEMS) {
       throw new EvaluationException(
-          "Collection too large (>" + MAX_COLLECTION_ITEMS + ")", PrettyPrintVisitor.print(expr));
+          "Collection too large (>" + MAX_COLLECTION_ITEMS + ")",
+          PrettyPrintVisitor.print(expr));
     }
   }
 
   public static void checkArrayLength(int arrayLength, Expression<?> expr) {
     if (arrayLength > MAX_ARRAY_ITEMS) {
       throw new EvaluationException(
-          "Array too large (>" + MAX_ARRAY_ITEMS + ")", PrettyPrintVisitor.print(expr));
+          "Array too large (>" + MAX_ARRAY_ITEMS + ")",
+          PrettyPrintVisitor.print(expr));
     }
   }
 }

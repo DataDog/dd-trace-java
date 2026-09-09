@@ -21,7 +21,6 @@ public class OTWithoutAgentApplication {
     }
 
     span.finish();
-
     // Allow trace to be reported.
     Thread.sleep(1000);
   }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.grizzly;
 
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
@@ -29,14 +28,18 @@ public class GrizzlyBlockingHelper {
     } catch (IllegalAccessException | NoSuchMethodException | RuntimeException e) {
       log.error("Lookup of getOutputStream failed. Will be unable to commit blocking response", e);
     }
-    GET_OUTPUT_STREAM =
-        getOutputStreamMH; // return value changed from NIOOutputStream to OutputStream
+    // return value changed from NIOOutputStream to OutputStream
+    GET_OUTPUT_STREAM = getOutputStreamMH;
   }
 
-  private GrizzlyBlockingHelper() {}
+  private GrizzlyBlockingHelper() {
+  }
 
   public static boolean block(
-      Request request, Response response, Flow.Action.RequestBlockingAction rba, Context context) {
+      Request request,
+      Response response,
+      Flow.Action.RequestBlockingAction rba,
+      Context context) {
     return block(
         request,
         response,

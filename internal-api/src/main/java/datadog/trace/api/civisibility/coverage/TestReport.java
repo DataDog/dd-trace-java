@@ -5,7 +5,6 @@ import java.util.Collection;
 import javax.annotation.Nonnull;
 
 public class TestReport {
-
   private final DDTraceId testSessionId;
   private final Long testSuiteId;
   private final long spanId;

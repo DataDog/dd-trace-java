@@ -35,10 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TelemetrySystem {
-
   private static final long TELEMETRY_STOP_WAIT_MILLIS = 5000L;
   private static final Logger log = LoggerFactory.getLogger(TelemetrySystem.class);
-
   private static volatile Thread TELEMETRY_THREAD;
   private static volatile DependencyService DEPENDENCY_SERVICE;
 
@@ -104,16 +102,17 @@ public class TelemetrySystem {
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);
     return AgentThreadFactory.newAgentThread(
-        AgentThreadFactory.AgentThread.TELEMETRY, telemetryRunnable);
+        AgentThreadFactory.AgentThread.TELEMETRY,
+        telemetryRunnable);
   }
 
-  /** Called by reflection (see Agent.startTelemetry) */
-  public static void startTelemetry(
-      Instrumentation instrumentation, SharedCommunicationObjects sco) {
+  /**
+   * Called by reflection (see Agent.startTelemetry)
+   */
+  public static void startTelemetry(Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
     boolean debug = config.isTelemetryDebugRequestsEnabled();
     boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
-
     // CI Visibility bazel mode writes telemetry to files instead of the network
     if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
       String telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
@@ -121,8 +120,10 @@ public class TelemetrySystem {
       DependencyService dependencyService = createDependencyService(instrumentation);
       TelemetryService telemetryService =
           TelemetryService.buildFileBased(new FileBasedTelemetryClient(telemetryDir), debug);
-      TELEMETRY_THREAD =
-          createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
+      TELEMETRY_THREAD = createTelemetryRunnable(
+          telemetryService,
+          dependencyService,
+          telemetryMetricsEnabled);
       TELEMETRY_THREAD.start();
       return;
     }
@@ -131,10 +132,9 @@ public class TelemetrySystem {
     DependencyService dependencyService = createDependencyService(instrumentation);
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
-    HttpRetryPolicy.Factory httpRetryPolicy =
-        config.isCiVisibilityEnabled()
-            ? new HttpRetryPolicy.Factory(2, 100, 2.0, true)
-            : HttpRetryPolicy.Factory.NEVER_RETRY;
+    HttpRetryPolicy.Factory httpRetryPolicy = config.isCiVisibilityEnabled()
+        ? new HttpRetryPolicy.Factory(2, 100, 2.0, true)
+        : HttpRetryPolicy.Factory.NEVER_RETRY;
 
     TelemetryClient agentClient =
         TelemetryClient.buildAgentClient(sco.agentHttpClient, sco.agentUrl, httpRetryPolicy);
@@ -142,16 +142,23 @@ public class TelemetrySystem {
 
     boolean useIntakeClientByDefault =
         config.isCiVisibilityEnabled() && config.isCiVisibilityAgentlessEnabled();
-    TelemetryService telemetryService =
-        TelemetryService.build(
-            ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
+    TelemetryService telemetryService = TelemetryService.build(
+        ddAgentFeaturesDiscovery,
+        agentClient,
+        intakeClient,
+        useIntakeClientByDefault,
+        debug);
 
-    TELEMETRY_THREAD =
-        createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
+    TELEMETRY_THREAD = createTelemetryRunnable(
+        telemetryService,
+        dependencyService,
+        telemetryMetricsEnabled);
     TELEMETRY_THREAD.start();
   }
 
-  /** Called by reflection (see Agent.stopTelemetry) */
+  /**
+   * Called by reflection (see Agent.stopTelemetry)
+   */
   public static void stop() {
     DependencyService dependencyService = DEPENDENCY_SERVICE;
     if (dependencyService != null) {

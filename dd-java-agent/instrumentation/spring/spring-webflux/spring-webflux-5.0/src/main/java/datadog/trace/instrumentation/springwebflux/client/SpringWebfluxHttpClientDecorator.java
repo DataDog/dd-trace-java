@@ -14,10 +14,8 @@ public class SpringWebfluxHttpClientDecorator
   public static final CharSequence CANCELLED = UTF8BytesString.create("cancelled");
   public static final CharSequence CANCELLED_MESSAGE =
       UTF8BytesString.create("The subscription was cancelled");
-
   public static final SpringWebfluxHttpClientDecorator DECORATE =
       new SpringWebfluxHttpClientDecorator();
-
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   public void onCancel(final AgentSpan span) {

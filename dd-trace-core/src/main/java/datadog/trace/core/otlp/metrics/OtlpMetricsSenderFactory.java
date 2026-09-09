@@ -13,7 +13,8 @@ import javax.annotation.Nullable;
  * sync as protocols/endpoints evolve.
  */
 final class OtlpMetricsSenderFactory {
-  private OtlpMetricsSenderFactory() {}
+  private OtlpMetricsSenderFactory() {
+  }
 
   /**
    * Builds the sender for {@code config}'s OTLP metrics protocol, or {@code null} if the protocol

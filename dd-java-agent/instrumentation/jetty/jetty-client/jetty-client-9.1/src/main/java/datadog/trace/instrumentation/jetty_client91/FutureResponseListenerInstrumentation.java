@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,8 @@ import org.eclipse.jetty.client.api.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class FutureResponseListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public FutureResponseListenerInstrumentation() {
     super("jetty-client");
   }
@@ -48,24 +47,26 @@ public final class FutureResponseListenerInstrumentation extends InstrumenterMod
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(
-                takesArgument(0, named("org.eclipse.jetty.client.api.Request"))
-                    .and(takesArguments(2))),
+          .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request"))
+            .and(takesArguments(2))),
         getClass().getName() + "$Link");
   }
 
   public static final class Link {
     @Advice.OnMethodExit
     public static void link(
-        @Advice.This Response.ResponseListener listener, @Advice.Argument(0) Request request) {
+        @Advice.This Response.ResponseListener listener,
+        @Advice.Argument(0) Request request) {
       // this provides safe access to the request from higher up the class hierarchy where methods
       // we want to instrument are defined
-      InstrumentationContext.get(Response.ResponseListener.class, Request.class)
-          .put(listener, request);
+      InstrumentationContext.get(Response.ResponseListener.class, Request.class).put(
+          listener,
+          request);
     }
 
     private String muzzleCheck(Request request) {
-      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+      // Before 9.1 returns an HttpMethod.
+      return request.getMethod();
     }
   }
 }

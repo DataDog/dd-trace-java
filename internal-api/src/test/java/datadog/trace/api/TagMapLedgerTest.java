@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 public class TagMapLedgerTest {
@@ -67,7 +66,6 @@ public class TagMapLedgerTest {
       assertEquals(value(i), map.getString(key(i)));
     }
     assertEquals(SIZE, map.size());
-
     // just proving that the map is mutable
     map.set(key(1000), value(1000));
   }

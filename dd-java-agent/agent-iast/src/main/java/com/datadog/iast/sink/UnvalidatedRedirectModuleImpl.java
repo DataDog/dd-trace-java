@@ -4,7 +4,6 @@ import static com.datadog.iast.taint.Ranges.allRangesFromHeader;
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
 import static com.datadog.iast.util.HttpHeader.LOCATION;
 import static com.datadog.iast.util.HttpHeader.REFERER;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.Range;
@@ -18,13 +17,12 @@ import javax.annotation.Nullable;
 
 public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
     implements UnvalidatedRedirectModule {
-
   public UnvalidatedRedirectModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
 
   @Override
-  public void onRedirect(final @Nullable String value) {
+  public void onRedirect(@Nullable final String value) {
     if (!canBeTainted(value)) {
       return;
     }
@@ -59,7 +57,9 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   }
 
   private void checkUnvalidatedRedirect(
-      @Nonnull final Object value, @Nullable final String clazz, @Nullable final String method) {
+      @Nonnull final Object value,
+      @Nullable final String clazz,
+      @Nullable final String method) {
     checkInjection(
         VulnerabilityType.UNVALIDATED_REDIRECT,
         value,
@@ -68,7 +68,6 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   }
 
   private static class UnvalidatedRedirectEvidenceBuilder implements EvidenceBuilder {
-
     @Override
     public void tainted(
         final StringBuilder evidence,
@@ -84,11 +83,14 @@ public class UnvalidatedRedirectModuleImpl extends SinkModuleBase
   }
 
   private class UnvalidatedRedirectLocationSupplier implements LocationSupplier {
-    @Nullable private final String clazz;
-    @Nullable private final String method;
+    @Nullable
+    private final String clazz;
+    @Nullable
+    private final String method;
 
     private UnvalidatedRedirectLocationSupplier(
-        @Nullable final String clazz, @Nullable final String method) {
+        @Nullable final String clazz,
+        @Nullable final String method) {
       this.clazz = clazz;
       this.method = method;
     }

@@ -1,7 +1,6 @@
 package datadog.smoketest.springboot.openfeature;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -22,33 +21,30 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/openfeature")
 public class OpenFeatureController {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(OpenFeatureController.class);
-
   private final Client client;
 
   public OpenFeatureController(final Client client) {
     this.client = client;
   }
 
-  @PostMapping(
-      value = "/evaluate",
-      consumes = APPLICATION_JSON_VALUE,
-      produces = APPLICATION_JSON_VALUE)
+  @PostMapping(value = "/evaluate", consumes = APPLICATION_JSON_VALUE, produces = APPLICATION_JSON_VALUE)
   public ResponseEntity<?> evaluate(@RequestBody final EvaluateRequest request) {
     try {
       final EvaluationContext context = context(request);
       FlagEvaluationDetails<?> details;
       switch (request.getVariationType()) {
         case "BOOLEAN":
-          details =
-              client.getBooleanDetails(
-                  request.getFlag(), (Boolean) request.getDefaultValue(), context);
+          details = client.getBooleanDetails(
+              request.getFlag(),
+              (Boolean) request.getDefaultValue(),
+              context);
           break;
         case "STRING":
-          details =
-              client.getStringDetails(
-                  request.getFlag(), (String) request.getDefaultValue(), context);
+          details = client.getStringDetails(
+              request.getFlag(),
+              (String) request.getDefaultValue(),
+              context);
           break;
         case "INTEGER":
           final Number integerEval = (Number) request.getDefaultValue();
@@ -59,9 +55,10 @@ public class OpenFeatureController {
           details = client.getDoubleDetails(request.getFlag(), doubleEval.doubleValue(), context);
           break;
         case "JSON":
-          details =
-              client.getObjectDetails(
-                  request.getFlag(), Value.objectToValue(request.getDefaultValue()), context);
+          details = client.getObjectDetails(
+              request.getFlag(),
+              Value.objectToValue(request.getDefaultValue()),
+              context);
           break;
         default:
           throw new IllegalArgumentException(
@@ -88,24 +85,23 @@ public class OpenFeatureController {
     final MutableContext context = new MutableContext();
     context.setTargetingKey(request.getTargetingKey());
     if (request.attributes != null) {
-      request.attributes.forEach(
-          (key, value) -> {
-            if (value instanceof Boolean) {
-              context.add(key, (Boolean) value);
-            } else if (value instanceof Integer) {
-              context.add(key, (Integer) value);
-            } else if (value instanceof Double) {
-              context.add(key, (Double) value);
-            } else if (value instanceof String) {
-              context.add(key, (String) value);
-            } else if (value instanceof Map) {
-              context.add(key, Value.objectToValue(value).asStructure());
-            } else if (value instanceof List) {
-              context.add(key, Value.objectToValue(value).asList());
-            } else {
-              context.add(key, (Structure) null);
-            }
-          });
+      request.attributes.forEach((key, value) -> {
+        if (value instanceof Boolean) {
+          context.add(key, (Boolean) value);
+        } else if (value instanceof Integer) {
+          context.add(key, (Integer) value);
+        } else if (value instanceof Double) {
+          context.add(key, (Double) value);
+        } else if (value instanceof String) {
+          context.add(key, (String) value);
+        } else if (value instanceof Map) {
+          context.add(key, Value.objectToValue(value).asStructure());
+        } else if (value instanceof List) {
+          context.add(key, Value.objectToValue(value).asList());
+        } else {
+          context.add(key, (Structure) null);
+        }
+      });
     }
     return context;
   }

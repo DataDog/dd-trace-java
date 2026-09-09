@@ -5,7 +5,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SocketConnectInstrumentation() {
     super("socket");
   }
@@ -32,10 +31,11 @@ public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
   public boolean isEnabled() {
     // only needed if wallclock profiling is enabled, which requires tracing
     return super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                PROFILING_DATADOG_PROFILER_WALL_ENABLED,
-                PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT)
+        && ConfigProvider
+          .getInstance()
+          .getBoolean(
+              PROFILING_DATADOG_PROFILER_WALL_ENABLED,
+              PROFILING_DATADOG_PROFILER_WALL_ENABLED_DEFAULT)
         && InstrumenterConfig.get().isTraceEnabled();
   }
 
@@ -43,14 +43,13 @@ public class SocketConnectInstrumentation extends InstrumenterModule.Profiling
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("connect"))
-            .and(takesArgument(0, named("java.net.SocketAddress")))
-            .and(takesArgument(1, int.class)),
+          .and(named("connect"))
+          .and(takesArgument(0, named("java.net.SocketAddress")))
+          .and(takesArgument(1, int.class)),
         getClass().getName() + "$DisableWallclockSampling");
   }
 
   public static final class DisableWallclockSampling {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
       AgentSpan activeSpan = AgentTracer.activeSpan();

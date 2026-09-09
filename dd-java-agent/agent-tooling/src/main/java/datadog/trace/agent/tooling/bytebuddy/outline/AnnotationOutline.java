@@ -12,9 +12,10 @@ import net.bytebuddy.description.annotation.AnnotationValue;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 
-/** Annotation outline that just describes the type-name. */
+/**
+ * Annotation outline that just describes the type-name.
+ */
 final class AnnotationOutline extends WithName implements AnnotationDescription {
-
   private static final Map<String, AnnotationDescription> annotationOutlines = new HashMap<>();
 
   static void prepareAnnotationOutline(String name) {
@@ -28,7 +29,9 @@ final class AnnotationOutline extends WithName implements AnnotationDescription 
     annotationOutlines.put(internalName, annotationOutline);
   }
 
-  /** Only provide outlines of annotations of interest used for matching. */
+  /**
+   * Only provide outlines of annotations of interest used for matching.
+   */
   static AnnotationDescription annotationOutline(String internalNameOrDescriptor) {
     return annotationOutlines.get(internalNameOrDescriptor);
   }

@@ -1,7 +1,6 @@
 package datadog.trace.common.metrics;
 
 import static datadog.trace.api.DDTags.BASE_SERVICE;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.Config;
 import datadog.trace.api.metrics.StatsMetrics;
@@ -43,7 +42,6 @@ import java.util.Set;
  * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
-
   /**
    * Sentinel {@link #state} for schemas that are never reconciled against feature discovery: the
    * {@link #INTERNAL} singleton and test-built schemas. A {@code null} state always mismatches a
@@ -51,18 +49,16 @@ final class PeerTagSchema {
    * of these schemas takes that path.
    */
   static final String NO_STATE = null;
-
-  /** Singleton schema for internal-kind spans -- only {@code base.service}. */
+  /**
+   * Singleton schema for internal-kind spans -- only {@code base.service}.
+   */
   static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE}, NO_STATE);
-
   // Health/telemetry statsD tag per the approved Cardinality Limits RFC (section 5): peer-tag
   // collapses are reported under the lowercased protobuf field name peer_tags, aggregated across
   // every configured peer tag rather than per individual tag name.
   private static final String[] COLLAPSED_STATSD_TAG = {"collapsed:peer_tags"};
-
   final String[] names;
   final TagCardinalityHandler[] handlers;
-
   /**
    * The {@code DDAgentFeaturesDiscovery.state()} hash this schema was built from. The aggregator
    * thread reads and updates this once per reporting cycle when reconciling against the latest
@@ -72,7 +68,9 @@ final class PeerTagSchema {
    */
   String state;
 
-  /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
+  /**
+   * Builds a schema for the given peer-tag names. Order is determined by the {@link Set}.
+   */
   static PeerTagSchema of(Set<String> names, String state) {
     return new PeerTagSchema(names.toArray(new String[0]), state);
   }
@@ -82,13 +80,12 @@ final class PeerTagSchema {
     this.state = state;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
-      this.handlers[i] =
-          new TagCardinalityHandler(
-              names[i],
-              Config.get()
-                  .getTraceStatsCardinalityLimit(
-                      "peer_tags", MetricCardinalityLimits.PEER_TAG_VALUE),
-              MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
+      this.handlers[i] = new TagCardinalityHandler(
+          names[i],
+          Config.get().getTraceStatsCardinalityLimit(
+              "peer_tags",
+              MetricCardinalityLimits.PEER_TAG_VALUE),
+          MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
     }
   }
 

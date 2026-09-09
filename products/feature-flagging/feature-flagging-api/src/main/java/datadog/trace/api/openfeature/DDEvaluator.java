@@ -1,7 +1,6 @@
 package datadog.trace.api.openfeature;
 
 import static java.util.Arrays.asList;
-
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
@@ -48,10 +47,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
-
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
-
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
    * caller's evaluation thread over a caller-owned Value tree, so an arbitrarily deep
@@ -61,55 +58,46 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    * with the cross-SDK RFC target (4).
    */
   static final int MAX_SNAPSHOT_DEPTH = 4;
-
   /**
    * Maximum number of top-level context fields retained by copyPrunedContext. Bounds the width of
    * the caller-supplied context and, transitively, the size of every FlagEvalEvent sitting in the
    * async hand-off queue. Kept aligned with the cross-SDK RFC.
    */
   static final int MAX_CONTEXT_FIELDS = 256;
-
   /**
    * Maximum character length for a single context KEY retained by copyPrunedContext. Keys are
    * stored verbatim in every full-tier bucket, so an unbounded key size would let a single caller
    * inflate steady-state heap use. Longer keys cause the field to be skipped.
    */
   static final int MAX_KEY_LENGTH = 256;
-
   /**
    * Maximum character length for a single context string VALUE retained by copyPrunedContext.
    * Longer values cause the field to be skipped (matches previous pruneContext behavior).
    * Non-string scalars are not length-bounded.
    */
   static final int MAX_VALUE_LENGTH = 256;
-
   /**
    * Maximum number of elements walked per list encountered during copyPrunedContext. Bounds the
    * fan-out of a single wide list at capture time so one caller cannot inflate the hot path with a
    * huge but shallow structure. Elements past the limit are skipped.
    */
   static final int MAX_LIST_ELEMENTS = 256;
-
   /**
    * Maximum number of properties walked per structure encountered during copyPrunedContext. Same
    * intent as MAX_LIST_ELEMENTS for structures. Properties past the limit are skipped.
    */
   static final int MAX_STRUCTURE_PROPERTIES = 256;
-
   // Evaluation-metadata keys consumed by the span-enrichment capture hook (see
   // SpanEnrichmentHook). Emitted only when the span-enrichment gate is on.
   static final String METADATA_SPLIT_SERIAL_ID = "__dd_split_serial_id";
   static final String METADATA_DO_LOG = "__dd_do_log";
-
   // Stamped on every DD-produced evaluation (including PROVIDER_NOT_READY, with false). Missing
   // key = non-DD provider; the hook falls back to false (fail-closed).
   static final String METADATA_OBSERVE_FULL_EVALUATION_DATA = "observe_full_evaluation_data";
-
   // Read once: when off, the __dd_* span-enrichment metadata is not attached to evaluations, so an
   // enabled provider pays nothing extra unless span enrichment is also enabled. The gate does not
   // change at runtime, and this class is loaded lazily (well after startup) so config is ready.
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
-
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
@@ -120,7 +108,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   @Override
   public boolean initialize(
-      final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
+      final long timeout,
+      final TimeUnit unit,
+      final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.activate();
     FeatureFlaggingGateway.addConfigListener(this);
     return initializationLatch.await(timeout, unit) || hasConfiguration();
@@ -183,11 +173,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       }
 
       if (!flag.enabled) {
-        return ProviderEvaluation.<T>builder()
-            .value(defaultValue)
-            .reason(Reason.DISABLED.name())
-            .flagMetadata(consentMetadata(observeFullEvaluationData))
-            .build();
+        return ProviderEvaluation
+          .<T>builder()
+          .value(defaultValue)
+          .reason(Reason.DISABLED.name())
+          .flagMetadata(consentMetadata(observeFullEvaluationData))
+          .build();
       }
 
       if (flag.allocations == null) {
@@ -230,7 +221,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             } else {
               if (targetingKey == null) {
                 return error(
-                    defaultValue, ErrorCode.TARGETING_KEY_MISSING, null, observeFullEvaluationData);
+                    defaultValue,
+                    ErrorCode.TARGETING_KEY_MISSING,
+                    null,
+                    observeFullEvaluationData);
               }
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;
@@ -258,25 +252,26 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         }
       }
 
-      return ProviderEvaluation.<T>builder()
-          .value(defaultValue)
-          .reason(Reason.DEFAULT.name())
-          .flagMetadata(consentMetadata(observeFullEvaluationData))
-          .build();
+      return ProviderEvaluation
+        .<T>builder()
+        .value(defaultValue)
+        .reason(Reason.DEFAULT.name())
+        .flagMetadata(consentMetadata(observeFullEvaluationData))
+        .build();
     } catch (final PatternSyntaxException e) {
       return error(defaultValue, ErrorCode.PARSE_ERROR, e.getMessage(), observeFullEvaluationData);
     } catch (final NumberFormatException e) {
-      return error(
-          defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
+      return error(defaultValue, ErrorCode.TYPE_MISMATCH, e.getMessage(), observeFullEvaluationData);
     } catch (final Exception e) {
       return error(defaultValue, ErrorCode.GENERAL, e.getMessage(), observeFullEvaluationData);
     }
   }
 
   private static ImmutableMetadata consentMetadata(final boolean observeFullEvaluationData) {
-    return ImmutableMetadata.builder()
-        .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
-        .build();
+    return ImmutableMetadata
+      .builder()
+      .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData)
+      .build();
   }
 
   private static <T> ProviderEvaluation<T> error(
@@ -289,13 +284,14 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // must never reach any consumer of ProviderEvaluation.getErrorMessage() — not just our own
     // wire hook. Downstream (FlagEvalLoggingHook) falls back to ErrorCode.name(), so operators
     // still get a stable signal like "TYPE_MISMATCH".
-    return ProviderEvaluation.<T>builder()
-        .value(defaultValue)
-        .reason(Reason.ERROR.name())
-        .errorCode(code)
-        .errorMessage(observeFullEvaluationData ? errorMessage : null)
-        .flagMetadata(consentMetadata(observeFullEvaluationData))
-        .build();
+    return ProviderEvaluation
+      .<T>builder()
+      .value(defaultValue)
+      .reason(Reason.ERROR.name())
+      .errorCode(code)
+      .errorMessage(observeFullEvaluationData ? errorMessage : null)
+      .flagMetadata(consentMetadata(observeFullEvaluationData))
+      .build();
   }
 
   private static boolean isEmpty(final List<?> list) {
@@ -338,7 +334,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean evaluateCondition(
-      final ConditionConfiguration condition, final EvaluationContext context) {
+      final ConditionConfiguration condition,
+      final EvaluationContext context) {
     if (condition.operator == ConditionOperator.IS_NULL) {
       final Object value = resolveAttribute(condition.attribute, context);
       boolean isNull = value == null;
@@ -395,12 +392,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   private static String normalizeRegex(final String regex) {
     return regex
-        .replace("[:alnum:]", "\\p{Alnum}")
-        .replace("[:alpha:]", "\\p{Alpha}")
-        .replace("[:digit:]", "\\p{Digit}")
-        .replace("[:lower:]", "\\p{Lower}")
-        .replace("[:upper:]", "\\p{Upper}")
-        .replace("[:space:]", "\\p{Space}");
+      .replace("[:alnum:]", "\\p{Alnum}")
+      .replace("[:alpha:]", "\\p{Alpha}")
+      .replace("[:digit:]", "\\p{Digit}")
+      .replace("[:lower:]", "\\p{Lower}")
+      .replace("[:upper:]", "\\p{Upper}")
+      .replace("[:space:]", "\\p{Space}");
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
@@ -428,7 +425,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean compareNumber(
-      final Object attributeValue, final Object conditionValue, NumberComparator comparator) {
+      final Object attributeValue,
+      final Object conditionValue,
+      NumberComparator comparator) {
     final double a = mapValue(Double.class, attributeValue);
     final double b = mapValue(Double.class, conditionValue);
     return comparator.compare(a, b);
@@ -468,8 +467,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     return false;
   }
 
-  private static long getShard(
-      final String salt, final String targetingKey, final long totalShards) {
+  private static long getShard(final String salt, final String targetingKey, final long totalShards) {
     final String hashKey = salt + "-" + targetingKey;
     final String md5Hash = getMD5Hash(hashKey);
     final String first8Chars = md5Hash.substring(0, Math.min(8, md5Hash.length()));
@@ -520,9 +518,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           defaultValue,
           ErrorCode.TYPE_MISMATCH,
           "Requested type "
-              + target.getSimpleName()
-              + " does not match flag variationType "
-              + flag.variationType.name(),
+          + target.getSimpleName()
+          + " does not match flag variationType "
+          + flag.variationType.name(),
           observeFullEvaluationData);
     }
 
@@ -534,23 +532,22 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           defaultValue,
           ErrorCode.PARSE_ERROR,
           "Variant '"
-              + variant.key
-              + "' value does not match declared type "
-              + flag.variationType.name()
-              + ": "
-              + e.getMessage(),
+          + variant.key
+          + "' value does not match declared type "
+          + flag.variationType.name()
+          + ": "
+          + e.getMessage(),
           observeFullEvaluationData);
     }
-
     // Stamp eval-time at the resolution point so first/last_evaluation reflect evaluation time,
     // not hook-fire time. Passed to the hook via provider metadata "__dd_eval_timestamp_ms".
-    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
-        ImmutableMetadata.builder()
-            .addString("flagKey", flag.key)
-            .addString("variationType", flag.variationType.name())
-            .addString("allocationKey", allocation.key)
-            .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
-            .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
+    final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder = ImmutableMetadata
+      .builder()
+      .addString("flagKey", flag.key)
+      .addString("variationType", flag.variationType.name())
+      .addString("allocationKey", allocation.key)
+      .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
+      .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
     // only when span enrichment is on, so a provider without enrichment pays nothing extra.
     // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
@@ -562,18 +559,18 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       }
       metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
     }
-    final ProviderEvaluation<T> result =
-        ProviderEvaluation.<T>builder()
-            .value(mappedValue)
-            .reason(
-                !isEmpty(allocation.rules)
-                    ? Reason.TARGETING_MATCH.name()
-                    : allocation.startAt != null || allocation.endAt != null
-                        ? Reason.DEFAULT.name()
-                        : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
-            .variant(variant.key)
-            .flagMetadata(metadataBuilder.build())
-            .build();
+    final ProviderEvaluation<T> result = ProviderEvaluation
+      .<T>builder()
+      .value(mappedValue)
+      .reason(
+          !isEmpty(allocation.rules)
+          ? Reason.TARGETING_MATCH.name()
+          : allocation.startAt != null || allocation.endAt != null
+          ? Reason.DEFAULT.name()
+          : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+      .variant(variant.key)
+      .flagMetadata(metadataBuilder.build())
+      .build();
     final boolean doLog = allocation.doLog != null && allocation.doLog;
     if (doLog) {
       dispatchExposure(key, result, context);
@@ -592,7 +589,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   private static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
     if (variationType == null) {
-      return true; // No type info — allow any
+      // No type info — allow any
+      return true;
     }
     switch (variationType) {
       case BOOLEAN:
@@ -606,7 +604,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       case JSON:
         return target == Value.class;
       default:
-        return true; // Unknown types pass through — mapValue errors caught as GENERAL
+        // Unknown types pass through — mapValue errors caught as GENERAL
+        return true;
     }
   }
 
@@ -649,19 +648,20 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static <T> void dispatchExposure(
-      final String flag, final ProviderEvaluation<T> evaluation, final EvaluationContext context) {
+      final String flag,
+      final ProviderEvaluation<T> evaluation,
+      final EvaluationContext context) {
     final String allocationKey = allocationKey(evaluation);
     final String variantKey = evaluation.getVariant();
     if (allocationKey == null || variantKey == null) {
       return;
     }
-    final ExposureEvent event =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
-            new datadog.trace.api.featureflag.exposure.Flag(flag),
-            new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)));
+    final ExposureEvent event = new ExposureEvent(
+        System.currentTimeMillis(),
+        new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
+        new datadog.trace.api.featureflag.exposure.Flag(flag),
+        new datadog.trace.api.featureflag.exposure.Variant(variantKey),
+        new Subject(context.getTargetingKey(), flattenContext(context)));
 
     FeatureFlaggingGateway.dispatch(event);
   }
@@ -685,7 +685,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static Value snapshotValue(
-      final Value value, final Set<Object> seenContainers, final int depth) {
+      final Value value,
+      final Set<Object> seenContainers,
+      final int depth) {
     if (value == null) {
       return null;
     } else if (value.isNull()) {
@@ -749,8 +751,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           final Structure structure = value.asStructure();
           if (seenContainers.add(structure)) {
             for (final String property : structure.keySet()) {
-              deque.push(
-                  new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
+              deque.push(new FlattenEntry(entry.key + "." + property, structure.getValue(property)));
             }
           }
         } else {
@@ -784,16 +785,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   static final int REASON_MAX_STRUCTURE_PROPERTIES = 1 << 4;
   static final int REASON_MAX_SNAPSHOT_DEPTH = 1 << 5;
   static final int REASON_CYCLE = 1 << 6;
-
-  /** Sorted reason-code strings, indexed by their bit position in the bitmask. */
+  /**
+   * Sorted reason-code strings, indexed by their bit position in the bitmask.
+   */
   private static final String[] REASON_NAMES = {
-    "max_context_fields",
-    "max_key_length",
-    "max_value_length",
-    "max_list_elements",
-    "max_structure_properties",
-    "max_snapshot_depth",
-    "cycle",
+      "max_context_fields",
+      "max_key_length",
+      "max_value_length",
+      "max_list_elements",
+      "max_structure_properties",
+      "max_snapshot_depth",
+      "cycle"
   };
 
   /**
@@ -824,8 +826,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
    */
   static final class CopyResult {
     final Map<String, Object> attrs;
-
-    /** Non-null when at least one cap fired; ready to use as the "reason:..." tag value. */
+    /**
+     * Non-null when at least one cap fired; ready to use as the "reason:..." tag value.
+     */
     final String truncatedReason;
 
     CopyResult(final Map<String, Object> attrs, final String truncatedReason) {
@@ -957,7 +960,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         }
         walked++;
         copyPrunedValue(
-            out, key + "." + property, structure.getValue(property), seen, depth + 1, reasonMask);
+            out,
+            key + "." + property,
+            structure.getValue(property),
+            seen,
+            depth + 1,
+            reasonMask);
       }
       seen.remove(structure);
     }

@@ -1,7 +1,6 @@
 package com.datadog.debugger.probe;
 
 import static java.lang.String.format;
-
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.el.ProbeCondition;
@@ -29,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedContextProbe {
   private static final Logger LOGGER = LoggerFactory.getLogger(TriggerProbe.class);
-
   private ProbeCondition probeCondition;
   private Sampling sampling;
   private String sessionId;
@@ -63,10 +61,18 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices) {
     return new CapturedContextInstrumenter(
-            this, methodInfo, diagnostics, probeIndices, false, false, null)
-        .instrument();
+        this,
+        methodInfo,
+        diagnostics,
+        probeIndices,
+        false,
+        false,
+        null)
+      .instrument();
   }
 
   public TriggerProbe setSessionId(String sessionId) {
@@ -115,13 +121,12 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
       CapturedContext.Status status,
       MethodLocation location,
       boolean singleProbe) {
-
     Sampling sampling = getSampling();
     if (sampling == null || !sampling.inCoolDown()) {
       boolean sample = true;
       if (!hasCondition()) {
-        sample =
-            MethodLocation.isSame(location, evaluateAt) && ProbeRateLimiter.tryProbe(sampler, true);
+        sample = MethodLocation.isSame(location, evaluateAt)
+            && ProbeRateLimiter.tryProbe(sampler, true);
       }
       boolean value = evaluateCondition(context);
 
@@ -144,7 +149,9 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
       return false;
     } finally {
       LOGGER.debug(
-          "ProbeCondition for probe[{}] evaluated in {}ns", id, (System.nanoTime() - start));
+          "ProbeCondition for probe[{}] evaluated in {}ns",
+          id,
+          (System.nanoTime() - start));
     }
   }
 
@@ -191,8 +198,9 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
   @Override
   public String toString() {
     return String.format(
+
         "TriggerProbe{id='%s', sessionId='%s', evaluateAt=%s, language='%s', location=%s, probeCondition=%s, probeId=%s,"
-            + " sampling=%s, tagMap=%s, tags=%s, version=%d, where=%s}",
+        + " sampling=%s, tagMap=%s, tags=%s, version=%d, where=%s}",
         id,
         sessionId,
         evaluateAt,

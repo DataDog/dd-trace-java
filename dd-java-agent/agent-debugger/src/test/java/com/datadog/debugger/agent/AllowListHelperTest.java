@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 public class AllowListHelperTest {
-
   @Test
   public void allowAll() {
     AllowListHelper allowListHelper = new AllowListHelper(null);

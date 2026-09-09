@@ -1,7 +1,6 @@
 package datadog.communication.serialization.msgpack;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.EncodingCache;
 import datadog.communication.serialization.Mapper;
@@ -15,51 +14,40 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Not thread-safe (use one per thread). */
+/**
+ * Not thread-safe (use one per thread).
+ */
 public class MsgPackWriter implements WritableFormatter {
-
   private static final Logger log = LoggerFactory.getLogger(MsgPackWriter.class);
-
   // see https://github.com/msgpack/msgpack/blob/master/spec.md
   public static final byte NULL = (byte) 0xC0;
-
   public static final byte FALSE = (byte) 0xC2;
   public static final byte TRUE = (byte) 0xC3;
-
   public static final byte UINT8 = (byte) 0xCC;
   public static final byte UINT16 = (byte) 0xCD;
   public static final byte UINT32 = (byte) 0xCE;
   public static final byte UINT64 = (byte) 0xCF;
-
   public static final byte INT8 = (byte) 0xD0;
   public static final byte INT16 = (byte) 0xD1;
   public static final byte INT32 = (byte) 0xD2;
   public static final byte INT64 = (byte) 0xD3;
-
   public static final byte FLOAT32 = (byte) 0xCA;
   public static final byte FLOAT64 = (byte) 0xCB;
-
   public static final byte STR8 = (byte) 0xD9;
   public static final byte STR16 = (byte) 0xDA;
   public static final byte STR32 = (byte) 0xDB;
-
   public static final byte BIN8 = (byte) 0xC4;
   public static final byte BIN16 = (byte) 0xC5;
   public static final byte BIN32 = (byte) 0xC6;
-
   public static final byte ARRAY16 = (byte) 0xDC;
   public static final byte ARRAY32 = (byte) 0xDD;
-
   public static final byte MAP16 = (byte) 0xDE;
   public static final byte MAP32 = (byte) 0xDF;
-
   public static final int NEGFIXNUM = 0xE0;
   public static final int FIXSTR = 0xA0;
   public static final int FIXARRAY = 0x90;
   public static final int FIXMAP = 0x80;
-
   private final Codec codec;
-
   private final StreamingBuffer buffer;
 
   public MsgPackWriter(StreamingBuffer buffer) {
@@ -107,7 +95,6 @@ public class MsgPackWriter implements WritableFormatter {
 
   // NOTE - implementations pulled up to this level should
   // not write directly to the buffer
-
   @Override
   public void writeMap(Map<? extends CharSequence, ?> map, EncodingCache encodingCache) {
     startMap(map.size());

@@ -19,7 +19,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.remoteconfig.Capabilities;
@@ -46,9 +45,8 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(
-      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
-      value = "http://127.0.0.1:1")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, value = "http://127.0."
+      + "0.1:1")
   void agentlessStartWaitsForApplicationProviderActivationWithoutPreparingDelivery() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     clearInvocations(sharedCommunicationObjects);
@@ -97,8 +95,8 @@ class FeatureFlaggingSystemTest {
     final IllegalStateException initializationFailure =
         new IllegalStateException("system initialization failed");
     doThrow(initializationFailure)
-        .when(failedInitializer)
-        .initialize(any(SharedCommunicationObjects.class), any(Config.class));
+      .when(failedInitializer)
+      .initialize(any(SharedCommunicationObjects.class), any(Config.class));
 
     FeatureFlaggingSystem.start(sharedCommunicationObjects, failedInitializer);
 
@@ -120,9 +118,8 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(
-      key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
-      value = "http://127.0.0.1:1")
+  @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, value = "http://127.0."
+      + "0.1:1")
   void agentlessStopRemovesPendingApplicationProviderActivation() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     clearInvocations(sharedCommunicationObjects);
@@ -181,9 +178,9 @@ class FeatureFlaggingSystemTest {
   @Test
   @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "false")
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(
-      key = FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
-      value = "http://localhost:1/config")
+  @WithConfig(key = FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, value =
+      "h"
+      + "ttp://localhost:1/config")
   void testFlagEvaluationWriterCanBeDisabled() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     FeatureFlaggingGateway.setFlagEvaluationEnqueueEnabled(true);
@@ -218,16 +215,15 @@ class FeatureFlaggingSystemTest {
   void failedStartRollsBackPartiallyInitializedState() {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
 
-    assertThrows(
-        IllegalStateException.class, () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
-
+    assertThrows(IllegalStateException.class, () -> FeatureFlaggingSystem.start(
+        sharedCommunicationObjects));
     // A failed start must leave nothing behind: no listener awaiting activation, no gateway
     // writer, and STARTED cleared so a later start() is not swallowed as "already started".
     assertFalse(FeatureFlaggingSystem.isAwaitingApplicationActivation());
     assertNull(FeatureFlaggingGateway.getFlagEvalWriter());
     assertFalse(FeatureFlaggingGateway.isFlagEvaluationEnqueueEnabled());
-    assertThrows(
-        IllegalStateException.class, () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+    assertThrows(IllegalStateException.class, () -> FeatureFlaggingSystem.start(
+        sharedCommunicationObjects));
   }
 
   @Test
@@ -237,9 +233,8 @@ class FeatureFlaggingSystemTest {
     SharedCommunicationObjects sharedCommunicationObjects = mock(SharedCommunicationObjects.class);
 
     try {
-      assertThrows(
-          IllegalStateException.class,
-          () -> FeatureFlaggingSystem.start(sharedCommunicationObjects));
+      assertThrows(IllegalStateException.class, () -> FeatureFlaggingSystem.start(
+          sharedCommunicationObjects));
     } finally {
       FeatureFlaggingSystem.stop();
     }
@@ -247,22 +242,23 @@ class FeatureFlaggingSystemTest {
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(
-      key = FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
-      value = "http://localhost:1/config")
+  @WithConfig(key = FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, value =
+      "h"
+      + "ttp://localhost:1/config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   void agentlessConfigurationSourceUsesHttpServiceWithoutRemoteConfig() {
     assertInstanceOf(
         AgentlessConfigurationSource.class,
         FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
+            sharedCommunicationObjects(),
+            Config.get()));
   }
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "agentless")
-  @WithConfig(
-      key = FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL,
-      value = "http://localhost:1/config")
+  @WithConfig(key = FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_BASE_URL, value =
+      "h"
+      + "ttp://localhost:1/config")
   @WithConfig(key = REMOTE_CONFIGURATION_ENABLED, value = "false")
   @WithConfig(key = FeatureFlaggingConfig.FLAGGING_EVALUATION_COUNTS_ENABLED, value = "true")
   void agentlessConfigurationSourceStartsTelemetryWritersWithoutRemoteConfig() {
@@ -286,28 +282,29 @@ class FeatureFlaggingSystemTest {
   void explicitRemoteConfigUsesRemoteConfigService() {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects();
     when(sharedCommunicationObjects.configurationPoller(any(Config.class)))
-        .thenReturn(mock(ConfigurationPoller.class));
+      .thenReturn(mock(ConfigurationPoller.class));
 
     assertInstanceOf(
         RemoteConfigServiceImpl.class,
         FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects, Config.get()));
+            sharedCommunicationObjects,
+            Config.get()));
   }
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "offline")
   void offlineConfigurationSourceDoesNotStartNetworkSource() {
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
+    assertNull(FeatureFlaggingSystem.createConfigurationSourceService(
+        sharedCommunicationObjects(),
+        Config.get()));
   }
 
   @Test
   @WithConfig(key = FEATURE_FLAGS_CONFIGURATION_SOURCE, value = "invalid")
   void invalidConfigurationSourceDoesNotStartNetworkSource() {
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), Config.get()));
+    assertNull(FeatureFlaggingSystem.createConfigurationSourceService(
+        sharedCommunicationObjects(),
+        Config.get()));
   }
 
   @Test
@@ -315,9 +312,9 @@ class FeatureFlaggingSystemTest {
     Config config = mock(Config.class);
     when(config.getFeatureFlaggingConfigurationSource()).thenReturn("invalid");
 
-    assertNull(
-        FeatureFlaggingSystem.createConfigurationSourceService(
-            sharedCommunicationObjects(), config));
+    assertNull(FeatureFlaggingSystem.createConfigurationSourceService(
+        sharedCommunicationObjects(),
+        config));
   }
 
   @Test
@@ -352,9 +349,9 @@ class FeatureFlaggingSystemTest {
     ExposureWriter exposureWriter = mock(ExposureWriter.class);
     doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> FeatureFlaggingSystem.initialize(configService, exposureWriter));
+    assertThrows(IllegalStateException.class, () -> FeatureFlaggingSystem.initialize(
+        configService,
+        exposureWriter));
 
     verify(configService).init();
     verify(configService).close();
@@ -366,8 +363,9 @@ class FeatureFlaggingSystemTest {
     ExposureWriter exposureWriter = mock(ExposureWriter.class);
     doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
 
-    assertThrows(
-        IllegalStateException.class, () -> FeatureFlaggingSystem.initialize(null, exposureWriter));
+    assertThrows(IllegalStateException.class, () -> FeatureFlaggingSystem.initialize(
+        null,
+        exposureWriter));
 
     verify(exposureWriter).close();
   }
@@ -379,9 +377,9 @@ class FeatureFlaggingSystemTest {
     doThrow(new IllegalStateException("exposure init failed")).when(exposureWriter).init();
     doThrow(new IllegalArgumentException("exposure close failed")).when(exposureWriter).close();
 
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> FeatureFlaggingSystem.initialize(configService, exposureWriter));
+    assertThrows(IllegalArgumentException.class, () -> FeatureFlaggingSystem.initialize(
+        configService,
+        exposureWriter));
 
     verify(configService).close();
   }

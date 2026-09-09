@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.csi;
 import java.util.function.Consumer;
 
 public interface CallSites extends Consumer<CallSites.Container> {
-
   interface Container {
     default void addAdvice(
         final byte type,
@@ -23,8 +22,7 @@ public interface CallSites extends Consumer<CallSites.Container> {
       addAdvice(type, owner, method, descriptor, (CallSiteAdvice) advice);
     }
 
-    void addAdvice(
-        byte kind, String owner, String method, String descriptor, CallSiteAdvice advice);
+    void addAdvice(byte kind, String owner, String method, String descriptor, CallSiteAdvice advice);
 
     void addHelpers(String... helperClassNames);
   }

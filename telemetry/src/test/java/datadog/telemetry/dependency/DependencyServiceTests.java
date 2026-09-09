@@ -3,7 +3,6 @@ package datadog.telemetry.dependency;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.instrument.ClassFileTransformer;
@@ -41,19 +40,15 @@ public class DependencyServiceTests {
 
   private ClassFileTransformer captureTransformer() {
     final ClassFileTransformer[] t = {null};
-    Instrumentation instrumentation =
-        (Instrumentation)
-            Proxy.newProxyInstance(
-                DependencyServiceTests.class.getClassLoader(),
-                new Class<?>[] {Instrumentation.class},
-                (proxy, method, args) -> {
-                  if (method.getName().equals("addTransformer")) {
-                    t[0] = (ClassFileTransformer) args[0];
-                  } else {
-                    throw new UnsupportedOperationException();
-                  }
-                  return null;
-                });
+    Instrumentation instrumentation = (Instrumentation) Proxy.newProxyInstance(DependencyServiceTests.class
+      .getClassLoader(), new Class<?>[] {Instrumentation.class}, (proxy, method, args) -> {
+      if (method.getName().equals("addTransformer")) {
+        t[0] = (ClassFileTransformer) args[0];
+      } else {
+        throw new UnsupportedOperationException();
+      }
+      return null;
+    });
 
     depService.installOn(instrumentation);
     assert t[0] != null;
@@ -61,14 +56,16 @@ public class DependencyServiceTests {
   }
 
   private Dependency identifyDependency(ClassFileTransformer t, String url)
-      throws MalformedURLException, IllegalClassFormatException {
+      throws MalformedURLException,
+      IllegalClassFormatException {
     VirtualFile virtualGroovyJar = VFS.getChild(url);
     URL groovyJarURL = virtualGroovyJar.toURL();
 
     CodeSource codeSource = new CodeSource(groovyJarURL, (Certificate[]) null);
     ProtectionDomain domain = new ProtectionDomain(codeSource, null);
     t.transform(getClass().getClassLoader(), "class.name", Object.class, domain, new byte[0]);
-    depService.run(); // for test enforce instant dependency resolution
+    // for test enforce instant dependency resolution
+    depService.run();
     Collection<Dependency> deps = depService.drainDeterminedDependencies();
 
     if (deps.isEmpty()) {
@@ -86,16 +83,14 @@ public class DependencyServiceTests {
     VirtualFile assemblyLocation = VFS.getChild("assembly.jar");
     assemblyHandle = VFS.mountAssembly(assembly, assemblyLocation);
 
-    VirtualFile virtualDir =
-        VFS.getChild(
-            ClassLoader.getSystemClassLoader()
-                .getResource("datadog/telemetry/dependencies/")
-                .getPath());
+    VirtualFile virtualDir = VFS.getChild(ClassLoader
+      .getSystemClassLoader()
+      .getResource("datadog/telemetry/dependencies/")
+      .getPath());
     assembly.add("/groovy.jar", virtualDir.getChild("groovy-manifest.jar"));
 
     Dependency dep = identifyDependency(t, "assembly.jar/groovy.jar");
     assertNotNull(dep);
-
     // XXX: This should be `groovy` instead of `groovy-manifest` (ideally). However, we only
     // have the bundle symbolic name with `groovy` and it is not always reliable.
     assertEquals("groovy-manifest", dep.name);
@@ -108,11 +103,10 @@ public class DependencyServiceTests {
   public void jboss_vfs_zip_url() throws IOException, IllegalClassFormatException {
     ClassFileTransformer t = captureTransformer();
 
-    VirtualFile zipFile =
-        VFS.getChild(
-            ClassLoader.getSystemClassLoader()
-                .getResource("datadog/telemetry/dependencies/junit.zip")
-                .getPath());
+    VirtualFile zipFile = VFS.getChild(ClassLoader
+      .getSystemClassLoader()
+      .getResource("datadog/telemetry/dependencies/junit.zip")
+      .getPath());
     VirtualFile mountPoint = VFS.getChild("foo.zip");
     tempFileProvider = TempFileProvider.create("test", new ScheduledThreadPoolExecutor(2));
     assemblyHandle = VFS.mountZip(zipFile, mountPoint, tempFileProvider);

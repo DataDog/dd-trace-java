@@ -10,11 +10,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ContextKey<T> {
   private static final AtomicInteger NEXT_INDEX = new AtomicInteger(0);
-
-  /** The key name, for debugging purpose only. */
+  /**
+   * The key name, for debugging purpose only.
+   */
   private final String name;
-
-  /** The key unique context, related to {@link IndexedContext} implementation. */
+  /**
+   * The key unique context, related to {@link IndexedContext} implementation.
+   */
   final int index;
 
   private ContextKey(String name) {
@@ -38,7 +40,6 @@ public final class ContextKey<T> {
   }
 
   // we want identity equality, so no need to override equals()
-
   @Override
   public String toString() {
     return this.name;

@@ -5,7 +5,8 @@ import datadog.trace.context.TraceScope;
 public final class NoopScope implements AgentScope {
   public static final NoopScope INSTANCE = new NoopScope();
 
-  private NoopScope() {}
+  private NoopScope() {
+  }
 
   @Override
   public AgentSpan span() {

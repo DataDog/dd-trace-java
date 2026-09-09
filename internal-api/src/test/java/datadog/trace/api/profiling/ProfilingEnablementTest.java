@@ -1,7 +1,6 @@
 package datadog.trace.api.profiling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.Properties;
@@ -11,11 +10,11 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class ProfilingEnablementTest {
-
   @ParameterizedTest
   @MethodSource("provideValues")
   void of(String enabledValue, ProfilingEnablement expected) {
-    ProfilingEnablement.validate(enabledValue); // make jacoco happy
+    // make jacoco happy
+    ProfilingEnablement.validate(enabledValue);
     assertEquals(expected, ProfilingEnablement.of(enabledValue));
   }
 

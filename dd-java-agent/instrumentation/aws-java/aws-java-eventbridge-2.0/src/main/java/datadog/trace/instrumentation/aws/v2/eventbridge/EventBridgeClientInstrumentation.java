@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aws.v2.eventbridge;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -12,7 +11,8 @@ import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
 @AutoService(InstrumenterModule.class)
 public final class EventBridgeClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public EventBridgeClientInstrumentation() {
     super("eventbridge");
   }
@@ -32,7 +32,8 @@ public final class EventBridgeClientInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".EventBridgeInterceptor", packageName + ".TextMapInjectAdapter"
+        packageName + ".EventBridgeInterceptor",
+        packageName + ".TextMapInjectAdapter"
     };
   }
 
@@ -41,7 +42,8 @@ public final class EventBridgeClientInstrumentation extends InstrumenterModule.T
     public static void addHandler(@Advice.Return final List<ExecutionInterceptor> interceptors) {
       for (ExecutionInterceptor interceptor : interceptors) {
         if (interceptor instanceof EventBridgeInterceptor) {
-          return; // list already has our interceptor, return to builder
+          // list already has our interceptor, return to builder
+          return;
         }
       }
       interceptors.add(new EventBridgeInterceptor());

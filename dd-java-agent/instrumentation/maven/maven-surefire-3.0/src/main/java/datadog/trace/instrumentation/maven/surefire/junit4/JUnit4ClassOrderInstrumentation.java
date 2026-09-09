@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.maven.surefire.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,7 +20,8 @@ import org.apache.maven.surefire.api.util.TestsToRun;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public JUnit4ClassOrderInstrumentation() {
     super("ci-visibility", "maven", "surefire", "junit4");
   }
@@ -34,19 +34,19 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.maven.surefire.junit4.JUnit4Provider",
-      "org.apache.maven.surefire.junitcore.JUnitCoreProvider",
+        "org.apache.maven.surefire.junit4.JUnit4Provider",
+        "org.apache.maven.surefire.junitcore.JUnitCoreProvider"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      JUnit4Instrumentation.class.getPackage().getName() + ".JUnit4Utils",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
-      JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
+        JUnit4Instrumentation.class.getPackage().getName() + ".JUnit4Utils",
+        JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
+        JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
+        JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
+        JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer"
     };
   }
 
@@ -58,9 +58,8 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
   }
 
   public static class TestsToRunAdvice {
-    @SuppressFBWarnings(
-        value = "UC_USELESS_OBJECT",
-        justification = "testsToRun is the field value modified by the advice")
+    @SuppressFBWarnings(value = "UC_USELESS_OBJECT", justification = "testsToRun is the field "
+        + "value modified by the advice")
     @Advice.OnMethodExit
     public static void onSetTestsToRun(
         @Advice.FieldValue(value = "testsToRun", readOnly = false) TestsToRun testsToRun) {
@@ -80,8 +79,8 @@ public class JUnit4ClassOrderInstrumentation extends InstrumenterModule.CiVisibi
       }
 
       testClasses.sort(
-          new JUnit4FailFastClassOrderer(
-              TestEventsHandlerHolder.HANDLERS.get(TestFrameworkInstrumentation.JUNIT4)));
+          new JUnit4FailFastClassOrderer(TestEventsHandlerHolder.HANDLERS.get(
+              TestFrameworkInstrumentation.JUNIT4)));
 
       testsToRun = new TestsToRun(new LinkedHashSet<>(testClasses));
     }

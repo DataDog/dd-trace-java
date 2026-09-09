@@ -9,22 +9,24 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class IastWebConfig {
-
   @Bean
   public ServletRegistrationBean multipartParseRequestServlet() {
     return new ServletRegistrationBean(
-        new MultipartParseRequestServlet(), "/untrusted_deserialization/parse_request");
+        new MultipartParseRequestServlet(),
+        "/untrusted_deserialization/parse_request");
   }
 
   @Bean
   public ServletRegistrationBean multipartParseParameterMapServlet() {
     return new ServletRegistrationBean(
-        new MultipartParseParameterMapServlet(), "/untrusted_deserialization/parse_parameter_map");
+        new MultipartParseParameterMapServlet(),
+        "/untrusted_deserialization/parse_parameter_map");
   }
 
   @Bean
   public ServletRegistrationBean multipartGetItemIteratorServlet() {
     return new ServletRegistrationBean(
-        new MultipartGetItemIteratorServlet(), "/untrusted_deserialization/get_item_iterator");
+        new MultipartGetItemIteratorServlet(),
+        "/untrusted_deserialization/get_item_iterator");
   }
 }

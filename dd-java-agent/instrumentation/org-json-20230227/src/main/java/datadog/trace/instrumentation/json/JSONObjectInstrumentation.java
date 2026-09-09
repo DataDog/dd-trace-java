@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,7 +21,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JSONObjectInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JSONObjectInstrumentation() {
     super("org-json");
   }
@@ -57,10 +57,10 @@ public class JSONObjectInstrumentation extends InstrumenterModule.Iast
         getClass().getName() + "$ConstructorAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(returns(Object.class))
-            .and(named("opt"))
-            .and(takesArguments(String.class)),
+          .and(isPublic())
+          .and(returns(Object.class))
+          .and(named("opt"))
+          .and(takesArguments(String.class)),
         packageName + ".OptAdvice");
   }
 

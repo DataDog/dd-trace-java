@@ -14,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -36,7 +35,6 @@ import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverter;
 
 class HttpExtractorTest extends DDJavaSpecification {
-
   private static final String W3C_TRACE_ID = "00000000000000000000000000000001";
   private static final String W3C_SPAN_ID = "123456789abcdef0";
   private static final String W3C_TRACE_PARENT = "00-" + W3C_TRACE_ID + "-" + W3C_SPAN_ID + "-01";
@@ -46,32 +44,110 @@ class HttpExtractorTest extends DDJavaSpecification {
   private static final String W3C_SPAN_ID_LSTR = Long.toString(DDSpanId.fromHex(W3C_SPAN_ID));
 
   @TableTest({
-    "scenario                                  | styles                           | datadogTraceId         | datadogSpanId          | b3TraceId              | b3SpanId               | w3cTraceParent     | expectedTraceId | expectedSpanId     | putDatadogFields | expectDatadogFields | tagContext | extractFirst",
-    "DATADOG,B3MULTI ids                       | [DATADOG, B3MULTI]               | '1'                    | '2'                    | 'a'                    | 'b'                    |                    | '1'             | '2'                | true             | true                | false      | false       ",
-    "DATADOG,B3MULTI b3 only                   | [DATADOG, B3MULTI]               |                        |                        | 'a'                    | 'b'                    |                    | '10'            | '11'               | false            | false               | true       | false       ",
-    "DATADOG,B3MULTI b3 only with dd field     | [DATADOG, B3MULTI]               |                        |                        | 'a'                    | 'b'                    |                    |                 |                    | true             | true                | true       | false       ",
-    "DATADOG only                              | [DATADOG]                        | '1'                    | '2'                    | 'a'                    | 'b'                    |                    | '1'             | '2'                | true             | true                | false      | false       ",
-    "B3MULTI only                              | [B3MULTI]                        | '1'                    | '2'                    | 'a'                    | 'b'                    |                    | '10'            | '11'               | false            | false               | false      | false       ",
-    "B3MULTI,DATADOG                           | [B3MULTI, DATADOG]               | '1'                    | '2'                    | 'a'                    | 'b'                    |                    | '10'            | '11'               | false            | false               | false      | false       ",
-    "no styles                                 | []                               | '1'                    | '2'                    | 'a'                    | 'b'                    |                    |                 |                    | false            | false               | false      | false       ",
-    "DATADOG,B3MULTI invalid datadog trace     | [DATADOG, B3MULTI]               | 'abc'                  | '2'                    | 'a'                    | 'b'                    |                    | '10'            | '11'               | false            | false               | false      | false       ",
-    "DATADOG only invalid trace                | [DATADOG]                        | 'abc'                  | '2'                    | 'a'                    | 'b'                    |                    |                 |                    | false            | false               | false      | false       ",
-    "DATADOG,B3MULTI dd trace out of range     | [DATADOG, B3MULTI]               | '18446744073709551616' | '2'                    | 'a'                    | 'b'                    |                    | '10'            | '11'               | false            | false               | false      | false       ",
-    "DATADOG,B3MULTI dd span out of range      | [DATADOG, B3MULTI]               | '1'                    | '18446744073709551616' | 'a'                    | 'b'                    |                    | '10'            | '11'               | false            | false               | false      | false       ",
-    "DATADOG only dd trace out of range        | [DATADOG]                        | '18446744073709551616' | '2'                    | 'a'                    | 'b'                    |                    |                 |                    | false            | false               | false      | false       ",
-    "DATADOG only dd span out of range         | [DATADOG]                        | '1'                    | '18446744073709551616' | 'a'                    | 'b'                    |                    |                 |                    | false            | false               | false      | false       ",
-    "DATADOG,B3MULTI b3 trace out of range     | [DATADOG, B3MULTI]               | '1'                    | '2'                    | '18446744073709551616' | 'b'                    |                    | '1'             | '2'                | true             | false               | false      | false       ",
-    "DATADOG,B3MULTI b3 span out of range      | [DATADOG, B3MULTI]               | '1'                    | '2'                    | 'a'                    | '18446744073709551616' |                    | '1'             | '2'                | true             | false               | false      | false       ",
-    "NONE                                      | [NONE]                           | '1'                    | '2'                    |                        |                        |                    |                 |                    | true             | false               | true       | false       ",
-    "DATADOG,TRACECONTEXT w3c override         | [DATADOG, TRACECONTEXT]          | '1'                    | '2'                    |                        |                        | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "DATADOG,TRACECONTEXT,B3MULTI w3c override | [DATADOG, TRACECONTEXT, B3MULTI] | '1'                    | '2'                    | '1'                    | '2'                    | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "TRACECONTEXT,DATADOG                      | [TRACECONTEXT, DATADOG]          | '1'                    | '2'                    |                        |                        | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "TRACECONTEXT,B3MULTI                      | [TRACECONTEXT, B3MULTI]          |                        |                        | '1'                    | '2'                    | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "TRACECONTEXT,B3MULTI,DATADOG              | [TRACECONTEXT, B3MULTI, DATADOG] | '1'                    | '2'                    | '1'                    | '4'                    | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "B3MULTI,DATADOG,TRACECONTEXT              | [B3MULTI, DATADOG, TRACECONTEXT] | '1'                    | '2'                    | '1'                    | '4'                    | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "TRACECONTEXT only                         | [TRACECONTEXT]                   |                        |                        |                        |                        | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "DATADOG,TRACECONTEXT no dd span           | [DATADOG, TRACECONTEXT]          | '1'                    |                        |                        |                        | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false            | false               | false      | false       ",
-    "DATADOG,TRACECONTEXT extract first        | [DATADOG, TRACECONTEXT]          | '1'                    | '2'                    |                        |                        | 'W3C_TRACE_PARENT' | '1'             | '2'                | false            | false               | false      | true        "
+    "scenario                                  | styles                           |    ",
+    "datadogTraceId         | datadogSpanId          | b3TraceId              |        ",
+    "b3SpanId               | w3cTraceParent     | expectedTraceId | expectedSpanId    ",
+    " | putDatadogFields | expectDatadogFields | tagContext | extractFirst             ",
+    "DATADOG,B3MULTI ids                       | [DATADOG, B3MULTI]               |    ",
+    "'1'                    | '2'                    | 'a'                    | 'b'    ",
+    "                |                    | '1'             | '2'                |     ",
+    "true             | true                | false      | false                       ",
+    "DATADOG,B3MULTI b3 only                   | [DATADOG, B3MULTI]               |    ",
+    "                    |                        | 'a'                    | 'b'       ",
+    "             |                    | '10'            | '11'               | false  ",
+    "          | false               | true       | false                              ",
+    "DATADOG,B3MULTI b3 only with dd field     | [DATADOG, B3MULTI]               |    ",
+    "                    |                        | 'a'                    | 'b'       ",
+    "             |                    |                 |                    | true   ",
+    "          | true                | true       | false                              ",
+    "DATADOG only                              | [DATADOG]                        |    ",
+    "'1'                    | '2'                    | 'a'                    | 'b'    ",
+    "                |                    | '1'             | '2'                |     ",
+    "true             | true                | false      | false                       ",
+    "B3MULTI only                              | [B3MULTI]                        |    ",
+    "'1'                    | '2'                    | 'a'                    | 'b'    ",
+    "                |                    | '10'            | '11'               |     ",
+    "false            | false               | false      | false                       ",
+    "B3MULTI,DATADOG                           | [B3MULTI, DATADOG]               |    ",
+    "'1'                    | '2'                    | 'a'                    | 'b'    ",
+    "                |                    | '10'            | '11'               |     ",
+    "false            | false               | false      | false                       ",
+    "no styles                                 | []                               |    ",
+    "'1'                    | '2'                    | 'a'                    | 'b'    ",
+    "                |                    |                 |                    |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG,B3MULTI invalid datadog trace     | [DATADOG, B3MULTI]               |    ",
+    "'abc'                  | '2'                    | 'a'                    | 'b'    ",
+    "                |                    | '10'            | '11'               |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG only invalid trace                | [DATADOG]                        |    ",
+    "'abc'                  | '2'                    | 'a'                    | 'b'    ",
+    "                |                    |                 |                    |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG,B3MULTI dd trace out of range     | [DATADOG, B3MULTI]               |    ",
+    "'18446744073709551616' | '2'                    | 'a'                    | 'b'    ",
+    "                |                    | '10'            | '11'               |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG,B3MULTI dd span out of range      | [DATADOG, B3MULTI]               |    ",
+    "'1'                    | '18446744073709551616' | 'a'                    | 'b'    ",
+    "                |                    | '10'            | '11'               |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG only dd trace out of range        | [DATADOG]                        |    ",
+    "'18446744073709551616' | '2'                    | 'a'                    | 'b'    ",
+    "                |                    |                 |                    |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG only dd span out of range         | [DATADOG]                        |    ",
+    "'1'                    | '18446744073709551616' | 'a'                    | 'b'    ",
+    "                |                    |                 |                    |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG,B3MULTI b3 trace out of range     | [DATADOG, B3MULTI]               |    ",
+    "'1'                    | '2'                    | '18446744073709551616' | 'b'    ",
+    "                |                    | '1'             | '2'                |     ",
+    "true             | false               | false      | false                       ",
+    "DATADOG,B3MULTI b3 span out of range      | [DATADOG, B3MULTI]               |    ",
+    "'1'                    | '2'                    | 'a'                    |        ",
+    "'18446744073709551616' |                    | '1'             | '2'               ",
+    " | true             | false               | false      | false                    ",
+    "NONE                                      | [NONE]                           |    ",
+    "'1'                    | '2'                    |                        |        ",
+    "                |                    |                 |                    |     ",
+    "true             | false               | true       | false                       ",
+    "DATADOG,TRACECONTEXT w3c override         | [DATADOG, TRACECONTEXT]          |    ",
+    "'1'                    | '2'                    |                        |        ",
+    "                | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG,TRACECONTEXT,B3MULTI w3c override | [DATADOG, TRACECONTEXT, B3MULTI] |    ",
+    "'1'                    | '2'                    | '1'                    | '2'    ",
+    "                | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' |     ",
+    "false            | false               | false      | false                       ",
+    "TRACECONTEXT,DATADOG                      | [TRACECONTEXT, DATADOG]          |    ",
+    "'1'                    | '2'                    |                        |        ",
+    "                | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' |     ",
+    "false            | false               | false      | false                       ",
+    "TRACECONTEXT,B3MULTI                      | [TRACECONTEXT, B3MULTI]          |    ",
+    "                    |                        | '1'                    | '2'       ",
+    "             | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false  ",
+    "          | false               | false      | false                              ",
+    "TRACECONTEXT,B3MULTI,DATADOG              | [TRACECONTEXT, B3MULTI, DATADOG] |    ",
+    "'1'                    | '2'                    | '1'                    | '4'    ",
+    "                | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' |     ",
+    "false            | false               | false      | false                       ",
+    "B3MULTI,DATADOG,TRACECONTEXT              | [B3MULTI, DATADOG, TRACECONTEXT] |    ",
+    "'1'                    | '2'                    | '1'                    | '4'    ",
+    "                | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' |     ",
+    "false            | false               | false      | false                       ",
+    "TRACECONTEXT only                         | [TRACECONTEXT]                   |    ",
+    "                    |                        |                        |           ",
+    "             | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' | false  ",
+    "          | false               | false      | false                              ",
+    "DATADOG,TRACECONTEXT no dd span           | [DATADOG, TRACECONTEXT]          |    ",
+    "'1'                    |                        |                        |        ",
+    "                | 'W3C_TRACE_PARENT' | '1'             | 'W3C_SPAN_ID_LSTR' |     ",
+    "false            | false               | false      | false                       ",
+    "DATADOG,TRACECONTEXT extract first        | [DATADOG, TRACECONTEXT]          |    ",
+    "'1'                    | '2'                    |                        |        ",
+    "                | 'W3C_TRACE_PARENT' | '1'             | '2'                |     ",
+    "false            | false               | false      | true                        "
   })
   void extractHttpHeadersUsingStyles(
       List<TracePropagationStyle> styles,
@@ -88,7 +164,6 @@ class HttpExtractorTest extends DDJavaSpecification {
       boolean extractFirst) {
     HttpCodec.Extractor extractor =
         createExtractor(styles, extractFirst, singletonMap("SOME_HEADER", "some-tag"));
-
     // spotless:off
     Map<String, String> headers = headers(
         DatadogHttpCodec.TRACE_ID_KEY, datadogTraceId,
@@ -99,7 +174,6 @@ class HttpExtractorTest extends DDJavaSpecification {
         "SOME_HEADER", putDatadogFields ? "my-interesting-info" : null
     );
     // spotless:on
-
     TagContext context = extractor.extract(headers, stringValuesMap());
 
     if (tagContext) {
@@ -125,18 +199,42 @@ class HttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario                                       | styles                           | datadogTraceId | datadogSpanId | b3TraceId | b3SpanId | traceState               | expectedTraceId | expectedSpanId     | expectedParentId  ",
-    "DATADOG,TRACECONTEXT with traceState p         | [DATADOG, TRACECONTEXT]          | '1'            | '2'           |           |          | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'   ",
-    "DATADOG,TRACECONTEXT no traceState             | [DATADOG, TRACECONTEXT]          | '1'            | '2'           |           |          |                          | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'",
-    "DATADOG,TRACECONTEXT,B3MULTI with traceState p | [DATADOG, TRACECONTEXT, B3MULTI] | '1'            | '2'           | '1'       | '2'      | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'   ",
-    "TRACECONTEXT,DATADOG with traceState p         | [TRACECONTEXT, DATADOG]          | '1'            | '2'           |           |          | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' |                   ",
-    "TRACECONTEXT,B3MULTI with traceState p         | [TRACECONTEXT, B3MULTI]          |                |               | '1'       | '2'      | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' |                   ",
-    "TRACECONTEXT,B3MULTI,DATADOG with traceState p | [TRACECONTEXT, B3MULTI, DATADOG] | '1'            | '2'           | '1'       | '4'      | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' |                   ",
-    "B3MULTI,DATADOG,TRACECONTEXT with traceState p | [B3MULTI, DATADOG, TRACECONTEXT] | '1'            | '2'           | '1'       | '4'      | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'   ",
-    "TRACECONTEXT only with traceState p            | [TRACECONTEXT]                   |                |               |           |          | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' |                   ",
-    "B3MULTI,TRACECONTEXT with traceState p         | [B3MULTI, TRACECONTEXT]          |                |               | '1'       | '2'      | 'W3C_TRACE_STATE_WITH_P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'   ",
-    "B3MULTI,DATADOG,TRACECONTEXT no traceState     | [B3MULTI, DATADOG, TRACECONTEXT] | '1'            | '2'           | '1'       | '4'      |                          | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'",
-    "DATADOG,TRACECONTEXT no p traceState           | [DATADOG, TRACECONTEXT]          | '1'            | '2'           |           |          | 'W3C_TRACE_STATE_NO_P'   | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'"
+    "scenario                                       | styles                           ",
+    "| datadogTraceId | datadogSpanId | b3TraceId | b3SpanId | traceState              ",
+    " | expectedTraceId | expectedSpanId     | expectedParentId                        ",
+    "DATADOG,TRACECONTEXT with traceState p         | [DATADOG, TRACECONTEXT]          ",
+    "| '1'            | '2'           |           |          | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'                       ",
+    "DATADOG,TRACECONTEXT no traceState             | [DATADOG, TRACECONTEXT]          ",
+    "| '1'            | '2'           |           |          |                         ",
+    " | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'                      ",
+    "DATADOG,TRACECONTEXT,B3MULTI with traceState p | [DATADOG, TRACECONTEXT, B3MULTI] ",
+    "| '1'            | '2'           | '1'       | '2'      | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'                       ",
+    "TRACECONTEXT,DATADOG with traceState p         | [TRACECONTEXT, DATADOG]          ",
+    "| '1'            | '2'           |           |          | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' |                                       ",
+    "TRACECONTEXT,B3MULTI with traceState p         | [TRACECONTEXT, B3MULTI]          ",
+    "|                |               | '1'       | '2'      | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' |                                       ",
+    "TRACECONTEXT,B3MULTI,DATADOG with traceState p | [TRACECONTEXT, B3MULTI, DATADOG] ",
+    "| '1'            | '2'           | '1'       | '4'      | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' |                                       ",
+    "B3MULTI,DATADOG,TRACECONTEXT with traceState p | [B3MULTI, DATADOG, TRACECONTEXT] ",
+    "| '1'            | '2'           | '1'       | '4'      | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'                       ",
+    "TRACECONTEXT only with traceState p            | [TRACECONTEXT]                   ",
+    "|                |               |           |          | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' |                                       ",
+    "B3MULTI,TRACECONTEXT with traceState p         | [B3MULTI, TRACECONTEXT]          ",
+    "|                |               | '1'       | '2'      | 'W3C_TRACE_STATE_WITH_  ",
+    "P' | '1'             | 'W3C_SPAN_ID_LSTR' | 'W3C_PARENT_ID'                       ",
+    "B3MULTI,DATADOG,TRACECONTEXT no traceState     | [B3MULTI, DATADOG, TRACECONTEXT] ",
+    "| '1'            | '2'           | '1'       | '4'      |                         ",
+    " | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'                      ",
+    "DATADOG,TRACECONTEXT no p traceState           | [DATADOG, TRACECONTEXT]          ",
+    "| '1'            | '2'           |           |          | 'W3C_TRACE_STATE_NO_P'  ",
+    " | '1'             | 'W3C_SPAN_ID_LSTR' | '0000000000000002'                      "
   })
   void checkW3CTraceContextOverride(
       List<TracePropagationStyle> styles,
@@ -149,7 +247,6 @@ class HttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(W3cConstantConverter.class) String expectedSpanId,
       @ConvertWith(W3cConstantConverter.class) String expectedParentId) {
     HttpCodec.Extractor extractor = createExtractor(styles);
-
     // spotless:off
     Map<String, String> headers = headers(
         W3CHttpCodec.TRACE_PARENT_KEY, W3C_TRACE_PARENT,
@@ -160,7 +257,6 @@ class HttpExtractorTest extends DDJavaSpecification {
         W3CHttpCodec.TRACE_STATE_KEY, traceState
     );
     // spotless:on
-
     TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.from(expectedTraceId).toLong(), context.getTraceId().toLong());
@@ -170,11 +266,21 @@ class HttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario                           | styles                           | datadogTraceId | datadogSpanId | b3TraceId | b3SpanId | w3cTraceParent     | traceState             | expectedSpanLinks      ",
-    "matching trace IDs no links        | [DATADOG, B3MULTI, TRACECONTEXT] | '1'            | '2'           | '1'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_STATE_NO_P' | []                     ",
-    "only tracecontext mismatch         | [DATADOG, B3MULTI, TRACECONTEXT] | '2'            | '2'           | '2'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_STATE_NO_P' | [TRACECONTEXT]         ",
-    "b3 and tracecontext mismatch       | [DATADOG, B3MULTI, TRACECONTEXT] | '2'            | '2'           | '1'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_STATE_NO_P' | [B3MULTI, TRACECONTEXT]",
-    "datadog mismatch from tracecontext | [TRACECONTEXT, B3MULTI, DATADOG] | '2'            | '2'           | '1'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_STATE_NO_P' | [DATADOG]              "
+    "scenario                           | styles                           |           ",
+    "datadogTraceId | datadogSpanId | b3TraceId | b3SpanId | w3cTraceParent     |      ",
+    "traceState             | expectedSpanLinks                                        ",
+    "matching trace IDs no links        | [DATADOG, B3MULTI, TRACECONTEXT] | '1'       ",
+    "     | '2'           | '1'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_    ",
+    "STATE_NO_P' | []                                                                  ",
+    "only tracecontext mismatch         | [DATADOG, B3MULTI, TRACECONTEXT] | '2'       ",
+    "     | '2'           | '2'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_    ",
+    "STATE_NO_P' | [TRACECONTEXT]                                                      ",
+    "b3 and tracecontext mismatch       | [DATADOG, B3MULTI, TRACECONTEXT] | '2'       ",
+    "     | '2'           | '1'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_    ",
+    "STATE_NO_P' | [B3MULTI, TRACECONTEXT]                                             ",
+    "datadog mismatch from tracecontext | [TRACECONTEXT, B3MULTI, DATADOG] | '2'       ",
+    "     | '2'           | '1'       | 'b'      | 'W3C_TRACE_PARENT' | 'W3C_TRACE_    ",
+    "STATE_NO_P' | [DATADOG]                                                           "
   })
   void verifyExistenceOfSpanLinks(
       List<TracePropagationStyle> styles,
@@ -186,7 +292,6 @@ class HttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(W3cConstantConverter.class) String traceState,
       List<TracePropagationStyle> expectedSpanLinks) {
     HttpCodec.Extractor extractor = createExtractor(styles);
-
     // spotless:off
     Map<String, String> headers = headers(
         DatadogHttpCodec.TRACE_ID_KEY, datadogTraceId,
@@ -197,7 +302,6 @@ class HttpExtractorTest extends DDJavaSpecification {
         W3CHttpCodec.TRACE_STATE_KEY, traceState
     );
     // spotless:on
-
     TagContext context = extractor.extract(headers, stringValuesMap());
 
     List<AgentSpanLink> links = context.getTerminatedSpanLinks();
@@ -220,7 +324,9 @@ class HttpExtractorTest extends DDJavaSpecification {
   }
 
   private static HttpCodec.Extractor createExtractor(
-      List<TracePropagationStyle> styles, boolean extractFirst, Map<String, String> headerTags) {
+      List<TracePropagationStyle> styles,
+      boolean extractFirst,
+      Map<String, String> headerTags) {
     Config config = mock(Config.class);
     when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
     when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);

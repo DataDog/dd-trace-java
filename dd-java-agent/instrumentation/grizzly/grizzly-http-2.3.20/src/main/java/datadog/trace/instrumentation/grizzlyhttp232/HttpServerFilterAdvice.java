@@ -2,14 +2,12 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator.onHttpServerFilterPrepareResponseEnter;
 import static datadog.trace.instrumentation.grizzlyhttp232.GrizzlyDecorator.onHttpServerFilterPrepareResponseExit;
-
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 import org.glassfish.grizzly.http.HttpResponsePacket;
 import org.glassfish.grizzly.http.util.HttpStatus;
 
 public class HttpServerFilterAdvice {
-
   @Advice.OnMethodEnter
   public static boolean onEnter(
       @Advice.Argument(0) final FilterChainContext ctx,

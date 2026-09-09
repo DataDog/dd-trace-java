@@ -8,7 +8,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public abstract class FormattingAdapter<V> extends JsonAdapter<V> {
-
   @FromJson
   @Nullable
   @Override

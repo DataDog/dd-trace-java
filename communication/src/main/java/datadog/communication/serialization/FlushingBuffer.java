@@ -4,10 +4,8 @@ import datadog.trace.api.internal.VisibleForTesting;
 import java.nio.ByteBuffer;
 
 public final class FlushingBuffer implements StreamingBuffer {
-
   private final ByteBuffer buffer;
   private final ByteBufferConsumer consumer;
-
   private int messageCount;
   private int mark;
 

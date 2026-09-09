@@ -6,14 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import java.lang.instrument.Instrumentation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 
 class SpringHelperTest {
-
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
   void isSpringUsingOnlyMethodParametersTrueSpringVersion() throws Exception {
@@ -41,9 +39,8 @@ class SpringHelperTest {
 
   @Test
   void invalidSpringVersion() {
-    IllegalArgumentException illegalArgumentException =
-        assertThrows(
-            IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion("foo"));
+    IllegalArgumentException illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion(
+        "foo"));
     assertEquals("Cannot parse SpringVersion: foo", illegalArgumentException.getMessage());
   }
 }

@@ -41,10 +41,9 @@ public class MuleTestContainer {
     } catch (Throwable t) {
       t.printStackTrace();
       try {
-        this.container =
-            DefaultMuleContainer.class
-                .getDeclaredConstructor(String[].class)
-                .newInstance((Object) new String[0]);
+        this.container = DefaultMuleContainer.class
+          .getDeclaredConstructor(String[].class)
+          .newInstance((Object) new String[0]);
       } catch (Throwable t2) {
         throw new RuntimeException("Unable to instantiate MuleContainer", t2);
       }

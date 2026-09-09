@@ -1,17 +1,19 @@
 package foo.bar.securitycontrol;
 
 public class SecurityControlStaticTestSuite {
-
   public static boolean validateAll(long input, String input2) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateAll(String input) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateAll(String input, String input2) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateAll(
@@ -25,43 +27,53 @@ public class SecurityControlStaticTestSuite {
       String input8,
       String input9,
       String input10) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateLong(long input, String input2) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateLong(String input, long input2) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateLong(long intput1, String input2, long input3) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateSelectedLong(long intput1) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validateSelectedLong(long input1, long intput2) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validate(String input) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static boolean validate(Object o, String input, String input2) {
-    return true; // dummy implementation
+    // dummy implementation
+    return true;
   }
 
   public static int validateReturningInt(String input) {
-    return 1; // dummy implementation
+    // dummy implementation
+    return 1;
   }
 
   public static int validateObject(Object input) {
-    return 1; // dummy implementation
+    // dummy implementation
+    return 1;
   }
 
   public static String sanitize(String input) {

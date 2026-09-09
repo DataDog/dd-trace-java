@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty41;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.GenericClassValue;
@@ -12,28 +11,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public final class AttributeKeys {
-
   private static final ClassValue<ConcurrentHashMap<String, AttributeKey<?>>> MAPS =
       GenericClassValue.constructing(ConcurrentHashMap.class);
-
   public static final AttributeKey<Context> CONTEXT_ATTRIBUTE_KEY =
       attributeKey(DD_CONTEXT_ATTRIBUTE);
-
   public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
       attributeKey("datadog.client.parent.span");
-
   public static final AttributeKey<ContextContinuation> CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
       attributeKey("datadog.connect.parent.continuation");
-
   public static final AttributeKey<Boolean> HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY =
       attributeKey("datadog.http2.connection.codec");
-
   public static final AttributeKey<Context> PARENT_CONTEXT_ATTRIBUTE_KEY =
       attributeKey("datadog.server.parent-context");
-
   public static final AttributeKey<HandlerContext.Sender> WEBSOCKET_SENDER_HANDLER_CONTEXT =
       attributeKey("datadog.server.websocket.sender.handler_context");
-
   public static final AttributeKey<HandlerContext.Receiver> WEBSOCKET_RECEIVER_HANDLER_CONTEXT =
       attributeKey("datadog.server.websocket.receiver.handler_context");
 

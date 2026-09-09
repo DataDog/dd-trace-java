@@ -19,8 +19,7 @@ public class ConstructorAdvice {
   public static void captureGroup(
       @Advice.This ConsumerDelegate consumer,
       @Advice.Argument(0) ConsumerConfig consumerConfig,
-      @Advice.FieldValue("offsetCommitCallbackInvoker")
-          OffsetCommitCallbackInvoker offsetCommitCallbackInvoker,
+      @Advice.FieldValue("offsetCommitCallbackInvoker") OffsetCommitCallbackInvoker offsetCommitCallbackInvoker,
       @Advice.FieldValue("metadata") Metadata metadata) {
     ConsumerGroupMetadata groupMetadata = consumer.groupMetadata();
     String consumerGroup = consumerConfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
@@ -39,8 +38,7 @@ public class ConstructorAdvice {
     }
     KafkaConsumerInfo kafkaConsumerInfo;
     if (Config.get().isDataStreamsEnabled()) {
-      kafkaConsumerInfo =
-          new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
+      kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, metadata, bootstrapServers);
     } else {
       kafkaConsumerInfo = new KafkaConsumerInfo(normalizedConsumerGroup, bootstrapServers);
     }
@@ -48,20 +46,24 @@ public class ConstructorAdvice {
     // ConsumerCoordinator and KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup().isPresent()
         || kafkaConsumerInfo.getmetadata().isPresent()) {
-      InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
-          .put(consumer, kafkaConsumerInfo);
+      InstrumentationContext
+        .get(ConsumerDelegate.class, KafkaConsumerInfo.class)
+        .put(consumer, kafkaConsumerInfo);
     }
     if (offsetCommitCallbackInvoker != null) {
-      InstrumentationContext.get(OffsetCommitCallbackInvoker.class, KafkaConsumerInfo.class)
-          .put(offsetCommitCallbackInvoker, kafkaConsumerInfo);
+      InstrumentationContext
+        .get(OffsetCommitCallbackInvoker.class, KafkaConsumerInfo.class)
+        .put(offsetCommitCallbackInvoker, kafkaConsumerInfo);
     }
 
     if (Config.get().isDataStreamsEnabled()) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext
+        .get(Metadata.class, MetadataState.class)
+        .getOrCreate(metadata, MetadataState::new);
       KafkaConfigHelper.storePendingConsumerConfig(
-          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+          state,
+          normalizedConsumerGroup,
+          KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
   }
 

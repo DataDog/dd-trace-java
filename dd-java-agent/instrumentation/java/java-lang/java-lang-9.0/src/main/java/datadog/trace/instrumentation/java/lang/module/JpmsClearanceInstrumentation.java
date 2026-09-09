@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.log
 import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.logNoNamedModule;
 import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.shouldBeOpened;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,8 +23,8 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 @AutoService(InstrumenterModule.class)
 public class JpmsClearanceInstrumentation extends InstrumenterModule
     implements Instrumenter.ForConfiguredTypes,
-        Instrumenter.ForBootstrap,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.ForBootstrap,
+    Instrumenter.HasMethodAdvice {
   public JpmsClearanceInstrumentation() {
     super("java-module");
   }
@@ -37,7 +36,8 @@ public class JpmsClearanceInstrumentation extends InstrumenterModule
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return true; // not directly linked to a target system
+    // not directly linked to a target system
+    return true;
   }
 
   @Override

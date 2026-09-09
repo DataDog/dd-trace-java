@@ -14,7 +14,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.WE
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.time.SystemTimeSource;
@@ -32,18 +31,15 @@ import org.slf4j.LoggerFactory;
 
 public class WebsocketDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(WebsocketDecorator.class);
-
   private static final CharSequence WEBSOCKET = UTF8BytesString.create("websocket");
   private static final String[] INSTRUMENTATION_NAMES = {WEBSOCKET.toString()};
   private static final CharSequence WEBSOCKET_RECEIVE = UTF8BytesString.create("websocket.receive");
   private static final CharSequence WEBSOCKET_SEND = UTF8BytesString.create("websocket.send");
   private static final CharSequence WEBSOCKET_CLOSE = UTF8BytesString.create("websocket.close");
-
   private static final SpanAttributes SPAN_ATTRIBUTES_RECEIVE =
       SpanAttributes.builder().put("dd.kind", "executed_from").build();
   private static final SpanAttributes SPAN_ATTRIBUTES_SEND =
       SpanAttributes.builder().put("dd.kind", "resuming").build();
-
   public static final WebsocketDecorator DECORATE = new WebsocketDecorator();
 
   @Override
@@ -69,36 +65,60 @@ public class WebsocketDecorator extends BaseDecorator {
 
   @Nonnull
   public AgentSpan startInboundFrameSpan(
-      final HandlerContext.Receiver handlerContext, final Object data, boolean partialDelivery) {
+      final HandlerContext.Receiver handlerContext,
+      final Object data,
+      boolean partialDelivery) {
     handlerContext.recordChunkData(data, partialDelivery);
     return onFrameStart(
-        WEBSOCKET_RECEIVE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true);
+        WEBSOCKET_RECEIVE,
+        SPAN_KIND_CONSUMER,
+        handlerContext,
+        SPAN_ATTRIBUTES_RECEIVE,
+        true);
   }
 
   @Nonnull
   public AgentSpan startOutboundCloseSpan(
-      final HandlerContext.Sender handlerContext, CharSequence closeReason, int closeCode) {
+      final HandlerContext.Sender handlerContext,
+      CharSequence closeReason,
+      int closeCode) {
     return onFrameStart(
-            WEBSOCKET_CLOSE, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false)
-        .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
-        .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
+        WEBSOCKET_CLOSE,
+        SPAN_KIND_PRODUCER,
+        handlerContext,
+        SPAN_ATTRIBUTES_SEND,
+        false)
+      .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
+      .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
   }
 
   @Nonnull
   public AgentSpan startInboundCloseSpan(
-      final HandlerContext.Receiver handlerContext, CharSequence closeReason, int closeCode) {
+      final HandlerContext.Receiver handlerContext,
+      CharSequence closeReason,
+      int closeCode) {
     return onFrameStart(
-            WEBSOCKET_CLOSE, SPAN_KIND_CONSUMER, handlerContext, SPAN_ATTRIBUTES_RECEIVE, true)
-        .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
-        .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
+        WEBSOCKET_CLOSE,
+        SPAN_KIND_CONSUMER,
+        handlerContext,
+        SPAN_ATTRIBUTES_RECEIVE,
+        true)
+      .setTag(WEBSOCKET_CLOSE_CODE, closeCode)
+      .setTag(WEBSOCKET_CLOSE_REASON, closeReason);
   }
 
   @Nonnull
   public AgentSpan startOutboundFrameSpan(
-      final HandlerContext.Sender handlerContext, final CharSequence msgType, final int msgSize) {
+      final HandlerContext.Sender handlerContext,
+      final CharSequence msgType,
+      final int msgSize) {
     handlerContext.recordChunkData(msgType, msgSize);
     return onFrameStart(
-        WEBSOCKET_SEND, SPAN_KIND_PRODUCER, handlerContext, SPAN_ATTRIBUTES_SEND, false);
+        WEBSOCKET_SEND,
+        SPAN_KIND_PRODUCER,
+        handlerContext,
+        SPAN_ATTRIBUTES_SEND,
+        false);
   }
 
   public final void onFrameEnd(final HandlerContext handlerContext) {
@@ -181,14 +201,13 @@ public class WebsocketDecorator extends BaseDecorator {
       if (useDedicatedTraces || !traceStarter) {
         // the link is not added if the user wants to have receive frames on the same trace as the
         // handshake
-        wsSpan.addLink(
-            SpanLink.from(
-                inheritSampling
-                    ? handshakeSpan.spanContext()
-                    : new NotSampledSpanContext(handshakeSpan.spanContext()),
-                SpanLink.DEFAULT_FLAGS,
-                "",
-                linkAttributes));
+        wsSpan.addLink(SpanLink.from(
+            inheritSampling
+            ? handshakeSpan.spanContext()
+            : new NotSampledSpanContext(handshakeSpan.spanContext()),
+            SpanLink.DEFAULT_FLAGS,
+            "",
+            linkAttributes));
       }
     }
     return wsSpan;

@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,7 +16,8 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class RenaissanceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private static final Logger log = LoggerFactory.getLogger(RenaissanceInstrumentation.class);
 
   public RenaissanceInstrumentation() {
@@ -44,7 +44,8 @@ public class RenaissanceInstrumentation extends InstrumenterModule.Tracing
   public static final class BenchmarkAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.Argument(0) int index, @Advice.FieldValue("benchmarkName") String benchmarkName) {
+        @Advice.Argument(0) int index,
+        @Advice.FieldValue("benchmarkName") String benchmarkName) {
       AgentSpan span =
           startSpan("renaissance", "renaissance.benchmark").setResourceName(benchmarkName);
       return activateSpan(span);
@@ -52,7 +53,8 @@ public class RenaissanceInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       scope.close();
       scope.span().finish();
     }

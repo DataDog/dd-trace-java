@@ -24,9 +24,10 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.util.EnumSet;
 import javax.annotation.Nonnull;
 
-/** This is the implementation of the controller for DD profiler. */
+/**
+ * This is the implementation of the controller for DD profiler.
+ */
 public final class DatadogProfilerController implements Controller {
-
   private final DatadogProfiler datadogProfiler;
 
   public static Controller instance(ConfigProvider configProvider) throws Throwable {
@@ -44,8 +45,8 @@ public final class DatadogProfilerController implements Controller {
   @Nonnull
   @Override
   public OngoingRecording createRecording(
-      @Nonnull String recordingName, ControllerContext.Snapshot context)
-      throws UnsupportedEnvironmentException {
+      @Nonnull String recordingName,
+      ControllerContext.Snapshot context) throws UnsupportedEnvironmentException {
     return new DatadogProfilerOngoingRecording(datadogProfiler, recordingName);
   }
 

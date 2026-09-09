@@ -5,7 +5,6 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.RPC_COMMAND_NAME;
-
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.AmazonWebServiceResponse;
 import com.amazonaws.Request;
@@ -34,29 +33,21 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response>
     implements CarrierSetter<Request<?>> {
-
   private static final String AWS = "aws";
-
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
-
   public static final boolean AWS_LEGACY_TRACING = Config.get().isAwsLegacyTracingEnabled();
-
   public static final boolean SQS_LEGACY_TRACING = Config.get().isSqsLegacyTracingEnabled();
-
   private static final String SQS_SERVICE_NAME =
       // this is probably wrong since it should use SpanNaming.instance()...
-      // but at this point changing the naming will be a breaking change
-      AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
-
+  // but at this point changing the naming will be a breaking change
+  AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
   private static final String SNS_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, "sns");
   private static final String GENERIC_SERVICE_NAME =
       SpanNaming.instance().namingSchema().cloud().serviceForRequest(AWS, null);
   public static final AwsSdkClientDecorator DECORATE = new AwsSdkClientDecorator();
-
   private static final DDCache<String, String> serviceNameCache = DDCaches.newFixedSizeCache(128);
   private static final Pattern AWS_SERVICE_NAME_PATTERN = Pattern.compile("Amazon\\s?(\\w+)");
-
   private static final String PUT_RECORD_OPERATION_NAME = "PutRecordRequest";
   private static final String PUT_RECORDS_OPERATION_NAME = "PutRecordsRequest";
   private static final String PUBLISH_OPERATION_NAME = "PublishRequest";
@@ -64,7 +55,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
 
   private static String simplifyServiceName(String awsServiceName) {
     return serviceNameCache.computeIfAbsent(
-        awsServiceName, AwsSdkClientDecorator::applyServiceNamePattern);
+        awsServiceName,
+        AwsSdkClientDecorator::applyServiceNamePattern);
   }
 
   private static String applyServiceNamePattern(String awsServiceName) {
@@ -184,7 +176,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       bestPrecursor = InstrumentationTags.AWS_TABLE_NAME;
       bestPeerService = tableName;
     }
-
     // Set peer.service based on Config for serverless functions
     if (Config.get().isAwsServerless()) {
       URI uri = request.getEndpoint();
@@ -200,25 +191,24 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         span.setTag(DDTags.PEER_SERVICE_SOURCE, bestPrecursor);
       }
     }
-
     // DSM
     if (traceConfig().isDataStreamsEnabled()) {
       if (null != streamArn && "AmazonKinesis".equals(awsServiceName)) {
         switch (awsOperation.getSimpleName()) {
           case PUT_RECORD_OPERATION_NAME:
             try (ContextScope scope = AgentTracer.activateSpan(span)) {
-              AgentTracer.get()
-                  .getDataStreamsMonitoring()
-                  .setProduceCheckpoint("kinesis", streamArn);
+              AgentTracer.get().getDataStreamsMonitoring().setProduceCheckpoint(
+                  "kinesis",
+                  streamArn);
             }
             break;
           case PUT_RECORDS_OPERATION_NAME:
             try (ContextScope scope = AgentTracer.activateSpan(span)) {
               List records = access.getRecords(originalRequest);
               for (Object ignored : records) {
-                AgentTracer.get()
-                    .getDataStreamsMonitoring()
-                    .setProduceCheckpoint("kinesis", streamArn);
+                AgentTracer.get().getDataStreamsMonitoring().setProduceCheckpoint(
+                    "kinesis",
+                    streamArn);
               }
             }
             break;
@@ -248,7 +238,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   }
 
   public void onServiceResponse(
-      final AgentSpan span, final String awsService, final Response response) {
+      final AgentSpan span,
+      final String awsService,
+      final Response response) {
     if ("s3".equalsIgnoreCase(simplifyServiceName(awsService))
         && traceConfig().isDataStreamsEnabled()) {
       long responseSize = getResponseContentLength(response);
@@ -262,12 +254,12 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
         // GetObjectMetadataRequest may return the object if it's not "HEAD"
         if (HttpMethodName.GET.name().equals(span.getTag(Tags.HTTP_METHOD))
             && ("GetObjectMetadataRequest".equalsIgnoreCase(awsOperation)
-                || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
+            || "GetObjectRequest".equalsIgnoreCase(awsOperation))) {
           DataStreamsTags tags =
               DataStreamsTags.createWithDataset("s3", INBOUND, bucket, key, bucket);
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(tags, 0, responseSize));
+          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(
+              span,
+              create(tags, 0, responseSize));
         }
 
         if ("PutObjectRequest".equalsIgnoreCase(awsOperation)
@@ -279,9 +271,9 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
           }
           DataStreamsTags tags =
               DataStreamsTags.createWithDataset("s3", OUTBOUND, bucket, key, bucket);
-          AgentTracer.get()
-              .getDataStreamsMonitoring()
-              .setCheckpoint(span, create(tags, 0, payloadSize));
+          AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(
+              span,
+              create(tags, 0, payloadSize));
         }
       }
     }

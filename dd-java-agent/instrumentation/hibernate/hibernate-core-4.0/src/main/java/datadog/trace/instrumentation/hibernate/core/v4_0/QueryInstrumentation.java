@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -19,15 +18,14 @@ import org.hibernate.SQLQuery;
 import org.hibernate.SharedSessionContract;
 
 public final class QueryInstrumentation extends AbstractHibernateInstrumentation {
-
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.hibernate.query.internal.AbstractProducedQuery",
-      "org.hibernate.internal.AbstractQueryImpl",
-      "org.hibernate.internal.CollectionFilterImpl",
-      "org.hibernate.internal.QueryImpl",
-      "org.hibernate.internal.SQLQueryImpl"
+        "org.hibernate.query.internal.AbstractProducedQuery",
+        "org.hibernate.internal.AbstractQueryImpl",
+        "org.hibernate.internal.CollectionFilterImpl",
+        "org.hibernate.internal.QueryImpl",
+        "org.hibernate.internal.SQLQueryImpl"
     };
   }
 
@@ -49,15 +47,12 @@ public final class QueryInstrumentation extends AbstractHibernateInstrumentation
   }
 
   public static class QueryMethodAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
         @Advice.This final Query query,
         @Advice.Origin("hibernate.query.#m") final String operationName) {
-
       final ContextStore<Query, SessionState> contextStore =
           InstrumentationContext.get(Query.class, SessionState.class);
-
       // Note: We don't know what the entity is until the method is returning.
       final SessionState state =
           SessionMethodUtils.startScopeFrom(contextStore, query, operationName, null, true);
@@ -73,7 +68,6 @@ public final class QueryInstrumentation extends AbstractHibernateInstrumentation
         @Advice.Enter final SessionState state,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object returned) {
-
       Object entity = returned;
       if (returned == null || query instanceof SQLQuery) {
         // Not a method that returns results, or the query returns a table rather than an ORM

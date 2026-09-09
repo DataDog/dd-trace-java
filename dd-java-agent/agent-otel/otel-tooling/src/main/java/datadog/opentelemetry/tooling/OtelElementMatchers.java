@@ -7,9 +7,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
-/** Replaces OpenTelemetry's {@code AgentElementMatchers} when mapping extensions. */
+/**
+ * Replaces OpenTelemetry's {@code AgentElementMatchers} when mapping extensions.
+ */
 public final class OtelElementMatchers {
-
   public static ElementMatcher.Junction<TypeDescription> extendsClass(
       ElementMatcher<TypeDescription> matcher) {
     return HierarchyMatchers.extendsClass(matcher);
@@ -39,5 +40,6 @@ public final class OtelElementMatchers {
     return ClassLoaderMatchers.hasClassNamedOneOf(classNames);
   }
 
-  private OtelElementMatchers() {}
+  private OtelElementMatchers() {
+  }
 }

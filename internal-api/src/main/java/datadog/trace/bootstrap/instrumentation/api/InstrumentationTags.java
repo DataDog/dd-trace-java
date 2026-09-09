@@ -1,13 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 public class InstrumentationTags {
-
   // this exists to make it easy to intern UTF-8 encoding
   // of tag/metric keys used in instrumentations. It should
   // stay reasonably small. TODO when/if this gets large
   // start looking at generating constants based on the
   // enabled instrumentations.
-
   public static final String PARTITION = "partition";
   public static final String OFFSET = "offset";
   public static final String CONSUMER_GROUP = "kafka.group";
@@ -25,7 +23,6 @@ public class InstrumentationTags {
   public static final String BUCKET_NAME = "bucketname";
   public static final String AWS_OBJECT_KEY = "aws.object.key";
   public static final String AWS_QUEUE_URL = "aws.queue.url";
-
   public static final String AWS_QUEUE_NAME = "aws.queue.name";
   public static final String QUEUE_NAME = "queuename";
   public static final String AWS_TOPIC_NAME = "aws.topic.name";
@@ -36,14 +33,12 @@ public class InstrumentationTags {
   public static final String TABLE_NAME = "tablename";
   public static final String AWS_REQUEST_ID = "aws.requestId";
   public static final String AWS_STORAGE_CLASS = "aws.storage.class";
-
   // These are temporary keys used for span pointer hash calculation
   public static final String S3_ETAG = "s3.eTag";
   public static final String DYNAMO_PRIMARY_KEY_1 = "dynamodb.primary_key_1";
   public static final String DYNAMO_PRIMARY_KEY_1_VALUE = "dynamodb.primary_key_1_value";
   public static final String DYNAMO_PRIMARY_KEY_2 = "dynamodb.primary_key_2";
   public static final String DYNAMO_PRIMARY_KEY_2_VALUE = "dynamodb.primary_key_2_value";
-
   public static final String BUCKET = "bucket";
   public static final String CASSANDRA_CONTACT_POINTS = "db.cassandra.contact.points";
   public static final String COUCHBASE_OPERATION_ID = "couchbase.operation_id";
@@ -124,13 +119,10 @@ public class InstrumentationTags {
       UTF8BytesString.create("_dd.partial_version");
   public static final UTF8BytesString DD_WAS_LONG_RUNNING =
       UTF8BytesString.create("_dd.was_long_running");
-
   public static final String TIBCO_NODE = "tibco.node";
   public static final String TIBCO_VERSION = "tibco.version";
-
   public static final String MULE_CORRELATION_ID = "mule.correlation_id";
   public static final String MULE_LOCATION = "mule.location";
-
   public static final String WEBSOCKET_SESSION_ID = "websocket.session.id";
   public static final String WEBSOCKET_MESSAGE_TYPE = "websocket.message.type";
   public static final String WEBSOCKET_MESSAGE_LENGTH = "websocket.message.length";

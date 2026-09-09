@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -32,7 +31,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JakartaServletInstrumentation() {
     super("servlet", "servlet-5");
   }
@@ -45,27 +45,27 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RumHttpServletRequestWrapper",
-      packageName + ".RumHttpServletResponseWrapper",
-      packageName + ".WrappedServletOutputStream",
+        packageName + ".RumHttpServletRequestWrapper",
+        packageName + ".RumHttpServletResponseWrapper",
+        packageName + ".WrappedServletOutputStream"
     };
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return hasSuperType(named(hierarchyMarkerType()))
-        .or(implementsInterface(named("jakarta.servlet.FilterChain")));
+      .or(implementsInterface(named("jakarta.servlet.FilterChain")));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("service"))
-            .and(isPublic())
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
-            .and(takesArgument(1, named("jakarta.servlet.ServletResponse"))),
+          .and(named("service"))
+          .and(isPublic())
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
+          .and(takesArgument(1, named("jakarta.servlet.ServletResponse"))),
         getClass().getName() + "$JakartaServletAdvice");
   }
 
@@ -87,14 +87,14 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
           if (maybeRumWrapper instanceof RumControllableResponse) {
             rumServletWrapper = (RumControllableResponse) maybeRumWrapper;
           } else {
-            rumServletWrapper =
-                new RumHttpServletResponseWrapper(
-                    httpServletRequest, (HttpServletResponse) response);
+            rumServletWrapper = new RumHttpServletResponseWrapper(
+                httpServletRequest,
+                (HttpServletResponse) response);
             httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
             response = (ServletResponse) rumServletWrapper;
-            request =
-                new RumHttpServletRequestWrapper(
-                    httpServletRequest, (HttpServletResponse) rumServletWrapper);
+            request = new RumHttpServletRequestWrapper(
+                httpServletRequest,
+                (HttpServletResponse) rumServletWrapper);
           }
         }
       }
@@ -125,8 +125,9 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
       }
 
       CallDepthThreadLocalMap.reset(HttpServletRequest.class);
-      final HttpServletRequest httpServletRequest =
-          (HttpServletRequest) request; // at this point the cast should be safe
+      final HttpServletRequest // at this point the cast should be safe
+      // at this point the cast should be safe
+      httpServletRequest = (HttpServletRequest) request;
       if (Config.get().isServletPrincipalEnabled()
           && httpServletRequest.getUserPrincipal() != null) {
         span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());

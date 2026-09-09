@@ -2,7 +2,6 @@ package com.datadog.iast.overhead;
 
 import static com.datadog.iast.overhead.OverheadContext.globalMap;
 import static datadog.trace.api.iast.IastDetectionMode.UNLIMITED;
-
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.VulnerabilityType;
@@ -25,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public interface OverheadController {
-
   boolean acquireRequest();
 
   void reset();
@@ -37,7 +35,9 @@ public interface OverheadController {
   boolean consumeQuota(Operation operation, @Nullable AgentSpan span);
 
   boolean consumeQuota(
-      Operation operation, @Nullable AgentSpan span, @Nullable VulnerabilityType type);
+      Operation operation,
+      @Nullable AgentSpan span,
+      @Nullable VulnerabilityType type);
 
   static OverheadController build(final Config config, final AgentTaskScheduler scheduler) {
     return build(
@@ -54,14 +54,15 @@ public interface OverheadController {
       final AgentTaskScheduler scheduler) {
     final OverheadControllerImpl result =
         new OverheadControllerImpl(
-            requestSampling, maxConcurrentRequests, globalFallback, scheduler);
+            requestSampling,
+            maxConcurrentRequests,
+            globalFallback,
+            scheduler);
     return IastSystem.DEBUG ? new OverheadControllerDebugAdapter(result) : result;
   }
 
   class OverheadControllerDebugAdapter implements OverheadController {
-
     static Logger LOGGER = LoggerFactory.getLogger(OverheadController.class);
-
     private final OverheadControllerImpl delegate;
 
     public OverheadControllerDebugAdapter(final OverheadControllerImpl delegate) {
@@ -87,7 +88,9 @@ public interface OverheadController {
       int result = delegate.releaseRequest();
       if (LOGGER.isDebugEnabled()) {
         LOGGER.debug(
-            "releaseRequest: availableRequests={}, span={}", result, AgentTracer.activeSpan());
+            "releaseRequest: availableRequests={}, span={}",
+            result,
+            AgentTracer.activeSpan());
       }
       return result;
     }
@@ -144,25 +147,17 @@ public interface OverheadController {
   }
 
   class OverheadControllerImpl implements OverheadController {
-
     private static final Logger LOGGER = LoggerFactory.getLogger(OverheadControllerImpl.class);
-
     private static final int RESET_PERIOD_SECONDS = 30;
-
     private final int sampling;
-
     /**
      * Fallback to use the global context instance when no IAST context is present in the active
      * span
      */
     private final boolean useGlobalAsFallback;
-
     final NonBlockingSemaphore availableRequests;
-
     final AtomicLong cumulativeCounter;
-
     private volatile long lastAcquiredTimestamp = Long.MAX_VALUE;
-
     final OverheadContext globalContext =
         new OverheadContext(Config.get().getIastVulnerabilitiesPerRequest(), true);
 
@@ -177,7 +172,10 @@ public interface OverheadController {
       this.useGlobalAsFallback = useGlobalAsFallback;
       if (taskScheduler != null) {
         taskScheduler.scheduleAtFixedRate(
-            this::reset, 2 * RESET_PERIOD_SECONDS, RESET_PERIOD_SECONDS, TimeUnit.SECONDS);
+            this::reset,
+            2 * RESET_PERIOD_SECONDS,
+            RESET_PERIOD_SECONDS,
+            TimeUnit.SECONDS);
       }
     }
 
@@ -217,7 +215,6 @@ public interface OverheadController {
         final Operation operation,
         @Nullable final AgentSpan span,
         @Nullable final VulnerabilityType type) {
-
       OverheadContext ctx = getContext(span);
       if (ctx == null) {
         return false;
@@ -257,7 +254,6 @@ public interface OverheadController {
         @Nullable final VulnerabilityType type,
         @Nullable final String httpMethod,
         @Nullable final String httpPath) {
-
       if (ctx == null || type == null || ctx.getRequestMap() == null || ctx.getCopyMap() == null) {
         return false;
       }
@@ -270,15 +266,13 @@ public interface OverheadController {
       int[] copyArray;
 
       if (requestArray == null) {
-        AtomicIntegerArray globalArray =
-            globalMap.computeIfAbsent(
-                currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+        AtomicIntegerArray globalArray = globalMap.computeIfAbsent(currentEndpoint, k -> new AtomicIntegerArray(
+            numberOfVulnerabilities));
         copyArray = toIntArray(globalArray);
         ctx.getCopyMap().put(currentEndpoint, copyArray);
-        requestArray =
-            ctx.getRequestMap()
-                .computeIfAbsent(
-                    currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
+        requestArray = ctx
+          .getRequestMap()
+          .computeIfAbsent(currentEndpoint, k -> new AtomicIntegerArray(numberOfVulnerabilities));
       } else {
         copyArray = ctx.getCopyMap().get(currentEndpoint);
       }

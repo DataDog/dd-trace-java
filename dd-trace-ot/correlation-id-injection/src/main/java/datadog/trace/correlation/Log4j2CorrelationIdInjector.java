@@ -4,7 +4,9 @@ import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.internal.InternalTracer;
 import org.apache.logging.log4j.ThreadContext;
 
-/** Inject trace and span identifiers using Log4j2 ThreadContext. */
+/**
+ * Inject trace and span identifiers using Log4j2 ThreadContext.
+ */
 @SuppressWarnings("unused")
 class Log4j2CorrelationIdInjector extends AbstractCorrelationIdInjector {
   public Log4j2CorrelationIdInjector(InternalTracer tracer) {

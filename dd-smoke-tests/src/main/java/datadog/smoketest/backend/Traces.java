@@ -1,7 +1,6 @@
 package datadog.smoketest.backend;
 
 import static java.util.function.UnaryOperator.identity;
-
 import datadog.smoketest.trace.SmokeTraceAssertions;
 import datadog.smoketest.trace.TraceMatcher;
 import datadog.trace.test.agent.decoder.DecodedTrace;
@@ -10,11 +9,14 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
-/** This class is a query facade over the traces a {@link AgentBackend} has received. */
+/**
+ * This class is a query facade over the traces a {@link AgentBackend} has received.
+ */
 public final class Traces {
-  /** Default time to wait for traces to arrive from a separately-launched app before giving up. */
+  /**
+   * Default time to wait for traces to arrive from a separately-launched app before giving up.
+   */
   private static final double DEFAULT_TIMEOUT_SECONDS = 30;
-
   private final Supplier<List<DecodedTrace>> source;
 
   Traces(Supplier<List<DecodedTrace>> source) {
@@ -49,15 +51,12 @@ public final class Traces {
    * @throws AssertionError If less than {@code count} traces have been received.
    */
   public void waitForTraceCount(int count, double timeoutSeconds) {
-    new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              int actual = getTraces().size();
-              if (actual < count) {
-                throw new AssertionError(
-                    "Expected at least " + count + " trace(s) but got " + actual);
-              }
-            });
+    new PollingConditions(timeoutSeconds).eventually(() -> {
+      int actual = getTraces().size();
+      if (actual < count) {
+        throw new AssertionError("Expected at least " + count + " trace(s) but got " + actual);
+      }
+    });
   }
 
   /**
@@ -84,7 +83,8 @@ public final class Traces {
    * @throws AssertionError If no traces satisfying the given matchers are found.
    */
   public void waitForTraces(
-      UnaryOperator<SmokeTraceAssertions.Options> options, TraceMatcher... matchers) {
+      UnaryOperator<SmokeTraceAssertions.Options> options,
+      TraceMatcher... matchers) {
     waitForTraces(DEFAULT_TIMEOUT_SECONDS, options, matchers);
   }
 
@@ -103,6 +103,6 @@ public final class Traces {
       UnaryOperator<SmokeTraceAssertions.Options> options,
       TraceMatcher... matchers) {
     new PollingConditions(timeoutSeconds)
-        .eventually(() -> SmokeTraceAssertions.assertTraces(getTraces(), options, matchers));
+      .eventually(() -> SmokeTraceAssertions.assertTraces(getTraces(), options, matchers));
   }
 }

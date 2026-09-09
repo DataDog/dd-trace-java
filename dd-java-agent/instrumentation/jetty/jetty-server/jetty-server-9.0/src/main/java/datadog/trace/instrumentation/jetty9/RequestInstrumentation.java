@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty9.JettyDecorator.DD_SERVLET_PATH_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
@@ -33,8 +32,8 @@ import org.eclipse.jetty.server.Request;
 
 @AutoService(InstrumenterModule.class)
 public final class RequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public RequestInstrumentation() {
     super("jetty");
   }
@@ -69,11 +68,13 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
   public static class SetContextPathAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateContextPath(
-        @Advice.This final Request req, @Advice.Argument(0) final String contextPath) {
+        @Advice.This final Request req,
+        @Advice.Argument(0) final String contextPath) {
       if (contextPath != null) {
         Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
         // Don't want to update while being dispatched to new servlet
-        if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
+        if (contextObj instanceof Context
+            && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
           Context context = (Context) contextObj;
           AgentSpan span = spanFromContext(context);
           if (span != null) {
@@ -92,11 +93,14 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
   public static class SetServletPathAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void updateServletPath(
-        @Advice.This final Request req, @Advice.Argument(0) final String servletPath) {
-      if (servletPath != null && !servletPath.isEmpty()) { // bypass cleanup
+        @Advice.This final Request req,
+        @Advice.Argument(0) final String servletPath) {
+      if (servletPath != null && !servletPath.isEmpty()) {
+        // bypass cleanup
         Object contextObj = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
         // Don't want to update while being dispatched to new servlet
-        if (contextObj instanceof Context && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
+        if (contextObj instanceof Context
+            && req.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE) == null) {
           Context context = (Context) contextObj;
           AgentSpan span = spanFromContext(context);
           if (span != null) {
@@ -108,7 +112,9 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
     }
 
     private void muzzleCheck(
-        HttpChannel<?> connection, HttpServletRequest request, HttpFields fields) {
+        HttpChannel<?> connection,
+        HttpServletRequest request,
+        HttpFields fields) {
       connection.run();
       request.getContextPath();
       fields.getField(0);

@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import akka.actor.ActorRef;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -32,8 +31,8 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public RediscalaInstrumentation() {
     super("rediscala", "redis");
   }
@@ -45,22 +44,23 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return NameMatchers.nameStartsWith("redis.")
-        .and(
-            implementsInterface(
-                namedOneOf( // traits
-                    "redis.Request",
-                    "redis.ActorRequest",
-                    "redis.BufferedRequest",
-                    "redis.RoundRobinPoolRequest")));
+    return NameMatchers
+      .nameStartsWith("redis.")
+      .and(
+          implementsInterface(
+              namedOneOf(
+                  "redis.Request",
+                  "redis.ActorRequest",
+                  "redis.BufferedRequest",
+                  "redis.RoundRobinPoolRequest")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OnCompleteHandler",
-      packageName + ".RediscalaClientDecorator",
-      packageName + ".RedisConnectionInfo"
+        packageName + ".OnCompleteHandler",
+        packageName + ".RediscalaClientDecorator",
+        packageName + ".RedisConnectionInfo"
     };
   }
 
@@ -73,15 +73,14 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("redis.RedisCommand")))
-            .and(returns(named("scala.concurrent.Future"))),
+          .and(isPublic())
+          .and(named("send"))
+          .and(takesArgument(0, named("redis.RedisCommand")))
+          .and(returns(named("scala.concurrent.Future"))),
         RediscalaInstrumentation.class.getName() + "$RediscalaAdvice");
   }
 
   public static class RediscalaAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
       final AgentSpan span = startSpan("redis-command", RediscalaClientDecorator.OPERATION_NAME);
@@ -97,7 +96,6 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final Object thiz,
         @Advice.FieldValue("executionContext") final ExecutionContext ctx,
         @Advice.Return(readOnly = false) final Future<Object> responseFuture) {
-
       final AgentSpan span = scope.span();
       final ContextStore<ActorRef, RedisConnectionInfo> contextStore =
           InstrumentationContext.get(ActorRef.class, RedisConnectionInfo.class);

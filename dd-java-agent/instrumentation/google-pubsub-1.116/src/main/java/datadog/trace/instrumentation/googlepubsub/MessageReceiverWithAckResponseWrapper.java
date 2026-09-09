@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.googlepubsub;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.CONSUMER_DECORATE;
-
 import com.google.cloud.pubsub.v1.AckReplyConsumerWithResponse;
 import com.google.cloud.pubsub.v1.MessageReceiverWithAckResponse;
 import com.google.pubsub.v1.PubsubMessage;
@@ -14,7 +13,8 @@ public class MessageReceiverWithAckResponseWrapper implements MessageReceiverWit
   private final MessageReceiverWithAckResponse delegate;
 
   public MessageReceiverWithAckResponseWrapper(
-      String subscription, MessageReceiverWithAckResponse delegate) {
+      String subscription,
+      MessageReceiverWithAckResponse delegate) {
     this.subscription = subscription;
     this.delegate = delegate;
   }

@@ -2,14 +2,17 @@ package com.datadog.debugger.probe;
 
 import java.util.Objects;
 
-/** Stores sampling configuration */
+/**
+ * Stores sampling configuration
+ */
 public class Sampling {
   private int coolDownInSeconds;
   private double eventsPerSecond;
   private volatile long nextExecution;
   private int executionInterval = -1;
 
-  public Sampling() {}
+  public Sampling() {
+  }
 
   public Sampling(int coolDownInSeconds) {
     this.coolDownInSeconds = coolDownInSeconds;
@@ -71,6 +74,8 @@ public class Sampling {
   @Override
   public String toString() {
     return String.format(
-        "Sampling{coolDownInSeconds=%d, eventsPerSecond=%s}", coolDownInSeconds, eventsPerSecond);
+        "Sampling{coolDownInSeconds=%d, eventsPerSecond=%s}",
+        coolDownInSeconds,
+        eventsPerSecond);
   }
 }

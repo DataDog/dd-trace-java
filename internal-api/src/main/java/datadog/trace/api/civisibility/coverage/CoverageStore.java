@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import javax.annotation.Nullable;
 
 public interface CoverageStore extends TestReportHolder {
-
   CoverageProbes getProbes();
 
   /**

@@ -10,7 +10,6 @@ import static datadog.trace.core.scopemanager.ContinuableScope.MANUAL;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -47,15 +46,13 @@ import org.slf4j.LoggerFactory;
  * ScopeInterceptors to provide additional functionality.
  */
 public final class ContinuableScopeManager {
-
   static final Logger log = LoggerFactory.getLogger(ContinuableScopeManager.class);
   static final RatelimitedLogger ratelimitedLog = new RatelimitedLogger(log, 1, MINUTES);
-
   private static final NoopContinuation ROOT_CONTINUATION = NoopContinuation.INSTANCE;
   private static final NoopScope INVALID_SCOPE = NoopScope.INSTANCE;
-
-  static final long iterationKeepAlive =
-      SECONDS.toMillis(Config.get().getScopeIterationKeepAlive());
+  static final long iterationKeepAlive = SECONDS.toMillis(Config
+    .get()
+    .getScopeIterationKeepAlive());
   volatile ConcurrentMap<ScopeStack, ContinuableScope> rootIterationScopes;
   final List<ScopeListener> scopeListeners;
   final List<ExtendedScopeListener> extendedScopeListeners;
@@ -96,8 +93,7 @@ public final class ContinuableScopeManager {
     this.healthMetrics = healthMetrics;
     this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
     this.profilingContextIntegration = profilingContextIntegration;
-    this.profilingEnabled =
-        !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
+    this.profilingEnabled = !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
   }
 
   public AgentScope activateSpan(final AgentSpan span) {
@@ -105,7 +101,8 @@ public final class ContinuableScopeManager {
   }
 
   public AgentScope activateManualSpan(final AgentSpan span) {
-    return activate(span, MANUAL, false, /* ignored */ false);
+    return activate(span, MANUAL, false, /* ignored */
+    false);
   }
 
   @SuppressWarnings("deprecation")
@@ -144,7 +141,6 @@ public final class ContinuableScopeManager {
       top.incrementReferences();
       return top;
     }
-
     // DQH - This check could go before the check above, since depth limit checking is fast
     if (hasDepthLimit) {
       final int currentDepth = scopeStack.depth();
@@ -156,12 +152,10 @@ public final class ContinuableScopeManager {
     }
 
     assert span != null;
-
     // Inherit the async propagation from the active scope unless the value is overridden
-    boolean asyncPropagation =
-        overrideAsyncPropagation
-            ? isAsyncPropagating
-            : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
+    boolean asyncPropagation = overrideAsyncPropagation
+        ? isAsyncPropagating
+        : top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
     Context context = top != null ? top.context.with(span) : span;
 
@@ -181,7 +175,6 @@ public final class ContinuableScopeManager {
       top.incrementReferences();
       return top;
     }
-
     // DQH - This check could go before the check above, since depth limit checking is fast
     if (hasDepthLimit) {
       final int currentDepth = scopeStack.depth();
@@ -193,7 +186,6 @@ public final class ContinuableScopeManager {
     }
 
     assert context != null;
-
     // Inherit the async propagation from the active scope
     boolean asyncPropagation = top != null ? top.isAsyncPropagating() : DEFAULT_ASYNC_PROPAGATING;
 
@@ -211,9 +203,10 @@ public final class ContinuableScopeManager {
    * @param continuation {@code null} if a continuation is re-used
    */
   ContinuableScope continueSpan(
-      final ScopeContinuation continuation, final Context context, final byte source) {
+      final ScopeContinuation continuation,
+      final Context context,
+      final byte source) {
     ScopeStack scopeStack = scopeStack();
-
     // optimization: if the top scope is already keeping the same span alive
     // then re-use that scope (avoids allocation) and cancel the continuation
     final ContinuableScope top = scopeStack.top;
@@ -251,11 +244,11 @@ public final class ContinuableScopeManager {
 
   public void closePrevious(final boolean finishSpan) {
     ScopeStack scopeStack = scopeStack();
-
     // close any immediately previous iteration scope
     final ContinuableScope top = scopeStack.top;
     if (top != null && top.source() == ITERATION) {
-      if (iterationKeepAlive > 0) { // skip depth check because cancelling is cheap
+      if (iterationKeepAlive > 0) {
+        // skip depth check because cancelling is cheap
         cancelRootIterationScopeCleanup(scopeStack, top);
       }
       top.close();
@@ -267,7 +260,8 @@ public final class ContinuableScopeManager {
     } else if (top != null) {
       log.debug(
           SEND_TELEMETRY,
-          "Scope found at top of stack has source {} when we expect {}. Current span at the top of the stack {}.",
+          "Scope found at top of stack has source {} when we expect {}. Current span at the "
+          + "top of the stack {}.",
           top.source(),
           ITERATION,
           top.span());
@@ -320,7 +314,8 @@ public final class ContinuableScopeManager {
       if (active.rollback()) {
         active.close();
       } else {
-        break; // stop at the most recent checkpointed scope
+        // stop at the most recent checkpointed scope
+        break;
       }
     }
   }
@@ -330,7 +325,9 @@ public final class ContinuableScopeManager {
     return active == null ? null : active.span();
   }
 
-  /** Attach a listener to scope activation events */
+  /**
+   * Attach a listener to scope activation events
+   */
   public void addScopeListener(final ScopeListener listener) {
     if (listener instanceof ExtendedScopeListener) {
       addExtendedScopeListener((ExtendedScopeListener) listener);
@@ -416,7 +413,6 @@ public final class ContinuableScopeManager {
     if (context == Context.root()) {
       return ROOT_CONTINUATION;
     }
-
     // respect async propagation flag for Context.current().capture()
     ContinuableScope activeScope = scopeStack().active();
     if (activeScope != null
@@ -435,7 +431,6 @@ public final class ContinuableScopeManager {
   }
 
   static final class ScopeStackThreadLocal extends ThreadLocal<ScopeStack> {
-
     private final ProfilingContextIntegration profilingContextIntegration;
 
     ScopeStackThreadLocal(ProfilingContextIntegration profilingContextIntegration) {
@@ -475,9 +470,14 @@ public final class ContinuableScopeManager {
 
     public static void scheduleFor(Map<ScopeStack, ContinuableScope> rootIterationScopes) {
       long period = Math.min(iterationKeepAlive, 10_000);
-      AgentTaskScheduler.get()
-          .scheduleAtFixedRate(
-              CLEANER, rootIterationScopes, iterationKeepAlive, period, TimeUnit.MILLISECONDS);
+      AgentTaskScheduler
+        .get()
+        .scheduleAtFixedRate(
+            CLEANER,
+            rootIterationScopes,
+            iterationKeepAlive,
+            period,
+            TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -492,8 +492,8 @@ public final class ContinuableScopeManager {
 
         ScopeStack scopeStack = entry.getKey();
         ContinuableScope rootScope = entry.getValue();
-
-        if (!rootScope.alive()) { // no need to track this anymore
+        if (!rootScope.alive()) {
+          // no need to track this anymore
           itr.remove();
         } else {
           AgentSpan span = rootScope.span();

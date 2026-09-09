@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mongo;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-
 import com.mongodb.internal.async.SingleResultCallback;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -9,11 +8,10 @@ import datadog.context.ContextScope;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public class CallbackWrapper<T> implements SingleResultCallback<Object> {
-  private static final AtomicReferenceFieldUpdater<CallbackWrapper, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              CallbackWrapper.class, ContextContinuation.class, "continuation");
-
+  private static final AtomicReferenceFieldUpdater<CallbackWrapper, ContextContinuation> CONTINUATION = AtomicReferenceFieldUpdater.newUpdater(
+      CallbackWrapper.class,
+      ContextContinuation.class,
+      "continuation");
   private volatile ContextContinuation continuation = null;
   private final SingleResultCallback<Object> wrapped;
 

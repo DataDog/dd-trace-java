@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springboot;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,16 +14,15 @@ import net.bytebuddy.matcher.ElementMatchers;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringServletInitializerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public SpringServletInitializerInstrumentation() {
     super("spring-boot");
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DeploymentHelper",
-    };
+    return new String[] {packageName + ".DeploymentHelper"};
   }
 
   @Override
@@ -37,8 +35,8 @@ public class SpringServletInitializerInstrumentation extends InstrumenterModule.
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.springframework.boot.web.servlet.support.SpringBootServletInitializer",
-      "org.springframework.boot.web.support.SpringBootServletInitializer",
+        "org.springframework.boot.web.servlet.support.SpringBootServletInitializer",
+        "org.springframework.boot.web.support.SpringBootServletInitializer"
     };
   }
 

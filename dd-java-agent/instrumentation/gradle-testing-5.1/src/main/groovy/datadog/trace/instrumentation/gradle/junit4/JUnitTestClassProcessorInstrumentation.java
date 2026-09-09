@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.gradle.junit4;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,7 +14,8 @@ import org.gradle.api.Action;
 
 @AutoService(InstrumenterModule.class)
 public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JUnitTestClassProcessorInstrumentation() {
     super("ci-visibility", "gradle", "junit4");
   }
@@ -33,12 +33,12 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      JUnit4Instrumentation.class.getPackage().getName() + ".JUnit4Utils",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
-      JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
-      JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
-      JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
-      packageName + ".DDCollectAllTestClassesExecutor",
+        JUnit4Instrumentation.class.getPackage().getName() + ".JUnit4Utils",
+        JUnit4Instrumentation.class.getPackage().getName() + ".TestEventsHandlerHolder",
+        JUnit4Instrumentation.class.getPackage().getName() + ".SkippedByDatadog",
+        JUnit4Instrumentation.class.getPackage().getName() + ".TracingListener",
+        JUnit4Instrumentation.class.getPackage().getName() + ".order.JUnit4FailFastClassOrderer",
+        packageName + ".DDCollectAllTestClassesExecutor"
     };
   }
 
@@ -51,8 +51,8 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("createTestExecutor")
-            .and(takesArgument(0, named("org.gradle.internal.actor.Actor")))
-            .and(returns(named("org.gradle.api.Action"))),
+          .and(takesArgument(0, named("org.gradle.internal.actor.Actor")))
+          .and(returns(named("org.gradle.api.Action"))),
         JUnitTestClassProcessorInstrumentation.class.getName() + "$TestExecutorAdvice");
   }
 
@@ -66,9 +66,9 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }
 
-      executor =
-          new DDCollectAllTestClassesExecutor(
-              executor, Thread.currentThread().getContextClassLoader());
+      executor = new DDCollectAllTestClassesExecutor(
+          executor,
+          Thread.currentThread().getContextClassLoader());
     }
   }
 }

@@ -4,15 +4,12 @@ import static datadog.trace.util.LongHashingUtils.addToHash;
 import static datadog.trace.util.LongHashingUtils.hash;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import java.util.Arrays;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
 class LongHashingUtilsTest {
-
   // ----- single-value overloads -----
-
   @Test
   void hashOfObjectReturnsHashCodeOrSentinelForNull() {
     Object o = new Object();
@@ -34,7 +31,6 @@ class LongHashingUtilsTest {
   }
 
   // ----- multi-arg Object overloads vs chained addToHash -----
-
   @Test
   void twoArgHashMatchesChainedAddToHash() {
     Object a = "alpha";
@@ -75,7 +71,8 @@ class LongHashingUtilsTest {
   void multiArgHashHandlesNullsConsistentlyWithChainedAddToHash() {
     assertEquals(addToHash(addToHash(0L, (Object) null), "x"), hash(null, "x"));
     assertEquals(
-        addToHash(addToHash(addToHash(0L, "x"), (Object) null), "y"), hash("x", null, "y"));
+        addToHash(addToHash(addToHash(0L, "x"), (Object) null), "y"),
+        hash("x", null, "y"));
   }
 
   @Test
@@ -86,7 +83,6 @@ class LongHashingUtilsTest {
   }
 
   // ----- addToHash primitive overloads -----
-
   @Test
   void addToHashPrimitivesMatchObjectVersion() {
     long seed = 100L;
@@ -114,7 +110,6 @@ class LongHashingUtilsTest {
   }
 
   // ----- iterable / array versions -----
-
   @Test
   void hashIterableMatchesChainedAddToHash() {
     Iterable<Object> values = Arrays.asList("a", 1, true, null);
@@ -150,14 +145,12 @@ class LongHashingUtilsTest {
   @Test
   void addToHashArrayFoldsFromSeedLikeChainedAddToHash() {
     Object[] objs = new Object[] {"alpha", 7, null, true};
-
     // Full-array overload folds every element onto the seed, matching an explicit chain.
     long fromZero = 0L;
     for (Object o : objs) {
       fromZero = addToHash(fromZero, o);
     }
     assertEquals(fromZero, addToHash(0L, objs));
-
     // A non-zero seed carries through, so the result differs from the zero-seed fold.
     long fromSeed = 100L;
     for (Object o : objs) {
@@ -170,18 +163,15 @@ class LongHashingUtilsTest {
   @Test
   void addToHashArrayRespectsLen() {
     Object[] objs = new Object[] {"alpha", 7, null, true};
-
     // The len override folds only the first len elements.
     long firstTwo = addToHash(addToHash(0L, objs[0]), objs[1]);
     assertEquals(firstTwo, addToHash(0L, objs, 2));
     assertNotEquals(addToHash(0L, objs), addToHash(0L, objs, 2));
-
     // len==0 never enters the loop and returns the seed unchanged.
     assertEquals(42L, addToHash(42L, objs, 0));
   }
 
   // ----- intHash null behavior is observable via multi-arg overloads -----
-
   @Test
   void multiArgHashTreatsNullAsZero() {
     // hash(Object,Object) feeds intHash(...) which returns 0 for null.

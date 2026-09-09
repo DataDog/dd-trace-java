@@ -59,7 +59,6 @@ import org.yaml.snakeyaml.Yaml;
 
 @RestController
 public class IastWebController {
-
   private final Resource xml;
   private final Hasher hasher;
   private final Random random;
@@ -122,7 +121,8 @@ public class IastWebController {
 
   @GetMapping("/unvalidated_redirect_from_header")
   public String unvalidatedRedirectFromHeader(
-      @RequestParam String param, HttpServletResponse response) {
+      @RequestParam String param,
+      HttpServletResponse response) {
     response.addHeader("Location", param);
     response.setStatus(HttpStatus.FOUND.value());
     return "Unvalidated redirect";
@@ -130,34 +130,39 @@ public class IastWebController {
 
   @GetMapping("/unvalidated_redirect_from_send_redirect")
   public String unvalidatedRedirectFromSendRedirect(
-      @RequestParam String param, HttpServletResponse response) throws IOException {
+      @RequestParam String param,
+      HttpServletResponse response) throws IOException {
     response.sendRedirect(param);
     return "Unvalidated redirect";
   }
 
   @GetMapping("/unvalidated_redirect_from_forward")
   public String unvalidatedRedirectFromForward(
-      @RequestParam String param, HttpServletRequest request, HttpServletResponse response)
-      throws IOException, ServletException {
+      @RequestParam String param,
+      HttpServletRequest request,
+      HttpServletResponse response) throws IOException, ServletException {
     request.getRequestDispatcher(param).forward(request, response);
     return "Unvalidated redirect";
   }
 
   @GetMapping("/unvalidated_redirect_from_redirect_view")
   public RedirectView unvalidatedRedirectFromRedirectView(
-      @RequestParam String param, HttpServletResponse response) {
+      @RequestParam String param,
+      HttpServletResponse response) {
     return new RedirectView(param);
   }
 
   @GetMapping("/unvalidated_redirect_from_model_and_view")
   public ModelAndView unvalidatedRedirectFromModelAndView(
-      @RequestParam String param, HttpServletResponse response) {
+      @RequestParam String param,
+      HttpServletResponse response) {
     return new ModelAndView(UrlBasedViewResolver.REDIRECT_URL_PREFIX + param);
   }
 
   @GetMapping("/unvalidated_redirect_forward_from_model_and_view")
   public ModelAndView unvalidatedRedirectForwardFromModelAndView(
-      @RequestParam String param, HttpServletResponse response) {
+      @RequestParam String param,
+      HttpServletResponse response) {
     return new ModelAndView(UrlBasedViewResolver.FORWARD_URL_PREFIX + param);
   }
 
@@ -273,7 +278,10 @@ public class IastWebController {
 
   @GetMapping("/xpathi/evaluate")
   public String xpathInjectionEvaluate(final HttpServletRequest request)
-      throws XPathExpressionException, ParserConfigurationException, IOException, SAXException {
+      throws XPathExpressionException,
+      ParserConfigurationException,
+      IOException,
+      SAXException {
     DocumentBuilder b = DocumentBuilderFactory.newInstance().newDocumentBuilder();
     Document doc = b.parse(xml.getInputStream());
     String expression = request.getParameter("expression");
@@ -292,7 +300,6 @@ public class IastWebController {
   @GetMapping("/trust_boundary_violation_for_cookie")
   public String trustBoundaryViolationForCookie(final HttpServletRequest request)
       throws UnsupportedEncodingException {
-
     for (Cookie theCookie : request.getCookies()) {
       if (theCookie.getName().equals("https%3A%2F%2Fuser-id2")) {
         String value = java.net.URLDecoder.decode(theCookie.getValue(), "UTF-8");
@@ -323,7 +330,8 @@ public class IastWebController {
 
   @PostMapping("/multipart")
   public String handleFileUpload(
-      @RequestParam("theFile") MultipartFile file, @RequestParam("param1") String param1) {
+      @RequestParam("theFile") MultipartFile file,
+      @RequestParam("param1") String param1) {
     String fileContent = "NO_FILE";
     try {
       fileContent = Arrays.toString(file.getBytes());
@@ -337,35 +345,33 @@ public class IastWebController {
   public String jakartaMailHtmlVulnerability(HttpServletRequest request)
       throws jakarta.mail.MessagingException {
     jakarta.mail.Session session = jakarta.mail.Session.getDefaultInstance(new Properties());
-    jakarta.mail.Provider provider =
-        new jakarta.mail.Provider(
-            jakarta.mail.Provider.Type.TRANSPORT,
-            "smtp",
-            JakartaMockTransport.class.getName(),
-            "MockTransport",
-            "1.0");
+    jakarta.mail.Provider provider = new jakarta.mail.Provider(
+        jakarta.mail.Provider.Type.TRANSPORT,
+        "smtp",
+        JakartaMockTransport.class.getName(),
+        "MockTransport",
+        "1.0");
     session.setProvider(provider);
-    boolean sanitize =
-        StringUtils.isNotEmpty(request.getParameter("sanitize"))
-            && request.getParameter("sanitize").equalsIgnoreCase("true");
+    boolean sanitize = StringUtils.isNotEmpty(request.getParameter("sanitize"))
+        && request.getParameter("sanitize").equalsIgnoreCase("true");
     jakarta.mail.internet.MimeMessage message = new jakarta.mail.internet.MimeMessage(session);
     if (request.getParameter("messageText") != null) {
       message.setText(
           sanitize
-              ? StringEscapeUtils.escapeHtml4(request.getParameter("messageText"))
-              : request.getParameter("messageText"),
+          ? StringEscapeUtils.escapeHtml4(request.getParameter("messageText"))
+          : request.getParameter("messageText"),
           "utf-8",
           "html");
     } else {
       jakarta.mail.Multipart content = new jakarta.mail.internet.MimeMultipart();
       content.addBodyPart(new jakarta.mail.internet.MimeBodyPart());
       content
-          .getBodyPart(0)
-          .setContent(
-              sanitize
-                  ? StringEscapeUtils.escapeHtml4(request.getParameter("messageContent"))
-                  : request.getParameter("messageContent"),
-              "text/html");
+        .getBodyPart(0)
+        .setContent(
+            sanitize
+            ? StringEscapeUtils.escapeHtml4(request.getParameter("messageContent"))
+            : request.getParameter("messageContent"),
+            "text/html");
       message.setContent(content, "multipart/*");
     }
     message.setRecipients(jakarta.mail.Message.RecipientType.TO, "abc@datadoghq.com");
@@ -413,14 +419,16 @@ public class IastWebController {
 
   @GetMapping("/header_injection_exclusion")
   public String headerInjectionExclusion(
-      @RequestParam("param") String param, HttpServletResponse response) {
+      @RequestParam("param") String param,
+      HttpServletResponse response) {
     response.addHeader("Sec-WebSocket-Location", param);
     return "Ok";
   }
 
   @GetMapping("/header_injection_redaction")
   public String headerInjectionRedaction(
-      @RequestParam("param") String param, HttpServletResponse response) {
+      @RequestParam("param") String param,
+      HttpServletResponse response) {
     response.addHeader("X-Test-Header", param);
     return "Ok";
   }
@@ -442,7 +450,8 @@ public class IastWebController {
 
   @PostMapping("/untrusted_deserialization/part")
   public String untrustedDeserializationParts(HttpServletRequest request)
-      throws IOException, ServletException {
+      throws IOException,
+      ServletException {
     List<Part> parts = (List<Part>) request.getParts();
     final ObjectInputStream ois = new ObjectInputStream(parts.get(0).getInputStream());
     ois.close();
@@ -478,13 +487,11 @@ public class IastWebController {
   }
 
   public static class CustomStringReader extends StringReader {
-
     public CustomStringReader(String s) {
       super(
           "Super "
-              + s
-              + (new StringReader(
-                  "New_1" + new StringReader("New_2" + new StringReader("New_3" + s)))));
+          + s
+          + (new StringReader("New_1" + new StringReader("New_2" + new StringReader("New_3" + s)))));
     }
   }
 }

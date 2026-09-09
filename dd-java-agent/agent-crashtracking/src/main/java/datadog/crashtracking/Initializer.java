@@ -2,7 +2,6 @@ package datadog.crashtracking;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
-
 import com.datadoghq.profiler.JVMAccess;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.environment.JavaVirtualMachine;
@@ -87,15 +86,16 @@ public final class Initializer {
       FlagAccess access = null;
       // Native images don't support the native ddprof library, use JMX instead
       if (forceJmx || Platform.isNativeImage()) {
-        access =
-            new JMXFlagAccess(ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class));
+        access = new JMXFlagAccess(ManagementFactory.getPlatformMXBean(
+            HotSpotDiagnosticMXBean.class));
       } else {
         DdprofLibraryLoader.JVMAccessHolder jvmAccessHolder = DdprofLibraryLoader.jvmAccess();
         Throwable reasonNotLoaded = jvmAccessHolder.getReasonNotLoaded();
         if (reasonNotLoaded != null) {
           LOG.debug(
               SEND_TELEMETRY,
-              "Failed to load JVM access library: {}. Crash tracking will need to rely on user provided JVM arguments.",
+              "Failed to load JVM access library: {}. Crash tracking will need to rely on user "
+              + "provided JVM arguments.",
               jvmAccessHolder.getReasonNotLoaded().getMessage());
           return false;
         } else {
@@ -276,9 +276,8 @@ public final class Initializer {
       if (idx > -1) {
         agentPath = selfClass.substring(9, idx + 4);
       }
-    }
-    // test harness env is different; use the known project structure to locate the agent jar
-    else if (selfClass.startsWith("file:")) {
+    } else // test harness env is different; use the known project structure to locate the agent jar
+    if (selfClass.startsWith("file:")) {
       int idx = selfClass.lastIndexOf("dd-java-agent");
       if (idx > -1) {
         File libsDir = new File(selfClass.substring(5, idx + 13), "build/libs");
@@ -298,14 +297,15 @@ public final class Initializer {
     }
     int index = fileName.indexOf(PID_PREFIX);
     if (index < 0) {
-      return null; // not a process specific file
+      // not a process specific file
+      return null;
     }
     int pos = index + PID_PREFIX.length();
     int startPos = pos;
-
     // check if the file name contains a PID
     if (fileName.length() <= pos) {
-      return null; // no PID in the file name
+      // no PID in the file name
+      return null;
     }
     // extract the PID from the file name
     // eg. pid_12345.log -> 12345
@@ -325,14 +325,14 @@ public final class Initializer {
       return null;
     }
     // the script name is present, so we can extract the path
-
     char ch;
     idx += scriptNamePrefix.length();
     while (idx < arg.length() && (ch = arg.charAt(idx)) != ' ' && ch != ';') {
       idx++;
     }
     String path = arg.substring(0, idx);
-    idx = path.lastIndexOf(';'); // the arg may contain multiple commands separated by semicolons
+    // the arg may contain multiple commands separated by semicolons
+    idx = path.lastIndexOf(';');
     if (idx >= 0) {
       // if there is a semicolon, we take the part after it and trim it
       path = path.substring(idx + 1).trim();
@@ -382,7 +382,8 @@ public final class Initializer {
     } catch (Throwable t) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
+          "Unexpected exception while creating custom crash upload script. Crash tracking "
+          + "will not work properly.",
           t);
     }
   }
@@ -439,14 +440,13 @@ public final class Initializer {
     return scriptName + "." + (OperatingSystem.isWindows() ? "bat" : "sh");
   }
 
-  private static final Set<PosixFilePermission> GROUP_WORLD_BITS =
-      EnumSet.of(
-          PosixFilePermission.GROUP_READ,
-          PosixFilePermission.GROUP_WRITE,
-          PosixFilePermission.GROUP_EXECUTE,
-          PosixFilePermission.OTHERS_READ,
-          PosixFilePermission.OTHERS_WRITE,
-          PosixFilePermission.OTHERS_EXECUTE);
+  private static final Set<PosixFilePermission> GROUP_WORLD_BITS = EnumSet.of(
+      PosixFilePermission.GROUP_READ,
+      PosixFilePermission.GROUP_WRITE,
+      PosixFilePermission.GROUP_EXECUTE,
+      PosixFilePermission.OTHERS_READ,
+      PosixFilePermission.OTHERS_WRITE,
+      PosixFilePermission.OTHERS_EXECUTE);
 
   /**
    * Returns {@code true} when {@code f} is safe to trust: on non-POSIX file systems always returns

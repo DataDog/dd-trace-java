@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_AR
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.communication.serialization.GrowableBuffer;
@@ -42,9 +41,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  * </pre>
  */
 class OtlpCommonProtoTest {
-
   // ── encoding helpers ──────────────────────────────────────────────────────
-
   private static byte[] encode(int type, String key, Object value) {
     GrowableBuffer buf = new GrowableBuffer(256);
     OtlpCommonProto.writeAttribute(buf, type, key, value);
@@ -86,8 +83,9 @@ class OtlpCommonProtoTest {
   }
 
   // ── proto parsing helpers ─────────────────────────────────────────────────
-
-  /** Reads the {@code KeyValue.key} field (field 1, LEN) and returns the string value. */
+  /**
+   * Reads the {@code KeyValue.key} field (field 1, LEN) and returns the string value.
+   */
   private static String readKeyField(CodedInputStream kv) throws IOException {
     int tag = kv.readTag();
     assertEquals(1, WireFormat.getTagFieldNumber(tag), "KeyValue.key is field 1");
@@ -129,7 +127,6 @@ class OtlpCommonProtoTest {
   }
 
   // ── instrumentation scope tests ───────────────────────────────────────────
-
   @Test
   void testInstrumentationScopeWithVersion() throws IOException {
     byte[] bytes = encodeScope(new OtelInstrumentationScope("io.opentelemetry", "1.2.3", null));
@@ -162,7 +159,6 @@ class OtlpCommonProtoTest {
   }
 
   // ── scalar attribute tests ────────────────────────────────────────────────
-
   @ParameterizedTest
   @ValueSource(strings = {"hello", "", "héllo", "日本語", "emoji 🎉"})
   void testStringAttribute(String value) throws IOException {
@@ -209,18 +205,17 @@ class OtlpCommonProtoTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      doubles = {
-        0.0,
-        1.0,
-        -1.5,
-        3.14,
-        Double.MIN_VALUE,
-        Double.MAX_VALUE,
-        Double.NaN,
-        Double.POSITIVE_INFINITY,
-        Double.NEGATIVE_INFINITY
-      })
+  @ValueSource(doubles = {
+      0.0,
+      1.0,
+      -1.5,
+      3.14,
+      Double.MIN_VALUE,
+      Double.MAX_VALUE,
+      Double.NaN,
+      Double.POSITIVE_INFINITY,
+      Double.NEGATIVE_INFINITY
+  })
   void testDoubleAttribute(double value) throws IOException {
     byte[] bytes = encode(DOUBLE_ATTRIBUTE, "dbl-key", value);
     CodedInputStream kv = keyValueStream(bytes);
@@ -236,7 +231,6 @@ class OtlpCommonProtoTest {
   }
 
   // ── array attribute tests ─────────────────────────────────────────────────
-
   @Test
   void testEmptyStringArrayAttribute() throws IOException {
     byte[] bytes = encode(STRING_ARRAY_ATTRIBUTE, "arr-str", Collections.emptyList());
@@ -251,8 +245,7 @@ class OtlpCommonProtoTest {
 
   @Test
   void testStringArrayAttribute() throws IOException {
-    byte[] bytes =
-        encode(STRING_ARRAY_ATTRIBUTE, "arr-str", Arrays.asList("alpha", "héllo", "日本語"));
+    byte[] bytes = encode(STRING_ARRAY_ATTRIBUTE, "arr-str", Arrays.asList("alpha", "héllo", "日本語"));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-str", readKeyField(kv));
@@ -316,11 +309,10 @@ class OtlpCommonProtoTest {
 
   @Test
   void testLongArrayAttribute() throws IOException {
-    byte[] bytes =
-        encode(
-            LONG_ARRAY_ATTRIBUTE,
-            "arr-long",
-            Arrays.asList(0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE));
+    byte[] bytes = encode(
+        LONG_ARRAY_ATTRIBUTE,
+        "arr-long",
+        Arrays.asList(0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-long", readKeyField(kv));
@@ -352,11 +344,10 @@ class OtlpCommonProtoTest {
 
   @Test
   void testDoubleArrayAttribute() throws IOException {
-    byte[] bytes =
-        encode(
-            DOUBLE_ARRAY_ATTRIBUTE,
-            "arr-dbl",
-            Arrays.asList(0.0, -1.5, Double.NaN, Double.POSITIVE_INFINITY));
+    byte[] bytes = encode(
+        DOUBLE_ARRAY_ATTRIBUTE,
+        "arr-dbl",
+        Arrays.asList(0.0, -1.5, Double.NaN, Double.POSITIVE_INFINITY));
     CodedInputStream kv = keyValueStream(bytes);
 
     assertEquals("arr-dbl", readKeyField(kv));
@@ -371,7 +362,8 @@ class OtlpCommonProtoTest {
       assertEquals(WireFormat.WIRETYPE_FIXED64, WireFormat.getTagWireType(tag));
       // use raw bits to correctly handle NaN and negative zero
       assertEquals(
-          Double.doubleToRawLongBits(expected), Double.doubleToRawLongBits(elem.readDouble()));
+          Double.doubleToRawLongBits(expected),
+          Double.doubleToRawLongBits(elem.readDouble()));
     }
     assertTrue(arr.isAtEnd());
   }

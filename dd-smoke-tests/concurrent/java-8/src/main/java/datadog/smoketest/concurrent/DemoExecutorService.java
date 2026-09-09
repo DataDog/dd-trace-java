@@ -1,7 +1,6 @@
 package datadog.smoketest.concurrent;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;

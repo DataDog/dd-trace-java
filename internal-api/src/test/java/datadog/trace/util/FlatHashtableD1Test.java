@@ -6,13 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FlatHashtableD1Test {
-
   static final class StringIntEntry extends FlatHashtable.D1.Entry<String> {
     int value;
 
@@ -22,7 +20,9 @@ class FlatHashtableD1Test {
     }
   }
 
-  /** Key whose hashCode is fully controllable, to force probe collisions deterministically. */
+  /**
+   * Key whose hashCode is fully controllable, to force probe collisions deterministically.
+   */
   static final class CollidingKey {
     final String label;
     final int hash;
@@ -187,13 +187,10 @@ class FlatHashtableD1Test {
   void getOrCreateOnMissBuildsEntryViaCreator() {
     FlatHashtable.D1<String, StringIntEntry> table = growable(8);
     int[] createCount = {0};
-    StringIntEntry created =
-        table.getOrCreate(
-            "foo",
-            k -> {
-              createCount[0]++;
-              return new StringIntEntry(k, 42);
-            });
+    StringIntEntry created = table.getOrCreate("foo", k -> {
+      createCount[0]++;
+      return new StringIntEntry(k, 42);
+    });
     assertNotNull(created);
     assertEquals("foo", created.key());
     assertEquals(42, created.value);
@@ -208,13 +205,10 @@ class FlatHashtableD1Test {
     StringIntEntry seeded = new StringIntEntry("foo", 1);
     table.insert(seeded);
     int[] createCount = {0};
-    StringIntEntry got =
-        table.getOrCreate(
-            "foo",
-            k -> {
-              createCount[0]++;
-              return new StringIntEntry(k, 999);
-            });
+    StringIntEntry got = table.getOrCreate("foo", k -> {
+      createCount[0]++;
+      return new StringIntEntry(k, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);

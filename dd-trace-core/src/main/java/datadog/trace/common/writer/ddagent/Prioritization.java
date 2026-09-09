@@ -2,7 +2,6 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
-
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.core.CoreSpan;
 import java.util.List;
@@ -31,7 +30,6 @@ public enum Prioritization {
       return new FastLaneStrategy(primary, secondary, spanSampling, droppingPolicy);
     }
   };
-
   public abstract PrioritizationStrategy create(
       Queue<Object> primary,
       Queue<Object> secondary,
@@ -39,7 +37,6 @@ public enum Prioritization {
       DroppingPolicy droppingPolicy);
 
   private abstract static class PrioritizationStrategyWithFlush implements PrioritizationStrategy {
-
     protected final Queue<Object> primary;
 
     protected PrioritizationStrategyWithFlush(Queue<Object> primary) {
@@ -69,7 +66,6 @@ public enum Prioritization {
   }
 
   private static final class EnsureTraceStrategy extends PrioritizationStrategyWithFlush {
-
     private final Queue<Object> secondary;
     private final Queue<Object> spanSampling;
 
@@ -83,8 +79,7 @@ public enum Prioritization {
     }
 
     @Override
-    public <T extends CoreSpan<T>> PublishResult publish(
-        T root, int priority, final List<T> trace) {
+    public <T extends CoreSpan<T>> PublishResult publish(T root, int priority, final List<T> trace) {
       if (root.isForceKeep()) {
         blockingOffer(primary, trace);
         return PublishResult.ENQUEUED_FOR_SERIALIZATION;
@@ -109,7 +104,6 @@ public enum Prioritization {
   }
 
   private static final class FastLaneStrategy extends PrioritizationStrategyWithFlush {
-
     private final Queue<Object> secondary;
     private final Queue<Object> spanSampling;
     private final DroppingPolicy droppingPolicy;

@@ -94,10 +94,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @State(Scope.Benchmark)
 public class ImmutableMapBenchmark {
-  static final String[] INSERTION_KEYS = {
-    "foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"
-  };
-
+  static final String[] INSERTION_KEYS =
+      {"foo", "bar", "baz", "quux", "foobar", "foobaz", "key0", "key1", "key2", "key3"};
   // Distinct String instances (not the literals used to build the maps) so lookups exercise
   // equals(), not identity -- the realistic case for keys arriving from parsing/decoding.
   static final String[] EQUAL_KEYS = newEqualKeys();
@@ -153,14 +151,17 @@ public class ImmutableMapBenchmark {
     fill(treeMap);
     tagMap = TagMap.create();
     for (int i = 0; i < INSERTION_KEYS.length; ++i) {
-      tagMap.set(INSERTION_KEYS[i], i); // primitive support
+      // primitive support
+      tagMap.set(INSERTION_KEYS[i], i);
     }
     // JDK compact immutable map (MapN on Java 10+); the agent's actual fixed-map representation.
     tracerImmutableMap = CollectionUtils.tryMakeImmutableMap(hashMap);
     stringIndex = StringIndex.of(INSERTION_KEYS);
   }
 
-  /** Per-thread lookup cursor so each reader thread cycles keys independently. */
+  /**
+   * Per-thread lookup cursor so each reader thread cycles keys independently.
+   */
   @State(Scope.Thread)
   public static class Cursor {
     int index = 0;
@@ -170,7 +171,9 @@ public class ImmutableMapBenchmark {
     }
 
     String nextKey(String[] keys) {
-      if (++index >= keys.length) index = 0;
+      if (++index >= keys.length) {
+        index = 0;
+      }
       return keys[index];
     }
   }
@@ -240,12 +243,10 @@ public class ImmutableMapBenchmark {
   @Benchmark
   public void iterate_tagMap_forEach(Blackhole blackhole) {
     // Taking advantage of passthrough of contextObj to avoid capturing lambda
-    tagMap.forEach(
-        blackhole,
-        (bh, entry) -> {
-          bh.consume(entry.tag());
-          bh.consume(entry.intValue());
-        });
+    tagMap.forEach(blackhole, (bh, entry) -> {
+      bh.consume(entry.tag());
+      bh.consume(entry.intValue());
+    });
   }
 
   @Benchmark
@@ -283,7 +284,9 @@ public class ImmutableMapBenchmark {
 
   @Benchmark
   public int stringIndex_embedded_get_sameKey(Cursor cursor) {
-    return SI_VALUES[
-        StringIndex.EmbeddingSupport.indexOf(SI_HASHES, SI_NAMES, cursor.nextKey(INSERTION_KEYS))];
+    return SI_VALUES[StringIndex.EmbeddingSupport.indexOf(
+        SI_HASHES,
+        SI_NAMES,
+        cursor.nextKey(INSERTION_KEYS))];
   }
 }

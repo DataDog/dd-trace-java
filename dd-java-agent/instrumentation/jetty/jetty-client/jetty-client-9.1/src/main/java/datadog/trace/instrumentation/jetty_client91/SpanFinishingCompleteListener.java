@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jetty_client91;
 
 import static datadog.trace.instrumentation.jetty_client91.JettyClientDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.eclipse.jetty.client.api.Response;
 import org.eclipse.jetty.client.api.Result;

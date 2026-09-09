@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public interface NonBlockingSemaphore {
-
   default boolean acquire() {
     return acquire(1);
   }
@@ -31,7 +30,6 @@ public interface NonBlockingSemaphore {
   }
 
   class UnlimitedSemaphore implements NonBlockingSemaphore {
-
     @Override
     public boolean acquire(final int count) {
       return true;
@@ -81,9 +79,7 @@ public interface NonBlockingSemaphore {
   }
 
   class AtomicIntegerSemaphore implements NonBlockingSemaphore {
-
     private final int permits;
-
     private final AtomicInteger available = new AtomicInteger();
 
     public AtomicIntegerSemaphore(final int permits) {

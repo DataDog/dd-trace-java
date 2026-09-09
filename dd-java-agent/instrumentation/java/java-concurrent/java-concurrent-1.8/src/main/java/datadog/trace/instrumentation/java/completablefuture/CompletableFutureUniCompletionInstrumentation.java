@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.completablefuture;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 
@@ -32,7 +31,9 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
  * taking place that decides which thread actually get to run the user code that was supplied.
  */
 public class CompletableFutureUniCompletionInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   static final String JAVA_UTIL_CONCURRENT = "java.util.concurrent";
   static final String COMPLETABLE_FUTURE = JAVA_UTIL_CONCURRENT + ".CompletableFuture";
   static final String UNI_COMPLETION = COMPLETABLE_FUTURE + "$UniCompletion";

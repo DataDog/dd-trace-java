@@ -3,7 +3,6 @@ package datadog.trace.api.featureflag;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import org.junit.jupiter.api.AfterEach;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlaggingGatewayTest {
-
   private FeatureFlaggingGateway.ConfigListener configListener;
   private FeatureFlaggingGateway.ActivationListener activationListener;
   private FeatureFlaggingGateway.ExposureListener exposureListener;

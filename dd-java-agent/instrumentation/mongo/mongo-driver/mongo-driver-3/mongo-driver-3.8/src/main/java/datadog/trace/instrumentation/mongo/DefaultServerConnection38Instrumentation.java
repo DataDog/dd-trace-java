@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.mongodb.connection.ConnectionDescription;
 import com.mongodb.internal.connection.DefaultServerConnection;
@@ -18,8 +17,8 @@ import org.bson.BsonDocument;
 
 @AutoService(InstrumenterModule.class)
 public class DefaultServerConnection38Instrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public DefaultServerConnection38Instrumentation() {
     super("mongo", "mongo-3.8");
   }
@@ -32,9 +31,9 @@ public class DefaultServerConnection38Instrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MongoDecorator",
-      packageName + ".MongoCommentInjector",
-      packageName + ".BsonScrubber",
+        packageName + ".MongoDecorator",
+        packageName + ".MongoCommentInjector",
+        packageName + ".BsonScrubber"
     };
   }
 
@@ -42,16 +41,16 @@ public class DefaultServerConnection38Instrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("command"))
-            .and(takesArgument(0, String.class))
-            .and(takesArgument(1, named("org.bson.BsonDocument"))),
+          .and(named("command"))
+          .and(takesArgument(0, String.class))
+          .and(takesArgument(1, named("org.bson.BsonDocument"))),
         DefaultServerConnection38Instrumentation.class.getName() + "$CommandAdvice");
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("commandAsync"))
-            .and(takesArgument(0, String.class))
-            .and(takesArgument(1, named("org.bson.BsonDocument"))),
+          .and(named("commandAsync"))
+          .and(takesArgument(0, String.class))
+          .and(takesArgument(1, named("org.bson.BsonDocument"))),
         DefaultServerConnection38Instrumentation.class.getName() + "$CommandAdvice");
   }
 

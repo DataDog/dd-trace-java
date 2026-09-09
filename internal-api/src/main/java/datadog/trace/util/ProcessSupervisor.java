@@ -6,7 +6,6 @@ import static datadog.trace.util.ProcessSupervisor.Health.FAULTED;
 import static datadog.trace.util.ProcessSupervisor.Health.HEALTHY;
 import static datadog.trace.util.ProcessSupervisor.Health.INTERRUPTED;
 import static datadog.trace.util.ProcessSupervisor.Health.READY_TO_START;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
@@ -14,9 +13,10 @@ import java.io.Closeable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Starts an external process and restarts the process if it dies */
+/**
+ * Starts an external process and restarts the process if it dies
+ */
 public class ProcessSupervisor implements Closeable {
-
   public enum Health {
     NEVER_CHECKED,
     READY_TO_START,
@@ -31,23 +31,18 @@ public class ProcessSupervisor implements Closeable {
   }
 
   public static final HealthCheck ALWAYS_READY = health -> READY_TO_START;
-
   private static final Logger log = LoggerFactory.getLogger(ProcessSupervisor.class);
-
   private static final long HEALTHY_DELAY_MILLIS = 10_000;
   private static final long FAULTED_DELAY_MILLIS = 2_000;
   private static final int MAX_FAULTS = 5;
-
   private final String imageName;
   private final ProcessBuilder processBuilder;
   private final HealthCheck healthCheck;
   private final Thread supervisorThread;
-
   private long nextCheckMillis = 0;
   private Health currentHealth = Health.NEVER_CHECKED;
   private Process currentProcess;
   private int faults;
-
   private volatile boolean stopping = false;
 
   /**
@@ -58,8 +53,7 @@ public class ProcessSupervisor implements Closeable {
     this(imageName, processBuilder, ALWAYS_READY);
   }
 
-  public ProcessSupervisor(
-      String imageName, ProcessBuilder processBuilder, HealthCheck healthCheck) {
+  public ProcessSupervisor(String imageName, ProcessBuilder processBuilder, HealthCheck healthCheck) {
     this.imageName = imageName;
     this.processBuilder = processBuilder;
     this.healthCheck = healthCheck;
@@ -102,7 +96,8 @@ public class ProcessSupervisor implements Closeable {
       nextCheckMillis = now + HEALTHY_DELAY_MILLIS;
     } else if (currentHealth == FAULTED) {
       nextCheckMillis = now + FAULTED_DELAY_MILLIS;
-    } else { // interrupted
+    } else {
+      // interrupted
       nextCheckMillis = Long.max(nextCheckMillis, now + 100);
     }
   }
@@ -116,12 +111,10 @@ public class ProcessSupervisor implements Closeable {
       currentHealth = HEALTHY;
       faults = 0;
     }
-
     // Block until the process exits
     int code = currentProcess.waitFor();
     log.debug("Process [{}] has exited with code {}", imageName, code);
     currentHealth = code == 0 ? INTERRUPTED : FAULTED;
-
     // Process is dead, no longer needs to be tracked
     currentProcess = null;
   }

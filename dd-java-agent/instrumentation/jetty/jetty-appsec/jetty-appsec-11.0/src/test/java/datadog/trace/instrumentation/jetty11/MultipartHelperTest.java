@@ -6,7 +6,6 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import jakarta.servlet.http.Part;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -17,7 +16,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MultipartHelperTest {
-
   @Test
   void returnsEmptyListForNull() {
     assertEquals(emptyList(), MultipartHelper.extractFilenames(null));
@@ -71,7 +69,6 @@ class MultipartHelperTest {
   }
 
   // ── extractContents ─────────────────────────────────────────────────────────
-
   @Test
   void extractContentsReturnsEmptyListForNull() {
     assertEquals(emptyList(), MultipartHelper.extractContents(null));
@@ -93,7 +90,7 @@ class MultipartHelperTest {
     Part p = mock(Part.class);
     when(p.getSubmittedFileName()).thenReturn("");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)));
     when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
     assertEquals(singletonList("data"), MultipartHelper.extractContents(singletonList(p)));
   }
@@ -103,7 +100,7 @@ class MultipartHelperTest {
     Part p = mock(Part.class);
     when(p.getSubmittedFileName()).thenReturn("photo.jpg");
     when(p.getInputStream())
-        .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
+      .thenReturn(new ByteArrayInputStream("file-content".getBytes(StandardCharsets.UTF_8)));
     when(p.getContentType()).thenReturn("text/plain; charset=UTF-8");
     assertEquals(singletonList("file-content"), MultipartHelper.extractContents(singletonList(p)));
   }
@@ -136,8 +133,8 @@ class MultipartHelperTest {
     for (int i = 0; i < count; i++) {
       Part p = mock(Part.class);
       when(p.getSubmittedFileName()).thenReturn("file" + i + ".txt");
-      when(p.getInputStream())
-          .thenReturn(new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8)));
+      when(p.getInputStream()).thenReturn(
+          new ByteArrayInputStream("c".getBytes(StandardCharsets.UTF_8)));
       when(p.getContentType()).thenReturn(null);
       parts.add(p);
     }

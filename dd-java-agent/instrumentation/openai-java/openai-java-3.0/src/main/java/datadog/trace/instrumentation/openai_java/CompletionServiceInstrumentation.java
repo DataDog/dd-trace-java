@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.openai.core.ClientOptions;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
@@ -22,8 +21,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public class CompletionServiceInstrumentation
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithTypeStructure {
   @Override
   public String instrumentedType() {
     return "com.openai.services.blocking.CompletionServiceImpl$WithRawResponseImpl";
@@ -33,16 +32,16 @@ public class CompletionServiceInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("create"))
-            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
-            .and(returns(named("com.openai.core.http.HttpResponseFor"))),
+          .and(named("create"))
+          .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
+          .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("createStreaming"))
-            .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
-            .and(returns(named("com.openai.core.http.HttpResponseFor"))),
+          .and(named("createStreaming"))
+          .and(takesArgument(0, named("com.openai.models.completions.CompletionCreateParams")))
+          .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
 
@@ -72,15 +71,16 @@ public class CompletionServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpResponseWrapper.wrap(response, span, CompletionDecorator.DECORATE::withCompletion);
+        response = HttpResponseWrapper.wrap(
+            response,
+            span,
+            CompletionDecorator.DECORATE::withCompletion);
       }
       scope.close();
     }
   }
 
   public static class CreateStreamingAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(
         @Advice.Argument(0) final CompletionCreateParams params,
@@ -99,9 +99,10 @@ public class CompletionServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpStreamResponseWrapper.wrap(
-                response, span, CompletionDecorator.DECORATE::withCompletions);
+        response = HttpStreamResponseWrapper.wrap(
+            response,
+            span,
+            CompletionDecorator.DECORATE::withCompletions);
       }
       scope.close();
     }

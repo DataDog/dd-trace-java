@@ -5,8 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 final class FeatureFlagEvpContext {
-
-  private FeatureFlagEvpContext() {}
+  private FeatureFlagEvpContext() {
+  }
 
   static Map<String, String> from(final Config config) {
     final Map<String, String> context = new HashMap<>(4);

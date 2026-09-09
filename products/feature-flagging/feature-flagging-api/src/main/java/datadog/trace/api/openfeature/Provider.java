@@ -1,7 +1,6 @@
 package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -25,11 +24,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Provider extends EventProvider implements Metadata {
-
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
-
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
@@ -76,15 +73,12 @@ public class Provider extends EventProvider implements Metadata {
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalMetricsHook = hook;
-
     // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
     // per-evaluation overhead.
-    final boolean spanEnrichmentEnabled =
-        spanEnrichmentEnabledOverride != null
-            ? spanEnrichmentEnabledOverride
-            : SpanEnrichmentGate.isEnabled();
+    final boolean spanEnrichmentEnabled = spanEnrichmentEnabledOverride != null
+        ? spanEnrichmentEnabledOverride
+        : SpanEnrichmentGate.isEnabled();
     this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
-
     // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
     // allocates nothing, including when the gate is off.
     final List<Hook> hooks = new ArrayList<>(3);
@@ -104,9 +98,9 @@ public class Provider extends EventProvider implements Metadata {
     if (spanEnrichmentHook != null) {
       hooks.add(spanEnrichmentHook);
     }
-    this.providerHooks =
-        hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
-
+    this.providerHooks = hooks.isEmpty()
+        ? Collections.emptyList()
+        : Collections.unmodifiableList(hooks);
     // Announce the span-enrichment state at startup (matches the reference implementation).
     // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".
     if (spanEnrichmentHook != null) {
@@ -152,15 +146,15 @@ public class Provider extends EventProvider implements Metadata {
     final InitializationState state = initializationState.get();
     if (state == InitializationState.INITIALIZING) {
       initializationState.compareAndSet(
-          InitializationState.INITIALIZING, InitializationState.INITIAL_CONFIG_RECEIVED);
+          InitializationState.INITIALIZING,
+          InitializationState.INITIAL_CONFIG_RECEIVED);
       return;
     }
     if (state == InitializationState.INITIAL_CONFIG_RECEIVED) {
       return;
     }
     if (state == InitializationState.ERROR
-        && initializationState.compareAndSet(
-            InitializationState.ERROR, InitializationState.READY)) {
+        && initializationState.compareAndSet(InitializationState.ERROR, InitializationState.READY)) {
       emit(
           ProviderEvent.PROVIDER_READY,
           ProviderEventDetails.builder().message("Provider ready").build());
@@ -176,7 +170,8 @@ public class Provider extends EventProvider implements Metadata {
 
   private void onConfigurationUnavailable() {
     if (initializationState.compareAndSet(
-        InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.ERROR)) {
+        InitializationState.INITIAL_CONFIG_RECEIVED,
+        InitializationState.ERROR)) {
       return;
     }
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
@@ -184,22 +179,25 @@ public class Provider extends EventProvider implements Metadata {
     }
     emit(
         ProviderEvent.PROVIDER_ERROR,
-        ProviderEventDetails.builder()
-            .message("Configuration unavailable")
-            .errorCode(ErrorCode.PROVIDER_NOT_READY)
-            .build());
+        ProviderEventDetails
+          .builder()
+          .message("Configuration unavailable")
+          .errorCode(ErrorCode.PROVIDER_NOT_READY)
+          .build());
   }
 
   private boolean markInitialConfigReceivedReady() {
     return initializationState.get() == InitializationState.READY
         || initializationState.compareAndSet(
-            InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY);
+            InitializationState.INITIAL_CONFIG_RECEIVED,
+            InitializationState.READY);
   }
 
   private boolean markSuccessfulInitializationReady() {
     return markInitialConfigReceivedReady()
         || initializationState.compareAndSet(
-            InitializationState.INITIALIZING, InitializationState.READY);
+            InitializationState.INITIALIZING,
+            InitializationState.READY);
   }
 
   private void markInitializationError() {
@@ -260,35 +258,46 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public ProviderEvaluation<Boolean> getBooleanEvaluation(
-      final String key, final Boolean defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Boolean defaultValue,
+      final EvaluationContext ctx) {
     return evaluator.evaluate(Boolean.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<String> getStringEvaluation(
-      final String key, final String defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final String defaultValue,
+      final EvaluationContext ctx) {
     return evaluator.evaluate(String.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Integer> getIntegerEvaluation(
-      final String key, final Integer defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Integer defaultValue,
+      final EvaluationContext ctx) {
     return evaluator.evaluate(Integer.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Double> getDoubleEvaluation(
-      final String key, final Double defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Double defaultValue,
+      final EvaluationContext ctx) {
     return evaluator.evaluate(Double.class, key, defaultValue, ctx);
   }
 
   @Override
   public ProviderEvaluation<Value> getObjectEvaluation(
-      final String key, final Value defaultValue, final EvaluationContext ctx) {
+      final String key,
+      final Value defaultValue,
+      final EvaluationContext ctx) {
     return evaluator.evaluate(Value.class, key, defaultValue, ctx);
   }
 
-  @SuppressForbidden // Class#forName(String) used to lazy-load the evaluator implementation
+  // Class#forName(String) used to lazy-load the evaluator implementation
+  @SuppressForbidden
   protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
     return Class.forName(EVALUATOR_IMPL);
   }
@@ -302,7 +311,6 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   public static class Options {
-
     private long timeout;
     private TimeUnit unit;
 

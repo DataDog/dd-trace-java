@@ -14,18 +14,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> {
   private final AgentSpan span;
-
   // We need to keep track of the paren spans to propagate error information
   private DatadogRequestSpan parent;
-
   private final ContextStore<Core, String> coreContext;
-
   // The interaction between error setting in StatusSettingCompletableFuture and the span is a bit
   // involved since we need to make sure that we don't finish the span before we have set the error
   // on it. That's why we have a counter here and let the status setting code finish the span if
   // the code tried to finish the span while the completable future was completed.
   private AtomicInteger endCounter = new AtomicInteger(0);
-
   // The code in DefaultErrorUtil is sometimes run from inside the completion of a completable
   // future, so we need to ensure that the completion of the future does not overwrite the error
   private AtomicBoolean statusSet = new AtomicBoolean(false);
@@ -36,7 +32,8 @@ public class DatadogRequestSpan implements RequestSpan, StatusSettable<Integer> 
   }
 
   public static DatadogRequestSpan wrap(
-      AgentSpan span, final ContextStore<Core, String> coreContext) {
+      AgentSpan span,
+      final ContextStore<Core, String> coreContext) {
     return new DatadogRequestSpan(span, coreContext);
   }
 

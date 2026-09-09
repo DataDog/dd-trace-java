@@ -22,11 +22,8 @@ import org.slf4j.LoggerFactory;
  * class. This callback will then emit a number of {@linkplain ExceptionCountEvent} events.
  */
 public class ExceptionHistogram {
-
   private static final Logger log = LoggerFactory.getLogger(ExceptionHistogram.class);
-
   static final String CLIPPED_ENTRY_TYPE_NAME = "TOO-MANY-EXCEPTIONS";
-
   private final Map<String, AtomicLong> histogram = new ConcurrentHashMap<>();
   private final int maxTopItems;
   private final int maxSize;
@@ -41,7 +38,9 @@ public class ExceptionHistogram {
     JfrHelper.addPeriodicEvent(ExceptionCountEvent.class, eventHook);
   }
 
-  /** Remove this instance from JFR periodic events callbacks */
+  /**
+   * Remove this instance from JFR periodic events callbacks
+   */
   void deregister() {
     FlightRecorder.removePeriodicEvent(eventHook);
   }
@@ -70,8 +69,9 @@ public class ExceptionHistogram {
       typeName = CLIPPED_ENTRY_TYPE_NAME;
     }
 
-    long count = histogram.computeIfAbsent(typeName, k -> new AtomicLong()).getAndIncrement();
-
+    long count = histogram
+      .computeIfAbsent(typeName, k -> new AtomicLong())
+      .getAndIncrement();
     /*
      * This is supposed to signal that a particular exception type was seen the first time in a particular time span.
      * !ATTENTION! This will work on best-effort basis - namely all overflowing exception which are recorded
@@ -89,21 +89,23 @@ public class ExceptionHistogram {
   }
 
   void doEmit() {
-    Stream<Pair<String, Long>> items =
-        histogram.entrySet().stream()
-            .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
-            .filter(p -> p.getValue() != 0)
-            .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
+    Stream<Pair<String, Long>> items = histogram
+      .entrySet()
+      .stream()
+      .map(e -> Pair.of(e.getKey(), e.getValue().getAndSet(0)))
+      .filter(p -> p.getValue() != 0)
+      .sorted((l1, l2) -> Long.compare(l2.getValue(), l1.getValue()));
 
     if (maxTopItems > 0) {
       items = items.limit(maxTopItems);
     }
 
     emitEvents(items);
-
     // Stream is 'materialized' by `forEach` call above so we have to do clean up after that
     // Otherwise we would keep entries for one extra iteration
-    histogram.entrySet().removeIf(e -> e.getValue().get() == 0L);
+    histogram
+      .entrySet()
+      .removeIf(e -> e.getValue().get() == 0L);
   }
 
   // important that this is non-final and package private; allows concurrency tests
@@ -119,7 +121,6 @@ public class ExceptionHistogram {
   }
 
   static class Pair<K, V> {
-
     final K key;
     final V value;
 

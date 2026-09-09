@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play25.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -19,11 +18,10 @@ import play.mvc.StatusHeader;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class StatusHeaderSendJsonAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void before(
-      @Advice.Argument(0) final JsonNode json, @ActiveRequestContext final RequestContext reqCtx) {
-
+      @Advice.Argument(0) final JsonNode json,
+      @ActiveRequestContext final RequestContext reqCtx) {
     if (CallDepthThreadLocalMap.incrementCallDepth(StatusHeader.class) > 0) {
       return;
     }
@@ -36,8 +34,7 @@ public class StatusHeaderSendJsonAdvice {
     if (cbp == null) {
       return;
     }
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.responseBody());
+    BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
     if (callback == null) {
       return;
     }

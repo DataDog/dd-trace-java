@@ -9,7 +9,6 @@ import datadog.trace.api.iast.sink.HardcodedSecretModule;
 import javax.annotation.Nonnull;
 
 public class HardcodedSecretModuleImpl extends SinkModuleBase implements HardcodedSecretModule {
-
   public HardcodedSecretModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -20,7 +19,6 @@ public class HardcodedSecretModuleImpl extends SinkModuleBase implements Hardcod
       @Nonnull final String method,
       @Nonnull final String clazz,
       final int currentLine) {
-
     reporter.report(
         null,
         new Vulnerability(

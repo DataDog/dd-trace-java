@@ -1,7 +1,6 @@
 package com.datadog.profiling.agent;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import com.datadog.profiling.scrubber.DefaultScrubDefinition;
 import com.datadog.profiling.scrubber.JfrScrubber;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -28,27 +27,34 @@ import org.slf4j.LoggerFactory;
 final class ScrubRecordingDataListener implements RecordingDataListener {
   private static final Logger log = LoggerFactory.getLogger(ScrubRecordingDataListener.class);
   private static final Path SCRUB_SUBDIR = Paths.get("scrub");
-
   private final RecordingDataListener delegate;
   private final JfrScrubber scrubber;
   private final boolean failOpen;
   private final Path tempDirOverride;
 
-  /** Wraps {@code delegate} with a scrubbing listener. Called from {@link ProfilingAgent}. */
+  /**
+   * Wraps {@code delegate} with a scrubbing listener. Called from {@link ProfilingAgent}.
+   */
   static RecordingDataListener wrap(
-      RecordingDataListener delegate, List<String> excludeEventTypes, boolean failOpen) {
+      RecordingDataListener delegate,
+      List<String> excludeEventTypes,
+      boolean failOpen) {
     return new ScrubRecordingDataListener(
-        delegate, DefaultScrubDefinition.create(excludeEventTypes), failOpen);
+        delegate,
+        DefaultScrubDefinition.create(excludeEventTypes),
+        failOpen);
   }
 
-  ScrubRecordingDataListener(
-      RecordingDataListener delegate, JfrScrubber scrubber, boolean failOpen) {
+  ScrubRecordingDataListener(RecordingDataListener delegate, JfrScrubber scrubber, boolean failOpen) {
     this(delegate, scrubber, failOpen, null);
   }
 
   @VisibleForTesting
   ScrubRecordingDataListener(
-      RecordingDataListener delegate, JfrScrubber scrubber, boolean failOpen, Path tempDir) {
+      RecordingDataListener delegate,
+      JfrScrubber scrubber,
+      boolean failOpen,
+      Path tempDir) {
     this.delegate = delegate;
     this.scrubber = scrubber;
     this.failOpen = failOpen;
@@ -88,11 +94,13 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
       }
 
       ScrubbedRecordingData scrubbed = new ScrubbedRecordingData(data, tempOutput);
-      tempOutput = null; // ownership transferred to ScrubbedRecordingData
+      // ownership transferred to ScrubbedRecordingData
+      tempOutput = null;
       // Release the original recording eagerly — the scrubbed copy is now the source of truth.
       // The delegate will call release() on ScrubbedRecordingData to clean up the output file.
       data.release();
-      data = null; // prevent fail-open from passing released data to delegate
+      // prevent fail-open from passing released data to delegate
+      data = null;
       delegate.onNewData(type, scrubbed, handleSynchronously);
     } catch (Exception e) {
       cleanupQuietly(tempInput);
@@ -121,7 +129,9 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
     }
   }
 
-  /** File-backed {@link RecordingData} wrapping a scrubbed output file. */
+  /**
+   * File-backed {@link RecordingData} wrapping a scrubbed output file.
+   */
   static final class ScrubbedRecordingData extends RecordingData {
     private final String name;
     private final Path scrubbedFile;

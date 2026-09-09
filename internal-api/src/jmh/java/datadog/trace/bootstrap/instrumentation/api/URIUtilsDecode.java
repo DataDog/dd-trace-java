@@ -8,7 +8,6 @@ import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
 public class URIUtilsDecode {
-
   @Param({"/some/relatively/long/unencoded/path", "/n%C3%A5gon/relativt/l%C3%A5ng/kodad/v%C3%A4g"})
   String encoded;
 

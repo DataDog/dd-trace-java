@@ -1,7 +1,6 @@
 package datadog.trace.api.civisibility.config;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.config.inversion.ConfigHelper;
@@ -16,30 +15,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BazelMode {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(BazelMode.class);
-
   private static volatile BazelMode INSTANCE;
-
   private static final int SUPPORTED_MANIFEST_VERSION = 1;
-
   private static final String SETTINGS_FILE = "cache/http/settings.json";
   private static final String FLAKY_TESTS_FILE = "cache/http/flaky_tests.json";
   private static final String KNOWN_TESTS_FILE = "cache/http/known_tests.json";
   private static final String TEST_MANAGEMENT_FILE = "cache/http/test_management.json";
-
   /* manifestModeEnabled reports whether a supported manifest was found and can be used for config cache */
   private final boolean manifestModeEnabled;
   /* manifestPath is the resolved absolute path to the Bazel manifest while in manifest mode */
-  @Nullable private final String manifestPath;
+  @Nullable
+  private final String manifestPath;
   /* manifestDir is the directory containing the resolved manifest and the cached config files */
-  @Nullable private final String manifestDir;
+  @Nullable
+  private final String manifestDir;
   /* payloadFilesEnabled reports whether Bazel payload-in-file mode is enabled */
   private final boolean payloadFilesEnabled;
   /* payloadsDir is the root directory containing payload output directories */
-  @Nullable private final String payloadsDir;
+  @Nullable
+  private final String payloadsDir;
   /* repoRoot is the absolute path to the runfiles workspace dir, used as a virtual repo root */
-  @Nullable private final String repoRoot;
+  @Nullable
+  private final String repoRoot;
 
   public static BazelMode get() {
     if (INSTANCE == null) {
@@ -77,14 +75,14 @@ public class BazelMode {
       manifestPath = null;
       manifestDir = null;
     }
-
     // TEST_UNDECLARED_OUTPUTS_DIR is a Bazel-provided env var, not a DD configuration
     String undeclaredOutputsDir = ConfigHelper.env("TEST_UNDECLARED_OUTPUTS_DIR");
     if (config.isTestOptimizationPayloadsInFiles() && Strings.isNotBlank(undeclaredOutputsDir)) {
       payloadsDir = undeclaredOutputsDir + File.separator + "payloads";
       payloadFilesEnabled = true;
       LOGGER.info(
-          "[bazel mode] Payload-in-files mode enabled with payload directory {}", payloadsDir);
+          "[bazel mode] Payload-in-files mode enabled with payload directory {}",
+          payloadsDir);
     } else {
       payloadsDir = null;
       payloadFilesEnabled = false;
@@ -150,7 +148,9 @@ public class BazelMode {
         + '}';
   }
 
-  /** Returns {@code true} if either manifest mode or payloads-in-files mode is active. */
+  /**
+   * Returns {@code true} if either manifest mode or payloads-in-files mode is active.
+   */
   public boolean isEnabled() {
     return manifestModeEnabled || payloadFilesEnabled;
   }
@@ -290,7 +290,8 @@ public class BazelMode {
       String resolved = lookupInRunfilesManifest(manifestFile, rlocation);
       if (resolved != null) {
         LOGGER.debug(
-            "[bazel mode] Manifest resolved via RUNFILES_MANIFEST_FILE (candidate: {})", resolved);
+            "[bazel mode] Manifest resolved via RUNFILES_MANIFEST_FILE (candidate: {})",
+            resolved);
         return resolved;
       }
     }
@@ -313,7 +314,9 @@ public class BazelMode {
   @Nullable
   private static String lookupInRunfilesManifest(String manifestFile, String rlocation) {
     LOGGER.debug(
-        "[bazel mode] Reading runfiles manifest {} for rlocation {}", manifestFile, rlocation);
+        "[bazel mode] Reading runfiles manifest {} for rlocation {}",
+        manifestFile,
+        rlocation);
     try (BufferedReader reader =
         new BufferedReader(new InputStreamReader(new FileInputStream(manifestFile), UTF_8))) {
       String line;
@@ -328,7 +331,9 @@ public class BazelMode {
       return null;
     }
     LOGGER.debug(
-        "[bazel mode] Runfiles manifest {} did not contain rlocation {}", manifestFile, rlocation);
+        "[bazel mode] Runfiles manifest {} did not contain rlocation {}",
+        manifestFile,
+        rlocation);
     return null;
   }
 

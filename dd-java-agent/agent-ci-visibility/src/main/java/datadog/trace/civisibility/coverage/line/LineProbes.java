@@ -17,18 +17,17 @@ import javax.annotation.concurrent.NotThreadSafe;
  */
 @NotThreadSafe
 public class LineProbes implements CoverageProbes {
-
   private final CiVisibilityMetricCollector metrics;
   private final Map<String, Integer> probeCounts;
-
   private final Map<Class<?>, ExecutionDataAdapter> executionData;
   private final Map<String, String> nonCodeResources;
-
   private Class<?> lastCoveredClass;
   private ExecutionDataAdapter lastCoveredExecutionData;
 
   LineProbes(
-      CiVisibilityMetricCollector metrics, Map<String, Integer> probeCounts, boolean isTestThread) {
+      CiVisibilityMetricCollector metrics,
+      Map<String, Integer> probeCounts,
+      boolean isTestThread) {
     this.metrics = metrics;
     this.probeCounts = probeCounts;
     executionData = isTestThread ? new IdentityHashMap<>() : new ConcurrentHashMap<>();
@@ -45,13 +44,12 @@ public class LineProbes implements CoverageProbes {
     try {
       if (lastCoveredClass != clazz) {
         // optimization to avoid map lookup if activating several probes for same class in a row
-        lastCoveredExecutionData =
-            executionData.computeIfAbsent(
-                lastCoveredClass = clazz,
-                k -> new ExecutionDataAdapter(classId, k.getName(), probeCounts.get(k.getName())));
+        lastCoveredExecutionData = executionData.computeIfAbsent(lastCoveredClass = clazz, k -> new ExecutionDataAdapter(
+            classId,
+            k.getName(),
+            probeCounts.get(k.getName())));
       }
       lastCoveredExecutionData.record(probeId);
-
     } catch (Exception e) {
       metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.RECORD);
       throw e;

@@ -22,7 +22,6 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
       case "Sqs.SendMessage":
       case "Sqs.SendMessageBatch":
         return SpanNaming.instance().namingSchema().messaging().outboundOperation("sqs");
-
       case "Sqs.ReceiveMessage":
       case "SQS.ReceiveMessage":
         return SpanNaming.instance().namingSchema().messaging().inboundOperation("sqs");
@@ -33,13 +32,15 @@ public class CloudNamingV1 implements NamingSchema.ForCloud {
         return SpanNaming.instance().namingSchema().messaging().outboundOperation("sns");
       default:
         final String lowercaseService = cloudService.toLowerCase(Locale.ROOT);
-        return String.join(".", provider, lowercaseService, "request"); // aws.s3.request
+        // aws.s3.request
+        return String.join(".", provider, lowercaseService, "request");
     }
   }
 
   @Override
   public String serviceForRequest(
-      @Nonnull final String provider, @Nullable final String cloudService) {
+      @Nonnull final String provider,
+      @Nullable final String cloudService) {
     return null;
   }
 

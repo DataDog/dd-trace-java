@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class ExecutionSettingsResponse implements SignalResponse {
-
   private final ExecutionSettings settings;
 
   public ExecutionSettingsResponse(ExecutionSettings settings) {

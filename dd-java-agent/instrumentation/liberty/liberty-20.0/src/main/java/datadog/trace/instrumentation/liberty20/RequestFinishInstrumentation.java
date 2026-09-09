@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
@@ -19,8 +18,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class RequestFinishInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public RequestFinishInstrumentation() {
     super("liberty");
   }
@@ -28,12 +27,12 @@ public class RequestFinishInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".LibertyDecorator",
-      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
-      packageName + ".RequestURIDataAdapter",
+        packageName + ".HttpServletExtractAdapter",
+        packageName + ".HttpServletExtractAdapter$Request",
+        packageName + ".HttpServletExtractAdapter$Response",
+        packageName + ".LibertyDecorator",
+        packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
+        packageName + ".RequestURIDataAdapter"
     };
   }
 
@@ -49,13 +48,14 @@ public class RequestFinishInstrumentation extends InstrumenterModule.Tracing
         RequestFinishInstrumentation.class.getName() + "$RequestFinishAdvice");
   }
 
-  /** The function finish is called when a server receives and sends out a request */
+  /**
+   * The function finish is called when a server receives and sends out a request
+   */
   @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class RequestFinishAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(@Advice.This SRTServletRequest req) {
       IExtendedResponse resp = req.getResponse();
-
       // this should be a servlet response
       if (resp instanceof SRTServletResponse) {
         SRTServletResponse httpResp = (SRTServletResponse) resp;

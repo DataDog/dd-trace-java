@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.classloading;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import java.lang.reflect.Field;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ClassDefiningTest {
-
   @BeforeEach
   void resetStaticState() throws Exception {
     Field hasObserver = ClassDefining.class.getDeclaredField("HAS_OBSERVER");
@@ -49,13 +47,12 @@ class ClassDefiningTest {
     int[] capturedOffset = new int[1];
     int[] capturedLength = new int[1];
 
-    ClassDefining.observe(
-        (l, b, o, len) -> {
-          capturedLoader[0] = l;
-          capturedBytecode[0] = b;
-          capturedOffset[0] = o;
-          capturedLength[0] = len;
-        });
+    ClassDefining.observe((l, b, o, len) -> {
+      capturedLoader[0] = l;
+      capturedBytecode[0] = b;
+      capturedOffset[0] = o;
+      capturedLength[0] = len;
+    });
 
     ClassDefining.begin(loader, bytecode, 1, 3);
 

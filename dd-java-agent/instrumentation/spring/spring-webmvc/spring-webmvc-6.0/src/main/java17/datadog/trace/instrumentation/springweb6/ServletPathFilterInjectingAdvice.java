@@ -6,14 +6,13 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
 public class ServletPathFilterInjectingAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void onEnter(
-      @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
+  public static void onEnter(@Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
     if (beanFactory instanceof BeanDefinitionRegistry
         && !beanFactory.containsBean("servletPathRequestFilter")) {
-
       ((BeanDefinitionRegistry) beanFactory)
-          .registerBeanDefinition(
-              "servletPathRequestFilter", new OrderedServletPathRequestFilter.BeanDefinition());
+        .registerBeanDefinition(
+            "servletPathRequestFilter",
+            new OrderedServletPathRequestFilter.BeanDefinition());
     }
   }
 }

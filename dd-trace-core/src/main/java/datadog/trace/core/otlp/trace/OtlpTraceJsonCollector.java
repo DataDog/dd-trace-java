@@ -5,7 +5,6 @@ import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpProtoBuffer.MAX_CAPACITY_BYTES;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.TRACE_RESOURCE_FRAGMENT;
 import static datadog.trace.core.otlp.trace.OtlpTraceJson.writeSpan;
-
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -32,22 +31,20 @@ import java.util.List;
  * on whether the held-back span is the last one in its trace.
  */
 public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
-
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
-
   private JsonWriter writer;
   private OtlpTraceJson.MetaWriter metaWriter;
-
   private boolean payloadStarted;
   private boolean anySpanWritten;
   private boolean firstSpanInScope;
-
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
   private List<? extends AgentSpanLink> currentSpanLinks = Collections.emptyList();
 
-  /** Adds the given trace spans to the collector. */
+  /**
+   * Adds the given trace spans to the collector.
+   */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
@@ -88,7 +85,9 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
   }
 
-  /** Prepare temporary elements to collect trace data. */
+  /**
+   * Prepare temporary elements to collect trace data.
+   */
   private void start() {
     writer = new JsonWriter();
     metaWriter = new OtlpTraceJson.MetaWriter(writer);
@@ -98,12 +97,13 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     writer.beginObject();
     writer.name("resource").jsonValue(TRACE_RESOURCE_FRAGMENT);
     writer.name("scopeSpans").beginArray();
-
     // for now put all spans under the default scope
     visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
 
-  /** Cleanup elements used to collect trace data. */
+  /**
+   * Cleanup elements used to collect trace data.
+   */
   private void stop() {
     payloadStarted = false;
     anySpanWritten = false;
@@ -148,11 +148,14 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     if (currentScope != null) {
       completeScope();
     }
-
-    writer.endArray(); // scopeSpans
-    writer.endObject(); // resourceSpans[0]
-    writer.endArray(); // resourceSpans
-    writer.endObject(); // root
+    // scopeSpans
+    writer.endArray();
+    // resourceSpans[0]
+    writer.endObject();
+    // resourceSpans
+    writer.endArray();
+    // root
+    writer.endObject();
 
     if (!anySpanWritten) {
       return OtlpPayload.EMPTY;
@@ -169,10 +172,10 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
       metaWriter.includeSamplingTags();
       completeSpan();
     }
-
-    writer.endArray(); // spans
-    writer.endObject(); // scopeSpans[0]
-
+    // spans
+    writer.endArray();
+    // scopeSpans[0]
+    writer.endObject();
     // reset temporary elements for next scope
     currentScope = null;
   }
@@ -187,7 +190,6 @@ public final class OtlpTraceJsonCollector extends OtlpTraceCollector {
     }
     writeSpan(writer, currentSpan, metaWriter, currentSpanLinks);
     anySpanWritten = true;
-
     // reset temporary elements for next span
     currentSpan = null;
     currentSpanLinks = Collections.emptyList();

@@ -26,7 +26,6 @@ class TaintGetBodyAdvice {
     if (propagation == null || flux == null) {
       return;
     }
-
     // taint both the flux and the individual DataBuffers
     IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
     propagation.taintObject(ctx, flux, SourceTypes.REQUEST_BODY);

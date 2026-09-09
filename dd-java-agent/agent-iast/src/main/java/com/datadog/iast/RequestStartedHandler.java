@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class RequestStartedHandler implements Supplier<Flow<Object>> {
-
   private final OverheadController overheadController;
   private final IastContext.Provider contextProvider;
 

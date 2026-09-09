@@ -13,9 +13,7 @@ import io.vertx.ext.web.RoutingContext;
 public class VertxDecorator
     extends HttpServerDecorator<RoutingContext, RoutingContext, HttpServerResponse, Void> {
   static final CharSequence INSTRUMENTATION_NAME = UTF8BytesString.create("vertx.route-handler");
-
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("vertx");
-
   static final VertxDecorator DECORATE = new VertxDecorator();
 
   @Override

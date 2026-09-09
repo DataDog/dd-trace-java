@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,8 +24,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice {
   public OpenTelemetryMetricsInstrumentation() {
     super("opentelemetry-metrics", "opentelemetry-1.47", "opentelemetry-1");
   }
@@ -49,8 +48,8 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+        "io.opentelemetry.api.DefaultOpenTelemetry",
+        "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
     };
   }
 
@@ -62,27 +61,27 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.opentelemetry.shim.metrics.OtelMeter",
-      "datadog.opentelemetry.shim.metrics.OtelMeterBuilder",
-      "datadog.opentelemetry.shim.metrics.OtelMeterProvider",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleGauge$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter",
-      "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongCounter",
-      "datadog.opentelemetry.shim.metrics.OtelLongCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongGauge",
-      "datadog.opentelemetry.shim.metrics.OtelLongGauge$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongHistogram",
-      "datadog.opentelemetry.shim.metrics.OtelLongHistogram$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter",
-      "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter$Builder",
-      "datadog.opentelemetry.shim.metrics.OtelObservableCallback",
-      "datadog.opentelemetry.shim.metrics.OtelObservableMeasurement",
+        "datadog.opentelemetry.shim.metrics.OtelMeter",
+        "datadog.opentelemetry.shim.metrics.OtelMeterBuilder",
+        "datadog.opentelemetry.shim.metrics.OtelMeterProvider",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleCounter",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleCounter$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleGauge",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleGauge$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleHistogram$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter",
+        "datadog.opentelemetry.shim.metrics.OtelDoubleUpDownCounter$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelLongCounter",
+        "datadog.opentelemetry.shim.metrics.OtelLongCounter$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelLongGauge",
+        "datadog.opentelemetry.shim.metrics.OtelLongGauge$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelLongHistogram",
+        "datadog.opentelemetry.shim.metrics.OtelLongHistogram$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter",
+        "datadog.opentelemetry.shim.metrics.OtelLongUpDownCounter$Builder",
+        "datadog.opentelemetry.shim.metrics.OtelObservableCallback",
+        "datadog.opentelemetry.shim.metrics.OtelObservableMeasurement"
     };
   }
 
@@ -91,9 +90,9 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     // MeterProvider OpenTelemetry.getMeterProvider()
     transformer.applyAdvice(
         isMethod()
-            .and(named("getMeterProvider"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.metrics.MeterProvider"))),
+          .and(named("getMeterProvider"))
+          .and(takesNoArguments())
+          .and(returns(named("io.opentelemetry.api.metrics.MeterProvider"))),
         OpenTelemetryMetricsInstrumentation.class.getName() + "$MeterProviderAdvice");
   }
 
@@ -104,7 +103,8 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     }
 
     public static void muzzleCheck(DoubleGauge doubleGauge) {
-      doubleGauge.set(0); // not available before 1.38
+      // not available before 1.38
+      doubleGauge.set(0);
     }
   }
 }

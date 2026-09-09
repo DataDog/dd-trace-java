@@ -13,7 +13,6 @@ import static datadog.trace.util.TraceUtils.normalizeTagValue;
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.squareup.moshi.JsonWriter;
 import datadog.common.container.ContainerInfo;
 import datadog.common.version.VersionInfo;
@@ -60,11 +59,11 @@ import okio.Buffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Crash Reporter implementation */
+/**
+ * Crash Reporter implementation
+ */
 public final class CrashUploader {
-
   private static final Logger log = LoggerFactory.getLogger(CrashUploader.class);
-
   // Header names and values
   static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
   static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
@@ -75,12 +74,11 @@ public final class CrashUploader {
   static final String TELEMETRY_API_VERSION = "v2";
   static final String HEADER_DD_TELEMETRY_REQUEST_TYPE = "DD-Telemetry-Request-Type";
   static final String TELEMETRY_REQUEST_TYPE = "logs";
-
-  private static final MediaType APPLICATION_JSON =
-      MediaType.get("application/json; charset=utf-8");
+  private static final MediaType APPLICATION_JSON = MediaType.get("application/json; charset=utf-8");
 
   private static final class CallResult implements Callback {
-    private final String kind; // for logging
+    // for logging
+    private final String kind;
 
     private CallResult(String kind) {
       this.kind = kind;
@@ -115,7 +113,6 @@ public final class CrashUploader {
   private final Config config;
   private final ConfigManager.StoredConfig storedConfig;
   private final CrashUploaderSettings uploaderSettings;
-
   private final HttpUrl telemetryUrl;
   private final HttpUrl errorTrackingUrl;
   private final OkHttpClient uploadClient;
@@ -130,7 +127,8 @@ public final class CrashUploader {
   }
 
   CrashUploader(
-      @Nonnull final Config config, @Nonnull final ConfigManager.StoredConfig storedConfig) {
+      @Nonnull final Config config,
+      @Nonnull final ConfigManager.StoredConfig storedConfig) {
     this.config = config;
     this.storedConfig = storedConfig;
     this.uploaderSettings = storedConfig.toCrashUploaderSettings();
@@ -138,14 +136,13 @@ public final class CrashUploader {
     this.errorTrackingUrl = HttpUrl.get(config.getFinalCrashTrackingErrorTrackingUrl());
     this.agentless = config.isCrashTrackingAgentless();
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    this.executor =
-        new ThreadPoolExecutor(
-            0,
-            4,
-            60,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>(),
-            new AgentThreadFactory(CRASHTRACKING_HTTP_DISPATCHER));
+    this.executor = new ThreadPoolExecutor(
+        0,
+        4,
+        60,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new AgentThreadFactory(CRASHTRACKING_HTTP_DISPATCHER));
     this.dispatcher = new Dispatcher(executor);
 
     final StringBuilder tagsBuilder =
@@ -163,23 +160,28 @@ public final class CrashUploader {
 
     ConfigProvider configProvider = config.configProvider();
 
-    this.timeout =
-        SECONDS.toMillis(
-            configProvider.getInteger(
-                CRASH_TRACKING_UPLOAD_TIMEOUT, CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
+    this.timeout = SECONDS.toMillis(configProvider.getInteger(
+        CRASH_TRACKING_UPLOAD_TIMEOUT,
+        CRASH_TRACKING_UPLOAD_TIMEOUT_DEFAULT));
 
-    uploadClient =
-        OkHttpUtils.buildHttpClient(
-            config,
-            dispatcher, /* dispatcher */
-            telemetryUrl, // will be overridden in each request
-            true, /* retryOnConnectionFailure */
-            4, /* maxRunningRequests */ // not having one request blocking the others
-            configProvider.getString(CRASH_TRACKING_PROXY_HOST),
-            configProvider.getInteger(CRASH_TRACKING_PROXY_PORT),
-            configProvider.getString(CRASH_TRACKING_PROXY_USERNAME),
-            configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD),
-            timeout);
+    uploadClient = OkHttpUtils
+      .buildHttpClient(
+          config,
+          dispatcher,
+          /* dispatcher */
+          // will be overridden in each request
+          telemetryUrl,
+          true,
+          /* retryOnConnectionFailure */
+          // not having one request blocking the others
+          4,
+          configProvider
+            /* maxRunningRequests */
+            .getString(CRASH_TRACKING_PROXY_HOST),
+          configProvider.getInteger(CRASH_TRACKING_PROXY_PORT),
+          configProvider.getString(CRASH_TRACKING_PROXY_USERNAME),
+          configProvider.getString(CRASH_TRACKING_PROXY_PASSWORD),
+          timeout);
   }
 
   public void notifyCrashStarted(String error) {
@@ -199,9 +201,8 @@ public final class CrashUploader {
       writer.name("kind").value("Crash ping");
       writer.name("current_schema_version").value("1.0");
       writer
-          .name("message")
-          .value(
-              "Crashtracker crash ping: " + (error != null ? error : "crash processing started"));
+        .name("message")
+        .value("Crashtracker crash ping: " + (error != null ? error : "crash processing started"));
       writer.endObject();
       handleCall(makeTelemetryRequest(makeTelemetryRequestBody(buf.readUtf8(), true)), "ping");
     } catch (Throwable t) {
@@ -212,21 +213,19 @@ public final class CrashUploader {
   @VisibleForTesting
   void sendPingToErrorTracking(String error) {
     try {
-      final CrashLog ping =
-          new CrashLog(
-              storedConfig.reportUUID,
-              false,
-              ZonedDateTime.now().format(ISO_OFFSET_DATE_TIME),
-              new ErrorData(
-                  null,
-                  "Crashtracker crash ping: "
-                      + (error != null ? error : "crash processing started"),
-                  null),
+      final CrashLog ping = new CrashLog(
+          storedConfig.reportUUID,
+          false,
+          ZonedDateTime.now().format(ISO_OFFSET_DATE_TIME),
+          new ErrorData(
               null,
-              OSInfo.current(),
-              null,
-              null,
-              "1.0");
+              "Crashtracker crash ping: " + (error != null ? error : "crash processing started"),
+              null),
+          null,
+          OSInfo.current(),
+          null,
+          null,
+          "1.0");
       handleCall(makeErrorTrackingRequest(makeErrorTrackingRequestBody(ping, true)), "ping");
     } catch (Throwable t) {
       log.error("Failed to prepare the error tracking crash ping payload", t);
@@ -240,7 +239,8 @@ public final class CrashUploader {
       fileContent = new String(Files.readAllBytes(file), Charset.defaultCharset());
     } catch (Throwable t) {
       log.error("Failed to collect information about the crash", t);
-      return; // cannot proceed further
+      // cannot proceed further
+      return;
     }
 
     try {
@@ -257,7 +257,9 @@ public final class CrashUploader {
 
   @VisibleForTesting
   void remoteUpload(
-      @Nonnull String fileContent, boolean sendToTelemetry, boolean sendToErrorTracking) {
+      @Nonnull String fileContent,
+      boolean sendToTelemetry,
+      boolean sendToErrorTracking) {
     final String uuid = storedConfig.reportUUID;
     try {
       // Auto-detect crash log format (HotSpot hs_err or J9 javacore)
@@ -277,7 +279,8 @@ public final class CrashUploader {
     while ((remaining = dispatcher.queuedCallsCount() + dispatcher.runningCallsCount()) > 0
         && deadline > System.nanoTime()) {
       try {
-        Thread.sleep(100); // good enough for this purpose even if we overflow
+        // good enough for this purpose even if we overflow
+        Thread.sleep(100);
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt();
       }
@@ -333,22 +336,21 @@ public final class CrashUploader {
     return "NativeCrash";
   }
 
-  private static final Pattern ERROR_MESSAGE_PATTERN =
-      Pattern.compile(
-          String.join(
-              "",
-              "^",
-              "(",
-              "# A fatal error has been detected by the Java Runtime Environment:",
-              "|",
-              "# There is insufficient memory for the Java Runtime Environment to continue\\.",
-              ")",
-              "\\n",
-              "(",
-              ".*, pid=-?\\d+, tid=-?\\d+",
-              ")",
-              "$"),
-          Pattern.DOTALL | Pattern.MULTILINE);
+  private static final Pattern ERROR_MESSAGE_PATTERN = Pattern.compile(
+      String.join(
+          "",
+          "^",
+          "(",
+          "# A fatal error has been detected by the Java Runtime Environment:",
+          "|",
+          "# There is insufficient memory for the Java Runtime Environment to continue\\.",
+          ")",
+          "\\n",
+          "(",
+          ".*, pid=-?\\d+, tid=-?\\d+",
+          ")",
+          "$"),
+      Pattern.DOTALL | Pattern.MULTILINE);
 
   @VisibleForTesting
   @SuppressForbidden
@@ -358,15 +360,14 @@ public final class CrashUploader {
       log.error("No match found for error.message");
       return null;
     }
-    return Arrays.stream(matcher.group().split(System.lineSeparator()))
-        .filter(
-            s ->
-                !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
-                    && !s.equals(
-                        "# There is insufficient memory for the Java Runtime Environment to continue."))
-        .map(s -> s.replaceFirst("^#\\s*", "").trim())
-        .collect(Collectors.joining("\n"))
-        .trim();
+    return Arrays
+      .stream(matcher.group().split(System.lineSeparator()))
+      .filter(s -> !s.equals("# A fatal error has been detected by the Java Runtime Environment:")
+          && !s.equals(
+              "# There is insufficient memory for the Java Runtime Environment to continue."))
+      .map(s -> s.replaceFirst("^#\\s*", "").trim())
+      .collect(Collectors.joining("\n"))
+      .trim();
   }
 
   private String extractErrorStackTrace(String fileContent, boolean redact) {
@@ -418,15 +419,14 @@ public final class CrashUploader {
     headers.put(HEADER_DD_TELEMETRY_API_VERSION, TELEMETRY_API_VERSION);
     headers.put(HEADER_DD_TELEMETRY_REQUEST_TYPE, TELEMETRY_REQUEST_TYPE);
 
-    return uploadClient.newCall(
-        OkHttpUtils.prepareRequest(telemetryUrl, headers, config, agentless)
-            .post(requestBody)
-            .build());
+    return uploadClient.newCall(OkHttpUtils
+      .prepareRequest(telemetryUrl, headers, config, agentless)
+      .post(requestBody)
+      .build());
   }
 
   private RequestBody makeTelemetryRequestBody(@Nonnull String payload, boolean isPing)
       throws IOException {
-
     try (Buffer buf = new Buffer()) {
       try (JsonWriter writer = JsonWriter.of(buf)) {
         writer.beginObject();
@@ -457,9 +457,9 @@ public final class CrashUploader {
         writer.beginObject();
         writer.name("env").value(storedConfig.env);
         writer.name("language_name").value("jvm");
-        writer
-            .name("language_version")
-            .value(SystemProperties.getOrDefault("java.version", "unknown"));
+        writer.name("language_version").value(SystemProperties.getOrDefault(
+            "java.version",
+            "unknown"));
         writer.name("service_name").value(storedConfig.service);
         writer.name("service_version").value(storedConfig.version);
         writer.name("tracer_version").value(VersionInfo.VERSION);
@@ -505,10 +505,10 @@ public final class CrashUploader {
       headers.put(HEADER_DD_EVP_SUBDOMAIN, ERROR_TRACKING_INTAKE);
     }
 
-    return uploadClient.newCall(
-        OkHttpUtils.prepareRequest(errorTrackingUrl, headers, config, agentless)
-            .post(requestBody)
-            .build());
+    return uploadClient.newCall(OkHttpUtils
+      .prepareRequest(errorTrackingUrl, headers, config, agentless)
+      .post(requestBody)
+      .build());
   }
 
   private RequestBody makeErrorTrackingRequestBody(@Nonnull CrashLog payload, boolean isPing)
@@ -563,7 +563,6 @@ public final class CrashUploader {
           }
           writer.endObject();
         }
-
         // os info
         if (payload.osInfo != null) {
           writer.name("os_info");
@@ -572,18 +571,18 @@ public final class CrashUploader {
           writer.name("bitness").value(payload.osInfo.bitness);
           writer.name("os_type").value(payload.osInfo.osType);
           writer
-              .name("version")
-              .value(
-                  SystemProperties.get(
-                      "os.version")); // this has been restructured under OsInfo so taking raw here
+            .name("version")
+            .value(SystemProperties.get(
+                // this has been restructured under OsInfo so taking raw here
+                "os.version"));
           writer.endObject();
         }
         // experimental
         if (payload.experimental != null
             && (payload.experimental.ucontext != null
-                || payload.experimental.registerToMemoryMapping != null
-                || payload.experimental.runtimeArgs != null
-                || payload.experimental.runtimeInfo != null)) {
+            || payload.experimental.registerToMemoryMapping != null
+            || payload.experimental.runtimeArgs != null
+            || payload.experimental.runtimeInfo != null)) {
           writer.name("experimental");
           writer.beginObject();
           if (payload.experimental.ucontext != null) {
@@ -598,8 +597,7 @@ public final class CrashUploader {
               && payload.experimental.registerToMemoryMapping != null) {
             writer.name("register_to_memory_mapping");
             writer.beginObject();
-            for (Map.Entry<String, String> entry :
-                payload.experimental.registerToMemoryMapping.entrySet()) {
+            for (Map.Entry<String, String> entry : payload.experimental.registerToMemoryMapping.entrySet()) {
               writer.name(entry.getKey()).value(entry.getValue());
             }
             writer.endObject();
@@ -653,8 +651,10 @@ public final class CrashUploader {
       // normally it does not happen
       tags.append(storedConfig.tags);
     } else {
-      tags.append("service:")
-          .append(normalizeServiceName(storedConfig.service)); // ensure the service name is there
+      tags
+        .append("service:")
+        // ensure the service name is there
+        .append(normalizeServiceName(storedConfig.service));
     }
     if (isPing) {
       tags.append(",").append("is_crash_ping:true");
@@ -666,19 +666,22 @@ public final class CrashUploader {
     }
     tags.append(",").append("data_schema_version:1.0");
     tags.append(",").append("language_name:jvm");
-    tags.append(",")
-        .append("language_version:")
-        .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
-    tags.append(",")
-        .append("runtime_version:")
-        .append(
-            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
-    tags.append(",")
-        .append("runtime_vendor:")
-        .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
-    tags.append(",")
-        .append("runtime_name:")
-        .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
+    tags
+      .append(",")
+      .append("language_version:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags
+      .append(",")
+      .append("runtime_version:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
+    tags
+      .append(",")
+      .append("runtime_vendor:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
+    tags
+      .append(",")
+      .append("runtime_name:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
     tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());
@@ -688,19 +691,22 @@ public final class CrashUploader {
     final StringBuilder tags = new StringBuilder("is_crash_ping:true");
     tags.append(",").append("language_name:jvm");
     tags.append(",").append("service:").append(normalizeServiceName(storedConfig.service));
-    tags.append(",")
-        .append("language_version:")
-        .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
-    tags.append(",")
-        .append("runtime_version:")
-        .append(
-            normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
-    tags.append(",")
-        .append("runtime_vendor:")
-        .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
-    tags.append(",")
-        .append("runtime_name:")
-        .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
+    tags
+      .append(",")
+      .append("language_version:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.version", "unknown")));
+    tags
+      .append(",")
+      .append("runtime_version:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.version", "unknown")));
+    tags
+      .append(",")
+      .append("runtime_vendor:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.vendor", "unknown")));
+    tags
+      .append(",")
+      .append("runtime_name:")
+      .append(normalizeTagValue(SystemProperties.getOrDefault("java.runtime.name", "unknown")));
     tags.append(",").append("tracer_version:").append(normalizeTagValue(VersionInfo.VERSION));
     tags.append(",").append("uuid:").append(uuid);
     return (tags.toString());

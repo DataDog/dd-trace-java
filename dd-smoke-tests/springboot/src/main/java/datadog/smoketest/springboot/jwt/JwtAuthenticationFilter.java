@@ -10,10 +10,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.GenericFilterBean;
 
 public class JwtAuthenticationFilter extends GenericFilterBean {
-
   @Override
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
-      throws IOException, ServletException {
+      throws IOException,
+      ServletException {
     String authorization = ((HttpServletRequest) request).getHeader("Authorization");
     if (authorization != null && !authorization.startsWith("Basic ")) {
       if (authorization.contains("Bearer ")) {

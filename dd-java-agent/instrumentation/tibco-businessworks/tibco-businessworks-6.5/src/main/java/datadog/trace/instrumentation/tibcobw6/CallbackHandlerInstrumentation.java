@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.tibcobw6;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.tibcobw6.TibcoDecorator.TIBCO_BW;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,8 +17,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CallbackHandlerInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String hierarchyMarkerType() {
     return "com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler";
@@ -33,7 +32,8 @@ public class CallbackHandlerInstrumentation extends AbstractTibcoInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(NameMatchers.named("onMessage")), getClass().getName() + "$OnMessageAdvice");
+        isMethod().and(NameMatchers.named("onMessage")),
+        getClass().getName() + "$OnMessageAdvice");
   }
 
   public static class OnMessageAdvice {

@@ -1,7 +1,6 @@
 package datadog.trace.api.civisibility;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.api.civisibility.domain.TestContext;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -13,11 +12,11 @@ import javax.annotation.Nullable;
  * Allows non-test instrumentations to register listeners that will be notified about test events.
  */
 public abstract class InstrumentationTestBridge {
-
   private static final CopyOnWriteArrayList<TestListener> TEST_LISTENERS =
       new CopyOnWriteArrayList<>();
 
-  private InstrumentationTestBridge() {}
+  private InstrumentationTestBridge() {
+  }
 
   @Nullable
   public static TestContext getCurrentTestContext() {

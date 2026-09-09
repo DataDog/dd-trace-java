@@ -3,7 +3,6 @@ package datadog.appsec.benchmark;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.trace.api.internal.TraceSegment;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -36,7 +35,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(NANOSECONDS)
 @Fork(value = 3)
 public class NumericConversionBenchmark {
-
   static {
     BenchmarkUtil.disableLogging();
   }
@@ -213,7 +211,6 @@ public class NumericConversionBenchmark {
 
     context.reportDerivatives(singletonMap("attr4", singletonMap("value", "")));
     blackhole.consume(context.commitDerivatives(mockTraceSegment));
-
     // Valid (20%)
     context.reportDerivatives(singletonMap("attr5", singletonMap("value", "42")));
     blackhole.consume(context.commitDerivatives(mockTraceSegment));

@@ -14,14 +14,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConfigHelper {
-  private ConfigHelper() {}
+  private ConfigHelper() {
+  }
 
-  /** Config Inversion strictness policy for enforcement of undocumented environment variables */
+  /**
+   * Config Inversion strictness policy for enforcement of undocumented environment variables
+   */
   public enum StrictnessPolicy {
     STRICT_TEST,
     WARNING,
     TEST;
-
     private String displayName;
 
     StrictnessPolicy() {
@@ -38,20 +40,14 @@ public class ConfigHelper {
   }
 
   private static final Logger log = LoggerFactory.getLogger(ConfigHelper.class);
-
   private static final ConfigHelper INSTANCE = new ConfigHelper();
-
   private StrictnessPolicy configInversionStrict = StrictnessPolicy.WARNING;
-
   private static final String DD_PREFIX = "DD_";
   private static final String OTEL_PREFIX = "OTEL_";
-
   // Cache for configs, init value is EmptyMap
   private Map<String, String> configs = Collections.emptyMap();
-
   // Default to production source
   private SupportedConfigurationSource configSource = new SupportedConfigurationSource();
-
   // Collects unsupported config keys encountered in STRICT_TEST mode
   private final Set<String> unsupportedConfigs = ConcurrentHashMap.newKeySet();
 
@@ -72,12 +68,16 @@ public class ConfigHelper {
     configSource = testSource;
   }
 
-  /** Resetting config cache. Useful for cleaning up after tests. */
+  /**
+   * Resetting config cache. Useful for cleaning up after tests.
+   */
   void resetCache() {
     configs = Collections.emptyMap();
   }
 
-  /** Reset all configuration data to the generated defaults. Useful for cleaning up after tests. */
+  /**
+   * Reset all configuration data to the generated defaults. Useful for cleaning up after tests.
+   */
   void resetToDefaults() {
     configSource = new SupportedConfigurationSource();
     this.configInversionStrict = StrictnessPolicy.WARNING;
@@ -85,7 +85,9 @@ public class ConfigHelper {
     resetCache();
   }
 
-  /** Returns and clears the set of unsupported config keys encountered in STRICT_TEST mode. */
+  /**
+   * Returns and clears the set of unsupported config keys encountered in STRICT_TEST mode.
+   */
   public List<String> drainUnsupportedConfigs() {
     List<String> result = new ArrayList<>(unsupportedConfigs);
     unsupportedConfigs.clear();
@@ -105,7 +107,6 @@ public class ConfigHelper {
     if (!configs.isEmpty()) {
       return configs;
     }
-
     // Initial value is EmptyMap
     configs = new HashMap<>();
 
@@ -130,12 +131,11 @@ public class ConfigHelper {
         }
         String envFromDeprecated = configSource.primaryEnvFromDeprecated(key);
         if (envFromDeprecated != null) {
-          String warning =
-              "Environment variable "
-                  + key
-                  + " is deprecated. Please use "
-                  + (primaryEnv != null ? primaryEnv : envFromDeprecated)
-                  + " instead.";
+          String warning = "Environment variable "
+              + key
+              + " is deprecated. Please use "
+              + (primaryEnv != null ? primaryEnv : envFromDeprecated)
+              + " instead.";
           log.warn(warning);
         }
       } else {
@@ -161,9 +161,9 @@ public class ConfigHelper {
         unsupportedConfigs.add(name);
         throw new IllegalArgumentException(
             "Unsupported configuration: "
-                + name
-                + " is not in GeneratedSupportedConfigurations. "
-                + "Add it to metadata/supported-configurations.json or remove the usage.");
+            + name
+            + " is not in GeneratedSupportedConfigurations. "
+            + "Add it to metadata/supported-configurations.json or remove the usage.");
       }
     }
 

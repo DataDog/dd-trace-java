@@ -13,7 +13,6 @@ import java.util.Set;
  * exclusions immediately.
  */
 public interface ExcludeFilterProvider {
-
   /**
    * @return A mapping from {@link ExcludeType} -> {@link Set<String>} for the class names that
    *     should be excluded from broad instrumentations like {@link Runnable}

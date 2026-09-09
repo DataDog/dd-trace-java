@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.DECORATE;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.TIBCO_PROCESS_OPERATION;
-
 import com.google.auto.service.AutoService;
 import com.tibco.pe.core.DDJobMate;
 import com.tibco.pe.core.JobPool;
@@ -21,7 +20,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.tibco.pe.core.JobPool";
@@ -29,7 +29,6 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-
     transformer.applyAdvice(named("addJob"), getClass().getName() + "$JobStartAdvice");
     transformer.applyAdvice(named("removeJob"), getClass().getName() + "$JobEndAdvice");
   }

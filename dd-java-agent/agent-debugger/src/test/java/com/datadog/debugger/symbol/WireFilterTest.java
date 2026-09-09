@@ -3,7 +3,6 @@ package com.datadog.debugger.symbol;
 import static org.codehaus.groovy.runtime.InvokerHelper.asList;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 class WireFilterTest {
@@ -15,29 +14,26 @@ class WireFilterTest {
     assertFalse(wireFilter.filterOut(scope));
     scope = Scope.builder(ScopeType.CLASS, "", 0, 0).name("com.squareup.wire.MyClass").build();
     assertFalse(wireFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .languageSpecifics(
-                new LanguageSpecifics.Builder()
-                    .addInterfaces(asList("com.squareup.wire.Message"))
-                    .build())
-            .build();
+    scope = Scope
+      .builder(ScopeType.CLASS, "", 0, 0)
+      .languageSpecifics(new LanguageSpecifics.Builder()
+        .addInterfaces(asList("com.squareup.wire.Message"))
+        .build())
+      .build();
     assertFalse(wireFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .languageSpecifics(
-                new LanguageSpecifics.Builder()
-                    .superClass("com.squareup.wire.ProtoAdapter")
-                    .build())
-            .build();
+    scope = Scope
+      .builder(ScopeType.CLASS, "", 0, 0)
+      .languageSpecifics(new LanguageSpecifics.Builder()
+        .superClass("com.squareup.wire.ProtoAdapter")
+        .build())
+      .build();
     assertTrue(wireFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .languageSpecifics(
-                new LanguageSpecifics.Builder()
-                    .addInterfaces(asList("com.squareup.wire.ProtoAdapter"))
-                    .build())
-            .build();
+    scope = Scope
+      .builder(ScopeType.CLASS, "", 0, 0)
+      .languageSpecifics(new LanguageSpecifics.Builder()
+        .addInterfaces(asList("com.squareup.wire.ProtoAdapter"))
+        .build())
+      .build();
     assertTrue(wireFilter.filterOut(scope));
   }
 }

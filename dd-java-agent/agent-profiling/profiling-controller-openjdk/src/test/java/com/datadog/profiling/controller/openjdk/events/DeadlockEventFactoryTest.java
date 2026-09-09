@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Phaser;
@@ -25,44 +24,41 @@ class DeadlockEventFactoryTest {
 
   @BeforeEach
   void setUp() {
-    eventFactory =
-        new DeadlockEventFactory() {
-          @Override
-          boolean isDeadlockEventEnabled() {
-            return true;
-          }
+    eventFactory = new DeadlockEventFactory() {
+      @Override
+      boolean isDeadlockEventEnabled() {
+        return true;
+      }
 
-          @Override
-          boolean isDeadlockedThreadEventEnabled() {
-            return true;
-          }
-        };
+      @Override
+      boolean isDeadlockedThreadEventEnabled() {
+        return true;
+      }
+    };
 
-    disabledDetailsEventFactory =
-        new DeadlockEventFactory() {
-          @Override
-          boolean isDeadlockEventEnabled() {
-            return true;
-          }
+    disabledDetailsEventFactory = new DeadlockEventFactory() {
+      @Override
+      boolean isDeadlockEventEnabled() {
+        return true;
+      }
 
-          @Override
-          boolean isDeadlockedThreadEventEnabled() {
-            return false;
-          }
-        };
+      @Override
+      boolean isDeadlockedThreadEventEnabled() {
+        return false;
+      }
+    };
 
-    allDisabledEventFactory =
-        new DeadlockEventFactory() {
-          @Override
-          boolean isDeadlockEventEnabled() {
-            return false;
-          }
+    allDisabledEventFactory = new DeadlockEventFactory() {
+      @Override
+      boolean isDeadlockEventEnabled() {
+        return false;
+      }
 
-          @Override
-          boolean isDeadlockedThreadEventEnabled() {
-            return false;
-          }
-        };
+      @Override
+      boolean isDeadlockedThreadEventEnabled() {
+        return false;
+      }
+    };
   }
 
   @Test
@@ -80,44 +76,46 @@ class DeadlockEventFactoryTest {
 
     assertEquals(
         1,
-        disabledDetailsEventFactory.collectEvents().stream()
-            .filter(e -> e instanceof DeadlockEvent)
-            .count());
+        disabledDetailsEventFactory
+          .collectEvents()
+          .stream()
+          .filter(e -> e instanceof DeadlockEvent)
+          .count());
     assertTrue(allDisabledEventFactory.collectEvents().isEmpty());
   }
 
   private void assertDeadlock(boolean isMonitor, int expected) throws InterruptedException {
     String classifier = isMonitor ? "monitor" : "lock";
 
-    List<? extends Event> events =
-        eventFactory.collectEvents().stream()
-            .filter(
-                e -> {
-                  if (e instanceof DeadlockedThreadEvent) {
-                    return ((DeadlockedThreadEvent) e).getThreadName().contains(classifier);
-                  }
-                  return true;
-                })
-            .sorted(
-                (e1, e2) -> {
-                  if (e1 instanceof DeadlockEvent) {
-                    return e2 instanceof DeadlockEvent ? 0 : -1;
-                  } else {
-                    if (e2 instanceof DeadlockEvent) {
-                      return 1;
-                    }
-                  }
-                  if (e1 instanceof DeadlockedThreadEvent && e2 instanceof DeadlockedThreadEvent) {
-                    return ((DeadlockedThreadEvent) e1)
-                        .getThreadName()
-                        .compareTo(((DeadlockedThreadEvent) e2).getThreadName());
-                  }
-                  return 0;
-                })
-            .collect(Collectors.toList());
+    List<? extends Event> events = eventFactory
+      .collectEvents()
+      .stream()
+      .filter(e -> {
+        if (e instanceof DeadlockedThreadEvent) {
+          return ((DeadlockedThreadEvent) e).getThreadName().contains(classifier);
+        }
+        return true;
+      })
+      .sorted((e1, e2) -> {
+        if (e1 instanceof DeadlockEvent) {
+          return e2 instanceof DeadlockEvent ? 0 : -1;
+        } else {
+          if (e2 instanceof DeadlockEvent) {
+            return 1;
+          }
+        }
+        if (e1 instanceof DeadlockedThreadEvent && e2 instanceof DeadlockedThreadEvent) {
+          return ((DeadlockedThreadEvent) e1)
+            .getThreadName()
+            .compareTo(((DeadlockedThreadEvent) e2).getThreadName());
+        }
+        return 0;
+      })
+      .collect(Collectors.toList());
 
     assertNotNull(events);
-    assertEquals(3, events.size()); // 1 deadlock event + 2 deadlocked thread events in that order
+    // 1 deadlock event + 2 deadlocked thread events in that order
+    assertEquals(3, events.size());
     assertEquals(DeadlockEvent.class, events.get(0).getClass());
     assertEquals(DeadlockedThreadEvent.class, events.get(1).getClass());
     assertEquals(DeadlockedThreadEvent.class, events.get(2).getClass());
@@ -165,42 +163,39 @@ class DeadlockEventFactoryTest {
     Object lockA = new Object();
     Object lockB = new Object();
 
-    Thread threadA =
-        new Thread(
-            () -> {
-              synchronized (lockA) {
-                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                synchronized (lockB) {
-                  phaser.arriveAndDeregister(); // virtually unreachable
-                }
-              }
-            },
-            "monitor-thread-A");
-    Thread threadB =
-        new Thread(
-            () -> {
-              synchronized (lockB) {
-                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                synchronized (lockA) {
-                  phaser.arriveAndDeregister(); // virtually unreachable
-                }
-              }
-            },
-            "monitor-thread-B");
+    Thread threadA = new Thread(() -> {
+      synchronized (lockA) {
+        // sync such as cross-order locking is provoked
+        phaser.arriveAndAwaitAdvance();
+        synchronized (lockB) {
+          // virtually unreachable
+          phaser.arriveAndDeregister();
+        }
+      }
+    }, "monitor-thread-A");
+    Thread threadB = new Thread(() -> {
+      synchronized (lockB) {
+        // sync such as cross-order locking is provoked
+        phaser.arriveAndAwaitAdvance();
+        synchronized (lockA) {
+          // virtually unreachable
+          phaser.arriveAndDeregister();
+        }
+      }
+    }, "monitor-thread-B");
     threadA.setDaemon(true);
     threadB.setDaemon(true);
 
     CountDownLatch latch = new CountDownLatch(1);
-    Thread main =
-        new Thread(
-            () -> {
-              threadA.start();
-              threadB.start();
-              phaser.arriveAndAwaitAdvance(); // enter deadlock
-              phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
-              latch.countDown();
-            },
-            "main-monitor-thread");
+    Thread main = new Thread(() -> {
+      threadA.start();
+      threadB.start();
+      // enter deadlock
+      phaser.arriveAndAwaitAdvance();
+      // unreachable if deadlock is present
+      phaser.arriveAndAwaitAdvance();
+      latch.countDown();
+    }, "main-monitor-thread");
     main.setDaemon(true);
 
     main.start();
@@ -217,54 +212,51 @@ class DeadlockEventFactoryTest {
     Lock lockA = new ReentrantLock();
     Lock lockB = new ReentrantLock();
 
-    Thread threadA =
-        new Thread(
-            () -> {
-              lockA.lock();
-              try {
-                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                lockB.lock();
-                try {
-                  phaser.arriveAndDeregister(); // virtually unreachable
-                } finally {
-                  lockB.unlock();
-                }
-              } finally {
-                lockA.unlock();
-              }
-            },
-            "lock-thread-A");
-    Thread threadB =
-        new Thread(
-            () -> {
-              lockB.lock();
-              try {
-                phaser.arriveAndAwaitAdvance(); // sync such as cross-order locking is provoked
-                lockA.lock();
-                try {
-                  phaser.arriveAndDeregister(); // virtually unreachable
-                } finally {
-                  lockA.unlock();
-                }
-              } finally {
-                lockB.unlock();
-              }
-            },
-            "lock-thread-B");
+    Thread threadA = new Thread(() -> {
+      lockA.lock();
+      try {
+        // sync such as cross-order locking is provoked
+        phaser.arriveAndAwaitAdvance();
+        lockB.lock();
+        try {
+          // virtually unreachable
+          phaser.arriveAndDeregister();
+        } finally {
+          lockB.unlock();
+        }
+      } finally {
+        lockA.unlock();
+      }
+    }, "lock-thread-A");
+    Thread threadB = new Thread(() -> {
+      lockB.lock();
+      try {
+        // sync such as cross-order locking is provoked
+        phaser.arriveAndAwaitAdvance();
+        lockA.lock();
+        try {
+          // virtually unreachable
+          phaser.arriveAndDeregister();
+        } finally {
+          lockA.unlock();
+        }
+      } finally {
+        lockB.unlock();
+      }
+    }, "lock-thread-B");
     threadA.setDaemon(true);
     threadB.setDaemon(true);
 
     CountDownLatch latch = new CountDownLatch(1);
-    Thread main =
-        new Thread(
-            () -> {
-              threadA.start();
-              threadB.start();
-              phaser.arriveAndAwaitAdvance(); // enter deadlock
-              phaser.arriveAndAwaitAdvance(); // unreachable if deadlock is present
-              latch.countDown();
-            },
-            "main-lock-thread");
+    Thread main = new Thread(() -> {
+      threadA.start();
+      threadB.start();
+      // enter deadlock
+      phaser.arriveAndAwaitAdvance();
+      // unreachable if deadlock is present
+      phaser.arriveAndAwaitAdvance();
+      latch.countDown();
+    }, "main-lock-thread");
     main.setDaemon(true);
 
     main.start();

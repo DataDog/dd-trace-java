@@ -11,7 +11,6 @@ import static datadog.trace.test.junit.utils.assertions.Matchers.matches;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static java.time.Duration.ofNanos;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -70,7 +69,6 @@ public final class SpanMatcher {
   private Matcher<Boolean> topLevelMatcher;
   private TagsMatcher[] tagMatchers;
   private SpanLinkMatcher[] linkMatchers;
-
   private static final Matcher<Long> CHILD_OF_PREVIOUS_MATCHER = is(0L);
 
   private SpanMatcher() {
@@ -377,9 +375,8 @@ public final class SpanMatcher {
     // Apply parent span index
     if (this.parentSpanIndex >= 0) {
       this.parentIdMatcher = is(trace.get(this.parentSpanIndex).getSpanId());
-    }
-    // Apply parent id matcher from the previous span
-    else if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
+    } else // Apply parent id matcher from the previous span
+    if (this.parentIdMatcher == CHILD_OF_PREVIOUS_MATCHER) {
       if (spanIndex == 0) {
         throw new IllegalStateException("Cannot use childOfPrevious() matcher on the first span");
       }
@@ -414,15 +411,14 @@ public final class SpanMatcher {
     }
     // Assert all tags
     List<String> uncheckedTagNames = new ArrayList<>();
-    tags.forEach(
-        (key, value) -> {
-          Matcher<Object> matcher = (Matcher) matchers.remove(key);
-          if (matcher == null) {
-            uncheckedTagNames.add(key);
-          } else {
-            assertValue(matcher, value, "Unexpected " + key + " tag value");
-          }
-        });
+    tags.forEach((key, value) -> {
+      Matcher<Object> matcher = (Matcher) matchers.remove(key);
+      if (matcher == null) {
+        uncheckedTagNames.add(key);
+      } else {
+        assertValue(matcher, value, "Unexpected " + key + " tag value");
+      }
+    });
     // Remove matchers that accept missing tags
     Collection<Matcher<?>> values = matchers.values();
     values.removeIf(matcher -> matcher instanceof Any);
@@ -450,10 +446,10 @@ public final class SpanMatcher {
     int expectedLinkCount = this.linkMatchers.length;
     if (linkCount != expectedLinkCount) {
       throw assertionFailure()
-          .message("Unexpected span link count")
-          .expected(expectedLinkCount)
-          .actual(linkCount)
-          .build();
+        .message("Unexpected span link count")
+        .expected(expectedLinkCount)
+        .actual(linkCount)
+        .build();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
       SpanLinkMatcher linkMatcher = this.linkMatchers[i];

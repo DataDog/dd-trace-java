@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import org.gradle.internal.service.scopes.Scope;
 
 @AutoService(InstrumenterModule.class)
 public class GradleBuildScopeServices_8_10_Instrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public GradleBuildScopeServices_8_10_Instrumentation() {
     super("gradle", "gradle-build-scope-services");
   }
@@ -36,9 +35,7 @@ public class GradleBuildScopeServices_8_10_Instrumentation extends InstrumenterM
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CiVisibilityGradleListenerInjector_8_10",
-    };
+    return new String[] {packageName + ".CiVisibilityGradleListenerInjector_8_10"};
   }
 
   @Override
@@ -50,9 +47,9 @@ public class GradleBuildScopeServices_8_10_Instrumentation extends InstrumenterM
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, Class.class))
-            .and(takesArgument(1, boolean.class))
-            .and(takesArgument(3, named("org.gradle.internal.service.ServiceRegistry[]"))),
+          .and(takesArgument(0, Class.class))
+          .and(takesArgument(1, boolean.class))
+          .and(takesArgument(3, named("org.gradle.internal.service.ServiceRegistry[]"))),
         getClass().getName() + "$Construct");
   }
 
@@ -64,7 +61,8 @@ public class GradleBuildScopeServices_8_10_Instrumentation extends InstrumenterM
         @Advice.Argument(3) final ServiceRegistry[] parentServices) {
       if (scope.getSimpleName().equals("Build")) {
         CiVisibilityGradleListenerInjector_8_10.injectCiVisibilityGradleListener(
-            buildScopeServices, parentServices);
+            buildScopeServices,
+            parentServices);
       }
     }
   }

@@ -6,12 +6,12 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import java.util.function.Supplier;
 
 public class TagContextExtractor implements HttpCodec.Extractor {
-
   private final Supplier<TraceConfig> traceConfigSupplier;
   private final ThreadLocal<ContextInterpreter> ctxInterpreter;
 
   public TagContextExtractor(
-      final Supplier<TraceConfig> traceConfigSupplier, final ContextInterpreter.Factory factory) {
+      final Supplier<TraceConfig> traceConfigSupplier,
+      final ContextInterpreter.Factory factory) {
     this.traceConfigSupplier = traceConfigSupplier;
     this.ctxInterpreter = ThreadLocal.withInitial(factory::create);
   }

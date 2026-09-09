@@ -9,7 +9,8 @@ import java.nio.file.Path;
 public class NoOpBuildIdExtractor implements BuildIdExtractor {
   @Override
   public String extractBuildId(Path file) {
-    return null; // No build ID on this platform
+    // No build ID on this platform
+    return null;
   }
 
   @Override

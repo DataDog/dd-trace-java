@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -34,7 +33,8 @@ import org.apache.pekko.http.scaladsl.model.HttpRequest;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public HttpHeaderSubclassesInstrumentation() {
     super("pekko-http");
   }
@@ -47,8 +47,8 @@ public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("org.apache.pekko.http.scaladsl.model.")
-        .and(not(named(hierarchyMarkerType())))
-        .and(extendsClass(named(hierarchyMarkerType())));
+      .and(not(named(hierarchyMarkerType())))
+      .and(extendsClass(named(hierarchyMarkerType())));
   }
 
   @Override
@@ -66,7 +66,6 @@ public class HttpHeaderSubclassesInstrumentation extends InstrumenterModule.Iast
         @Advice.This HttpHeader h,
         @Advice.Return String retVal,
         @ActiveRequestContext RequestContext reqCtx) {
-
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;

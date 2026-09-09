@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springboot;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.instrumentation.codeorigin.CodeOriginInstrumentation;

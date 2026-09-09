@@ -1,7 +1,6 @@
 package com.datadog.debugger.uploader;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.DEBUGGER_HTTP_DISPATCHER;
-
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
@@ -33,7 +32,9 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Handles batching logic of upload requests sent to the intake */
+/**
+ * Handles batching logic of upload requests sent to the intake
+ */
 public class BatchUploader {
   public static class MultiPartContent {
     private final byte[] content;
@@ -84,7 +85,6 @@ public class BatchUploader {
   static final int TERMINATION_TIMEOUT = 5;
   public static final MediaType APPLICATION_JSON = MediaType.get("application/json");
   public static final MediaType APPLICATION_GZIP = MediaType.get("application/gzip");
-
   private final String name;
   private final String containerId;
   private final String entityId;
@@ -97,7 +97,6 @@ public class BatchUploader {
   private final boolean instrumentTheWorld;
   private final RatelimitedLogger ratelimitedLogger;
   private final RetryPolicy retryPolicy;
-
   private final Phaser inflightRequests = new Phaser(1);
 
   public BatchUploader(String name, Config config, String endpoint, RetryPolicy retryPolicy) {
@@ -144,32 +143,40 @@ public class BatchUploader {
     apiKey = config.getApiKey();
     this.ratelimitedLogger = ratelimitedLogger;
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    okHttpExecutorService =
-        new ThreadPoolExecutor(
-            0,
-            Integer.MAX_VALUE,
-            60,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>(),
-            new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
+    okHttpExecutorService = new ThreadPoolExecutor(
+        0,
+        Integer.MAX_VALUE,
+        60,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new AgentThreadFactory(DEBUGGER_HTTP_DISPATCHER));
     this.retryPolicy = retryPolicy;
     this.containerId = containerId;
     this.entityId = entityId;
     Duration requestTimeout = Duration.ofSeconds(config.getDynamicInstrumentationUploadTimeout());
-    client =
-        OkHttpUtils.buildHttpClient(
-            config,
-            new Dispatcher(okHttpExecutorService),
-            urlBase,
-            true, /* retry */
-            MAX_RUNNING_REQUESTS,
-            null, /* proxyHost */
-            null, /* proxyPort */
-            null, /* proxyUsername */
-            null, /* proxyPassword */
-            requestTimeout.toMillis());
-    responseCallback =
-        new ResponseCallback(name, ratelimitedLogger, inflightRequests, client, retryPolicy);
+    client = OkHttpUtils.buildHttpClient(
+        config,
+        new Dispatcher(okHttpExecutorService),
+        urlBase,
+        true,
+        /* retry */
+        MAX_RUNNING_REQUESTS,
+        null,
+        /* proxyHost */
+        null,
+        /* proxyPort */
+        null,
+        /* proxyUsername */
+        null,
+        requestTimeout
+          /* proxyPassword */
+          .toMillis());
+    responseCallback = new ResponseCallback(
+        name,
+        ratelimitedLogger,
+        inflightRequests,
+        client,
+        retryPolicy);
     debuggerMetrics = DebuggerMetrics.getInstance(config);
   }
 
@@ -213,7 +220,8 @@ public class BatchUploader {
       } else {
         debuggerMetrics.count("request.queue.full", 1);
         ratelimitedLogger.warn(
-            "Cannot upload batch data to {}: too many enqueued requests!", urlBase);
+            "Cannot upload batch data to {}: too many enqueued requests!",
+            urlBase);
       }
     } catch (Exception ex) {
       debuggerMetrics.count("batch.upload.error", 1);
@@ -312,7 +320,6 @@ public class BatchUploader {
   }
 
   private static final class ResponseCallback implements Callback {
-
     private final String name;
     private final RatelimitedLogger ratelimitedLogger;
     private final Phaser inflightRequests;

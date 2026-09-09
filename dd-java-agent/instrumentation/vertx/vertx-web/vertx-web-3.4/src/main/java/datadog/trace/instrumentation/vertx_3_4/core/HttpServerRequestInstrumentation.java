@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -23,7 +22,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation {
-
   @Override
   protected ElementMatcher.Junction<MethodDescription> attributesFilter() {
     return isPrivate().and(named("attributes"));
@@ -44,7 +42,6 @@ public class HttpServerRequestInstrumentation extends AbstractHttpServerRequestI
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class HeadersAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Local("beforeHeaders") Object beforeHeaders,

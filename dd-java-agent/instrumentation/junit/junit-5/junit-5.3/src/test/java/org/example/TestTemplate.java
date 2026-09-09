@@ -2,7 +2,6 @@ package org.example;
 
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +14,6 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
 public class TestTemplate {
-
   @org.junit.jupiter.api.TestTemplate
   @ExtendWith(SampleInvocationContextProvider.class)
   public void test_template(final SampleTestCase testCase) {
@@ -38,7 +36,6 @@ public class TestTemplate {
 
   public static class SampleInvocationContextProvider
       implements TestTemplateInvocationContextProvider {
-
     @Override
     public boolean supportsTestTemplate(final ExtensionContext context) {
       return true;
@@ -52,8 +49,7 @@ public class TestTemplate {
           featureEnabledContext(new SampleTestCase("test_template_2", 1, 1, 2)));
     }
 
-    private TestTemplateInvocationContext featureEnabledContext(
-        final SampleTestCase sampleTestCase) {
+    private TestTemplateInvocationContext featureEnabledContext(final SampleTestCase sampleTestCase) {
       return new TestTemplateInvocationContext() {
         @Override
         public String getDisplayName(final int invocationIndex) {
@@ -77,15 +73,15 @@ public class TestTemplate {
 
     @Override
     public boolean supportsParameter(
-        final ParameterContext parameterContext, final ExtensionContext extensionContext)
-        throws ParameterResolutionException {
+        final ParameterContext parameterContext,
+        final ExtensionContext extensionContext) throws ParameterResolutionException {
       return parameterContext.getParameter().getType().isInstance(data);
     }
 
     @Override
     public Object resolveParameter(
-        final ParameterContext parameterContext, final ExtensionContext extensionContext)
-        throws ParameterResolutionException {
+        final ParameterContext parameterContext,
+        final ExtensionContext extensionContext) throws ParameterResolutionException {
       return data;
     }
   }

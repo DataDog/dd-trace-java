@@ -9,12 +9,9 @@ import java.net.http.HttpResponse;
 public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse<?>> {
   public static final String INSTRUMENTATION_NAME = "java-http-client";
   public static final CharSequence COMPONENT = UTF8BytesString.create(INSTRUMENTATION_NAME);
-
   public static final JavaNetClientDecorator DECORATE = new JavaNetClientDecorator();
-
   public static final UTF8BytesString OPERATION_NAME =
       UTF8BytesString.create(DECORATE.operationName());
-
   private static final ThreadLocal<Boolean> INJECT_CONTEXT = new ThreadLocal<>();
 
   @Override
@@ -67,12 +64,16 @@ public class JavaNetClientDecorator extends HttpClientDecorator<HttpRequest, Htt
     return INJECT_CONTEXT.get() != null && INJECT_CONTEXT.get();
   }
 
-  /** Enables context injection into HTTP headers for the current thread. */
+  /**
+   * Enables context injection into HTTP headers for the current thread.
+   */
   public void allowContextInjection() {
     INJECT_CONTEXT.set(true);
   }
 
-  /** Disables context injection into HTTP headers for the current thread. */
+  /**
+   * Disables context injection into HTTP headers for the current thread.
+   */
   public void blockContextInjection() {
     INJECT_CONTEXT.remove();
   }

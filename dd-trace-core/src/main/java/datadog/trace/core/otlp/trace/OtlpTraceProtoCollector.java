@@ -4,7 +4,6 @@ import static datadog.trace.core.otlp.common.OtlpResourceProto.TRACE_RESOURCE_ME
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordScopedSpansMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanLinkMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanMessage;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -30,25 +29,22 @@ import java.util.List;
  * message to the start of the payload.
  */
 public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
-
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
-
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpTraceProto.MetaWriter metaWriter = new OtlpTraceProto.MetaWriter(buf);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
-
   private boolean payloadStarted;
-
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
   private int scopedBytes;
   private int spanBytes;
-
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
 
-  /** Adds the given trace spans to the collector. */
+  /**
+   * Adds the given trace spans to the collector.
+   */
   @Override
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
@@ -87,16 +83,19 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     }
   }
 
-  /** Prepare temporary elements to collect trace data. */
+  /**
+   * Prepare temporary elements to collect trace data.
+   */
   private void start() {
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
-
     // for now put all spans under the default scope
     visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
 
-  /** Cleanup elements used to collect trace data. */
+  /**
+   * Cleanup elements used to collect trace data.
+   */
   private void stop() {
     payloadStarted = false;
 
@@ -147,10 +146,8 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     if (payloadBytes == 0) {
       return OtlpPayload.EMPTY;
     }
-
     // prepend the canned resource chunk
     payloadBytes += protobuf.recordMessage(TRACE_RESOURCE_MESSAGE);
-
     // finally prepend the total length of all collected chunks
     protobuf.recordMessage(buf, 1, payloadBytes);
     return protobuf.toPayload();
@@ -169,7 +166,6 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
     if (scopedBytes > 0) {
       payloadBytes += recordScopedSpansMessage(buf, currentScope, scopedBytes, protobuf);
     }
-
     // reset temporary elements for next scope
     currentScope = null;
     scopedBytes = 0;
@@ -177,9 +173,7 @@ public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   // called once we've processed all span-links in a specific span
   private void completeSpan() {
-
     scopedBytes += recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf);
-
     // reset temporary elements for next span
     currentSpan = null;
     spanBytes = 0;

@@ -16,7 +16,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @EnableScheduling
 public class SpringbootGrpcApplication {
-
   @Bean
   SpannerTask spannerTask() {
     return new SpannerTask();

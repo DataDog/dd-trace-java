@@ -10,7 +10,9 @@ import java.util.Deque;
 import java.util.List;
 import org.slf4j.Logger;
 
-/** Helper class for rate limiting & logging exceptions */
+/**
+ * Helper class for rate limiting & logging exceptions
+ */
 public class ExceptionHelper {
   private static final Object[] EMPTY_ARRAY = new Object[0];
 
@@ -93,7 +95,9 @@ public class ExceptionHelper {
   }
 
   private static void internalFlattenStackTrace(
-      Throwable t, StackTraceElement[] enclosingTrace, List<StackTraceElement> elements) {
+      Throwable t,
+      StackTraceElement[] enclosingTrace,
+      List<StackTraceElement> elements) {
     StackTraceElement[] trace = t.getStackTrace();
     int m = trace.length - 1;
     int n = enclosingTrace.length - 1;

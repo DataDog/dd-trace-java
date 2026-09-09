@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.testng7;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,8 @@ import org.testng.internal.TestListenerHelper;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGExecutionInstrumentation() {
@@ -53,11 +52,11 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      commonPackageName + ".TestNGUtils",
-      commonPackageName + ".TestEventsHandlerHolder",
-      commonPackageName + ".TestNGClassListener",
-      commonPackageName + ".execution.RetryAnalyzer",
-      commonPackageName + ".TracingListener",
+        commonPackageName + ".TestNGUtils",
+        commonPackageName + ".TestEventsHandlerHolder",
+        commonPackageName + ".TestNGClassListener",
+        commonPackageName + ".execution.RetryAnalyzer",
+        commonPackageName + ".TracingListener"
     };
   }
 
@@ -80,13 +79,11 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
             tracingListener = listener;
           }
         }
-
         // Test reporting is idempotent due to only working for in progress tests. Once a test is
         // reported it is not considered in progress anymore. DD's test listener will be asked by
         // the framework to report the test again after the retry logic is executed, but it will
         // result in a no-op, avoiding double reporting
         TestListenerHelper.runTestListeners(result, Collections.singletonList(tracingListener));
-
         // Also set suppress failures beforehand to align execution ordering.
         ddRetryAnalyzer.setSuppressFailures(result);
       }

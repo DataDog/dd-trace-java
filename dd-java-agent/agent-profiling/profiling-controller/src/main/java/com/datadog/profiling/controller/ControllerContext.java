@@ -11,7 +11,6 @@ import java.util.Set;
  * data collected by DDProf.
  */
 public class ControllerContext {
-
   private boolean isDatadogProfilerEnabled;
   private String datadogProfilerUnavailableReason;
   private Set<ProfilingMode> datadogProfilingModes = EnumSet.noneOf(ProfilingMode.class);

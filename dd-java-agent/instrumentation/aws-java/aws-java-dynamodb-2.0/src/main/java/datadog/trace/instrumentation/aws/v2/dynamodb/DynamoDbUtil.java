@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DY
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_1_VALUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2_VALUE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,12 +56,10 @@ public class DynamoDbUtil {
       // Sort keys alphabetically
       List<String> keyNames = new ArrayList<>(keys.keySet());
       Collections.sort(keyNames);
-
       // First key (alphabetically)
       String primaryKey1Name = keyNames.get(0);
       span.setTag(DYNAMO_PRIMARY_KEY_1, primaryKey1Name);
       span.setTag(DYNAMO_PRIMARY_KEY_1_VALUE, extractValueAsString(keys.get(primaryKey1Name)));
-
       // Second key
       String primaryKey2Name = keyNames.get(1);
       span.setTag(DYNAMO_PRIMARY_KEY_2, primaryKey2Name);

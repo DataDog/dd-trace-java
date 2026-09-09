@@ -42,7 +42,8 @@ import java.util.Set;
  * debugger EL expression tree.
  */
 public class DSL {
-  private DSL() {}
+  private DSL() {
+  }
 
   public static final BooleanExpression TRUE = BooleanExpression.TRUE;
   public static final BooleanExpression FALSE = BooleanExpression.FALSE;
@@ -110,7 +111,9 @@ public class DSL {
   }
 
   public static IfElseExpression doif(
-      BooleanExpression test, Expression<?> thenExpression, Expression<?> elseExpression) {
+      BooleanExpression test,
+      Expression<?> thenExpression,
+      Expression<?> elseExpression) {
     return new IfElseExpression(test, thenExpression, elseExpression);
   }
 
@@ -176,7 +179,8 @@ public class DSL {
   }
 
   public static FilterCollectionExpression filter(
-      ValueExpression<?> valueExpression, BooleanExpression filter) {
+      ValueExpression<?> valueExpression,
+      BooleanExpression filter) {
     return new FilterCollectionExpression(valueExpression, filter);
   }
 
@@ -185,17 +189,21 @@ public class DSL {
   }
 
   public static SubStringExpression subString(
-      ValueExpression<?> valueExpression, int startIndex, int endIndex) {
+      ValueExpression<?> valueExpression,
+      int startIndex,
+      int endIndex) {
     return new SubStringExpression(valueExpression, startIndex, endIndex);
   }
 
   public static StringPredicateExpression startsWith(
-      ValueExpression<?> valueExpression, StringValue str) {
+      ValueExpression<?> valueExpression,
+      StringValue str) {
     return new StartsWithExpression(valueExpression, str);
   }
 
   public static StringPredicateExpression endsWith(
-      ValueExpression<?> valueExpression, StringValue str) {
+      ValueExpression<?> valueExpression,
+      StringValue str) {
     return new EndsWithExpression(valueExpression, str);
   }
 
@@ -204,7 +212,8 @@ public class DSL {
   }
 
   public static StringPredicateExpression matches(
-      ValueExpression<?> valueExpression, StringValue str) {
+      ValueExpression<?> valueExpression,
+      StringValue str) {
     return new MatchesExpression(valueExpression, str);
   }
 

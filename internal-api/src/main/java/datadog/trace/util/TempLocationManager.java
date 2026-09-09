@@ -44,7 +44,8 @@ public final class TempLocationManager {
   }
 
   interface CleanupHook {
-    CleanupHook EMPTY = new CleanupHook() {};
+    CleanupHook EMPTY = new CleanupHook() {
+    };
 
     default FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs, boolean timeout)
         throws IOException {
@@ -71,12 +72,9 @@ public final class TempLocationManager {
 
   private final class CleanupVisitor implements FileVisitor<Path> {
     private boolean shouldClean;
-
     private Set<String> pidSet;
-
     private final long cutoffMillis;
     private final long timeoutTargetMillis;
-
     private boolean terminated = false;
 
     CleanupVisitor(long timeout, TimeUnit unit) {
@@ -94,8 +92,7 @@ public final class TempLocationManager {
     }
 
     @Override
-    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-        throws IOException {
+    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
       if (isTimedOut()) {
         log.debug("Cleaning task timed out");
         terminated = true;
@@ -114,7 +111,8 @@ public final class TempLocationManager {
       boolean isSelfPid = pid != null && pid.equals(PidHelper.getPid());
       if (!isSelfPid) {
         if (pidSet == null) {
-          pidSet = PidHelper.getJavaPids(); // only fork jps when required
+          // only fork jps when required
+          pidSet = PidHelper.getJavaPids();
         }
         shouldClean |= !pidSet.contains(pid);
       }
@@ -212,21 +210,18 @@ public final class TempLocationManager {
     }
   }
 
-  private static final Set<PosixFilePermission> GROUP_WORLD_BITS =
-      EnumSet.of(
-          PosixFilePermission.GROUP_READ,
-          PosixFilePermission.GROUP_WRITE,
-          PosixFilePermission.GROUP_EXECUTE,
-          PosixFilePermission.OTHERS_READ,
-          PosixFilePermission.OTHERS_WRITE,
-          PosixFilePermission.OTHERS_EXECUTE);
-
+  private static final Set<PosixFilePermission> GROUP_WORLD_BITS = EnumSet.of(
+      PosixFilePermission.GROUP_READ,
+      PosixFilePermission.GROUP_WRITE,
+      PosixFilePermission.GROUP_EXECUTE,
+      PosixFilePermission.OTHERS_READ,
+      PosixFilePermission.OTHERS_WRITE,
+      PosixFilePermission.OTHERS_EXECUTE);
   private final boolean isPosixFs;
   private final Path baseTempDir;
   private final Path tempDir;
   private final long cutoffSeconds;
   private UserPrincipal expectedOwner;
-
   private final CleanupTask cleanupTask = new CleanupTask();
   private final CleanupHook cleanupTestHook;
   private final TimeSource timeSource;
@@ -264,7 +259,9 @@ public final class TempLocationManager {
   }
 
   TempLocationManager(
-      ConfigProvider configProvider, boolean runStartupCleanup, CleanupHook testHook) {
+      ConfigProvider configProvider,
+      boolean runStartupCleanup,
+      CleanupHook testHook) {
     this(configProvider, runStartupCleanup, testHook, SystemTimeSource.INSTANCE);
   }
 
@@ -278,7 +275,6 @@ public final class TempLocationManager {
 
     Set<String> supportedViews = FileSystems.getDefault().supportedFileAttributeViews();
     isPosixFs = supportedViews.contains("posix");
-
     // In order to avoid racy attempts to clean up files which are currently being processed in a
     // JVM which is being shut down (the JVMs far in the shutdown routine may not be reported by
     // 'jps' but still can be eg. processing JFR chunks) we will not clean up any files not older
@@ -288,22 +284,21 @@ public final class TempLocationManager {
     // this processing will not take longer than another `PROFILING_UPLOAD_PERIOD' seconds.
     // This is just an assumption but as long as the profiled application is working normally (eg.
     // OS is not stalling) this assumption will hold.
-    cutoffSeconds =
-        configProvider.getLong(
-            ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-            ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
-    Path configuredTempDir =
-        Paths.get(
-            configProvider.getString(
-                ProfilingConfig.PROFILING_TEMP_DIR, ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT));
+    cutoffSeconds = configProvider.getLong(
+        ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+        ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
+    Path configuredTempDir = Paths.get(configProvider.getString(
+        ProfilingConfig.PROFILING_TEMP_DIR,
+        ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT));
     if (!Files.exists(configuredTempDir)) {
-      ProfilerFlareLogger.getInstance()
-          .log("Base temp directory, as defined in '{}' does not exist.", configuredTempDir);
+      ProfilerFlareLogger
+        .getInstance()
+        .log("Base temp directory, as defined in '{}' does not exist.", configuredTempDir);
       throw new IllegalStateException(
           "Base temp directory, as defined in '"
-              + ProfilingConfig.PROFILING_TEMP_DIR
-              + "' does not exist: "
-              + configuredTempDir);
+          + ProfilingConfig.PROFILING_TEMP_DIR
+          + "' does not exist: "
+          + configuredTempDir);
     }
 
     String pid = PidHelper.getPid();
@@ -326,8 +321,9 @@ public final class TempLocationManager {
     // unlikely, but fall-back to system env based user name
     userName = userName == null ? ConfigHelper.env("USER") : userName;
     // make sure we do not have any illegal characters in the user name
-    userName =
-        userName != null ? userName.replace('.', '_').replace('/', '_').replace(' ', '_') : null;
+    userName = userName != null
+        ? userName.replace('.', '_').replace('/', '_').replace(' ', '_')
+        : null;
     return "ddprof" + (userName != null ? "_" + userName : "");
   }
 
@@ -396,10 +392,8 @@ public final class TempLocationManager {
         return true;
       }
       try (Stream<Path> paths = Files.walk(baseTempDir)) {
-        if (paths.noneMatch(
-            path ->
-                Files.isDirectory(path)
-                    && path.getFileName().toString().startsWith(TEMPDIR_PREFIX))) {
+        if (paths.noneMatch(path -> Files.isDirectory(path)
+            && path.getFileName().toString().startsWith(TEMPDIR_PREFIX))) {
           // nothing to clean up; bail out early
           return true;
         }
@@ -458,19 +452,21 @@ public final class TempLocationManager {
       boolean hasGroupWorldBits = perms.stream().anyMatch(GROUP_WORLD_BITS::contains);
       boolean wrongOwner = expectedOwner != null && !expectedOwner.equals(owner);
       if (hasGroupWorldBits || wrongOwner) {
-        ProfilerFlareLogger.getInstance()
-            .log(
-                "Refusing to use temp directory {} owned by {} with perms {}",
-                dir,
-                owner,
-                PosixFilePermissions.toString(perms));
+        ProfilerFlareLogger
+          .getInstance()
+          .log(
+              "Refusing to use temp directory {} owned by {} with perms {}",
+              dir,
+              owner,
+              PosixFilePermissions.toString(perms));
         throw new IllegalStateException("Untrusted temp directory: " + dir);
       }
     } catch (IllegalStateException e) {
       throw e;
     } catch (IOException e) {
-      ProfilerFlareLogger.getInstance()
-          .log("Failed to validate temp directory ownership/permissions for {}", dir);
+      ProfilerFlareLogger
+        .getInstance()
+        .log("Failed to validate temp directory ownership/permissions for {}", dir);
       throw new IllegalStateException("Untrusted temp directory: " + dir, e);
     }
   }
@@ -519,50 +515,47 @@ public final class TempLocationManager {
         Path root = baseTempDir.resolve(baseTempDir.relativize(tempDir).getName(0));
         try {
           AtomicReference<Path> failed = new AtomicReference<>();
-          Files.walkFileTree(
-              root,
-              new FileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                    throws IOException {
-                  Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir);
-                  if (!perms.contains(PosixFilePermission.OWNER_READ)
-                      || !perms.contains(PosixFilePermission.OWNER_WRITE)
-                      || !perms.contains(PosixFilePermission.OWNER_EXECUTE)) {
-                    failed.set(dir);
-                    return FileVisitResult.TERMINATE;
-                  }
-                  return FileVisitResult.CONTINUE;
-                }
+          Files.walkFileTree(root, new FileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                throws IOException {
+              Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir);
+              if (!perms.contains(PosixFilePermission.OWNER_READ)
+                  || !perms.contains(PosixFilePermission.OWNER_WRITE)
+                  || !perms.contains(PosixFilePermission.OWNER_EXECUTE)) {
+                failed.set(dir);
+                return FileVisitResult.TERMINATE;
+              }
+              return FileVisitResult.CONTINUE;
+            }
 
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                    throws IOException {
-                  return FileVisitResult.SKIP_SIBLINGS;
-                }
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                throws IOException {
+              return FileVisitResult.SKIP_SIBLINGS;
+            }
 
-                @Override
-                public FileVisitResult visitFileFailed(Path file, IOException exc)
-                    throws IOException {
-                  return FileVisitResult.TERMINATE;
-                }
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+              return FileVisitResult.TERMINATE;
+            }
 
-                @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc)
-                    throws IOException {
-                  return FileVisitResult.CONTINUE;
-                }
-              });
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+              return FileVisitResult.CONTINUE;
+            }
+          });
           Path failedDir = failed.get();
 
           if (failedDir != null) {
-            ProfilerFlareLogger.getInstance()
-                .log(
-                    "Failed to create temp directory: {}, offender: {}, permissions: {}",
-                    msg,
-                    failedDir,
-                    PosixFilePermissions.toString(Files.getPosixFilePermissions(failedDir)),
-                    e);
+            ProfilerFlareLogger
+              .getInstance()
+              .log(
+                  "Failed to create temp directory: {}, offender: {}, permissions: {}",
+                  msg,
+                  failedDir,
+                  PosixFilePermissions.toString(Files.getPosixFilePermissions(failedDir)),
+                  e);
           } else {
             ProfilerFlareLogger.getInstance().log(msg);
           }

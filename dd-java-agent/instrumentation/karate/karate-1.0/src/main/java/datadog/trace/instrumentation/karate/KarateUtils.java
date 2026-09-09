@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.karate;
 
 import static datadog.json.JsonMapper.toJson;
-
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.core.Feature;
 import com.intuit.karate.core.FeatureRuntime;
@@ -23,10 +22,10 @@ import java.util.Collections;
 import java.util.List;
 
 public abstract class KarateUtils {
-
   public static final String EXECUTION_TRACKER_MAGICVARIABLE = "__datadog_execution_tracker";
 
-  private KarateUtils() {}
+  private KarateUtils() {
+  }
 
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(FeatureRuntime.class.getClassLoader());
@@ -45,27 +44,22 @@ public abstract class KarateUtils {
   // static method to create aborted result has a different signature starting with Karate 1.4.1
   private static final MethodHandle ABORTED_RESULT_STARTTIME_DURATION_NANOS =
       METHOD_HANDLES.method(Result.class, "aborted", long.class, long.class);
-
   private static final ComparableVersion karateV12 = new ComparableVersion("1.2.0");
   private static final ComparableVersion karateV13 = new ComparableVersion("1.3.0");
-
-  public static final List<LibraryCapability> CAPABILITIES_BASE =
-      Arrays.asList(
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.ATTEMPT_TO_FIX);
-
-  public static final List<LibraryCapability> CAPABILITIES_SKIPPING =
-      Arrays.asList(
-          LibraryCapability.ATR,
-          LibraryCapability.EFD,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.ATTEMPT_TO_FIX,
-          LibraryCapability.TIA,
-          LibraryCapability.DISABLED);
+  public static final List<LibraryCapability> CAPABILITIES_BASE = Arrays.asList(
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.ATTEMPT_TO_FIX);
+  public static final List<LibraryCapability> CAPABILITIES_SKIPPING = Arrays.asList(
+      LibraryCapability.ATR,
+      LibraryCapability.EFD,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.ATTEMPT_TO_FIX,
+      LibraryCapability.TIA,
+      LibraryCapability.DISABLED);
 
   public static Feature getFeature(FeatureRuntime featureRuntime) {
     if (FEATURE_RUNTIME_FEATURE_CALL_GETTER != null) {
@@ -133,7 +127,9 @@ public abstract class KarateUtils {
       long startTime = System.currentTimeMillis();
       long durationNanos = 1;
       return METHOD_HANDLES.invoke(
-          ABORTED_RESULT_STARTTIME_DURATION_NANOS, startTime, durationNanos);
+          ABORTED_RESULT_STARTTIME_DURATION_NANOS,
+          startTime,
+          durationNanos);
     } else {
       long durationNanos = 1;
       return METHOD_HANDLES.invoke(ABORTED_RESULT_DURATION_NANOS, durationNanos);

@@ -3,7 +3,6 @@ package datadog.trace.test.junit.utils.config;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.TYPE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
@@ -40,12 +39,18 @@ public @interface WithConfig {
    */
   String key();
 
-  /** Config value. */
+  /**
+   * Config value.
+   */
   String value();
 
-  /** If {@code true}, sets an environment variable instead of a system property. */
+  /**
+   * If {@code true}, sets an environment variable instead of a system property.
+   */
   boolean env() default false;
 
-  /** If {@code false}, the key is used as-is without adding the {@code dd.}/{@code DD_} prefix. */
+  /**
+   * If {@code false}, the key is used as-is without adding the {@code dd.}/{@code DD_} prefix.
+   */
   boolean addPrefix() default true;
 }

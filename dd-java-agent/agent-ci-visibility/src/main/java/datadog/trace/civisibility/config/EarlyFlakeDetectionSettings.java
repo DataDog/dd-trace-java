@@ -11,10 +11,8 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public class EarlyFlakeDetectionSettings {
-
   public static final EarlyFlakeDetectionSettings DEFAULT =
       new EarlyFlakeDetectionSettings(false, Collections.emptyList(), -1);
-
   private final boolean enabled;
   private final List<ExecutionsByDuration> executionsByDuration;
   private final int faultySessionThreshold;
@@ -80,9 +78,9 @@ public class EarlyFlakeDetectionSettings {
 
       int faultySessionThreshold =
           datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
-      List<ExecutionsByDuration> executionsByDuration =
-          datadog.trace.civisibility.ipc.serialization.Serializer.readList(
-              buf, ExecutionsByDuration.Serializer::deserialize);
+      List<ExecutionsByDuration> executionsByDuration = datadog.trace.civisibility.ipc.serialization.Serializer.readList(
+          buf,
+          ExecutionsByDuration.Serializer::deserialize);
       return new EarlyFlakeDetectionSettings(enabled, executionsByDuration, faultySessionThreshold);
     }
   }

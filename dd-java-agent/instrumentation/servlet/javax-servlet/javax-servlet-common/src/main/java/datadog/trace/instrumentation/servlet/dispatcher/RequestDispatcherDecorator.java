@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.servlet.dispatcher;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.datastreams.DataStreamsContext;
@@ -36,7 +35,9 @@ public class RequestDispatcherDecorator extends BaseDecorator {
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final Throwable throwable,
+      byte errorPriority) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
       super.doOnError(span, throwable.getCause(), errorPriority);
     } else {

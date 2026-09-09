@@ -12,9 +12,7 @@ import javax.annotation.Nullable;
  * buckets while retaining a fallback for patterns that cannot be indexed.
  */
 final class EntryIndex {
-
   private static final int MIN_INDEX_SIZE = 512;
-
   private List<IndexedEntry> entries = new ArrayList<>();
   private Map<String, List<IndexedEntry>> entriesByKey;
   private List<IndexedEntry> unindexedEntries;
@@ -73,14 +71,17 @@ final class EntryIndex {
   private void index(IndexedEntry indexedEntry) {
     String indexKey = indexedEntry.entry.getIndexKey();
     if (indexKey != null) {
-      entriesByKey.computeIfAbsent(indexKey, key -> new ArrayList<>()).add(indexedEntry);
+      entriesByKey
+        .computeIfAbsent(indexKey, key -> new ArrayList<>())
+        .add(indexedEntry);
     } else {
       unindexedEntries.add(indexedEntry);
     }
   }
 
   private static @Nullable IndexedEntry findFirstMatch(
-      @Nullable List<IndexedEntry> entries, String path) {
+      @Nullable List<IndexedEntry> entries,
+      String path) {
     if (entries != null) {
       for (int i = entries.size() - 1; i >= 0; i--) {
         IndexedEntry entry = entries.get(i);
@@ -93,7 +94,6 @@ final class EntryIndex {
   }
 
   private static final class IndexedEntry {
-
     private final Entry entry;
     private final int order;
 

@@ -7,7 +7,6 @@ import org.jboss.resteasy.plugins.server.undertow.UndertowJaxrsServer;
 import org.jboss.resteasy.spi.ResteasyDeployment;
 
 public class Main {
-
   public static void main(String[] args) {
     int port = 8033;
     if (args.length == 1) {
@@ -26,8 +25,7 @@ public class Main {
     deploymentInfo.setDeploymentName("Undertow + Resteasy example");
     deploymentInfo.setContextPath("/");
 
-    deploymentInfo.addListener(
-        Servlets.listener(org.jboss.weld.environment.servlet.Listener.class));
+    deploymentInfo.addListener(Servlets.listener(org.jboss.weld.environment.servlet.Listener.class));
 
     server.deploy(deploymentInfo);
 

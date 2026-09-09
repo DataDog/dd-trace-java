@@ -16,14 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class IastSamplingController {
-
   @GetMapping("/multiple_vulns/{i}")
   public String multipleVulns(
       @PathVariable("i") int i,
       @RequestParam(name = "param", required = false) String paramValue,
       HttpServletRequest request,
-      HttpServletResponse response)
-      throws NoSuchAlgorithmException {
+      HttpServletResponse response) throws NoSuchAlgorithmException {
     // weak hash
     MessageDigest.getInstance("SHA1").digest("hash1".getBytes(StandardCharsets.UTF_8));
     // Insecure cookie
@@ -48,8 +46,7 @@ public class IastSamplingController {
       @PathVariable("i") int i,
       @RequestParam(name = "param", required = false) String paramValue,
       HttpServletRequest request,
-      HttpServletResponse response)
-      throws NoSuchAlgorithmException {
+      HttpServletResponse response) throws NoSuchAlgorithmException {
     // weak hash
     MessageDigest.getInstance("SHA1").digest("hash1".getBytes(StandardCharsets.UTF_8));
     // Insecure cookie
@@ -74,8 +71,7 @@ public class IastSamplingController {
       @PathVariable("i") int i,
       @RequestParam(name = "param", required = false) String paramValue,
       HttpServletRequest request,
-      HttpServletResponse response)
-      throws NoSuchAlgorithmException {
+      HttpServletResponse response) throws NoSuchAlgorithmException {
     // weak hash
     MessageDigest.getInstance("SHA1").digest("hash1".getBytes(StandardCharsets.UTF_8));
     // Insecure cookie
@@ -97,8 +93,9 @@ public class IastSamplingController {
 
   @GetMapping("/different_vulns/{i}")
   public String differentVulns(
-      @PathVariable("i") int i, HttpServletRequest request, HttpServletResponse response)
-      throws NoSuchAlgorithmException {
+      @PathVariable("i") int i,
+      HttpServletRequest request,
+      HttpServletResponse response) throws NoSuchAlgorithmException {
     if (i == 1) {
       // weak hash
       MessageDigest.getInstance("SHA1").digest("hash1".getBytes(StandardCharsets.UTF_8));

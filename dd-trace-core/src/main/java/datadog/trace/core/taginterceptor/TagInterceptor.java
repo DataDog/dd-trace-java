@@ -19,7 +19,6 @@ import static datadog.trace.core.taginterceptor.RuleFlags.Feature.SERVICE_NAME;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.STATUS_404_DECORATOR;
 import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURCE_NAME;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
@@ -43,15 +42,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TagInterceptor {
-
   private static final UTF8BytesString NOT_FOUND_RESOURCE_NAME = UTF8BytesString.create("404");
-
   private final RuleFlags ruleFlags;
   private final boolean isServiceNameSetByUser;
   private final boolean splitByServletContext;
   private final String inferredServiceName;
   private final Set<String> splitServiceTags;
-
   private final boolean shouldSet404ResourceName;
   private final boolean shouldSetUrlResourceAsName;
   private final boolean jeeSplitByDeployment;
@@ -77,24 +73,27 @@ public class TagInterceptor {
     this.ruleFlags = ruleFlags;
     splitByServletContext = splitServiceTags.contains(SERVLET_CONTEXT);
 
-    shouldSet404ResourceName =
-        ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
-            && ruleFlags.isEnabled(STATUS_404)
-            && ruleFlags.isEnabled(STATUS_404_DECORATOR);
+    shouldSet404ResourceName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME)
+        && ruleFlags.isEnabled(STATUS_404)
+        && ruleFlags.isEnabled(STATUS_404_DECORATOR);
     shouldSetUrlResourceAsName = ruleFlags.isEnabled(URL_AS_RESOURCE_NAME);
     this.jeeSplitByDeployment = jeeSplitByDeployment;
   }
 
   public boolean needsIntercept(TagMap map) {
     for (TagMap.EntryReader entry : map) {
-      if (needsIntercept(entry.tag())) return true;
+      if (needsIntercept(entry.tag())) {
+        return true;
+      }
     }
     return false;
   }
 
   public boolean needsIntercept(Map<String, ?> map) {
     for (String tag : map.keySet()) {
-      if (needsIntercept(tag)) return true;
+      if (needsIntercept(tag)) {
+        return true;
+      }
     }
     return false;
   }
@@ -124,7 +123,6 @@ public class TagInterceptor {
       case MEASURED:
       case Tags.SPAN_KIND:
         return true;
-
       default:
         return splitServiceTags.contains(tag);
     }
@@ -151,7 +149,11 @@ public class TagInterceptor {
         return false;
       case DDTags.MANUAL_DROP:
         return interceptSamplingPriority(
-            FORCE_MANUAL_DROP, USER_DROP, SamplingMechanism.MANUAL, span, value);
+            FORCE_MANUAL_DROP,
+            USER_DROP,
+            SamplingMechanism.MANUAL,
+            span,
+            value);
       case Tags.ASM_KEEP:
         if (asBoolean(value)) {
           span.forceKeep(SamplingMechanism.APPSEC);
@@ -219,7 +221,9 @@ public class TagInterceptor {
   }
 
   private static void setResourceFromUrl(
-      @Nonnull final DDSpanContext span, @Nullable final String method, @Nonnull final Object url) {
+      @Nonnull final DDSpanContext span,
+      @Nullable final String method,
+      @Nonnull final Object url) {
     final String path;
     if (url instanceof URIUtils.LazyUrl) {
       path = ((URIUtils.LazyUrl) url).path();
@@ -229,16 +233,16 @@ public class TagInterceptor {
     }
     if (path != null) {
       final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.getSpanKindString());
-      Pair<CharSequence, Byte> normalized =
-          isClient
-              ? HttpResourceNames.computeForClient(method, path, false)
-              : HttpResourceNames.computeForServer(method, path, false);
+      Pair<CharSequence, Byte> normalized = isClient
+          ? HttpResourceNames.computeForClient(method, path, false)
+          : HttpResourceNames.computeForServer(method, path, false);
       if (normalized.hasLeft()) {
         span.setResourceName(normalized.getLeft(), normalized.getRight());
       }
     } else {
       span.setResourceName(
-          HttpResourceNames.DEFAULT_RESOURCE_NAME, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+          HttpResourceNames.DEFAULT_RESOURCE_NAME,
+          ResourceNamePriorities.HTTP_PATH_NORMALIZER);
     }
   }
 
@@ -344,11 +348,11 @@ public class TagInterceptor {
     // so will always return false here.
     if (!splitByServletContext
         && (isServiceNameSetByUser
-            || jeeSplitByDeployment
-            || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)
-            || !span.getServiceName().isEmpty()
-                && !span.getServiceName().equals(inferredServiceName)
-                && !span.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME))) {
+        || jeeSplitByDeployment
+        || !ruleFlags.isEnabled(RuleFlags.Feature.SERVLET_CONTEXT)
+        || !span.getServiceName().isEmpty()
+        && !span.getServiceName().equals(inferredServiceName)
+        && !span.getServiceName().equals(ConfigDefaults.DEFAULT_SERVICE_NAME))) {
       return false;
     }
     String contextName = String.valueOf(value).trim();
@@ -420,7 +424,6 @@ public class TagInterceptor {
       try {
         return Double.parseDouble((String) value);
       } catch (NumberFormatException ignore) {
-
       }
     }
     return null;

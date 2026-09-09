@@ -16,12 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class FormDataContentHelper {
-
   private static final Logger log = LoggerFactory.getLogger(FormDataContentHelper.class);
-
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
-
   // Undertow 2.2+ added getFileItem() to FormValue for in-memory uploads.
   // In 2.0 all uploads are always on disk so getPath() suffices.
   private static final Method GET_FILE_ITEM;
@@ -67,7 +64,6 @@ public final class FormDataContentHelper {
     if (headers != null) {
       contentType = headers.getFirst(Headers.CONTENT_TYPE);
     }
-
     // Try getPath() first: works for 2.0 (all files on disk) and 2.2+ disk files.
     try {
       Path path = formValue.getPath();
@@ -77,7 +73,6 @@ public final class FormDataContentHelper {
     } catch (Exception ignored) {
       // In Undertow 2.2+, in-memory uploads throw here (no path).
     }
-
     // Fallback for Undertow 2.2+ in-memory uploads via cached reflection.
     if (GET_FILE_ITEM != null && FILE_ITEM_GET_INPUT_STREAM != null) {
       try {
@@ -95,5 +90,6 @@ public final class FormDataContentHelper {
     return "";
   }
 
-  private FormDataContentHelper() {}
+  private FormDataContentHelper() {
+  }
 }

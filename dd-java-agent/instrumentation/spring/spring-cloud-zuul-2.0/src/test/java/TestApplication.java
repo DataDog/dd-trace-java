@@ -9,7 +9,6 @@ import org.springframework.web.client.RestTemplate;
 @RestController
 @SpringBootApplication(scanBasePackages = "doesnotexist")
 public class TestApplication {
-
   @RequestMapping(value = "/available")
   public String available() {
     return "SUCCESS";

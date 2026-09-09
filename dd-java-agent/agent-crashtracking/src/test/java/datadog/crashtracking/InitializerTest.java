@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -25,15 +24,14 @@ public class InitializerTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "dd_oome_notifier.sh",
-        "dd_oome_notifier.sh %p",
-        "/tmp/dd_oome_notifier.sh",
-        "on_oome.sh; /tmp/dd_oome_notifier.sh %p",
-        "/tmp/dd_oome_notifier.sh %p;/tmp/another_script.sh",
-        "/tmp/ddprof_root/pid_1/dd_oome_notifier.sh %p"
-      })
+  @ValueSource(strings = {
+      "dd_oome_notifier.sh",
+      "dd_oome_notifier.sh %p",
+      "/tmp/dd_oome_notifier.sh",
+      "on_oome.sh; /tmp/dd_oome_notifier.sh %p",
+      "/tmp/dd_oome_notifier.sh %p;/tmp/another_script.sh",
+      "/tmp/ddprof_root/pid_1/dd_oome_notifier.sh %p"
+  })
   void testValidOomeNotifierScript(String script) {
     String expectedPath = Initializer.getScriptPathFromArg(script, "dd_oome_notifier.sh");
     assertNotNull(expectedPath, "Script path should not be null");

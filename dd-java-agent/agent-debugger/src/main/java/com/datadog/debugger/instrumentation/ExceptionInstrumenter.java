@@ -10,7 +10,6 @@ import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
 
 public class ExceptionInstrumenter extends CapturedContextInstrumenter {
-
   public ExceptionInstrumenter(
       ProbeDefinition definition,
       MethodInfo methodInfo,
@@ -27,7 +26,8 @@ public class ExceptionInstrumenter extends CapturedContextInstrumenter {
     hoistedLocalVars = initAndHoistLocalVars(methodNode);
     Map<AbstractInsnNode, Frame<BasicValue>> frames =
         ASMHelper.computeFrames(classNode.name, methodNode);
-    processInstructions(frames); // fill returnHandlerLabel
+    // fill returnHandlerLabel
+    processInstructions(frames);
     addFinallyHandler(methodEnterLabel, returnHandlerLabel);
     installFinallyBlocks();
     return InstrumentationResult.Status.INSTALLED;
@@ -35,7 +35,8 @@ public class ExceptionInstrumenter extends CapturedContextInstrumenter {
 
   @Override
   protected InsnList getBeforeReturnInsnList(
-      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+      AbstractInsnNode node,
+      Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     return null;
   }
 

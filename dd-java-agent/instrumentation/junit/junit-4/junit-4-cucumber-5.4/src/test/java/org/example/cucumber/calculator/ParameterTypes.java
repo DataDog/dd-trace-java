@@ -7,7 +7,6 @@ import io.cucumber.java.DefaultParameterTransformer;
 import java.lang.reflect.Type;
 
 public class ParameterTypes {
-
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   @DefaultParameterTransformer

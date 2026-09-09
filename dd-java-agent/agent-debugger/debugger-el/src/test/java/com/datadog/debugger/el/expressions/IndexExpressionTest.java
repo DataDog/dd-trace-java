@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.RedactedException;
@@ -30,7 +29,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class IndexExpressionTest {
-
   static final String UUID_1 = "123e4567-e89b-12d3-a456-426655440000";
   static final String UUID_2 = "123e4567-e89b-12d3-a456-426655440001";
   String[] strArray = new String[] {"foo", "bar", "baz"};
@@ -98,9 +96,10 @@ class IndexExpressionTest {
 
   @Test
   void testUnsupportedList() {
-    IndexExpression expr =
-        new IndexExpression(
-            new ListValue(new ArrayList<String>() {}), new NumericValue(0, ValueType.INT));
+    IndexExpression expr = new IndexExpression(
+        new ListValue(new ArrayList<String>() {
+        }),
+        new NumericValue(0, ValueType.INT));
     EvaluationException evaluationException =
         assertThrows(EvaluationException.class, () -> expr.evaluate(evalContext));
     assertEquals(
@@ -110,9 +109,9 @@ class IndexExpressionTest {
 
   @Test
   void testOutOfBoundsList() {
-    IndexExpression expr =
-        new IndexExpression(
-            new ListValue(new ArrayList<String>()), new NumericValue(42, ValueType.INT));
+    IndexExpression expr = new IndexExpression(
+        new ListValue(new ArrayList<String>()),
+        new NumericValue(42, ValueType.INT));
     EvaluationException evaluationException =
         assertThrows(EvaluationException.class, () -> expr.evaluate(evalContext));
     assertEquals("index[42] out of bounds: [0-0]", evaluationException.getMessage());
@@ -121,7 +120,8 @@ class IndexExpressionTest {
   @Test
   void testUnsupportedMap() {
     IndexExpression expr =
-        new IndexExpression(new MapValue(new HashMap<String, String>() {}), new StringValue("foo"));
+        new IndexExpression(new MapValue(new HashMap<String, String>() {
+    }), new StringValue("foo"));
     EvaluationException evaluationException =
         assertThrows(EvaluationException.class, () -> expr.evaluate(evalContext));
     assertEquals(
@@ -149,8 +149,9 @@ class IndexExpressionTest {
         redactedException.getMessage());
     IndexExpression expr2 =
         new IndexExpression(new ValueRefExpression("strMap"), new ValueRefExpression("str"));
-    redactedException =
-        assertThrows(RedactedException.class, () -> expr2.evaluate(evalContext).getValue());
+    redactedException = assertThrows(RedactedException.class, () -> expr2
+      .evaluate(evalContext)
+      .getValue());
     assertEquals(
         "Could not evaluate the expression because 'strMap[str]' was redacted",
         redactedException.getMessage());
@@ -167,7 +168,8 @@ class IndexExpressionTest {
       Redaction.addUserDefinedTypes(Config.get());
       IndexExpression exprArray =
           new IndexExpression(
-              new ValueRefExpression("secretArray"), new NumericValue(0, ValueType.INT));
+              new ValueRefExpression("secretArray"),
+              new NumericValue(0, ValueType.INT));
       RedactedException redactedException =
           assertThrows(RedactedException.class, () -> exprArray.evaluate(evalContext).getValue());
       assertEquals(
@@ -175,16 +177,19 @@ class IndexExpressionTest {
           redactedException.getMessage());
       IndexExpression exprList =
           new IndexExpression(
-              new ValueRefExpression("secretList"), new NumericValue(0, ValueType.INT));
-      redactedException =
-          assertThrows(RedactedException.class, () -> exprList.evaluate(evalContext).getValue());
+              new ValueRefExpression("secretList"),
+              new NumericValue(0, ValueType.INT));
+      redactedException = assertThrows(RedactedException.class, () -> exprList
+        .evaluate(evalContext)
+        .getValue());
       assertEquals(
           "Could not evaluate the expression because 'secretList[0]' was redacted",
           redactedException.getMessage());
       IndexExpression exprMap =
           new IndexExpression(new ValueRefExpression("secretMap"), new StringValue("foo"));
-      redactedException =
-          assertThrows(RedactedException.class, () -> exprMap.evaluate(evalContext).getValue());
+      redactedException = assertThrows(RedactedException.class, () -> exprMap
+        .evaluate(evalContext)
+        .getValue());
       assertEquals(
           "Could not evaluate the expression because 'secretMap[\"foo\"]' was redacted",
           redactedException.getMessage());
@@ -196,11 +201,11 @@ class IndexExpressionTest {
   @Test
   void stringPrimitives() {
     IndexExpression expr =
-        new IndexExpression(
-            new ValueRefExpression("uuidArray"), new NumericValue(1, ValueType.INT));
+        new IndexExpression(new ValueRefExpression("uuidArray"), new NumericValue(1, ValueType.INT));
     assertEquals(UUID_2, expr.evaluate(evalContext).getValue());
-    expr =
-        new IndexExpression(new ValueRefExpression("uuidList"), new NumericValue(1, ValueType.INT));
+    expr = new IndexExpression(
+        new ValueRefExpression("uuidList"),
+        new NumericValue(1, ValueType.INT));
     assertEquals(UUID_2, expr.evaluate(evalContext).getValue());
     expr = new IndexExpression(new ValueRefExpression("uuidMap"), new StringValue("foo"));
     assertEquals(UUID_1, expr.evaluate(evalContext).getValue());

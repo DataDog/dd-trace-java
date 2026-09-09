@@ -22,7 +22,6 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  * Jetty 7.6 where {@code getParts()} does not exist.
  */
 abstract class Jetty8LatestDepForkedTest extends Jetty76Test {
-
   @Override
   public AbstractHandler handler() {
     return new Jetty8TestHandler();
@@ -66,13 +65,11 @@ abstract class Jetty8LatestDepForkedTest extends Jetty76Test {
         String target,
         Request baseRequest,
         HttpServletRequest request,
-        HttpServletResponse response)
-        throws IOException, ServletException {
+        HttpServletResponse response) throws IOException, ServletException {
       if (!baseRequest.getDispatcherType().name().equals("ERROR")) {
         // Enable Servlet 3.0 multipart processing for all requests.
         request.setAttribute("org.eclipse.jetty.multipartConfig", MULTIPART_CONFIG);
         request.setAttribute("org.eclipse.multipartConfig", MULTIPART_CONFIG);
-
         // Jetty 8.x does not populate getParameterMap() from multipart form fields without a
         // prior getParts() call (unlike 9.3+ where extractContentParameters() does this).
         // Pre-call getParts() for BODY_MULTIPART so the servlet can read form fields via
@@ -90,8 +87,11 @@ abstract class Jetty8LatestDepForkedTest extends Jetty76Test {
         Jetty76Test.TestHandler.handleRequest(baseRequest, response);
         baseRequest.setHandled(true);
       } else {
-        ((AbstractHandler) Jetty76Test.getErrorHandler())
-            .handle(target, baseRequest, request, response);
+        ((AbstractHandler) Jetty76Test.getErrorHandler()).handle(
+            target,
+            baseRequest,
+            request,
+            response);
       }
     }
   }
@@ -100,7 +100,6 @@ abstract class Jetty8LatestDepForkedTest extends Jetty76Test {
 @EnabledIfSystemProperty(named = "test.dd.filenames", matches = ".+")
 class Jetty8V0LatestDepForkedTest extends Jetty8LatestDepForkedTest
     implements TestingGenericHttpNamingConventions.ServerV0 {
-
   @Override
   public int version() {
     return 0;
@@ -120,7 +119,6 @@ class Jetty8V0LatestDepForkedTest extends Jetty8LatestDepForkedTest
 @EnabledIfSystemProperty(named = "test.dd.filenames", matches = ".+")
 class Jetty8V1LatestDepForkedTest extends Jetty8LatestDepForkedTest
     implements TestingGenericHttpNamingConventions.ServerV1 {
-
   @Override
   public int version() {
     return 1;

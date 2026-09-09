@@ -6,12 +6,12 @@ import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.engine.reporting.ReportEntry;
 
 public class CompositeEngineListener implements EngineExecutionListener {
-
   private final EngineExecutionListener tracingListener;
   private final EngineExecutionListener delegate;
 
   public CompositeEngineListener(
-      EngineExecutionListener tracingListener, EngineExecutionListener delegate) {
+      EngineExecutionListener tracingListener,
+      EngineExecutionListener delegate) {
     this.tracingListener = tracingListener;
     this.delegate = delegate;
   }
@@ -48,7 +48,8 @@ public class CompositeEngineListener implements EngineExecutionListener {
 
   @Override
   public void executionFinished(
-      TestDescriptor testDescriptor, TestExecutionResult testExecutionResult) {
+      TestDescriptor testDescriptor,
+      TestExecutionResult testExecutionResult) {
     if (!TestDataFactory.shouldBeTraced(testDescriptor)) {
       return;
     }

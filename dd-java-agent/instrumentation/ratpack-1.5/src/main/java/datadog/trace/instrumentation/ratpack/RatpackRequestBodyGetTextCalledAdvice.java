@@ -44,6 +44,7 @@ public class RatpackRequestBodyGetTextCalledAdvice {
   }
 
   public void muzzleCheck() {
-    FileIo.open(null); // added in 1.5
+    // added in 1.5
+    FileIo.open(null);
   }
 }

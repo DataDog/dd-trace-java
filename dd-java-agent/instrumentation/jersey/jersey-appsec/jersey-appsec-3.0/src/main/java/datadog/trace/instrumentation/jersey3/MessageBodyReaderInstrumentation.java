@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jersey3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -23,7 +22,8 @@ import net.bytebuddy.asm.Advice;
 // keep in sync with jersey2 (javax packages)
 @AutoService(InstrumenterModule.class)
 public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public MessageBodyReaderInstrumentation() {
     super("jersey");
   }
@@ -58,9 +58,10 @@ public class MessageBodyReaderInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      if (ret.getClass()
-          .getName()
-          .equals("org.glassfish.jersey.media.multipart.FormDataMultiPart")) {
+      if (ret
+        .getClass()
+        .getName()
+        .equals("org.glassfish.jersey.media.multipart.FormDataMultiPart")) {
         // likely handled already by MultiPartReaderServerSideInstrumentation
         return;
       }

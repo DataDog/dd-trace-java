@@ -6,7 +6,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 final class CHMCache<K, V> implements DDCache<K, V> {
-
   private final ConcurrentHashMap<K, V> chm;
 
   public CHMCache(final int initialCapacity) {

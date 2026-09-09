@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -25,7 +24,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class PathMatcherInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public PathMatcherInstrumentation() {
     super("pekko-http");
   }
@@ -39,10 +39,10 @@ public class PathMatcherInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.Uri$Path")))
-            .and(takesArgument(1, Object.class))
-            .and(takesArgument(2, named("org.apache.pekko.http.scaladsl.server.util.Tuple"))),
+          .and(takesArguments(3))
+          .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.Uri$Path")))
+          .and(takesArgument(1, Object.class))
+          .and(takesArgument(2, named("org.apache.pekko.http.scaladsl.server.util.Tuple"))),
         PathMatcherInstrumentation.class.getName() + "$PathMatcherAdvice");
   }
 
@@ -51,7 +51,8 @@ public class PathMatcherInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     static void onExit(
-        @Advice.Argument(1) Object extractions, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(1) Object extractions,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (!(extractions instanceof scala.Tuple1)) {
         return;
       }
@@ -66,7 +67,6 @@ public class PathMatcherInstrumentation extends InstrumenterModule.Iast
       final String stringValue = (String) value;
 
       final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
-
       // in the test, 4 instances of PathMatcher$Match are created, all with the same value
       if (module.isTainted(ctx, stringValue)) {
         return;

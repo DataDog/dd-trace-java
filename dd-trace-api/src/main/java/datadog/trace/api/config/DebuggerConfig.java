@@ -75,5 +75,6 @@ public final class DebuggerConfig {
   public static final String THIRD_PARTY_DETECTION_EXCLUDES = "third.party.detection.excludes";
   public static final String THIRD_PARTY_SHADING_IDENTIFIERS = "third.party.shading.identifiers";
 
-  private DebuggerConfig() {}
+  private DebuggerConfig() {
+  }
 }

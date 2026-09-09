@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.servlet2;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet2.Servlet2Decorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
@@ -23,14 +22,12 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 public class Servlet2Advice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
   public static boolean onEnter(
       @Advice.This final Object servlet,
       @Advice.Argument(value = 0, readOnly = false) ServletRequest request,
       @Advice.Argument(value = 1, typing = Assigner.Typing.DYNAMIC) final ServletResponse response,
       @Advice.Local("contextScope") ContextScope scope) {
-
     final boolean invalidRequest = !(request instanceof HttpServletRequest);
     if (invalidRequest) {
       return false;
@@ -63,9 +60,11 @@ public class Servlet2Advice {
 
     httpServletRequest.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+        CorrelationIdentifier.getTraceIdKey(),
+        CorrelationIdentifier.getTraceId());
     httpServletRequest.setAttribute(
-        CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
+        CorrelationIdentifier.getSpanIdKey(),
+        CorrelationIdentifier.getSpanId());
 
     Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
     if (rba != null) {
@@ -75,7 +74,8 @@ public class Servlet2Advice {
           (HttpServletResponse) response,
           rba);
       span.getRequestContext().getTraceSegment().effectivelyBlocked();
-      return true; // skip method body
+      // skip method body
+      return true;
     }
 
     return false;
@@ -109,15 +109,15 @@ public class Servlet2Advice {
 
     if (response instanceof HttpServletResponse) {
       DECORATE.onResponse(
-          span, InstrumentationContext.get(ServletResponse.class, Integer.class).get(response));
+          span,
+          InstrumentationContext.get(ServletResponse.class, Integer.class).get(response));
     } else {
       DECORATE.onResponse(span, null);
     }
 
     if (throwable != null) {
       if (response instanceof HttpServletResponse
-          && InstrumentationContext.get(ServletResponse.class, Integer.class).get(response)
-              == HttpServletResponse.SC_OK) {
+          && InstrumentationContext.get(ServletResponse.class, Integer.class).get(response) == HttpServletResponse.SC_OK) {
         // exception was thrown but status code wasn't set
         span.setHttpStatusCode(500);
       }

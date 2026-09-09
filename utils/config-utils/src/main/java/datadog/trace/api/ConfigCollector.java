@@ -4,7 +4,6 @@ import static datadog.trace.api.ConfigOrigin.DEFAULT;
 import static datadog.trace.api.ConfigOrigin.REMOTE;
 import static datadog.trace.api.ConfigSetting.ABSENT_SEQ_ID;
 import static datadog.trace.api.ConfigSetting.DEFAULT_SEQ_ID;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,14 +18,13 @@ import java.util.function.Function;
 public class ConfigCollector {
   private static final ConfigCollector INSTANCE = new ConfigCollector();
 
-  private ConfigCollector() {}
+  private ConfigCollector() {
+  }
 
   private static final AtomicReferenceFieldUpdater<ConfigCollector, Map> COLLECTED_UPDATER =
       AtomicReferenceFieldUpdater.newUpdater(ConfigCollector.class, Map.class, "collected");
-
   private static final Function<ConfigOrigin, Map<String, ConfigSetting>> NEW_SUB_MAP =
       k -> new ConcurrentHashMap<>();
-
   private volatile Map<ConfigOrigin, Map<String, ConfigSetting>> collected =
       new ConcurrentHashMap<>();
 
@@ -41,7 +39,8 @@ public class ConfigCollector {
   public void put(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     ConfigSetting setting = ConfigSetting.of(key, value, origin, seqId, configId);
     Map<String, ConfigSetting> configMap = collected.computeIfAbsent(origin, NEW_SUB_MAP);
-    configMap.put(key, setting); // replaces any previous value for this key at origin
+    // replaces any previous value for this key at origin
+    configMap.put(key, setting);
   }
 
   // put method specifically for DEFAULT origins. We don't allow overrides for configs from DEFAULT
@@ -49,7 +48,8 @@ public class ConfigCollector {
   public void putDefault(String key, Object value) {
     ConfigSetting setting = ConfigSetting.of(key, value, DEFAULT, DEFAULT_SEQ_ID);
     Map<String, ConfigSetting> configMap = collected.computeIfAbsent(DEFAULT, NEW_SUB_MAP);
-    configMap.putIfAbsent(key, setting); // don't replace previous default for this key
+    // don't replace previous default for this key
+    configMap.putIfAbsent(key, setting);
   }
 
   /**
@@ -70,7 +70,6 @@ public class ConfigCollector {
   public void putRemote(Map<String, Object> configMap) {
     // attempt merge+replace to avoid collector seeing partial update
     Map<String, ConfigSetting> merged = new ConcurrentHashMap<>();
-
     // prepare update
     for (Map.Entry<String, Object> entry : configMap.entrySet()) {
       ConfigSetting setting =
@@ -82,12 +81,14 @@ public class ConfigCollector {
       // first try adding our update to the map
       Map<String, ConfigSetting> current = collected.putIfAbsent(REMOTE, merged);
       if (current == null) {
-        break; // success, no merging required
+        // success, no merging required
+        break;
       }
       // merge existing entries with updated entries
       current.forEach(merged::putIfAbsent);
       if (collected.replace(REMOTE, current, merged)) {
-        break; // success, atomically swapped in merged map
+        // success, atomically swapped in merged map
+        break;
       }
       // roll back to original update before next attempt
       merged.keySet().retainAll(configMap.keySet());

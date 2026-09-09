@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Set;
 
 public interface CallSiteReporter {
-
   void report(List<CallSiteResult> results, boolean error);
 
   static Set<CallSiteReporter> getReporter(PluginApplication.Configuration configuration) {

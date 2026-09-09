@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecora
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.NETTY_CONNECT;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -24,8 +23,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public ChannelFutureListenerInstrumentation() {
     super(
         NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME,
@@ -45,22 +44,22 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AttributeKeys",
-      // client helpers
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".client.NettyResponseInjectAdapter",
-      packageName + ".client.HttpClientRequestTracingHandler",
-      packageName + ".client.HttpClientResponseTracingHandler",
-      packageName + ".client.HttpClientTracingHandler",
-      // server helpers
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler"
+        packageName + ".AttributeKeys",
+        // client helpers
+        packageName + ".client.NettyHttpClientDecorator",
+        packageName + ".client.NettyResponseInjectAdapter",
+        packageName + ".client.HttpClientRequestTracingHandler",
+        packageName + ".client.HttpClientResponseTracingHandler",
+        packageName + ".client.HttpClientTracingHandler",
+        // server helpers
+        packageName + ".server.ResponseExtractAdapter",
+        packageName + ".server.NettyHttpServerDecorator",
+        packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+        packageName + ".server.BlockingResponseHandler",
+        packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+        packageName + ".server.HttpServerRequestTracingHandler",
+        packageName + ".server.HttpServerResponseTracingHandler",
+        packageName + ".server.HttpServerTracingHandler"
     };
   }
 
@@ -68,8 +67,8 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("operationComplete"))
-            .and(takesArgument(0, named("io.netty.channel.ChannelFuture"))),
+          .and(named("operationComplete"))
+          .and(takesArgument(0, named("io.netty.channel.ChannelFuture"))),
         ChannelFutureListenerInstrumentation.class.getName() + "$OperationCompleteAdvice");
   }
 

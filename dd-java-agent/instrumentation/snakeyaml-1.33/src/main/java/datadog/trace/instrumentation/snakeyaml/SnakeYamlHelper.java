@@ -8,10 +8,10 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.BaseConstructor;
 
 public final class SnakeYamlHelper {
-  private SnakeYamlHelper() {}
+  private SnakeYamlHelper() {
+  }
 
   private static final Logger log = LoggerFactory.getLogger(SnakeYamlHelper.class);
-
   private static final Field CONSTRUCTOR = prepareConstructor();
 
   private static Field prepareConstructor() {

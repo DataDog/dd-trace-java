@@ -16,23 +16,26 @@ import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.writeSpanId;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.writeTraceId;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 
-/** Provides optimized writers for OpenTelemetry's "logs.proto" wire protocol. */
+/**
+ * Provides optimized writers for OpenTelemetry's "logs.proto" wire protocol.
+ */
 public final class OtlpLogsProto {
-  private OtlpLogsProto() {}
+  private OtlpLogsProto() {
+  }
 
-  /** Records a scoped logs message after its nested log messages have been recorded. */
+  /**
+   * Records a scoped logs message after its nested log messages have been recorded.
+   */
   public static int recordScopedLogsMessage(
       GrowableBuffer buf,
       OtelInstrumentationScope scope,
       int nestedLogBytes,
       OtlpProtoBuffer protobuf) {
-
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
     if (scope.getSchemaUrl() != null) {
@@ -43,10 +46,13 @@ public final class OtlpLogsProto {
     return protobuf.recordMessage(buf, 2, nestedLogBytes);
   }
 
-  /** Records a log message. */
+  /**
+   * Records a log message.
+   */
   public static int recordLogRecordMessage(
-      GrowableBuffer buf, OtlpLogRecord logRecord, OtlpProtoBuffer protobuf) {
-
+      GrowableBuffer buf,
+      OtlpLogRecord logRecord,
+      OtlpProtoBuffer protobuf) {
     writeTag(buf, 1, I64_WIRE_TYPE);
     writeI64(buf, logRecord.timestampNanos);
 

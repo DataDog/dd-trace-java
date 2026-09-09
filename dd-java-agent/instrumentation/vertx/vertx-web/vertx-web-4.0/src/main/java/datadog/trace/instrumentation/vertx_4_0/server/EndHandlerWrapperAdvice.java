@@ -16,7 +16,6 @@ public class EndHandlerWrapperAdvice {
     // existed before
     if (handler instanceof EndHandlerWrapper && endHandler != null) {
       ((EndHandlerWrapper) handler).actual = endHandler;
-
       // If the user registers an end handler and ours has already been registered then we wrap the
       // users handler and swap the function argument for the wrapper
     } else if (endHandler instanceof EndHandlerWrapper) {

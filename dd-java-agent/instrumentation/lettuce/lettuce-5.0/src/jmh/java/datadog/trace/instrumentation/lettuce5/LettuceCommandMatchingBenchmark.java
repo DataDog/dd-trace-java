@@ -37,11 +37,11 @@ import org.openjdk.jmh.annotations.Warmup;
 @Measurement(iterations = 5, time = 5)
 @Threads(1)
 public class LettuceCommandMatchingBenchmark {
-
-  /** Byte-for-byte reproduction of the {@code Set<String>}-based check this replaces. */
+  /**
+   * Byte-for-byte reproduction of the {@code Set<String>}-based check this replaces.
+   */
   private static final String[] NON_INSTRUMENTING_COMMAND_WORDS =
       new String[] {"SHUTDOWN", "DEBUG", "OOM", "SEGFAULT"};
-
   private static final Set<String> NON_INSTRUMENTING_COMMANDS_OLD =
       new HashSet<>(Arrays.asList(NON_INSTRUMENTING_COMMAND_WORDS));
 
@@ -53,7 +53,9 @@ public class LettuceCommandMatchingBenchmark {
     return !NON_INSTRUMENTING_COMMANDS_OLD.contains(commandName);
   }
 
-  /** Minimal {@link RedisCommand} stub -- only {@link #getType()} is ever exercised here. */
+  /**
+   * Minimal {@link RedisCommand} stub -- only {@link #getType()} is ever exercised here.
+   */
   private static final class FakeRedisCommand implements RedisCommand<Object, Object, Object> {
     private final ProtocolKeyword type;
 
@@ -114,26 +116,25 @@ public class LettuceCommandMatchingBenchmark {
 
   // Representative production traffic: ordinary data commands, none of which ever match
   // NON_INSTRUMENTING_COMMANDS.
-  private static final RedisCommand[] MISS_COMMANDS =
-      Arrays.stream(
-              new CommandType[] {
-                CommandType.GET,
-                CommandType.SET,
-                CommandType.EXISTS,
-                CommandType.EXPIRE,
-                CommandType.HSET,
-                CommandType.LPUSH,
-                CommandType.INCR,
-              })
-          .map(FakeRedisCommand::new)
-          .toArray(RedisCommand[]::new);
-
+  private static final RedisCommand[] MISS_COMMANDS = Arrays
+    .stream(
+        new CommandType[] {
+        CommandType.GET,
+        CommandType.SET,
+        CommandType.EXISTS,
+        CommandType.EXPIRE,
+        CommandType.HSET,
+        CommandType.LPUSH,
+        CommandType.INCR
+        })
+    .map(FakeRedisCommand::new)
+    .toArray(RedisCommand[]::new);
   // Rare admin commands that always match NON_INSTRUMENTING_COMMANDS. Not representative of real
   // traffic volume -- included only to exercise the hit path.
-  private static final RedisCommand[] HIT_COMMANDS =
-      Arrays.stream(new CommandType[] {CommandType.DEBUG, CommandType.SHUTDOWN})
-          .map(FakeRedisCommand::new)
-          .toArray(RedisCommand[]::new);
+  private static final RedisCommand[] HIT_COMMANDS = Arrays
+    .stream(new CommandType[] {CommandType.DEBUG, CommandType.SHUTDOWN})
+    .map(FakeRedisCommand::new)
+    .toArray(RedisCommand[]::new);
 
   private abstract static class Cursor {
     int index = 0;

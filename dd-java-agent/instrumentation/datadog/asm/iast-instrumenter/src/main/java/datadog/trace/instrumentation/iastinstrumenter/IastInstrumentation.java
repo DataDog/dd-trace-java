@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.iastinstrumenter;
 
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.csi.Advices;
@@ -29,7 +28,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastInstrumentation extends CallSiteInstrumentation {
-
   public IastInstrumentation() {
     super("IastInstrumentation");
   }
@@ -41,7 +39,8 @@ public class IastInstrumentation extends CallSiteInstrumentation {
 
   @Override
   public boolean isApplicable(final Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.IAST) || enabledSystems.contains(TargetSystem.RASP);
+    return enabledSystems.contains(TargetSystem.IAST)
+        || enabledSystems.contains(TargetSystem.RASP);
   }
 
   @Override
@@ -58,10 +57,9 @@ public class IastInstrumentation extends CallSiteInstrumentation {
       if (Config.get().isIastHardcodedSecretEnabled()) {
         listeners.add(IastHardcodedSecretListener.INSTANCE);
       }
-      StratumManager stratumManager =
-          StratumManager.init(
-              Config.get().getIastSourceMappingMaxSize(),
-              IastInstrumentation::onSourceMappingLimitReached);
+      StratumManager stratumManager = StratumManager.init(
+          Config.get().getIastSourceMappingMaxSize(),
+          IastInstrumentation::onSourceMappingLimitReached);
       listeners.add(new StratumListener(stratumManager));
     }
     return Advices.fromCallSites(callSites, listeners.toArray(new Listener[0]));
@@ -72,35 +70,34 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   }
 
   public static final class IastMatchers {
-
     public static final ElementMatcher<TypeDescription> INSTANCE;
-
     private static final ElementMatcher.Junction<TypeDescription> TRIE_MATCHER =
         new ElementMatcher.Junction.ForNonNullValues<TypeDescription>() {
-          @Override
-          protected boolean doMatch(TypeDescription target) {
-            return IastExclusionTrie.apply(target.getName()) != 1;
-          }
-        };
-
+      @Override
+      protected boolean doMatch(TypeDescription target) {
+        return IastExclusionTrie.apply(target.getName()) != 1;
+      }
+    };
     // this deliberately only considers anonymous types following the Java naming convention
     private static final ElementMatcher.Junction<TypeDescription> ANONYMOUS_TYPE_MATCHER =
         new ElementMatcher.Junction.ForNonNullValues<TypeDescription>() {
-          @Override
-          protected boolean doMatch(TypeDescription target) {
-            String name = target.getName();
-            // search the name in reverse until we find a $ or non-digit
-            for (int end = name.length() - 1, i = end; i > 0; i--) {
-              char c = name.charAt(i);
-              if (c == '$' && i < end) {
-                return true; // only seen digits so far, assume anonymous
-              } else if (c < '0' || c > '9') {
-                break; // non-digit character found, assume not anonymous
-              }
-            }
-            return false;
+      @Override
+      protected boolean doMatch(TypeDescription target) {
+        String name = target.getName();
+        // search the name in reverse until we find a $ or non-digit
+        for (int end = name.length() - 1, i = end; i > 0; i--) {
+          char c = name.charAt(i);
+          if (c == '$' && i < end) {
+            // only seen digits so far, assume anonymous
+            return true;
+          } else if (c < '0' || c > '9') {
+            // non-digit character found, assume not anonymous
+            break;
           }
-        };
+        }
+        return false;
+      }
+    };
 
     static {
       if (Config.get().isIastAnonymousClassesEnabled()) {
@@ -112,7 +109,6 @@ public class IastInstrumentation extends CallSiteInstrumentation {
   }
 
   public static class IastCallSiteSupplier implements CallSiteSupplier {
-
     public static final CallSiteSupplier INSTANCE;
 
     static {

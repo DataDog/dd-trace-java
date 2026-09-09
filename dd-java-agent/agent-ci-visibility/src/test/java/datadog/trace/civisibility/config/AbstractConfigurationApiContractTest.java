@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
@@ -35,21 +34,20 @@ import org.junit.jupiter.params.provider.MethodSource;
  * implementation produces the expected domain object for each canonical response shape.
  */
 abstract class AbstractConfigurationApiContractTest {
-
   protected static final String FIXTURE_DIR = "/datadog/trace/civisibility/config/";
-
   protected static final TracerEnvironment ENV = envWithBundle(null);
 
   protected static TracerEnvironment envWithBundle(String testBundle) {
-    return TracerEnvironment.builder()
-        .service("foo")
-        .env("foo_env")
-        .repositoryUrl("https://github.com/DataDog/foo")
-        .branch("prod")
-        .sha("d64185e45d1722ab3a53c45be47accae")
-        .commitMessage("full commit message")
-        .testBundle(testBundle)
-        .build();
+    return TracerEnvironment
+      .builder()
+      .service("foo")
+      .env("foo_env")
+      .repositoryUrl("https://github.com/DataDog/foo")
+      .branch("prod")
+      .sha("d64185e45d1722ab3a53c45be47accae")
+      .commitMessage("full commit message")
+      .testBundle(testBundle)
+      .build();
   }
 
   protected enum Endpoint {
@@ -115,7 +113,9 @@ abstract class AbstractConfigurationApiContractTest {
                 false,
                 true,
                 new EarlyFlakeDetectionSettings(
-                    true, singletonList(new ExecutionsByDuration(1000, 3)), 10),
+                    true,
+                    singletonList(new ExecutionsByDuration(1000, 3)),
+                    10),
                 new TestManagementSettings(true, 10),
                 "master",
                 false)),
@@ -134,7 +134,8 @@ abstract class AbstractConfigurationApiContractTest {
                 new EarlyFlakeDetectionSettings(
                     true,
                     Arrays.asList(
-                        new ExecutionsByDuration(5000, 3), new ExecutionsByDuration(120000, 2)),
+                        new ExecutionsByDuration(5000, 3),
+                        new ExecutionsByDuration(120000, 2)),
                     10),
                 new TestManagementSettings(true, 20),
                 "prod",
@@ -161,13 +162,13 @@ abstract class AbstractConfigurationApiContractTest {
     Map<TestIdentifier, TestMetadata> bundleB = new HashMap<>();
     bundleB.put(new TestIdentifier("suite-b", "name-b", null), new TestMetadata(false));
     twoModules.put("testBundle-b", bundleB);
-
     // Tests in the "one module" fixture omit test.bundle from configurations; the parser falls
     // back to the tracer environment's testBundle to determine module assignment.
     Map<String, Map<TestIdentifier, TestMetadata>> oneModule = new HashMap<>();
     Map<TestIdentifier, TestMetadata> singleBundle = new HashMap<>();
     singleBundle.put(
-        new TestIdentifier("suite-a", "name-a", "parameters-a"), new TestMetadata(true));
+        new TestIdentifier("suite-a", "name-a", "parameters-a"),
+        new TestMetadata(true));
     singleBundle.put(new TestIdentifier("suite-b", "name-b", null), new TestMetadata(true));
     oneModule.put("testBundle-a", singleBundle);
 
@@ -186,8 +187,7 @@ abstract class AbstractConfigurationApiContractTest {
       String scenario,
       TracerEnvironment env,
       String fixture,
-      Map<String, Map<TestIdentifier, TestMetadata>> expectedTests)
-      throws IOException {
+      Map<String, Map<TestIdentifier, TestMetadata>> expectedTests) throws IOException {
     String body = render(fixture, Collections.emptyMap());
 
     ConfigurationApi api = apiReturning(Endpoint.SKIPPABLE_TESTS, body);
@@ -239,8 +239,7 @@ abstract class AbstractConfigurationApiContractTest {
       String scenario,
       TracerEnvironment env,
       String fixture,
-      Map<String, Collection<TestFQN>> expectedTests)
-      throws IOException {
+      Map<String, Collection<TestFQN>> expectedTests) throws IOException {
     String body = render(fixture, Collections.emptyMap());
 
     ConfigurationApi api = apiReturning(Endpoint.FLAKY_TESTS, body);
@@ -279,8 +278,9 @@ abstract class AbstractConfigurationApiContractTest {
     Map<String, Collection<TestFQN>> quarantined = new HashMap<>();
     quarantined.put(
         "module-a",
-        new HashSet<>(
-            Arrays.asList(new TestFQN("suite-a", "test-a"), new TestFQN("suite-b", "test-c"))));
+        new HashSet<>(Arrays.asList(
+            new TestFQN("suite-a", "test-a"),
+            new TestFQN("suite-b", "test-c"))));
     quarantined.put("module-b", new HashSet<>(singletonList(new TestFQN("suite-c", "test-e"))));
     assertEquals(quarantined, result.get(TestSetting.QUARANTINED));
 
@@ -288,16 +288,18 @@ abstract class AbstractConfigurationApiContractTest {
     disabled.put("module-a", new HashSet<>(singletonList(new TestFQN("suite-a", "test-b"))));
     disabled.put(
         "module-b",
-        new HashSet<>(
-            Arrays.asList(new TestFQN("suite-c", "test-d"), new TestFQN("suite-c", "test-f"))));
+        new HashSet<>(Arrays.asList(
+            new TestFQN("suite-c", "test-d"),
+            new TestFQN("suite-c", "test-f"))));
     assertEquals(disabled, result.get(TestSetting.DISABLED));
 
     Map<String, Collection<TestFQN>> attemptToFix = new HashMap<>();
     attemptToFix.put("module-a", new HashSet<>(singletonList(new TestFQN("suite-b", "test-c"))));
     attemptToFix.put(
         "module-b",
-        new HashSet<>(
-            Arrays.asList(new TestFQN("suite-c", "test-d"), new TestFQN("suite-c", "test-e"))));
+        new HashSet<>(Arrays.asList(
+            new TestFQN("suite-c", "test-d"),
+            new TestFQN("suite-c", "test-e"))));
     assertEquals(attemptToFix, result.get(TestSetting.ATTEMPT_TO_FIX));
   }
 
@@ -317,7 +319,8 @@ abstract class AbstractConfigurationApiContractTest {
   static {
     FREEMARKER = new Configuration(Configuration.VERSION_2_3_30);
     FREEMARKER.setClassLoaderForTemplateLoading(
-        AbstractConfigurationApiContractTest.class.getClassLoader(), "");
+        AbstractConfigurationApiContractTest.class.getClassLoader(),
+        "");
     FREEMARKER.setDefaultEncoding("UTF-8");
     FREEMARKER.setLogTemplateExceptions(false);
     FREEMARKER.setWrapUncheckedExceptions(true);

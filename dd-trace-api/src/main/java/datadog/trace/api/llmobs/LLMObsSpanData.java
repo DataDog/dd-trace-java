@@ -10,7 +10,6 @@ import javax.annotation.Nullable;
  * Observability.
  */
 public interface LLMObsSpanData {
-
   /**
    * Gets the LLM Observability span kind.
    *

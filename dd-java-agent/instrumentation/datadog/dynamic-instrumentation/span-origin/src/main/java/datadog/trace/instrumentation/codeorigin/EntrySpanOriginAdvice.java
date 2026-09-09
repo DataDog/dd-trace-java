@@ -2,11 +2,9 @@ package datadog.trace.instrumentation.codeorigin;
 
 import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
 import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
-
 import net.bytebuddy.asm.Advice;
 
 public class EntrySpanOriginAdvice {
-
   @Advice.OnMethodEnter
   @SuppressWarnings("bytebuddy-exception-suppression")
   public static void onEnter(

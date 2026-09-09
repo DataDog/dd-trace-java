@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.netty38.client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.netty38.client.NettyHttpClientDecorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,7 +15,6 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 
 public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandler {
-
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
   public HttpClientResponseTracingHandler(
@@ -46,7 +44,6 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
         span.finish();
       }
     }
-
     // We want the callback in the scope of the parent, not the client span
     try (final ContextScope scope = activateSpan(parent)) {
       ctx.sendUpstream(msg);
@@ -74,7 +71,6 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
         span.finish();
       }
     }
-
     // We want the callback in the scope of the parent, not the client span
     try (final ContextScope scope = activateSpan(parent)) {
       super.exceptionCaught(ctx, e);

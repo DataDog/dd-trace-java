@@ -18,17 +18,15 @@ import play.mvc.Result;
 import play.mvc.With;
 
 public class JController extends Controller {
-
   private final WSClient ws;
   private final String clientRequestBase;
 
   @Inject
   public JController(WSClient ws, Configuration configuration, ControllerComponents c) {
     this.ws = ws;
-    this.clientRequestBase =
-        configuration
-            .getOptional("client.request.base", ConfigLoader.stringLoader())
-            .getOrElse(() -> "http://localhost:0/broken/");
+    this.clientRequestBase = configuration
+      .getOptional("client.request.base", ConfigLoader.stringLoader())
+      .getOrElse(() -> "http://localhost:0/broken/");
   }
 
   @With({Action1.class, Action2.class})
@@ -38,10 +36,12 @@ public class JController extends Controller {
     Scope scope = tracer.scopeManager().activate(span);
     try {
       if (id > 0) {
-        return ws.url(clientRequestBase + id)
-            .get()
-            .thenApply(
-                response -> status(response.getStatus(), "J Got '" + response.getBody() + "'"));
+        return ws
+          .url(clientRequestBase + id)
+          .get()
+          .thenApply(response -> status(response.getStatus(), "J Got '"
+              + response.getBody()
+              + "'"));
       } else {
         return CompletableFuture.supplyAsync(() -> badRequest("No ID."));
       }

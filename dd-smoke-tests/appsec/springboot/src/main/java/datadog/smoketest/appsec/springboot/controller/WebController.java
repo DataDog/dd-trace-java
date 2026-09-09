@@ -3,7 +3,6 @@ package datadog.smoketest.appsec.springboot.controller;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 import static org.springframework.web.bind.annotation.RequestMethod.PUT;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
@@ -52,8 +51,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 @RestController
 public class WebController {
-
-  @Autowired private AsyncService myAsyncService;
+  @Autowired
+  private AsyncService myAsyncService;
 
   @RequestMapping("/greeting")
   public String greeting() {
@@ -211,14 +210,16 @@ public class WebController {
 
   @PostMapping("/cmdi/arrayCmdWithParams")
   public String shiArrayCmdWithParams(
-      @RequestParam("cmd") String[] arrayCmd, @RequestParam("params") String[] params) {
+      @RequestParam("cmd") String[] arrayCmd,
+      @RequestParam("params") String[] params) {
     withProcess(() -> Runtime.getRuntime().exec(arrayCmd, params));
     return "EXECUTED";
   }
 
   @PostMapping("/cmdi/arrayCmdWithParamsAndFile")
   public String shiArrayCmdWithParamsAndFile(
-      @RequestParam("cmd") String[] arrayCmd, @RequestParam("params") String[] params) {
+      @RequestParam("cmd") String[] arrayCmd,
+      @RequestParam("params") String[] params) {
     withProcess(() -> Runtime.getRuntime().exec(arrayCmd, params, new File("")));
     return "EXECUTED";
   }
@@ -237,14 +238,16 @@ public class WebController {
 
   @PostMapping("/shi/cmdWithParams")
   public String shiCmdWithParams(
-      @RequestParam("cmd") String cmd, @RequestParam("params") String[] params) {
+      @RequestParam("cmd") String cmd,
+      @RequestParam("params") String[] params) {
     withProcess(() -> Runtime.getRuntime().exec(cmd, params));
     return "EXECUTED";
   }
 
   @PostMapping("/shi/cmdParamsAndFile")
   public String shiCmdParamsAndFile(
-      @RequestParam("cmd") String cmd, @RequestParam("params") String[] params) {
+      @RequestParam("cmd") String cmd,
+      @RequestParam("params") String[] params) {
     withProcess(() -> Runtime.getRuntime().exec(cmd, params, new File("")));
     return "EXECUTED";
   }
@@ -317,9 +320,7 @@ public class WebController {
     return ResponseEntity.ok(body);
   }
 
-  @RequestMapping(
-      value = "/api_security/http_client/okHttp2",
-      method = {POST, GET, PUT})
+  @RequestMapping(value = "/api_security/http_client/okHttp2", method = {POST, GET, PUT})
   public ResponseEntity<String> apiSecurityHttpClientOkHttp2(final HttpServletRequest request)
       throws IOException {
     // create an internal http request to the echo endpoint to validate the http client library
@@ -332,11 +333,11 @@ public class WebController {
     if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
       final byte[] data = readFully(request.getInputStream());
-      clientRequest =
-          clientRequest.method(
-              request.getMethod(),
-              com.squareup.okhttp.RequestBody.create(
-                  com.squareup.okhttp.MediaType.parse(contentType), data));
+      clientRequest = clientRequest.method(
+          request.getMethod(),
+          com.squareup.okhttp.RequestBody.create(
+              com.squareup.okhttp.MediaType.parse(contentType),
+              data));
     } else {
       clientRequest.method(request.getMethod(), null);
     }
@@ -356,9 +357,7 @@ public class WebController {
     return ResponseEntity.status(200).body(clientResponse.body().string());
   }
 
-  @RequestMapping(
-      value = "/api_security/http_client/okHttp3",
-      method = {POST, GET, PUT})
+  @RequestMapping(value = "/api_security/http_client/okHttp3", method = {POST, GET, PUT})
   public ResponseEntity<String> apiSecurityHttpClientOkHttp3(final HttpServletRequest request)
       throws IOException {
     // create an internal http request to the echo endpoint to validate the http client library
@@ -371,10 +370,9 @@ public class WebController {
     if (requiresBody(request.getMethod())) {
       final String contentType = request.getContentType();
       final byte[] data = readFully(request.getInputStream());
-      clientRequest =
-          clientRequest.method(
-              request.getMethod(),
-              okhttp3.RequestBody.create(okhttp3.MediaType.parse(contentType), data));
+      clientRequest = clientRequest.method(
+          request.getMethod(),
+          okhttp3.RequestBody.create(okhttp3.MediaType.parse(contentType), data));
     } else {
       clientRequest.method(request.getMethod(), null);
     }
@@ -395,11 +393,10 @@ public class WebController {
     return ResponseEntity.status(200).body(clientResponse.body().string());
   }
 
-  @RequestMapping(
-      value = "/echo",
-      method = {POST, GET, PUT})
+  @RequestMapping(value = "/echo", method = {POST, GET, PUT})
   public ResponseEntity<String> echo(final HttpServletRequest request)
-      throws IOException, URISyntaxException {
+      throws IOException,
+      URISyntaxException {
     final String redirect = request.getParameter("redirect");
     if (redirect != null) {
       return ResponseEntity.status(HttpStatus.FOUND).location(new URI("/echo")).build();
@@ -425,15 +422,17 @@ public class WebController {
   }
 
   private static String getEchoUrl(final HttpServletRequest request) {
-    return ServletUriComponentsBuilder.fromRequestUri(request)
-        .replacePath("/echo")
-        .build()
-        .toUriString();
+    return ServletUriComponentsBuilder
+      .fromRequestUri(request)
+      .replacePath("/echo")
+      .build()
+      .toUriString();
   }
 
   private static byte[] readFully(final InputStream in) throws IOException {
     ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-    byte[] data = new byte[4096]; // 4KB buffer
+    // 4KB buffer
+    byte[] data = new byte[4096];
     int bytesRead;
     while ((bytesRead = in.read(data, 0, data.length)) != -1) {
       buffer.write(data, 0, bytesRead);

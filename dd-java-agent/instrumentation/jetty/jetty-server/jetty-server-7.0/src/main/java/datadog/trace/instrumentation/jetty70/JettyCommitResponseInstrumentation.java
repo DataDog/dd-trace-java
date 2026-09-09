@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.jetty70.JettyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,8 +23,8 @@ import org.eclipse.jetty.server.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class JettyCommitResponseInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JettyCommitResponseInstrumentation() {
     super("jetty");
   }
@@ -38,13 +37,13 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".JettyDecorator",
+        packageName + ".RequestURIDataAdapter",
+        "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+        "datadog.trace.instrumentation.jetty.JettyBlockingHelper"
     };
   }
 
@@ -52,15 +51,16 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("commitResponse")
-            .and(takesArguments(1))
-            .and(takesArgument(0, boolean.class))
-            .or(named("completeResponse").and(takesArguments(0))),
+          .and(takesArguments(1))
+          .and(takesArgument(0, boolean.class))
+          .or(named("completeResponse").and(takesArguments(0))),
         JettyCommitResponseInstrumentation.class.getName() + "$CommitResponseAdvice");
   }
 
   static class CommitResponseAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-    static boolean /* skip */ before(@Advice.This HttpConnection connection) {
+    static boolean /* skip */
+    before(@Advice.This HttpConnection connection) {
       Generator generator = connection.getGenerator();
       if (generator.isCommitted()) {
         return false;
@@ -88,9 +88,11 @@ public final class JettyCommitResponseInstrumentation extends InstrumenterModule
 
       Response resp = connection.getResponse();
 
-      Flow<Void> flow =
-          DECORATE.callIGCallbackResponseAndHeaders(
-              span, resp, resp.getStatus(), ExtractAdapter.Response.GETTER);
+      Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+          span,
+          resp,
+          resp.getStatus(),
+          ExtractAdapter.Response.GETTER);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;

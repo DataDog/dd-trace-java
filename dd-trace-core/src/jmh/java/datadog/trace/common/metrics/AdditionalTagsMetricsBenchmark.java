@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -39,10 +38,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @Fork(1)
 public class AdditionalTagsMetricsBenchmark {
-
   private ClientStatsAggregator aggregator;
   private AdversarialMetricsBenchmark.CountingHealthMetrics health;
-
   @Param({"false", "true"})
   public boolean limitsEnabled;
 
@@ -54,23 +51,22 @@ public class AdditionalTagsMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new AdversarialMetricsBenchmark.CountingHealthMetrics();
-    AdditionalTagsSchema additionalTagsSchema =
-        AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")),
-            MetricCardinalityLimits.ADDITIONAL_TAG_VALUE,
-            limitsEnabled);
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            additionalTagsSchema,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
+    AdditionalTagsSchema additionalTagsSchema = AdditionalTagsSchema.from(
+        new LinkedHashSet<>(Arrays.asList("region", "tenant_id")),
+        MetricCardinalityLimits.ADDITIONAL_TAG_VALUE,
+        limitsEnabled);
+    this.aggregator = new ClientStatsAggregator(
+        new WellKnownTags("", "", "", "", "", ""),
+        Collections.emptySet(),
+        additionalTagsSchema,
+        new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"),
+            Collections.emptySet()),
+        this.health,
+        new ClientStatsAggregatorBenchmark.NullSink(),
+        2048,
+        2048,
+        false);
     this.aggregator.start();
   }
 

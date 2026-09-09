@@ -60,29 +60,30 @@ public class ServerDebuggerTestApplication {
     System.out.println("Send ack with app URl: " + appUrl.toString());
     RequestBody body = RequestBody.create(MediaType.get("text/plain"), appUrl.toString());
     Request ackRequest = new Request.Builder().url(controlServerUrl).post(body).build();
-    try (Response response = httpClient.newCall(ackRequest).execute()) {}
+    try (Response response = httpClient.newCall(ackRequest).execute()) {
+    }
 
     System.out.println("Send Ack done");
   }
 
   protected void stop() {
     System.out.println("Stopping app...");
-    new Thread(
-            () -> {
-              try {
-                webServer.shutdown();
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-            })
-        .start();
+    new Thread(() -> {
+      try {
+        webServer.shutdown();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }).start();
   }
 
   protected void waitForInstrumentation(String className) {
     System.out.println("waitForInstrumentation on " + className);
     try {
-      lastMatchedLine =
-          TestApplicationHelper.waitForInstrumentation(LOG_FILENAME, className, lastMatchedLine);
+      lastMatchedLine = TestApplicationHelper.waitForInstrumentation(
+          LOG_FILENAME,
+          className,
+          lastMatchedLine);
       System.out.println("instrumented!");
     } catch (IOException ex) {
       ex.printStackTrace();
@@ -92,8 +93,10 @@ public class ServerDebuggerTestApplication {
   protected void waitForReTransformation(String className) {
     System.out.println("waitForReTransformation on " + className);
     try {
-      lastMatchedLine =
-          TestApplicationHelper.waitForReTransformation(LOG_FILENAME, className, lastMatchedLine);
+      lastMatchedLine = TestApplicationHelper.waitForReTransformation(
+          LOG_FILENAME,
+          className,
+          lastMatchedLine);
       System.out.println("re-transformed!");
     } catch (IOException ex) {
       ex.printStackTrace();
@@ -113,8 +116,10 @@ public class ServerDebuggerTestApplication {
   protected void waitForSpecificLine(String line) {
     System.out.println("waitForSpecificLine...");
     try {
-      lastMatchedLine =
-          TestApplicationHelper.waitForSpecificLine(LOG_FILENAME, line, lastMatchedLine);
+      lastMatchedLine = TestApplicationHelper.waitForSpecificLine(
+          LOG_FILENAME,
+          line,
+          lastMatchedLine);
       System.out.println("line found!");
     } catch (IOException ex) {
       ex.printStackTrace();
@@ -183,7 +188,11 @@ public class ServerDebuggerTestApplication {
   }
 
   private static String fullMethod(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     try {
       return argInt
           + ", "
@@ -201,7 +210,11 @@ public class ServerDebuggerTestApplication {
   }
 
   private static String tracedMethod(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     try {
       return argInt
           + ", "
@@ -219,42 +232,74 @@ public class ServerDebuggerTestApplication {
   }
 
   private static void tracedMethodWithException(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     throw new RuntimeException("oops");
   }
 
   private static void tracedMethodWithDeepException1(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     tracedMethodWithDeepException2(argInt, argStr, argDouble, argMap, argVar);
   }
 
   private static void tracedMethodWithDeepException2(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     tracedMethodWithDeepException3(argInt, argStr, argDouble, argMap, argVar);
   }
 
   private static void tracedMethodWithDeepException3(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     tracedMethodWithDeepException4(argInt, argStr, argDouble, argMap, argVar);
   }
 
   private static void tracedMethodWithDeepException4(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     tracedMethodWithDeepException5(argInt, argStr, argDouble, argMap, argVar);
   }
 
   private static void tracedMethodWithDeepException5(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     tracedMethodWithException(argInt, argStr, argDouble, argMap, argVar);
   }
 
   private static void tracedMethodWithLambdaException(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     throw toRuntimeException("lambdaOops");
   }
 
   private static void tracedMethodWithRecursiveException(
-      int argInt, String argStr, double argDouble, Map<String, String> argMap, String... argVar) {
+      int argInt,
+      String argStr,
+      double argDouble,
+      Map<String, String> argMap,
+      String... argVar) {
     if (argInt > 0) {
       tracedMethodWithRecursiveException(argInt - 8, argStr, argDouble, argMap, argVar);
     } else {

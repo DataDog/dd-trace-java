@@ -14,7 +14,6 @@ import scala.collection.mutable.StringBuilder;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringBuilderCallSite {
-
   @CallSite.After("void scala.collection.mutable.StringBuilder.<init>(java.lang.String)")
   @Nonnull
   public static StringBuilder afterInit(
@@ -23,7 +22,6 @@ public class StringBuilderCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-
         module.onStringBuilderInit(result, (CharSequence) params[0]);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterInit threw", e);
@@ -40,7 +38,6 @@ public class StringBuilderCallSite {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
-
         module.onStringBuilderInit(result, (CharSequence) params[1]);
       } catch (final Throwable e) {
         module.onUnexpectedException("afterInitWithCapacity threw", e);
@@ -49,10 +46,10 @@ public class StringBuilderCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "scala.collection.mutable.StringBuilder scala.collection.mutable.StringBuilder.append(java.lang.String)")
-  @CallSite.After(
-      "scala.collection.mutable.StringBuilder scala.collection.mutable.StringBuilder.append(scala.collection.mutable.StringBuilder)")
+  @CallSite.After("scala.collection.mutable.StringBuilder scala.collection.mutable.StringBuilder."
+      + "append(java.lang.String)")
+  @CallSite.After("scala.collection.mutable.StringBuilder scala.collection.mutable.StringBuilder."
+      + "append(scala.collection.mutable.StringBuilder)")
   @Nonnull
   public static StringBuilder afterAppend(
       @CallSite.This @Nonnull final StringBuilder self,
@@ -69,16 +66,15 @@ public class StringBuilderCallSite {
     return result;
   }
 
-  @CallSite.Around(
-      "scala.collection.mutable.StringBuilder scala.collection.mutable.StringBuilder.append(java.lang.Object)")
+  @CallSite.Around("scala.collection.mutable.StringBuilder scala.collection.mutable."
+      + "StringBuilder.append(java.lang.Object)")
   @Nonnull
-  @SuppressFBWarnings(
-      "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE") // we do check for null on self
-  // parameter
-  public static StringBuilder aroundAppend(
+  @// we do check for null on self
+  SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
+  public static // parameter
+  StringBuilder aroundAppend(
       @CallSite.This @Nullable final StringBuilder self,
-      @CallSite.Argument(0) @Nullable final Object param)
-      throws Throwable {
+      @CallSite.Argument(0) @Nullable final Object param) throws Throwable {
     try {
       if (self == null) {
         throw new NullPointerException();
@@ -96,8 +92,8 @@ public class StringBuilderCallSite {
       return result;
     } catch (final Throwable e) {
       final String clazz = StringBuilderCallSite.class.getName();
-      throw StackUtils.filterUntil(
-          e, s -> s.getClassName().equals(clazz) && s.getMethodName().equals("aroundAppend"));
+      throw StackUtils.filterUntil(e, s -> s.getClassName().equals(clazz)
+          && s.getMethodName().equals("aroundAppend"));
     }
   }
 

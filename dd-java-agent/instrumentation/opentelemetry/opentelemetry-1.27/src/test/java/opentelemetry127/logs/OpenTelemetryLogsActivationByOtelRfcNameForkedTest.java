@@ -6,7 +6,6 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 // by OTel RFC config name. GlobalOpenTelemetry holds static state that must reset between variants.
 @WithConfig(key = "logs.otel.enabled", value = "true")
 class OpenTelemetryLogsActivationByOtelRfcNameForkedTest extends OpenTelemetryLogsActivationTest {
-
   @Override
   boolean shouldBeInjected() {
     return true;

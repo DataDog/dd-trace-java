@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.jfr.backpressure;
 
 import static datadog.trace.api.sampling.PerRecordingRateLimiter.samplingWindowsPerRecording;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.jfr.WindowSampler;
 import java.time.Duration;
@@ -27,7 +26,8 @@ final class BackpressureSampler extends WindowSampler<BackpressureSampleEvent> {
   }
 
   protected static int getSamplesPerWindow(final Config config) {
-    return config.getProfilingBackPressureSampleLimit()
-        / samplingWindowsPerRecording(config.getProfilingUploadPeriod(), SAMPLING_WINDOW);
+    return config.getProfilingBackPressureSampleLimit() / samplingWindowsPerRecording(
+        config.getProfilingUploadPeriod(),
+        SAMPLING_WINDOW);
   }
 }

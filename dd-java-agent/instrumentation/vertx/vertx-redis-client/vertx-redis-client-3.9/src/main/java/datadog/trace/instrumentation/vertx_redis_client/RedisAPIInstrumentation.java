@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDefaultMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isVirtual;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,7 +13,8 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public RedisAPIInstrumentation() {
     super("vertx", "vertx-redis-client");
   }
@@ -22,7 +22,8 @@ public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ResponseHandlerWrapper", packageName + ".VertxRedisClientDecorator",
+        packageName + ".ResponseHandlerWrapper",
+        packageName + ".VertxRedisClientDecorator"
     };
   }
 
@@ -37,7 +38,8 @@ public class RedisAPIInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.vertx.redis.client.RedisAPI", "io.vertx.redis.client.impl.RedisAPIImpl"
+        "io.vertx.redis.client.RedisAPI",
+        "io.vertx.redis.client.impl.RedisAPIImpl"
     };
   }
 

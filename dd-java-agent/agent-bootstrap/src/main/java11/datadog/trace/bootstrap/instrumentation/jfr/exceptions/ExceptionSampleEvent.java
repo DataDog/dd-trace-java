@@ -14,19 +14,14 @@ import jdk.jfr.Name;
 public class ExceptionSampleEvent extends Event implements ContextualEvent {
   @Label("Exception Type")
   private final String type;
-
   @Label("Exception message")
   private final String message;
-
   @Label("Sampled")
   private final boolean sampled;
-
   @Label("First occurrence")
   private final boolean firstOccurrence;
-
   @Label("Local Root Span Id")
   private long localRootSpanId;
-
   @Label("Span Id")
   private long spanId;
 

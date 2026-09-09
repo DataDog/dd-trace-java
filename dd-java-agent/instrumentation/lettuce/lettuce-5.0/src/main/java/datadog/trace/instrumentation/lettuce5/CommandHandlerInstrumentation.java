@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,8 +23,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public CommandHandlerInstrumentation() {
     super("lettuce", "lettuce-5", "lettuce-5-async");
   }
@@ -44,10 +43,10 @@ public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("decode"))
-            .and(takesArgument(0, named("io.netty.channel.ChannelHandlerContext")))
-            .and(takesArgument(1, named("io.netty.buffer.ByteBuf")))
-            .and(takesArgument(2, named("io.lettuce.core.protocol.RedisCommand"))),
+          .and(named("decode"))
+          .and(takesArgument(0, named("io.netty.channel.ChannelHandlerContext")))
+          .and(takesArgument(1, named("io.netty.buffer.ByteBuf")))
+          .and(takesArgument(2, named("io.lettuce.core.protocol.RedisCommand"))),
         getClass().getName() + "$Decode");
   }
 
@@ -58,7 +57,8 @@ public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTra
       // if it's something we're tracing, it will always be an AsyncCommand
       if (command instanceof AsyncCommand) {
         return startTaskScope(
-            InstrumentationContext.get(AsyncCommand.class, State.class), (AsyncCommand) command);
+            InstrumentationContext.get(AsyncCommand.class, State.class),
+            (AsyncCommand) command);
       }
       return null;
     }

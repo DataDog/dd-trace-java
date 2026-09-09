@@ -9,9 +9,10 @@ import datadog.trace.api.telemetry.MetricCollector;
 import java.util.Arrays;
 import java.util.Collection;
 
-/** RUM version of IntegrationPeriodicAction that sends RUM telemetry metrics. */
+/**
+ * RUM version of IntegrationPeriodicAction that sends RUM telemetry metrics.
+ */
 public class RumPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
-
   private final RumTelemetryCollector telemetryCollector;
 
   public RumPeriodicAction(RumTelemetryCollector telemetryCollector) {
@@ -36,22 +37,21 @@ public class RumPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
 
   private Metric convertToTelemetryMetric(MetricCollector.Metric raw) {
     return new Metric()
-        .namespace(raw.namespace)
-        .metric(raw.metricName)
-        .type(Metric.TypeEnum.COUNT)
-        .common(raw.common)
-        .tags(raw.tags)
-        .addPointsItem(Arrays.asList(raw.timestamp, raw.value));
+      .namespace(raw.namespace)
+      .metric(raw.metricName)
+      .type(Metric.TypeEnum.COUNT)
+      .common(raw.common)
+      .tags(raw.tags)
+      .addPointsItem(Arrays.asList(raw.timestamp, raw.value));
   }
 
   private DistributionSeries convertToDistributionSeries(
       MetricCollector.DistributionSeriesPoint point) {
-    DistributionSeries distribution =
-        new DistributionSeries()
-            .namespace(point.namespace)
-            .metric(point.metricName)
-            .common(point.common)
-            .tags(point.tags);
+    DistributionSeries distribution = new DistributionSeries()
+      .namespace(point.namespace)
+      .metric(point.metricName)
+      .common(point.common)
+      .tags(point.tags);
     distribution.addPoint(point.value);
     return distribution;
   }

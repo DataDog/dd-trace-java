@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -25,8 +24,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class MultipartInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public MultipartInstrumentation() {
     super("servlet", "multipart");
   }
@@ -69,12 +68,16 @@ public class MultipartInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static String onExit(
-        @Advice.Return final String name, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final String name,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         module.taintString(
-            ctx, name, SourceTypes.REQUEST_MULTIPART_PARAMETER, "Content-Disposition");
+            ctx,
+            name,
+            SourceTypes.REQUEST_MULTIPART_PARAMETER,
+            "Content-Disposition");
       }
       return name;
     }
@@ -143,7 +146,8 @@ public class MultipartInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_MULTIPART_PARAMETER)
     public static void onExit(
-        @Advice.Return final InputStream inputStream, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final InputStream inputStream,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (null == inputStream) {
         return;
       }

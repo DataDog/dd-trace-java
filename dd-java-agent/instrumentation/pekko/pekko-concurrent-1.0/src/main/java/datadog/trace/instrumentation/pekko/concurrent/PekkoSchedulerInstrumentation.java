@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,11 +15,13 @@ import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-/** Active span capturing and continuation for Pekko's async scheduled tasks. */
+/**
+ * Active span capturing and continuation for Pekko's async scheduled tasks.
+ */
 @AutoService(InstrumenterModule.class)
 public class PekkoSchedulerInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public PekkoSchedulerInstrumentation() {
     super("java_concurrent", "pekko_concurrent", "pekko_scheduler");
   }
@@ -44,10 +45,10 @@ public class PekkoSchedulerInstrumentation extends InstrumenterModule.ContextTra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(nameEndsWith("schedule"))
-            .and(takesArgument(0, named("scala.concurrent.ExecutionContext")))
-            .and(takesArgument(1, Runnable.class))
-            .and(takesArgument(2, named("scala.concurrent.duration.FiniteDuration"))),
+          .and(nameEndsWith("schedule"))
+          .and(takesArgument(0, named("scala.concurrent.ExecutionContext")))
+          .and(takesArgument(1, Runnable.class))
+          .and(takesArgument(2, named("scala.concurrent.duration.FiniteDuration"))),
         getClass().getName() + "$Schedule");
   }
 

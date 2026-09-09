@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import org.tabletest.junit.TableTest;
 
@@ -22,7 +21,11 @@ class TagValueTest {
     "DD ; != W3C _ | 'foo9;' | DATADOG | 'foo9_' | W3C     | false"
   })
   void tagValuesShouldUseCachedValuesWhenAppropriate(
-      String seq1, Encoding enc1, String seq2, Encoding enc2, boolean same) {
+      String seq1,
+      Encoding enc1,
+      String seq2,
+      Encoding enc2,
+      boolean same) {
     TagValue tv1 = TagValue.from(enc1, seq1);
     TagValue tv2 = TagValue.from(enc2, seq2);
 

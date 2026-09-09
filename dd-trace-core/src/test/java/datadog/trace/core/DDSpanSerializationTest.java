@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.GrowableBuffer;
@@ -56,7 +55,6 @@ import org.tabletest.junit.TableTest;
 
 @WithConfig(key = EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, value = "false")
 public class DDSpanSerializationTest extends DDCoreJavaSpecification {
-
   @BeforeAll
   static void beforeAll() {
     ProcessTags.reset(Config.get());
@@ -132,8 +130,7 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     "Long.MAX_VALUE plus one    | 9223372036854775808  |          ",
     "2^64 minus one             | 18446744073709551615 | some-type"
   })
-  void serializeTraceWithIdAsIntV05(String scenario, String value, String spanType)
-      throws Exception {
+  void serializeTraceWithIdAsIntV05(String scenario, String value, String spanType) throws Exception {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
     DDTraceId traceId = DDTraceId.from(value);
@@ -181,48 +178,55 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                              | baggage     | tags        | expected               | injectBaggage",
-    "empty baggage and tags inject         | [:]         | [:]         | [:]                    | true         ",
-    "baggage only inject                   | [foo: bbar] | [:]         | [foo: bbar]            | true         ",
-    "baggage and tags inject no overlap    | [foo: bbar] | [bar: tfoo] | [foo: bbar, bar: tfoo] | true         ",
-    "baggage and tags inject tag wins      | [foo: bbar] | [foo: tbar] | [foo: tbar]            | true         ",
-    "empty baggage and tags no inject      | [:]         | [:]         | [:]                    | false        ",
-    "baggage only no inject                | [foo: bbar] | [:]         | [:]                    | false        ",
-    "baggage and tags no inject no overlap | [foo: bbar] | [bar: tfoo] | [bar: tfoo]            | false        ",
-    "baggage and tags no inject tag wins   | [foo: bbar] | [foo: tbar] | [foo: tbar]            | false        "
+    "scenario                              | baggage     | tags        | expected      ",
+    "         | injectBaggage                                                          ",
+    "empty baggage and tags inject         | [:]         | [:]         | [:]           ",
+    "         | true                                                                   ",
+    "baggage only inject                   | [foo: bbar] | [:]         | [foo: bbar]   ",
+    "         | true                                                                   ",
+    "baggage and tags inject no overlap    | [foo: bbar] | [bar: tfoo] | [foo: bbar,   ",
+    "bar: tfoo] | true                                                                 ",
+    "baggage and tags inject tag wins      | [foo: bbar] | [foo: tbar] | [foo: tbar]   ",
+    "         | true                                                                   ",
+    "empty baggage and tags no inject      | [:]         | [:]         | [:]           ",
+    "         | false                                                                  ",
+    "baggage only no inject                | [foo: bbar] | [:]         | [:]           ",
+    "         | false                                                                  ",
+    "baggage and tags no inject no overlap | [foo: bbar] | [bar: tfoo] | [bar: tfoo]   ",
+    "         | false                                                                  ",
+    "baggage and tags no inject tag wins   | [foo: bbar] | [foo: tbar] | [foo: tbar]   ",
+    "         | false                                                                  "
   })
   void serializeTraceWithBaggageAndTagsCorrectlyV04(
       String scenario,
       Map<String, String> baggage,
       Map<String, String> tags,
       Map<String, String> expected,
-      boolean injectBaggage)
-      throws Exception {
+      boolean injectBaggage) throws Exception {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            baggage,
-            false,
-            null,
-            tags.size(),
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null,
-            injectBaggage,
-            true);
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        baggage,
+        false,
+        null,
+        tags.size(),
+        tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        null,
+        injectBaggage,
+        true);
     context.setAllTags(tags);
     DDSpan span = DDSpan.create("test", 0, context, null);
     CaptureBuffer capture = new CaptureBuffer();
@@ -258,48 +262,55 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                              | baggage     | tags        | expected               | injectBaggage",
-    "empty baggage and tags inject         | [:]         | [:]         | [:]                    | true         ",
-    "baggage only inject                   | [foo: bbar] | [:]         | [foo: bbar]            | true         ",
-    "baggage and tags inject no overlap    | [foo: bbar] | [bar: tfoo] | [foo: bbar, bar: tfoo] | true         ",
-    "baggage and tags inject tag wins      | [foo: bbar] | [foo: tbar] | [foo: tbar]            | true         ",
-    "empty baggage and tags no inject      | [:]         | [:]         | [:]                    | false        ",
-    "baggage only no inject                | [foo: bbar] | [:]         | [:]                    | false        ",
-    "baggage and tags no inject no overlap | [foo: bbar] | [bar: tfoo] | [bar: tfoo]            | false        ",
-    "baggage and tags no inject tag wins   | [foo: bbar] | [foo: tbar] | [foo: tbar]            | false        "
+    "scenario                              | baggage     | tags        | expected      ",
+    "         | injectBaggage                                                          ",
+    "empty baggage and tags inject         | [:]         | [:]         | [:]           ",
+    "         | true                                                                   ",
+    "baggage only inject                   | [foo: bbar] | [:]         | [foo: bbar]   ",
+    "         | true                                                                   ",
+    "baggage and tags inject no overlap    | [foo: bbar] | [bar: tfoo] | [foo: bbar,   ",
+    "bar: tfoo] | true                                                                 ",
+    "baggage and tags inject tag wins      | [foo: bbar] | [foo: tbar] | [foo: tbar]   ",
+    "         | true                                                                   ",
+    "empty baggage and tags no inject      | [:]         | [:]         | [:]           ",
+    "         | false                                                                  ",
+    "baggage only no inject                | [foo: bbar] | [:]         | [:]           ",
+    "         | false                                                                  ",
+    "baggage and tags no inject no overlap | [foo: bbar] | [bar: tfoo] | [bar: tfoo]   ",
+    "         | false                                                                  ",
+    "baggage and tags no inject tag wins   | [foo: bbar] | [foo: tbar] | [foo: tbar]   ",
+    "         | false                                                                  "
   })
   void serializeTraceWithBaggageAndTagsCorrectlyV05(
       String scenario,
       Map<String, String> baggage,
       Map<String, String> tags,
       Map<String, String> expected,
-      boolean injectBaggage)
-      throws Exception {
+      boolean injectBaggage) throws Exception {
     ListWriter writer = new ListWriter();
     CoreTracer tracer = tracerBuilder().writer(writer).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            baggage,
-            false,
-            null,
-            tags.size(),
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null,
-            injectBaggage,
-            true);
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        baggage,
+        false,
+        null,
+        tags.size(),
+        tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        null,
+        injectBaggage,
+        true);
     context.setAllTags(tags);
     DDSpan span = DDSpan.create("test", 0, context, null);
     CaptureBuffer capture = new CaptureBuffer();
@@ -379,13 +390,12 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
 
     Map<String, String> linkAttributes = new HashMap<>();
     linkAttributes.put("link.source", "unit-test");
-    DDSpanLink link =
-        new DDSpanLink(
-            DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
-            DDSpanId.fromHex("123456789abcdef0"),
-            (byte) 1,
-            "dd=s:1",
-            SpanAttributes.fromMap(linkAttributes));
+    DDSpanLink link = new DDSpanLink(
+        DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
+        DDSpanId.fromHex("123456789abcdef0"),
+        (byte) 1,
+        "dd=s:1",
+        SpanAttributes.fromMap(linkAttributes));
     span.addLink(link);
 
     V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
@@ -408,9 +418,9 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     context.setTag(
         SPAN_EVENTS,
         "[{\"time_unix_nano\":1234567890,\"name\":\"event.one\","
-            + "\"attributes\":{\"str\":\"value\",\"int\":42,\"double\":12.5,"
-            + "\"bool\":true,\"arr\":[\"x\",7,2.5,false]}},"
-            + "{\"time_unix_nano\":1234567891,\"name\":\"event.two\"}]");
+        + "\"attributes\":{\"str\":\"value\",\"int\":42,\"double\":12.5,"
+        + "\"bool\":true,\"arr\":[\"x\",7,2.5,false]}},"
+        + "{\"time_unix_nano\":1234567891,\"name\":\"event.two\"}]");
     DDSpan span = DDSpan.create("test", 0, context, null);
 
     V1PayloadReader.V1Span payload = V1PayloadReader.readFirstSpan(serializeV1Payload(span));
@@ -459,13 +469,16 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   void serializePropagationTagsOnFirstSpanOfChunk(String protocol, boolean rootFirst)
       throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    PropagationTags propagationTags =
-        tracer
-            .getPropagationTagsFactory()
-            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-3,_dd.p.any=value");
-    ExtractedContext extracted =
-        new ExtractedContext(
-            DDTraceId.ONE, 42, PrioritySampling.SAMPLER_KEEP, null, propagationTags, DATADOG);
+    PropagationTags propagationTags = tracer
+      .getPropagationTagsFactory()
+      .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-3,_dd.p.any=value");
+    ExtractedContext extracted = new ExtractedContext(
+        DDTraceId.ONE,
+        42,
+        PrioritySampling.SAMPLER_KEEP,
+        null,
+        propagationTags,
+        DATADOG);
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").asChildOf(extracted).start();
     DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root).start();
     DDSpan grandchild = (DDSpan) tracer.buildSpan("test", "grandchild").asChildOf(child).start();
@@ -497,8 +510,14 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
     assertEquals("value", metadata.get(0).get("_dd.p.any"));
     assertFalse(metadata.get(1).containsKey("_dd.p.dm"));
     assertFalse(metadata.get(1).containsKey("_dd.p.any"));
-    assertEquals(1L, metadata.stream().filter(span -> span.containsKey("_dd.p.dm")).count());
-    assertEquals(1L, metadata.stream().filter(span -> span.containsKey("_dd.p.any")).count());
+    assertEquals(1L, metadata
+      .stream()
+      .filter(span -> span.containsKey("_dd.p.dm"))
+      .count());
+    assertEquals(1L, metadata
+      .stream()
+      .filter(span -> span.containsKey("_dd.p.any"))
+      .count());
     assertEquals(rootFirst, metadata.get(0).containsKey("root.only"));
     assertFalse(metadata.get(1).containsKey("root.only"));
     if ("v1".equals(protocol)) {
@@ -510,27 +529,26 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   @Test
   void serializeTraceWithFlatMapTagV04() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            null,
-            false,
-            null,
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null);
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        null,
+        false,
+        null,
+        0,
+        tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        null);
     context.setTag("key1", "value1");
     Map<String, String> nested = new HashMap<>();
     nested.put("sub1", "v1");
@@ -577,27 +595,26 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   @Test
   void serializeTraceWithFlatMapTagV05() throws Exception {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            null,
-            false,
-            null,
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null);
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        null,
+        false,
+        null,
+        0,
+        tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        null);
     context.setTag("key1", "value1");
     Map<String, String> nested = new HashMap<>();
     nested.put("sub1", "v1");
@@ -710,30 +727,32 @@ public class DDSpanSerializationTest extends DDCoreJavaSpecification {
   }
 
   private DDSpanContext createSpanContext(
-      String spanType, CoreTracer tracer, DDTraceId traceId, long spanId) {
+      String spanType,
+      CoreTracer tracer,
+      DDTraceId traceId,
+      long spanId) {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("a-baggage", "value");
-    DDSpanContext ctx =
-        new DDSpanContext(
-            traceId,
-            spanId,
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            PrioritySampling.UNSET,
-            null,
-            baggage,
-            false,
-            spanType,
-            1,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            null);
+    DDSpanContext ctx = new DDSpanContext(
+        traceId,
+        spanId,
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        PrioritySampling.UNSET,
+        null,
+        baggage,
+        false,
+        spanType,
+        1,
+        tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        null);
     Map<String, Object> tags = new HashMap<>();
     tags.put("k1", "v1");
     ctx.setAllTags(tags);

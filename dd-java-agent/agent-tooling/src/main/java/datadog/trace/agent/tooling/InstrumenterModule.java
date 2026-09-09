@@ -5,7 +5,6 @@ import static java.util.Collections.addAll;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static net.bytebuddy.matcher.ElementMatchers.isSynthetic;
-
 import datadog.trace.agent.tooling.iast.IastPostProcessorFactory;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceMatcher;
@@ -28,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class InstrumenterModule implements Instrumenter {
-
   /**
    * Since several systems share the same instrumentation infrastructure in order to enable only the
    * applicable {@link Instrumenter instrumenters} on startup each {@linkplain InstrumenterModule}
@@ -54,17 +52,14 @@ public abstract class InstrumenterModule implements Instrumenter {
     USM,
     LLMOBS,
     CONTEXT_TRACKING,
-    RASP,
+    RASP
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
-
   protected static final String[] NO_HELPERS = {};
-
   private final List<String> instrumentationNames;
   private final String instrumentationPrimaryName;
   private final boolean enabled;
-
   protected final String packageName = Strings.getPackageName(getClass().getName());
 
   public InstrumenterModule(final String instrumentationName, final String... additionalNames) {
@@ -73,7 +68,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     addAll(instrumentationNames, additionalNames);
     instrumentationPrimaryName = instrumentationName;
 
-    enabled = InstrumenterConfig.get().isIntegrationEnabled(instrumentationNames, defaultEnabled());
+    enabled = InstrumenterConfig
+      .get()
+      .isIntegrationEnabled(instrumentationNames, defaultEnabled());
   }
 
   public String name() {
@@ -84,7 +81,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     return instrumentationNames;
   }
 
-  /** Modules with higher order values are applied <i>after</i> those with lower values. */
+  /**
+   * Modules with higher order values are applied <i>after</i> those with lower values.
+   */
   public int order() {
     return 0;
   }
@@ -96,16 +95,20 @@ public abstract class InstrumenterModule implements Instrumenter {
 
   public final ReferenceMatcher getInstrumentationMuzzle() {
     return loadStaticMuzzleReferences(getClass().getClassLoader(), getClass().getName())
-        .withReferenceProvider(runtimeMuzzleReferences());
+      .withReferenceProvider(runtimeMuzzleReferences());
   }
 
   public static ReferenceMatcher loadStaticMuzzleReferences(
-      ClassLoader classLoader, String instrumentationClass) {
+      ClassLoader classLoader,
+      String instrumentationClass) {
     String muzzleClass = instrumentationClass + "$Muzzle";
     try {
       // Muzzle class contains static references captured at build-time
       // see datadog.trace.agent.tooling.muzzle.MuzzleGenerator
-      return (ReferenceMatcher) classLoader.loadClass(muzzleClass).getMethod("create").invoke(null);
+      return (ReferenceMatcher) classLoader
+        .loadClass(muzzleClass)
+        .getMethod("create")
+        .invoke(null);
     } catch (Throwable e) {
       log.warn("Failed to load - muzzle.class={}", muzzleClass, e);
       return ReferenceMatcher.NO_REFERENCES;
@@ -131,32 +134,44 @@ public abstract class InstrumenterModule implements Instrumenter {
     return false;
   }
 
-  /** Override this to automatically inject all (non-bootstrap) helper dependencies. */
+  /**
+   * Override this to automatically inject all (non-bootstrap) helper dependencies.
+   */
   public boolean injectHelperDependencies() {
     return false;
   }
 
-  /** Classes that the muzzle plugin assumes will be injected */
+  /**
+   * Classes that the muzzle plugin assumes will be injected
+   */
   public String[] muzzleIgnoredClassNames() {
     return helperClassNames();
   }
 
-  /** Override this to supply additional Muzzle references at build time. */
+  /**
+   * Override this to supply additional Muzzle references at build time.
+   */
   public Reference[] additionalMuzzleReferences() {
     return null;
   }
 
-  /** Override this to supply additional Muzzle references during startup. */
+  /**
+   * Override this to supply additional Muzzle references during startup.
+   */
   public ReferenceProvider runtimeMuzzleReferences() {
     return null;
   }
 
-  /** Override this to validate against a specific named MuzzleDirective. */
+  /**
+   * Override this to validate against a specific named MuzzleDirective.
+   */
   public String muzzleDirective() {
     return null;
   }
 
-  /** Override this to supply additional class-loader requirements. */
+  /**
+   * Override this to supply additional class-loader requirements.
+   */
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return ANY_CLASS_LOADER;
   }
@@ -171,12 +186,16 @@ public abstract class InstrumenterModule implements Instrumenter {
     return isSynthetic();
   }
 
-  /** Override this to apply shading to method advice and injected helpers. */
+  /**
+   * Override this to apply shading to method advice and injected helpers.
+   */
   public Map<String, String> adviceShading() {
     return null;
   }
 
-  /** Override this to post-process the operand stack of any transformed methods. */
+  /**
+   * Override this to post-process the operand stack of any transformed methods.
+   */
   public Advice.PostProcessor.Factory postProcessor() {
     return null;
   }
@@ -211,14 +230,16 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   protected final boolean isShortcutMatchingEnabled(boolean defaultToShortcut) {
-    return InstrumenterConfig.get()
-        .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
+    return InstrumenterConfig
+      .get()
+      .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
   }
 
   /**
    * Force loading of classes that need to be instrumented, but are using during instrumentation.
    */
-  @SuppressForbidden // allow this use of Class.forName()
+  // allow this use of Class.forName()
+  @SuppressForbidden
   protected void preloadClasses() {
     String[] list = preloadClassNames();
     if (list != null) {
@@ -232,12 +253,16 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
   }
 
-  /** Get classes to force load */
+  /**
+   * Get classes to force load
+   */
   public String[] preloadClassNames() {
     return null;
   }
 
-  /** Parent class for all tracing related instrumentations */
+  /**
+   * Parent class for all tracing related instrumentations
+   */
   public abstract static class Tracing extends InstrumenterModule {
     public Tracing(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -249,7 +274,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
   }
 
-  /** Parent class for all profiling related instrumentations */
+  /**
+   * Parent class for all profiling related instrumentations
+   */
   public abstract static class Profiling extends InstrumenterModule {
     public Profiling(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -263,12 +290,15 @@ public abstract class InstrumenterModule implements Instrumenter {
     @Override
     public boolean isEnabled() {
       return super.isEnabled()
-          && !ConfigProvider.getInstance()
-              .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
+          && !ConfigProvider
+        .getInstance()
+        .getBoolean(ProfilingConfig.PROFILING_ULTRA_MINIMAL, false);
     }
   }
 
-  /** Parent class for all AppSec related instrumentations */
+  /**
+   * Parent class for all AppSec related instrumentations
+   */
   public abstract static class AppSec extends InstrumenterModule {
     public AppSec(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -280,7 +310,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
   }
 
-  /** Parent class for all IAST related instrumentations */
+  /**
+   * Parent class for all IAST related instrumentations
+   */
   public abstract static class Iast extends InstrumenterModule {
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -308,7 +340,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
   }
 
-  /** Parent class for all USM related instrumentations */
+  /**
+   * Parent class for all USM related instrumentations
+   */
   public abstract static class Usm extends InstrumenterModule {
     public Usm(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -320,7 +354,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
   }
 
-  /** Parent class for all CI related instrumentations */
+  /**
+   * Parent class for all CI related instrumentations
+   */
   public abstract static class CiVisibility extends InstrumenterModule {
     public CiVisibility(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
@@ -332,7 +368,9 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
   }
 
-  /** Parent class for all the context tracking instrumentations */
+  /**
+   * Parent class for all the context tracking instrumentations
+   */
   public abstract static class ContextTracking extends InstrumenterModule {
     public ContextTracking(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);

@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -23,7 +22,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class SessionInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private final String namespace;
 
   public SessionInstrumentation(String namespace) {
@@ -44,21 +44,19 @@ public class SessionInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("addMessageHandler")
-                    .and(takesArgument(0, named(namespace + ".websocket.MessageHandler")))),
+          .and(named("addMessageHandler")
+            .and(takesArgument(0, named(namespace + ".websocket.MessageHandler")))),
         getClass().getName() + "$LinkReceiverSessionArg0Advice");
 
     transformer.applyAdvice(
         isPublic()
+          .and(named("addMessageHandler")
             .and(
-                named("addMessageHandler")
-                    .and(
-                        takesArgument(
-                            1,
-                            namedOneOf(
-                                namespace + ".websocket.MessageHandler$Whole",
-                                namespace + ".websocket.MessageHandler$Partial")))),
+                takesArgument(
+                    1,
+                    namedOneOf(
+                        namespace + ".websocket.MessageHandler$Whole",
+                        namespace + ".websocket.MessageHandler$Partial")))),
         getClass().getName() + "$LinkReceiverSessionArg1Advice");
 
     transformer.applyAdvice(
@@ -67,10 +65,8 @@ public class SessionInstrumentation
 
     transformer.applyAdvice(
         isPublic()
-            .and(named("close"))
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, named(namespace + ".websocket.CloseReason")))),
+          .and(named("close"))
+          .and(takesArguments(1).and(takesArgument(0, named(namespace + ".websocket.CloseReason")))),
         getClass().getName() + "$SessionCloseAdvice");
 
     transformer.applyAdvice(
@@ -81,7 +77,8 @@ public class SessionInstrumentation
   public static class LinkReceiverSessionArg0Advice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.This final Session session, @Advice.Argument(0) final MessageHandler handler) {
+        @Advice.This final Session session,
+        @Advice.Argument(0) final MessageHandler handler) {
       if (handler != null) {
         final HandlerContext.Sender sessionState =
             InstrumentationContext.get(Session.class, HandlerContext.Sender.class).get(session);
@@ -95,10 +92,11 @@ public class SessionInstrumentation
           // implementations are introspecting it to understand the type of message handled and,
           // with
           // erasures, it won't work.
-          InstrumentationContext.get(MessageHandler.class, HandlerContext.Receiver.class)
-              .put(
-                  handler,
-                  new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId()));
+          InstrumentationContext
+            .get(MessageHandler.class, HandlerContext.Receiver.class)
+            .put(
+                handler,
+                new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId()));
         }
       }
     }
@@ -107,7 +105,8 @@ public class SessionInstrumentation
   public static class LinkReceiverSessionArg1Advice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.This final Session session, @Advice.Argument(1) final MessageHandler handler) {
+        @Advice.This final Session session,
+        @Advice.Argument(1) final MessageHandler handler) {
       if (handler != null) {
         final HandlerContext.Sender sessionState =
             InstrumentationContext.get(Session.class, HandlerContext.Sender.class).get(session);
@@ -121,10 +120,11 @@ public class SessionInstrumentation
           // implementations are introspecting it to understand the type of message handled and,
           // with
           // erasures, it won't work.
-          InstrumentationContext.get(MessageHandler.class, HandlerContext.Receiver.class)
-              .put(
-                  handler,
-                  new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId()));
+          InstrumentationContext
+            .get(MessageHandler.class, HandlerContext.Receiver.class)
+            .put(
+                handler,
+                new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId()));
         }
       }
     }
@@ -133,13 +133,15 @@ public class SessionInstrumentation
   public static class LinkSenderSessionAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.This final Session session, @Advice.Return final RemoteEndpoint remoteEndpoint) {
+        @Advice.This final Session session,
+        @Advice.Return final RemoteEndpoint remoteEndpoint) {
       if (remoteEndpoint != null) {
         final HandlerContext.Sender sessionState =
             InstrumentationContext.get(Session.class, HandlerContext.Sender.class).get(session);
         if (sessionState != null) {
-          InstrumentationContext.get(RemoteEndpoint.class, HandlerContext.Sender.class)
-              .put(remoteEndpoint, sessionState);
+          InstrumentationContext
+            .get(RemoteEndpoint.class, HandlerContext.Sender.class)
+            .put(remoteEndpoint, sessionState);
         }
       }
     }
@@ -151,14 +153,16 @@ public class SessionInstrumentation
         @Advice.This final Session session,
         @Advice.Argument(0) final CloseReason reason,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(Session.class, HandlerContext.Sender.class).remove(session);
+      handlerContext = InstrumentationContext
+        .get(Session.class, HandlerContext.Sender.class)
+        .remove(session);
       if (handlerContext == null) {
         return null;
       }
-      return activateSpan(
-          DECORATE.startOutboundCloseSpan(
-              handlerContext, reason.getReasonPhrase(), reason.getCloseCode().getCode()));
+      return activateSpan(DECORATE.startOutboundCloseSpan(
+          handlerContext,
+          reason.getReasonPhrase(),
+          reason.getCloseCode().getCode()));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -179,9 +183,9 @@ public class SessionInstrumentation
     public static AgentScope before(
         @Advice.This final Session session,
         @Advice.Local("handlerContext") HandlerContext.Sender handlerContext) {
-
-      handlerContext =
-          InstrumentationContext.get(Session.class, HandlerContext.Sender.class).remove(session);
+      handlerContext = InstrumentationContext
+        .get(Session.class, HandlerContext.Sender.class)
+        .remove(session);
       if (handlerContext == null) {
         return null;
       }

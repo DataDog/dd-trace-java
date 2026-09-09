@@ -11,7 +11,6 @@ public class Allocation {
   public final Date endAt;
   public final List<Split> splits;
   public final Boolean doLog;
-
   private final transient Instant preciseStartAt;
   private final transient Instant preciseEndAt;
 

@@ -10,12 +10,13 @@ public class RemoteConfigHelper {
     String path = UUID.nameUUIDFromBytes(serviceName.getBytes(StandardCharsets.UTF_8)).toString();
     return String.format(
         "{\n"
-            + "\"targets\": \"\",\n"
-            + "\"target_files\": [\n"
-            + "    {\n"
-            + "      \"path\": \"datadog/2/LIVE_DEBUGGING/%s/config\",\n"
-            + "      \"raw\": \"%s\"\n"
-            + "}]}",
-        path, encodedConfig);
+        + "\"targets\": \"\",\n"
+        + "\"target_files\": [\n"
+        + "    {\n"
+        + "      \"path\": \"datadog/2/LIVE_DEBUGGING/%s/config\",\n"
+        + "      \"raw\": \"%s\"\n"
+        + "}]}",
+        path,
+        encodedConfig);
   }
 }

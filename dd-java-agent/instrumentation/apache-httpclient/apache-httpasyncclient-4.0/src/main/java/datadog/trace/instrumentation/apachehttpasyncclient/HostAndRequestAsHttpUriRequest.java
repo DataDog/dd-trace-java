@@ -10,7 +10,9 @@ import org.apache.http.RequestLine;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.message.AbstractHttpMessage;
 
-/** Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors */
+/**
+ * Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors
+ */
 public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implements HttpUriRequest {
   // other versions are not affected by this url parsing bug
   private static final boolean legacyTracingEnabled =
@@ -25,10 +27,9 @@ public class HostAndRequestAsHttpUriRequest extends AbstractHttpMessage implemen
     method = httpRequest.getRequestLine().getMethod();
     requestLine = httpRequest.getRequestLine();
     protocolVersion = requestLine.getProtocolVersion();
-    uri =
-        legacyTracingEnabled
-            ? URIUtils.safeParse(requestLine.getUri())
-            : URIUtils.safeConcat(httpHost.toURI(), requestLine.getUri());
+    uri = legacyTracingEnabled
+        ? URIUtils.safeParse(requestLine.getUri())
+        : URIUtils.safeConcat(httpHost.toURI(), requestLine.getUri());
     actualRequest = httpRequest;
   }
 

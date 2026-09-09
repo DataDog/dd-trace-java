@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.civisibility.codeowners.matcher.CharacterMatcher;
 import java.util.Collection;
 import java.util.List;
@@ -19,7 +18,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class EntryBuilderTest {
-
   @ParameterizedTest(name = "entry {0} match against {2} is {3}")
   @MethodSource("testEntryMatchArguments")
   void testEntryMatch(String pattern, List<String> owners, String path, boolean expectedResult) {
@@ -166,7 +164,8 @@ class EntryBuilderTest {
   private static String ownersToString(Collection<String> owners) {
     StringBuilder result = new StringBuilder();
     for (String owner : owners) {
-      result.append(owner).append(" "); // trailing spaces will be ignored by the matcher
+      // trailing spaces will be ignored by the matcher
+      result.append(owner).append(" ");
     }
     return result.toString();
   }
@@ -256,25 +255,25 @@ class EntryBuilderTest {
         arguments("# comment"),
         arguments(""),
         arguments("   "),
-        arguments("[a-z]*.txt @owner"), // character-class range, not a section header
-        arguments("[Bb]uild/ @owner"), // character-class set, not a section header
-        arguments("^caret-file @owner")); // '^' not followed by '['
+        // character-class range, not a section header
+        arguments("[a-z]*.txt @owner"),
+        // character-class set, not a section header
+        arguments("[Bb]uild/ @owner"),
+        // '^' not followed by '['
+        arguments("^caret-file @owner"));
   }
 
   @Test
   void testEntryInheritsSectionDefaultOwners() {
     CharacterMatcher.Factory matcherFactory = new CharacterMatcher.Factory();
     List<String> sectionDefaultOwners = singletonList("@docs-team");
-
     // an entry without its own owners inherits the section's default owners
     Entry inherited = new EntryBuilder(matcherFactory, "docs/").parse(sectionDefaultOwners);
     assertEquals(sectionDefaultOwners, inherited.getOwners());
-
     // an entry with its own owners overrides the section's default owners
     Entry overridden =
         new EntryBuilder(matcherFactory, "docs/setup.md @override").parse(sectionDefaultOwners);
     assertEquals(singletonList("@override"), overridden.getOwners());
-
     // with no section defaults, owners stay empty (GitHub "unset ownership" semantics)
     Entry noOwners = new EntryBuilder(matcherFactory, "generated/").parse(emptyList());
     assertEquals(emptyList(), noOwners.getOwners());

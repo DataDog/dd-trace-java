@@ -1,13 +1,18 @@
 package datadog.trace.civisibility.source.index;
 
-class JavaClass {}
+class JavaClass {
+}
 
-class JavaChildClass extends JavaClass {}
+class JavaChildClass extends JavaClass {
+}
 
-interface JavaInterface {}
+interface JavaInterface {
+}
 
-interface JavaChildInterface extends JavaInterface {}
+interface JavaChildInterface extends JavaInterface {
+}
 
 enum JavaEnum {}
 
-@interface JavaAnnotation {}
+@interface JavaAnnotation {
+}

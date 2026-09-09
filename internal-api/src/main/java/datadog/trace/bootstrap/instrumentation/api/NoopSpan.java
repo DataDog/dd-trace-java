@@ -12,7 +12,8 @@ import datadog.trace.api.sampling.PrioritySampling;
 class NoopSpan extends ImmutableSpan implements AgentSpan, SelfScopedContext {
   static final NoopSpan INSTANCE = new NoopSpan();
 
-  NoopSpan() {}
+  NoopSpan() {
+  }
 
   @Override
   public DDTraceId getTraceId() {

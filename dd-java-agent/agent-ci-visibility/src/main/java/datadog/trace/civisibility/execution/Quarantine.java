@@ -9,7 +9,6 @@ import datadog.trace.api.civisibility.execution.TestStatus;
  * failure so that the build status is not affected.
  */
 public class Quarantine implements TestExecutionPolicy {
-
   private boolean testExecuted;
 
   @Override

@@ -18,7 +18,6 @@ package datadog.trace.api.featureflag;
  * </ul>
  */
 public final class SpanEnrichmentEvent {
-
   private final boolean serialIdPresent;
   private final int serialId;
   private final boolean doLog;
@@ -41,9 +40,13 @@ public final class SpanEnrichmentEvent {
     this.defaultValue = defaultValue;
   }
 
-  /** A UFC split evaluation carrying a serial id (and, when {@code doLog}, a subject). */
+  /**
+   * A UFC split evaluation carrying a serial id (and, when {@code doLog}, a subject).
+   */
   public static SpanEnrichmentEvent serialId(
-      final int serialId, final boolean doLog, final String targetingKey) {
+      final int serialId,
+      final boolean doLog,
+      final String targetingKey) {
     return new SpanEnrichmentEvent(true, serialId, doLog, targetingKey, null, null);
   }
 
@@ -55,7 +58,9 @@ public final class SpanEnrichmentEvent {
     return new SpanEnrichmentEvent(false, 0, false, null, flagKey, value);
   }
 
-  /** True for the serial-id shape; false for the runtime-default shape. */
+  /**
+   * True for the serial-id shape; false for the runtime-default shape.
+   */
   public boolean hasSerialId() {
     return serialIdPresent;
   }

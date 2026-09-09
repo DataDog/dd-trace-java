@@ -13,7 +13,6 @@ import javax.annotation.Nullable;
  * datadog.trace.api.civisibility.CIVisibility}).
  */
 public class ManualApiTestSuite implements DDTestSuite {
-
   private final TestSuiteImpl delegate;
   private final String frameworkName;
 

@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.function.Function.identity;
-
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -13,11 +12,10 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public final class Functions {
-
-  private Functions() {}
+  private Functions() {
+  }
 
   public abstract static class Concatenate {
-
     public CharSequence concatenate(CharSequence left, CharSequence right) {
       return UTF8BytesString.create(String.valueOf(left) + right);
     }
@@ -82,7 +80,6 @@ public final class Functions {
   }
 
   public static class PrefixJoin extends Join {
-
     public PrefixJoin(CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       super(joiner, transformer);
     }
@@ -93,7 +90,8 @@ public final class Functions {
     }
 
     public static PrefixJoin of(
-        CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
+        CharSequence joiner,
+        Function<CharSequence, CharSequence> transformer) {
       return new PrefixJoin(joiner, transformer);
     }
 
@@ -105,7 +103,6 @@ public final class Functions {
   }
 
   public static class SuffixJoin extends Join {
-
     public SuffixJoin(CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
       super(joiner, transformer);
     }
@@ -116,7 +113,8 @@ public final class Functions {
     }
 
     public static SuffixJoin of(
-        CharSequence joiner, Function<CharSequence, CharSequence> transformer) {
+        CharSequence joiner,
+        Function<CharSequence, CharSequence> transformer) {
       return new SuffixJoin(joiner, transformer);
     }
 
@@ -130,7 +128,6 @@ public final class Functions {
   public static final Function<String, UTF8BytesString> UTF8_ENCODE = UTF8BytesString::create;
 
   public static final class LowerCase implements Function<String, String> {
-
     public static final LowerCase INSTANCE = new LowerCase();
 
     @Override
@@ -140,7 +137,6 @@ public final class Functions {
   }
 
   public static final class ToString<T> implements Function<T, String> {
-
     @Override
     public String apply(T key) {
       return key.toString();
@@ -153,13 +149,13 @@ public final class Functions {
 
   @SuppressWarnings("unchecked")
   private static final class NewInstance<Object, T> implements Function<Object, T> {
-
     private final MethodHandle methodHandle;
 
     private NewInstance(Class<T> type) {
       try {
-        this.methodHandle =
-            MethodHandles.lookup().findConstructor(type, MethodType.methodType(void.class));
+        this.methodHandle = MethodHandles
+          .lookup()
+          .findConstructor(type, MethodType.methodType(void.class));
       } catch (NoSuchMethodException | IllegalAccessException e) {
         throw new IllegalStateException(e);
       }
@@ -179,13 +175,12 @@ public final class Functions {
 
   public static final Function<byte[], String> UTF8_BYTES_TO_STRING =
       bytes -> new String(bytes, UTF_8);
-
   public static final Function<byte[], String> BASE64_DECODE =
       bytes -> {
-        try {
-          return new String(Base64.getDecoder().decode(bytes), UTF_8);
-        } catch (final Exception ignored) {
-          return null;
-        }
-      };
+    try {
+      return new String(Base64.getDecoder().decode(bytes), UTF_8);
+    } catch (final Exception ignored) {
+      return null;
+    }
+  };
 }

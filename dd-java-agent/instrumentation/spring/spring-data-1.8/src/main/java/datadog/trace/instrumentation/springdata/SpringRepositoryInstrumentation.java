@@ -1,9 +1,7 @@
 // This file includes software developed at SignalFx
-
 package datadog.trace.instrumentation.springdata;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,8 +11,8 @@ import org.springframework.data.repository.core.support.RepositoryProxyPostProce
 
 @AutoService(InstrumenterModule.class)
 public final class SpringRepositoryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SpringRepositoryInstrumentation() {
     super("spring-data");
   }
@@ -27,9 +25,9 @@ public final class SpringRepositoryInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringDataDecorator",
-      packageName + ".RepositoryInterceptor",
-      packageName + ".InterceptingRepositoryProxyPostProcessor",
+        packageName + ".SpringDataDecorator",
+        packageName + ".RepositoryInterceptor",
+        packageName + ".InterceptingRepositoryProxyPostProcessor"
     };
   }
 

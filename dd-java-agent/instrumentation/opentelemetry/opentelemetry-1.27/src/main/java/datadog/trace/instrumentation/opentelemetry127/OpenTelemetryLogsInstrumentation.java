@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.logs.OtelLoggerProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,8 +23,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryLogsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice {
   public OpenTelemetryLogsInstrumentation() {
     super("opentelemetry-logs", "opentelemetry-1.27", "opentelemetry-1");
   }
@@ -48,8 +47,8 @@ public class OpenTelemetryLogsInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+        "io.opentelemetry.api.DefaultOpenTelemetry",
+        "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
     };
   }
 
@@ -61,10 +60,10 @@ public class OpenTelemetryLogsInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.opentelemetry.shim.logs.OtelLogger",
-      "datadog.opentelemetry.shim.logs.OtelLoggerBuilder",
-      "datadog.opentelemetry.shim.logs.OtelLoggerProvider",
-      "datadog.opentelemetry.shim.logs.OtelLogRecordBuilder",
+        "datadog.opentelemetry.shim.logs.OtelLogger",
+        "datadog.opentelemetry.shim.logs.OtelLoggerBuilder",
+        "datadog.opentelemetry.shim.logs.OtelLoggerProvider",
+        "datadog.opentelemetry.shim.logs.OtelLogRecordBuilder"
     };
   }
 
@@ -73,9 +72,9 @@ public class OpenTelemetryLogsInstrumentation extends InstrumenterModule.Tracing
     // LoggerProvider OpenTelemetry.getLogsBridge()
     transformer.applyAdvice(
         isMethod()
-            .and(named("getLogsBridge"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.logs.LoggerProvider"))),
+          .and(named("getLogsBridge"))
+          .and(takesNoArguments())
+          .and(returns(named("io.opentelemetry.api.logs.LoggerProvider"))),
         OpenTelemetryLogsInstrumentation.class.getName() + "$LoggerProviderAdvice");
   }
 

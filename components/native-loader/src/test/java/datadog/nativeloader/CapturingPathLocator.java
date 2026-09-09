@@ -1,7 +1,6 @@
 package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Deque;
@@ -27,8 +26,7 @@ public final class CapturingPathLocator implements PathLocator {
       LibraryResolver resolver,
       PlatformSpec platformSpec,
       boolean withSkipCompFallback,
-      String... expectedPaths)
-      throws Exception {
+      String... expectedPaths) throws Exception {
     String comp = "comp";
 
     CapturingPathLocator fullCaptureLocator = new CapturingPathLocator(Integer.MAX_VALUE);
@@ -37,7 +35,6 @@ public final class CapturingPathLocator implements PathLocator {
     for (int i = 0; !fullCaptureLocator.isEmpty(); ++i) {
       if (i >= expectedPaths.length) {
         // checking the final fallback here was confusing when debugging tests
-
         if (!withSkipCompFallback) {
           fullCaptureLocator.assertDone();
         } else {
@@ -74,7 +71,6 @@ public final class CapturingPathLocator implements PathLocator {
 
   final int simulateNotFoundCount;
   int numRequests;
-
   final Deque<LocateRequest> locateRequests = new LinkedList<>();
 
   public CapturingPathLocator() {
@@ -90,7 +86,9 @@ public final class CapturingPathLocator implements PathLocator {
   public URL locate(String optionalComponent, String path) {
     this.locateRequests.addLast(new LocateRequest(optionalComponent, path));
 
-    if (this.numRequests++ < this.simulateNotFoundCount) return null;
+    if (this.numRequests++ < this.simulateNotFoundCount) {
+      return null;
+    }
     try {
       return new URL("http://localhost");
     } catch (MalformedURLException e) {

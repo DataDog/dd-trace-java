@@ -26,7 +26,6 @@ import javax.annotation.Nullable;
  * datadog.trace.api.civisibility.CIVisibility})
  */
 public class ManualApiTestModule extends AbstractTestModule implements DDTestModule {
-
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionResults executionResults = new ExecutionResults();
 
@@ -63,29 +62,29 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized) {
-    TestSuiteImpl suite =
-        new TestSuiteImpl(
-            span.spanContext(),
-            moduleName,
-            testSuiteName,
-            null,
-            false,
-            testClass,
-            startTime,
-            parallelized,
-            InstrumentationType.MANUAL_API,
-            TestFrameworkInstrumentation.OTHER, // for metric purposes, framework is OTHER
-            config,
-            metricCollector,
-            testDecorator,
-            sourcePathResolver,
-            codeowners,
-            linesResolver,
-            coverageStoreFactory,
-            executionResults,
-            ConfigurationErrors.NONE,
-            Collections.emptyList(),
-            tagsPropagator::propagateCiVisibilityTags);
+    TestSuiteImpl suite = new TestSuiteImpl(
+        span.spanContext(),
+        moduleName,
+        testSuiteName,
+        null,
+        false,
+        testClass,
+        startTime,
+        parallelized,
+        InstrumentationType.MANUAL_API,
+        // for metric purposes, framework is OTHER
+        TestFrameworkInstrumentation.OTHER,
+        config,
+        metricCollector,
+        testDecorator,
+        sourcePathResolver,
+        codeowners,
+        linesResolver,
+        coverageStoreFactory,
+        executionResults,
+        ConfigurationErrors.NONE,
+        Collections.emptyList(),
+        tagsPropagator::propagateCiVisibilityTags);
 
     String frameworkName = testDecorator.component().toString();
     suite.setTag(Tags.TEST_FRAMEWORK, frameworkName);

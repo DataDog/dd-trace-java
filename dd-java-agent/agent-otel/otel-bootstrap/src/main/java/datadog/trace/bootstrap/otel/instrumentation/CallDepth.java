@@ -2,7 +2,9 @@ package datadog.trace.bootstrap.otel.instrumentation;
 
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 
-/** Redirects requests to our own {@link CallDepthThreadLocalMap}. */
+/**
+ * Redirects requests to our own {@link CallDepthThreadLocalMap}.
+ */
 public final class CallDepth {
   private final Class<?> clazz;
 

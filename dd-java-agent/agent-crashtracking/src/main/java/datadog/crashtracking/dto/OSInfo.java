@@ -7,10 +7,8 @@ import java.util.Objects;
 public final class OSInfo {
   public final String architecture;
   public final String bitness;
-
   @Json(name = "os_type")
   public final String osType;
-
   public final String version;
 
   public OSInfo(String architecture, String bitness, String osType, String version) {
@@ -48,6 +46,9 @@ public final class OSInfo {
       osName = "Mac OS";
     }
     return new OSInfo(
-        SystemProperties.get("os.arch"), bitness, osName, SystemProperties.get("os.version"));
+        SystemProperties.get("os.arch"),
+        bitness,
+        osName,
+        SystemProperties.get("os.version"));
   }
 }

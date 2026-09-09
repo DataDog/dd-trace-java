@@ -13,7 +13,6 @@ import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
@@ -28,7 +27,6 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class HttpInjectorTest extends AbstractHttpInjectorTest {
-
   protected boolean tracePropagationB3Padding() {
     return DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
   }
@@ -97,10 +95,9 @@ class HttpInjectorTest extends AbstractHttpInjectorTest {
       }
     }
     if (styles.contains(TracePropagationStyle.B3SINGLE)) {
-      String expectedB3Value =
-          samplingPriority != UNSET
-              ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
-              : b3TraceIdHex + "-" + b3SpanIdHex;
+      String expectedB3Value = samplingPriority != UNSET
+          ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
+          : b3TraceIdHex + "-" + b3SpanIdHex;
       assertEquals(expectedB3Value, carrier.get(B3_KEY));
       expectedSize++;
     }
@@ -168,10 +165,9 @@ class HttpInjectorTest extends AbstractHttpInjectorTest {
         expectedSize++;
       }
     } else if (style == TracePropagationStyle.B3SINGLE) {
-      String expectedB3Value =
-          samplingPriority != UNSET
-              ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
-              : b3TraceIdHex + "-" + b3SpanIdHex;
+      String expectedB3Value = samplingPriority != UNSET
+          ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
+          : b3TraceIdHex + "-" + b3SpanIdHex;
       assertEquals(expectedB3Value, carrier.get(B3_KEY));
       expectedSize++;
     }
@@ -210,7 +206,8 @@ class HttpInjectorTest extends AbstractHttpInjectorTest {
   }
 
   HttpCodec.Injector createInjector(
-      List<TracePropagationStyle> overriddenStyles, Map<String, String> invertedBaggageMapping) {
+      List<TracePropagationStyle> overriddenStyles,
+      Map<String, String> invertedBaggageMapping) {
     Config config = mock(Config.class);
     if (overriddenStyles != null) {
       LinkedHashSet<TracePropagationStyle> orderedSet = new LinkedHashSet<>(overriddenStyles);
@@ -218,7 +215,9 @@ class HttpInjectorTest extends AbstractHttpInjectorTest {
     }
     when(config.isTracePropagationStyleB3PaddingEnabled()).thenReturn(tracePropagationB3Padding());
     return HttpCodec.createInjector(
-        config, config.getTracePropagationStylesToInject(), invertedBaggageMapping);
+        config,
+        config.getTracePropagationStylesToInject(),
+        invertedBaggageMapping);
   }
 
   DDSpanContext mockedContext(

@@ -9,9 +9,9 @@ public enum RuleType {
   SSRF_RESPONSE(Type.SSRF, Variant.RESPONSE),
   SHELL_INJECTION(Type.COMMAND_INJECTION, Variant.SHELL),
   COMMAND_INJECTION(Type.COMMAND_INJECTION, Variant.EXEC);
-
   public final Type type;
-  @Nullable public final Variant variant;
+  @Nullable
+  public final Variant variant;
   private static final int numValues = RuleType.values().length;
 
   RuleType(Type type) {
@@ -32,7 +32,6 @@ public enum RuleType {
     SQL_INJECTION("sql_injection"),
     SSRF("ssrf"),
     COMMAND_INJECTION("command_injection");
-
     public final String name;
 
     Type(String name) {
@@ -50,7 +49,6 @@ public enum RuleType {
     EXEC("exec"),
     REQUEST("request"),
     RESPONSE("response");
-
     public final String name;
 
     Variant(String name) {

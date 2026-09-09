@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.log4j2;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private static final String TYPE_NAME = "org.apache.logging.log4j.ThreadContext";
 
   public ThreadContextInstrumentation() {
@@ -34,7 +34,8 @@ public class ThreadContextInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isTypeInitializer(), ThreadContextInstrumentation.class.getName() + "$ThreadContextAdvice");
+        isTypeInitializer(),
+        ThreadContextInstrumentation.class.getName() + "$ThreadContextAdvice");
   }
 
   @Override

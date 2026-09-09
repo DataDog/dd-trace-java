@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -13,14 +12,14 @@ public class WrappingStatusSettingResponseHandler implements HttpClientResponseH
   final HttpClientResponseHandler handler;
 
   public WrappingStatusSettingResponseHandler(
-      final AgentSpan span, final HttpClientResponseHandler handler) {
+      final AgentSpan span,
+      final HttpClientResponseHandler handler) {
     this.span = span;
     this.handler = handler;
   }
 
   @Override
-  public Object handleResponse(final ClassicHttpResponse response)
-      throws HttpException, IOException {
+  public Object handleResponse(final ClassicHttpResponse response) throws HttpException, IOException {
     if (null != span) {
       DECORATE.onResponse(span, response);
     }

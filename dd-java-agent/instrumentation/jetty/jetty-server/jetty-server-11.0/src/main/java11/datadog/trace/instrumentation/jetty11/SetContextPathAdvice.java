@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty11.JettyDecorator.DD_CONTEXT_PATH_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty11.JettyDecorator.DD_SERVLET_PATH_ATTRIBUTE;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -38,10 +37,9 @@ public class SetContextPathAdvice {
     span.setTag(SERVLET_CONTEXT, servletContext);
     req.setAttribute(DD_CONTEXT_PATH_ATTRIBUTE, servletContext);
     if (pathInContext != null) {
-      final String relativePath =
-          pathInContext.startsWith(servletContext)
-              ? pathInContext.substring(servletContext.length())
-              : pathInContext;
+      final String relativePath = pathInContext.startsWith(servletContext)
+          ? pathInContext.substring(servletContext.length())
+          : pathInContext;
       span.setTag(SERVLET_PATH, relativePath);
       req.setAttribute(DD_SERVLET_PATH_ATTRIBUTE, relativePath);
     }

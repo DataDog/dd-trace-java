@@ -16,17 +16,17 @@ import javax.servlet.http.HttpServletRequest;
  */
 @CallSite(spi = IastCallSites.class)
 public class HttpServletRequestCallSite {
-
   @Source(SourceTypes.REQUEST_PATH)
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getRequestURI()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getRequestURI()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathInfo()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper.getPathInfo()")
   @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequest.getPathTranslated()")
-  @CallSite.After(
-      "java.lang.String javax.servlet.http.HttpServletRequestWrapper.getPathTranslated()")
+  @CallSite.After("java.lang.String javax.servlet.http.HttpServletRequestWrapper."
+      + "getPathTranslated()")
   public static String afterPath(
-      @CallSite.This final HttpServletRequest self, @CallSite.Return final String retValue) {
+      @CallSite.This final HttpServletRequest self,
+      @CallSite.Return final String retValue) {
     if (null != retValue && !retValue.isEmpty()) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
@@ -45,10 +45,11 @@ public class HttpServletRequestCallSite {
 
   @Source(SourceTypes.REQUEST_URI)
   @CallSite.After("java.lang.StringBuffer javax.servlet.http.HttpServletRequest.getRequestURL()")
-  @CallSite.After(
-      "java.lang.StringBuffer javax.servlet.http.HttpServletRequestWrapper.getRequestURL()")
+  @CallSite.After("java.lang.StringBuffer javax.servlet.http.HttpServletRequestWrapper."
+      + "getRequestURL()")
   public static StringBuffer afterGetRequestURL(
-      @CallSite.This final HttpServletRequest self, @CallSite.Return final StringBuffer retValue) {
+      @CallSite.This final HttpServletRequest self,
+      @CallSite.Return final StringBuffer retValue) {
     if (null != retValue && retValue.length() > 0) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {

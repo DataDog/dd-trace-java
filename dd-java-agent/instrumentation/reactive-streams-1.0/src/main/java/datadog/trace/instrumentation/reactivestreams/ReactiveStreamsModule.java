@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.reactivestreams;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -20,11 +19,11 @@ public final class ReactiveStreamsModule extends InstrumenterModule.ContextTrack
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactiveStreamsContextPropagation",
-      packageName + ".ReactiveStreamsAsyncResultExtension",
-      packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
-      packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",
-      packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscription",
+        packageName + ".ReactiveStreamsContextPropagation",
+        packageName + ".ReactiveStreamsAsyncResultExtension",
+        packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
+        packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",
+        packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscription"
     };
   }
 

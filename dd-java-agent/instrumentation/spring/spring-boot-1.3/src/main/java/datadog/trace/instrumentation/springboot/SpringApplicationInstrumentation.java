@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.springboot;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,8 @@ import org.springframework.core.env.ConfigurableEnvironment;
  */
 @AutoService(InstrumenterModule.class)
 public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SpringApplicationInstrumentation() {
     super("spring-boot");
   }
@@ -31,21 +30,19 @@ public class SpringApplicationInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".DeploymentHelper",
-    };
+    return new String[] {packageName + ".DeploymentHelper"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("environmentPrepared")
-            .and(takesArgument(0, named("org.springframework.core.env.ConfigurableEnvironment"))),
+          .and(takesArgument(0, named("org.springframework.core.env.ConfigurableEnvironment"))),
         getClass().getName() + "$EnvironmentReadyV1Advice");
     // >= 2.4.0
     transformer.applyAdvice(
         named("environmentPrepared")
-            .and(takesArgument(1, named("org.springframework.core.env.ConfigurableEnvironment"))),
+          .and(takesArgument(1, named("org.springframework.core.env.ConfigurableEnvironment"))),
         getClass().getName() + "$EnvironmentReadyV2Advice");
   }
 

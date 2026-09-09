@@ -1,14 +1,12 @@
 package datadog.trace.instrumentation.zio.v2_0;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 
 public class FiberContext {
   private Context context;
   private final ContextContinuation continuation;
-
   private Context originalContext;
 
   public FiberContext() {

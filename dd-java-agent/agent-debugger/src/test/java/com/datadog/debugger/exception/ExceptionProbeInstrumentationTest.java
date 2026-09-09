@@ -12,7 +12,6 @@ import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.TestHelper.assertWithTimeout;
 import static utils.TestHelper.setFieldInConfig;
-
 import com.datadog.debugger.agent.ClassesToRetransformFinder;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.ConfigurationUpdater;
@@ -66,23 +65,21 @@ import org.junit.jupiter.api.condition.DisabledIf;
 
 public class ExceptionProbeInstrumentationTest {
   protected static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f5", 0);
-
   private final Instrumentation instr = ByteBuddyAgent.install();
   private final TestTraceInterceptor traceInterceptor = new TestTraceInterceptor();
   private ClassFileTransformer currentTransformer;
-  private final ClassNameFilter classNameFiltering =
-      new ClassNameFiltering(
-          Stream.of(
-                  "java.",
-                  "jdk.",
-                  "com.sun.",
-                  "sun.",
-                  "org.gradle.",
-                  "worker.org.gradle.",
-                  "org.junit.",
-                  "org.joor.",
-                  "com.datadog.debugger.exception.")
-              .collect(Collectors.toSet()));
+  private final ClassNameFilter classNameFiltering = new ClassNameFiltering(Stream
+    .of(
+        "java.",
+        "jdk.",
+        "com.sun.",
+        "sun.",
+        "org.gradle.",
+        "worker.org.gradle.",
+        "org.junit.",
+        "org.joor.",
+        "com.datadog.debugger.exception.")
+    .collect(Collectors.toSet()));
   private MockSampler probeSampler;
   private MockSampler globalSampler;
 
@@ -125,19 +122,20 @@ public class ExceptionProbeInstrumentationTest {
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    String fingerprint =
-        callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    // instrument exception stacktrace
+    String // instrument exception stacktrace
+    fingerprint = callMethodThrowingRuntimeException(testClass);
     assertWithTimeout(
-        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint), Duration.ofSeconds(30));
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     assertEquals(2, exceptionProbeManager.getProbes().size());
     callMethodNoException(testClass);
     assertEquals(0, listener.snapshots.size());
   }
 
   @Test
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
+  @DisabledIf(value = "datadog.environment.JavaVirtualMachine#isJ9", disabledReason = "Bug in J9:"
+      + " no LocalVariableTable for ClassFileTransformer")
   public void instrumentAndCaptureSnapshots() throws Exception {
     Config config = createConfig();
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
@@ -145,12 +143,15 @@ public class ExceptionProbeInstrumentationTest {
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering);
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot20";
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    String fingerprint =
-        callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    // instrument exception stacktrace
+    String // instrument exception stacktrace
+    fingerprint = callMethodThrowingRuntimeException(testClass);
     assertWithTimeout(
-        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint), Duration.ofSeconds(30));
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     assertEquals(2, exceptionProbeManager.getProbes().size());
-    callMethodThrowingRuntimeException(testClass); // generate snapshots
+    // generate snapshots
+    callMethodThrowingRuntimeException(testClass);
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
     assertEquals(1, listener.snapshots.size());
@@ -159,7 +160,8 @@ public class ExceptionProbeInstrumentationTest {
     assertEquals("oops", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
     ProbeLocation location = snapshot0.getProbe().getLocation();
     assertEquals(
-        location.getType() + "." + location.getMethod(), snapshot0.getStack().get(0).getFunction());
+        location.getType() + "." + location.getMethod(),
+        snapshot0.getStack().get(0).getFunction());
     MutableSpan span = traceInterceptor.getFirstSpan();
     assertEquals(snapshot0.getExceptionId(), span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_ID));
     assertEquals(fingerprint, span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_HASH));
@@ -182,12 +184,14 @@ public class ExceptionProbeInstrumentationTest {
     // instrument RuntimeException stacktrace
     String fingerprint0 = callMethodThrowingRuntimeException(testClass);
     assertWithTimeout(
-        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint0), Duration.ofSeconds(30));
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint0),
+        Duration.ofSeconds(30));
     assertEquals(2, exceptionProbeManager.getProbes().size());
     // instrument IllegalArgumentException stacktrace
     String fingerprint1 = callMethodThrowingIllegalArgException(testClass);
     assertWithTimeout(
-        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint1), Duration.ofSeconds(30));
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint1),
+        Duration.ofSeconds(30));
     assertEquals(4, exceptionProbeManager.getProbes().size());
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
@@ -215,9 +219,8 @@ public class ExceptionProbeInstrumentationTest {
   }
 
   @Test
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
+  @DisabledIf(value = "datadog.environment.JavaVirtualMachine#isJ9", disabledReason = "Bug in J9:"
+      + " no LocalVariableTable for ClassFileTransformer")
   public void recursive() throws Exception {
     Config config = createConfig();
     ExceptionProbeManager exceptionProbeManager =
@@ -229,9 +232,11 @@ public class ExceptionProbeInstrumentationTest {
     // instrument RuntimeException stacktrace
     String fingerprint = callMethodFiboException(testClass);
     assertWithTimeout(
-        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint), Duration.ofSeconds(30));
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     assertEquals(11, exceptionProbeManager.getProbes().size());
-    callMethodFiboException(testClass); // generate snapshots
+    // generate snapshots
+    callMethodFiboException(testClass);
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
     // limited by Config::getDebuggerExceptionMaxCapturedFrames
@@ -239,7 +244,8 @@ public class ExceptionProbeInstrumentationTest {
     Snapshot snapshot0 = listener.snapshots.get(0);
     assertProbeId(probeIdsByMethodName, "fiboException", snapshot0.getProbe().getId());
     assertEquals(
-        "oops fibo", snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
+        "oops fibo",
+        snapshot0.getCaptures().getReturn().getCapturedThrowable().getMessage());
     assertEquals("1", getValue(snapshot0.getCaptures().getReturn().getArguments().get("n")));
     Snapshot snapshot1 = listener.snapshots.get(1);
     assertEquals("2", getValue(snapshot1.getCaptures().getReturn().getArguments().get("n")));
@@ -264,7 +270,8 @@ public class ExceptionProbeInstrumentationTest {
     // instrument RuntimeException stacktrace
     String fingerprint0 = callMethodThrowingRuntimeException(testClass);
     assertWithTimeout(
-        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint0), Duration.ofSeconds(30));
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint0),
+        Duration.ofSeconds(30));
     // generate snapshots RuntimeException
     callMethodThrowingRuntimeException(testClass);
     assertEquals(1, listener.snapshots.size());
@@ -290,15 +297,19 @@ public class ExceptionProbeInstrumentationTest {
     TestSnapshotListener listener =
         setupExceptionDebugging(config, exceptionProbeManager, classNameFiltering, definitions);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
-    String fingerprint =
-        callMethodThrowingRuntimeException(testClass); // instrument exception stacktrace
+    // instrument exception stacktrace
+    String // instrument exception stacktrace
+    fingerprint = callMethodThrowingRuntimeException(testClass);
     assertWithTimeout(
-        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint), Duration.ofSeconds(30));
+        () -> exceptionProbeManager.isAlreadyInstrumented(fingerprint),
+        Duration.ofSeconds(30));
     assertEquals(2, exceptionProbeManager.getProbes().size());
-    callMethodThrowingRuntimeException(testClass); // generate snapshots
+    // generate snapshots
+    callMethodThrowingRuntimeException(testClass);
     Map<String, Set<String>> probeIdsByMethodName =
         extractProbeIdsByMethodName(exceptionProbeManager);
-    assertEquals(3, listener.snapshots.size()); // 2 log snapshots + 1 exception snapshot
+    // 2 log snapshots + 1 exception snapshot
+    assertEquals(3, listener.snapshots.size());
     Snapshot snapshot0 = listener.snapshots.get(0);
     assertEquals(PROBE_ID.getId(), snapshot0.getProbe().getId());
     Snapshot snapshot1 = listener.snapshots.get(1);
@@ -309,11 +320,14 @@ public class ExceptionProbeInstrumentationTest {
 
   private static void assertExceptionMsg(String expectedMsg, Snapshot snapshot) {
     assertEquals(
-        expectedMsg, snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+        expectedMsg,
+        snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
   }
 
   private static void assertProbeId(
-      Map<String, Set<String>> probeIdsByMethodName, String methodName, String id) {
+      Map<String, Set<String>> probeIdsByMethodName,
+      String methodName,
+      String id) {
     assertTrue(probeIdsByMethodName.containsKey(methodName));
     assertTrue(probeIdsByMethodName.get(methodName).contains(id));
   }
@@ -358,11 +372,12 @@ public class ExceptionProbeInstrumentationTest {
 
   private static Map<String, Set<String>> extractProbeIdsByMethodName(
       ExceptionProbeManager exceptionProbeManager) {
-    return exceptionProbeManager.getProbes().stream()
-        .collect(
-            Collectors.groupingBy(
-                exceptionProbe -> exceptionProbe.getWhere().getMethodName(),
-                Collectors.mapping(ExceptionProbe::getId, Collectors.toSet())));
+    return exceptionProbeManager
+      .getProbes()
+      .stream()
+      .collect(Collectors.groupingBy(
+          exceptionProbe -> exceptionProbe.getWhere().getMethodName(),
+          Collectors.mapping(ExceptionProbe::getId, Collectors.toSet())));
   }
 
   private TestSnapshotListener setupExceptionDebugging(
@@ -378,20 +393,23 @@ public class ExceptionProbeInstrumentationTest {
       ClassNameFilter classNameFiltering,
       Collection<ProbeDefinition> definitions) {
     ProbeStatusSink probeStatusSink = mock(ProbeStatusSink.class);
-    ConfigurationUpdater configurationUpdater =
-        new ConfigurationUpdater(
-            instr,
-            this::createTransformer,
-            config,
-            new DebuggerSink(config, probeStatusSink),
-            new ClassesToRetransformFinder());
+    ConfigurationUpdater configurationUpdater = new ConfigurationUpdater(
+        instr,
+        this::createTransformer,
+        config,
+        new DebuggerSink(config, probeStatusSink),
+        new ClassesToRetransformFinder());
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(configurationUpdater);
     DebuggerContext.initValueSerializer(new JsonSnapshotSerializer());
-    DefaultExceptionDebugger exceptionDebugger =
-        new DefaultExceptionDebugger(
-            exceptionProbeManager, configurationUpdater, classNameFiltering, 100, 3, true);
+    DefaultExceptionDebugger exceptionDebugger = new DefaultExceptionDebugger(
+        exceptionProbeManager,
+        configurationUpdater,
+        classNameFiltering,
+        100,
+        3,
+        true);
     DebuggerContext.initExceptionDebugger(exceptionDebugger);
     configurationUpdater.accept(REMOTE_CONFIG, definitions);
     return listener;
@@ -402,8 +420,7 @@ public class ExceptionProbeInstrumentationTest {
     when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
     when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
     when(config.isDynamicInstrumentationVerifyByteCode()).thenReturn(true);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
     return config;

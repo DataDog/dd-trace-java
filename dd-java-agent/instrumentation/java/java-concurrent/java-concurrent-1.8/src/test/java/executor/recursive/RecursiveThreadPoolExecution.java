@@ -2,15 +2,12 @@ package executor.recursive;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.concurrent.ExecutorService;
 
 public class RecursiveThreadPoolExecution implements Runnable {
-
   private final ExecutorService executor;
-
   private final int maxDepth;
   private final int depth;
 

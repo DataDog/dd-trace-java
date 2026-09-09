@@ -13,7 +13,6 @@ import java.util.List;
  * flakiness is detected (mixed pass/fail results).
  */
 public class EarlyFlakeDetection implements TestExecutionPolicy {
-
   private final boolean suppressFailures;
   private final List<ExecutionsByDuration> executionsByDuration;
   private int executions;
@@ -22,7 +21,8 @@ public class EarlyFlakeDetection implements TestExecutionPolicy {
   private TestStatus lastStatus;
 
   public EarlyFlakeDetection(
-      List<ExecutionsByDuration> executionsByDuration, boolean suppressFailures) {
+      List<ExecutionsByDuration> executionsByDuration,
+      boolean suppressFailures) {
     this.suppressFailures = suppressFailures;
     this.executionsByDuration = executionsByDuration;
     this.executions = 0;
@@ -51,7 +51,11 @@ public class EarlyFlakeDetection implements TestExecutionPolicy {
     }
 
     return new ExecutionOutcomeImpl(
-        failureSuppressed, lastExecution, results, retry ? RetryReason.efd : null, finalStatus);
+        failureSuppressed,
+        lastExecution,
+        results,
+        retry ? RetryReason.efd : null,
+        finalStatus);
   }
 
   private boolean retriesLeft() {

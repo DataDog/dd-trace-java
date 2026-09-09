@@ -13,10 +13,9 @@ import scala.util.Success;
 import scala.util.Try;
 
 public class PromiseHelper {
-  public static final boolean completionPriority =
-      InstrumenterConfig.get()
-          .isIntegrationEnabled(
-              Collections.singletonList("scala_promise_completion_priority"), false);
+  public static final boolean completionPriority = InstrumenterConfig
+    .get()
+    .isIntegrationEnabled(Collections.singletonList("scala_promise_completion_priority"), false);
 
   /**
    * Get the {@code Try} that should be associated with the {@code Context}. Will create a new copy
@@ -28,12 +27,13 @@ public class PromiseHelper {
    * @return the Try that should be associated with the context
    */
   public static <T> Try<T> getTry(
-      final Try<T> resolved, final Context context, final Context existing) {
+      final Try<T> resolved,
+      final Context context,
+      final Context existing) {
     // Check if the new context is the same as the currently stored one
     if (existing == context) {
       return resolved;
     }
-
     // Otherwise we need to create a new Try to associate the context with
     if (resolved instanceof Success) {
       Success<T> success = (Success<T>) resolved;

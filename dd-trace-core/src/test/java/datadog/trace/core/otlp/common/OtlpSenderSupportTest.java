@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.communication.http.OkHttpUtils;
 import datadog.logging.RatelimitedLogger;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 class OtlpSenderSupportTest {
-
   private final OkHttpClient client = mock(OkHttpClient.class);
   private final HttpRetryPolicy.Factory retryPolicy = HttpRetryPolicy.Factory.NEVER_RETRY;
   private final Request request =
@@ -36,8 +34,8 @@ class OtlpSenderSupportTest {
     Response response = responseWithCode(200);
     try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
       okHttpUtils
-          .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
-          .thenReturn(response);
+        .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
+        .thenReturn(response);
 
       RemoteApi.Response result =
           OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
@@ -53,8 +51,8 @@ class OtlpSenderSupportTest {
     Response response = responseWithCode(500);
     try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
       okHttpUtils
-          .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
-          .thenReturn(response);
+        .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
+        .thenReturn(response);
 
       RemoteApi.Response result =
           OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
@@ -70,8 +68,8 @@ class OtlpSenderSupportTest {
     IOException exception = new IOException("boom");
     try (MockedStatic<OkHttpUtils> okHttpUtils = mockStatic(OkHttpUtils.class)) {
       okHttpUtils
-          .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
-          .thenThrow(exception);
+        .when(() -> OkHttpUtils.sendWithRetries(client, retryPolicy, request))
+        .thenThrow(exception);
 
       RemoteApi.Response result =
           OtlpSenderSupport.send(client, retryPolicy, request, ratelimitedLogger);
@@ -85,11 +83,11 @@ class OtlpSenderSupportTest {
 
   private Response responseWithCode(int code) {
     return new Response.Builder()
-        .request(request)
-        .protocol(Protocol.HTTP_1_1)
-        .code(code)
-        .message(code == 200 ? "OK" : "Server Error")
-        .body(ResponseBody.create(MediaType.get("text/plain"), ""))
-        .build();
+      .request(request)
+      .protocol(Protocol.HTTP_1_1)
+      .code(code)
+      .message(code == 200 ? "OK" : "Server Error")
+      .body(ResponseBody.create(MediaType.get("text/plain"), ""))
+      .build();
   }
 }

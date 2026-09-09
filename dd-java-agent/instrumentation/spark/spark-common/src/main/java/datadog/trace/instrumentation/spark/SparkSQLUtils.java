@@ -51,7 +51,6 @@ public class SparkSQLUtils {
 
     if (foundStage && hasStageInfo && !isForStage) {
       parentStageIds.addAll(stageIds);
-
       // Stopping the propagation since this node is for another stage
       return null;
     }
@@ -89,7 +88,8 @@ public class SparkSQLUtils {
   }
 
   private static Set<Integer> stageIdsForPlan(
-      SparkPlanInfo info, Map<Long, Integer> accumulatorToStageID) {
+      SparkPlanInfo info,
+      Map<Long, Integer> accumulatorToStageID) {
     Set<Integer> stageIds = new HashSet<>();
 
     Collection<SQLMetricInfo> metrics =
@@ -161,8 +161,9 @@ public class SparkSQLUtils {
     }
 
     private void toJson(
-        JsonGenerator generator, ObjectMapper mapper, SparkAggregatedTaskMetrics stageMetric)
-        throws IOException {
+        JsonGenerator generator,
+        ObjectMapper mapper,
+        SparkAggregatedTaskMetrics stageMetric) throws IOException {
       generator.writeStartObject();
       generator.writeStringField("node", plan.nodeName());
       generator.writeNumberField("nodeId", plan.hashCode());
@@ -174,7 +175,6 @@ public class SparkSQLUtils {
       if (!nodeDetails.isEmpty()) {
         generator.writeStringField("nodeDetailString", nodeDetails);
       }
-
       // Metadata is only added natively by Spark for FileSourceScan nodes
       // We leverage this to extract & inject additional argument-level data
       if (!plan.metadata().isEmpty()) {
@@ -194,7 +194,6 @@ public class SparkSQLUtils {
       }
 
       List<SQLMetricInfo> metrics = AbstractDatadogSparkListener.listener.getPlanInfoMetrics(plan);
-
       // Writing final values of metrics
       if (!metrics.isEmpty()) {
         generator.writeFieldName("metrics");
@@ -204,7 +203,6 @@ public class SparkSQLUtils {
         }
         generator.writeEndArray();
       }
-
       // Writing child nodes
       if (!children.isEmpty()) {
         generator.writeFieldName("children");

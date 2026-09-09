@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.ci;
 
 import static datadog.json.JsonMapper.toJson;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
@@ -10,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CITagsProvider {
-
   private final GitInfoProvider gitInfoProvider;
 
   public CITagsProvider() {
@@ -26,49 +24,48 @@ public class CITagsProvider {
     GitInfo gitInfo = gitInfoProvider.getGitInfo(repoRoot);
 
     return new CITagsBuilder()
-        .withCiProviderName(ciInfo.getCiProviderName())
-        .withCiPipelineId(ciInfo.getCiPipelineId())
-        .withCiPipelineName(ciInfo.getCiPipelineName())
-        .withCiPipelineDisplayName(ciInfo.getCiPipelineDisplayName())
-        .withCiStageName(ciInfo.getCiStageName())
-        .withCiJobName(ciInfo.getCiJobName())
-        .withCiJobId(ciInfo.getCiJobId())
-        .withCiPipelineNumber(ciInfo.getCiPipelineNumber())
-        .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
-        .withCiJorUrl(ciInfo.getCiJobUrl())
-        .withCiWorkspacePath(ciInfo.getCiWorkspace())
-        .withCiNodeName(ciInfo.getCiNodeName())
-        .withCiNodeLabels(ciInfo.getCiNodeLabels())
-        .withCiEnvVars(ciInfo.getCiEnvVars())
-        .withAdditionalTags(ciInfo.getAdditionalTags())
-        .withPullRequestBaseBranch(pullRequestInfo)
-        .withPullRequestBaseBranchSha(pullRequestInfo)
-        .withPullRequestBaseBranchHeadSha(pullRequestInfo)
-        .withGitCommitHeadSha(pullRequestInfo)
-        .withGitCommitHeadAuthorName(pullRequestInfo)
-        .withGitCommitHeadAuthorEmail(pullRequestInfo)
-        .withGitCommitHeadAuthorDate(pullRequestInfo)
-        .withGitCommitHeadCommitterName(pullRequestInfo)
-        .withGitCommitHeadCommitterEmail(pullRequestInfo)
-        .withGitCommitHeadCommitterDate(pullRequestInfo)
-        .withGitCommitHeadMessage(pullRequestInfo)
-        .withPullRequestNumber(pullRequestInfo)
-        .withGitRepositoryUrl(gitInfo)
-        .withGitCommit(gitInfo)
-        .withGitBranch(gitInfo)
-        .withGitTag(gitInfo)
-        .withGitCommitAuthorName(gitInfo)
-        .withGitCommitAuthorEmail(gitInfo)
-        .withGitCommitAuthorDate(gitInfo)
-        .withGitCommitCommitterName(gitInfo)
-        .withGitCommitCommitterEmail(gitInfo)
-        .withGitCommitCommitterDate(gitInfo)
-        .withGitCommitMessage(gitInfo)
-        .build();
+      .withCiProviderName(ciInfo.getCiProviderName())
+      .withCiPipelineId(ciInfo.getCiPipelineId())
+      .withCiPipelineName(ciInfo.getCiPipelineName())
+      .withCiPipelineDisplayName(ciInfo.getCiPipelineDisplayName())
+      .withCiStageName(ciInfo.getCiStageName())
+      .withCiJobName(ciInfo.getCiJobName())
+      .withCiJobId(ciInfo.getCiJobId())
+      .withCiPipelineNumber(ciInfo.getCiPipelineNumber())
+      .withCiPipelineUrl(ciInfo.getCiPipelineUrl())
+      .withCiJorUrl(ciInfo.getCiJobUrl())
+      .withCiWorkspacePath(ciInfo.getCiWorkspace())
+      .withCiNodeName(ciInfo.getCiNodeName())
+      .withCiNodeLabels(ciInfo.getCiNodeLabels())
+      .withCiEnvVars(ciInfo.getCiEnvVars())
+      .withAdditionalTags(ciInfo.getAdditionalTags())
+      .withPullRequestBaseBranch(pullRequestInfo)
+      .withPullRequestBaseBranchSha(pullRequestInfo)
+      .withPullRequestBaseBranchHeadSha(pullRequestInfo)
+      .withGitCommitHeadSha(pullRequestInfo)
+      .withGitCommitHeadAuthorName(pullRequestInfo)
+      .withGitCommitHeadAuthorEmail(pullRequestInfo)
+      .withGitCommitHeadAuthorDate(pullRequestInfo)
+      .withGitCommitHeadCommitterName(pullRequestInfo)
+      .withGitCommitHeadCommitterEmail(pullRequestInfo)
+      .withGitCommitHeadCommitterDate(pullRequestInfo)
+      .withGitCommitHeadMessage(pullRequestInfo)
+      .withPullRequestNumber(pullRequestInfo)
+      .withGitRepositoryUrl(gitInfo)
+      .withGitCommit(gitInfo)
+      .withGitBranch(gitInfo)
+      .withGitTag(gitInfo)
+      .withGitCommitAuthorName(gitInfo)
+      .withGitCommitAuthorEmail(gitInfo)
+      .withGitCommitAuthorDate(gitInfo)
+      .withGitCommitCommitterName(gitInfo)
+      .withGitCommitCommitterEmail(gitInfo)
+      .withGitCommitCommitterDate(gitInfo)
+      .withGitCommitMessage(gitInfo)
+      .build();
   }
 
   public static class CITagsBuilder {
-
     private final Map<String, String> ciTags = new HashMap<>();
 
     public CITagsBuilder withCiProviderName(final String ciProviderName) {
@@ -150,7 +147,8 @@ public class CITagsProvider {
 
     public CITagsBuilder withPullRequestBaseBranchHeadSha(final PullRequestInfo pullRequestInfo) {
       return putTagValue(
-          Tags.GIT_PULL_REQUEST_BASE_BRANCH_HEAD_SHA, pullRequestInfo.getBaseBranchHeadSha());
+          Tags.GIT_PULL_REQUEST_BASE_BRANCH_HEAD_SHA,
+          pullRequestInfo.getBaseBranchHeadSha());
     }
 
     public CITagsBuilder withGitCommitHeadSha(final PullRequestInfo pullRequestInfo) {
@@ -159,7 +157,8 @@ public class CITagsProvider {
 
     public CITagsBuilder withGitCommitHeadAuthorName(final PullRequestInfo pullRequestInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_HEAD_AUTHOR_NAME, pullRequestInfo.getHeadCommit().getAuthor().getName());
+          Tags.GIT_COMMIT_HEAD_AUTHOR_NAME,
+          pullRequestInfo.getHeadCommit().getAuthor().getName());
     }
 
     public CITagsBuilder withGitCommitHeadAuthorEmail(final PullRequestInfo pullRequestInfo) {
@@ -194,7 +193,8 @@ public class CITagsProvider {
 
     public CITagsBuilder withGitCommitHeadMessage(final PullRequestInfo pullRequestInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_HEAD_MESSAGE, pullRequestInfo.getHeadCommit().getFullMessage());
+          Tags.GIT_COMMIT_HEAD_MESSAGE,
+          pullRequestInfo.getHeadCommit().getFullMessage());
     }
 
     public CITagsBuilder withPullRequestNumber(final PullRequestInfo pullRequestInfo) {
@@ -227,22 +227,26 @@ public class CITagsProvider {
 
     public CITagsBuilder withGitCommitAuthorDate(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_AUTHOR_DATE, gitInfo.getCommit().getAuthor().getIso8601Date());
+          Tags.GIT_COMMIT_AUTHOR_DATE,
+          gitInfo.getCommit().getAuthor().getIso8601Date());
     }
 
     public CITagsBuilder withGitCommitCommitterName(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_COMMITTER_NAME, gitInfo.getCommit().getCommitter().getName());
+          Tags.GIT_COMMIT_COMMITTER_NAME,
+          gitInfo.getCommit().getCommitter().getName());
     }
 
     public CITagsBuilder withGitCommitCommitterEmail(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_COMMITTER_EMAIL, gitInfo.getCommit().getCommitter().getEmail());
+          Tags.GIT_COMMIT_COMMITTER_EMAIL,
+          gitInfo.getCommit().getCommitter().getEmail());
     }
 
     public CITagsBuilder withGitCommitCommitterDate(final GitInfo gitInfo) {
       return putTagValue(
-          Tags.GIT_COMMIT_COMMITTER_DATE, gitInfo.getCommit().getCommitter().getIso8601Date());
+          Tags.GIT_COMMIT_COMMITTER_DATE,
+          gitInfo.getCommit().getCommitter().getIso8601Date());
     }
 
     public CITagsBuilder withGitCommitMessage(final GitInfo gitInfo) {

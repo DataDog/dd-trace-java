@@ -14,7 +14,6 @@ import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorat
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.JAKARTA_RS_CONTROLLER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -35,8 +34,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private static final String JAKARTA_ENDPOINT_OPERATION_NAME = "jakarta-rs.request";
 
   public JakartaRsAnnotationsInstrumentation() {
@@ -69,16 +68,13 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return hasSuperType(
-        declaresAnnotation(named(hierarchyMarkerType()))
-            .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
+    return hasSuperType(declaresAnnotation(named(hierarchyMarkerType()))
+      .or(declaresMethod(isAnnotatedWith(named(hierarchyMarkerType())))));
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JakartaRsAnnotationsDecorator",
-    };
+    return new String[] {packageName + ".JakartaRsAnnotationsDecorator"};
   }
 
   @Override
@@ -89,7 +85,6 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
   }
 
   public static class JakartaRsAnnotationsAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope nameSpan(
         @Advice.This final Object target,
@@ -113,7 +108,6 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
           break;
         }
       }
-
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 

@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public GraphQLJavaInstrumentation() {
     super("graphql-java");
   }
@@ -31,15 +30,15 @@ public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.graphqljava.GraphQLDecorator",
-      "datadog.trace.instrumentation.graphqljava.ParsingInstrumentationContext",
-      "datadog.trace.instrumentation.graphqljava.ExecutionInstrumentationContext",
-      "datadog.trace.instrumentation.graphqljava.ValidationInstrumentationContext",
-      "datadog.trace.instrumentation.graphqljava.State",
-      packageName + ".GraphQLInstrumentation",
-      "datadog.trace.instrumentation.graphqljava.GraphQLQuerySanitizer",
-      "datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher",
-      "datadog.trace.instrumentation.graphqljava.AsyncExceptionUnwrapper"
+        "datadog.trace.instrumentation.graphqljava.GraphQLDecorator",
+        "datadog.trace.instrumentation.graphqljava.ParsingInstrumentationContext",
+        "datadog.trace.instrumentation.graphqljava.ExecutionInstrumentationContext",
+        "datadog.trace.instrumentation.graphqljava.ValidationInstrumentationContext",
+        "datadog.trace.instrumentation.graphqljava.State",
+        packageName + ".GraphQLInstrumentation",
+        "datadog.trace.instrumentation.graphqljava.GraphQLQuerySanitizer",
+        "datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher",
+        "datadog.trace.instrumentation.graphqljava.AsyncExceptionUnwrapper"
     };
   }
 
@@ -53,14 +52,8 @@ public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                namedOneOf(
-                    "checkInstrumentationDefaultState" // 9.7+
-                    // https://github.com/graphql-java/graphql-java/commit/821241de8ee055d6d254a9d95ef5143f9e540826
-                    //                    "checkInstrumentation" // <9.7
-                    // https://github.com/graphql-java/graphql-java/commit/78a6e4eda1c13f47573adb879ae781cce794e96a
-                    ))
-            .and(returns(named("graphql.execution.instrumentation.Instrumentation"))),
+          .and(namedOneOf("checkInstrumentationDefaultState"))
+          .and(returns(named("graphql.execution.instrumentation.Instrumentation"))),
         this.getClass().getName() + "$AddInstrumentationAdvice");
   }
 

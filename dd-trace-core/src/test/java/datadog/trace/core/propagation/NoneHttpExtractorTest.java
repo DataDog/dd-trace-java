@@ -15,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
@@ -38,7 +37,8 @@ import org.tabletest.junit.TableTest;
 class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
   @Override
   protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier) {
     return NoneCodec.newExtractor(config, traceConfigSupplier);
   }
 
@@ -63,7 +63,6 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.ZERO, context.getTraceId());
@@ -85,13 +84,12 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
     Map<String, String> baggageMap = new HashMap<>();
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER, SOME_BAGGAGE);
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER_2, SOME_CASE_SENSITIVE_BAGGAGE);
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
-            .setBaggageMapping(baggageMap)
-            .apply();
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig
+      .create()
+      .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
+      .setBaggageMapping(baggageMap)
+      .apply();
     this.extractor = NoneCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
-
     // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
@@ -104,7 +102,6 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.ZERO, context.getTraceId());
@@ -125,7 +122,6 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
@@ -156,7 +152,6 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
             : null
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.ZERO, context.getTraceId());
@@ -176,7 +171,6 @@ class NoneHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertInstanceOf(TagContext.class, context);

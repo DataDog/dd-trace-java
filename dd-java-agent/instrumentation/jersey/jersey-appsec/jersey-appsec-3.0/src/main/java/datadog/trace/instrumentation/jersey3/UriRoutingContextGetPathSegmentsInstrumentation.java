@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jersey3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,7 +13,8 @@ import org.glassfish.jersey.server.internal.routing.UriRoutingContext;
 
 @AutoService(InstrumenterModule.class)
 public class UriRoutingContextGetPathSegmentsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public UriRoutingContextGetPathSegmentsInstrumentation() {
     super("jersey");
   }

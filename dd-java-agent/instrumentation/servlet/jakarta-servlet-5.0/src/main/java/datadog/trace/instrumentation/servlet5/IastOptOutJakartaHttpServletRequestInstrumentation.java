@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -30,8 +29,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public class IastOptOutJakartaHttpServletRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private static final String CLASS_NAME =
       IastOptOutJakartaHttpServletRequestInstrumentation.class.getName();
   private static final ElementMatcher.Junction<? super TypeDescription> WRAPPER_CLASS =
@@ -49,8 +48,8 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(not(WRAPPER_CLASS))
-        .and(not(extendsClass(WRAPPER_CLASS)));
+      .and(not(WRAPPER_CLASS))
+      .and(not(extendsClass(WRAPPER_CLASS)));
   }
 
   @Override
@@ -68,14 +67,16 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "jakarta.servlet.ServletContext", "jakarta.servlet.SessionTrackingMode");
+        "jakarta.servlet.ServletContext",
+        "jakarta.servlet.SessionTrackingMode");
   }
 
   public static class GetHttpSessionAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.SESSION_REWRITING)
     public static void onExit(
-        @Advice.This final HttpServletRequest request, @Advice.Return final HttpSession session) {
+        @Advice.This final HttpServletRequest request,
+        @Advice.Return final HttpSession session) {
       if (session == null) {
         return;
       }
@@ -85,13 +86,13 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
       }
       final ServletContext context = request.getServletContext();
 
-      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context)
-          != null) {
+      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context) != null) {
         return;
       }
       // We only want to report it once per application
-      InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class)
-          .put(context, SessionTrackingMode.URL);
+      InstrumentationContext
+        .get(ServletContext.class, SessionTrackingMode.class)
+        .put(context, SessionTrackingMode.URL);
       if (context.getEffectiveSessionTrackingModes() != null
           && !context.getEffectiveSessionTrackingModes().isEmpty()) {
         Set<String> sessionTrackingModes = new HashSet<>();

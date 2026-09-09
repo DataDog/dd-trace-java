@@ -10,11 +10,9 @@ import java.lang.invoke.MethodType;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class GenerativeStackTraces {
-
   private final Tracer tracer;
   private final boolean useMethodHandles;
   private final boolean useCapturingLambdas;
-
   private static final MethodHandle METHOD1 = getMethodHandle(1);
   private static final MethodHandle METHOD2 = getMethodHandle(2);
   private static final MethodHandle METHOD3 = getMethodHandle(3);
@@ -139,11 +137,12 @@ public class GenerativeStackTraces {
 
   private static MethodHandle getMethodHandle(int methodNumber) {
     try {
-      return MethodHandles.publicLookup()
-          .findVirtual(
-              GenerativeStackTraces.class,
-              "method" + methodNumber,
-              MethodType.methodType(void.class, int.class, int.class));
+      return MethodHandles
+        .publicLookup()
+        .findVirtual(
+            GenerativeStackTraces.class,
+            "method" + methodNumber,
+            MethodType.methodType(void.class, int.class, int.class));
     } catch (Throwable t) {
       return null;
     }

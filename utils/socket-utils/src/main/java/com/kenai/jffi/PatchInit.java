@@ -4,11 +4,14 @@ import com.kenai.jffi.internal.StubLoader;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 
-/** Replacement Init class that loads StubLoader from the same (isolating) class-loader. */
+/**
+ * Replacement Init class that loads StubLoader from the same (isolating) class-loader.
+ */
 final class PatchInit {
   private static volatile boolean loaded;
 
-  private PatchInit() {}
+  private PatchInit() {
+  }
 
   static void load() {
     if (loaded) {

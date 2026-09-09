@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -17,7 +16,6 @@ import ratpack.form.Form;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class ContextParseAdvice {
-
   // for now ignore that the parser can be configured to mix in the query string
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after(

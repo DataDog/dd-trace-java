@@ -17,7 +17,8 @@ public class OperationCompletionListener extends CompletionListener<OperationFut
 
   @Override
   protected void processResult(final AgentSpan span, final OperationFuture<?> future)
-      throws ExecutionException, InterruptedException {
+      throws ExecutionException,
+      InterruptedException {
     future.get();
   }
 }

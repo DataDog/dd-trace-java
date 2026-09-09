@@ -4,7 +4,6 @@ import javax.servlet.ServletRequest;
 import net.bytebuddy.asm.Advice;
 
 public class CallSiteBenchmarkHelper {
-
   @Advice.OnMethodExit
   public static void adviceCallee(@Advice.Return(readOnly = false) String result) {
     final String currentValue = result;

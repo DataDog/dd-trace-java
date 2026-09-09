@@ -7,7 +7,6 @@ import datadog.trace.api.telemetry.IntegrationsCollector;
 import java.util.Map;
 
 public class IntegrationPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
-
   @Override
   public void doIteration(TelemetryService service) {
     Map<String, Boolean> integrations = IntegrationsCollector.get().drain();

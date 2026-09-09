@@ -18,12 +18,11 @@ import org.apache.pekko.http.javadsl.model.HttpHeader;
 @Source(value = SourceTypes.REQUEST_HEADER_NAME)
 @CallSite(spi = IastCallSites.class)
 public class HeaderNameCallSite {
-
   @CallSite.After("java.lang.String org.apache.pekko.http.javadsl.model.HttpHeader.name()")
-  @CallSite.After(
-      "java.lang.String org.apache.pekko.http.scaladsl.model.HttpHeader.name()") // subtype of the
-  // first
-  public static String after(@CallSite.This HttpHeader header, @CallSite.Return String result) {
+  @// subtype of the
+  CallSite.After("java.lang.String org.apache.pekko.http.scaladsl.model.HttpHeader.name()")
+  public static // first
+  String after(@CallSite.This HttpHeader header, @CallSite.Return String result) {
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null) {
       return result;

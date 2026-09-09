@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.scaladsl.model.FormData;
 import akka.http.scaladsl.model.Uri;
 import com.google.auto.service.AutoService;
@@ -20,7 +19,8 @@ import datadog.trace.agent.tooling.InstrumenterModule;
  */
 @AutoService(InstrumenterModule.class)
 public class FormDataInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public FormDataInstrumentation() {
     super("akka-http");
   }
@@ -38,10 +38,10 @@ public class FormDataInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("fields"))
-            .and(takesArguments(0))
-            .and(returns(named("akka.http.scaladsl.model.Uri$Query"))),
+          .and(not(isStatic()))
+          .and(named("fields"))
+          .and(takesArguments(0))
+          .and(returns(named("akka.http.scaladsl.model.Uri$Query"))),
         "datadog.trace.instrumentation.akkahttp.iast.UriInstrumentation$TaintQueryAdvice");
   }
 }

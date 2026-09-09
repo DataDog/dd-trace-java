@@ -77,7 +77,9 @@ public final class NettyMultipartHelper {
       } else {
         try (FileInputStream fis = new FileInputStream(fileUpload.getFile())) {
           return MultipartContentDecoder.readInputStream(
-              fis, MAX_CONTENT_BYTES, fileUpload.getContentType());
+              fis,
+              MAX_CONTENT_BYTES,
+              fileUpload.getContentType());
         }
       }
     } catch (Exception ignored) {
@@ -103,5 +105,6 @@ public final class NettyMultipartHelper {
     return null;
   }
 
-  private NettyMultipartHelper() {}
+  private NettyMultipartHelper() {
+  }
 }

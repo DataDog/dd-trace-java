@@ -2,7 +2,9 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.api.DDTraceId;
 
-/** An {@link AgentSpan} implementation that stops context propagation. */
+/**
+ * An {@link AgentSpan} implementation that stops context propagation.
+ */
 public final class BlackHoleSpan extends NoopSpan {
   private final DDTraceId traceId;
 
@@ -14,7 +16,7 @@ public final class BlackHoleSpan extends NoopSpan {
   public boolean isSameTrace(final AgentSpan otherSpan) {
     return otherSpan != null
         && ((traceId != null && traceId.equals(otherSpan.getTraceId()))
-            || otherSpan.getTraceId() == null);
+        || otherSpan.getTraceId() == null);
   }
 
   @Override
@@ -30,6 +32,7 @@ public final class BlackHoleSpan extends NoopSpan {
   public static final class Context extends NoopSpanContext {
     public static final Context INSTANCE = new Context();
 
-    private Context() {}
+    private Context() {
+    }
   }
 }

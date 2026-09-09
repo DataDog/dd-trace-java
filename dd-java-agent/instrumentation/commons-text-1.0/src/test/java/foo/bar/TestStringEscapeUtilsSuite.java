@@ -3,7 +3,6 @@ package foo.bar;
 import org.apache.commons.text.StringEscapeUtils;
 
 public class TestStringEscapeUtilsSuite {
-
   public static String escapeEcmaScript(String input) {
     return StringEscapeUtils.escapeEcmaScript(input);
   }

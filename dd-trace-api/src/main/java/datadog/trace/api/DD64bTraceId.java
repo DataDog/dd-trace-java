@@ -10,12 +10,14 @@ import datadog.trace.api.internal.util.LongStringUtils;
  * demand and cached.
  */
 public class DD64bTraceId extends DDTraceId {
-  public static final DD64bTraceId MAX =
-      new DD64bTraceId(-1, "18446744073709551615"); // All bits set
-
+  public static final DD64bTraceId // All bits set
+  // All bits set
+  MAX = new DD64bTraceId(-1, "18446744073709551615");
   private final long id;
-  private String str; // cache for string representation
-  private String hexStr; // cache for hex string representation
+  // cache for string representation
+  private String str;
+  // cache for hex string representation
+  private String hexStr;
 
   DD64bTraceId(long id, String str) {
     this.id = id;
@@ -72,8 +74,12 @@ public class DD64bTraceId extends DDTraceId {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof DD64bTraceId)) return false;
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof DD64bTraceId)) {
+      return false;
+    }
     DD64bTraceId ddId = (DD64bTraceId) o;
     return this.id == ddId.id;
   }

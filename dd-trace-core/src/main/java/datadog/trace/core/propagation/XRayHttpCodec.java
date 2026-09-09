@@ -6,7 +6,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
@@ -28,26 +27,21 @@ import org.slf4j.LoggerFactory;
  */
 class XRayHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(XRayHttpCodec.class);
-
   public static final String X_AMZN_TRACE_ID = "X-Amzn-Trace-Id";
-
   static final String ROOT = "Root";
   static final String PARENT = "Parent";
   static final String SAMPLED = "Sampled";
   static final String SELF = "Self";
-
   static final String ROOT_PREFIX = ROOT + "=1-";
   static final String TRACE_ID_PADDING = "-00000000";
   static final String PARENT_PREFIX = PARENT + '=';
   static final String SAMPLED_PREFIX = SAMPLED + '=';
   static final String SELF_PREFIX = SELF + '=';
   static final String ORIGIN_PREFIX = ORIGIN_KEY + '=';
-
-  static final int ROOT_PREAMBLE = ROOT_PREFIX.length() + 8; // prefix plus 8-character epoch
-
+  // prefix plus 8-character epoch
+  static final int ROOT_PREAMBLE = ROOT_PREFIX.length() + 8;
   static final String E2E_START_KEY = DDTags.TRACE_START_TIME;
   static final String E2E_START_PREFIX = E2E_START_KEY + '=';
-
   static final int MAX_ADDITIONAL_BYTES = 256;
 
   private XRayHttpCodec() {
@@ -59,7 +53,6 @@ class XRayHttpCodec {
   }
 
   private static class Injector implements HttpCodec.Injector {
-
     private final Map<String, String> invertedBaggageMapping;
 
     public Injector(Map<String, String> invertedBaggageMapping) {
@@ -70,24 +63,24 @@ class XRayHttpCodec {
     public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
       long e2eStart = context.getEndToEndStartTime();
 
-      StringBuilder buf =
-          new StringBuilder()
-              .append(ROOT_PREFIX)
-              .append(
-                  String.format(
-                      "%08x",
-                      e2eStart > 0
-                          ? NANOSECONDS.toSeconds(e2eStart)
-                          : MILLISECONDS.toSeconds(
-                              context.getTraceCollector().getTimeSource().getCurrentTimeMillis())))
-              .append(TRACE_ID_PADDING)
-              .append(context.getTraceId().toHexStringPadded(16))
-              .append(';' + PARENT_PREFIX)
-              .append(DDSpanId.toHexStringPadded(context.getSpanId()));
+      StringBuilder buf = new StringBuilder()
+        .append(ROOT_PREFIX)
+        .append(String.format(
+            "%08x",
+            e2eStart > 0
+            ? NANOSECONDS.toSeconds(e2eStart)
+            : MILLISECONDS.toSeconds(context
+              .getTraceCollector()
+              .getTimeSource()
+              .getCurrentTimeMillis())))
+        .append(TRACE_ID_PADDING)
+        .append(context.getTraceId().toHexStringPadded(16))
+        .append(';' + PARENT_PREFIX)
+        .append(DDSpanId.toHexStringPadded(context.getSpanId()));
 
       if (context.lockSamplingPriority()) {
-        buf.append(';' + SAMPLED_PREFIX)
-            .append(convertSamplingPriority(context.getSamplingPriority()));
+        buf.append(';' + SAMPLED_PREFIX).append(
+            convertSamplingPriority(context.getSamplingPriority()));
       }
 
       int maxCapacity = buf.length() + MAX_ADDITIONAL_BYTES;
@@ -98,7 +91,10 @@ class XRayHttpCodec {
       }
       if (e2eStart > 0) {
         additionalPart(
-            buf, E2E_START_KEY, Long.toString(NANOSECONDS.toMillis(e2eStart)), maxCapacity);
+            buf,
+            E2E_START_KEY,
+            Long.toString(NANOSECONDS.toMillis(e2eStart)),
+            maxCapacity);
       }
 
       for (Map.Entry<String, String> entry : context.baggageItems()) {
@@ -127,12 +123,12 @@ class XRayHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(traceConfigSupplier, () -> new XRayContextInterpreter(config));
   }
 
   static class XRayContextInterpreter extends ContextInterpreter {
-
     private XRayContextInterpreter(Config config) {
       super(config);
     }
@@ -199,8 +195,12 @@ class XRayHttpCodec {
         int rootPart = value.indexOf(ROOT_PREFIX);
         if (rootPart < 0
             || !value.regionMatches(
-                rootPart + ROOT_PREAMBLE, TRACE_ID_PADDING, 0, TRACE_ID_PADDING.length())) {
-          return; // header doesn't match our padded version, ignore it
+                rootPart + ROOT_PREAMBLE,
+                TRACE_ID_PADDING,
+                0,
+                TRACE_ID_PADDING.length())) {
+          // header doesn't match our padded version, ignore it
+          return;
         }
         int startPart = 0;
         int length = value.length();
@@ -212,8 +212,8 @@ class XRayHttpCodec {
           String part = value.substring(startPart, endPart).trim();
           if (part.startsWith(ROOT_PREFIX)) {
             if (interpreter.traceId == null || interpreter.traceId == DDTraceId.ZERO) {
-              interpreter.traceId =
-                  DD64bTraceId.fromHex(part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
+              interpreter.traceId = DD64bTraceId.fromHex(part.substring(
+                  ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
           } else if (part.startsWith(PARENT_PREFIX)) {
             if (interpreter.spanId == DDSpanId.ZERO) {
@@ -221,16 +221,14 @@ class XRayHttpCodec {
             }
           } else if (part.startsWith(SAMPLED_PREFIX)) {
             if (interpreter.samplingPriority == PrioritySampling.UNSET) {
-              interpreter.samplingPriority =
-                  convertSamplingPriority(part.charAt(SAMPLED_PREFIX.length()));
+              interpreter.samplingPriority = convertSamplingPriority(part.charAt(SAMPLED_PREFIX.length()));
             }
           } else if (part.startsWith(SELF_PREFIX)) {
             // Self is added by load-balancers and should be ignored
           } else if (part.startsWith(ORIGIN_PREFIX)) {
             interpreter.origin = part.substring(ORIGIN_PREFIX.length());
           } else if (part.startsWith(E2E_START_PREFIX)) {
-            interpreter.endToEndStartTime =
-                extractEndToEndStartTime(part.substring(E2E_START_PREFIX.length()));
+            interpreter.endToEndStartTime = extractEndToEndStartTime(part.substring(E2E_START_PREFIX.length()));
           } else {
             int eqIndex = part.indexOf('=');
             if (eqIndex > 0) {

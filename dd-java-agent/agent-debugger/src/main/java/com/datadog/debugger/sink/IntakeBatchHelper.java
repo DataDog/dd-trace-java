@@ -6,14 +6,15 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Helper class for batching requests and handling size limit to the intake */
+/**
+ * Helper class for batching requests and handling size limit to the intake
+ */
 public class IntakeBatchHelper {
-
   private static final Logger log = LoggerFactory.getLogger(IntakeBatchHelper.class);
-
   private static final int MAX_PAYLOAD_SIZE = 5 * 1024 * 1024;
 
-  private IntakeBatchHelper() {}
+  private IntakeBatchHelper() {
+  }
 
   public static List<byte[]> createBatches(List<String> payloads) {
     List<byte[]> batches = new ArrayList<>();
@@ -58,7 +59,10 @@ public class IntakeBatchHelper {
    * @return the number of included elements into the StringBuilder
    */
   private static int buildPayloadBatch(
-      List<String> payloads, int start, int count, StringBuilder sb) {
+      List<String> payloads,
+      int start,
+      int count,
+      StringBuilder sb) {
     int totalSize = 0;
     int elementCount = 0;
     sb.append('[');

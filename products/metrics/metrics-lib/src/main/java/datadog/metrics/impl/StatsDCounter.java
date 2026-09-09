@@ -1,12 +1,10 @@
 package datadog.metrics.impl;
 
 import static datadog.metrics.impl.Utils.mergeTags;
-
 import datadog.metrics.api.Counter;
 import datadog.metrics.api.statsd.StatsDClient;
 
 public final class StatsDCounter implements Counter {
-
   private final String name;
   private final String[] tags;
   private final StatsDClient statsd;

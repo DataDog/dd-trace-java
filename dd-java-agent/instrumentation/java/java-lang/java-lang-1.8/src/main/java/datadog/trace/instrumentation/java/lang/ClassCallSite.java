@@ -12,10 +12,9 @@ import javax.annotation.Nullable;
 @Sink(VulnerabilityTypes.REFLECTION_INJECTION)
 @CallSite(spi = IastCallSites.class)
 public class ClassCallSite {
-
   @CallSite.Before("java.lang.Class java.lang.Class.forName(java.lang.String)")
-  @CallSite.Before(
-      "java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader)")
+  @CallSite.Before("java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang."
+      + "ClassLoader)")
   public static void beforeClassReflection(@CallSite.Argument(0) @Nonnull final String className) {
     final ReflectionInjectionModule module = InstrumentationBridge.REFLECTION_INJECTION;
     if (module != null) {
@@ -27,10 +26,10 @@ public class ClassCallSite {
     }
   }
 
-  @CallSite.Before(
-      "java.lang.reflect.Method java.lang.Class.getMethod(java.lang.String, java.lang.Class[])")
-  @CallSite.Before(
-      "java.lang.reflect.Method java.lang.Class.getDeclaredMethod(java.lang.String, java.lang.Class[])")
+  @CallSite.Before("java.lang.reflect.Method java.lang.Class.getMethod(java.lang.String, java."
+      + "lang.Class[])")
+  @CallSite.Before("java.lang.reflect.Method java.lang.Class.getDeclaredMethod(java.lang.String, "
+      + "java.lang.Class[])")
   public static void beforeMethodReflection(
       @CallSite.This @Nonnull final Class<?> clazz,
       @CallSite.Argument(0) @Nonnull final String methodName,

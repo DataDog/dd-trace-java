@@ -10,13 +10,11 @@ import org.junit.jupiter.api.extension.InvocationInterceptor;
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 
 public class BeforeAfterOperationsTracer implements InvocationInterceptor {
-
   @Override
   public void interceptBeforeAllMethod(
       Invocation<Void> invocation,
       ReflectiveInvocationContext<Method> invocationContext,
-      ExtensionContext extensionContext)
-      throws Throwable {
+      ExtensionContext extensionContext) throws Throwable {
     traceInvocation(invocation, invocationContext.getExecutable(), "BeforeAll");
   }
 
@@ -24,8 +22,7 @@ public class BeforeAfterOperationsTracer implements InvocationInterceptor {
   public void interceptBeforeEachMethod(
       Invocation<Void> invocation,
       ReflectiveInvocationContext<Method> invocationContext,
-      ExtensionContext extensionContext)
-      throws Throwable {
+      ExtensionContext extensionContext) throws Throwable {
     traceInvocation(invocation, invocationContext.getExecutable(), "BeforeEach");
   }
 
@@ -33,8 +30,7 @@ public class BeforeAfterOperationsTracer implements InvocationInterceptor {
   public void interceptAfterEachMethod(
       Invocation<Void> invocation,
       ReflectiveInvocationContext<Method> invocationContext,
-      ExtensionContext extensionContext)
-      throws Throwable {
+      ExtensionContext extensionContext) throws Throwable {
     traceInvocation(invocation, invocationContext.getExecutable(), "AfterEach");
   }
 
@@ -42,13 +38,14 @@ public class BeforeAfterOperationsTracer implements InvocationInterceptor {
   public void interceptAfterAllMethod(
       Invocation<Void> invocation,
       ReflectiveInvocationContext<Method> invocationContext,
-      ExtensionContext extensionContext)
-      throws Throwable {
+      ExtensionContext extensionContext) throws Throwable {
     traceInvocation(invocation, invocationContext.getExecutable(), "AfterAll");
   }
 
   private static void traceInvocation(
-      Invocation<Void> invocation, Method executable, String operationName) throws Throwable {
+      Invocation<Void> invocation,
+      Method executable,
+      String operationName) throws Throwable {
     AgentSpan agentSpan = AgentTracer.startSpan("junit", executable.getName());
     agentSpan.setTag(Tags.TEST_CALLBACK, operationName);
     try (ContextScope scope = AgentTracer.activateSpan(agentSpan)) {

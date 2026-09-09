@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public interface IastModule {
-
   Logger LOG = LoggerFactory.getLogger(IastModule.class);
 
   default void onUnexpectedException(final String message, final Throwable error) {
@@ -17,5 +16,6 @@ public interface IastModule {
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
-  @interface OptOut {}
+  @interface OptOut {
+  }
 }

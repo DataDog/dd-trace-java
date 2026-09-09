@@ -1,7 +1,6 @@
 package annotatedsample;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.concurrent.CountDownLatch;
 import org.reactivestreams.Publisher;
@@ -16,7 +15,8 @@ public class ReactiveStreamsTracedMethods {
 
   @WithSpan
   public static Publisher<String> traceAsyncFailingPublisher(
-      CountDownLatch latch, Throwable throwable) {
+      CountDownLatch latch,
+      Throwable throwable) {
     return TestPublisher.ofFailing(latch, throwable);
   }
 
@@ -55,21 +55,20 @@ public class ReactiveStreamsTracedMethods {
         throw new RuntimeException(e);
       }
 
-      s.onSubscribe(
-          new Subscription() {
-            @Override
-            public void request(long n) {
-              if (error != null) {
-                s.onError(error);
-              } else {
-                s.onNext(element);
-                s.onComplete();
-              }
-            }
+      s.onSubscribe(new Subscription() {
+        @Override
+        public void request(long n) {
+          if (error != null) {
+            s.onError(error);
+          } else {
+            s.onNext(element);
+            s.onComplete();
+          }
+        }
 
-            @Override
-            public void cancel() {}
-          });
+        @Override
+        public void cancel() {}
+      });
     }
   }
 

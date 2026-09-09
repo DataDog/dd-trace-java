@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
@@ -39,42 +38,41 @@ public class InstrumentationGatewayTest {
     gateway = new InstrumentationGateway();
     ss = gateway.getSubscriptionService(RequestContextSlot.APPSEC);
     cbp = gateway.getCallbackProvider(RequestContextSlot.APPSEC);
-    context =
-        new RequestContext() {
-          @Override
-          public void close() {}
+    context = new RequestContext() {
+      @Override
+      public void close() {}
 
-          @Override
-          public Object getData(RequestContextSlot slot) {
-            return this;
-          }
+      @Override
+      public Object getData(RequestContextSlot slot) {
+        return this;
+      }
 
-          @Override
-          public TraceSegment getTraceSegment() {
-            return TraceSegment.NoOp.INSTANCE;
-          }
+      @Override
+      public TraceSegment getTraceSegment() {
+        return TraceSegment.NoOp.INSTANCE;
+      }
 
-          @Override
-          public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
+      @Override
+      public void setBlockResponseFunction(BlockResponseFunction blockResponseFunction) {}
 
-          @Override
-          public BlockResponseFunction getBlockResponseFunction() {
-            return null;
-          }
+      @Override
+      public BlockResponseFunction getBlockResponseFunction() {
+        return null;
+      }
 
-          @Override
-          public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
-            return null;
-          }
+      @Override
+      public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        return null;
+      }
 
-          @Override
-          public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+      @Override
+      public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
 
-          @Override
-          public ClientIpAddressData getClientIpAddressData() {
-            return null;
-          }
-        };
+      @Override
+      public ClientIpAddressData getClientIpAddressData() {
+        return null;
+      }
+    };
     flow = new Flow.ResultFlow<>(null);
     callback = new Callback(context, flow);
     events = Events.get();
@@ -118,13 +116,14 @@ public class InstrumentationGatewayTest {
     // check event with registered callback
     assertEquals(cbp.getCallback(events.requestStarted()), callback);
     // check that we can't overwrite the callback
-    IllegalStateException ex =
-        assertThrows(
-            IllegalStateException.class,
-            () -> ss.registerCallback(events.requestStarted(), callback));
-    assertAll(
-        () -> assertTrue(ex.getMessage().startsWith("Trying to overwrite existing callback ")),
-        () -> assertTrue(ex.getMessage().contains(events.requestStarted().toString())));
+    IllegalStateException ex = assertThrows(IllegalStateException.class, () -> ss.registerCallback(
+        events.requestStarted(),
+        callback));
+    assertAll(() -> assertTrue(ex
+      .getMessage()
+      .startsWith("Trying to overwrite existing callback ")), () -> assertTrue(ex
+      .getMessage()
+      .contains(events.requestStarted().toString())));
   }
 
   @Test
@@ -153,11 +152,10 @@ public class InstrumentationGatewayTest {
     assertEquals(400, rba.getStatusCode());
     assertEquals(BlockingContentType.HTML, rba.getBlockingContentType());
 
-    rba =
-        new Flow.Action.RequestBlockingAction(
-            400,
-            BlockingContentType.HTML,
-            Collections.singletonMap("Location", "https://www.google.com/"));
+    rba = new Flow.Action.RequestBlockingAction(
+        400,
+        BlockingContentType.HTML,
+        Collections.singletonMap("Location", "https://www.google.com/"));
     assertTrue(rba.isBlocking());
     assertEquals(400, rba.getStatusCode());
     assertEquals(BlockingContentType.HTML, rba.getBlockingContentType());
@@ -173,12 +171,11 @@ public class InstrumentationGatewayTest {
   @Test
   public void blockResponseFunctionDefaultMethodDelegatesRequestBlockingAction() {
     TraceSegment segment = TraceSegment.NoOp.INSTANCE;
-    Flow.Action.RequestBlockingAction action =
-        new Flow.Action.RequestBlockingAction(
-            451,
-            BlockingContentType.JSON,
-            Collections.singletonMap("x-blocked", "true"),
-            "security-response-id");
+    Flow.Action.RequestBlockingAction action = new Flow.Action.RequestBlockingAction(
+        451,
+        BlockingContentType.JSON,
+        Collections.singletonMap("x-blocked", "true"),
+        "security-response-id");
 
     CapturingBlockResponseFunction blockResponseFunction = new CapturingBlockResponseFunction();
 
@@ -206,8 +203,9 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestPathParams(), callback);
     assertEquals(flow, cbp.getCallback(events.requestPathParams()).apply(null, null));
     ss.registerCallback(events.requestClientSocketAddress(), callback.asClientSocketAddress());
-    assertEquals(
-        flow, cbp.getCallback(events.requestClientSocketAddress()).apply(null, null, null));
+    assertEquals(flow, cbp
+      .getCallback(events.requestClientSocketAddress())
+      .apply(null, null, null));
     ss.registerCallback(events.requestInferredClientAddress(), callback);
     assertEquals(flow, cbp.getCallback(events.requestInferredClientAddress()).apply(null, null));
     ss.registerCallback(events.requestBodyStart(), callback.asRequestBodyStart());
@@ -297,7 +295,8 @@ public class InstrumentationGatewayTest {
         cbp.getCallback(events.requestMethodUriRaw()).apply(null, null, null));
     ss.registerCallback(events.requestPathParams(), throwback);
     assertEquals(
-        Flow.ResultFlow.empty(), cbp.getCallback(events.requestPathParams()).apply(null, null));
+        Flow.ResultFlow.empty(),
+        cbp.getCallback(events.requestPathParams()).apply(null, null));
     ss.registerCallback(events.requestClientSocketAddress(), throwback.asClientSocketAddress());
     assertEquals(
         Flow.ResultFlow.empty(),
@@ -364,10 +363,12 @@ public class InstrumentationGatewayTest {
     cbp.getCallback(events.httpRoute()).accept(null, null);
     ss.registerCallback(events.requestFilesFilenames(), throwback);
     assertEquals(
-        Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesFilenames()).apply(null, null));
+        Flow.ResultFlow.empty(),
+        cbp.getCallback(events.requestFilesFilenames()).apply(null, null));
     ss.registerCallback(events.requestFilesContent(), throwback);
     assertEquals(
-        Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesContent()).apply(null, null));
+        Flow.ResultFlow.empty(),
+        cbp.getCallback(events.requestFilesContent()).apply(null, null));
     ss.registerCallback(events.fileWritten(), throwback);
     cbp.getCallback(events.fileWritten()).apply(null, null);
     assertEquals(Events.MAX_EVENTS, throwback.count);
@@ -414,11 +415,11 @@ public class InstrumentationGatewayTest {
     final int[] count = new int[1];
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> cb =
         (requestContext, igSpanInfo) -> {
-          assertSame(callback.ctx, requestContext);
-          assertSame(AgentTracer.noopSpan(), igSpanInfo);
-          count[0]++;
-          return new Flow.ResultFlow<>(null);
-        };
+      assertSame(callback.ctx, requestContext);
+      assertSame(AgentTracer.noopSpan(), igSpanInfo);
+      count[0]++;
+      return new Flow.ResultFlow<>(null);
+    };
     ss.registerCallback(events.requestEnded(), cb);
     ssIast.registerCallback(events.requestEnded(), cb);
     BiFunction<RequestContext, IGSpanInfo, Flow<Void>> uniCb =
@@ -474,13 +475,12 @@ public class InstrumentationGatewayTest {
   @Test
   public void mergeFlowBlockingActionHasPriority() {
     Flow<Void> flow1 = new Flow.ResultFlow<>(null);
-    Flow<Void> flow2 =
-        new Flow.ResultFlow<Void>(null) {
-          @Override
-          public Action getAction() {
-            return new Action.RequestBlockingAction(410, BlockingContentType.AUTO);
-          }
-        };
+    Flow<Void> flow2 = new Flow.ResultFlow<Void>(null) {
+      @Override
+      public Action getAction() {
+        return new Action.RequestBlockingAction(410, BlockingContentType.AUTO);
+      }
+    };
 
     Flow<Void> resFlow1 = InstrumentationGateway.mergeFlows(flow1, flow2);
     Flow<Void> resFlow2 = InstrumentationGateway.mergeFlows(flow2, flow1);
@@ -515,11 +515,10 @@ public class InstrumentationGatewayTest {
 
   private static class Callback<D, T>
       implements Supplier<Flow<D>>,
-          BiConsumer<RequestContext, T>,
-          TriConsumer<RequestContext, T, T>,
-          BiFunction<RequestContext, T, Flow<Void>>,
-          TriFunction<RequestContext, T, T, Flow<Void>> {
-
+      BiConsumer<RequestContext, T>,
+      TriConsumer<RequestContext, T, T>,
+      BiFunction<RequestContext, T, Flow<Void>>,
+      TriFunction<RequestContext, T, T, Flow<Void>> {
     private final RequestContext ctx;
     private final Flow<Void> flow;
     private int count = 0;
@@ -528,11 +527,10 @@ public class InstrumentationGatewayTest {
     public Callback(RequestContext ctx, Flow<Void> flow) {
       this.ctx = ctx;
       this.flow = flow;
-      function =
-          input -> {
-            count++;
-            return flow;
-          };
+      function = input -> {
+        count++;
+        return flow;
+      };
     }
 
     @Override
@@ -610,18 +608,16 @@ public class InstrumentationGatewayTest {
 
   private static class Throwback<D, T>
       implements Supplier<Flow<D>>,
-          BiConsumer<RequestContext, T>,
-          TriConsumer<RequestContext, T, T>,
-          BiFunction<RequestContext, T, Flow<Void>>,
-          TriFunction<RequestContext, T, T, Flow<Void>> {
-
+      BiConsumer<RequestContext, T>,
+      TriConsumer<RequestContext, T, T>,
+      BiFunction<RequestContext, T, Flow<Void>>,
+      TriFunction<RequestContext, T, T, Flow<Void>> {
     private int count = 0;
-
     private final Function<RequestContext, Flow<Void>> function =
         input -> {
-          count++;
-          throw new IllegalArgumentException();
-        };
+      count++;
+      throw new IllegalArgumentException();
+    };
 
     @Override
     public Flow<Void> apply(RequestContext requestContext, T arg) {

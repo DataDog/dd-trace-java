@@ -6,12 +6,13 @@ import javax.ws.rs.core.MultivaluedMap;
 
 @ParametersAreNonnullByDefault
 public final class InjectAdapter implements CarrierSetter<MultivaluedMap<String, Object>> {
-
   public static final InjectAdapter SETTER = new InjectAdapter();
 
   @Override
   public void set(
-      final MultivaluedMap<String, Object> headers, final String key, final String value) {
+      final MultivaluedMap<String, Object> headers,
+      final String key,
+      final String value) {
     // Don't allow duplicates.
     headers.putSingle(key, value);
   }

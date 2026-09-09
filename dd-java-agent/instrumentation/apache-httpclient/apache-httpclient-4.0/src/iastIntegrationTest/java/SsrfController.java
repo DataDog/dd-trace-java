@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SsrfController {
-
   private static final Logger logger = LoggerFactory.getLogger(SsrfController.class);
 
   public String apacheSsrf(
@@ -35,8 +34,7 @@ public class SsrfController {
       final String url,
       ExecuteMethod executeMethod,
       String requestType,
-      String scheme)
-      throws IOException {
+      String scheme) throws IOException {
     HttpUriRequest httpUriRequest = new HttpGet(url);
     boolean isUriRequest = requestType.equals(Request.HttpUriRequest.name());
     HttpHost host =

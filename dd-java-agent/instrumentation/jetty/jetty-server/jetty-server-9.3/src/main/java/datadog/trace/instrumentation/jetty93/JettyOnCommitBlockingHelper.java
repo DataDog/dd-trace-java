@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JettyOnCommitBlockingHelper {
-
   private static final Logger log = LoggerFactory.getLogger(JettyOnCommitBlockingHelper.class);
   private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
 
@@ -62,7 +61,6 @@ public class JettyOnCommitBlockingHelper {
         if (!commit(channel, info)) {
           return false;
         }
-
         // we need to update the upper layers too
         // so that the correct status code/headers get reported correctly on the span`
         response.reset();

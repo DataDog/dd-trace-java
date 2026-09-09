@@ -9,7 +9,6 @@ import org.openjdk.jmh.annotations.State;
 @State(Scope.Thread)
 @AuxCounters(AuxCounters.Type.EVENTS)
 public class SamplerCounters {
-
   long tests;
   long sampled;
 

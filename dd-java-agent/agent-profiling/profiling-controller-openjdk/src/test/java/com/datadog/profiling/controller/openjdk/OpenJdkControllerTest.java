@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JfpTestResources;
 import com.datadog.profiling.utils.ProfilingMode;
@@ -30,7 +29,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class OpenJdkControllerTest {
-
   private static final String TEST_NAME = "recording name";
 
   @BeforeAll
@@ -87,7 +85,8 @@ public class OpenJdkControllerTest {
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!isOldObjectSampleAvailable()) {
         assertEquals(
-            true, Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+            true,
+            Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
       }
     }
   }
@@ -102,10 +101,10 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData)
-                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
-            .getRecording()) {
+    try (final Recording recording = ((OpenJdkRecordingData) controller
+      .createRecording(TEST_NAME, new ControllerContext().snapshot())
+      .stop())
+      .getRecording()) {
       // On JVMs where OldObjectSample is not available (e.g. Java 8), explicitly enabling heap
       // profiling has no effect — the event cannot be safely enabled.
       assertEquals(
@@ -128,29 +127,31 @@ public class OpenJdkControllerTest {
       if (isObjectAllocationSampleAvailable()) {
         assertEquals(
             false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationInNewTLAB#enabled")));
         assertEquals(
             false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationOutsideTLAB#enabled")));
         assertEquals(
             true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
+            Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
       } else {
         assertEquals(
             false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationInNewTLAB#enabled")));
         assertEquals(
             false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationOutsideTLAB#enabled")));
         assertEquals(
             false,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
+            Boolean.parseBoolean(recording.getSettings().get("jdk.ObjectAllocationSample#enabled")));
       }
     }
   }
@@ -169,12 +170,14 @@ public class OpenJdkControllerTest {
       if (!isObjectAllocationSampleAvailable()) {
         assertEquals(
             true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationInNewTLAB#enabled")));
         assertEquals(
             true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationOutsideTLAB#enabled")));
       }
     }
   }
@@ -187,19 +190,21 @@ public class OpenJdkControllerTest {
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData)
-                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
-            .getRecording()) {
+    try (final Recording recording = ((OpenJdkRecordingData) controller
+      .createRecording(TEST_NAME, new ControllerContext().snapshot())
+      .stop())
+      .getRecording()) {
       if (!isObjectAllocationSampleAvailable()) {
         assertEquals(
             true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationInNewTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationInNewTLAB#enabled")));
         assertEquals(
             true,
-            Boolean.parseBoolean(
-                recording.getSettings().get("jdk.ObjectAllocationOutsideTLAB#enabled")));
+            Boolean.parseBoolean(recording
+              .getSettings()
+              .get("jdk.ObjectAllocationOutsideTLAB#enabled")));
       }
     }
   }
@@ -216,8 +221,9 @@ public class OpenJdkControllerTest {
         controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
-      assertFalse(
-          Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
+      assertFalse(Boolean.parseBoolean(recording
+        .getSettings()
+        .get("jdk.NativeMethodSample#enabled")));
     }
   }
 
@@ -233,8 +239,9 @@ public class OpenJdkControllerTest {
     assertTrue(data instanceof OpenJdkRecordingData);
     try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
       if (!isNativeMethodSampleAvailable()) {
-        assertTrue(
-            Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
+        assertTrue(Boolean.parseBoolean(recording
+          .getSettings()
+          .get("jdk.NativeMethodSample#enabled")));
       }
     }
   }
@@ -251,9 +258,10 @@ public class OpenJdkControllerTest {
     context.setDatadogProfilingModes(EnumSet.of(ProfilingMode.MEMLEAK));
 
     OpenJdkController controller = new OpenJdkController(configProvider);
-    try (final Recording recording =
-        ((OpenJdkRecordingData) controller.createRecording(TEST_NAME, context.snapshot()).stop())
-            .getRecording()) {
+    try (final Recording recording = ((OpenJdkRecordingData) controller
+      .createRecording(TEST_NAME, context.snapshot())
+      .stop())
+      .getRecording()) {
       assertFalse(Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
     }
   }

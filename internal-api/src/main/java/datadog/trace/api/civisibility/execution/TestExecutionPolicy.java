@@ -9,7 +9,6 @@ package datadog.trace.api.civisibility.execution;
  * @see TestExecutionTracker
  */
 public interface TestExecutionPolicy extends TestExecutionTracker {
-
   /**
    * Must be called before the execution is registered by {@link
    * TestExecutionTracker#registerExecution(TestStatus, long)}.

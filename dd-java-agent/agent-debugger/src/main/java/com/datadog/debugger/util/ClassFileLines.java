@@ -52,7 +52,9 @@ public class ClassFileLines {
 
   public LabelNode getLineLabel(int line) {
     Map.Entry<Integer, LabelNode> nextLine = lineLabels.ceilingEntry(line);
-    if (nextLine == null) return null;
+    if (nextLine == null) {
+      return null;
+    }
     return nextLine.getValue();
   }
 

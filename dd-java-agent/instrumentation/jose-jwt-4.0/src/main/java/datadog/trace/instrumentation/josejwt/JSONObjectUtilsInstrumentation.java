@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.josejwt;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -21,8 +20,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JSONObjectUtilsInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JSONObjectUtilsInstrumentation() {
     super("jwt", "jose-jwt");
   }
@@ -41,11 +40,11 @@ public class JSONObjectUtilsInstrumentation extends InstrumenterModule.Iast
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class InstrumenterAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onEnter(
-        @Advice.Return Map<String, Object> map, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return Map<String, Object> map,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 
       if (module != null) {

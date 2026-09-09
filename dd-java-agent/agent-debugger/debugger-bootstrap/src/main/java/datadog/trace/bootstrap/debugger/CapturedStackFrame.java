@@ -1,6 +1,8 @@
 package datadog.trace.bootstrap.debugger;
 
-/** Stores information of a stacktrace's frame */
+/**
+ * Stores information of a stacktrace's frame
+ */
 public class CapturedStackFrame {
   private final String fileName;
   private final String function;
@@ -18,7 +20,9 @@ public class CapturedStackFrame {
 
   public static CapturedStackFrame from(StackTraceElement element) {
     return new CapturedStackFrame(
-        element.getFileName(), getFunction(element), element.getLineNumber());
+        element.getFileName(),
+        getFunction(element),
+        element.getLineNumber());
   }
 
   private static String getFunction(StackTraceElement element) {
@@ -39,8 +43,12 @@ public class CapturedStackFrame {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     CapturedStackFrame that = (CapturedStackFrame) o;
     return lineNumber == that.lineNumber
         && java.util.Objects.equals(fileName, that.fileName)

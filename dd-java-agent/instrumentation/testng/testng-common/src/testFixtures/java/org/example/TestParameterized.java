@@ -1,18 +1,13 @@
 package org.example;
 
 import static org.testng.AssertJUnit.assertTrue;
-
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class TestParameterized {
-
   @DataProvider(name = "dataProvider")
   public static Object[][] data() {
-    return new Object[][] {
-      {"hello", true},
-      {"\"goodbye\"", false}
-    };
+    return new Object[][] {{"hello", true}, {"\"goodbye\"", false}};
   }
 
   @Test(dataProvider = "dataProvider")

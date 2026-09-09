@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.BackendApi;
 import datadog.communication.BackendApiFactory;
 import datadog.communication.http.HttpRetryPolicy;
@@ -20,7 +19,6 @@ import datadog.trace.api.intake.Intake;
 import org.junit.jupiter.api.Test;
 
 class FeatureFlagBackendApiFactoryTest {
-
   @Test
   void remoteConfigUsesOnlyLocalEvpProxy() {
     final Config config = config(CONFIGURATION_SOURCE_REMOTE_CONFIG, "api-key");
@@ -53,17 +51,19 @@ class FeatureFlagBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
-        .thenReturn(mock(BackendApi.class));
+        Intake.EVENT_PLATFORM,
+        false,
+        HttpRetryPolicy.Factory.NEVER_RETRY))
+      .thenReturn(mock(BackendApi.class));
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
-        .thenReturn(mock(BackendApi.class));
+      .thenReturn(mock(BackendApi.class));
 
     final BackendApi selected =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
     verify(backendApiFactory)
-        .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
+      .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
     verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
   }
 
@@ -72,8 +72,8 @@ class FeatureFlagBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
-        .thenReturn(directApi);
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false)).thenReturn(
+        directApi);
 
     final BackendApi selected =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
@@ -124,10 +124,12 @@ class FeatureFlagBackendApiFactoryTest {
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi proxyApi = mock(BackendApi.class);
     when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
-        .thenReturn(proxyApi);
+        Intake.EVENT_PLATFORM,
+        false,
+        HttpRetryPolicy.Factory.NEVER_RETRY))
+      .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
-        .thenThrow(new IllegalArgumentException("invalid URL"));
+      .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
@@ -141,7 +143,7 @@ class FeatureFlagBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
-        .thenThrow(new IllegalArgumentException("invalid URL"));
+      .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();

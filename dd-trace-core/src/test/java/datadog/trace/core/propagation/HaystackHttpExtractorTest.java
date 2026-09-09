@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -40,7 +39,8 @@ import org.tabletest.junit.TableTest;
 class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   @Override
   protected HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier) {
     return HaystackHttpCodec.newExtractor(config, traceConfigSupplier);
   }
 
@@ -82,14 +82,13 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
     String traceUuid = "44617461-646f-6721-0000-000000000001";
     String spanUuid = "44617461-646f-6721-0000-000000000002";
     String parentUuid = "44617461-646f-6721-0000-000000000005";
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            traceUuid + ",44617461-646f-6721-0000-000000000003",
-            SPAN_ID_KEY,
-            spanUuid + ",44617461-646f-6721-0000-000000000004",
-            PARENT_ID_KEY,
-            parentUuid + ",44617461-646f-6721-0000-000000000006");
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        traceUuid + ",44617461-646f-6721-0000-000000000003",
+        SPAN_ID_KEY,
+        spanUuid + ",44617461-646f-6721-0000-000000000004",
+        PARENT_ID_KEY,
+        parentUuid + ",44617461-646f-6721-0000-000000000006");
 
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
@@ -105,14 +104,13 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   void extractRetainsParentIdAsBaggage() {
     // Parent-ID is not read back when injecting, so it is kept as ordinary caller baggage and
     // still propagated downstream as Baggage-Haystack-Parent-ID
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            "44617461-646f-6721-0000-000000000001",
-            SPAN_ID_KEY,
-            "44617461-646f-6721-0000-000000000002",
-            PARENT_ID_KEY,
-            "44617461-646f-6721-0000-000000000003");
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        "44617461-646f-6721-0000-000000000001",
+        SPAN_ID_KEY,
+        "44617461-646f-6721-0000-000000000002",
+        PARENT_ID_KEY,
+        "44617461-646f-6721-0000-000000000003");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -124,14 +122,13 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   @Test
   void extractDropsOversizedParentId() {
     // unlike the reserved trace and span ids, Parent-ID is subject to the baggage limits
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            "44617461-646f-6721-0000-000000000001",
-            SPAN_ID_KEY,
-            "44617461-646f-6721-0000-000000000002",
-            PARENT_ID_KEY,
-            repeat('x', 10_000));
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        "44617461-646f-6721-0000-000000000001",
+        SPAN_ID_KEY,
+        "44617461-646f-6721-0000-000000000002",
+        PARENT_ID_KEY,
+        repeat('x', 10_000));
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -141,15 +138,13 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   @Test
   void extractDoesNotReserveOversizedTraceId() {
     // reserved values skip the baggage budget, so they are capped to keep the overshoot fixed
-    Map<String, String> headers =
-        headers(
-            TRACE_ID_KEY,
-            repeat('a', 10_000) + "-646f-6721-0000-000000000001",
-            SPAN_ID_KEY,
-            "44617461-646f-6721-0000-000000000002");
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY,
+        repeat('a', 10_000) + "-646f-6721-0000-000000000001",
+        SPAN_ID_KEY,
+        "44617461-646f-6721-0000-000000000002");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
-
     // only the last two UUID segments carry the DataDog id, so extraction still succeeds
     assertEquals(DDTraceId.fromHex("0000000000000001"), context.getTraceId());
     assertFalse(context.getBaggage().containsKey(HAYSTACK_TRACE_ID_BAGGAGE_KEY));
@@ -164,11 +159,16 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario         | traceId | spanId                 | traceUuid                              | spanUuid                              ",
-    "small ids        | '1'     | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "incrementing ids | '2'     | '3'                    | '44617461-646f-6721-0000-000000000002' | '44617461-646f-6721-0000-000000000003'",
-    "uint64 max       | 'MAX'   | '18446744073709551609' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffff9'",
-    "uint64 max-1     | 'MAX-1' | '18446744073709551608' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'"
+    "scenario         | traceId | spanId                 | traceUuid                   ",
+    "           | spanUuid                                                             ",
+    "small ids        | '1'     | '2'                    | '44617461-646f-6721-0000-   ",
+    "000000000001' | '44617461-646f-6721-0000-000000000002'                            ",
+    "incrementing ids | '2'     | '3'                    | '44617461-646f-6721-0000-   ",
+    "000000000002' | '44617461-646f-6721-0000-000000000003'                            ",
+    "uint64 max       | 'MAX'   | '18446744073709551609' | '44617461-646f-6721-ffff-   ",
+    "ffffffffffff' | '44617461-646f-6721-ffff-fffffffffff9'                            ",
+    "uint64 max-1     | 'MAX-1' | '18446744073709551608' | '44617461-646f-6721-ffff-   ",
+    "fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'                            "
   })
   void extractHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -188,7 +188,6 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
     );
     // spotless:on
-
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
@@ -197,7 +196,8 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
     Map<String, String> expectedBaggage = new HashMap<>();
     expectedBaggage.put("k1", "v1");
     expectedBaggage.put("k2", "v2");
-    expectedBaggage.put("k3", "%76%33"); // expect value decoded only once
+    // expect value decoded only once
+    expectedBaggage.put("k3", "%76%33");
     expectedBaggage.put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, traceUuid);
     expectedBaggage.put(HAYSTACK_SPAN_ID_BAGGAGE_KEY, spanUuid);
     expectedBaggage.put(SOME_BAGGAGE, "my-interesting-baggage-info");
@@ -229,7 +229,6 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
@@ -246,7 +245,6 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
@@ -263,18 +261,22 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
   }
 
   @TableTest({
-    "scenario       | traceId                                | spanId                                 | ctxCreated",
-    "negative trace | '-1'                                   | '1'                                    | false     ",
-    "negative span  | '1'                                    | '-1'                                   | false     ",
-    "zero traceId   | '0'                                    | '1'                                    | true      ",
-    "uuid format    | '44617461-646f-6721-463a-c35c9f6413ad' | '44617461-646f-6721-463a-c35c9f6413ad' | true      "
+    "scenario       | traceId                                | spanId                  ",
+    "               | ctxCreated                                                       ",
+    "negative trace | '-1'                                   | '1'                     ",
+    "               | false                                                            ",
+    "negative span  | '1'                                    | '-1'                    ",
+    "               | false                                                            ",
+    "zero traceId   | '0'                                    | '1'                     ",
+    "               | true                                                             ",
+    "uuid format    | '44617461-646f-6721-463a-c35c9f6413ad' | '44617461-646f-6721-    ",
+    "463a-c35c9f6413ad' | true                                                         "
   })
   void baggageIsMappedOnContextCreation(String traceId, String spanId, boolean ctxCreated) {
     // spotless:off
@@ -287,7 +289,6 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
         SOME_ARBITRARY_HEADER, "my-interesting-info"
     );
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (ctxCreated) {
@@ -305,21 +306,40 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
   }
 
   @TableTest({
-    "scenario               | traceId                                | spanId                                 | expectedTraceIdLong | expectedSpanId      | ctxCreated",
-    "negative traceId       | '-1'                                   | '1'                                    |                     | 0                   | false     ",
-    "negative spanId        | '1'                                    | '-1'                                   |                     | 0                   | false     ",
-    "zero traceId           | '0'                                    | '1'                                    |                     | 0                   | true      ",
-    "padded ones            | '00001'                                | '00001'                                | 1                   | 1                   | true      ",
-    "64-bit hex             | '463ac35c9f6413ad'                     | '463ac35c9f6413ad'                     | 5060571933882717101 | 5060571933882717101 | true      ",
-    "128-bit hex truncated  | '463ac35c9f6413ad48485a3953bb6124'     | '1'                                    | 5208512171318403364 | 1                   | true      ",
-    "uuid format same       | '44617461-646f-6721-463a-c35c9f6413ad' | '44617461-646f-6721-463a-c35c9f6413ad' | 5060571933882717101 | 5060571933882717101 | true      ",
-    "uint64 max 64-bit      | 'ffffffffffffffff'                     | '1'                                    | -1                  | 1                   | true      ",
-    "128-bit high+low max   | 'aaaaaaaaaaaaaaaaffffffffffffffff'     | '1'                                    | -1                  | 1                   | true      ",
-    "traceId too long high1 | '1ffffffffffffffffffffffffffffffff'    | '1'                                    |                     | 1                   | false     ",
-    "traceId too long high0 | '0ffffffffffffffffffffffffffffffff'    | '1'                                    |                     | 1                   | false     ",
-    "uint64 max spanId      | '1'                                    | 'ffffffffffffffff'                     | 1                   | -1                  | true      ",
-    "spanId too long        | '1'                                    | '1ffffffffffffffff'                    |                     | 0                   | false     ",
-    "padded uint64 max span | '1'                                    | '000ffffffffffffffff'                  | 1                   | -1                  | true      "
+    "scenario               | traceId                                | spanId          ",
+    "                       | expectedTraceIdLong | expectedSpanId      | ctxCreated   ",
+    "negative traceId       | '-1'                                   | '1'             ",
+    "                       |                     | 0                   | false        ",
+    "negative spanId        | '1'                                    | '-1'            ",
+    "                       |                     | 0                   | false        ",
+    "zero traceId           | '0'                                    | '1'             ",
+    "                       |                     | 0                   | true         ",
+    "padded ones            | '00001'                                | '00001'         ",
+    "                       | 1                   | 1                   | true         ",
+    "64-bit hex             | '463ac35c9f6413ad'                     |                 ",
+    "'463ac35c9f6413ad'                     | 5060571933882717101 |                    ",
+    "5060571933882717101 | true                                                        ",
+    "128-bit hex truncated  | '463ac35c9f6413ad48485a3953bb6124'     | '1'             ",
+    "                       | 5208512171318403364 | 1                   | true         ",
+    "uuid format same       | '44617461-646f-6721-463a-c35c9f6413ad' | '44617461-646f- ",
+    "6721-463a-c35c9f6413ad' | 5060571933882717101 | 5060571933882717101 | true        ",
+    "uint64 max 64-bit      | 'ffffffffffffffff'                     | '1'             ",
+    "                       | -1                  | 1                   | true         ",
+    "128-bit high+low max   | 'aaaaaaaaaaaaaaaaffffffffffffffff'     | '1'             ",
+    "                       | -1                  | 1                   | true         ",
+    "traceId too long high1 | '1ffffffffffffffffffffffffffffffff'    | '1'             ",
+    "                       |                     | 1                   | false        ",
+    "traceId too long high0 | '0ffffffffffffffffffffffffffffffff'    | '1'             ",
+    "                       |                     | 1                   | false        ",
+    "uint64 max spanId      | '1'                                    |                 ",
+    "'ffffffffffffffff'                     | 1                   | -1                 ",
+    " | true                                                                           ",
+    "spanId too long        | '1'                                    |                 ",
+    "'1ffffffffffffffff'                    |                     | 0                  ",
+    " | false                                                                          ",
+    "padded uint64 max span | '1'                                    |                 ",
+    "'000ffffffffffffffff'                  | 1                   | -1                 ",
+    " | true                                                                           "
   })
   void extract128BitIdTruncatesIdTo64Bit(
       String traceId,
@@ -332,7 +352,6 @@ class HaystackHttpExtractorTest extends AbstractHttpExtractorTest {
         TRACE_ID_KEY, traceId,
         SPAN_ID_KEY, spanId);
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (expectedTraceIdLong != null) {

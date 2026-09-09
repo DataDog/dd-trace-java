@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static redis.clients.jedis.JedisClientDecorator.DECORATE;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,8 +21,8 @@ import redis.clients.jedis.commands.ProtocolCommand;
 
 @AutoService(InstrumenterModule.class)
 public final class JedisInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JedisInstrumentation() {
     super("jedis", "redis");
   }
@@ -35,23 +34,20 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "redis.clients.jedis.JedisClientDecorator",
-    };
+    return new String[] {"redis.clients.jedis.JedisClientDecorator"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("executeCommand"))
-            .and(takesArgument(0, named("redis.clients.jedis.CommandObject"))),
+          .and(isPublic())
+          .and(named("executeCommand"))
+          .and(takesArgument(0, named("redis.clients.jedis.CommandObject"))),
         JedisInstrumentation.class.getName() + "$JedisAdvice");
   }
 
   public static class JedisAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final CommandObject<?> commandObject,
@@ -74,7 +70,8 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       DECORATE.onError(scope.span(), throwable);
       DECORATE.beforeFinish(scope.span());
       scope.close();

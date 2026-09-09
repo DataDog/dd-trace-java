@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -12,7 +11,8 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public HttpServerResponseEndHandlerInstrumentation() {
     super("vertx", "vertx-4.0");
   }
@@ -25,19 +25,21 @@ public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterMod
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".EndHandlerWrapper",
-      packageName + ".RouteHandlerWrapper",
-      packageName + ".VertxDecorator",
+        packageName + ".EndHandlerWrapper",
+        packageName + ".RouteHandlerWrapper",
+        packageName + ".VertxDecorator"
     };
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.vertx.core.http.impl.Http1xServerResponse",
-      "io.vertx.core.http.impl.Http2ServerResponse",
-      "io.vertx.core.http.impl.http1.Http1ServerResponse", // HTTP/1 response when v >= 5.1
-      "io.vertx.core.http.impl.HttpServerResponseImpl" // HTTP/2 response when v >= 5.1
+        "io.vertx.core.http.impl.Http1xServerResponse",
+        "io.vertx.core.http.impl.Http2ServerResponse",
+        // HTTP/1 response when v >= 5.1
+        "io.vertx.core.http.impl.http1.Http1ServerResponse",
+        // HTTP/2 response when v >= 5.1
+        "io.vertx.core.http.impl.HttpServerResponseImpl"
     };
   }
 
@@ -45,9 +47,9 @@ public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterMod
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("endHandler"))
-            .and(isPublic())
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
+          .and(named("endHandler"))
+          .and(isPublic())
+          .and(takesArgument(0, named("io.vertx.core.Handler"))),
         packageName + ".EndHandlerWrapperAdvice");
   }
 }

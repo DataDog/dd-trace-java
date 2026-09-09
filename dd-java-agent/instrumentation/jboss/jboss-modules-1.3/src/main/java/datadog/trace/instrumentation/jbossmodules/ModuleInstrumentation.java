@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,7 +19,8 @@ import org.jboss.modules.ModuleLinkageHelper;
 
 @AutoService(InstrumenterModule.class)
 public final class ModuleInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private static final String JBOSS_MODULES = "jboss-modules";
 
   public ModuleInstrumentation() {
@@ -35,35 +35,32 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "org.jboss.modules.ModuleLinkageHelper",
-      "org.jboss.modules.ModuleLinkageHelper$1",
-      "org.jboss.modules.ModuleLinkageHelper$2",
-      packageName + ".ModuleNameHelper",
+        "org.jboss.modules.ModuleLinkageHelper",
+        "org.jboss.modules.ModuleLinkageHelper$1",
+        "org.jboss.modules.ModuleLinkageHelper$2",
+        packageName + ".ModuleNameHelper"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(named("getResource"))
-            .and(takesArguments(1).and(takesArgument(0, String.class))),
+        isMethod().and(named("getResource")).and(takesArguments(1)
+          .and(takesArgument(0, String.class))),
         ModuleInstrumentation.class.getName() + "$WidenGetResourceAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("getResourceAsStream"))
-            .and(takesArguments(1).and(takesArgument(0, String.class))),
+          .and(named("getResourceAsStream"))
+          .and(takesArguments(1).and(takesArgument(0, String.class))),
         ModuleInstrumentation.class.getName() + "$WidenGetResourceAsStreamAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("loadModuleClass"))
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, String.class))
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(0, String.class))
-                            .and(takesArgument(1, boolean.class)))),
+          .and(named("loadModuleClass"))
+          .and(takesArguments(1)
+            .and(takesArgument(0, String.class))
+            .or(takesArguments(2)
+              .and(takesArgument(0, String.class))
+              .and(takesArgument(1, boolean.class)))),
         ModuleInstrumentation.class.getName() + "$WidenLoadClassAdvice");
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureModuleNameAdvice");
   }
@@ -83,12 +80,14 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
       if (null == result) {
         AgentClassLoading requestType = AgentClassLoading.type();
         if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
+          // avoid looping back into our advice
+          requestType.end();
           try {
             // widen search by peeking inside module linkage
             result = ModuleLinkageHelper.getResource(module, name);
             if (null != result) {
-              error = null; // clear any error from original call
+              // clear any error from original call
+              error = null;
             }
           } finally {
             requestType.begin();
@@ -113,13 +112,15 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
       if (null == result) {
         AgentClassLoading requestType = AgentClassLoading.type();
         if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
+          // avoid looping back into our advice
+          requestType.end();
           try {
             // widen search by peeking inside module linkage
             URL resource = ModuleLinkageHelper.getResource(module, name);
             if (null != resource) {
               result = resource.openStream();
-              error = null; // clear any error from original call
+              // clear any error from original call
+              error = null;
             }
           } catch (IOException e) {
             // ignore missing resource
@@ -146,12 +147,14 @@ public final class ModuleInstrumentation extends InstrumenterModule.Tracing
       if (null == result) {
         AgentClassLoading requestType = AgentClassLoading.type();
         if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
+          // avoid looping back into our advice
+          requestType.end();
           try {
             // widen search by peeking inside module linkage
             result = ModuleLinkageHelper.loadClass(module, name);
             if (null != result) {
-              error = null; // clear any error from original call
+              // clear any error from original call
+              error = null;
             }
           } finally {
             requestType.begin();

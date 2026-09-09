@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.grizzlyhttp232;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RESPONSE_ATTRIBUTE;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
@@ -35,12 +34,10 @@ import org.slf4j.LoggerFactory;
 
 public class GrizzlyHttpBlockingHelper {
   private static final Logger log = LoggerFactory.getLogger(GrizzlyHttpBlockingHelper.class);
-
   /**
    * @see HttpServerFilter#encodeHttpPacket(FilterChainContext, HttpPacket)
    */
   private static final MethodHandle ENCODE_HTTP_PACKET;
-
   private static final CompletionHandler CLOSE_COMPLETION_HANDLER = new CloseCompletionHandler();
 
   static {
@@ -48,18 +45,17 @@ public class GrizzlyHttpBlockingHelper {
     Method encodeHttpPacket = null;
 
     try {
-      encodeHttpPacket =
-          HttpServerFilter.class.getDeclaredMethod(
-              "encodeHttpPacket", FilterChainContext.class, HttpPacket.class);
+      encodeHttpPacket = HttpServerFilter.class
+        .getDeclaredMethod("encodeHttpPacket", FilterChainContext.class, HttpPacket.class);
       encodeHttpPacket.setAccessible(true);
     } catch (NoSuchMethodException nsme) {
       log.error(
           "Cannot find method HttpServerFilter::encodeHttpPacket. "
-              + "Blocking will not be possible at the grizzly-http level");
+          + "Blocking will not be possible at the grizzly-http level");
     } catch (RuntimeException e) {
       log.error(
           "Exception trying to obtain handle for method HttpServerFilter::encodeHttpPacket. "
-              + "Blocking will not be possible at the grizzly-http level",
+          + "Blocking will not be possible at the grizzly-http level",
           e);
     }
 
@@ -69,14 +65,15 @@ public class GrizzlyHttpBlockingHelper {
       } catch (IllegalAccessException e) {
         log.error(
             "Exception unreflecting method HttpServerFilter::encodeHttpPacket. "
-                + "Blocking will not be possible at the grizzly-http level");
+            + "Blocking will not be possible at the grizzly-http level");
       }
     }
 
     ENCODE_HTTP_PACKET = handle;
   }
 
-  private GrizzlyHttpBlockingHelper() {}
+  private GrizzlyHttpBlockingHelper() {
+  }
 
   public static NextAction block(
       FilterChainContext ctx,
@@ -89,9 +86,9 @@ public class GrizzlyHttpBlockingHelper {
       return nextAction;
     }
 
-    HttpStatus status =
-        HttpStatus.newHttpStatus(
-            BlockingActionHelper.getHttpCode(rba.getStatusCode()), "Request Blocked");
+    HttpStatus status = HttpStatus.newHttpStatus(
+        BlockingActionHelper.getHttpCode(rba.getStatusCode()),
+        "Request Blocked");
     status.setValues(httpResponse);
 
     for (Map.Entry<String, String> h : rba.getExtraHeaders().entrySet()) {
@@ -107,8 +104,11 @@ public class GrizzlyHttpBlockingHelper {
       httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
       httpResponse.setContentLength(template.length);
-      httpContent =
-          HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+      httpContent = HttpContent
+        .builder(httpResponse)
+        .content(HeapBuffer.wrap(template))
+        .last(true)
+        .build();
     } else {
       httpContent = HttpContent.builder(httpResponse).last(true).build();
     }
@@ -169,15 +169,19 @@ public class GrizzlyHttpBlockingHelper {
       httpResponse.setHeader("Content-type", BlockingActionHelper.getContentType(type));
       byte[] template = BlockingActionHelper.getTemplate(type, securityResponseId);
       httpResponse.setContentLength(template.length);
-      httpContent =
-          HttpContent.builder(httpResponse).content(HeapBuffer.wrap(template)).last(true).build();
+      httpContent = HttpContent
+        .builder(httpResponse)
+        .content(HeapBuffer.wrap(template))
+        .last(true)
+        .build();
     } else {
       httpContent = HttpContent.builder(httpResponse).last(true).build();
     }
 
     Buffer buff;
     try {
-      segment.effectivelyBlocked(); // last opportunity before HttpServerFilterAdvice runs
+      // last opportunity before HttpServerFilterAdvice runs
+      segment.effectivelyBlocked();
       buff = (Buffer) ENCODE_HTTP_PACKET.invoke(httpServerFilter, ctx, httpContent);
     } catch (Throwable e) {
       log.error("Failure serializing http response for blocking", e);

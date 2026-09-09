@@ -7,16 +7,12 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class ElasticsearchTransportClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
-
   private static final String DB_TYPE = "elasticsearch";
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service(DB_TYPE);
-
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
-  public static final CharSequence ELASTICSEARCH_JAVA =
-      UTF8BytesString.create("elasticsearch-java");
-
+  public static final CharSequence ELASTICSEARCH_JAVA = UTF8BytesString.create("elasticsearch-java");
   public static final ElasticsearchTransportClientDecorator DECORATE =
       new ElasticsearchTransportClientDecorator();
 

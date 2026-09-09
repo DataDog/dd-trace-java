@@ -9,7 +9,6 @@ package com.datadog.profiling.controller.openjdk.events;
  */
 final class SimpleParser {
   private final String line;
-
   private int pos;
 
   public SimpleParser(String line) {

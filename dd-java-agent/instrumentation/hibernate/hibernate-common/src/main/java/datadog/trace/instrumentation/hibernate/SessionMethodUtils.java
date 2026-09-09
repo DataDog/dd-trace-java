@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.hibernate;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hibernate.HibernateDecorator.DECORATOR;
-
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -13,7 +12,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class SessionMethodUtils {
-
   public static final Set<String> SCOPE_ONLY_METHODS =
       new HashSet<>(Arrays.asList("immediateLoad", "internalLoad"));
 
@@ -27,16 +25,17 @@ public class SessionMethodUtils {
       final String operationName,
       final ENTITY entity,
       final boolean createSpan) {
-
     final SessionState sessionState = contextStore.get(spanKey);
 
     if (sessionState == null) {
-      return null; // No state found. We aren't in a Session.
+      // No state found. We aren't in a Session.
+      return null;
     }
 
     final int depth = CallDepthThreadLocalMap.incrementCallDepth(SessionMethodUtils.class);
     if (depth > 0) {
-      return null; // This method call is being traced already.
+      // This method call is being traced already.
+      return null;
     }
 
     final AgentScope scope;
@@ -55,13 +54,14 @@ public class SessionMethodUtils {
     return sessionState;
   }
 
-  /** Closes a Scope/Span, adding an error tag if the given Throwable is not null. */
+  /**
+   * Closes a Scope/Span, adding an error tag if the given Throwable is not null.
+   */
   public static void closeScope(
       final SessionState sessionState,
       final Throwable throwable,
       final Object entity,
       final boolean closeSpan) {
-
     final AgentScope scope = sessionState == null ? null : sessionState.getMethodScope();
     if (scope == null) {
       // This method call was re-entrant. Do nothing, since it is being traced by the parent/first
@@ -94,7 +94,6 @@ public class SessionMethodUtils {
       final S source,
       final ContextStore<T, SessionState> targetContextStore,
       final T target) {
-
     final SessionState state = sourceContextStore.get(source);
     if (state == null) {
       return;

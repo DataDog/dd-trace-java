@@ -13,12 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StaticEventLogger {
-
   private static final Logger log = LoggerFactory.getLogger(StaticEventLogger.class);
-
   private static final int EVENT_BEGIN = '1';
   private static final int EVENT_END = '0';
-
   private static final BufferedWriter out;
 
   static {
@@ -51,7 +48,6 @@ public class StaticEventLogger {
           out.write(commit);
           out.newLine();
         }
-
         // Add current timestamp
         out.write("# time=");
         out.write(String.valueOf(System.currentTimeMillis()));
@@ -79,26 +75,28 @@ public class StaticEventLogger {
   }
 
   public static void begin(String event) {
-    if (out == null) return;
+    if (out == null) {
+      return;
+    }
 
     writeEvent(event, EVENT_BEGIN, System.nanoTime());
   }
 
   public static void end(String event) {
-    if (out == null) return;
+    if (out == null) {
+      return;
+    }
 
     writeEvent(event, EVENT_END, System.nanoTime());
   }
 
   private static String getAgentVersion() {
     final StringBuilder sb = new StringBuilder();
-    try (final BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                Objects.requireNonNull(
-                    StaticEventLogger.class.getResourceAsStream("/dd-java-agent.version")),
-                StandardCharsets.UTF_8))) {
-
+    try (final BufferedReader reader = new BufferedReader(
+        new InputStreamReader(
+            Objects.requireNonNull(StaticEventLogger.class
+              .getResourceAsStream("/dd-java-agent.version")),
+            StandardCharsets.UTF_8))) {
       for (int c = reader.read(); c != -1; c = reader.read()) {
         sb.append((char) c);
       }

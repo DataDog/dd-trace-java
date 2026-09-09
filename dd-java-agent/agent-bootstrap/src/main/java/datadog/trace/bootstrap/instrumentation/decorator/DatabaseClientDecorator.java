@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.DB_CLIENT_SPLIT_BY_HOST;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_TYPE;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
@@ -25,7 +24,6 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   protected static class NamingEntry {
     private final String service;
     private final CharSequence operation;
-
     private final String dbType;
 
     private NamingEntry(String rawDbType) {
@@ -103,10 +101,9 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
   public String dbClientService(final String instanceName) {
     String service = null;
     if (instanceName != null && Config.get().isDbClientSplitByInstance()) {
-      service =
-          Config.get().isDbClientSplitByInstanceTypeSuffix()
-              ? instanceName + "-" + dbType()
-              : instanceName;
+      service = Config.get().isDbClientSplitByInstanceTypeSuffix()
+          ? instanceName + "-" + dbType()
+          : instanceName;
     }
     return service;
   }
@@ -121,10 +118,10 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
    */
   public void onRawStatement(AgentSpan span, String sql) {
     if (Config.get().isAppSecRaspEnabled() && sql != null && !sql.isEmpty()) {
-      BiFunction<RequestContext, String, Flow<Void>> sqlQueryCallback =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.databaseSqlQuery());
+      BiFunction<RequestContext, String, Flow<Void>> sqlQueryCallback = AgentTracer
+        .get()
+        .getCallbackProvider(RequestContextSlot.APPSEC)
+        .getCallback(EVENTS.databaseSqlQuery());
       if (sqlQueryCallback != null) {
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {
@@ -149,10 +146,10 @@ public abstract class DatabaseClientDecorator<CONNECTION> extends ClientDecorato
     postProcessServiceAndOperationName(span, namingEntry);
 
     if (Config.get().isAppSecRaspEnabled() && dbType != null) {
-      BiConsumer<RequestContext, String> connectDbCallback =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.databaseConnection());
+      BiConsumer<RequestContext, String> connectDbCallback = AgentTracer
+        .get()
+        .getCallbackProvider(RequestContextSlot.APPSEC)
+        .getCallback(EVENTS.databaseConnection());
       if (connectDbCallback != null) {
         RequestContext ctx = span.getRequestContext();
         if (ctx != null) {

@@ -8,10 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** Groups the instrumentations for AWS SQS SDK 2.0+. */
+/**
+ * Groups the instrumentations for AWS SQS SDK 2.0+.
+ */
 @AutoService(InstrumenterModule.class)
 public final class SqsModule extends InstrumenterModule.Tracing {
-
   public SqsModule() {
     super("sqs", "aws-sdk");
   }
@@ -19,14 +20,14 @@ public final class SqsModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.aws.v2.sqs.SqsInterceptor",
-      "datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector",
-      "datadog.trace.instrumentation.aws.v2.sqs.MessageExtractAdapter",
-      "datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator",
-      "datadog.trace.instrumentation.aws.v2.sqs.SqsReceiveResponseInternalAccess",
-      "datadog.trace.instrumentation.aws.v2.sqs.TracingIterator",
-      "datadog.trace.instrumentation.aws.v2.sqs.TracingList",
-      "datadog.trace.instrumentation.aws.v2.sqs.TracingListIterator"
+        "datadog.trace.instrumentation.aws.v2.sqs.SqsInterceptor",
+        "datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector",
+        "datadog.trace.instrumentation.aws.v2.sqs.MessageExtractAdapter",
+        "datadog.trace.instrumentation.aws.v2.sqs.SqsDecorator",
+        "datadog.trace.instrumentation.aws.v2.sqs.SqsReceiveResponseInternalAccess",
+        "datadog.trace.instrumentation.aws.v2.sqs.TracingIterator",
+        "datadog.trace.instrumentation.aws.v2.sqs.TracingList",
+        "datadog.trace.instrumentation.aws.v2.sqs.TracingListIterator"
     };
   }
 
@@ -34,7 +35,8 @@ public final class SqsModule extends InstrumenterModule.Tracing {
   public Map<String, String> contextStore() {
     Map<String, String> contextStore = new java.util.HashMap<>();
     contextStore.put(
-        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse", "java.lang.String");
+        "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse",
+        "java.lang.String");
     contextStore.put(
         "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse$BuilderImpl",
         "java.lang.String");

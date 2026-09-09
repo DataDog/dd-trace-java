@@ -1,7 +1,6 @@
 package datadog.smoketest.springboot;
 
 public class TestBean {
-
   private String name;
   private String value;
 

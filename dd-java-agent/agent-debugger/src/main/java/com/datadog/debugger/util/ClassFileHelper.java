@@ -4,7 +4,9 @@ import java.nio.charset.StandardCharsets;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 
-/** Helper class for extracting information of a class file */
+/**
+ * Helper class for extracting information of a class file
+ */
 public class ClassFileHelper {
   private static final int CONSTANT_POOL_COUNT_OFFSET = 8;
   private static final int CONSTANT_POOL_BASE_OFFSET = 10;
@@ -66,55 +68,85 @@ public class ClassFileHelper {
       constantPoolOffsets[i] = currentOffset;
       int tag = classFileBytes[constantPoolOffsets[i]];
       switch (tag) {
-        case 1: // CONSTANT_Utf8
+        case
+            // CONSTANT_Utf8
+        1:
           int length = readUnsignedShort(classFileBytes, constantPoolOffsets[i] + 1);
           currentOffset += 3 + length;
           break;
-        case 7: // CONSTANT_Class
-        case 8: // CONSTANT_String
-        case 16: // CONSTANT_MethodType
-        case 19: // CONSTANT_Module
-        case 20: // CONSTANT_Package
+        // CONSTANT_Class
+        case 7:
+        // CONSTANT_String
+        case 8:
+        // CONSTANT_MethodType
+        case 16:
+        // CONSTANT_Module
+        case 19:
+        case
+            // CONSTANT_Package
+        20:
           currentOffset += 3;
           break;
-        case 15: // CONSTANT_MethodHandle
+        case
+            // CONSTANT_MethodHandle
+        15:
           currentOffset += 4;
           break;
-        case 3: // CONSTANT_Integer
-        case 4: // CONSTANT_Float
-        case 9: // CONSTANT_Fieldref
-        case 10: // CONSTANT_Methodref
-        case 11: // CONSTANT_InterfaceMethodref
-        case 12: // CONSTANT_NameAndType
-        case 17: // CONSTANT_Dynamic
-        case 18: // CONSTANT_InvokeDynamic
+        // CONSTANT_Integer
+        case 3:
+        // CONSTANT_Float
+        case 4:
+        // CONSTANT_Fieldref
+        case 9:
+        // CONSTANT_Methodref
+        case 10:
+        // CONSTANT_InterfaceMethodref
+        case 11:
+        // CONSTANT_NameAndType
+        case 12:
+        // CONSTANT_Dynamic
+        case 17:
+        case
+            // CONSTANT_InvokeDynamic
+        18:
           currentOffset += 5;
           break;
-        case 5: // CONSTANT_Long
-        case 6: // CONSTANT_Double
+        // CONSTANT_Long
+        case 5:
+        case
+            // CONSTANT_Double
+        6:
           currentOffset += 9;
-          i++; // Double slot
+          // Double slot
+          i++;
           break;
         default:
           throw new IllegalArgumentException("Unknown constant pool tag: " + tag);
       }
     }
-    currentOffset += 2; // Skip access flags
-    currentOffset += 2; // Skip this class
-    currentOffset += 2; // Skip super class
+    // Skip access flags
+    currentOffset += 2;
+    // Skip this class
+    currentOffset += 2;
+    // Skip super class
+    currentOffset += 2;
     int interfacesCount = readUnsignedShort(classFileBytes, currentOffset);
-    currentOffset += 2 + interfacesCount * 2; // Skip interfaces
+    // Skip interfaces
+    currentOffset += 2 + interfacesCount * 2;
     // skip fields
     currentOffset = skipFieldsOrMethods(classFileBytes, currentOffset);
     // skip Methods
     currentOffset = skipFieldsOrMethods(classFileBytes, currentOffset);
     int attributesCount = readUnsignedShort(classFileBytes, currentOffset);
-    currentOffset += 2; // Skip attributes count
+    // Skip attributes count
+    currentOffset += 2;
     for (int i = 0; i < attributesCount; i++) {
       int attributeNameIndex = readUnsignedShort(classFileBytes, currentOffset);
-      currentOffset += 2; // Skip attribute name index
+      // Skip attribute name index
+      currentOffset += 2;
       int attributeLength = (int) readUnsignedInt(classFileBytes, currentOffset);
-      currentOffset += 4; // Skip attribute length
+      // Skip attribute length
+      currentOffset += 4;
       if (attributeNameIndex == 0) {
         continue;
       }
@@ -128,24 +160,33 @@ public class ClassFileHelper {
         int sourceFileOffset = constantPoolOffsets[sourceFileIndex - 1];
         int sourceFileLen = readUnsignedShort(classFileBytes, sourceFileOffset + 1);
         return new String(
-            classFileBytes, sourceFileOffset + 3, sourceFileLen, StandardCharsets.UTF_8);
+            classFileBytes,
+            sourceFileOffset + 3,
+            sourceFileLen,
+            StandardCharsets.UTF_8);
       }
-      currentOffset += attributeLength; // Skip attribute data
+      // Skip attribute data
+      currentOffset += attributeLength;
     }
     return null;
   }
 
   private static int skipFieldsOrMethods(byte[] classFileBytes, int currentOffset) {
     int fieldsCount = readUnsignedShort(classFileBytes, currentOffset);
-    currentOffset += 2; // Skip count
+    // Skip count
+    currentOffset += 2;
     for (int i = 0; i < fieldsCount; i++) {
-      currentOffset += 6; // Skip access flags, name index, descriptor index
+      // Skip access flags, name index, descriptor index
+      currentOffset += 6;
       int attributesCount = readUnsignedShort(classFileBytes, currentOffset);
-      currentOffset += 2; // Skip attributes count
+      // Skip attributes count
+      currentOffset += 2;
       for (int j = 0; j < attributesCount; j++) {
-        currentOffset += 2; // Skip attribute name index
+        // Skip attribute name index
+        currentOffset += 2;
         int attributeLength = (int) readUnsignedInt(classFileBytes, currentOffset);
-        currentOffset += 4 + attributeLength; // Skip attribute length and data
+        // Skip attribute length and data
+        currentOffset += 4 + attributeLength;
       }
     }
     return currentOffset;

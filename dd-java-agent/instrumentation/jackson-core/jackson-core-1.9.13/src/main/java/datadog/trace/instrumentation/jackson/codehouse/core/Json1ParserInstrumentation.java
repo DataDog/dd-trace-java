@@ -9,7 +9,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,11 +23,13 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonToken;
 
-/** TODO: keep a stack like structure pointing to the whole path */
+/**
+ * TODO: keep a stack like structure pointing to the whole path
+ */
 @AutoService(InstrumenterModule.class)
 public class Json1ParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   static final String JSON_PARSER = "org.codehaus.jackson.JsonParser";
 
   public Json1ParserInstrumentation() {
@@ -53,10 +54,9 @@ public class Json1ParserInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(
-            named(hierarchyMarkerType())
-                .and(namedNoneOf("org.codehaus.jackson.impl.JsonParserMinimalBase")))
-        .and(declaresMethod(namedOneOf("getText", "getCurrentName")));
+    return extendsClass(named(hierarchyMarkerType())
+      .and(namedNoneOf("org.codehaus.jackson.impl.JsonParserMinimalBase")))
+      .and(declaresMethod(namedOneOf("getText", "getCurrentName")));
   }
 
   @Override
@@ -65,7 +65,6 @@ public class Json1ParserInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class GetTextAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {
@@ -89,7 +88,6 @@ public class Json1ParserInstrumentation extends InstrumenterModule.Iast
    * @see JsonParser#getCurrentName()
    */
   public static class GetCurrentNameAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {

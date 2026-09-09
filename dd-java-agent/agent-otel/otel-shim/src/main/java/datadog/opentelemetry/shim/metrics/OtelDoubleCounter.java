@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
@@ -73,8 +72,9 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
 
     @Override
     public DoubleCounter build() {
-      return new OtelDoubleCounter(
-          meter.registerStorage(builder, OtelMetricStorage::newDoubleSumStorage));
+      return new OtelDoubleCounter(meter.registerStorage(
+          builder,
+          OtelMetricStorage::newDoubleSumStorage));
     }
 
     @Override
@@ -83,8 +83,7 @@ final class OtelDoubleCounter extends OtelInstrument implements DoubleCounter {
     }
 
     @Override
-    public ObservableDoubleCounter buildWithCallback(
-        Consumer<ObservableDoubleMeasurement> callback) {
+    public ObservableDoubleCounter buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
       return meter.registerObservableCallback(callback, buildObserver());
     }
   }

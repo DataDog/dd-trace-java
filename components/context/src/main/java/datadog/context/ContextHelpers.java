@@ -3,7 +3,6 @@ package datadog.context;
 import static java.lang.Math.max;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Objects.requireNonNull;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BinaryOperator;
@@ -32,10 +31,13 @@ import java.util.function.BinaryOperator;
  * where {@link #CURRENT} denotes a carrier with the current context.
  */
 public final class ContextHelpers {
-  /** A helper object carrying the {@link Context#current()} context. */
+  /**
+   * A helper object carrying the {@link Context#current()} context.
+   */
   public static final Object CURRENT = new Object();
 
-  private ContextHelpers() {}
+  private ContextHelpers() {
+  }
 
   /**
    * Find the first context value from given context carriers.
@@ -124,9 +126,10 @@ public final class ContextHelpers {
         return current;
       }
       // Always store next value otherwise
-      Object[] store =
-          copyOfRange(
-              currentIndexed.store, 0, max(currentIndexed.store.length, nextSingleton.index + 1));
+      Object[] store = copyOfRange(
+          currentIndexed.store,
+          0,
+          max(currentIndexed.store.length, nextSingleton.index + 1));
       store[nextSingleton.index] = nextSingleton.value;
       return new IndexedContext(store);
     } else if (next instanceof IndexedContext) {

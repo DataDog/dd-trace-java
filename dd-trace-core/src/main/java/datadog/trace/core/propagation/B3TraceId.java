@@ -3,11 +3,14 @@ package datadog.trace.core.propagation;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
 
-/** A B3 {@link DDTraceId} along with its original {@link String} representation. */
+/**
+ * A B3 {@link DDTraceId} along with its original {@link String} representation.
+ */
 public class B3TraceId extends DDTraceId {
-  /** The original {@link String} representation. */
+  /**
+   * The original {@link String} representation.
+   */
   protected final String original;
-
   protected final DDTraceId delegate;
 
   /**
@@ -60,8 +63,12 @@ public class B3TraceId extends DDTraceId {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     B3TraceId that = (B3TraceId) o;
     return delegate.equals(that.delegate);
   }

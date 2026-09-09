@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.ClassFileLocators.classFileL
 import static datadog.trace.agent.tooling.bytebuddy.TypeInfoCache.UNKNOWN_CLASS_FILE;
 import static datadog.trace.bootstrap.AgentClassLoading.LOCATING_CLASS;
 import static net.bytebuddy.dynamic.loading.ClassLoadingStrategy.BOOTSTRAP_LOADER;
-
 import datadog.instrument.utils.ClassLoaderIndex;
 import datadog.instrument.utils.ClassNameFilter;
 import datadog.trace.agent.tooling.InstrumenterMetrics;
@@ -39,30 +38,28 @@ import org.slf4j.LoggerFactory;
  */
 final class TypeFactory {
   private static final Logger log = LoggerFactory.getLogger(TypeFactory.class);
-
-  /** Maintain a reusable type factory for each thread involved in class-loading. */
+  /**
+   * Maintain a reusable type factory for each thread involved in class-loading.
+   */
   static final ThreadLocal<TypeFactory> typeFactory = ThreadLocal.withInitial(TypeFactory::new);
-
   private static final boolean fallBackToLoadClass =
       InstrumenterConfig.get().isResolverUseLoadClass();
-
   private static final Map<Character, TypeDescription> primitiveDescriptorTypes = new HashMap<>();
-
   private static final Map<String, TypeDescription> primitiveTypes = new HashMap<>();
 
   static {
     for (Class<?> primitive :
         new Class<?>[] {
-          boolean.class,
-          byte.class,
-          short.class,
-          char.class,
-          int.class,
-          long.class,
-          float.class,
-          double.class,
-          void.class
-        }) {
+        boolean.class,
+        byte.class,
+        short.class,
+        char.class,
+        int.class,
+        long.class,
+        float.class,
+        double.class,
+        void.class
+    }) {
       TypeDescription primitiveType = TypeDescription.ForLoadedType.of(primitive);
       primitiveDescriptorTypes.put(primitiveType.getDescriptor().charAt(0), primitiveType);
       primitiveTypes.put(primitive.getName(), primitiveType);
@@ -71,52 +68,40 @@ final class TypeFactory {
 
   private static final boolean OUTLINING_ENABLED =
       InstrumenterConfig.get().isResolverOutliningEnabled();
-
   private static final boolean MEMOIZING_ENABLED =
       InstrumenterConfig.get().isResolverMemoizingEnabled();
-
   private static final TypeParser outlineTypeParser = new OutlineTypeParser();
-
   private static final TypeParser fullTypeParser = new FullTypeParser();
-
   private static final TypeDescription objectOutline =
       new CachingType(outlineTypeParser.parse(Object.class));
-
   private static final TypeInfoCache<TypeDescription> outlineTypes =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverOutlinePoolSize());
-
   private static final TypeInfoCache<TypeDescription> fullTypes =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverTypePoolSize());
-
   static final ClassNameFilter isPublicFilter =
       new ClassNameFilter(InstrumenterConfig.get().getResolverVisibilitySize());
-
-  /** Small local cache to help deduplicate lookups when matching/transforming. */
+  /**
+   * Small local cache to help deduplicate lookups when matching/transforming.
+   */
   private final DDCache<String, LazyType> deferredTypes = DDCaches.newFixedSizeCache(16);
-
   private final Function<String, LazyType> deferType = LazyType::new;
-
   boolean installing = false;
-
   boolean createOutlines = OUTLINING_ENABLED;
-
   ClassLoader originalClassLoader;
-
   ClassLoader currentClassLoader;
-
   int currentClassLoaderId;
-
   ClassFileLocator classFileLocator;
-
   String targetName;
-
   byte[] targetBytecode;
 
-  /** Sets the current class-loader context of this type-factory. */
+  /**
+   * Sets the current class-loader context of this type-factory.
+   */
   void switchContext(ClassLoader classLoader) {
     if (currentClassLoader != classLoader || null == classFileLocator) {
       currentClassLoader = classLoader;
-      currentClassLoaderId = -1; // lazily computed
+      // lazily computed
+      currentClassLoaderId = -1;
       classFileLocator = classFileLocator(classLoader);
       // clear local type cache whenever the class-loader context changes
       deferredTypes.clear();
@@ -159,22 +144,29 @@ final class TypeFactory {
     }
   }
 
-  /** Once matching is complete we need full descriptions for the actual transformation. */
+  /**
+   * Once matching is complete we need full descriptions for the actual transformation.
+   */
   void enableFullDescriptions() {
     createOutlines = false;
   }
 
-  /** Temporarily turn off full description parsing; returns {@code true} if it was enabled. */
+  /**
+   * Temporarily turn off full description parsing; returns {@code true} if it was enabled.
+   */
   boolean disableFullDescriptions() {
     boolean wasEnabled = !createOutlines;
     createOutlines = OUTLINING_ENABLED;
     return wasEnabled;
   }
 
-  /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
+  /**
+   * Cleans-up local caches to minimise memory use once we're done with the type-factory.
+   */
   void endTransform() {
     if (null == targetName) {
-      return; // transformation didn't reach resolve step
+      // transformation didn't reach resolve step
+      return;
     }
 
     if (installing) {
@@ -218,7 +210,8 @@ final class TypeFactory {
   }
 
   static TypeDescription findType(String name) {
-    if (name.length() < 8) { // possible primitive name
+    if (name.length() < 8) {
+      // possible primitive name
       TypeDescription type = primitiveTypes.get(name);
       if (null != type) {
         return type;
@@ -231,7 +224,9 @@ final class TypeFactory {
     return deferredTypes.computeIfAbsent(name, deferType);
   }
 
-  /** Attempts to resolve the named type using the current context. */
+  /**
+   * Attempts to resolve the named type using the current context.
+   */
   TypeDescription resolveType(LazyType request) {
     if (null != classFileLocator) {
       TypeDescription result;
@@ -250,14 +245,17 @@ final class TypeFactory {
     return null;
   }
 
-  /** Looks up the type in the current context before falling back to parsing the class-file. */
+  /**
+   * Looks up the type in the current context before falling back to parsing the class-file.
+   */
   private TypeDescription lookupType(
-      LazyType request, TypeInfoCache<TypeDescription> types, TypeParser typeParser) {
+      LazyType request,
+      TypeInfoCache<TypeDescription> types,
+      TypeParser typeParser) {
     String name = request.name;
     int classLoaderId = request.getClassLoaderId();
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
-
     // existing type description from same classloader?
     SharedTypeInfo<TypeDescription> sharedType = types.find(name);
     if (null != sharedType
@@ -267,7 +265,6 @@ final class TypeFactory {
     }
 
     URL classFile = request.getClassFile();
-
     // existing type description from same class file?
     if (null != sharedType && sharedType.sameClassFile(classFile)) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
@@ -275,7 +272,6 @@ final class TypeFactory {
     }
 
     TypeDescription type = null;
-
     // try to parse the original bytecode
     byte[] bytecode = request.getBytecode();
     if (null != bytecode) {
@@ -291,14 +287,15 @@ final class TypeFactory {
         isPublicFilter.add(name);
       }
     }
-
     // share result, whether we found it or not
     types.share(name, classLoaderId, classFile, type);
 
     return type;
   }
 
-  /** Falls back to loading the class directly; note this will bypass transformation. */
+  /**
+   * Falls back to loading the class directly; note this will bypass transformation.
+   */
   private TypeDescription loadType(String name, TypeParser typeParser) {
     LOCATING_CLASS.begin();
     try {
@@ -306,7 +303,8 @@ final class TypeFactory {
       if (BOOTSTRAP_LOADER == currentClassLoader) {
         loadedType = Class.forName(name, false, BOOTSTRAP_LOADER);
       } else if (skipLoadClass(currentClassLoader.getClass().getName())) {
-        return null; // avoid known problematic class-loaders
+        // avoid known problematic class-loaders
+        return null;
       } else {
         loadedType = currentClassLoader.loadClass(name);
       }
@@ -328,7 +326,9 @@ final class TypeFactory {
         || loaderClassName.equals("org.apache.jasper.servlet.JasperLoader");
   }
 
-  /** Type description that begins with a name and provides more details on-demand. */
+  /**
+   * Type description that begins with a name and provides more details on-demand.
+   */
   final class LazyType extends WithName implements WithLocation {
     private ClassFileLocator.Resolution location;
     private TypeDescription delegate;
@@ -401,7 +401,8 @@ final class TypeFactory {
 
     private TypeDescription outline() {
       if (null != delegate) {
-        return delegate; // will be at least an outline, no need to re-resolve
+        // will be at least an outline, no need to re-resolve
+        return delegate;
       }
       if (createOutlines) {
         return doResolve(true);
@@ -433,7 +434,9 @@ final class TypeFactory {
     }
   }
 
-  /** Type resolution that provides more details on-demand. */
+  /**
+   * Type resolution that provides more details on-demand.
+   */
   static final class LazyResolution implements TypePool.Resolution {
     private final LazyType type;
 

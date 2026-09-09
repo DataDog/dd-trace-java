@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.condition.JRE.JAVA_17;
 import static org.junit.jupiter.api.condition.JRE.JAVA_21;
 import static org.junit.jupiter.api.condition.JRE.JAVA_8;
 import static org.junit.jupiter.api.condition.JRE.JAVA_9;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
@@ -151,16 +150,18 @@ class JavaVirtualMachineTest {
   }
 
   @ParameterizedTest
-  @CsvSource(
-      value = {
-        "1.8.0_265 | 1.8.0_265-b01 | OpenJDK        | AdoptOpenJDK | 1.8.0_265 | b01 | OpenJDK        | AdoptOpenJDK",
-        "1.8.0_265 | 1.8-b01       | OpenJDK        | AdoptOpenJDK | 1.8.0_265 | ''  | OpenJDK        | AdoptOpenJDK",
-        "19        | 19            | OpenJDK 64-Bit | Homebrew     | 19        | ''  | OpenJDK 64-Bit | Homebrew",
-        "17        | null          | null           | null         | 17        | ''  | ''             | ''",
-        "null      | 17            | null           | null         | ''        | ''  | ''             | ''",
-      },
-      nullValues = "null",
-      delimiter = '|')
+  @CsvSource(value = {
+      "1.8.0_265 | 1.8.0_265-b01 | OpenJDK        | AdoptOpenJDK | 1.8.0_265 | b01 | "
+      + "OpenJDK        | AdoptOpenJDK",
+      "1.8.0_265 | 1.8-b01       | OpenJDK        | AdoptOpenJDK | 1.8.0_265 | ''  | "
+      + "OpenJDK        | AdoptOpenJDK",
+      "19        | 19            | OpenJDK 64-Bit | Homebrew     | 19        | ''  | "
+      + "OpenJDK 64-Bit | Homebrew",
+      "17        | null          | null           | null         | 17        | ''  | ''  "
+      + "           | ''",
+      "null      | 17            | null           | null         | ''        | ''  | ''  "
+      + "           | ''"
+  }, nullValues = "null", delimiter = '|')
   void testRuntimeParsing(
       String javaVersion,
       String javaRuntimeVersion,
@@ -170,9 +171,12 @@ class JavaVirtualMachineTest {
       String expectedPatches,
       String expectedName,
       String expectedVendor) {
-    JavaVirtualMachine.Runtime runtime =
-        new JavaVirtualMachine.Runtime(
-            javaVersion, javaRuntimeVersion, javaRuntimeName, javaVmVendor, null);
+    JavaVirtualMachine.Runtime runtime = new JavaVirtualMachine.Runtime(
+        javaVersion,
+        javaRuntimeVersion,
+        javaRuntimeName,
+        javaVmVendor,
+        null);
     assertEquals(expectedVersion, runtime.version);
     assertEquals(expectedPatches, runtime.patches);
     assertEquals(expectedName, runtime.name);

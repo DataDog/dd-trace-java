@@ -21,7 +21,8 @@ public class WAFResultData {
   }
 
   public static class Rule {
-    public String id; // expose for log message
+    // expose for log message
+    public String id;
     String name;
     Map<String, String> tags;
 

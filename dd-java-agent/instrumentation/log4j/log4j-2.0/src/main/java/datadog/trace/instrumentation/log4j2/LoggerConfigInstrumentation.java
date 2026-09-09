@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.log4j2;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,8 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 
 @AutoService(InstrumenterModule.class)
 public class LoggerConfigInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public LoggerConfigInstrumentation() {
     super("log4j", "log4j-2", "logs-intake", "logs-intake-log4j-2");
   }
@@ -34,7 +33,7 @@ public class LoggerConfigInstrumentation extends InstrumenterModule
     final InstrumenterConfig cfg = InstrumenterConfig.get();
     return super.isEnabled()
         && ((cfg.isTraceEnabled() && cfg.isAgentlessLogSubmissionEnabled())
-            || cfg.isAppLogsCollectionEnabled());
+        || cfg.isAppLogsCollectionEnabled());
   }
 
   @Override

@@ -10,7 +10,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtens
  * be registered using {@link AsyncResultExtensions#register(AsyncResultExtension)} first.
  */
 public abstract class AsyncResultDecorator extends BaseDecorator {
-
   /**
    * Look for asynchronous result and decorate it with span finisher. If the result is not
    * asynchronous, it will be return unmodified and span will be finished.
@@ -21,7 +20,9 @@ public abstract class AsyncResultDecorator extends BaseDecorator {
    *     original result otherwise.
    */
   public Object wrapAsyncResultOrFinishSpan(
-      final Object result, final Class<?> methodReturnType, final AgentSpan span) {
+      final Object result,
+      final Class<?> methodReturnType,
+      final AgentSpan span) {
     Object applied = AsyncResultExtensions.wrapAsyncResult(result, methodReturnType, span);
     if (applied != null) {
       return applied;

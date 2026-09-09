@@ -5,7 +5,6 @@ package datadog.trace.agent.tooling.csi;
  * String, String, String, boolean)} method will be used to perform the actual instrumentation.
  */
 public interface InvokeAdvice extends CallSiteAdvice {
-
   void apply(
       MethodHandler handler,
       int opcode,

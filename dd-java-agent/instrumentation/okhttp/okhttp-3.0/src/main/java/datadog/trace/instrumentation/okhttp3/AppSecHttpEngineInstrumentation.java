@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.okhttp3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import okhttp3.Response;
 
 @AutoService(InstrumenterModule.class)
 public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public AppSecHttpEngineInstrumentation() {
     super("okhttp", "okhttp-3");
   }
@@ -30,9 +29,7 @@ public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AppSecInterceptor",
-    };
+    return new String[] {packageName + ".AppSecInterceptor"};
   }
 
   @Override
@@ -59,7 +56,6 @@ public class AppSecHttpEngineInstrumentation extends InstrumenterModule.AppSec
       if (ctx.getData(RequestContextSlot.APPSEC) == null) {
         return;
       }
-
       // increment the number of downstream requests but do not include request/response body
       AppSecInterceptor.sampleRequest(ctx, span.getSpanId());
       AppSecInterceptor.onResponse(span, false, priorResponse);

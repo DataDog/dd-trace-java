@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,8 +21,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JsonReaderInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JsonReaderInstrumentation() {
     super("gson");
   }
@@ -45,10 +44,10 @@ public class JsonReaderInstrumentation extends InstrumenterModule.Iast
         getClass().getName() + "$ConstructAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(returns(String.class))
-            .and(namedOneOf("nextName", "nextString"))
-            .and(takesNoArguments()),
+          .and(isPublic())
+          .and(returns(String.class))
+          .and(namedOneOf("nextName", "nextString"))
+          .and(takesNoArguments()),
         getClass().getName() + "$MethodAdvice");
   }
 
@@ -56,7 +55,8 @@ public class JsonReaderInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterInit(
-        @Advice.This Object self, @Advice.Argument(0) final java.io.Reader input) {
+        @Advice.This Object self,
+        @Advice.Argument(0) final java.io.Reader input) {
       final PropagationModule iastModule = InstrumentationBridge.PROPAGATION;
       if (iastModule != null && input != null) {
         iastModule.taintObjectIfTainted(self, input);

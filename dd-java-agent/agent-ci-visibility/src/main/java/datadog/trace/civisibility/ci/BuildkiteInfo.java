@@ -5,7 +5,6 @@ import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -18,7 +17,6 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 class BuildkiteInfo implements CIProviderInfo {
-
   // https://buildkite.com/docs/pipelines/environment-variables
   public static final String BUILDKITE = "BUILDKITE";
   public static final String BUILDKITE_PROVIDER_NAME = "buildkite";
@@ -41,7 +39,6 @@ class BuildkiteInfo implements CIProviderInfo {
   private static final String BUILDKITE_PULL_REQUEST_NUMBER = "BUILDKITE_PULL_REQUEST";
   private static final String BUILDKITE_PULL_REQUEST_BASE_BRANCH =
       "BUILDKITE_PULL_REQUEST_BASE_BRANCH";
-
   private final CiEnvironment environment;
 
   BuildkiteInfo(CiEnvironment environment) {
@@ -65,20 +62,21 @@ class BuildkiteInfo implements CIProviderInfo {
   public CIInfo buildCIInfo() {
     final String ciPipelineUrl = environment.get(BUILDKITE_BUILD_URL);
 
-    return CIInfo.builder(environment)
-        .ciProviderName(BUILDKITE_PROVIDER_NAME)
-        .ciPipelineId(environment.get(BUILDKITE_PIPELINE_ID))
-        .ciPipelineName(environment.get(BUILDKITE_PIPELINE_SLUG))
-        .ciPipelineDisplayName(environment.get(BUILDKITE_PIPELINE_DISPLAY_NAME))
-        .ciPipelineNumber(environment.get(BUILDKITE_PIPELINE_NUMBER))
-        .ciPipelineUrl(ciPipelineUrl)
-        .ciJobId(environment.get(BUILDKITE_JOB_ID))
-        .ciJobUrl(String.format("%s#%s", ciPipelineUrl, environment.get(BUILDKITE_JOB_ID)))
-        .ciWorkspace(expandTilde(environment.get(BUILDKITE_WORKSPACE_PATH)))
-        .ciNodeName(environment.get(BUILDKITE_AGENT_ID))
-        .ciNodeLabels(buildCiNodeLabels())
-        .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(BUILDKITE_PROVIDER_NAME)
+      .ciPipelineId(environment.get(BUILDKITE_PIPELINE_ID))
+      .ciPipelineName(environment.get(BUILDKITE_PIPELINE_SLUG))
+      .ciPipelineDisplayName(environment.get(BUILDKITE_PIPELINE_DISPLAY_NAME))
+      .ciPipelineNumber(environment.get(BUILDKITE_PIPELINE_NUMBER))
+      .ciPipelineUrl(ciPipelineUrl)
+      .ciJobId(environment.get(BUILDKITE_JOB_ID))
+      .ciJobUrl(String.format("%s#%s", ciPipelineUrl, environment.get(BUILDKITE_JOB_ID)))
+      .ciWorkspace(expandTilde(environment.get(BUILDKITE_WORKSPACE_PATH)))
+      .ciNodeName(environment.get(BUILDKITE_AGENT_ID))
+      .ciNodeLabels(buildCiNodeLabels())
+      .ciEnvVars(BUILDKITE_PIPELINE_ID, BUILDKITE_JOB_ID)
+      .build();
   }
 
   @Nonnull
@@ -116,7 +114,8 @@ class BuildkiteInfo implements CIProviderInfo {
 
   private PersonInfo buildGitCommitAuthor() {
     return new PersonInfo(
-        environment.get(BUILDKITE_GIT_AUTHOR_NAME), environment.get(BUILDKITE_GIT_AUTHOR_EMAIL));
+        environment.get(BUILDKITE_GIT_AUTHOR_NAME),
+        environment.get(BUILDKITE_GIT_AUTHOR_EMAIL));
   }
 
   @Override

@@ -27,17 +27,18 @@ public final class MockAgentBackend extends AgentBackend {
    */
   private static final String INFO_BODY =
       "{\"version\":\"7.77.0\","
-          + "\"endpoints\":[\"/v0.4/traces\",\"/v0.5/traces\",\"/v1.0/traces\",\"/telemetry/proxy/\"],"
-          + "\"client_drop_p0s\":true,"
-          + "\"span_meta_structs\":true,"
-          + "\"long_running_spans\":true}";
-
-  /** JSON mime type. */
+      + "\"endpoints\":[\"/v0.4/traces\",\"/v0.5/traces\",\"/v1.0/traces\",\"/telemetry/proxy/\"],"
+      + "\"client_drop_p0s\":true,"
+      + "\"span_meta_structs\":true,"
+      + "\"long_running_spans\":true}";
+  /**
+   * JSON mime type.
+   */
   private static final String JSON = "application/json";
-
-  /** The "no configs" remote-config response, as served until a test pushes one. */
+  /**
+   * The "no configs" remote-config response, as served until a test pushes one.
+   */
   private static final String NO_REMOTE_CONFIG = "{}";
-
   private final List<DecodedTrace> traces = new CopyOnWriteArrayList<>();
   private final List<Map<String, Object>> telemetry = new CopyOnWriteArrayList<>();
   private final List<Map<String, Object>> remoteConfigPolls = new CopyOnWriteArrayList<>();
@@ -48,7 +49,8 @@ public final class MockAgentBackend extends AgentBackend {
   private volatile Throwable telemetryFailure;
   private volatile Throwable remoteConfigFailure;
 
-  MockAgentBackend() {}
+  MockAgentBackend() {
+  }
 
   @Override
   public void start() {
@@ -59,19 +61,18 @@ public final class MockAgentBackend extends AgentBackend {
   }
 
   private void serverSpecs(JavaTestHttpServer server) {
-    server.handlers(
-        h -> {
-          // Trace endpoints are method-agnostic prefix handlers: the tracer submits
-          // traces with PUT (DDAgentApi), not POST.
-          h.prefix("/info", this::sendInfo);
-          h.prefix("/v1.0/traces", api -> collectTraces(api, TraceFormat.V1));
-          h.prefix("/v0.5/traces", api -> collectTraces(api, TraceFormat.V05));
-          h.prefix("/v0.4/traces", api -> collectTraces(api, TraceFormat.V04));
-          h.prefix("/v0.7/config", this::serveRemoteConfig);
-          h.prefix("/telemetry/proxy", this::collectTelemetry);
-          // Everything else just succeeds.
-          h.all(api -> api.getResponse().status(200).send());
-        });
+    server.handlers(h -> {
+      // Trace endpoints are method-agnostic prefix handlers: the tracer submits
+      // traces with PUT (DDAgentApi), not POST.
+      h.prefix("/info", this::sendInfo);
+      h.prefix("/v1.0/traces", api -> collectTraces(api, TraceFormat.V1));
+      h.prefix("/v0.5/traces", api -> collectTraces(api, TraceFormat.V05));
+      h.prefix("/v0.4/traces", api -> collectTraces(api, TraceFormat.V04));
+      h.prefix("/v0.7/config", this::serveRemoteConfig);
+      h.prefix("/telemetry/proxy", this::collectTelemetry);
+      // Everything else just succeeds.
+      h.all(api -> api.getResponse().status(200).send());
+    });
   }
 
   private void sendInfo(HandlerApi api) {
@@ -92,7 +93,8 @@ public final class MockAgentBackend extends AgentBackend {
   private List<DecodedTrace> collectedTraces() {
     if (this.traceFailure != null) {
       throw new IllegalStateException(
-          "Mock agent failed to decode received traces", this.traceFailure);
+          "Mock agent failed to decode received traces",
+          this.traceFailure);
     }
     return new ArrayList<>(this.traces);
   }
@@ -113,7 +115,8 @@ public final class MockAgentBackend extends AgentBackend {
   private List<Map<String, Object>> collectedRemoteConfigPolls() {
     if (this.remoteConfigFailure != null) {
       throw new IllegalStateException(
-          "Mock agent failed to decode received remote-config polls", this.remoteConfigFailure);
+          "Mock agent failed to decode received remote-config polls",
+          this.remoteConfigFailure);
     }
     return new ArrayList<>(this.remoteConfigPolls);
   }
@@ -138,7 +141,8 @@ public final class MockAgentBackend extends AgentBackend {
   private List<Map<String, Object>> collectedTelemetry() {
     if (this.telemetryFailure != null) {
       throw new IllegalStateException(
-          "Mock agent failed to decode received telemetry", this.telemetryFailure);
+          "Mock agent failed to decode received telemetry",
+          this.telemetryFailure);
     }
     return new ArrayList<>(this.telemetry);
   }
@@ -192,7 +196,9 @@ public final class MockAgentBackend extends AgentBackend {
     }
   }
 
-  /** The msgpack trace-payload formats the mock agent accepts, each decoded by {@link Decoder}. */
+  /**
+   * The msgpack trace-payload formats the mock agent accepts, each decoded by {@link Decoder}.
+   */
   private enum TraceFormat {
     V04 {
       @Override
@@ -212,7 +218,6 @@ public final class MockAgentBackend extends AgentBackend {
         return Decoder.decodeV1(body);
       }
     };
-
     abstract DecodedMessage decode(byte[] body);
   }
 }

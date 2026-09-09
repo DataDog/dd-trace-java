@@ -13,7 +13,6 @@ public final class TransactionInfo implements InboxItem {
   private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();
   private static volatile byte[] CACHE_BYTES = new byte[0];
   private static final AtomicInteger ID_COUNTER = new AtomicInteger(1);
-
   private final String id;
   private final long timestamp;
   private final int checkpointId;
@@ -38,7 +37,6 @@ public final class TransactionInfo implements InboxItem {
 
   private int generateCheckpointId(String checkpoint) {
     int id = ID_COUNTER.getAndIncrement();
-
     // update cache bytes
     byte[] checkpointBytes = checkpoint.getBytes(StandardCharsets.UTF_8);
     byte[] bytesToAdd = new byte[checkpointBytes.length + 2];
@@ -59,10 +57,11 @@ public final class TransactionInfo implements InboxItem {
 
   public byte[] getBytes() {
     byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
-
     // long ids will be truncated
     int idLen = Math.min(idBytes.length, MAX_ID_SIZE);
-    ByteBuffer buffer = ByteBuffer.allocate(1 + Long.BYTES + 1 + idLen).order(ByteOrder.BIG_ENDIAN);
+    ByteBuffer buffer = ByteBuffer
+      .allocate(1 + Long.BYTES + 1 + idLen)
+      .order(ByteOrder.BIG_ENDIAN);
 
     buffer.put((byte) checkpointId);
     buffer.putLong(timestamp);

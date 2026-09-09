@@ -5,7 +5,6 @@ import java.rmi.server.UnicastRemoteObject;
 
 public class Server extends UnicastRemoteObject implements Greeter {
   public static String RMI_ID = Server.class.getSimpleName();
-
   private static final long serialVersionUID = 1L;
 
   public Server() throws RemoteException {

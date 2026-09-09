@@ -11,7 +11,6 @@ import static org.objectweb.asm.Type.INT_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
-
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
@@ -26,7 +25,9 @@ import org.objectweb.asm.tree.VarInsnNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Specialized version of {@link CapturedContextInstrumenter} for single probe */
+/**
+ * Specialized version of {@link CapturedContextInstrumenter} for single probe
+ */
 public class SingleCapturedContextInstrumenter extends CapturedContextInstrumenter {
   private static final Logger LOGGER =
       LoggerFactory.getLogger(SingleCapturedContextInstrumenter.class);
@@ -101,7 +102,9 @@ public class SingleCapturedContextInstrumenter extends CapturedContextInstrument
 
   @Override
   protected void addEvalContextAndCommitCall(
-      Where.SourceLine sourceLine, InsnList insnList, LabelNode beforeLabel) {
+      Where.SourceLine sourceLine,
+      InsnList insnList,
+      LabelNode beforeLabel) {
     insnList.add(collectCapturedContext(Snapshot.Kind.BEFORE, beforeLabel));
     // stack [capturedcontext]
     ldc(insnList, Type.getObjectType(classNode.name));

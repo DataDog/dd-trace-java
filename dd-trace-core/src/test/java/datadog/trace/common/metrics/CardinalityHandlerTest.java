@@ -3,13 +3,11 @@ package datadog.trace.common.metrics;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class CardinalityHandlerTest {
-
   @Test
   void propertyReturnsSameInstanceForRepeatedValueUntilLimit() {
     PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 3);
@@ -28,7 +26,8 @@ class CardinalityHandlerTest {
     UTF8BytesString blocked2 = h.register("d");
 
     assertEquals("tracer_blocked_value", blocked1.toString());
-    assertSame(blocked1, blocked2); // same sentinel for all overflow values
+    // same sentinel for all overflow values
+    assertSame(blocked1, blocked2);
     assertNotSame(blocked1, a);
     assertNotSame(blocked1, b);
   }
@@ -42,7 +41,6 @@ class CardinalityHandlerTest {
     assertEquals("tracer_blocked_value", blocked.toString());
 
     h.reset();
-
     // After reset, three distinct values fit again. Prior-cycle instances are reused
     // (see propertyPriorCycleInstancesAreReusedAcrossReset for the dedicated check); here
     // we just confirm that the budget refreshed so values previously blocked now have
@@ -212,26 +210,33 @@ class CardinalityHandlerTest {
   @Test
   void propertyResetReturnsBlockedCount() {
     PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 1);
-    h.register("a"); // within limit
-    h.register("b"); // blocked
-    h.register("c"); // blocked
+    // within limit
+    h.register("a");
+    // blocked
+    h.register("b");
+    // blocked
+    h.register("c");
     assertEquals(2, h.reset());
-    assertEquals(0, h.reset()); // no blocks in the empty new cycle
+    // no blocks in the empty new cycle
+    assertEquals(0, h.reset());
   }
 
   @Test
   void tagResetReturnsBlockedCount() {
     TagCardinalityHandler h = new TagCardinalityHandler("peer.hostname", 1);
-    h.register("a"); // within limit
-    h.register("b"); // blocked
-    h.register("c"); // blocked
+    // within limit
+    h.register("a");
+    // blocked
+    h.register("b");
+    // blocked
+    h.register("c");
     assertEquals(2, h.reset());
-    assertEquals(0, h.reset()); // no blocks in the empty new cycle
+    // no blocks in the empty new cycle
+    assertEquals(0, h.reset());
   }
 
   // ---- limits-disabled mode (Config flag off): cache size still capped, but over-cap values
   // get freshly-allocated UTF8 rather than the blocked sentinel.
-
   @Test
   void propertyOverLimitWithSentinelDisabledReturnsFreshUtf8() {
     PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 2, false);
@@ -239,7 +244,6 @@ class CardinalityHandlerTest {
     UTF8BytesString b = h.register("b");
     UTF8BytesString c = h.register("c");
     UTF8BytesString d = h.register("d");
-
     // Real values (not the "tracer_blocked_value" sentinel) so the wire format carries them.
     assertEquals("c", c.toString());
     assertEquals("d", d.toString());
@@ -259,7 +263,6 @@ class CardinalityHandlerTest {
     UTF8BytesString cBeforeReset = h.register("c");
 
     h.reset();
-
     // Fill the budget with two different values so "c" lands over-cap.
     h.register("x");
     h.register("y");

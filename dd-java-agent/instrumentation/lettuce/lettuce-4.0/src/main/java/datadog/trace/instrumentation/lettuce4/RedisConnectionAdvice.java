@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 public class RedisConnectionAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisURI) {
     return InstrumentationPoints.beforeConnect(redisURI);
@@ -21,8 +20,7 @@ public class RedisConnectionAdvice {
       @Advice.Thrown final Throwable throwable,
       @Advice.Return final StatefulRedisConnection connection) {
     if (connection != null) {
-      InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
-          .put(connection, redisURI);
+      InstrumentationContext.get(StatefulConnection.class, RedisURI.class).put(connection, redisURI);
     }
     InstrumentationPoints.afterConnect(scope, throwable);
   }

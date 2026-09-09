@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty11;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,10 +29,9 @@ import net.bytebuddy.pool.TypePool;
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   public JettyServerInstrumentation() {
     super("jetty");
   }
@@ -46,17 +44,17 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      packageName + ".JettyServerAdvice",
-      packageName + ".JettyServerAdvice$ContextTrackingAdvice",
-      packageName + ".JettyServerAdvice$HandleAdvice",
-      packageName + ".JettyServerAdvice$ResetAdvice",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".JettyDecorator",
+        packageName + ".RequestURIDataAdapter",
+        packageName + ".JettyServerAdvice",
+        packageName + ".JettyServerAdvice$ContextTrackingAdvice",
+        packageName + ".JettyServerAdvice$HandleAdvice",
+        packageName + ".JettyServerAdvice$ResetAdvice",
+        "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+        "datadog.trace.instrumentation.jetty.JettyBlockingHelper"
     };
   }
 
@@ -72,11 +70,11 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
         packageName + ".JettyServerAdvice$ContextTrackingAdvice",
         packageName + ".JettyServerAdvice$HandleAdvice");
     transformer.applyAdvice(
-        named("recycle").and(takesNoArguments()), packageName + ".JettyServerAdvice$ResetAdvice");
+        named("recycle").and(takesNoArguments()),
+        packageName + ".JettyServerAdvice$ResetAdvice");
   }
 
   public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
-
     @Override
     public int mergeWriter(int flags) {
       return flags | ClassWriter.COMPUTE_MAXS;

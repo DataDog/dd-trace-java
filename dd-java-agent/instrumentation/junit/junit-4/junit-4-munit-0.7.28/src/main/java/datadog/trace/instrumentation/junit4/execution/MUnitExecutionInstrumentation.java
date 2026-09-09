@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -29,8 +28,8 @@ import scala.concurrent.Future;
 
 @AutoService(InstrumenterModule.class)
 public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
   public MUnitExecutionInstrumentation() {
@@ -50,19 +49,20 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".MUnitUtils",
-      parentPackageName + ".SkippedByDatadog",
-      parentPackageName + ".JUnit4Utils",
-      parentPackageName + ".TracingListener",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailureSuppressingNotifier"
+        parentPackageName + ".MUnitUtils",
+        parentPackageName + ".SkippedByDatadog",
+        parentPackageName + ".JUnit4Utils",
+        parentPackageName + ".TracingListener",
+        parentPackageName + ".TestEventsHandlerHolder",
+        packageName + ".FailureSuppressingNotifier"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionTracker.class.getName());
+        "org.junit.runner.Description",
+        TestExecutionTracker.class.getName());
   }
 
   @Override
@@ -90,17 +90,17 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
       TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
       Collection<String> testTags = MUnitUtils.getCategories(description);
 
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.MUNIT)
-              .executionPolicy(testIdentifier, testSourceData, testTags);
+      TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.MUNIT)
+        .executionPolicy(testIdentifier, testSourceData, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;
       }
 
-      InstrumentationContext.get(Description.class, TestExecutionTracker.class)
-          .put(description, executionPolicy);
+      InstrumentationContext
+        .get(Description.class, TestExecutionTracker.class)
+        .put(description, executionPolicy);
 
       Future<?> result = Future.successful(false);
 
@@ -113,7 +113,6 @@ public class MUnitExecutionInstrumentation extends InstrumenterModule.CiVisibili
         } catch (Throwable ignored) {
         }
       } while (executionPolicy.applicable());
-
       // skip original method
       return result;
     }

@@ -25,16 +25,14 @@ import org.slf4j.LoggerFactory;
  * AppSec logic.
  */
 final class LambdaEventParser {
-
   private static final Logger log = LoggerFactory.getLogger(LambdaEventParser.class);
-
   private static final Moshi MOSHI = new Moshi.Builder().build();
   private static final JsonAdapter<Map> MAP_ADAPTER = MOSHI.adapter(Map.class);
   private static final JsonAdapter<Object> OBJECT_ADAPTER = MOSHI.adapter(Object.class);
-
   static final int MAX_EVENT_SIZE = Config.get().getAppSecBodyParsingSizeLimit();
 
-  private LambdaEventParser() {}
+  private LambdaEventParser() {
+  }
 
   /**
    * Parses a Lambda event payload without consuming it.
@@ -76,11 +74,9 @@ final class LambdaEventParser {
       if (event == null) {
         return LambdaRequestData.EMPTY;
       }
-
       // Detect trigger type
       LambdaTriggerType triggerType = detectTriggerType(event);
       log.debug("Detected Lambda trigger type: {}", triggerType);
-
       // Extract data based on trigger type
       switch (triggerType) {
         case API_GATEWAY_V1_REST:
@@ -116,17 +112,14 @@ final class LambdaEventParser {
       if (response == null) {
         return null;
       }
-
       // Extract status code
       int statusCode = 0;
       Object statusCodeObj = response.get("statusCode");
       if (statusCodeObj instanceof Number) {
         statusCode = ((Number) statusCodeObj).intValue();
       }
-
       // Extract headers — keys are lowercased to normalise casing across API GW / ALB variants
       Map<String, String> headers = extractHeaderMap(response.get("headers"));
-
       // Merge multiValueHeaders if present (API GW v1 / ALB), also lowercasing keys
       Object multiValueHeadersObj = response.get("multiValueHeaders");
       if (multiValueHeadersObj instanceof Map) {
@@ -141,13 +134,11 @@ final class LambdaEventParser {
           }
         }
       }
-
       // Extract body
       Object body = null;
       Object bodyObj = response.get("body");
       if (bodyObj != null) {
         String bodyString = String.valueOf(bodyObj);
-
         // Handle base64 encoding
         Object isBase64EncodedObj = response.get("isBase64Encoded");
         if (Boolean.TRUE.equals(isBase64EncodedObj) || "true".equals(isBase64EncodedObj)) {
@@ -161,7 +152,6 @@ final class LambdaEventParser {
 
         if (bodyString != null) {
           String contentType = headers.get("content-type");
-
           // If JSON content-type or unknown, attempt JSON parsing
           // Normalise casing: media type tokens are case-insensitive per RFC 7231
           String contentTypeLower =
@@ -197,7 +187,6 @@ final class LambdaEventParser {
 
     if (requestContextObj instanceof Map) {
       Map<?, ?> requestContext = (Map<?, ?>) requestContextObj;
-
       // Check for ALB trigger (has elb object)
       if (requestContext.containsKey("elb")) {
         // Check if event has multiValueHeaders
@@ -206,13 +195,11 @@ final class LambdaEventParser {
         }
         return LambdaTriggerType.ALB;
       }
-
       // Check for WebSocket
       if (requestContext.containsKey("connectionId")
           && (requestContext.containsKey("eventType") || requestContext.containsKey("routeKey"))) {
         return LambdaTriggerType.API_GATEWAY_V2_WEBSOCKET;
       }
-
       // Check for API Gateway v2 format
       Object httpObj = requestContext.get("http");
       if (httpObj instanceof Map) {
@@ -228,7 +215,6 @@ final class LambdaEventParser {
           return LambdaTriggerType.LAMBDA_URL;
         }
       }
-
       // Check for API Gateway v1 REST API
       if (requestContext.containsKey("httpMethod") || requestContext.containsKey("requestId")) {
         return LambdaTriggerType.API_GATEWAY_V1_REST;
@@ -237,7 +223,9 @@ final class LambdaEventParser {
     return LambdaTriggerType.UNKNOWN;
   }
 
-  /** Extracts data from API Gateway v1 (REST API) event */
+  /**
+   * Extracts data from API Gateway v1 (REST API) event
+   */
   private static LambdaRequestData extractApiGatewayV1Data(Map<String, Object> event) {
     Map<String, String> headers = extractHeaders(event.get("headers"));
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
@@ -276,9 +264,12 @@ final class LambdaEventParser {
         null);
   }
 
-  /** Extracts data from API Gateway v2 (HTTP API) or Lambda URL event */
+  /**
+   * Extracts data from API Gateway v2 (HTTP API) or Lambda URL event
+   */
   private static LambdaRequestData extractApiGatewayV2HttpData(
-      Map<String, Object> event, LambdaTriggerType triggerType) {
+      Map<String, Object> event,
+      LambdaTriggerType triggerType) {
     Map<String, String> headers = extractHeadersWithCookies(event);
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
     Map<String, List<String>> queryParameters =
@@ -291,7 +282,6 @@ final class LambdaEventParser {
     String method = (String) http.get("method");
     String path = (String) http.get("path");
     String sourceIp = (String) http.get("sourceIp");
-
     // Extract port if available
     Integer sourcePort = null;
     Object portObj = http.get("sourcePort");
@@ -331,7 +321,9 @@ final class LambdaEventParser {
     return rawPath + '?' + rawQueryString;
   }
 
-  /** Extracts data from API Gateway v2 WebSocket event */
+  /**
+   * Extracts data from API Gateway v2 WebSocket event
+   */
   private static LambdaRequestData extractApiGatewayV2WebSocketData(Map<String, Object> event) {
     Map<String, String> headers = extractHeadersWithCookies(event);
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
@@ -368,9 +360,12 @@ final class LambdaEventParser {
         null);
   }
 
-  /** Extracts data from ALB event (with or without multi-value headers) */
+  /**
+   * Extracts data from ALB event (with or without multi-value headers)
+   */
   private static LambdaRequestData extractAlbData(
-      Map<String, Object> event, LambdaTriggerType triggerType) {
+      Map<String, Object> event,
+      LambdaTriggerType triggerType) {
     Map<String, String> headers;
 
     if (triggerType == LambdaTriggerType.ALB_MULTI_VALUE) {
@@ -404,12 +399,11 @@ final class LambdaEventParser {
     }
 
     Map<String, String> pathParameters = extractPathParameters(event.get("pathParameters"));
-
     // ALB can have both queryStringParameters and multiValueQueryStringParameters
     Map<String, List<String>> queryParameters;
     if (triggerType == LambdaTriggerType.ALB_MULTI_VALUE) {
-      queryParameters =
-          extractMultiValueQueryParameters(event.get("multiValueQueryStringParameters"));
+      queryParameters = extractMultiValueQueryParameters(event.get(
+          "multiValueQueryStringParameters"));
       if (queryParameters.isEmpty()) {
         // ALB_MULTI_VALUE is classified on multiValueHeaders alone, so this map may be absent
         queryParameters = extractQueryParameters(event.get("queryStringParameters"));
@@ -428,7 +422,6 @@ final class LambdaEventParser {
       int commaIdx = xff.indexOf(',');
       sourceIp = (commaIdx >= 0 ? xff.substring(0, commaIdx) : xff).trim();
     }
-
     // ALB events carry no requestContext.domainName and expose no parameterized route
     return new LambdaRequestData(
         headers,
@@ -495,7 +488,9 @@ final class LambdaEventParser {
     return route.isEmpty() ? null : route;
   }
 
-  /** Returns the value as a non-empty trimmed string, or {@code null} if it is neither. */
+  /**
+   * Returns the value as a non-empty trimmed string, or {@code null} if it is neither.
+   */
   private static String stringOrNull(Object value) {
     if (!(value instanceof String)) {
       return null;
@@ -524,7 +519,9 @@ final class LambdaEventParser {
     return headers;
   }
 
-  /** Helper method to extract headers from event. */
+  /**
+   * Helper method to extract headers from event.
+   */
   private static Map<String, String> extractHeaders(Object headersObj) {
     Map<String, String> headers = extractHeaderMap(headersObj);
     log.debug("Extracted {} headers", headers.size());
@@ -534,7 +531,9 @@ final class LambdaEventParser {
     return headers;
   }
 
-  /** Helper method to extract path parameters from event. */
+  /**
+   * Helper method to extract path parameters from event.
+   */
   private static Map<String, String> extractPathParameters(Object pathParamsObj) {
     if (!(pathParamsObj instanceof Map)) {
       return new HashMap<>();
@@ -650,7 +649,6 @@ final class LambdaEventParser {
    */
   private static Map<String, String> extractHeadersWithCookies(Map<String, Object> event) {
     Map<String, String> headers = extractHeaders(event.get("headers"));
-
     // API Gateway v2 provides a pre-parsed cookies array
     Object cookiesObj = event.get("cookies");
     if (cookiesObj instanceof List) {
@@ -659,7 +657,6 @@ final class LambdaEventParser {
         // Join cookies with "; " separator per RFC 6265
         String cookieValue =
             cookiesList.stream().map(String::valueOf).collect(Collectors.joining("; "));
-
         // Merge with existing cookie header if present
         String existingCookie = headers.get("cookie");
         if (existingCookie != null && !existingCookie.isEmpty()) {
@@ -673,7 +670,9 @@ final class LambdaEventParser {
     return headers;
   }
 
-  /** Helper method to extract and parse body from event */
+  /**
+   * Helper method to extract and parse body from event
+   */
   private static Object extractBody(Map<String, Object> event) {
     Object bodyObj = event.get("body");
     if (bodyObj == null) {
@@ -681,7 +680,6 @@ final class LambdaEventParser {
     }
 
     String bodyString = String.valueOf(bodyObj);
-
     // Check if body is base64 encoded (API Gateway feature)
     Object isBase64EncodedObj = event.get("isBase64Encoded");
     if (Boolean.TRUE.equals(isBase64EncodedObj) || "true".equals(isBase64EncodedObj)) {
@@ -692,20 +690,20 @@ final class LambdaEventParser {
         return null;
       }
     }
-
     // Try to parse as JSON
     Object parsedBody = parseBodyAsJson(bodyString);
     if (parsedBody != null) {
       log.debug("Body parsed as JSON successfully");
       return parsedBody;
     }
-
     // If not JSON, return the raw string
     log.debug("Body is not JSON, returning raw string");
     return bodyString;
   }
 
-  /** Helper method to parse body as JSON */
+  /**
+   * Helper method to parse body as JSON
+   */
   private static Object parseBodyAsJson(String body) {
     if (body == null || body.isEmpty() || "null".equals(body)) {
       return null;
@@ -718,16 +716,24 @@ final class LambdaEventParser {
     }
   }
 
-  /** Enum representing different AWS Lambda trigger types */
+  /**
+   * Enum representing different AWS Lambda trigger types
+   */
   enum LambdaTriggerType {
-    API_GATEWAY_V1_REST, // API Gateway REST API (v1)
-    API_GATEWAY_V2_HTTP, // API Gateway HTTP API (v2)
-    API_GATEWAY_V2_WEBSOCKET, // API Gateway WebSocket
-    ALB, // Application Load Balancer
-    ALB_MULTI_VALUE, // ALB with multi-value headers
-    LAMBDA_URL, // Lambda Function URL
-    UNKNOWN; // Unknown or unsupported trigger
-
+    // API Gateway REST API (v1)
+    API_GATEWAY_V1_REST,
+    // API Gateway HTTP API (v2)
+    API_GATEWAY_V2_HTTP,
+    // API Gateway WebSocket
+    API_GATEWAY_V2_WEBSOCKET,
+    // Application Load Balancer
+    ALB,
+    // ALB with multi-value headers
+    ALB_MULTI_VALUE,
+    // Lambda Function URL
+    LAMBDA_URL,
+    // Unknown or unsupported trigger
+    UNKNOWN;
     /**
      * Whitelist rather than {@code != UNKNOWN} so a trigger type added later defaults to non-HTTP,
      * and therefore to being skipped by AppSec, until it is deliberately listed here.
@@ -747,7 +753,9 @@ final class LambdaEventParser {
     }
   }
 
-  /** Data extracted from a Lambda event, for the WAF request callbacks and the HTTP span tags. */
+  /**
+   * Data extracted from a Lambda event, for the WAF request callbacks and the HTTP span tags.
+   */
   static class LambdaRequestData {
     final Map<String, String> headers;
     final String method;
@@ -758,31 +766,30 @@ final class LambdaEventParser {
     final Map<String, String> pathParameters;
     final Map<String, List<String>> queryParameters;
     final Object body;
-
-    /** Host the request was addressed to, used as the authority of {@code http.url}. */
+    /**
+     * Host the request was addressed to, used as the authority of {@code http.url}.
+     */
     final String host;
-
-    /** Parameterized route, when the trigger exposes one. */
+    /**
+     * Parameterized route, when the trigger exposes one.
+     */
     final String route;
-
     /**
      * Request line as the client sent it, for the API Gateway v2 and Function URL payloads that
      * expose it, null otherwise. Rebuilding it from {@link #queryParameters} instead cannot be
      * faithful: v2 comma-joins repeated keys, so {@code ?a=1&a=2} comes back as {@code a=1%2C2}.
      */
     final String rawUri;
-
-    static final LambdaRequestData EMPTY =
-        new LambdaRequestData(
-            Collections.emptyMap(),
-            null,
-            null,
-            null,
-            null,
-            LambdaTriggerType.UNKNOWN,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            null);
+    static final LambdaRequestData EMPTY = new LambdaRequestData(
+        Collections.emptyMap(),
+        null,
+        null,
+        null,
+        null,
+        LambdaTriggerType.UNKNOWN,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        null);
 
     LambdaRequestData(
         Map<String, String> headers,

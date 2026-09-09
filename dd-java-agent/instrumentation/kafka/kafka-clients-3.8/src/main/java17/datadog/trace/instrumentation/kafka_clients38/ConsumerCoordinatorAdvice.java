@@ -25,9 +25,9 @@ public class ConsumerCoordinatorAdvice {
     if (offsets == null) {
       return;
     }
-    KafkaConsumerInfo kafkaConsumerInfo =
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .get(coordinator);
+    KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext
+      .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+      .get(coordinator);
 
     if (kafkaConsumerInfo == null) {
       return;
@@ -49,13 +49,12 @@ public class ConsumerCoordinatorAdvice {
       if (entry.getKey() == null || entry.getValue() == null) {
         continue;
       }
-      DataStreamsTags tags =
-          DataStreamsTags.createWithPartition(
-              "kafka_commit",
-              entry.getKey().topic(),
-              String.valueOf(entry.getKey().partition()),
-              clusterId,
-              consumerGroup);
+      DataStreamsTags tags = DataStreamsTags.createWithPartition(
+          "kafka_commit",
+          entry.getKey().topic(),
+          String.valueOf(entry.getKey().partition()),
+          clusterId,
+          consumerGroup);
       AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
     }
   }

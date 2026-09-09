@@ -86,18 +86,30 @@ import org.openjdk.jmh.annotations.Warmup;
  * EmbeddingSupport} path const-folds those refs and is never bimodal ({@code
  * stringIndex_embedded_miss} ±0.3%). Prefer {@code EmbeddingSupport} where miss latency matters.
  */
-@Fork(5) // 5 forks settle the bimodal stringIndex_miss / interface-dispatch arms (see header)
+// 5 forks settle the bimodal stringIndex_miss / interface-dispatch arms (see header)
+@Fork(5)
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
 @Threads(8)
 @State(Scope.Benchmark)
 public class ImmutableSetBenchmark {
   static final String[] STRINGS = {
-    "foo", "bar", "baz", "quux", "hello", "world",
-    "service", "queryString", "lorem", "ipsum", "dolem", "sit"
+      "foo",
+      "bar",
+      "baz",
+      "quux",
+      "hello",
+      "world",
+      "service",
+      "queryString",
+      "lorem",
+      "ipsum",
+      "dolem",
+      "sit"
   };
-
-  /** Distinct String instances that are never present, for the miss path. */
+  /**
+   * Distinct String instances that are never present, for the miss path.
+   */
   static final String[] MISSES = newMisses();
 
   static String[] newMisses() {
@@ -140,7 +152,9 @@ public class ImmutableSetBenchmark {
     stringIndex = StringIndex.of(STRINGS);
   }
 
-  /** Per-thread lookup cursor so each reader thread cycles keys independently. */
+  /**
+   * Per-thread lookup cursor so each reader thread cycles keys independently.
+   */
   @State(Scope.Thread)
   public static class Cursor {
     int hitIndex = 0;

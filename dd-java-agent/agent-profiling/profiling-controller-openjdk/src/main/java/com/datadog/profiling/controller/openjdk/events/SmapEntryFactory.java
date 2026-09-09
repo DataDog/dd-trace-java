@@ -16,14 +16,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SmapEntryFactory {
-
   private static final Logger log = LoggerFactory.getLogger(SmapEntryFactory.class);
-
   private static final AtomicBoolean REGISTERED = new AtomicBoolean();
-
   private static final EventType SMAP_ENTRY_EVENT_TYPE;
   private static final EventType AGGREGATED_SMAP_ENTRY_EVENT_TYPE;
-
   private static final SmapEntryCache SMAP_ENTRY_CACHE = new SmapEntryCache(Duration.ofMillis(500));
 
   static {
@@ -41,28 +37,29 @@ public class SmapEntryFactory {
       // JFR is not available
       return;
     }
-
     // Make sure the periodic event is registered only once
     if (REGISTERED.compareAndSet(false, true) && OperatingSystem.isLinux()) {
       try {
         ObjectName objectName = new ObjectName("com.sun.management:type=DiagnosticCommand");
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
 
-        boolean annotatedMapsAvailable =
-            Arrays.stream(mbs.getMBeanInfo(objectName).getOperations())
-                .anyMatch(x -> x.getName().equals("systemMap"));
+        boolean annotatedMapsAvailable = Arrays
+          .stream(mbs.getMBeanInfo(objectName).getOperations())
+          .anyMatch(x -> x.getName().equals("systemMap"));
         if (annotatedMapsAvailable) {
           // Let's register the periodic SmapEntry event.
           // The AggregatedSmapEntry event will be generated from the common logic, based on the
           // peridicity settings of the SmapEntry event.
           JfrHelper.addPeriodicEvent(SmapEntryEvent.class, SmapEntryFactory::emitSingleEvents);
           JfrHelper.addPeriodicEvent(
-              AggregatedSmapEntryEvent.class, SmapEntryFactory::emitAggregatedEvents);
+              AggregatedSmapEntryEvent.class,
+              SmapEntryFactory::emitAggregatedEvents);
           log.debug("Smap entry events registered successfully");
         }
       } catch (Exception e) {
-        ProfilerFlareLogger.getInstance()
-            .log("Smap entry events could not be registered due to missing systemMap operation", e);
+        ProfilerFlareLogger
+          .getInstance()
+          .log("Smap entry events could not be registered due to missing systemMap operation", e);
       }
     }
   }

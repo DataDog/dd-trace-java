@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jetty904;
 
 import static datadog.trace.instrumentation.jetty904.JettyOnCommitBlockingHelper.CloseCallback.isInitialized;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
@@ -23,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JettyOnCommitBlockingHelper {
-
   private static final Logger log = LoggerFactory.getLogger(JettyOnCommitBlockingHelper.class);
   private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
 
@@ -59,10 +57,13 @@ public class JettyOnCommitBlockingHelper {
         byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
         fields.put("Content-length", Integer.toString(template.length));
 
-        info =
-            new HttpGenerator.ResponseInfo(
-                request.getHttpVersion(), fields, template.length, statusCode, null, false);
-
+        info = new HttpGenerator.ResponseInfo(
+            request.getHttpVersion(),
+            fields,
+            template.length,
+            statusCode,
+            null,
+            false);
         // we need to update the upper layers too
         // so that the correct status code/headers get reported correctly on the span`
         response.reset();
@@ -73,9 +74,13 @@ public class JettyOnCommitBlockingHelper {
         log.debug("Sending blocking response (non-empty body)");
         transport.send(info, ByteBuffer.wrap(template), true, closeCb);
       } else {
-        info =
-            new HttpGenerator.ResponseInfo(
-                request.getHttpVersion(), fields, 0, statusCode, null, request.isHead());
+        info = new HttpGenerator.ResponseInfo(
+            request.getHttpVersion(),
+            fields,
+            0,
+            statusCode,
+            null,
+            request.isHead());
 
         response.reset();
         response.setStatus(statusCode);

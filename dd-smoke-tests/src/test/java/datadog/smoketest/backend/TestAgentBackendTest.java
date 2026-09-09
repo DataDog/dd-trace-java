@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.agent.test.server.http.JavaTestHttpServer;
 import java.util.Base64;
 import java.util.List;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test;
  * TestAgentBackendContainerTest}.
  */
 class TestAgentBackendTest {
-
   @Test
   void sessionTokenIsStableAndNonEmpty() {
     TestAgentBackend backend = AgentBackend.testAgentBuilder().build();
@@ -47,10 +45,10 @@ class TestAgentBackendTest {
     // drive the external lifecycle without Docker; beforeAll(...) is what JUnit calls for a
     // registered extension.
     try (JavaTestHttpServer agent = stubAgent(200, "")) {
-      TestAgentBackend backend =
-          AgentBackend.testAgentBuilder()
-              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
-              .build();
+      TestAgentBackend backend = AgentBackend
+        .testAgentBuilder()
+        .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+        .build();
       assertFalse(backend.isShared(), "not shared until registered as an extension");
       backend.beforeAll(null);
       try {
@@ -73,13 +71,14 @@ class TestAgentBackendTest {
     // A stub agent for /test/session/* and /test/trace_check/failures verifies the check logic
     // without Docker; HTTP 200 from the failures endpoint means all checks passed.
     try (JavaTestHttpServer agent = stubAgent(200, "")) {
-      TestAgentBackend backend =
-          AgentBackend.testAgentBuilder()
-              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
-              .build();
+      TestAgentBackend backend = AgentBackend
+        .testAgentBuilder()
+        .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+        .build();
       backend.start();
       try {
-        backend.assertNoInvariantFailures(); // HTTP 200 => no failures => no throw
+        // HTTP 200 => no failures => no throw
+        backend.assertNoInvariantFailures();
       } finally {
         backend.close();
       }
@@ -89,10 +88,10 @@ class TestAgentBackendTest {
   @Test
   void assertNoInvariantFailuresThrowsWhenAgentReportsFailures() {
     try (JavaTestHttpServer agent = stubAgent(400, "span_count check failed")) {
-      TestAgentBackend backend =
-          AgentBackend.testAgentBuilder()
-              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
-              .build();
+      TestAgentBackend backend = AgentBackend
+        .testAgentBuilder()
+        .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+        .build();
       backend.start();
       try {
         AssertionError error =
@@ -110,28 +109,24 @@ class TestAgentBackendTest {
     // the agent builds the signed RC envelope; capture that request against a stub agent.
     AtomicReference<String> captured = new AtomicReference<>();
     try (JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    handlers -> {
-                      handlers.prefix(
-                          "/test/session/responses/config/path",
-                          api -> {
-                            captured.set(new String(api.getRequest().getBody(), UTF_8));
-                            api.getResponse().status(202).send();
-                          });
-                      handlers.all(api -> api.getResponse().status(200).send());
-                    }))) {
-      TestAgentBackend backend =
-          AgentBackend.testAgentBuilder()
-              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
-              .build();
+        JavaTestHttpServer.httpServer(server -> server.handlers(handlers -> {
+      handlers.prefix("/test/session/responses/config/path", api -> {
+        captured.set(new String(api.getRequest().getBody(), UTF_8));
+        api.getResponse().status(202).send();
+      });
+      handlers.all(api -> api.getResponse().status(200).send());
+    }))) {
+      TestAgentBackend backend = AgentBackend
+        .testAgentBuilder()
+        .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+        .build();
       backend.start();
       try {
         backend
-            .remoteConfig()
-            .setConfig(
-                "datadog/2/APM_TRACING/config_overrides/config", "{\"lib_config\":{\"x\":1}}");
+          .remoteConfig()
+          .setConfig(
+              "datadog/2/APM_TRACING/config_overrides/config",
+              "{\\\"lib_config\\\":" + "{\\\"x\\\":1}}");
       } finally {
         backend.close();
       }
@@ -148,26 +143,24 @@ class TestAgentBackendTest {
     // body. Serve one /v0.7/config poll (and a non-RC request that must be filtered out) and assert
     // the backend selects, decodes, and exposes the poll's products and capabilities.
     String pollBody =
-        "{\"client\":{\"products\":[\"APM_TRACING\",\"ASM_FEATURES\"],\"capabilities\":[2]}}";
+        "{\\\"client\\\":{\\\"products\\\":[\\\"APM_TRACING\\\",\\\"ASM_FEATURES\\\"],"
+        + "\\\"capabilities\\\":[2]}}";
     String encoded = Base64.getEncoder().encodeToString(pollBody.getBytes(UTF_8));
-    String requestsJson =
-        "[{\"url\":\"http://agent/v0.7/config\",\"method\":\"POST\",\"body\":\""
-            + encoded
-            + "\"},{\"url\":\"http://agent/v0.6/stats\",\"method\":\"POST\",\"body\":\"\"}]";
+    String requestsJson = "[{\"url\":\"http://agent/v0.7/config\",\"method\":\"POST\",\"body\":\""
+        + encoded
+        + "\"},{\"url\":\"http://agent/v0.6/stats\",\"method\":\"POST\",\"body\":\"\"}]";
     try (JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    handlers -> {
-                      handlers.prefix(
-                          "/test/session/requests",
-                          api -> api.getResponse().status(200).send(requestsJson));
-                      handlers.all(api -> api.getResponse().status(200).send());
-                    }))) {
-      TestAgentBackend backend =
-          AgentBackend.testAgentBuilder()
-              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
-              .build();
+        JavaTestHttpServer.httpServer(server -> server.handlers(handlers -> {
+      handlers.prefix("/test/session/requests", api -> api
+        .getResponse()
+        .status(200)
+        .send(requestsJson));
+      handlers.all(api -> api.getResponse().status(200).send());
+    }))) {
+      TestAgentBackend backend = AgentBackend
+        .testAgentBuilder()
+        .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+        .build();
       backend.start();
       try {
         List<Map<String, Object>> polls = backend.remoteConfig().requests();
@@ -175,8 +168,7 @@ class TestAgentBackendTest {
         assertTrue(
             RemoteConfig.products(polls.get(0)).contains("ASM_FEATURES"),
             "products decoded from the poll body");
-        assertEquals(
-            2L, RemoteConfig.capabilities(polls.get(0)), "capabilities decoded big-endian");
+        assertEquals(2L, RemoteConfig.capabilities(polls.get(0)), "capabilities decoded big-endian");
       } finally {
         backend.close();
       }
@@ -191,30 +183,24 @@ class TestAgentBackendTest {
     AtomicReference<String> captured = new AtomicReference<>();
     List<String> calls = new CopyOnWriteArrayList<>();
     try (JavaTestHttpServer agent =
-        JavaTestHttpServer.httpServer(
-            server ->
-                server.handlers(
-                    handlers -> {
-                      handlers.prefix(
-                          "/test/session/responses/config",
-                          api -> {
-                            captured.set(new String(api.getRequest().getBody(), UTF_8));
-                            calls.add("reset");
-                            api.getResponse().status(202).send();
-                          });
-                      handlers.prefix(
-                          "/test/session/start",
-                          api -> {
-                            calls.add("start");
-                            api.getResponse().status(200).send();
-                          });
-                      handlers.all(api -> api.getResponse().status(200).send());
-                    }))) {
-      TestAgentBackend backend =
-          AgentBackend.testAgentBuilder()
-              .external(agent.getAddress().getHost(), agent.getAddress().getPort())
-              .build();
-      backend.start(); // start() opens the first session via clear()
+        JavaTestHttpServer.httpServer(server -> server.handlers(handlers -> {
+      handlers.prefix("/test/session/responses/config", api -> {
+        captured.set(new String(api.getRequest().getBody(), UTF_8));
+        calls.add("reset");
+        api.getResponse().status(202).send();
+      });
+      handlers.prefix("/test/session/start", api -> {
+        calls.add("start");
+        api.getResponse().status(200).send();
+      });
+      handlers.all(api -> api.getResponse().status(200).send());
+    }))) {
+      TestAgentBackend backend = AgentBackend
+        .testAgentBuilder()
+        .external(agent.getAddress().getHost(), agent.getAddress().getPort())
+        .build();
+      // start() opens the first session via clear()
+      backend.start();
       try {
         assertEquals("{}", captured.get(), "clear() resets the RC response to the empty default");
         assertEquals(asList("reset", "start"), calls, "RC reset precedes the session start");
@@ -224,24 +210,20 @@ class TestAgentBackendTest {
     }
   }
 
-  /** A stub test agent: 200 on {@code /test/session/start}, {@code failuresStatus} on failures. */
+  /**
+   * A stub test agent: 200 on {@code /test/session/start}, {@code failuresStatus} on failures.
+   */
   private static JavaTestHttpServer stubAgent(int failuresStatus, String failuresBody) {
-    return JavaTestHttpServer.httpServer(
-        server ->
-            server.handlers(
-                handlers -> {
-                  handlers.prefix(
-                      "/test/session/start", api -> api.getResponse().status(200).send());
-                  handlers.prefix(
-                      "/test/trace_check/failures",
-                      api -> {
-                        if (failuresBody.isEmpty()) {
-                          api.getResponse().status(failuresStatus).send();
-                        } else {
-                          api.getResponse().status(failuresStatus).send(failuresBody);
-                        }
-                      });
-                  handlers.all(api -> api.getResponse().status(200).send());
-                }));
+    return JavaTestHttpServer.httpServer(server -> server.handlers(handlers -> {
+      handlers.prefix("/test/session/start", api -> api.getResponse().status(200).send());
+      handlers.prefix("/test/trace_check/failures", api -> {
+        if (failuresBody.isEmpty()) {
+          api.getResponse().status(failuresStatus).send();
+        } else {
+          api.getResponse().status(failuresStatus).send(failuresBody);
+        }
+      });
+      handlers.all(api -> api.getResponse().status(200).send());
+    }));
   }
 }

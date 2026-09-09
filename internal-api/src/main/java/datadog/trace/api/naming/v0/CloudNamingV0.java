@@ -25,11 +25,11 @@ public class CloudNamingV0 implements NamingSchema.ForCloud {
 
   @Override
   public String serviceForRequest(
-      @Nonnull final String provider, @Nullable final String cloudService) {
+      @Nonnull final String provider,
+      @Nullable final String cloudService) {
     if (!allowInferredServices) {
       return null;
     }
-
     // we only manage aws. Future switch for other cloud providers will be needed in the future
     if (cloudService == null) {
       ServiceNameCollector.get().addService(JAVA_AWS_SDK);

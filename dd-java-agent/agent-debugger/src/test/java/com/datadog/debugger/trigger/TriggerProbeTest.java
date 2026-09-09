@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 import static utils.TestHelper.setFieldInConfig;
-
 import com.datadog.debugger.agent.CapturingTestBase;
 import com.datadog.debugger.agent.Configuration;
 import com.datadog.debugger.agent.MockSampler;
@@ -40,7 +39,6 @@ import org.junit.jupiter.api.Test;
 public class TriggerProbeTest extends CapturingTestBase {
   private static final ProbeId TRIGGER_PROBE_ID1 = new ProbeId("trigger probe 1", 0);
   private static final String TRIGGER_PROBE_SESSION_ID = "trigger probe sessionID";
-
   private TestTraceInterceptor traceInterceptor;
 
   @Override
@@ -61,31 +59,29 @@ public class TriggerProbeTest extends CapturingTestBase {
   @Test
   public void conditions() throws IOException, URISyntaxException {
     final String className = "com.datadog.debugger.TriggerProbe02";
-    TriggerProbe probe1 =
-        createTriggerProbe(
-            TRIGGER_PROBE_ID1,
-            TRIGGER_PROBE_SESSION_ID,
-            className,
-            "entry",
-            "(int)",
-            new ProbeCondition(when(lt(ref("value"), value(25))), "value < 25"),
-            new Sampling(10.0));
+    TriggerProbe probe1 = createTriggerProbe(
+        TRIGGER_PROBE_ID1,
+        TRIGGER_PROBE_SESSION_ID,
+        className,
+        "entry",
+        "(int)",
+        new ProbeCondition(when(lt(ref("value"), value(25))), "value < 25"),
+        new Sampling(10.0));
     installProbes(Configuration.builder().setService(SERVICE_NAME).add(probe1).build());
     Class<?> testClass = compileAndLoadClass(className);
     for (int i = 0; i < 100; i++) {
       Reflect.onClass(testClass).call("main", i).get();
     }
     List<List<? extends MutableSpan>> allTraces = traceInterceptor.getAllTraces();
-    long count =
-        allTraces.stream()
-            .map(span -> span.get(0))
-            .filter(
-                span -> {
-                  DDSpan ddSpan = (DDSpan) span;
-                  PropagationTags tags = ddSpan.spanContext().getPropagationTags();
-                  return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
-                })
-            .count();
+    long count = allTraces
+      .stream()
+      .map(span -> span.get(0))
+      .filter(span -> {
+        DDSpan ddSpan = (DDSpan) span;
+        PropagationTags tags = ddSpan.spanContext().getPropagationTags();
+        return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
+      })
+      .count();
     assertEquals(100, allTraces.size(), "actual traces: " + allTraces.size());
     assertTrue(count <= 25, "Should have at most 25 debug sessions.  found: " + count);
   }
@@ -98,13 +94,14 @@ public class TriggerProbeTest extends CapturingTestBase {
       String signature,
       ProbeCondition probeCondition,
       Sampling sampling) {
-    return TriggerProbe.builder()
-        .probeId(id)
-        .where(typeName, methodName, signature)
-        .when(probeCondition)
-        .sampling(sampling)
-        .build()
-        .setSessionId(sessionId);
+    return TriggerProbe
+      .builder()
+      .probeId(id)
+      .where(typeName, methodName, signature)
+      .when(probeCondition)
+      .sampling(sampling)
+      .build()
+      .setSessionId(sessionId);
   }
 
   @Test
@@ -114,15 +111,14 @@ public class TriggerProbeTest extends CapturingTestBase {
       ProbeRateLimiter.setSamplerSupplier(value -> sampler);
 
       final String className = "com.datadog.debugger.TriggerProbe01";
-      TriggerProbe probe1 =
-          createTriggerProbe(
-              TRIGGER_PROBE_ID1,
-              TRIGGER_PROBE_SESSION_ID,
-              className,
-              "entry",
-              "()",
-              null,
-              new Sampling(10, 10.0));
+      TriggerProbe probe1 = createTriggerProbe(
+          TRIGGER_PROBE_ID1,
+          TRIGGER_PROBE_SESSION_ID,
+          className,
+          "entry",
+          "()",
+          null,
+          new Sampling(10, 10.0));
       installProbes(Configuration.builder().setService(SERVICE_NAME).add(probe1).build());
       Class<?> testClass = compileAndLoadClass(className);
       int runs = 10000;
@@ -134,25 +130,22 @@ public class TriggerProbeTest extends CapturingTestBase {
       List<List<? extends MutableSpan>> allTraces = traceInterceptor.getAllTraces();
       assertEquals(runs, allTraces.size(), "actual traces: " + allTraces.size());
 
-      long debugSessions =
-          allTraces.stream()
-              .map(span -> span.get(0))
-              .filter(
-                  span -> {
-                    DDSpan ddSpan = (DDSpan) span;
-                    PropagationTags tags = ddSpan.spanContext().getPropagationTags();
-                    return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
-                  })
-              .count();
+      long debugSessions = allTraces
+        .stream()
+        .map(span -> span.get(0))
+        .filter(span -> {
+          DDSpan ddSpan = (DDSpan) span;
+          PropagationTags tags = ddSpan.spanContext().getPropagationTags();
+          return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
+        })
+        .count();
       assertEquals(1, debugSessions, "Should only have 1 debug session.  found: " + debugSessions);
 
-      long tagged =
-          allTraces.stream()
-              .flatMap(Collection::stream)
-              .filter(
-                  span ->
-                      span.getTag(format("_dd.ld.probe_id.%s", TRIGGER_PROBE_ID1.getId())) != null)
-              .count();
+      long tagged = allTraces
+        .stream()
+        .flatMap(Collection::stream)
+        .filter(span -> span.getTag(format("_dd.ld.probe_id.%s", TRIGGER_PROBE_ID1.getId())) != null)
+        .count();
       assertEquals(1, tagged, "Should only have 1 tagged span.  found: " + tagged);
     } finally {
       ProbeRateLimiter.setSamplerSupplier(null);
@@ -162,23 +155,22 @@ public class TriggerProbeTest extends CapturingTestBase {
   @Test
   public void badCondition() throws IOException, URISyntaxException {
     String className = "com.datadog.debugger.TriggerProbe02";
-    TriggerProbe probe1 =
-        createTriggerProbe(
-            TRIGGER_PROBE_ID1,
-            TRIGGER_PROBE_SESSION_ID,
-            className,
-            "entry",
-            "(int)",
-            new ProbeCondition(when(lt(ref("limit"), value(25))), "limit < 25"),
-            new Sampling(10.0));
+    TriggerProbe probe1 = createTriggerProbe(
+        TRIGGER_PROBE_ID1,
+        TRIGGER_PROBE_SESSION_ID,
+        className,
+        "entry",
+        "(int)",
+        new ProbeCondition(when(lt(ref("limit"), value(25))), "limit < 25"),
+        new Sampling(10.0));
 
     installProbes(Configuration.builder().setService(SERVICE_NAME).add(probe1).build());
     Class<?> testClass = compileAndLoadClass(className);
     Reflect.onClass(testClass).call("main", 0).get();
     verify(probeStatusSink)
-        .addError(
-            eq(TRIGGER_PROBE_ID1),
-            eq(new EvaluationException("Cannot find symbol: limit", "limit")));
+      .addError(
+          eq(TRIGGER_PROBE_ID1),
+          eq(new EvaluationException("Cannot find symbol: limit", "limit")));
   }
 
   @Test
@@ -191,15 +183,14 @@ public class TriggerProbeTest extends CapturingTestBase {
       ProbeRateLimiter.setSamplerSupplier(value -> sampler);
 
       final String className = "com.datadog.debugger.TriggerProbe02";
-      TriggerProbe probe1 =
-          createTriggerProbe(
-              TRIGGER_PROBE_ID1,
-              TRIGGER_PROBE_SESSION_ID,
-              className,
-              "entry",
-              "(int)",
-              new ProbeCondition(when(lt(ref("value"), value(25))), "value < 25"),
-              new Sampling(10.0));
+      TriggerProbe probe1 = createTriggerProbe(
+          TRIGGER_PROBE_ID1,
+          TRIGGER_PROBE_SESSION_ID,
+          className,
+          "entry",
+          "(int)",
+          new ProbeCondition(when(lt(ref("value"), value(25))), "value < 25"),
+          new Sampling(10.0));
       installProbes(Configuration.builder().setService(SERVICE_NAME).add(probe1).build());
       Class<?> testClass = compileAndLoadClass(className);
       Reflect.onClass(testClass).call("main", 0).get();
@@ -218,16 +209,19 @@ public class TriggerProbeTest extends CapturingTestBase {
       ProbeRateLimiter.setSamplerSupplier(value -> sampler);
 
       final String className = "com.datadog.debugger.TriggerProbe01";
-      TriggerProbe probe1 =
-          createTriggerProbe(
-              TRIGGER_PROBE_ID1,
-              TRIGGER_PROBE_SESSION_ID,
-              className,
-              "entry",
-              "()",
-              null,
-              new Sampling(10.0));
-      Configuration config = Configuration.builder().setService(SERVICE_NAME).add(probe1).build();
+      TriggerProbe probe1 = createTriggerProbe(
+          TRIGGER_PROBE_ID1,
+          TRIGGER_PROBE_SESSION_ID,
+          className,
+          "entry",
+          "()",
+          null,
+          new Sampling(10.0));
+      Configuration config = Configuration
+        .builder()
+        .setService(SERVICE_NAME)
+        .add(probe1)
+        .build();
       installProbes(config);
       Class<?> testClass = compileAndLoadClass(className);
       for (int i = 0; i < 100; i++) {
@@ -247,10 +241,19 @@ public class TriggerProbeTest extends CapturingTestBase {
       ProbeRateLimiter.setSamplerSupplier(value -> sampler);
 
       final String className = "com.datadog.debugger.TriggerProbe01";
-      TriggerProbe probe1 =
-          createTriggerProbe(
-              TRIGGER_PROBE_ID1, TRIGGER_PROBE_SESSION_ID, className, "entry", "()", null, null);
-      Configuration config = Configuration.builder().setService(SERVICE_NAME).add(probe1).build();
+      TriggerProbe probe1 = createTriggerProbe(
+          TRIGGER_PROBE_ID1,
+          TRIGGER_PROBE_SESSION_ID,
+          className,
+          "entry",
+          "()",
+          null,
+          null);
+      Configuration config = Configuration
+        .builder()
+        .setService(SERVICE_NAME)
+        .add(probe1)
+        .build();
       installProbes(config);
       Class<?> testClass = compileAndLoadClass(className);
       for (int i = 0; i < 100; i++) {

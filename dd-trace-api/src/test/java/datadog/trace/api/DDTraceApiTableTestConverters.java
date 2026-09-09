@@ -3,10 +3,12 @@ package datadog.trace.api;
 import datadog.trace.test.junit.utils.tabletest.TableTestTypeConverters;
 import org.tabletest.junit.TypeConverter;
 
-/** TableTest converters shared by dd-trace-api test classes for unparsable constants. */
+/**
+ * TableTest converters shared by dd-trace-api test classes for unparsable constants.
+ */
 public final class DDTraceApiTableTestConverters {
-
-  private DDTraceApiTableTestConverters() {}
+  private DDTraceApiTableTestConverters() {
+  }
 
   @TypeConverter
   public static long toLong(String value) {

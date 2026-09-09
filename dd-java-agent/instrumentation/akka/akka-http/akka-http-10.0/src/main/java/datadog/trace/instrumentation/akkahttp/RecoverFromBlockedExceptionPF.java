@@ -34,7 +34,6 @@ public class RecoverFromBlockedExceptionPF extends JavaPartialFunction<Throwable
       if (agentSpan != null) {
         agentSpan.addThrowable(x);
       }
-
       // will be replaced anyway
       return new HttpResponse(
           StatusCode.int2StatusCode(500),

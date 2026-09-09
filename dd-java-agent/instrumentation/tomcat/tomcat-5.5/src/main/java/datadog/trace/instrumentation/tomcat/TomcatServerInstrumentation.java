@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_PARENT_CON
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextScope;
@@ -35,8 +34,9 @@ import org.apache.catalina.connector.Response;
 
 @AutoService(InstrumenterModule.class)
 public final class TomcatServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   public TomcatServerInstrumentation() {
     super("tomcat");
   }
@@ -49,30 +49,30 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".TomcatDecorator",
-      packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
-      packageName + ".RequestURIDataAdapter",
-      packageName + ".TomcatBlockingHelper",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".TomcatDecorator",
+        packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
+        packageName + ".RequestURIDataAdapter",
+        packageName + ".TomcatBlockingHelper"
     };
   }
 
-  private static final Reference GET_OUTPUT_STREAM_REFERENCE =
-      new Reference.Builder("org.apache.catalina.connector.Response")
-          .withMethod(
-              new String[0],
-              EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
-              "getOutputStream",
-              "Ljavax/servlet/ServletOutputStream;")
-          .or()
-          .withMethod(
-              new String[0],
-              EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
-              "getOutputStream",
-              "Ljakarta/servlet/ServletOutputStream;")
-          .build();
+  private static final Reference GET_OUTPUT_STREAM_REFERENCE = new Reference.Builder(
+      "org.apache.catalina.connector.Response")
+    .withMethod(
+        new String[0],
+        EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
+        "getOutputStream",
+        "Ljavax/servlet/ServletOutputStream;")
+    .or()
+    .withMethod(
+        new String[0],
+        EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
+        "getOutputStream",
+        "Ljakarta/servlet/ServletOutputStream;")
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -83,17 +83,18 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         named("service")
-            .and(takesArgument(0, named("org.apache.coyote.Request")))
-            .and(takesArgument(1, named("org.apache.coyote.Response"))),
-        TomcatServerInstrumentation.class.getName()
-            + "$ContextTrackingAdvice", // context tracking must be applied first
+          .and(takesArgument(0, named("org.apache.coyote.Request")))
+          .and(takesArgument(1, named("org.apache.coyote.Response"))),
+            TomcatServerInstrumentation.class.getName()
+        + "$ContextTrackingAdvice" // context tracking must be applied first
+        ,
         TomcatServerInstrumentation.class.getName() + "$ServiceAdvice");
     transformer.applyAdvice(
         named("postParseRequest")
-            .and(takesArgument(0, named("org.apache.coyote.Request")))
-            .and(takesArgument(1, named("org.apache.catalina.connector.Request")))
-            .and(takesArgument(2, named("org.apache.coyote.Response")))
-            .and(takesArgument(3, named("org.apache.catalina.connector.Response"))),
+          .and(takesArgument(0, named("org.apache.coyote.Request")))
+          .and(takesArgument(1, named("org.apache.catalina.connector.Request")))
+          .and(takesArgument(2, named("org.apache.coyote.Response")))
+          .and(takesArgument(3, named("org.apache.catalina.connector.Response"))),
         TomcatServerInstrumentation.class.getName() + "$PostParseAdvice");
   }
 
@@ -138,7 +139,6 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
   }
 
   public static class ServiceAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onService(
         @Advice.Argument(0) org.apache.coyote.Request req,
@@ -155,7 +155,6 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
 
       final Context context = DECORATE.startSpan(req, parentContext);
       serverScope = context.attach();
-
       // This span is finished when Request.recycle() is called by RequestInstrumentation.
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
@@ -173,8 +172,10 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
     private void muzzleCheck(CoyoteAdapter adapter, Request request, Response response)
         throws Exception {
       adapter.service(null, null);
-      request.recycle(); // just to be safe and ensure it matches consistently.
-      response.recycle(); // just to be safe and ensure it matches consistently.
+      // just to be safe and ensure it matches consistently.
+      request.recycle();
+      // just to be safe and ensure it matches consistently.
+      response.recycle();
     }
   }
 
@@ -183,7 +184,6 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
    * data from the request until after it is fully parsed/populated.
    */
   public static class PostParseAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterParse(
         @Advice.Argument(1) Request req,
@@ -195,7 +195,8 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
         AgentSpan span = spanFromContext(context);
         if (span != null) {
           req.setAttribute(
-              CorrelationIdentifier.getTraceIdKey(), AgentTracer.get().getTraceId(span));
+              CorrelationIdentifier.getTraceIdKey(),
+              AgentTracer.get().getTraceId(span));
           req.setAttribute(CorrelationIdentifier.getSpanIdKey(), AgentTracer.get().getSpanId(span));
           Object ctxObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
           Context parentContext = ctxObj instanceof Context ? (Context) ctxObj : rootContext();
@@ -203,8 +204,12 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
           Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
           if (rba != null) {
             TomcatBlockingHelper.commitBlockingResponse(
-                span.getRequestContext().getTraceSegment(), req, resp, rba);
-            ret = false; // skip pipeline
+                span.getRequestContext().getTraceSegment(),
+                req,
+                resp,
+                rba);
+            // skip pipeline
+            ret = false;
           }
         }
       }

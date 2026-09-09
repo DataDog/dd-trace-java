@@ -6,7 +6,6 @@ import org.jacoco.core.analysis.ICounter;
 import org.jacoco.core.analysis.ICoverageVisitor;
 
 public class SourceAnalyzer implements ICoverageVisitor {
-
   private final BitSet coveredLines;
 
   public SourceAnalyzer(BitSet coveredLines) {

@@ -6,7 +6,6 @@ import javax.xml.xpath.XPathExpressionException;
 import org.xml.sax.InputSource;
 
 public class TestXPathSuite {
-
   private final XPath xp;
 
   public TestXPathSuite(final XPath xp) {

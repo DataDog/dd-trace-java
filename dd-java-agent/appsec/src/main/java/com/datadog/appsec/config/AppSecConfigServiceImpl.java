@@ -27,7 +27,6 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_TRUSTED_IPS;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_USER_BLOCKING;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ENDPOINT_FINGERPRINT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
-
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.AppSecSystem;
 import com.datadog.appsec.config.AppSecModuleConfigurer.SubconfigListener;
@@ -74,50 +73,32 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecConfigServiceImpl implements AppSecConfigService {
-
   private static final Logger log = LoggerFactory.getLogger(AppSecConfigServiceImpl.class);
-
   private static final String DEFAULT_CONFIG_LOCATION = "default_config.json";
-
   private final ConfigurationPoller configurationPoller;
   private WafBuilder wafBuilder;
-
   private final MergedAsmFeatures mergedAsmFeatures = new MergedAsmFeatures();
-
   private final ConcurrentHashMap<String, SubconfigListener> subconfigListeners =
       new ConcurrentHashMap<>();
   private final Config tracerConfig;
   private final List<TraceSegmentPostProcessor> traceSegmentPostProcessors = new ArrayList<>();
   private final AppSecModuleConfigurer.Reconfiguration reconfiguration;
-
-  private final ConfigurationEndListener applyRemoteConfigListener =
-      this::applyRemoteConfigListener;
-  private final WAFInitializationResultReporter initReporter =
-      new WAFInitializationResultReporter();
+  private final ConfigurationEndListener applyRemoteConfigListener = this::applyRemoteConfigListener;
+  private final WAFInitializationResultReporter initReporter = new WAFInitializationResultReporter();
   private final WAFStatsReporter statsReporter = new WAFStatsReporter();
-
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
-
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification =
-          "The variable is only read and written by the single configuration-poller thread.")
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The "
+      + "variable is only read and written by the single configuration-poller thread.")
   private boolean hasUserWafConfig;
-
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification =
-          "The variable is only read and written by the single configuration-poller thread.")
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The "
+      + "variable is only read and written by the single configuration-poller thread.")
   private boolean defaultConfigActivated;
-
   private final AtomicBoolean subscribedToRulesAndData = new AtomicBoolean();
   private final Set<String> usedDDWafConfigKeys =
       Collections.newSetFromMap(new ConcurrentHashMap<>());
-  private final Set<String> ignoredConfigKeys =
-      Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Set<String> ignoredConfigKeys = Collections.newSetFromMap(new ConcurrentHashMap<>());
   private final String DEFAULT_WAF_CONFIG_RULE = "ASM_DD/default";
   private String currentRuleVersion;
   private List<AppSecModule> modulesToUpdateVersionIn;
@@ -149,25 +130,24 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private long getRulesAndDataCapabilities() {
-    long capabilities =
-        CAPABILITY_ASM_DD_RULES
-            | CAPABILITY_ASM_DD_MULTICONFIG
-            | CAPABILITY_ASM_IP_BLOCKING
-            | CAPABILITY_ASM_EXCLUSIONS
-            | CAPABILITY_ASM_EXCLUSION_DATA
-            | CAPABILITY_ASM_REQUEST_BLOCKING
-            | CAPABILITY_ASM_USER_BLOCKING
-            | CAPABILITY_ASM_CUSTOM_RULES
-            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
-            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
-            | CAPABILITY_ENDPOINT_FINGERPRINT
-            | CAPABILITY_ASM_SESSION_FINGERPRINT
-            | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES
-            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
+    long capabilities = CAPABILITY_ASM_DD_RULES
+        | CAPABILITY_ASM_DD_MULTICONFIG
+        | CAPABILITY_ASM_IP_BLOCKING
+        | CAPABILITY_ASM_EXCLUSIONS
+        | CAPABILITY_ASM_EXCLUSION_DATA
+        | CAPABILITY_ASM_REQUEST_BLOCKING
+        | CAPABILITY_ASM_USER_BLOCKING
+        | CAPABILITY_ASM_CUSTOM_RULES
+        | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+        | CAPABILITY_ASM_TRUSTED_IPS
+        | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+        | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
+        | CAPABILITY_ENDPOINT_FINGERPRINT
+        | CAPABILITY_ASM_SESSION_FINGERPRINT
+        | CAPABILITY_ASM_NETWORK_FINGERPRINT
+        | CAPABILITY_ASM_HEADER_FINGERPRINT
+        | CAPABILITY_ASM_TRACE_TAGGING_RULES
+        | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION;
     if (tracerConfig.isAppSecRaspEnabled()) {
       capabilities |= CAPABILITY_ASM_RASP_SQLI;
       capabilities |= CAPABILITY_ASM_RASP_SSRF;
@@ -184,7 +164,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
 
   private void updateRulesAndDataSubscription() {
     if (hasUserWafConfig) {
-      return; // do nothing if the customer has custom rules
+      // do nothing if the customer has custom rules
+      return;
     }
     if (AppSecSystem.isActive()) {
       subscribeRulesAndData();
@@ -228,9 +209,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         return;
       }
       final String key = configKey.toString();
-      Map<String, Object> contentMap =
-          (Map<String, Object>)
-              ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+      Map<String, Object> contentMap = (Map<String, Object>) ADAPTER.fromJson(Okio.buffer(Okio.source(
+          new ByteArrayInputStream(content))));
       if (contentMap == null || contentMap.isEmpty()) {
         ignoredConfigKeys.add(key);
       } else {
@@ -246,8 +226,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
 
     @Override
-    public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter)
-        throws IOException {
+    public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter) throws IOException {
       final String key = configKey.toString();
       if (ignoredConfigKeys.remove(key)) {
         return;
@@ -274,7 +253,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   private class AppSecConfigChangesDDListener extends AppSecConfigChangesListener {
     @Override
     protected void beforeApply(final String key, final Map<String, Object> config) {
-      if (defaultConfigActivated) { // if we get any config, remove the default one
+      if (defaultConfigActivated) {
+        // if we get any config, remove the default one
         log.debug("Removing default config ASM_DD/default");
         try {
           wafBuilder.removeConfig(DEFAULT_WAF_CONFIG_RULE);
@@ -305,9 +285,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       if (log.isInfoEnabled()) {
         StandardizedLogging.numLoadedRules(log, configKey, countRules(rawConfig));
       }
-
       // TODO: Send diagnostics via telemetry
-
       initReporter.setReportForPublication(wafDiagnostics);
       if (wafDiagnostics.rulesetVersion != null
           && !wafDiagnostics.rulesetVersion.isEmpty()
@@ -348,16 +326,17 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private void subscribeAsmFeatures() {
-    this.configurationPoller.addListener(
-        Product.ASM_FEATURES,
-        AppSecFeaturesDeserializer.INSTANCE,
-        (configKey, newConfig, hinter) -> {
-          if (newConfig == null) {
-            mergedAsmFeatures.removeConfig(configKey);
-          } else {
-            mergedAsmFeatures.addConfig(configKey, newConfig);
-          }
-        });
+    this.configurationPoller.addListener(Product.ASM_FEATURES, AppSecFeaturesDeserializer.INSTANCE, (
+                                                                                                        configKey,
+                                                                                                        newConfig,
+                                                                                                        hinter
+                                                                                                    ) -> {
+      if (newConfig == null) {
+        mergedAsmFeatures.removeConfig(configKey);
+      } else {
+        mergedAsmFeatures.addConfig(configKey, newConfig);
+      }
+    });
     if (tracerConfig.getAppSecActivation() == ProductActivation.ENABLED_INACTIVE) {
       this.configurationPoller.addCapabilities(CAPABILITY_ASM_ACTIVATION);
     } else {
@@ -367,7 +346,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   }
 
   private void distributeSubConfigurations(
-      String key, AppSecModuleConfigurer.Reconfiguration reconfiguration) {
+      String key,
+      AppSecModuleConfigurer.Reconfiguration reconfiguration) {
     maybeInitializeDefaultConfig();
     for (Map.Entry<String, SubconfigListener> entry : subconfigListeners.entrySet()) {
       SubconfigListener listener = entry.getValue();
@@ -422,13 +402,14 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
   public void maybeSubscribeConfigPolling() {
     final ProductActivation appSecActivation = tracerConfig.getAppSecActivation();
     if (appSecActivation == ProductActivation.FULLY_DISABLED) {
-      return; // shouldn't happen but just in case.
+      // shouldn't happen but just in case.
+      return;
     }
     if (this.configurationPoller != null) {
       if (hasUserWafConfig && appSecActivation == ProductActivation.FULLY_ENABLED) {
         log.info(
             "AppSec will not use remote config because "
-                + "there is a custom user configuration and AppSec is explicitly enabled");
+            + "there is a custom user configuration and AppSec is explicitly enabled");
       } else {
         subscribeConfigurationPoller();
       }
@@ -489,8 +470,8 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     log.debug("Loading default waf config");
     try (InputStream is =
         AppSecConfigServiceImpl.class
-            .getClassLoader()
-            .getResourceAsStream(DEFAULT_CONFIG_LOCATION)) {
+      .getClassLoader()
+      .getResourceAsStream(DEFAULT_CONFIG_LOCATION)) {
       if (is == null) {
         throw new IOException("Resource " + DEFAULT_CONFIG_LOCATION + " not found");
       }
@@ -540,30 +521,30 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     }
     this.configurationPoller.removeCapabilities(
         CAPABILITY_ASM_ACTIVATION
-            | CAPABILITY_ASM_DD_RULES
-            | CAPABILITY_ASM_DD_MULTICONFIG
-            | CAPABILITY_ASM_IP_BLOCKING
-            | CAPABILITY_ASM_EXCLUSIONS
-            | CAPABILITY_ASM_EXCLUSION_DATA
-            | CAPABILITY_ASM_REQUEST_BLOCKING
-            | CAPABILITY_ASM_USER_BLOCKING
-            | CAPABILITY_ASM_CUSTOM_RULES
-            | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
-            | CAPABILITY_ASM_TRUSTED_IPS
-            | CAPABILITY_ASM_PROCESSOR_OVERRIDES
-            | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
-            | CAPABILITY_ASM_RASP_SQLI
-            | CAPABILITY_ASM_RASP_SSRF
-            | CAPABILITY_ASM_RASP_LFI
-            | CAPABILITY_ASM_RASP_CMDI
-            | CAPABILITY_ASM_RASP_SHI
-            | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
-            | CAPABILITY_ENDPOINT_FINGERPRINT
-            | CAPABILITY_ASM_SESSION_FINGERPRINT
-            | CAPABILITY_ASM_NETWORK_FINGERPRINT
-            | CAPABILITY_ASM_HEADER_FINGERPRINT
-            | CAPABILITY_ASM_TRACE_TAGGING_RULES
-            | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION);
+        | CAPABILITY_ASM_DD_RULES
+        | CAPABILITY_ASM_DD_MULTICONFIG
+        | CAPABILITY_ASM_IP_BLOCKING
+        | CAPABILITY_ASM_EXCLUSIONS
+        | CAPABILITY_ASM_EXCLUSION_DATA
+        | CAPABILITY_ASM_REQUEST_BLOCKING
+        | CAPABILITY_ASM_USER_BLOCKING
+        | CAPABILITY_ASM_CUSTOM_RULES
+        | CAPABILITY_ASM_CUSTOM_BLOCKING_RESPONSE
+        | CAPABILITY_ASM_TRUSTED_IPS
+        | CAPABILITY_ASM_PROCESSOR_OVERRIDES
+        | CAPABILITY_ASM_CUSTOM_DATA_SCANNERS
+        | CAPABILITY_ASM_RASP_SQLI
+        | CAPABILITY_ASM_RASP_SSRF
+        | CAPABILITY_ASM_RASP_LFI
+        | CAPABILITY_ASM_RASP_CMDI
+        | CAPABILITY_ASM_RASP_SHI
+        | CAPABILITY_ASM_AUTO_USER_INSTRUM_MODE
+        | CAPABILITY_ENDPOINT_FINGERPRINT
+        | CAPABILITY_ASM_SESSION_FINGERPRINT
+        | CAPABILITY_ASM_NETWORK_FINGERPRINT
+        | CAPABILITY_ASM_HEADER_FINGERPRINT
+        | CAPABILITY_ASM_TRACE_TAGGING_RULES
+        | CAPABILITY_ASM_EXTENDED_DATA_COLLECTION);
     this.configurationPoller.removeListeners(Product.ASM_DD);
     this.configurationPoller.removeListeners(Product.ASM_DATA);
     this.configurationPoller.removeListeners(Product.ASM);
@@ -624,13 +605,15 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
     String keyRegexp = config.getAppSecObfuscationParameterKeyRegexp();
     if (keyRegexp != null) {
       wafConfig.obfuscatorKeyRegex = keyRegexp;
-    } else { // reset
+    } else {
+      // reset
       wafConfig.obfuscatorKeyRegex = WafConfig.DEFAULT_KEY_REGEX;
     }
     String valueRegexp = config.getAppSecObfuscationParameterValueRegexp();
     if (valueRegexp != null) {
       wafConfig.obfuscatorValueRegex = valueRegexp;
-    } else { // reset
+    } else {
+      // reset
       wafConfig.obfuscatorValueRegex = WafConfig.DEFAULT_VALUE_REGEX;
     }
     return wafConfig;

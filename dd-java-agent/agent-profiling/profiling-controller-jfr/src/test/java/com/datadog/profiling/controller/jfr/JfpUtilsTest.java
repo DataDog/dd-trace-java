@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -20,8 +19,9 @@ public class JfpUtilsTest {
   public void testLoadingInvalidOverride() throws IOException {
     final String INVALID_OVERRIDE = "really_non_existent_file.jfp";
 
-    assertThrows(
-        IOException.class, () -> JfpUtils.readJfpResources(JfpUtils.DEFAULT_JFP, INVALID_OVERRIDE));
+    assertThrows(IOException.class, () -> JfpUtils.readJfpResources(
+        JfpUtils.DEFAULT_JFP,
+        INVALID_OVERRIDE));
   }
 
   @Test
@@ -60,12 +60,9 @@ public class JfpUtilsTest {
     assertEquals("false", config.get("jdk.SafepointCleanupTask#enabled"));
     assertEquals("true", config.get("jdk.ExecuteVMOperation#enabled"));
     config
-        .keySet()
-        .forEach(
-            key ->
-                assertTrue(
-                    key.startsWith("jdk.Safepoint")
-                        || key.equals("jdk.ExecuteVMOperation#enabled")));
+      .keySet()
+      .forEach(key -> assertTrue(
+          key.startsWith("jdk.Safepoint") || key.equals("jdk.ExecuteVMOperation#enabled")));
   }
 
   @ParameterizedTest

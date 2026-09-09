@@ -4,7 +4,6 @@ import static datadog.smoketest.kafka.iast.IastConfiguration.BYTE_ARRAY_TOPIC;
 import static datadog.smoketest.kafka.iast.IastConfiguration.BYTE_BUFFER_TOPIC;
 import static datadog.smoketest.kafka.iast.IastConfiguration.JSON_TOPIC;
 import static datadog.smoketest.kafka.iast.IastConfiguration.STRING_TOPIC;
-
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -24,23 +23,20 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class IastController {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(IastController.class);
-
   private final ReplyingKafkaTemplate<String, String, String> stringTemplate;
   private final ReplyingKafkaTemplate<byte[], byte[], String> byteArrayTemplate;
   private final ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> byteBufferTemplate;
   private final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate;
 
   public IastController(
-      @Qualifier("iastStringTemplate")
-          final ReplyingKafkaTemplate<String, String, String> stringTemplate,
-      @Qualifier("iastByteArrayTemplate")
-          final ReplyingKafkaTemplate<byte[], byte[], String> byteArrayTemplate,
-      @Qualifier("iastByteBufferTemplate")
-          final ReplyingKafkaTemplate<ByteBuffer, ByteBuffer, String> byteBufferTemplate,
-      @Qualifier("iastJsonTemplate")
-          final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate) {
+      @Qualifier("iastStringTemplate") final ReplyingKafkaTemplate<String, String, String> stringTemplate,
+      @Qualifier("iastByteArrayTemplate") final ReplyingKafkaTemplate<byte[], byte[], String> byteArrayTemplate,
+      @Qualifier("iastByteBufferTemplate") final ReplyingKafkaTemplate<
+      ByteBuffer,
+      ByteBuffer,
+      String> byteBufferTemplate,
+      @Qualifier("iastJsonTemplate") final ReplyingKafkaTemplate<IastMessage, IastMessage, String> jsonTemplate) {
     this.stringTemplate = stringTemplate;
     this.byteArrayTemplate = byteArrayTemplate;
     this.byteBufferTemplate = byteBufferTemplate;
@@ -64,8 +60,7 @@ public class IastController {
 
   @GetMapping("/iast/kafka/byteBuffer")
   public ResponseEntity<String> byteBuffer(@RequestParam("type") final String type) {
-    return sendAndReceive(
-        type, byteBufferTemplate, BYTE_BUFFER_TOPIC, it -> ByteBuffer.wrap(it.getBytes()));
+    return sendAndReceive(type, byteBufferTemplate, BYTE_BUFFER_TOPIC, it -> ByteBuffer.wrap(it.getBytes()));
   }
 
   @GetMapping("/iast/kafka/json")
@@ -128,11 +123,14 @@ public class IastController {
     final ProducerRecord<E, E> record = new ProducerRecord<>(topic, key, value);
     final RequestReplyFuture<E, E, String> future = template.sendAndReceive(record);
     try {
-      future.getSendFuture().get(10, TimeUnit.SECONDS); // send ok
-      final ConsumerRecord<E, String> reply = future.get(10, TimeUnit.SECONDS); // reply
+      // send ok
+      future.getSendFuture().get(10, TimeUnit.SECONDS);
+      // reply
+      final ConsumerRecord<E, String> reply = future.get(10, TimeUnit.SECONDS);
       if (reply == null || !"OK".equals(reply.value())) {
-        return ResponseEntity.internalServerError()
-            .body(reply == null ? "REPLY_TIMEOUT" : reply.value());
+        return ResponseEntity
+          .internalServerError()
+          .body(reply == null ? "REPLY_TIMEOUT" : reply.value());
       } else {
         return ResponseEntity.ok("OK");
       }

@@ -3,7 +3,6 @@ package datadog.trace.api.interceptor;
 import java.util.Map;
 
 public interface MutableSpan {
-
   /**
    * @return Start time with nanosecond scale, but millisecond resolution.
    */

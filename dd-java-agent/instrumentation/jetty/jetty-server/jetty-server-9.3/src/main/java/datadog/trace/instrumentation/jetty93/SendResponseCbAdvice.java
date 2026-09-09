@@ -9,7 +9,8 @@ import org.eclipse.jetty.util.Callback;
 
 public class SendResponseCbAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-  public static boolean /* skip */ before(
+  public static boolean /* skip */
+  before(
       @Advice.This HttpChannel connection,
       @Advice.Argument(0) MetaData.Response responseInfo,
       @Advice.Argument(3) Callback cb,

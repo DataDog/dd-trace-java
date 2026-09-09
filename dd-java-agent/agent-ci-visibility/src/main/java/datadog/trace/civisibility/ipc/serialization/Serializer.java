@@ -16,7 +16,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class Serializer {
-
   private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
   public void write(byte b) {
@@ -153,7 +152,8 @@ public class Serializer {
   }
 
   public static <T> List<T> readList(
-      ByteBuffer byteBuffer, Function<ByteBuffer, T> elementDeserializer) {
+      ByteBuffer byteBuffer,
+      Function<ByteBuffer, T> elementDeserializer) {
     int size = byteBuffer.getInt();
     if (size == -1) {
       return null;
@@ -166,7 +166,8 @@ public class Serializer {
   }
 
   public static <T> Set<T> readSet(
-      ByteBuffer byteBuffer, Function<ByteBuffer, T> elementDeserializer) {
+      ByteBuffer byteBuffer,
+      Function<ByteBuffer, T> elementDeserializer) {
     List<T> list = readList(byteBuffer, elementDeserializer);
     return list != null ? new HashSet<>(list) : null;
   }

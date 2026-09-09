@@ -16,7 +16,8 @@ import net.bytebuddy.utility.JavaModule;
  * outline types to full type parsing when the actual transformation begins.
  */
 public final class DDOutlineTypeStrategy
-    implements AgentBuilder.ClassFileBufferStrategy, AgentBuilder.TypeStrategy {
+    implements AgentBuilder.ClassFileBufferStrategy,
+    AgentBuilder.TypeStrategy {
   public static final DDOutlineTypeStrategy INSTANCE = new DDOutlineTypeStrategy();
 
   @Override

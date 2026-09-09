@@ -2,7 +2,6 @@ package datadog.environment;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,10 +14,10 @@ import javax.annotation.Nullable;
  *     Manager</a>
  */
 public final class EnvironmentVariables {
-  private EnvironmentVariables() {}
+  private EnvironmentVariables() {
+  }
 
   public static class EnvironmentVariablesProvider {
-
     // Environment Component has SecurityException handling, so it is safe to call System.getenv
     // here
     @SuppressForbidden

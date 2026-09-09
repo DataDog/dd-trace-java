@@ -27,15 +27,15 @@ public final class ProcessContext {
         // per-thread ContextSetter, so external readers can decode the thread-local record.
         List<String> attributeKeys = DatadogProfiler.getOrderedContextAttributes(configProvider);
         holder
-            .getComponent()
-            .initializeAllContext(
-                cfg.getEnv(),
-                cfg.getHostName(),
-                cfg.getRuntimeId(),
-                cfg.getServiceName(),
-                cfg.getRuntimeVersion(),
-                cfg.getVersion(),
-                attributeKeys.toArray(new String[0]));
+          .getComponent()
+          .initializeAllContext(
+              cfg.getEnv(),
+              cfg.getHostName(),
+              cfg.getRuntimeId(),
+              cfg.getServiceName(),
+              cfg.getRuntimeVersion(),
+              cfg.getVersion(),
+              attributeKeys.toArray(new String[0]));
       } else {
         log.warn("Failed to register process context for OTel profiler", err);
       }

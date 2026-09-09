@@ -11,17 +11,17 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringEscapeUtilsCallSite {
-
-  @CallSite.After(
-      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeHtml(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeJava(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeJavaScript(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeXml(java.lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeHtml(java."
+      + "lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeJava(java."
+      + "lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.lang.StringEscapeUtils."
+      + "escapeJavaScript(java.lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeXml(java."
+      + "lang.String)")
   public static String afterEscape(
-      @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
+      @CallSite.Argument(0) @Nullable final String input,
+      @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -33,10 +33,11 @@ public class StringEscapeUtilsCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeSql(java.lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.lang.StringEscapeUtils.escapeSql(java."
+      + "lang.String)")
   public static String afterEscapeSQL(
-      @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
+      @CallSite.Argument(0) @Nullable final String input,
+      @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

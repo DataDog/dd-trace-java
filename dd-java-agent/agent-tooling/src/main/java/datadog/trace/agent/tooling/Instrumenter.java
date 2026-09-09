@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import java.security.ProtectionDomain;
 import java.util.Collection;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -12,29 +11,41 @@ import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.utility.JavaModule;
 
-/** Declares bytebuddy-based type instrumentation for the datadog javaagent. */
+/**
+ * Declares bytebuddy-based type instrumentation for the datadog javaagent.
+ */
 public interface Instrumenter {
-
-  /** Instrumentation that only matches a single named type. */
+  /**
+   * Instrumentation that only matches a single named type.
+   */
   interface ForSingleType {
     String instrumentedType();
   }
 
-  /** Instrumentation that can match a series of named types. */
+  /**
+   * Instrumentation that can match a series of named types.
+   */
   interface ForKnownTypes {
     String[] knownMatchingTypes();
   }
 
-  /** Instrumentation that matches based on the type hierarchy. */
+  /**
+   * Instrumentation that matches based on the type hierarchy.
+   */
   interface ForTypeHierarchy {
-    /** Hint that class-loaders without this type can skip this hierarchy matcher. */
+    /**
+     * Hint that class-loaders without this type can skip this hierarchy matcher.
+     */
     String hierarchyMarkerType();
 
     ElementMatcher<TypeDescription> hierarchyMatcher();
   }
 
-  /** Instrumentation that transforms types on the bootstrap class-path. */
-  interface ForBootstrap {}
+  /**
+   * Instrumentation that transforms types on the bootstrap class-path.
+   */
+  interface ForBootstrap {
+  }
 
   /**
    * Instrumentation that matches a series of types configured at runtime. This is used for last
@@ -66,22 +77,30 @@ public interface Instrumenter {
     String configuredMatchingType();
   }
 
-  /** Instrumentation that matches based on the caller of an instruction. */
+  /**
+   * Instrumentation that matches based on the caller of an instruction.
+   */
   interface ForCallSite {
     ElementMatcher<TypeDescription> callerType();
   }
 
-  /** Instrumentation that can optionally widen matching to consider the type hierarchy. */
+  /**
+   * Instrumentation that can optionally widen matching to consider the type hierarchy.
+   */
   interface CanShortcutTypeMatching extends ForKnownTypes, ForTypeHierarchy {
     boolean onlyMatchKnownTypes();
   }
 
-  /** Instrumentation that wants to apply additional structure checks after type matching. */
+  /**
+   * Instrumentation that wants to apply additional structure checks after type matching.
+   */
   interface WithTypeStructure {
     ElementMatcher<TypeDescription> structureMatcher();
   }
 
-  /** Instrumentation that provides advice which affects the whole type. */
+  /**
+   * Instrumentation that provides advice which affects the whole type.
+   */
   interface HasTypeAdvice extends Instrumenter {
     /**
      * Instrumenters should register the full type advice with {@link
@@ -90,7 +109,9 @@ public interface Instrumenter {
     void typeAdvice(TypeTransformer transformer);
   }
 
-  /** Instrumentation that provides advice specific to one or more methods. */
+  /**
+   * Instrumentation that provides advice specific to one or more methods.
+   */
   interface HasMethodAdvice extends Instrumenter {
     /**
      * Instrumenters should register each method advice with {@link
@@ -99,7 +120,9 @@ public interface Instrumenter {
     void methodAdvice(MethodTransformer transformer);
   }
 
-  /** Applies type advice from an instrumentation that {@link HasTypeAdvice}. */
+  /**
+   * Applies type advice from an instrumentation that {@link HasTypeAdvice}.
+   */
   interface TypeTransformer {
     void applyAdvice(TransformingAdvice typeAdvice);
 
@@ -108,10 +131,11 @@ public interface Instrumenter {
     }
   }
 
-  /** Applies method advice from an instrumentation that {@link HasMethodAdvice}. */
+  /**
+   * Applies method advice from an instrumentation that {@link HasMethodAdvice}.
+   */
   interface MethodTransformer {
-    default void applyAdvice(
-        ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+    default void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
       applyAdvices(matcher, adviceClass, (String[]) null);
     }
 
@@ -121,7 +145,9 @@ public interface Instrumenter {
         String... additionalAdviceClasses);
   }
 
-  /** Contributes a transformation step to the dynamic type builder. */
+  /**
+   * Contributes a transformation step to the dynamic type builder.
+   */
   interface TransformingAdvice {
     DynamicType.Builder<?> transform(
         DynamicType.Builder<?> builder,

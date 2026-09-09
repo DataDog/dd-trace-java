@@ -3,7 +3,6 @@ package foo.bar;
 import freemarker.template.utility.StringUtil;
 
 public class TestStringUtilSuite {
-
   public static String HTMLEnc(String input) {
     return StringUtil.HTMLEnc(input);
   }

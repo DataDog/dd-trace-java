@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/ssrf")
 public class SsrfController {
-
   @PostMapping("/java-net")
   public String javaNet(
       @RequestParam(value = "url", required = false) final String url,
@@ -24,22 +23,23 @@ public class SsrfController {
       if (async) {
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(new URI(uri)).build();
         if (promise) {
-          httpClient.sendAsync(
-              httpRequest,
-              HttpResponse.BodyHandlers.ofString(),
-              (initiatingRequest, pushPromiseRequest, acceptor) -> {});
+          httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString(), (
+                                                                                      initiatingRequest,
+                                                                                      pushPromiseRequest,
+                                                                                      acceptor
+                                                                                  ) -> {});
         } else {
           httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString());
         }
       } else {
-        HttpRequest httpRequest =
-            HttpRequest.newBuilder()
-                .uri(new URI(uri))
-                .timeout(
-                    java.time.Duration.ofSeconds(
-                        1)) // prevents Idle timeout expired in jetty servers when the client is not
-                // responding in sync mode
-                .build();
+        HttpRequest httpRequest = HttpRequest
+          .newBuilder()
+          .uri(new URI(uri))
+          .timeout(java.time.Duration.ofSeconds(
+              // prevents Idle timeout expired in jetty servers when the client is not
+              1))
+          // responding in sync mode
+          .build();
         httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
       }
     } catch (Exception e) {

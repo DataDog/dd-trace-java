@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,7 +47,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class CrashUploaderTest {
-
   private static final String API_KEY_VALUE = "testkey";
   private static final String URL_PATH = "/lalala";
   private static final String CRASH = "this is a crash file";
@@ -57,15 +55,11 @@ public class CrashUploaderTest {
   private static final String SERVICE = "crash-service";
   private static final String VERSION = "crash-version";
   private static final String SAMPLE_UUID = "a4194cd6-8cb3-45fd-9bd9-3af83e0a3ad3";
-
   // TODO: Add a test to verify overall request timeout rather than IO timeout
   private final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
-
   private Config config = spy(Config.get());
-
   private final MockWebServer server = new MockWebServer();
   private HttpUrl url;
-
   private CrashUploader uploader;
 
   @BeforeEach
@@ -79,8 +73,9 @@ public class CrashUploaderTest {
     when(config.getServiceName()).thenReturn(SERVICE);
     when(config.getVersion()).thenReturn(VERSION);
     when(config.getFinalCrashTrackingTelemetryUrl()).thenReturn(server.url(URL_PATH).toString());
-    when(config.getFinalCrashTrackingErrorTrackingUrl())
-        .thenReturn(server.url(URL_PATH).toString());
+    when(config.getFinalCrashTrackingErrorTrackingUrl()).thenReturn(server
+      .url(URL_PATH)
+      .toString());
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.getApiKey()).thenReturn(null);
   }
@@ -93,7 +88,6 @@ public class CrashUploaderTest {
     uploader = new CrashUploader(config, crashConfig);
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(CRASH, new PrintStream(out));
-
     // Then
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(out.toString(StandardCharsets.UTF_8.name()));
@@ -113,7 +107,6 @@ public class CrashUploaderTest {
     String msg = readFileAsString("sample-crash-redacted.txt");
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     uploader.uploadToLogs(msg, new PrintStream(out));
-
     // Then
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(out.toString(StandardCharsets.UTF_8.name()));
@@ -123,7 +116,8 @@ public class CrashUploaderTest {
     assertEquals(SERVICE, event.get("service").asText());
     assertEquals(msg, event.get("message").asText());
     assertEquals(
-        readFileAsString("sample-stacktrace.txt"), event.get("error").get("stack").asText());
+        readFileAsString("sample-stacktrace.txt"),
+        event.get("error").get("stack").asText());
     assertEquals("ERROR", event.get("level").asText());
     assertTrue(event.get("ddtags").asText().contains("is_crash:true"));
   }
@@ -131,9 +125,9 @@ public class CrashUploaderTest {
   private String readFileAsString(String resource) throws IOException {
     try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resource)) {
       return new BufferedReader(
-              new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8))
-          .lines()
-          .collect(Collectors.joining("\n"));
+          new InputStreamReader(Objects.requireNonNull(stream), StandardCharsets.UTF_8))
+        .lines()
+        .collect(Collectors.joining("\n"));
     }
   }
 
@@ -145,27 +139,23 @@ public class CrashUploaderTest {
   public void testTelemetryCrashPing() throws Exception {
     // Given
     final String expected = readFileAsString("golden/telemetry/sample-ping-for-telemetry.json");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .processTags("a:b")
+      .runtimeId("1234")
+      .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.sendPingToTelemetry(null);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
-
     // Then
     assertEquals(url, recordedRequest.getRequestUrl());
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
-
     // header
     assertCommonHeader(event);
-
     // payload:
     assertEquals("DEBUG", event.get("payload").get(0).get("level").asText());
 
@@ -196,13 +186,13 @@ public class CrashUploaderTest {
     expected.remove("ddtags");
     expected.remove("os_info");
     expected.remove("timestamp");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .processTags("a:b")
+      .runtimeId("1234")
+      // take the real ones
+      .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+      .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -210,14 +200,12 @@ public class CrashUploaderTest {
     uploader.sendPingToErrorTracking(null);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
-
     // Then
     assertEquals(url, recordedRequest.getRequestUrl());
     final String requestBody = recordedRequest.getBody().readUtf8();
     final Map<String, ?> extracted = mapper.readValue(requestBody, Map.class);
 
     assertNotNull(extracted.remove("timestamp"));
-
     // assert osInfo
     final Map<String, ?> osInfo = (Map<String, ?>) extracted.remove("os_info");
 
@@ -225,69 +213,62 @@ public class CrashUploaderTest {
     assertNotNull(osInfo.get("architecture"));
     assertNotNull(osInfo.get("version"));
     assertNotNull(osInfo.get("os_type"));
-    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit")); // e.g. "64-bit"
-
+    // e.g. "64-bit"
+    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit"));
     // assert ddtags
     String ddtags = (String) extracted.remove("ddtags");
     assertNotNull(ddtags);
-    assertTrue(ddtags.contains(crashConfig.tags)); // includes the tags
-    assertTrue(ddtags.contains("service:")); // has the service
+    // includes the tags
+    assertTrue(ddtags.contains(crashConfig.tags));
+    // has the service
+    assertTrue(ddtags.contains("service:"));
     assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(ddtags.contains("is_crash_ping:true"));
     assertTrue(ddtags.contains("runtime_version:"));
     assertTrue(ddtags.contains("runtime_vendor:"));
     assertTrue(ddtags.contains("runtime_name:"));
-
     // assert platform independent equality
-    assertEquals(
-        expected,
-        extracted,
-        () -> {
-          try {
-            return "Expected: "
-                + mapper.writeValueAsString(expected)
-                + "\nbut got: "
-                + mapper.writeValueAsString(extracted);
-          } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    assertEquals(expected, extracted, () -> {
+      try {
+        return "Expected: "
+            + mapper.writeValueAsString(expected)
+            + "\nbut got: "
+            + mapper.writeValueAsString(extracted);
+      } catch (JsonProcessingException e) {
+        throw new RuntimeException(e);
+      }
+    });
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "sample-crash-for-telemetry.json",
-        "sample-crash-for-telemetry-2.json",
-        "sample-crash-for-telemetry-3.json",
-        "sample_oom.json"
-      })
+  @ValueSource(strings = {
+      "sample-crash-for-telemetry.json",
+      "sample-crash-for-telemetry-2.json",
+      "sample-crash-for-telemetry-3.json",
+      "sample_oom.json"
+  })
   public void testTelemetryHappyPath(String log) throws Exception {
     // Given
     CrashLog expected = CrashLog.fromJson(readFileAsString("golden/telemetry/" + log));
     final String inputLog = log.replace(".json", ".txt");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .processTags("a:b")
+      .runtimeId("1234")
+      .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.remoteUpload(readFileAsString(inputLog), true, false);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
-
     // Then
     assertEquals(url, recordedRequest.getRequestUrl());
 
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
-
     // header
     assertCommonHeader(event);
-
     // payload:
     assertEquals("ERROR", event.get("payload").get(0).get("level").asText());
 
@@ -297,20 +278,23 @@ public class CrashUploaderTest {
     CrashLog extracted = CrashLog.fromJson(message);
 
     assertThatJson(extracted.toJson())
-        .whenIgnoringPaths("os_info", "metadata", "experimental")
-        .isEqualTo(expected.toJson());
-    assertEquals("severity:crash,is_crash:true", event.get("payload").get(0).get("tags").asText());
+      .whenIgnoringPaths("os_info", "metadata", "experimental")
+      .isEqualTo(expected.toJson());
+    assertEquals("severity:crash,is_crash:true", event
+      .get("payload")
+      .get(0)
+      .get("tags")
+      .asText());
     assertCommonPayload(event);
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "sample-crash-for-telemetry.json",
-        "sample-crash-for-telemetry-2.json",
-        "sample-crash-for-telemetry-3.json",
-        "sample_oom.json"
-      })
+  @ValueSource(strings = {
+      "sample-crash-for-telemetry.json",
+      "sample-crash-for-telemetry-2.json",
+      "sample-crash-for-telemetry-3.json",
+      "sample_oom.json"
+  })
   public void testErrorTrackingHappyPath(String log) throws Exception {
     // Given
     final ObjectMapper mapper = new ObjectMapper();
@@ -320,26 +304,24 @@ public class CrashUploaderTest {
     expected.remove("ddtags");
     expected.remove("os_info");
     final String inputLog = log.replace(".json", ".txt");
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
-            .extendedInfoEnabled(true)
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .processTags("a:b")
+      .runtimeId("1234")
+      // take the real ones
+      .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+      .extendedInfoEnabled(true)
+      .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.remoteUpload(readFileAsString(inputLog), false, true);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
-
     // Then
     assertEquals(url, recordedRequest.getRequestUrl());
     final String requestBody = recordedRequest.getBody().readUtf8();
     final Map<String, ?> extracted = mapper.readValue(requestBody, Map.class);
-
     // assert osInfo
     final Map<String, ?> osInfo = (Map<String, ?>) extracted.remove("os_info");
 
@@ -347,33 +329,33 @@ public class CrashUploaderTest {
     assertNotNull(osInfo.get("architecture"));
     assertNotNull(osInfo.get("version"));
     assertNotNull(osInfo.get("os_type"));
-    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit")); // e.g. "64-bit"
-
+    // e.g. "64-bit"
+    assertTrue(((String) osInfo.get("bitness")).matches("\\d+-bit"));
     // assert ddtags
     String ddtags = (String) extracted.remove("ddtags");
     assertNotNull(ddtags);
-    assertTrue(ddtags.contains(crashConfig.tags)); // includes the tags
-    assertTrue(ddtags.contains("service:")); // has the service
+    // includes the tags
+    assertTrue(ddtags.contains(crashConfig.tags));
+    // has the service
+    assertTrue(ddtags.contains("service:"));
     assertTrue(ddtags.contains("uuid:" + crashConfig.reportUUID));
     assertTrue(ddtags.contains("is_crash:true"));
     assertTrue(ddtags.contains("runtime_version:"));
     assertTrue(ddtags.contains("runtime_vendor:"));
     assertTrue(ddtags.contains("runtime_name:"));
-
     // assert platform independent equality
     assertThatJson(mapper.writeValueAsString(extracted))
-        .whenIgnoringPaths("experimental")
-        .isEqualTo(mapper.writeValueAsString(expected));
+      .whenIgnoringPaths("experimental")
+      .isEqualTo(mapper.writeValueAsString(expected));
   }
 
   @Test
   public void testErrorTrackingExcludesExtendedInfoByDefault() throws Exception {
     // extendedInfoEnabled defaults to false — files, thread_name and runtime_args must not appear
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+      .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -390,14 +372,13 @@ public class CrashUploaderTest {
 
   @Test
   public void testErrorTrackingSerializesRuntimeArgs() throws Exception {
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .extendedInfoEnabled(true)
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .processTags("a:b")
+      .runtimeId("1234")
+      .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+      .extendedInfoEnabled(true)
+      .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -421,14 +402,13 @@ public class CrashUploaderTest {
 
   @Test
   public void testErrorTrackingSerializesRegisterToMemoryMapping() throws Exception {
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .extendedInfoEnabled(true)
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .processTags("a:b")
+      .runtimeId("1234")
+      .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+      .extendedInfoEnabled(true)
+      .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -441,20 +421,19 @@ public class CrashUploaderTest {
     final JsonNode mapping = event.at("/experimental/register_to_memory_mapping");
     assertThat(mapping.isObject()).isTrue();
     assertThat(mapping.get("RSP").asText())
-        .isEqualTo("0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80");
+      .isEqualTo("0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80");
     assertThat(mapping.get("RDI").asText()).isEqualTo("0x0 is NULL");
   }
 
   @Test
   public void testErrorTrackingOmitsRegisterToMemoryMappingByDefault() throws Exception {
     // registerMappingEnabled defaults to false — the mapping must not appear in the payload
-    ConfigManager.StoredConfig crashConfig =
-        new ConfigManager.StoredConfig.Builder(config)
-            .reportUUID(SAMPLE_UUID)
-            .processTags("a:b")
-            .runtimeId("1234")
-            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
-            .build();
+    ConfigManager.StoredConfig crashConfig = new ConfigManager.StoredConfig.Builder(config)
+      .reportUUID(SAMPLE_UUID)
+      .processTags("a:b")
+      .runtimeId("1234")
+      .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+      .build();
 
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
@@ -466,8 +445,9 @@ public class CrashUploaderTest {
 
     JsonNode experimental = event.at("/experimental");
     // experimental must either be absent or, if present, contain at least one field (no empty {})
-    assertThat(experimental.isMissingNode() || (experimental.isObject() && experimental.size() > 0))
-        .isTrue();
+    assertThat(experimental.isMissingNode()
+        || (experimental.isObject() && experimental.size() > 0))
+      .isTrue();
     assertThat(event.at("/experimental/register_to_memory_mapping").isMissingNode()).isTrue();
   }
 
@@ -502,7 +482,8 @@ public class CrashUploaderTest {
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.upload(getResourcePath("no-crash.txt"));
-    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS)); // still sending incomplete report
+    // still sending incomplete report
+    assertNotNull(server.takeRequest(5, TimeUnit.SECONDS));
   }
 
   @ParameterizedTest
@@ -515,7 +496,9 @@ public class CrashUploaderTest {
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
     uploader.remoteUpload(
-        readFileAsString("sample-crash.txt"), telemetryOrErrorTracking, !telemetryOrErrorTracking);
+        readFileAsString("sample-crash.txt"),
+        telemetryOrErrorTracking,
+        !telemetryOrErrorTracking);
 
     RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
     // common
@@ -524,7 +507,8 @@ public class CrashUploaderTest {
     if (telemetryOrErrorTracking) {
       // telemetry
       assertEquals(
-          TELEMETRY_API_VERSION, recordedRequest.getHeader(HEADER_DD_TELEMETRY_API_VERSION));
+          TELEMETRY_API_VERSION,
+          recordedRequest.getHeader(HEADER_DD_TELEMETRY_API_VERSION));
     } else {
       assertNull(recordedRequest.getHeader(HEADER_DD_EVP_SUBDOMAIN));
     }
@@ -552,19 +536,18 @@ public class CrashUploaderTest {
       errorTrackingServer.start();
       // Given
       when(config.getFinalCrashTrackingErrorTrackingUrl())
-          .thenReturn(errorTrackingServer.url(URL_PATH).toString());
+        .thenReturn(errorTrackingServer.url(URL_PATH).toString());
       final CrashUploader uploader =
           new CrashUploader(config, new ConfigManager.StoredConfig.Builder(config).build());
-
       // When
       server.enqueue(new MockResponse().setResponseCode(200));
       // simulate a timeout from error tracking
-      errorTrackingServer.enqueue(
-          new MockResponse().setHeadersDelay(4, TimeUnit.SECONDS).setResponseCode(200));
+      errorTrackingServer.enqueue(new MockResponse()
+        .setHeadersDelay(4, TimeUnit.SECONDS)
+        .setResponseCode(200));
       long start = System.nanoTime();
       uploader.remoteUpload(readFileAsString("sample-crash.txt"), true, true);
       long elapsed = System.nanoTime() - start;
-
       // Then
       // assert both backends have been contacted
       assertNotNull(server.takeRequest(1, TimeUnit.SECONDS));
@@ -602,20 +585,20 @@ public class CrashUploaderTest {
     return Stream.of(
         Arguments.of(
             "# A fatal error has been detected by the Java Runtime Environment:\n"
-                + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
-                + "# \nOther stuff\n",
+            + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+            + "# \nOther stuff\n",
             "NativeCrash",
             "SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522"),
         Arguments.of(
             "# There is insufficient memory for the Java Runtime Environment to continue.\n"
-                + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
-                + "# \nOther stuff\n",
+            + "# SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+            + "# \nOther stuff\n",
             "OutOfMemory",
             "SIGSEGV (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522"),
         Arguments.of(
             "# Completely unknown error:\n"
-                + "# BOOM (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
-                + "# \nOther stuff\n",
+            + "# BOOM (0xb) at pc=0x00007f696f2022b5, pid=2080369, tid=2082522\n"
+            + "# \nOther stuff\n",
             null,
             null));
   }

@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 public class SessionState {
   private final AgentSpan sessionSpan;
-
   private AgentScope methodScope;
   private boolean hasChildSpan = true;
 

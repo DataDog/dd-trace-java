@@ -1,7 +1,6 @@
 package jvmbootstraptest;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
-
 import datadog.trace.agent.test.IntegrationTestUtils;
 import java.io.File;
 import java.io.FilePermission;
@@ -36,31 +35,37 @@ public class InitializationTelemetryCheck {
     } catch (SecurityException se) {
       // Ignore security exceptions, as it can be part of strict security manager test.
     }
-
     // That should give enough time to send initial telemetry and traces.
     Thread.sleep(2000);
   }
 
-  /** Blocks the loading of the agent bootstrap */
+  /**
+   * Blocks the loading of the agent bootstrap
+   */
   public static class BlockAgentLoading extends TestSecurityManager {
     @Override
     protected boolean checkFileReadPermission(FilePermission perm, Object ctx, String filePath) {
       // NOTE: Blocking classes doesn't have the desired effect
-      if (filePath.endsWith(".jar") && filePath.contains("dd-java-agent")) return false;
+      if (filePath.endsWith(".jar") && filePath.contains("dd-java-agent")) {
+        return false;
+      }
 
       return super.checkFileReadPermission(perm, ctx, filePath);
     }
   }
 
-  /** Intended to break agent initialization */
+  /**
+   * Intended to break agent initialization
+   */
   public static class BlockByteBuddy extends TestSecurityManager {
     @Override
     protected boolean checkOtherRuntimePermission(
-        RuntimePermission perm, Object ctx, String permName) {
+        RuntimePermission perm,
+        Object ctx,
+        String permName) {
       switch (permName) {
         case "net.bytebuddy.createJavaDispatcher":
           return false;
-
         default:
           return super.checkOtherRuntimePermission(perm, ctx, permName);
       }
@@ -70,11 +75,12 @@ public class InitializationTelemetryCheck {
   public static class BlockForwarderEnvVar extends TestSecurityManager {
     @Override
     protected boolean checkRuntimeEnvironmentAccess(
-        RuntimePermission perm, Object ctx, String envVar) {
+        RuntimePermission perm,
+        Object ctx,
+        String envVar) {
       switch (envVar) {
         case "DD_TELEMETRY_FORWARDER_PATH":
           return false;
-
         default:
           return super.checkRuntimeEnvironmentAccess(perm, ctx, envVar);
       }
@@ -94,8 +100,8 @@ public class InitializationTelemetryCheck {
   }
 
   public static Result runTestJvm(
-      Class<? extends TestSecurityManager> securityManagerClass, int port) throws Exception {
-
+      Class<? extends TestSecurityManager> securityManagerClass,
+      int port) throws Exception {
     File jarFile =
         IntegrationTestUtils.createJarFileWithClasses(requiredClasses(securityManagerClass));
 
@@ -115,14 +121,13 @@ public class InitializationTelemetryCheck {
         "echo \"$1	$(cat -)\" >> " + outputFile.getAbsolutePath() + "\n");
 
     try {
-      int exitCode =
-          IntegrationTestUtils.runOnSeparateJvm(
-              InitializationTelemetryCheck.class.getName(),
-              jvmArgs,
-              Collections.emptyList(),
-              InitializationTelemetryCheck.envVars(forwarderFile),
-              jarFile,
-              true);
+      int exitCode = IntegrationTestUtils.runOnSeparateJvm(
+          InitializationTelemetryCheck.class.getName(),
+          jvmArgs,
+          Collections.emptyList(),
+          InitializationTelemetryCheck.envVars(forwarderFile),
+          jarFile,
+          true);
 
       return new Result(exitCode, read(outputFile));
     } finally {
@@ -132,11 +137,10 @@ public class InitializationTelemetryCheck {
 
   static File createTempFile(String baseName, String extension, Set<PosixFilePermission> perms)
       throws IOException {
-    Path path =
-        Files.createTempFile(
-            baseName + "-integration-telemetry-check",
-            "." + extension,
-            PosixFilePermissions.asFileAttribute(perms));
+    Path path = Files.createTempFile(
+        baseName + "-integration-telemetry-check",
+        "." + extension,
+        PosixFilePermissions.asFileAttribute(perms));
     File file = path.toFile();
     file.deleteOnExit();
     return file;
@@ -162,18 +166,18 @@ public class InitializationTelemetryCheck {
 
   public static Class<?>[] requiredClasses(
       Class<? extends TestSecurityManager> securityManagerClass) {
-
     if (securityManagerClass == null) {
       return new Class<?>[] {
-        InitializationTelemetryCheck.class, InitializationTelemetryCheck.Result.class
+          InitializationTelemetryCheck.class,
+          InitializationTelemetryCheck.Result.class
       };
     } else {
       return new Class<?>[] {
-        InitializationTelemetryCheck.class,
-        InitializationTelemetryCheck.Result.class,
-        securityManagerClass,
-        TestSecurityManager.class,
-        CustomSecurityManager.class
+          InitializationTelemetryCheck.class,
+          InitializationTelemetryCheck.Result.class,
+          securityManagerClass,
+          TestSecurityManager.class,
+          CustomSecurityManager.class
       };
     }
   }

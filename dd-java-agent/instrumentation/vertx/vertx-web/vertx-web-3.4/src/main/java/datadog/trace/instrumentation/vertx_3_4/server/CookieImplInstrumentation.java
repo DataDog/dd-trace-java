@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher.VIRTUAL_HOST_HANDLER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -26,9 +25,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class CookieImplInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   private final String className = CookieImplInstrumentation.class.getName();
 
   public CookieImplInstrumentation() {
@@ -53,9 +51,11 @@ public class CookieImplInstrumentation extends InstrumenterModule.Iast
   @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("getName")).and(takesArguments(0)), className + "$GetNameAdvice");
+        isMethod().and(named("getName")).and(takesArguments(0)),
+        className + "$GetNameAdvice");
     transformer.applyAdvice(
-        isMethod().and(named("getValue")).and(takesArguments(0)), className + "$GetValueAdvice");
+        isMethod().and(named("getValue")).and(takesArguments(0)),
+        className + "$GetValueAdvice");
   }
 
   @RequiresRequestContext(RequestContextSlot.IAST)
@@ -76,7 +76,6 @@ public class CookieImplInstrumentation extends InstrumenterModule.Iast
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetValueAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void afterGetValue(
@@ -88,7 +87,11 @@ public class CookieImplInstrumentation extends InstrumenterModule.Iast
         // TODO calling self.getName() actually taints the name of the cookie
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         module.taintStringIfTainted(
-            ctx, result, self, SourceTypes.REQUEST_COOKIE_VALUE, self.getName());
+            ctx,
+            result,
+            self,
+            SourceTypes.REQUEST_COOKIE_VALUE,
+            self.getName());
       }
     }
   }

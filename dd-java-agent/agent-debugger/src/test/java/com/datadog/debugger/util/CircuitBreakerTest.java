@@ -2,13 +2,11 @@ package com.datadog.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Test;
 
 class CircuitBreakerTest {
-
   @Test
   void noBreaker() {
     CircuitBreaker cb = new CircuitBreaker(3, Duration.ofMillis(10));

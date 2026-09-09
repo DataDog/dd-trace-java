@@ -7,7 +7,6 @@ import javax.annotation.Nullable;
  * a project module (e.g. Maven submodule or Gradle subproject).
  */
 public interface DDTestModule {
-
   /**
    * Adds an arbitrary tag to the module
    *
@@ -68,7 +67,9 @@ public interface DDTestModule {
    * @return Handle to the test suite instance
    */
   default DDTestSuite testSuiteStart(
-      String testSuiteName, @Nullable Class<?> testClass, @Nullable Long startTime) {
+      String testSuiteName,
+      @Nullable Class<?> testClass,
+      @Nullable Long startTime) {
     return testSuiteStart(testSuiteName, testClass, startTime, false);
   }
 

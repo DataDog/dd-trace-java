@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jetty_client12;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -11,7 +10,6 @@ import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.Result;
 
 public class CallbackWrapper implements Response.Listener, Request.Listener {
-
   private final AgentSpan parent;
   private final AgentSpan span;
   private final Object delegate;

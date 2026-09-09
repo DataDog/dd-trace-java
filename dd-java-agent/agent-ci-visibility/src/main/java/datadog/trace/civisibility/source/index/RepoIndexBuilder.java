@@ -24,15 +24,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RepoIndexBuilder implements RepoIndexProvider {
-
   private static final Logger log = LoggerFactory.getLogger(RepoIndexBuilder.class);
-
   private final Config config;
   private final String repoRoot;
   private final PackageResolver packageResolver;
   private final ResourceResolver resourceResolver;
   private final FileSystem fileSystem;
-
   private final Object indexInitializationLock = new Object();
   private volatile RepoIndex index;
 
@@ -71,7 +68,10 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     long startTime = System.currentTimeMillis();
     try {
       Files.walkFileTree(
-          repoRootPath, EnumSet.of(FileVisitOption.FOLLOW_LINKS), Integer.MAX_VALUE, fileVisitor);
+          repoRootPath,
+          EnumSet.of(FileVisitOption.FOLLOW_LINKS),
+          Integer.MAX_VALUE,
+          fileVisitor);
     } catch (Exception e) {
       log.debug("Failed to build index of {}", repoRootPath, e);
     }
@@ -80,7 +80,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     RepoIndexingStats stats = fileVisitor.indexingStats;
     RepoIndex index = fileVisitor.getIndex();
     log.debug(
-        "Indexing took {} ms. Files visited: {}, source files visited: {}, resource files visited: {}, source roots found: {}, root packages found: {}",
+        "Indexing took {} ms. Files visited: {}, source files visited: {}, resource files "
+        + "visited: {}, source roots found: {}, root packages found: {}",
         duration,
         stats.filesVisited,
         stats.sourceFilesVisited,
@@ -91,9 +92,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
   }
 
   private static final class RepoIndexingFileVisitor implements FileVisitor<Path> {
-
     private static final Logger log = LoggerFactory.getLogger(RepoIndexingFileVisitor.class);
-
     private final PackageResolver packageResolver;
     private final ResourceResolver resourceResolver;
     private final ClassNameTrie.Builder trieBuilder;
@@ -169,10 +168,9 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             language.isNonCode() ? getNonCodeSourceRoot(file) : getCodeSourceRoot(language, file);
         if (sourceRoot != null) {
           String relativeSourceRoot = repoRoot.relativize(sourceRoot).toString();
-          int sourceRootIdx =
-              sourceRoots.computeIfAbsent(
-                  new RepoIndex.SourceRoot(relativeSourceRoot, language),
-                  sr -> sourceRootCounter.getAndIncrement());
+          int sourceRootIdx = sourceRoots.computeIfAbsent(new RepoIndex.SourceRoot(
+              relativeSourceRoot,
+              language), sr -> sourceRootCounter.getAndIncrement());
 
           String relativePath = sourceRoot.relativize(file).toString();
           if (!relativePath.isEmpty()) {
@@ -183,14 +181,13 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             if (existingSourceRootIdx != null) {
               log.debug("Duplicate repo index key: {}", key);
               duplicateSourceRootIndices
-                  .computeIfAbsent(
-                      key,
-                      k -> {
-                        List<Integer> indices = new ArrayList<>();
-                        indices.add(existingSourceRootIdx); // Initialize with original source root
-                        return indices;
-                      })
-                  .add(sourceRootIdx);
+                .computeIfAbsent(key, k -> {
+                  List<Integer> indices = new ArrayList<>();
+                  // Initialize with original source root
+                  indices.add(existingSourceRootIdx);
+                  return indices;
+                })
+                .add(sourceRootIdx);
             }
           }
         }
@@ -211,8 +208,8 @@ public class RepoIndexBuilder implements RepoIndexProvider {
           // In non-JVM languages package names do not have to correspond to folder structure,
           // so using package to find source root is not always possible
           return folder
-              .getRoot()
-              .resolve(folder.subpath(0, folder.getNameCount() - packagePath.getNameCount()));
+            .getRoot()
+            .resolve(folder.subpath(0, folder.getNameCount() - packagePath.getNameCount()));
         }
       }
 

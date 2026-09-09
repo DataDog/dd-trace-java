@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.opentelemetry;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,7 +14,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public OpenTelemetryInstrumentation() {
     super("opentelemetry-beta");
   }
@@ -33,19 +33,22 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OtelScope",
-      packageName + ".OtelSpan",
-      packageName + ".OtelSpan$1", // switch statement
-      packageName + ".OtelSpanContext",
-      packageName + ".OtelTracer",
-      packageName + ".OtelTracer$1", // switch statement
-      packageName + ".OtelTracerProvider",
-      packageName + ".OtelTracer$SpanBuilder",
-      packageName + ".OtelContextPropagators",
-      packageName + ".OtelContextPropagators$1", // switch statement
-      packageName + ".OtelContextPropagators$OtelHttpTextFormat",
-      packageName + ".OtelContextPropagators$OtelGetter",
-      packageName + ".TypeConverter",
+        packageName + ".OtelScope",
+        packageName + ".OtelSpan",
+        // switch statement
+        packageName + ".OtelSpan$1",
+        packageName + ".OtelSpanContext",
+        packageName + ".OtelTracer",
+        // switch statement
+        packageName + ".OtelTracer$1",
+        packageName + ".OtelTracerProvider",
+        packageName + ".OtelTracer$SpanBuilder",
+        packageName + ".OtelContextPropagators",
+        // switch statement
+        packageName + ".OtelContextPropagators$1",
+        packageName + ".OtelContextPropagators$OtelHttpTextFormat",
+        packageName + ".OtelContextPropagators$OtelGetter",
+        packageName + ".TypeConverter"
     };
   }
 
@@ -56,7 +59,7 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
         OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
     transformer.applyAdvice(
         named("getPropagators")
-            .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
+          .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
         OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorsAdvice");
   }
 

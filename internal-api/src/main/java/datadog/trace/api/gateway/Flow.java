@@ -21,7 +21,8 @@ public interface Flow<T> {
     class Noop implements Action {
       public static Action INSTANCE = new Noop();
 
-      private Noop() {}
+      private Noop() {
+      }
 
       public boolean isBlocking() {
         return false;
@@ -61,7 +62,9 @@ public interface Flow<T> {
       }
 
       public static RequestBlockingAction forRedirect(
-          int statusCode, String location, String securityResponseId) {
+          int statusCode,
+          String location,
+          String securityResponseId) {
         return new RequestBlockingAction(
             statusCode,
             BlockingContentType.NONE,
@@ -92,9 +95,8 @@ public interface Flow<T> {
     }
   }
 
-  @SuppressFBWarnings(
-      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-      justification = "Not a singleton")
+  @SuppressFBWarnings(value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR", justification = "Not "
+      + "a singleton")
   class ResultFlow<R> implements Flow<R> {
     @SuppressWarnings("rawtypes")
     private static final ResultFlow EMPTY = new ResultFlow<>(null);

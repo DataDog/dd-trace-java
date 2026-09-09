@@ -1,7 +1,6 @@
 package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -12,7 +11,6 @@ import org.openjdk.jmh.annotations.Fork;
 
 public class StringSubsequenceBenchmark
     extends AbstractBenchmark<StringSubsequenceBenchmark.Context> {
-
   private static final String DEFAULT_STRING = "0123456789";
   private static final int BEGIN_INDEX = 2;
   private static final int END_INDEX = 8;
@@ -25,24 +23,23 @@ public class StringSubsequenceBenchmark
 
     final String taintedLoseRange = new String(DEFAULT_STRING);
     iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            taintedLoseRange,
-            new Range[] {
-              new Range(0, RANGE_SIZE, new Source((byte) 0, "key", "value"), NOT_MARKED)
-            });
+      .getTaintedObjects()
+      .taint(
+          taintedLoseRange,
+          new Range[] {new Range(0, RANGE_SIZE, new Source((byte) 0, "key", "value"), NOT_MARKED)});
 
     final String taintedModifyRange = new String(DEFAULT_STRING);
     iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            taintedModifyRange,
-            new Range[] {
-              new Range(1, RANGE_SIZE, new Source((byte) 1, "key", "value"), NOT_MARKED)
-            });
+      .getTaintedObjects()
+      .taint(
+          taintedModifyRange,
+          new Range[] {new Range(1, RANGE_SIZE, new Source((byte) 1, "key", "value"), NOT_MARKED)});
 
     return new StringSubsequenceBenchmark.Context(
-        iastRequestContext, notTainted, taintedLoseRange, taintedModifyRange);
+        iastRequestContext,
+        notTainted,
+        taintedLoseRange,
+        taintedModifyRange);
   }
 
   @Benchmark
@@ -58,7 +55,9 @@ public class StringSubsequenceBenchmark
     return instrumentStringSubsequence(context.notTainted);
   }
 
-  /** For a tainted String with one range subsequence returns a CharSequence without ranges */
+  /**
+   * For a tainted String with one range subsequence returns a CharSequence without ranges
+   */
   @Benchmark
   @Fork(jvmArgsAppend = {"-Ddd.iast.enabled=true"})
   public CharSequence taintedLoseRange() {
@@ -83,9 +82,7 @@ public class StringSubsequenceBenchmark
 
   protected static class Context extends AbstractBenchmark.BenchmarkContext {
     private final String notTainted;
-
     private final String taintedLoseRange;
-
     private final String taintedModifyRange;
 
     protected Context(

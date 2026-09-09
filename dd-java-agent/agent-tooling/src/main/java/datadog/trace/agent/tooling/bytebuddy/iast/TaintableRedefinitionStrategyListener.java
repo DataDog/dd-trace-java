@@ -16,15 +16,14 @@ import org.slf4j.LoggerFactory;
  */
 public final class TaintableRedefinitionStrategyListener
     extends AgentBuilder.RedefinitionStrategy.Listener.Adapter {
-
   private static final Logger LOGGER =
       LoggerFactory.getLogger(TaintableRedefinitionStrategyListener.class);
   private static final boolean DEBUG = LOGGER.isDebugEnabled();
-
   public static final TaintableRedefinitionStrategyListener INSTANCE =
       new TaintableRedefinitionStrategyListener();
 
-  private TaintableRedefinitionStrategyListener() {}
+  private TaintableRedefinitionStrategyListener() {
+  }
 
   @Override
   @Nonnull
@@ -36,14 +35,16 @@ public final class TaintableRedefinitionStrategyListener
     if (TaintableVisitor.ENABLED) {
       if (DEBUG) {
         LOGGER.debug(
-            "Exception while retransforming with the visitor in batch {}, disabling it", index);
+            "Exception while retransforming with the visitor in batch {}, disabling it",
+            index);
       }
       TaintableVisitor.ENABLED = false;
       return Collections.singletonList(batch);
     } else {
       if (DEBUG) {
         LOGGER.debug(
-            "Exception while retransforming after disabling the visitor in batch {}, classes won't be instrumented",
+            "Exception while retransforming after disabling the visitor in batch {}, classes "
+            + "won't be instrumented",
             index);
       }
       return Collections.emptyList();
@@ -52,7 +53,9 @@ public final class TaintableRedefinitionStrategyListener
 
   @Override
   public void onComplete(
-      final int amount, final List<Class<?>> types, final Map<List<Class<?>>, Throwable> failures) {
+      final int amount,
+      final List<Class<?>> types,
+      final Map<List<Class<?>>, Throwable> failures) {
     if (DEBUG) {
       if (!TaintableVisitor.ENABLED) {
         LOGGER.debug("Retransforming succeeded with a disabled visitor");

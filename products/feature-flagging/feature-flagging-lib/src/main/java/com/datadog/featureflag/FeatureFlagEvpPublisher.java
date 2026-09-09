@@ -12,9 +12,7 @@ import okhttp3.MediaType;
 import okhttp3.RequestBody;
 
 final class FeatureFlagEvpPublisher<T> {
-
   private static final MediaType JSON = MediaType.parse("application/json");
-
   private final Supplier<BackendApi> backendApiSupplier;
   private final JsonAdapter<T> jsonAdapter;
   private BackendApi evp;
@@ -32,8 +30,7 @@ final class FeatureFlagEvpPublisher<T> {
         requestType);
   }
 
-  FeatureFlagEvpPublisher(
-      final Supplier<BackendApi> backendApiSupplier, final Class<T> requestType) {
+  FeatureFlagEvpPublisher(final Supplier<BackendApi> backendApiSupplier, final Class<T> requestType) {
     this.backendApiSupplier = backendApiSupplier;
     this.jsonAdapter = new Moshi.Builder().build().adapter(requestType);
   }

@@ -21,7 +21,6 @@ class SparkAggregatedTaskMetrics {
   private static final int HISTOGRAM_MAX_NUM_BINS = 512;
   private static final int MAX_ACCUMULATOR_SIZE = 5000;
   private final boolean isSparkTaskHistogramEnabled = Config.get().isSparkTaskHistogramEnabled();
-
   private long executorDeserializeTime = 0L;
   private long executorDeserializeCpuTime = 0L;
   private long executorRunTime = 0L;
@@ -32,52 +31,45 @@ class SparkAggregatedTaskMetrics {
   private long memoryBytesSpilled = 0L;
   private long diskBytesSpilled = 0L;
   private long peakExecutionMemory = 0L;
-
   private long inputBytesRead = 0L;
   private long inputRecordsRead = 0L;
   private long outputBytesWritten = 0L;
   private long outputRecordsWritten = 0L;
-
   private long shuffleReadBytes = 0L;
   private long shuffleReadBytesLocal = 0L;
   private long shuffleReadBytesRemote = 0L;
   private long shuffleReadBytesRemoteToDisk = 0L;
   private long shuffleReadFetchWaitTime = 0L;
   private long shuffleReadRecords = 0L;
-
   private long shuffleWriteBytes = 0L;
   private long shuffleWriteRecords = 0L;
   private long shuffleWriteTime = 0L;
-
   private long taskCompletedCount = 0L;
   private long taskFailedCount = 0L;
   private long taskRetriedCount = 0L;
   private long taskWithOutputCount = 0L;
-
   private long attributedAvailableExecutorTime = 0L;
   private long previousAvailableExecutorTime = 0L;
   private long taskRunTimeSinceLastStage = 0L;
   private long totalTaskRunTimeSinceLastStage = 0L;
   private long skewTime = 0;
-
   private Histogram taskRunTimeHistogram;
   private Histogram inputBytesHistogram;
   private Histogram outputBytesHistogram;
   private Histogram shuffleReadBytesHistogram;
   private Histogram shuffleWriteBytesHistogram;
   private Histogram diskBytesSpilledHistogram;
-
   // Used for Spark SQL Plan metrics ONLY, don't put in regular span for now
   private Map<Long, HistogramWithSum> externalAccumulableHistograms;
 
-  public SparkAggregatedTaskMetrics() {}
+  public SparkAggregatedTaskMetrics() {
+  }
 
   public SparkAggregatedTaskMetrics(long availableExecutorTime) {
     this.previousAvailableExecutorTime = availableExecutorTime;
   }
 
-  public void addTaskMetrics(
-      SparkListenerTaskEnd taskEnd, List<AccumulatorV2> externalAccumulators) {
+  public void addTaskMetrics(SparkListenerTaskEnd taskEnd, List<AccumulatorV2> externalAccumulators) {
     taskCompletedCount += 1;
 
     if (taskEnd.taskInfo().attemptNumber() > 0) {
@@ -127,19 +119,21 @@ class SparkAggregatedTaskMetrics {
 
       if (isSparkTaskHistogramEnabled) {
         taskRunTimeHistogram = lazyHistogramAccept(taskRunTimeHistogram, taskRunTime);
-        inputBytesHistogram =
-            lazyHistogramAccept(inputBytesHistogram, taskMetrics.inputMetrics().bytesRead());
-        outputBytesHistogram =
-            lazyHistogramAccept(outputBytesHistogram, taskMetrics.outputMetrics().bytesWritten());
-        shuffleReadBytesHistogram =
-            lazyHistogramAccept(
-                shuffleReadBytesHistogram, taskMetrics.shuffleReadMetrics().totalBytesRead());
-        shuffleWriteBytesHistogram =
-            lazyHistogramAccept(
-                shuffleWriteBytesHistogram, taskMetrics.shuffleWriteMetrics().bytesWritten());
-        diskBytesSpilledHistogram =
-            lazyHistogramAccept(diskBytesSpilledHistogram, taskMetrics.diskBytesSpilled());
-
+        inputBytesHistogram = lazyHistogramAccept(
+            inputBytesHistogram,
+            taskMetrics.inputMetrics().bytesRead());
+        outputBytesHistogram = lazyHistogramAccept(
+            outputBytesHistogram,
+            taskMetrics.outputMetrics().bytesWritten());
+        shuffleReadBytesHistogram = lazyHistogramAccept(
+            shuffleReadBytesHistogram,
+            taskMetrics.shuffleReadMetrics().totalBytesRead());
+        shuffleWriteBytesHistogram = lazyHistogramAccept(
+            shuffleWriteBytesHistogram,
+            taskMetrics.shuffleWriteMetrics().bytesWritten());
+        diskBytesSpilledHistogram = lazyHistogramAccept(
+            diskBytesSpilledHistogram,
+            taskMetrics.diskBytesSpilled());
         // TODO (CY): Should we also look at TaskInfo accumulable update values as a backup? Is that
         // only needed for SHS?
         if (externalAccumulators != null && !externalAccumulators.isEmpty()) {
@@ -147,23 +141,22 @@ class SparkAggregatedTaskMetrics {
             externalAccumulableHistograms = new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
           }
 
-          externalAccumulators.forEach(
-              acc -> {
-                HistogramWithSum hist = externalAccumulableHistograms.get(acc.id());
-                if (hist == null) {
-                  hist =
-                      Histogram.newHistogramWithSum(
-                          HISTOGRAM_RELATIVE_ACCURACY, HISTOGRAM_MAX_NUM_BINS);
-                }
+          externalAccumulators.forEach(acc -> {
+            HistogramWithSum hist = externalAccumulableHistograms.get(acc.id());
+            if (hist == null) {
+              hist = Histogram.newHistogramWithSum(
+                  HISTOGRAM_RELATIVE_ACCURACY,
+                  HISTOGRAM_MAX_NUM_BINS);
+            }
 
-                try {
-                  // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new
-                  // versions
-                  hist.accept(((Number) acc.value()).doubleValue());
-                  externalAccumulableHistograms.put(acc.id(), hist);
-                } catch (ClassCastException ignored) {
-                }
-              });
+            try {
+              // As of spark 3.5, all SQL metrics are Long, safeguard if it changes in new
+              // versions
+              hist.accept(((Number) acc.value()).doubleValue());
+              externalAccumulableHistograms.put(acc.id(), hist);
+            } catch (ClassCastException ignored) {
+            }
+          });
         }
       }
     }

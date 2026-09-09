@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_sql_client_39;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
-
 import datadog.trace.api.Pair;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.ContextStore;
@@ -15,9 +14,7 @@ import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 
 public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
-
   public static final VertxSqlClientDecorator DECORATE = new VertxSqlClientDecorator();
-
   private static final CharSequence VERTX_SQL = UTF8BytesString.create("vertx-sql");
   private static final CharSequence DATABASE_QUERY = UTF8BytesString.create("database.query");
   private static final UTF8BytesString DB_QUERY = UTF8BytesString.create("DB Query");
@@ -35,12 +32,14 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected String service() {
-    return DEFAULT_SERVICE_NAME; // Overridden by onConnection
+    // Overridden by onConnection
+    return DEFAULT_SERVICE_NAME;
   }
 
   @Override
   protected CharSequence component() {
-    return VERTX_SQL; // Overridden by onStatement and onPreparedStatement
+    // Overridden by onStatement and onPreparedStatement
+    return VERTX_SQL;
   }
 
   @Override
@@ -73,7 +72,9 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public <T> AgentSpan startAndDecorateSpanForStatement(
-      T query, ContextStore<T, Pair> contextStore, boolean prepared) {
+      T query,
+      ContextStore<T, Pair> contextStore,
+      boolean prepared) {
     CharSequence component = prepared ? VERTX_PREPARED_STATEMENT : VERTX_STATEMENT;
     AgentSpan span = startSpan(component.toString(), DATABASE_QUERY);
     if (null == span) {
@@ -106,7 +107,8 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
 
   @Override
   protected void postProcessServiceAndOperationName(
-      AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
+      AgentSpan span,
+      DatabaseClientDecorator.NamingEntry namingEntry) {
     if (namingEntry.getService() != null) {
       span.setServiceName(namingEntry.getService(), component());
     }

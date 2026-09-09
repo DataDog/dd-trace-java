@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jersey;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -20,7 +19,8 @@ import net.bytebuddy.asm.Advice;
 // keep in sync with jersey2 (javax packages)
 @AutoService(InstrumenterModule.class)
 public class ReaderInterceptorExecutorInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ReaderInterceptorExecutorInstrumentation() {
     super("jersey");
   }
@@ -41,7 +41,8 @@ public class ReaderInterceptorExecutorInstrumentation extends InstrumenterModule
   public static class InstrumenterAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
-        @Advice.Return final InputStream inputStream, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final InputStream inputStream,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

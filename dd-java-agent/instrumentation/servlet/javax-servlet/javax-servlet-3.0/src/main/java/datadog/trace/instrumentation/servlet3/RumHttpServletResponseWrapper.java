@@ -24,13 +24,12 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
   private String contentEncoding = null;
-
   private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
 
   private static MethodHandle getMh(final String name) {
     try {
       return new MethodHandles(ServletResponse.class.getClassLoader())
-          .method(ServletResponse.class, name);
+        .method(ServletResponse.class, name);
     } catch (Throwable ignored) {
       return null;
     }
@@ -69,18 +68,12 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
       if (encoding == null) {
         encoding = Charset.defaultCharset().name();
       }
-      outputStream =
-          new WrappedServletOutputStream(
-              super.getOutputStream(),
-              rumInjector.getMarkerBytes(encoding),
-              rumInjector.getSnippetBytes(encoding),
-              this::onInjected,
-              bytes ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes),
-              milliseconds ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionTime(servletVersion, milliseconds));
+      outputStream = new WrappedServletOutputStream(super.getOutputStream(), rumInjector.getMarkerBytes(
+          encoding), rumInjector.getSnippetBytes(encoding), this::onInjected, bytes -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionResponseSize(servletVersion, bytes), milliseconds -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionTime(servletVersion, milliseconds));
     } catch (Exception e) {
       RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
       throw e;
@@ -99,18 +92,11 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
       return super.getWriter();
     }
     try {
-      wrappedPipeWriter =
-          new InjectingPipeWriter(
-              super.getWriter(),
-              rumInjector.getMarkerChars(),
-              rumInjector.getSnippetChars(),
-              this::onInjected,
-              bytes ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes),
-              milliseconds ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionTime(servletVersion, milliseconds));
+      wrappedPipeWriter = new InjectingPipeWriter(super.getWriter(), rumInjector.getMarkerChars(), rumInjector.getSnippetChars(), this::onInjected, bytes -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionResponseSize(servletVersion, bytes), milliseconds -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionTime(servletVersion, milliseconds));
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
       RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);

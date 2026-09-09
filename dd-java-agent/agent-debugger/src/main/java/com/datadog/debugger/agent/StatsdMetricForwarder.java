@@ -9,24 +9,26 @@ import datadog.trace.bootstrap.debugger.DebuggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Implements forwarding metric probe emitted metrics to a DogStatsD endpoint */
+/**
+ * Implements forwarding metric probe emitted metrics to a DogStatsD endpoint
+ */
 public class StatsdMetricForwarder
-    implements DebuggerContext.MetricForwarder, StatsDClientErrorHandler {
+    implements DebuggerContext.MetricForwarder,
+    StatsDClientErrorHandler {
   private static final Logger LOGGER = LoggerFactory.getLogger(StatsdMetricForwarder.class);
   private static final String METRICPROBE_PREFIX = "dynamic.instrumentation.metric.probe";
-
   private final StatsDClient statsd;
   private final ProbeStatusSink probeStatusSink;
 
   public StatsdMetricForwarder(Config config, ProbeStatusSink probeStatusSink) {
-    statsd =
-        DDAgentStatsDClientManager.statsDClientManager()
-            .statsDClient(
-                config.getJmxFetchStatsdHost(),
-                config.getJmxFetchStatsdPort(),
-                config.getDogStatsDNamedPipe(),
-                METRICPROBE_PREFIX,
-                new String[0]);
+    statsd = DDAgentStatsDClientManager
+      .statsDClientManager()
+      .statsDClient(
+          config.getJmxFetchStatsdHost(),
+          config.getJmxFetchStatsdPort(),
+          config.getDogStatsDNamedPipe(),
+          METRICPROBE_PREFIX,
+          new String[0]);
     this.probeStatusSink = probeStatusSink;
   }
 

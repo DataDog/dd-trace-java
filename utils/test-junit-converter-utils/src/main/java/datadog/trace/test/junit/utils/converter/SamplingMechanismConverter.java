@@ -14,7 +14,6 @@ import static datadog.trace.api.sampling.SamplingMechanism.REMOTE_USER_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.REMOTE_USER_RULE;
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.UNKNOWN;
-
 import java.util.HashMap;
 import java.util.Map;
 

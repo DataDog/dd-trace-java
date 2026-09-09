@@ -1,12 +1,10 @@
 package org.example;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.Arrays;
 import org.junit.jupiter.api.DynamicTest;
 
 public class TestFailedFactory {
-
   @org.junit.jupiter.api.TestFactory
   public Iterable<DynamicTest> test_factory() {
     return Arrays.asList(

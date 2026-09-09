@@ -8,7 +8,6 @@ public class Value {
   @PrimaryKey
   @Persistent(valueStrategy = IdGeneratorStrategy.NATIVE)
   protected long id;
-
   protected String name;
 
   public Value(String name) {

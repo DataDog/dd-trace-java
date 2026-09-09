@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.tibcobw6;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.tibco.bw.jms.shared.api.receive.JMSMessageCallBackHandler;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,8 +13,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JmsMessageGetterInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JmsMessageGetterInstrumentation() {
     super("jms");
   }
@@ -40,8 +39,9 @@ public class JmsMessageGetterInstrumentation extends AbstractTibcoInstrumentatio
         final AgentSpan span = activeSpan();
         if (span != null && span.getLocalRootSpan() != null) {
           final String pinnedName = span.getLocalRootSpan().getServiceName();
-          InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class)
-              .put(handler, pinnedName);
+          InstrumentationContext.get(JMSMessageCallBackHandler.class, String.class).put(
+              handler,
+              pinnedName);
         }
       }
     }

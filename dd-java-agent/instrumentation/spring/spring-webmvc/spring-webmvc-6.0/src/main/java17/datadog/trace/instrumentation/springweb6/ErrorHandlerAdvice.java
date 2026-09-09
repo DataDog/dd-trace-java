@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb6;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import net.bytebuddy.asm.Advice;

@@ -3,7 +3,6 @@ package datadog.opentracing;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
-
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.ListWriter;
@@ -15,7 +14,6 @@ import java.util.HashMap;
 import org.junit.jupiter.api.Test;
 
 class DDTracerTest extends DDJavaSpecification {
-
   @Test
   void testTracerBuilder() throws Exception {
     DDTracer tracer = DDTracer.builder().build();

@@ -13,10 +13,10 @@ import org.slf4j.LoggerFactory;
 
 public class AgentConnectionFactory implements ConnectionFactory {
   private static final Logger log = LoggerFactory.getLogger(AgentConnectionFactory.class);
-
   private final ConnectionFactory defaultConnectionFactory = new DefaultConnectionFactory();
 
-  public AgentConnectionFactory() {}
+  public AgentConnectionFactory() {
+  }
 
   @Override
   public Connection createConnection(Map<String, Object> connectionParams) throws IOException {

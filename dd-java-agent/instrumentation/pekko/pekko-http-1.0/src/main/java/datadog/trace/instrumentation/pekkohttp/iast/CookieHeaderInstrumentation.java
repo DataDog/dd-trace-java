@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -33,7 +32,8 @@ import scala.collection.immutable.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public CookieHeaderInstrumentation() {
     super("pekko-http");
   }
@@ -47,10 +47,10 @@ public class CookieHeaderInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("cookies"))
-            .and(returns(named("scala.collection.immutable.Seq")))
-            .and(takesArguments(0)),
+          .and(not(isStatic()))
+          .and(named("cookies"))
+          .and(returns(named("scala.collection.immutable.Seq")))
+          .and(takesArguments(0)),
         CookieHeaderInstrumentation.class.getName() + "$TaintAllCookiesAdvice");
   }
 

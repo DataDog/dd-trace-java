@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.restlet;
 
 import static datadog.trace.instrumentation.restlet.RestletExtractAdapter.Request;
 import static datadog.trace.instrumentation.restlet.RestletExtractAdapter.Response;
-
 import com.sun.net.httpserver.HttpExchange;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -14,7 +13,6 @@ public class RestletDecorator
   public static final CharSequence RESTLET_HTTP_SERVER =
       UTF8BytesString.create("restlet-http-server");
   public static final RestletDecorator DECORATE = new RestletDecorator();
-
   private static final CharSequence RESTLET_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
 

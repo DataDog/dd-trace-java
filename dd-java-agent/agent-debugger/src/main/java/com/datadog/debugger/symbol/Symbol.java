@@ -5,11 +5,9 @@ import com.squareup.moshi.Json;
 public class Symbol {
   @Json(name = "symbol_type")
   private final SymbolType symbolType;
-
   private final String name;
   private final int line;
   private final String type;
-
   @Json(name = "language_specifics")
   private final LanguageSpecifics languageSpecifics;
 

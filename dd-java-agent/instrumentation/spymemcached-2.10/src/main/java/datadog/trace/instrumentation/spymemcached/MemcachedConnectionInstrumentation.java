@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(InstrumenterModule.class)
 public class MemcachedConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public MemcachedConnectionInstrumentation() {
     super("spymemcached");
   }
@@ -27,9 +26,9 @@ public class MemcachedConnectionInstrumentation extends InstrumenterModule.Traci
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("addOperation"))
-            .and(isProtected())
-            .and(takesArgument(0, named("net.spy.memcached.MemcachedNode"))),
+          .and(named("addOperation"))
+          .and(isProtected())
+          .and(takesArgument(0, named("net.spy.memcached.MemcachedNode"))),
         MemcachedConnectionInstrumentation.class.getName() + "$AddOperationAdvice");
   }
 
@@ -40,9 +39,7 @@ public class MemcachedConnectionInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".MemcacheClientDecorator",
-    };
+    return new String[] {packageName + ".MemcacheClientDecorator"};
   }
 
   public static class AddOperationAdvice {
@@ -51,7 +48,8 @@ public class MemcachedConnectionInstrumentation extends InstrumenterModule.Traci
       final AgentSpan span = AgentTracer.activeSpan();
       if (span != null && node != null && node.getSocketAddress() instanceof InetSocketAddress) {
         MemcacheClientDecorator.DECORATE.onPeerConnection(
-            span, (InetSocketAddress) node.getSocketAddress());
+            span,
+            (InetSocketAddress) node.getSocketAddress());
       }
     }
 

@@ -1,7 +1,6 @@
 package datadog.communication.http;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_SOCKET_PATH;
-
 import datadog.common.filesystem.Files;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -25,7 +24,8 @@ public final class SocketUtils {
         log.info("Detected {}.  Using it to send trace data.", DEFAULT_TRACE_AGENT_SOCKET_PATH);
         unixDomainSocket = DEFAULT_TRACE_AGENT_SOCKET_PATH;
       }
-    } else /* windows */ {
+    } else /* windows */
+    {
       if (unixDomainSocket != null) {
         log.warn(
             "{} setting not supported on {}. Reverting to the default.",

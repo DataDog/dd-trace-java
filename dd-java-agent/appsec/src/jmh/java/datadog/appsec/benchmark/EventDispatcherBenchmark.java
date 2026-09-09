@@ -2,7 +2,6 @@ package datadog.appsec.benchmark;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.appsec.event.ChangeableFlow;
 import com.datadog.appsec.event.DataListener;
 import com.datadog.appsec.event.EventDispatcher;
@@ -31,27 +30,20 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 public class EventDispatcherBenchmark {
-
   @State(Scope.Benchmark)
   public static class DispatcherState {
     public static final OrderedCallback.Priority[] PRIORITY_VALUES =
         OrderedCallback.Priority.values();
-
     @Param({"5", "50", "500"})
     int numUsedSubscribers;
-
     @Param({"5", "5000"})
     int numUnusedSubscribers;
-
-    Address<?>[] usedAddresses =
-        new Address<?>[] {
-          KnownAddresses.REQUEST_BODY_RAW,
-          KnownAddresses.REQUEST_COOKIES,
-          KnownAddresses.REQUEST_QUERY
-        };
-
+    Address<?>[] usedAddresses = new Address<?>[] {
+        KnownAddresses.REQUEST_BODY_RAW,
+        KnownAddresses.REQUEST_COOKIES,
+        KnownAddresses.REQUEST_QUERY
+    };
     Address<?> unusedAddress = KnownAddresses.HEADERS_NO_COOKIES;
-
     EventDispatcher dispatcher = new EventDispatcher();
 
     @Setup
@@ -77,24 +69,21 @@ public class EventDispatcherBenchmark {
       dispatcher.subscribeDataAvailable(subsSet);
     }
 
-    private void doSubscribe(
-        EventDispatcher.DataSubscriptionSet subsSet, Address<?> address, int i) {
+    private void doSubscribe(EventDispatcher.DataSubscriptionSet subsSet, Address<?> address, int i) {
       final OrderedCallback.Priority priority = PRIORITY_VALUES[i % 4];
-      subsSet.addSubscription(
-          Collections.singletonList(address),
-          new DataListener() {
-            @Override
-            public void onDataAvailable(
-                ChangeableFlow flow,
-                AppSecRequestContext context,
-                DataBundle dataBundle,
-                GatewayContext gatewayContext) {}
+      subsSet.addSubscription(Collections.singletonList(address), new DataListener() {
+        @Override
+        public void onDataAvailable(
+            ChangeableFlow flow,
+            AppSecRequestContext context,
+            DataBundle dataBundle,
+            GatewayContext gatewayContext) {}
 
-            @Override
-            public Priority getPriority() {
-              return priority;
-            }
-          });
+        @Override
+        public Priority getPriority() {
+          return priority;
+        }
+      });
     }
 
     void run() {

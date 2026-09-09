@@ -3,7 +3,6 @@ package datadog.trace.civisibility.events;
 import java.util.Objects;
 
 public class BuildTaskDescriptor<T> {
-
   private final T sessionKey;
   private final String taskName;
 

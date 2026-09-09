@@ -7,11 +7,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 
 public final class LLMObsContext {
   public static final String ROOT_SPAN_ID = "undefined";
-
-  /** Sampling decision value meaning "retain this span". */
+  /**
+   * Sampling decision value meaning "retain this span".
+   */
   public static final String SAMPLING_DECISION_SAMPLED = "1";
-
-  /** Sampling decision value meaning "drop this span". */
+  /**
+   * Sampling decision value meaning "drop this span".
+   */
   public static final String SAMPLING_DECISION_DROPPED = "0";
 
   private LLMObsContext() {
@@ -44,10 +46,11 @@ public final class LLMObsContext {
    * empty sessionId clears any session_id inherited from an enclosing scope.
    */
   public static ContextScope attach(AgentSpanContext ctx, String sessionId) {
-    return Context.current()
-        .with(CONTEXT_KEY, ctx)
-        .with(SESSION_ID_KEY, emptyToNull(sessionId))
-        .attach();
+    return Context
+      .current()
+      .with(CONTEXT_KEY, ctx)
+      .with(SESSION_ID_KEY, emptyToNull(sessionId))
+      .attach();
   }
 
   /**
@@ -59,11 +62,12 @@ public final class LLMObsContext {
    * forward.
    */
   public static ContextScope attach(AgentSpanContext ctx, String sessionId, String agentVersion) {
-    return Context.current()
-        .with(CONTEXT_KEY, ctx)
-        .with(SESSION_ID_KEY, emptyToNull(sessionId))
-        .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
-        .attach();
+    return Context
+      .current()
+      .with(CONTEXT_KEY, ctx)
+      .with(SESSION_ID_KEY, emptyToNull(sessionId))
+      .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
+      .attach();
   }
 
   /**
@@ -109,15 +113,16 @@ public final class LLMObsContext {
       String parentAgentSpanId,
       String parentAgentName) {
     String decision = emptyToNull(samplingDecision);
-    return Context.current()
-        .with(CONTEXT_KEY, ctx)
-        .with(SESSION_ID_KEY, emptyToNull(sessionId))
-        .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
-        .with(SAMPLING_DECISION_KEY, decision)
-        .with(SAMPLE_RATE_KEY, decision == null ? null : emptyToNull(sampleRate))
-        .with(PAGENT_SPAN_ID_KEY, parentAgentSpanId)
-        .with(PAGENT_NAME_KEY, parentAgentName)
-        .attach();
+    return Context
+      .current()
+      .with(CONTEXT_KEY, ctx)
+      .with(SESSION_ID_KEY, emptyToNull(sessionId))
+      .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
+      .with(SAMPLING_DECISION_KEY, decision)
+      .with(SAMPLE_RATE_KEY, decision == null ? null : emptyToNull(sampleRate))
+      .with(PAGENT_SPAN_ID_KEY, parentAgentSpanId)
+      .with(PAGENT_NAME_KEY, parentAgentName)
+      .attach();
   }
 
   public static AgentSpanContext current() {
@@ -163,7 +168,9 @@ public final class LLMObsContext {
     return Context.current().get(PAGENT_SPAN_ID_KEY);
   }
 
-  /** Return the parent agent name propagated from an enclosing agent-kind LLMObs span, or null. */
+  /**
+   * Return the parent agent name propagated from an enclosing agent-kind LLMObs span, or null.
+   */
   public static String currentParentAgentName() {
     return Context.current().get(PAGENT_NAME_KEY);
   }

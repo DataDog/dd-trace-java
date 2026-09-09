@@ -27,15 +27,12 @@ import java.util.Set;
 final class TunnelingJdkSocket extends Socket {
   private final SocketAddress unixSocketAddress;
   private InetSocketAddress inetSocketAddress;
-
   private SocketChannel unixSocketChannel;
   private Selector selector;
-
   private int timeout;
   private boolean shutIn;
   private boolean shutOut;
   private boolean closed;
-
   static final int DEFAULT_BUFFER_SIZE = 8192;
   // Indicate that the buffer size is not set by initializing to -1
   private int sendBufferSize = -1;

@@ -25,7 +25,6 @@ class TaintHttpHeadersGetAdvice {
       @Advice.Argument(0) Object arg,
       @Advice.Return List<String> values,
       @ActiveRequestContext RequestContext reqCtx) {
-
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || values == null || values.isEmpty()) {
       return;

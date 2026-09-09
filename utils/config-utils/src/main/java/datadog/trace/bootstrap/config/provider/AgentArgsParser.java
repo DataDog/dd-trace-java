@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AgentArgsParser {
-
   private static final Logger log = LoggerFactory.getLogger(AgentArgsParser.class);
 
   /**
@@ -34,7 +33,6 @@ public class AgentArgsParser {
         args.put(key, value);
       }
       return args;
-
     } catch (Exception ex) {
       log.error("Error parsing agent args: {}", agentArgs, ex);
       return null;

@@ -17,7 +17,8 @@ public class GetCompletionListener extends CompletionListener<GetFuture<?>>
 
   @Override
   protected void processResult(final AgentSpan span, final GetFuture<?> future)
-      throws ExecutionException, InterruptedException {
+      throws ExecutionException,
+      InterruptedException {
     final Object result = future.get();
     setResultTag(span, result != null);
   }

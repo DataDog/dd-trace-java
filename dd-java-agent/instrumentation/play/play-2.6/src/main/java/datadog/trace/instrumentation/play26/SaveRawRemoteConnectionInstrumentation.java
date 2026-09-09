@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,7 +14,8 @@ import play.api.mvc.request.RemoteConnection;
 
 @AutoService(InstrumenterModule.class)
 public class SaveRawRemoteConnectionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SaveRawRemoteConnectionInstrumentation() {
     super("play");
   }
@@ -39,11 +39,11 @@ public class SaveRawRemoteConnectionInstrumentation extends InstrumenterModule.T
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("forwardedConnection")
-            .and(not(isStatic()))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.api.mvc.request.RemoteConnection")))
-            .and(takesArgument(1, named("play.api.mvc.Headers")))
-            .and(returns(named("play.api.mvc.request.RemoteConnection"))),
+          .and(not(isStatic()))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("play.api.mvc.request.RemoteConnection")))
+          .and(takesArgument(1, named("play.api.mvc.Headers")))
+          .and(returns(named("play.api.mvc.request.RemoteConnection"))),
         SaveRawRemoteConnectionInstrumentation.class.getName() + "$ForwardedConnectionAdvice");
   }
 

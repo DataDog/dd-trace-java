@@ -15,7 +15,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
@@ -49,7 +48,6 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
-
   private static final long DEFAULT_BUCKET_DURATION_NANOS =
       Config.get().getDataStreamsBucketDurationNanoseconds();
 
@@ -72,8 +70,9 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
   }
 
   private static void awaitBuckets(
-      DefaultDataStreamsMonitoring dataStreams, CapturingPayloadWriter writer, int expectedBuckets)
-      throws InterruptedException {
+      DefaultDataStreamsMonitoring dataStreams,
+      CapturingPayloadWriter writer,
+      int expectedBuckets) throws InterruptedException {
     long deadline = System.currentTimeMillis() + 1000;
     while (System.currentTimeMillis() < deadline) {
       if (writer.buckets.size() == expectedBuckets
@@ -107,21 +106,21 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     "both off             | false          | false          "
   })
   void noPayloadsWrittenIfDataStreamsNotSupportedOrNotEnabled(
-      boolean enabledAtAgent, boolean enabledInConfig) throws InterruptedException {
+      boolean enabledAtAgent,
+      boolean enabledInConfig) throws InterruptedException {
     DDAgentFeaturesDiscovery features = stubFeatures(enabledAtAgent);
     ControllableTimeSource timeSource = new ControllableTimeSource();
     DatastreamsPayloadWriter payloadWriter = mock(DatastreamsPayloadWriter.class);
     Sink sink = mock(Sink.class);
     TraceConfig traceConfig = stubTraceConfig(enabledInConfig);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     dataStreams.add(
         new StatsPoint(
@@ -138,7 +137,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
 
     awaitIdle(dataStreams);
     verify(payloadWriter, org.mockito.Mockito.never()).writePayload(any(), any());
-
     // cleanup
     dataStreams.close();
   }
@@ -151,13 +149,11 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     String[] extracted = new String[] {""};
 
     DataStreamsContextCarrierAdapter.INSTANCE.set(carrier, keyName, keyValue);
-    DataStreamsContextCarrierAdapter.INSTANCE.forEachKeyValue(
-        carrier,
-        (key, value) -> {
-          if (keyName.equals(key)) {
-            extracted[0] = value;
-          }
-        });
+    DataStreamsContextCarrierAdapter.INSTANCE.forEachKeyValue(carrier, (key, value) -> {
+      if (keyName.equals(key)) {
+        extracted[0] = value;
+      }
+    });
 
     assertEquals(keyValue, extracted[0]);
   }
@@ -170,14 +166,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
@@ -195,7 +190,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group.getTags().nonNullSize());
     assertEquals(1L, group.getHash());
     assertEquals(2L, group.getParentHash());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -211,9 +205,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     long bucketDuration = TimeUnit.MILLISECONDS.toNanos(200);
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink, features, timeSource, () -> traceConfig, payloadWriter, bucketDuration);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        bucketDuration);
     dataStreams.start();
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
@@ -230,7 +228,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group.getTags().nonNullSize());
     assertEquals(1L, group.getHash());
     assertEquals(2L, group.getParentHash());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -244,14 +241,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
@@ -271,7 +267,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group.getTags().nonNullSize());
     assertEquals(1L, group.getHash());
     assertEquals(2L, group.getParentHash());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -285,24 +280,20 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
-    DataStreamsTags tags1 =
-        DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
+    DataStreamsTags tags1 = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     DataStreamsTags tags2 =
         DataStreamsTags.create("testType", null, "testTopic2", "testGroup", null);
-    dataStreams.add(
-        new StatsPoint(tags1, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+    dataStreams.add(new StatsPoint(tags1, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
-    dataStreams.add(
-        new StatsPoint(tags2, 3, 4, 6, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+    dataStreams.add(new StatsPoint(tags2, 3, 4, 6, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100L);
     dataStreams.close();
 
@@ -327,7 +318,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group1.getTags().nonNullSize());
     assertEquals(3L, group1.getHash());
     assertEquals(4L, group1.getParentHash());
-
     // cleanup
     payloadWriter.close();
   }
@@ -340,14 +330,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     dataStreams.trackBacklog(
         DataStreamsTags.createWithPartition("kafka_commit", "testTopic", "2", null, "testGroup"),
@@ -356,11 +345,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
         DataStreamsTags.createWithPartition("kafka_commit", "testTopic", "2", null, "testGroup"),
         24);
     dataStreams.trackBacklog(
-        DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "2", null, null), 23);
+        DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "2", null, null),
+        23);
     dataStreams.trackBacklog(
-        DataStreamsTags.createWithPartition("kafka_produce", "testTopic2", "2", null, null), 23);
+        DataStreamsTags.createWithPartition("kafka_produce", "testTopic2", "2", null, null),
+        23);
     dataStreams.trackBacklog(
-        DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "2", null, null), 45);
+        DataStreamsTags.createWithPartition("kafka_produce", "testTopic", "2", null, null),
+        45);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -383,7 +375,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
         DataStreamsTags.createWithPartition("kafka_produce", "testTopic2", "2", null, null),
         sortedBacklogs.get(2).getKey());
     assertEquals(23L, sortedBacklogs.get(2).getValue());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -397,24 +388,20 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
-    DataStreamsTags tags1 =
-        DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
-    dataStreams.add(
-        new StatsPoint(tags1, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+    DataStreamsTags tags1 = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
+    dataStreams.add(new StatsPoint(tags1, 1, 2, 5, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS * 10);
     DataStreamsTags tags2 =
         DataStreamsTags.create("testType", null, "testTopic2", "testGroup", null);
-    dataStreams.add(
-        new StatsPoint(tags2, 3, 4, 6, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
+    dataStreams.add(new StatsPoint(tags2, 3, 4, 6, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -439,7 +426,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group1.getTags().nonNullSize());
     assertEquals(3L, group1.getHash());
     assertEquals(4L, group1.getParentHash());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -454,14 +440,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     TraceConfig traceConfig = stubTraceConfig(true);
 
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     dataStreams.add(new StatsPoint(tags, 1, 2, 1, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100L);
@@ -490,7 +475,15 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
             null));
     dataStreams.add(
         new StatsPoint(
-            tags, 3, 4, 5, timeSource.getCurrentTimeNanos(), SECONDS.toNanos(2), 0, 0, null));
+            tags,
+            3,
+            4,
+            5,
+            timeSource.getCurrentTimeNanos(),
+            SECONDS.toNanos(2),
+            0,
+            0,
+            null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -529,7 +522,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("topic:testTopic", sortedGroup1.getTags().getTopic());
     assertEquals(3, sortedGroup1.getTags().nonNullSize());
     assertTrue(Math.abs((sortedGroup1.getPathwayLatency().getMaxValue() - 2) / 2) < 0.01);
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -545,36 +537,30 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
-
     // reporting points when data streams is not supported
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // no buckets are reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // report called multiple times without advancing past check interval
     dataStreams.report();
     dataStreams.report();
     dataStreams.report();
-
     // features are not rechecked
     awaitIdle(dataStreams);
     verify(features, org.mockito.Mockito.never()).discover();
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // submitting points after an upgrade
     supportsDataStreaming[0] = true;
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS);
@@ -583,7 +569,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // points are now reported
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -596,7 +581,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group.getTags().nonNullSize());
     assertEquals(1L, group.getHash());
     assertEquals(2L, group.getParentHash());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -612,16 +596,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
-
     // reporting points after a downgrade
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     supportsDataStreaming[0] = false;
     dataStreams.onEvent(EventListener.EventType.DOWNGRADED, "");
@@ -629,11 +611,9 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // no buckets are reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // submitting points after an upgrade
     supportsDataStreaming[0] = true;
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS);
@@ -642,7 +622,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // points are now reported
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -655,7 +634,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group.getTags().nonNullSize());
     assertEquals(1L, group.getHash());
     assertEquals(2L, group.getParentHash());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -673,26 +651,22 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     boolean[] dsmEnabled = new boolean[] {false};
     TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
     when(traceConfig.isDataStreamsEnabled()).thenAnswer(invocation -> dsmEnabled[0]);
-
     // reporting points when data streams is not enabled
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // no buckets are reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // submitting points after dynamically enabled
     dsmEnabled[0] = true;
     dataStreams.report();
@@ -700,7 +674,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // points are now reported
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -713,25 +686,20 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group.getTags().nonNullSize());
     assertEquals(1L, group.getHash());
     assertEquals(2L, group.getParentHash());
-
     // disabling data streams dynamically
     dsmEnabled[0] = false;
     dataStreams.report();
-
     // inbox is processed
     awaitIdle(dataStreams);
-
     // submitting points after being disabled
     payloadWriter.buckets.clear();
 
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // points are no longer reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -749,26 +717,22 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     boolean[] dsmEnabled = new boolean[] {false};
     TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
     when(traceConfig.isDataStreamsEnabled()).thenAnswer(invocation -> dsmEnabled[0]);
-
     // reporting points when data streams is not supported
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // no buckets are reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // submitting points after an upgrade with dsm disabled
     supportsDataStreaming[0] = true;
     timeSource.advance(FEATURE_CHECK_INTERVAL_NANOS);
@@ -777,11 +741,9 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // points are not reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // dsm is enabled dynamically
     dsmEnabled[0] = true;
     dataStreams.report();
@@ -789,7 +751,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // points are now reported
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -802,7 +763,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals(3, group.getTags().nonNullSize());
     assertEquals(1L, group.getHash());
     assertEquals(2L, group.getParentHash());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -820,26 +780,22 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     boolean[] dsmEnabled = new boolean[] {false};
     TraceConfig traceConfig = mock(TraceConfig.class, RETURNS_SMART_NULLS);
     when(traceConfig.isDataStreamsEnabled()).thenAnswer(invocation -> dsmEnabled[0]);
-
     // reporting points when data streams is not supported
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // no buckets are reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // enabling dsm when not supported by agent
     dsmEnabled[0] = true;
     dataStreams.report();
@@ -847,11 +803,9 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // points are not reported
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -865,27 +819,45 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
-
     // Record serialize and deserialize operations
     dataStreams.reportSchemaRegistryUsage(
-        "test-topic", "test-cluster", 123, true, false, "serialize");
+        "test-topic",
+        "test-cluster",
+        123,
+        true,
+        false,
+        "serialize");
     // duplicate serialize
     dataStreams.reportSchemaRegistryUsage(
-        "test-topic", "test-cluster", 123, true, false, "serialize");
+        "test-topic",
+        "test-cluster",
+        123,
+        true,
+        false,
+        "serialize");
     dataStreams.reportSchemaRegistryUsage(
-        "test-topic", "test-cluster", 123, true, false, "deserialize");
+        "test-topic",
+        "test-cluster",
+        123,
+        true,
+        false,
+        "deserialize");
     // different schema/key
     dataStreams.reportSchemaRegistryUsage(
-        "test-topic", "test-cluster", 456, true, true, "serialize");
+        "test-topic",
+        "test-cluster",
+        456,
+        true,
+        true,
+        "serialize");
 
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
@@ -894,25 +866,22 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
 
     StatsBucket bucket = payloadWriter.buckets.get(0);
     Collection<Entry<StatsBucket.SchemaKey, Long>> usages = bucket.getSchemaRegistryUsages();
-    assertEquals(3, usages.size()); // 3 unique combinations
-
+    // 3 unique combinations
+    assertEquals(3, usages.size());
     // Find serialize operation for schema 123 (should have count 2)
     Entry<StatsBucket.SchemaKey, Long> serializeUsage = findUsage(usages, 123, "serialize", false);
     assertNotNull(serializeUsage);
-    assertEquals(2L, serializeUsage.getValue()); // Aggregated 2 serialize operations
-
+    // Aggregated 2 serialize operations
+    assertEquals(2L, serializeUsage.getValue());
     // Find deserialize operation for schema 123 (should have count 1)
     Entry<StatsBucket.SchemaKey, Long> deserializeUsage =
         findUsage(usages, 123, "deserialize", false);
     assertNotNull(deserializeUsage);
     assertEquals(1L, deserializeUsage.getValue());
-
     // Find serialize operation for schema 456 with isKey=true (should have count 1)
-    Entry<StatsBucket.SchemaKey, Long> keySerializeUsage =
-        findUsage(usages, 456, "serialize", true);
+    Entry<StatsBucket.SchemaKey, Long> keySerializeUsage = findUsage(usages, 456, "serialize", true);
     assertNotNull(keySerializeUsage);
     assertEquals(1L, keySerializeUsage.getValue());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -958,43 +927,33 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     // different operation
     StatsBucket.SchemaKey key8 =
         new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "deserialize");
-
     // Reflexive
     assertEquals(key1, key1);
     assertEquals(key1.hashCode(), key1.hashCode());
-
     // Symmetric
     assertEquals(key1, key2);
     assertEquals(key2, key1);
     assertEquals(key1.hashCode(), key2.hashCode());
-
     // Different topic
     assertNotEquals(key1, key3);
     assertNotEquals(key3, key1);
-
     // Different cluster
     assertNotEquals(key1, key4);
     assertNotEquals(key4, key1);
-
     // Different schema ID
     assertNotEquals(key1, key5);
     assertNotEquals(key5, key1);
-
     // Different success
     assertNotEquals(key1, key6);
     assertNotEquals(key6, key1);
-
     // Different isKey
     assertNotEquals(key1, key7);
     assertNotEquals(key7, key1);
-
     // Different operation
     assertNotEquals(key1, key8);
     assertNotEquals(key8, key1);
-
     // Null check
     assertNotEquals(null, key1);
-
     // Different class
     assertNotEquals("not a schema key", key1);
   }
@@ -1022,17 +981,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     }
 
     assertEquals(2, usages.size());
-
     // Check serialize count
     StatsBucket.SchemaKey serializeKey =
         new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "serialize");
     assertEquals(2L, usageMap.get(serializeKey));
-
     // Check deserialize count
     StatsBucket.SchemaKey deserializeKey =
         new StatsBucket.SchemaKey("topic1", "cluster1", 123, true, false, "deserialize");
     assertEquals(1L, usageMap.get(deserializeKey));
-
     // Check that different operations create different keys
     assertNotEquals(serializeKey, deserializeKey);
   }
@@ -1045,14 +1001,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
@@ -1070,7 +1025,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("kafka_producer", report.getType());
     assertEquals("localhost:9092", report.getConfig().get("bootstrap.servers"));
     assertEquals("all", report.getConfig().get("acks"));
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1084,14 +1038,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
@@ -1111,7 +1064,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("localhost:9092", report.getConfig().get("bootstrap.servers"));
     assertEquals("test-group", report.getConfig().get("group.id"));
     assertEquals("earliest", report.getConfig().get("auto.offset.reset"));
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1125,17 +1077,20 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     dataStreams.reportKafkaConsumerGroupMember(
-        "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
+        "cluster-1",
+        "test-group",
+        "consumer-1-abc123",
+        7,
+        "range");
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
 
@@ -1164,16 +1119,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
-
     // reporting the same config twice
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> config1 = new HashMap<>();
     config1.put("bootstrap.servers", "localhost:9092");
@@ -1185,7 +1138,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.reportKafkaConfig("kafka_producer", "", "", config2);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // both configs are reported in the bucket
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -1197,7 +1149,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
       assertEquals("localhost:9092", report.getConfig().get("bootstrap.servers"));
       assertEquals("all", report.getConfig().get("acks"));
     }
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1210,16 +1161,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
-
     // reporting a config in the first bucket
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
@@ -1227,17 +1176,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // first bucket has the config
     awaitBuckets(dataStreams, payloadWriter, 1);
     assertEquals(1, payloadWriter.buckets.get(0).getKafkaConfigs().size());
-
     // reporting the same config again in a new bucket
     payloadWriter.buckets.clear();
     dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // second bucket also has the config
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -1248,7 +1194,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertEquals("kafka_producer", report.getType());
     assertEquals("localhost:9092", report.getConfig().get("bootstrap.servers"));
     assertEquals("all", report.getConfig().get("acks"));
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1261,16 +1206,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
-
     // reporting producer and consumer configs
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> producerConfig = new HashMap<>();
     producerConfig.put("bootstrap.servers", "localhost:9092");
@@ -1282,7 +1225,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.reportKafkaConfig("kafka_consumer", "", "my-group", consumerConfig);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // both configs are reported
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -1299,7 +1241,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     assertNotNull(consumerReport);
     assertEquals("localhost:9092", consumerReport.getConfig().get("bootstrap.servers"));
     assertEquals("my-group", consumerReport.getConfig().get("group.id"));
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1321,16 +1262,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
-
     // reporting two producer configs with different settings
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> config1 = new HashMap<>();
     config1.put("bootstrap.servers", "localhost:9092");
@@ -1342,11 +1281,9 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.reportKafkaConfig("kafka_producer", "", "", config2);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // both configs are reported because they have different values
     awaitBuckets(dataStreams, payloadWriter, 1);
     assertEquals(2, payloadWriter.buckets.get(0).getKafkaConfigs().size());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1359,16 +1296,14 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
-
     // reporting both stats points and kafka configs
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     DataStreamsTags tags = DataStreamsTags.create("testType", null, "testTopic", "testGroup", null);
     dataStreams.add(new StatsPoint(tags, 1, 2, 3, timeSource.getCurrentTimeNanos(), 0, 0, 0, null));
@@ -1377,7 +1312,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.report();
-
     // bucket contains both stats groups and kafka configs
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -1394,7 +1328,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     KafkaConfigReport report = kafkaConfigs.get(0);
     assertEquals("kafka_producer", report.getType());
     assertEquals("localhost:9092", report.getConfig().get("bootstrap.servers"));
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1414,14 +1347,13 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     Sink sink = mock(Sink.class);
     TraceConfig traceConfig = stubTraceConfig(enabledInConfig);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
@@ -1431,7 +1363,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
 
     awaitIdle(dataStreams);
     assertTrue(payloadWriter.buckets.isEmpty());
-
     // cleanup
     payloadWriter.close();
     dataStreams.close();
@@ -1445,21 +1376,19 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
     TraceConfig traceConfig = stubTraceConfig(true);
 
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
+    DefaultDataStreamsMonitoring dataStreams = new DefaultDataStreamsMonitoring(
+        sink,
+        features,
+        timeSource,
+        () -> traceConfig,
+        payloadWriter,
+        DEFAULT_BUCKET_DURATION_NANOS);
     dataStreams.start();
     Map<String, String> kafkaConfig = new HashMap<>();
     kafkaConfig.put("bootstrap.servers", "localhost:9092");
     dataStreams.reportKafkaConfig("kafka_producer", "", "", kafkaConfig);
     timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS - 100L);
     dataStreams.close();
-
     // configs in the current bucket are flushed on close
     awaitBuckets(dataStreams, payloadWriter, 1);
 
@@ -1469,7 +1398,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     KafkaConfigReport report = kafkaConfigs.get(0);
     assertEquals("kafka_producer", report.getType());
     assertEquals("localhost:9092", report.getConfig().get("bootstrap.servers"));
-
     // cleanup
     payloadWriter.close();
   }
@@ -1499,33 +1427,26 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
     // different serviceNameOverride
     KafkaConfigReport config5 =
         new KafkaConfigReport("kafka_producer", "", "", sameConfig, 1000L, "other-service");
-
     // Reflexive
     assertEquals(config1, config1);
     assertEquals(config1.hashCode(), config1.hashCode());
-
     // Same type and config, different timestamp -- equals (timestamp is NOT part of equals)
     assertEquals(config1, config2);
     assertEquals(config2, config1);
     assertEquals(config1.hashCode(), config2.hashCode());
-
     // Same type and config, different serviceNameOverride -- equals (serviceNameOverride is NOT
     // part of equals)
     assertEquals(config1, config5);
     assertEquals(config5, config1);
     assertEquals(config1.hashCode(), config5.hashCode());
-
     // Different type
     assertNotEquals(config1, config3);
     assertNotEquals(config3, config1);
-
     // Different config values
     assertNotEquals(config1, config4);
     assertNotEquals(config4, config1);
-
     // Null check
     assertNotEquals(null, config1);
-
     // Different class
     assertNotEquals("not a config report", config1);
   }
@@ -1582,7 +1503,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
   @Test
   void setCheckpointTagsTheSpanWithThePathwayHash() {
     DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
-
     // Negative so the signed and unsigned string representations differ, proving the tag uses
     // Long.toUnsignedString (pathway hashes are unsigned 64-bit values).
     long hash = -1234567890123456789L;

@@ -19,7 +19,9 @@ public class WireFilter implements ScopeFilter {
         // Pass-through for Message since it contains data
         return false;
       }
-      if (interfaces.stream().anyMatch(it -> it.startsWith("com.squareup.wire"))) {
+      if (interfaces
+        .stream()
+        .anyMatch(it -> it.startsWith("com.squareup.wire"))) {
         return true;
       }
     }

@@ -4,14 +4,13 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.cloud.pubsub.v1.MessageReceiverWithAckResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.asm.Advice;
 
 public final class ReceiverWithAckInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.google.cloud.pubsub.v1.Subscriber";
@@ -21,9 +20,9 @@ public final class ReceiverWithAckInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("newBuilder"))
-            .and(takesArgument(0, String.class))
-            .and(takesArgument(1, nameEndsWith("MessageReceiverWithAckResponse"))),
+          .and(named("newBuilder"))
+          .and(takesArgument(0, String.class))
+          .and(takesArgument(1, nameEndsWith("MessageReceiverWithAckResponse"))),
         getClass().getName() + "$Wrap");
   }
 

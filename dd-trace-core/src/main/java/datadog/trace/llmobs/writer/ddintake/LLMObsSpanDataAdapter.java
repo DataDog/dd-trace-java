@@ -1,7 +1,6 @@
 package datadog.trace.llmobs.writer.ddintake;
 
 import static java.util.Objects.requireNonNull;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsSpanData;
@@ -12,7 +11,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Adapts the internal tag representation of an LLM Observability span to the public API. */
+/**
+ * Adapts the internal tag representation of an LLM Observability span to the public API.
+ */
 final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   private static final LLMObs.LLMMessage[] NO_MESSAGES = new LLMObs.LLMMessage[0];
   private static final String LLMOBS_TAG_PREFIX = "_ml_obs_tag.";
@@ -134,7 +135,7 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
           : IOType.NONE;
     }
     if (((input && Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(kind))
-            || (!input && Tags.LLMOBS_RETRIEVAL_SPAN_KIND.equals(kind)))
+        || (!input && Tags.LLMOBS_RETRIEVAL_SPAN_KIND.equals(kind)))
         && value instanceof List
         && allDocuments((List<?>) value)) {
       return IOType.DOCUMENTS;
@@ -198,7 +199,8 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
   }
 
   private static boolean wasModified(
-      List<LLMObs.LLMMessage> messages, LLMObs.LLMMessage[] initialMessages) {
+      List<LLMObs.LLMMessage> messages,
+      LLMObs.LLMMessage[] initialMessages) {
     if (messages.size() != initialMessages.length) {
       return true;
     }
@@ -251,13 +253,15 @@ final class LLMObsSpanDataAdapter implements LLMObsSpanData {
         LLMObs.LLMMessage message = messages.get(i);
         Object originalDocument =
             originalDocuments != null && i < originalDocuments.size()
-                ? originalDocuments.get(i)
-                : null;
+            ? originalDocuments.get(i)
+            : null;
         if (originalDocument instanceof LLMObs.Document) {
           LLMObs.Document document = (LLMObs.Document) originalDocument;
-          documents.add(
-              LLMObs.Document.from(
-                  message.getContent(), document.getName(), document.getId(), document.getScore()));
+          documents.add(LLMObs.Document.from(
+              message.getContent(),
+              document.getName(),
+              document.getId(),
+              document.getScore()));
         } else {
           documents.add(LLMObs.Document.from(message.getContent()));
         }

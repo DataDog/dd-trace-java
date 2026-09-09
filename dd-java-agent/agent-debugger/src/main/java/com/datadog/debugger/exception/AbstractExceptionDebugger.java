@@ -2,7 +2,6 @@ package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.EXCEPTION;
 import static com.datadog.debugger.util.ExceptionHelper.createThrowableMapping;
-
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.sink.Snapshot;
@@ -29,7 +28,6 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   public static final String DD_DEBUG_ERROR_EXCEPTION_HASH =
       DD_DEBUG_ERROR_PREFIX + "exception_hash";
   public static final String SNAPSHOT_ID_TAG_FMT = DD_DEBUG_ERROR_PREFIX + "%d.snapshot_id";
-
   private final ExceptionProbeManager exceptionProbeManager;
   private final ConfigurationUpdater configurationUpdater;
   private final DebuggerContext.ClassNameFilter classNameFiltering;
@@ -94,12 +92,15 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       while ((throwable = chainedExceptions.pollFirst()) != null) {
         ExceptionProbeManager.CreationResult creationResult =
             exceptionProbeManager.createProbesForException(
-                throwable.getStackTrace(), chainedExceptionIdx);
+                throwable.getStackTrace(),
+                chainedExceptionIdx);
         if (creationResult.probesCreated > 0) {
           if (!applyConfigAsync) {
             applyExceptionConfiguration(fingerprint);
           } else {
-            AgentTaskScheduler.get().execute(() -> applyExceptionConfiguration(fingerprint));
+            AgentTaskScheduler
+              .get()
+              .execute(() -> applyExceptionConfiguration(fingerprint));
           }
           break;
         } else {
@@ -123,7 +124,10 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   }
 
   protected void addStackFrameTags(
-      AgentSpan span, Snapshot snapshot, int frameIndex, StackTraceElement stackFrame) {
+      AgentSpan span,
+      Snapshot snapshot,
+      int frameIndex,
+      StackTraceElement stackFrame) {
     String tagName = String.format(SNAPSHOT_ID_TAG_FMT, frameIndex);
     span.setTag(tagName, snapshot.getId());
     LOGGER.debug("add tag to span[{}]: {}: {}", span.getSpanId(), tagName, snapshot.getId());
@@ -140,13 +144,11 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
     if (span.getTag(DD_DEBUG_ERROR_EXCEPTION_ID) != null) {
       LOGGER.debug("Clear previous frame tags");
       // already set for this span, clear the frame tags
-      span.getTags()
-          .forEach(
-              (k, v) -> {
-                if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
-                  span.setTag(k, (String) null);
-                }
-              });
+      span.getTags().forEach((k, v) -> {
+        if (k.startsWith(DD_DEBUG_ERROR_PREFIX)) {
+          span.setTag(k, (String) null);
+        }
+      });
     }
     boolean snapshotAssigned = false;
     List<Snapshot> snapshots = state.getSnapshots();
@@ -203,7 +205,9 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   }
 
   private static boolean sanityCheckSnapshotAssignment(
-      Snapshot snapshot, StackTraceElement[] innerTrace, int currentIdx) {
+      Snapshot snapshot,
+      StackTraceElement[] innerTrace,
+      int currentIdx) {
     String className = snapshot.getProbe().getLocation().getType();
     String methodName = snapshot.getProbe().getLocation().getMethod();
     if (innerTrace.length == 0) {

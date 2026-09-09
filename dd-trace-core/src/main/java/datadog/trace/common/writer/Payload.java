@@ -6,16 +6,13 @@ import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXMAP;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP16;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.MAP32;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import okhttp3.RequestBody;
 
 public abstract class Payload {
-
   private static final ByteBuffer EMPTY_ARRAY = ByteBuffer.allocate(1).put(0, (byte) 0x90);
-
   private int traceCount = 0;
   private long droppedTraces = 0;
   private long droppedSpans = 0;

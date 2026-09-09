@@ -9,7 +9,8 @@ import javax.annotation.Nullable;
  * <code>hash</code> that take many argument lengths to avoid var-args allocation.
  */
 public final class LongHashingUtils {
-  private LongHashingUtils() {}
+  private LongHashingUtils() {
+  }
 
   public static final long hash(Object obj) {
     return obj == null ? Long.MIN_VALUE : obj.hashCode();
@@ -141,7 +142,9 @@ public final class LongHashingUtils {
     return addToHash(hash, Double.hashCode(value));
   }
 
-  /** Folds {@code arr[0..len)}; the array must be non-null, but its elements may be null. */
+  /**
+   * Folds {@code arr[0..len)}; the array must be non-null, but its elements may be null.
+   */
   public static final long addToHash(long hash, @Nonnull Object[] arr, int len) {
     for (int i = 0; i < len; i++) {
       hash = addToHash(hash, arr[i]);

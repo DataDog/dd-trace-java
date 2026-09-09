@@ -1,7 +1,6 @@
 package datadog.json;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.ByteArrayOutputStream;
 import java.io.Flushable;
 import java.io.IOException;
@@ -17,10 +16,11 @@ public final class JsonWriter implements Flushable, AutoCloseable {
   private final ByteArrayOutputStream outputStream;
   private final OutputStreamWriter writer;
   private final JsonStructure structure;
-
   private boolean requireComma;
 
-  /** Creates a writer with structure check. */
+  /**
+   * Creates a writer with structure check.
+   */
   public JsonWriter() {
     this(true);
   }
@@ -299,29 +299,43 @@ public final class JsonWriter implements Flushable, AutoCloseable {
           this.writer.write(HEX_DIGITS[c & 0xF]);
         } else {
           switch (c) {
-            case '"': // Quotation mark
-            case '\\': // Reverse solidus
-            case '/': // Solidus
+            // Quotation mark
+            case '"':
+            // Reverse solidus
+            case '\\':
+            case
+                // Solidus
+            '/':
               this.writer.write('\\');
               this.writer.write(c);
               break;
-            case '\b': // Backspace
+            case
+                // Backspace
+            '\b':
               this.writer.write('\\');
               this.writer.write('b');
               break;
-            case '\f': // Form feed
+            case
+                // Form feed
+            '\f':
               this.writer.write('\\');
               this.writer.write('f');
               break;
-            case '\n': // Line feed
+            case
+                // Line feed
+            '\n':
               this.writer.write('\\');
               this.writer.write('n');
               break;
-            case '\r': // Carriage return
+            case
+                // Carriage return
+            '\r':
               this.writer.write('\\');
               this.writer.write('r');
               break;
-            case '\t': // Horizontal tab
+            case
+                // Horizontal tab
+            '\t':
               this.writer.write('\\');
               this.writer.write('t');
               break;

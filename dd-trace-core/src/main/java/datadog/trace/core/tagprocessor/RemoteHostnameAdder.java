@@ -8,7 +8,6 @@ import java.util.function.Supplier;
 
 public final class RemoteHostnameAdder extends TagsPostProcessor {
   private final Supplier<String> hostnameSupplier;
-
   private TagMap.Entry cachedHostEntry = null;
 
   public RemoteHostnameAdder(Supplier<String> hostnameSupplier) {
@@ -17,7 +16,9 @@ public final class RemoteHostnameAdder extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagMap unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks) {
     if (spanContext.getSpanId() != spanContext.getRootSpanId()) {
       return;
     }

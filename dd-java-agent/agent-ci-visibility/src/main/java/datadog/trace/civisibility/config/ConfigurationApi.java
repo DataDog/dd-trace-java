@@ -9,37 +9,37 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public interface ConfigurationApi {
+  ConfigurationApi NO_OP = new ConfigurationApi() {
+    @Override
+    public CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) {
+      return CiVisibilitySettings.DEFAULT;
+    }
 
-  ConfigurationApi NO_OP =
-      new ConfigurationApi() {
-        @Override
-        public CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) {
-          return CiVisibilitySettings.DEFAULT;
-        }
+    @Override
+    public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) {
+      return SkippableTests.EMPTY;
+    }
 
-        @Override
-        public SkippableTests getSkippableTests(TracerEnvironment tracerEnvironment) {
-          return SkippableTests.EMPTY;
-        }
+    @Override
+    public Map<String, Collection<TestFQN>> getFlakyTestsByModule(
+        TracerEnvironment tracerEnvironment) {
+      return Collections.emptyMap();
+    }
 
-        @Override
-        public Map<String, Collection<TestFQN>> getFlakyTestsByModule(
-            TracerEnvironment tracerEnvironment) {
-          return Collections.emptyMap();
-        }
+    @Override
+    public Map<String, Collection<TestFQN>> getKnownTestsByModule(
+        TracerEnvironment tracerEnvironment) {
+      return Collections.emptyMap();
+    }
 
-        @Override
-        public Map<String, Collection<TestFQN>> getKnownTestsByModule(
-            TracerEnvironment tracerEnvironment) {
-          return Collections.emptyMap();
-        }
-
-        @Override
-        public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-            TracerEnvironment tracerEnvironment, String commitSha, String commitMessage) {
-          return Collections.emptyMap();
-        }
-      };
+    @Override
+    public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
+        TracerEnvironment tracerEnvironment,
+        String commitSha,
+        String commitMessage) {
+      return Collections.emptyMap();
+    }
+  };
 
   CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) throws IOException;
 
@@ -53,6 +53,7 @@ public interface ConfigurationApi {
       throws IOException;
 
   Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-      TracerEnvironment tracerEnvironment, String commitSha, String commitMessage)
-      throws IOException;
+      TracerEnvironment tracerEnvironment,
+      String commitSha,
+      String commitMessage) throws IOException;
 }

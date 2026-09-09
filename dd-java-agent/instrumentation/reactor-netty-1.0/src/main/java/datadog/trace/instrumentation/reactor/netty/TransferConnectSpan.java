@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.reactor.netty;
 
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.reactor.netty.CaptureConnectSpan.CONNECT_CONTEXT;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import java.util.function.BiConsumer;
@@ -17,11 +16,10 @@ public class TransferConnectSpan implements BiConsumer<HttpClientRequest, Connec
       return;
     }
     ContextContinuation newContinuation = context.capture();
-    ContextContinuation oldContinuation =
-        connection
-            .channel()
-            .attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY)
-            .getAndSet(newContinuation);
+    ContextContinuation oldContinuation = connection
+      .channel()
+      .attr(CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY)
+      .getAndSet(newContinuation);
     if (null != oldContinuation) {
       oldContinuation.release();
     }

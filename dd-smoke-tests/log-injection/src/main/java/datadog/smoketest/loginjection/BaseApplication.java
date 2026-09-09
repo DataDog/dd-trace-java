@@ -34,11 +34,9 @@ public abstract class BaseApplication {
     }
 
     forthTracedMethod();
-
     // Logs for "AFTER SECOND SPAN" and "AFTER THIRD SPAN" don't exist to avoid the race between
     // traces and logs. The tester waits for traces before changing config
     doLog("AFTER FORTH SPAN");
-
     // Sleep to allow the trace to be reported
     Thread.sleep(400);
   }
@@ -57,40 +55,28 @@ public abstract class BaseApplication {
   public void firstTracedMethod() {
     doLog("INSIDE FIRST SPAN");
     System.out.println(
-        "FIRSTTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+        "FIRSTTRACEID " + CorrelationIdentifier.getTraceId() + " " + CorrelationIdentifier.getSpanId());
   }
 
   @Trace
   public void secondTracedMethod() {
     doLog("INSIDE SECOND SPAN");
     System.out.println(
-        "SECONDTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+        "SECONDTRACEID " + CorrelationIdentifier.getTraceId() + " " + CorrelationIdentifier.getSpanId());
   }
 
   @Trace
   public void thirdTracedMethod() {
     doLog("INSIDE THIRD SPAN");
     System.out.println(
-        "THIRDTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+        "THIRDTRACEID " + CorrelationIdentifier.getTraceId() + " " + CorrelationIdentifier.getSpanId());
   }
 
   @Trace
   public void forthTracedMethod() {
     doLog("INSIDE FORTH SPAN");
     System.out.println(
-        "FORTHTRACEID "
-            + CorrelationIdentifier.getTraceId()
-            + " "
-            + CorrelationIdentifier.getSpanId());
+        "FORTHTRACEID " + CorrelationIdentifier.getTraceId() + " " + CorrelationIdentifier.getSpanId());
   }
 
   private static boolean waitForCondition(Supplier<Boolean> condition) throws InterruptedException {

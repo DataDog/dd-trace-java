@@ -12,7 +12,6 @@ import java.util.function.Supplier;
  */
 public final class Telemetry {
   private static final double DEFAULT_TIMEOUT_SECONDS = 30;
-
   private final Supplier<List<Map<String, Object>>> source;
 
   Telemetry(Supplier<List<Map<String, Object>>> source) {
@@ -71,15 +70,13 @@ public final class Telemetry {
    * @throws AssertionError If no flattened telemetry event could not match the predicate.
    */
   public void waitForCount(int count, double timeoutSeconds) {
-    new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              int actual = getMessages().size();
-              if (actual < count) {
-                throw new AssertionError(
-                    "Expected at least " + count + " telemetry message(s) but got " + actual);
-              }
-            });
+    new PollingConditions(timeoutSeconds).eventually(() -> {
+      int actual = getMessages().size();
+      if (actual < count) {
+        throw new AssertionError(
+            "Expected at least " + count + " telemetry message(s) but got " + actual);
+      }
+    });
   }
 
   /**
@@ -101,12 +98,10 @@ public final class Telemetry {
    * @throws AssertionError If no flattened telemetry event could not match the predicate.
    */
   public void waitForFlat(Predicate<Map<String, Object>> predicate, double timeoutSeconds) {
-    new PollingConditions(timeoutSeconds)
-        .eventually(
-            () -> {
-              if (getFlatMessages().stream().noneMatch(predicate)) {
-                throw new AssertionError("No telemetry event matched; received: " + getMessages());
-              }
-            });
+    new PollingConditions(timeoutSeconds).eventually(() -> {
+      if (getFlatMessages().stream().noneMatch(predicate)) {
+        throw new AssertionError("No telemetry event matched; received: " + getMessages());
+      }
+    });
   }
 }

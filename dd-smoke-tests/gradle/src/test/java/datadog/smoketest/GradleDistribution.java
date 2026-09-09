@@ -13,13 +13,12 @@ import org.gradle.util.GradleVersion;
 import org.gradle.util.internal.DistributionLocator;
 
 final class GradleDistribution {
-
   static final String GRADLE_DISTRIBUTION_URL_ENV = "GRADLE_DISTRIBUTION_URL";
-
   private static final String MASS_READ_URL_ENV = "MASS_READ_URL";
   private static final Pattern DISTRIBUTION_URL_LINE = Pattern.compile("(?m)^distributionUrl=.*$");
 
-  private GradleDistribution() {}
+  private GradleDistribution() {
+  }
 
   static URI uriFor(String gradleVersion) {
     String massReadUrl = System.getenv(MASS_READ_URL_ENV);
@@ -54,7 +53,9 @@ final class GradleDistribution {
     String contents = new String(Files.readAllBytes(wrapperProperties), StandardCharsets.UTF_8);
     String replacement = "distributionUrl=" + uriPropertiesValueFor(gradleVersion);
     String updated =
-        DISTRIBUTION_URL_LINE.matcher(contents).replaceFirst(Matcher.quoteReplacement(replacement));
+        DISTRIBUTION_URL_LINE
+      .matcher(contents)
+      .replaceFirst(Matcher.quoteReplacement(replacement));
     Files.write(wrapperProperties, updated.getBytes(StandardCharsets.UTF_8));
   }
 
@@ -62,8 +63,8 @@ final class GradleDistribution {
     String baseUrl = massReadUrl.endsWith("/") ? massReadUrl : massReadUrl + "/";
     return URI.create(
         baseUrl
-            + "internal/artifact/services.gradle.org/distributions/gradle-"
-            + gradleVersion
-            + "-bin.zip");
+        + "internal/artifact/services.gradle.org/distributions/gradle-"
+        + gradleVersion
+        + "-bin.zip");
   }
 }

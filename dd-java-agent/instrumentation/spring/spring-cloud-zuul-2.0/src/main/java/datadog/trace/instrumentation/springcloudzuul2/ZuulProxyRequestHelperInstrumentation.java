@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.EXCLUDE
 import static datadog.trace.instrumentation.springcloudzuul2.HeaderUtils.HAYSTACK_PACKAGE_PREFIX;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,7 +14,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class ZuulProxyRequestHelperInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ZuulProxyRequestHelperInstrumentation() {
     super("spring-cloud-zuul");
   }
@@ -46,8 +46,11 @@ public class ZuulProxyRequestHelperInstrumentation extends InstrumenterModule.Tr
   public static class ProxyRequestHelperAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.Argument(0) final String header, @Advice.Return(readOnly = false) boolean include) {
-      if (!include) return;
+        @Advice.Argument(0) final String header,
+        @Advice.Return(readOnly = false) boolean include) {
+      if (!include) {
+        return;
+      }
 
       String lowercaseHeader = header.toLowerCase(Locale.ROOT);
       if (lowercaseHeader.startsWith(HAYSTACK_PACKAGE_PREFIX)

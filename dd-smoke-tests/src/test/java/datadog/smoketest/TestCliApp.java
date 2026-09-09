@@ -6,11 +6,13 @@ package datadog.smoketest;
  * SmokeCliApp}'s launch/log-capture without the agent.
  */
 public final class TestCliApp {
-  private TestCliApp() {}
+  private TestCliApp() {
+  }
 
   public static void main(String[] args) {
     System.out.println("CLI-STARTUP-MARKER");
-    System.out.println("LOG-LEVEL=" + System.getProperty("org.slf4j.simpleLogger.defaultLogLevel"));
+    System.out.println("LOG-LEVEL="
+        + System.getProperty("org.slf4j.simpleLogger.defaultLogLevel"));
     System.out.flush();
   }
 }

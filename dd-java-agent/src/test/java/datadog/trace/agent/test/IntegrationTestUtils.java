@@ -3,7 +3,6 @@ package datadog.trace.agent.test;
 import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork;
 import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork;
 import static java.util.stream.Collectors.toList;
-
 import datadog.trace.bootstrap.BootstrapProxy;
 import java.io.BufferedReader;
 import java.io.File;
@@ -29,7 +28,9 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
 public class IntegrationTestUtils {
-  /** Returns the classloader the core agent is running on. */
+  /**
+   * Returns the classloader the core agent is running on.
+   */
   public static ClassLoader getAgentClassLoader() {
     Field classloaderField = null;
     try {
@@ -47,7 +48,9 @@ public class IntegrationTestUtils {
     }
   }
 
-  /** Returns the classloader to use for bootstrap resources. */
+  /**
+   * Returns the classloader to use for bootstrap resources.
+   */
   public static ClassLoader getBootstrapProxy() {
     return BootstrapProxy.INSTANCE;
   }
@@ -56,7 +59,9 @@ public class IntegrationTestUtils {
     return createJarFileWithClasses(null, classes);
   }
 
-  /** See {@link IntegrationTestUtils#createJarWithClasses(String, Class[])} */
+  /**
+   * See {@link IntegrationTestUtils#createJarWithClasses(String, Class[])}
+   */
   public static URL createJarWithClasses(final Class<?>... classes) throws IOException {
     return createJarWithClasses(null, classes);
   }
@@ -96,7 +101,6 @@ public class IntegrationTestUtils {
 
   public static URL createJarWithClasses(final String mainClassName, final Class<?>... classes)
       throws IOException {
-
     return createJarFileWithClasses(mainClassName, classes).toURI().toURL();
   }
 
@@ -129,16 +133,17 @@ public class IntegrationTestUtils {
     }
   }
 
-  /** com.foo.Bar -> com/foo/Bar.class */
+  /**
+   * com.foo.Bar -> com/foo/Bar.class
+   */
   public static String getResourceName(final String className) {
     return className.replace('.', '/') + ".class";
   }
 
   public static String[] getBootstrapPackagePrefixes() throws Exception {
-    final Field f =
-        getAgentClassLoader()
-            .loadClass("datadog.trace.bootstrap.Constants")
-            .getField("BOOTSTRAP_PACKAGE_PREFIXES");
+    final Field f = getAgentClassLoader()
+      .loadClass("datadog.trace.bootstrap.Constants")
+      .getField("BOOTSTRAP_PACKAGE_PREFIXES");
     return (String[]) f.get(null);
   }
 
@@ -163,10 +168,13 @@ public class IntegrationTestUtils {
       final List<? extends CharSequence> jvmArgs,
       final List<String> mainMethodArgs,
       final Map<String, String> envVars,
-      final boolean printOutputStreams)
-      throws Exception {
+      final boolean printOutputStreams) throws Exception {
     return runOnSeparateJvm(
-        mainClassName, jvmArgs, mainMethodArgs, envVars, printOutputStreams ? System.out : null);
+        mainClassName,
+        jvmArgs,
+        mainMethodArgs,
+        envVars,
+        printOutputStreams ? System.out : null);
   }
 
   public static int runOnSeparateJvm(
@@ -174,8 +182,7 @@ public class IntegrationTestUtils {
       final List<? extends CharSequence> jvmArgs,
       final List<String> mainMethodArgs,
       final Map<String, String> envVars,
-      final PrintStream out)
-      throws Exception {
+      final PrintStream out) throws Exception {
     final String classPath = System.getProperty("java.class.path");
     return runOnSeparateJvm(mainClassName, jvmArgs, mainMethodArgs, envVars, classPath, out);
   }
@@ -186,10 +193,14 @@ public class IntegrationTestUtils {
       final List<String> mainMethodArgs,
       final Map<String, String> envVars,
       final File classpath,
-      final boolean printOutputStreams)
-      throws Exception {
+      final boolean printOutputStreams) throws Exception {
     return runOnSeparateJvm(
-        mainClassName, jvmArgs, mainMethodArgs, envVars, classpath.getPath(), printOutputStreams);
+        mainClassName,
+        jvmArgs,
+        mainMethodArgs,
+        envVars,
+        classpath.getPath(),
+        printOutputStreams);
   }
 
   public static int runOnSeparateJvm(
@@ -198,8 +209,7 @@ public class IntegrationTestUtils {
       final List<String> mainMethodArgs,
       final Map<String, String> envVars,
       final String classpath,
-      final boolean printOutputStreams)
-      throws Exception {
+      final boolean printOutputStreams) throws Exception {
     return runOnSeparateJvm(
         mainClassName,
         jvmArgs,
@@ -223,8 +233,7 @@ public class IntegrationTestUtils {
       final List<String> mainMethodArgs,
       final Map<String, String> envVars,
       final String classpath,
-      final PrintStream out)
-      throws Exception {
+      final PrintStream out) throws Exception {
     final Process process =
         startOnSeparateJvm(mainClassName, jvmArgs, mainMethodArgs, envVars, classpath);
 
@@ -246,14 +255,15 @@ public class IntegrationTestUtils {
       final List<? extends CharSequence> jvmArgs,
       final List<String> mainMethodArgs,
       final Map<String, String> envVars,
-      final String classpath)
-      throws Exception {
+      final String classpath) throws Exception {
     final String separator = FileSystems.getDefault().getSeparator();
     final String path = System.getProperty("java.home") + separator + "bin" + separator + "java";
-
     // Groovy may produce a mix of `String` and `GString` instances.
     // To ensure consistent handling, map all values to plain `String`:
-    final List<String> vmArgsList = jvmArgs.stream().map(CharSequence::toString).collect(toList());
+    final List<String> vmArgsList = jvmArgs
+      .stream()
+      .map(CharSequence::toString)
+      .collect(toList());
 
     boolean runAsJar = "datadog.trace.bootstrap.AgentJar".equals(mainClassName);
 
@@ -283,7 +293,8 @@ public class IntegrationTestUtils {
   }
 
   private static void waitFor(final Process process, final long timeout, final TimeUnit unit)
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     if (!process.waitFor(timeout, unit)) {
       throw new TimeoutException();
     }

@@ -5,7 +5,6 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -16,7 +15,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
 class AsmStandaloneSamplerTest extends DDCoreJavaSpecification {
-
   private final ListWriter writer = new ListWriter();
 
   @Test
@@ -29,8 +27,9 @@ class AsmStandaloneSamplerTest extends DDCoreJavaSpecification {
 
     try {
       doAnswer(inv -> current.updateAndGet(value -> value + 1000))
-          .when(clock)
-          .millis(); // increment in one second
+        .when(clock)
+        // increment in one second
+        .millis();
       DDSpan span1 = (DDSpan) tracer.buildSpan("datadog", "test").start();
       sampler.setSamplingPriority(span1);
 
@@ -39,8 +38,9 @@ class AsmStandaloneSamplerTest extends DDCoreJavaSpecification {
       clearInvocations(clock);
 
       doAnswer(inv -> current.updateAndGet(value -> value + 1000))
-          .when(clock)
-          .millis(); // increment in one second
+        .when(clock)
+        // increment in one second
+        .millis();
       DDSpan span2 = (DDSpan) tracer.buildSpan("datadog", "test2").start();
       sampler.setSamplingPriority(span2);
 
@@ -49,11 +49,11 @@ class AsmStandaloneSamplerTest extends DDCoreJavaSpecification {
       clearInvocations(clock);
 
       doAnswer(inv -> current.updateAndGet(value -> value + 60000))
-          .when(clock)
-          .millis(); // increment in one minute
+        .when(clock)
+        // increment in one minute
+        .millis();
       DDSpan span3 = (DDSpan) tracer.buildSpan("datadog", "test3").start();
       sampler.setSamplingPriority(span3);
-
       // Mock one minute later
       assertEquals(PrioritySampling.SAMPLER_KEEP, span3.getSamplingPriority());
     } finally {

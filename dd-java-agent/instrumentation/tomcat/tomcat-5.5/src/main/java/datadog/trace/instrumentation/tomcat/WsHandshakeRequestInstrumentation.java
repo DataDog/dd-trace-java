@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.tomcat;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,7 +15,8 @@ import org.apache.tomcat.websocket.server.WsHandshakeRequest;
 
 @AutoService(InstrumenterModule.class)
 public class WsHandshakeRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public WsHandshakeRequestInstrumentation() {
     super("tomcat", "tomcat-websocket", "websocket");
   }

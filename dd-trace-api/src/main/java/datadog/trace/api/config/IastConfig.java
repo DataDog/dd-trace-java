@@ -1,8 +1,9 @@
 package datadog.trace.api.config;
 
-/** Constant with names of configuration options for IAST. */
+/**
+ * Constant with names of configuration options for IAST.
+ */
 public final class IastConfig {
-
   public static final String IAST_ENABLED = "iast.enabled";
   public static final String IAST_WEAK_HASH_ALGORITHMS = "iast.weak-hash.algorithms";
   public static final String IAST_WEAK_CIPHER_ALGORITHMS = "iast.weak-cipher.algorithms";
@@ -18,7 +19,8 @@ public final class IastConfig {
   public static final String IAST_REDACTION_VALUE_PATTERN = "iast.redaction.value.pattern";
   public static final String IAST_STACK_TRACE_LEAK_SUPPRESS = "iast.stack-trace-leak.suppress";
   public static final String IAST_STACKTRACE_LEAK_SUPPRESS_DEPRECATED =
-      "iast.stacktrace-leak.suppress"; // old non-standard as a fallback alias
+      // old non-standard as a fallback alias
+  "iast.stacktrace-leak.suppress";
   public static final String IAST_HARDCODED_SECRET_ENABLED = "iast.hardcoded-secret.enabled";
   public static final String IAST_MAX_RANGE_COUNT = "iast.max-range-count";
   public static final String IAST_TRUNCATION_MAX_VALUE_LENGTH = "iast.truncation.max.value.length";
@@ -30,10 +32,12 @@ public final class IastConfig {
       "iast.experimental.propagation.enabled";
   public static final String IAST_STACK_TRACE_ENABLED = "iast.stack-trace.enabled";
   public static final String IAST_STACKTRACE_ENABLED_DEPRECATED =
-      "iast.stacktrace.enabled"; // old non-standard as a fallback alias
+      // old non-standard as a fallback alias
+  "iast.stacktrace.enabled";
   public static final String IAST_SECURITY_CONTROLS_CONFIGURATION =
       "iast.security-controls.configuration";
   public static final String IAST_DB_ROWS_TO_TAINT = "iast.db.rows-to-taint";
 
-  private IastConfig() {}
+  private IastConfig() {
+  }
 }

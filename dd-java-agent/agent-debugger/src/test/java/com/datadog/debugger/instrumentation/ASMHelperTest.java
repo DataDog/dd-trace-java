@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +24,6 @@ import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
 
 public class ASMHelperTest {
-
   public static final LocalVariableNode THIS =
       createLocalVar(null, Types.OBJECT_TYPE.getDescriptor(), 0);
 
@@ -36,18 +34,17 @@ public class ASMHelperTest {
     assertEquals(
         "Cannot ensure loading class:  safely as current class being transformed is not provided (null)",
         illegalArgumentException.getMessage());
-    illegalArgumentException =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                ensureSafeClassLoad(
-                    "com.datadog.debugger.MyClass", "com.datadog.debugger.MyClass", null));
+    illegalArgumentException = assertThrows(IllegalArgumentException.class, () -> ensureSafeClassLoad(
+        "com.datadog.debugger.MyClass",
+        "com.datadog.debugger.MyClass",
+        null));
     assertEquals(
         "Cannot load class com.datadog.debugger.MyClass as this is the class being currently transformed",
         illegalArgumentException.getMessage());
-    Class<?> clazz =
-        ensureSafeClassLoad(
-            ASMHelperTest.class.getTypeName(), "", ASMHelperTest.class.getClassLoader());
+    Class<?> clazz = ensureSafeClassLoad(
+        ASMHelperTest.class.getTypeName(),
+        "",
+        ASMHelperTest.class.getClassLoader());
     assertEquals(ASMHelperTest.class, clazz);
   }
 
@@ -63,12 +60,15 @@ public class ASMHelperTest {
     assertTrue(ASMHelper.isStoreCompatibleType(Type.DOUBLE_TYPE, Type.DOUBLE_TYPE));
     assertTrue(ASMHelper.isStoreCompatibleType(Types.OBJECT_TYPE, Type.getType(Object.class)));
     assertTrue(ASMHelper.isStoreCompatibleType(Type.getType(Object.class), Types.OBJECT_TYPE));
-    assertTrue(
-        ASMHelper.isStoreCompatibleType(Type.getType(Object.class), Type.getType(String.class)));
-    assertTrue(
-        ASMHelper.isStoreCompatibleType(Type.getType(String.class), Type.getType(Object.class)));
-    assertTrue(
-        ASMHelper.isStoreCompatibleType(Type.getType(String.class), Type.getType(String.class)));
+    assertTrue(ASMHelper.isStoreCompatibleType(
+        Type.getType(Object.class),
+        Type.getType(String.class)));
+    assertTrue(ASMHelper.isStoreCompatibleType(
+        Type.getType(String.class),
+        Type.getType(Object.class)));
+    assertTrue(ASMHelper.isStoreCompatibleType(
+        Type.getType(String.class),
+        Type.getType(String.class)));
     assertFalse(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.LONG_TYPE));
     assertFalse(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.FLOAT_TYPE));
     assertFalse(ASMHelper.isStoreCompatibleType(Type.INT_TYPE, Type.DOUBLE_TYPE));
@@ -85,22 +85,36 @@ public class ASMHelperTest {
     LocalVariableNode[] emptyLocalVariables = new LocalVariableNode[0];
     Type[] emptyArgs = new Type[0];
     ASMHelper.adjustLocalVarsBasedOnArgs(
-        false, emptyLocalVariables, emptyArgs, Collections.emptyList());
+        false,
+        emptyLocalVariables,
+        emptyArgs,
+        Collections.emptyList());
     ASMHelper.adjustLocalVarsBasedOnArgs(
-        true, emptyLocalVariables, emptyArgs, Collections.emptyList());
+        true,
+        emptyLocalVariables,
+        emptyArgs,
+        Collections.emptyList());
   }
 
   @Test
   public void adjustLocalVarsBasedOnArgs() {
     doAdjustLocalVarsBasedOnArgs(
-        true, asList(Type.INT_TYPE), asList(createLocalVar("a", "I", 0)), asList("a"));
+        true,
+        asList(Type.INT_TYPE),
+        asList(createLocalVar("a", "I", 0)),
+        asList("a"));
     doAdjustLocalVarsBasedOnArgs(
-        false, asList(Type.INT_TYPE), asList(THIS, createLocalVar("a", "I", 1)), asList("a"));
+        false,
+        asList(Type.INT_TYPE),
+        asList(THIS, createLocalVar("a", "I", 1)),
+        asList("a"));
     doAdjustLocalVarsBasedOnArgs(
         true,
         asList(Type.INT_TYPE, Type.INT_TYPE, Type.INT_TYPE),
         asList(
-            createLocalVar("c", "I", 2), createLocalVar("b", "I", 1), createLocalVar("a", "I", 0)),
+            createLocalVar("c", "I", 2),
+            createLocalVar("b", "I", 1),
+            createLocalVar("a", "I", 0)),
         asList("a", "b", "c"));
     doAdjustLocalVarsBasedOnArgs(
         false,
@@ -115,7 +129,9 @@ public class ASMHelperTest {
         true,
         asList(Type.LONG_TYPE, Type.LONG_TYPE, Type.LONG_TYPE),
         asList(
-            createLocalVar("c", "J", 4), createLocalVar("b", "J", 2), createLocalVar("a", "J", 0)),
+            createLocalVar("c", "J", 4),
+            createLocalVar("b", "J", 2),
+            createLocalVar("a", "J", 0)),
         asList("a", "b", "c"));
     doAdjustLocalVarsBasedOnArgs(
         false,
@@ -130,7 +146,9 @@ public class ASMHelperTest {
         true,
         asList(Type.INT_TYPE, Type.INT_TYPE, Type.INT_TYPE),
         asList(
-            createLocalVar("c", "I", 6), createLocalVar("b", "I", 5), createLocalVar("a", "I", 4)),
+            createLocalVar("c", "I", 6),
+            createLocalVar("b", "I", 5),
+            createLocalVar("a", "I", 4)),
         asList("a", "b", "c"));
     doAdjustLocalVarsBasedOnArgs(
         false,
@@ -145,7 +163,9 @@ public class ASMHelperTest {
         true,
         asList(Type.LONG_TYPE, Type.LONG_TYPE, Type.LONG_TYPE),
         asList(
-            createLocalVar("c", "J", 10), createLocalVar("b", "J", 8), createLocalVar("a", "J", 6)),
+            createLocalVar("c", "J", 10),
+            createLocalVar("b", "J", 8),
+            createLocalVar("a", "J", 6)),
         asList("a", "b", "c"));
     doAdjustLocalVarsBasedOnArgs(
         false,
@@ -197,8 +217,10 @@ public class ASMHelperTest {
   @Test
   void computeFramesGrowsMaxStackWhenInsufficient() {
     MethodNode methodNode = new MethodNode(Opcodes.ACC_STATIC, "deepLongStack", "()V", null, null);
-    methodNode.maxStack = 1; // deliberately too small for the actual stack depth needed below
-    int longCount = 20; // stack depth of 20, well above the initial guess of 16
+    // deliberately too small for the actual stack depth needed below
+    methodNode.maxStack = 1;
+    // stack depth of 20, well above the initial guess of 16
+    int longCount = 20;
     for (int i = 0; i < longCount; i++) {
       methodNode.instructions.add(new InsnNode(Opcodes.LCONST_0));
     }

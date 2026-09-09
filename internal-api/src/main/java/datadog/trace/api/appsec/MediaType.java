@@ -3,9 +3,7 @@ package datadog.trace.api.appsec;
 import java.util.Locale;
 
 public class MediaType {
-
   public static final MediaType UNKNOWN = new MediaType(null, null, null);
-
   private final String type;
   private final String subtype;
   private final String charset;

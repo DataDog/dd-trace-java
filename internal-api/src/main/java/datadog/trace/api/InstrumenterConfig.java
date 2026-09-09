@@ -100,7 +100,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.VISITOR_CLASS_
 import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
@@ -131,25 +130,20 @@ import java.util.Set;
  * @see DynamicConfig for configuration that can be dynamically updated via remote-config
  * @see Config for other configurations
  */
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Instance also created in Config")
+@SuppressFBWarnings(value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR", justification = "Instanc"
+    + "e also created in Config")
 public class InstrumenterConfig {
   static {
     // skip registration when building native-images as telemetry is not available
     if (!Platform.isNativeImageBuilder()) {
-      ConfigInversionMetricCollectorProvider.register(
-          ConfigInversionMetricCollectorImpl.getInstance());
+      ConfigInversionMetricCollectorProvider.register(ConfigInversionMetricCollectorImpl.getInstance());
     }
   }
 
   private final ConfigProvider configProvider;
-
   private final boolean triageEnabled;
-
   private final boolean integrationsEnabled;
   private final boolean detailedInstrumentationErrors;
-
   private final boolean codeOriginEnabled;
   private final boolean codeOriginInterfaceSupport;
   private final boolean traceEnabled;
@@ -165,38 +159,28 @@ public class InstrumenterConfig {
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
   private final boolean llmObsEnabled;
-
   private final String traceExtensionsPath;
-
   private final boolean traceExecutorsAll;
   private final List<String> traceExecutors;
   private final Set<String> traceThreadPoolExecutorsExclude;
-
   private final String jdbcPreparedStatementClassName;
   private final String jdbcConnectionClassName;
   private final boolean jdbcPoolWaitingEnabled;
-
   private final String httpURLConnectionClassName;
   private final String axisTransportClassName;
   private final boolean websocketTracingEnabled;
   private final boolean pekkoSchedulerEnabled;
-
   private final String akkaForkJoinTaskName;
   private final String akkaForkJoinExecutorTaskName;
   private final String akkaForkJoinPoolName;
-
   private final boolean directAllocationProfilingEnabled;
-
   private final String instrumentationConfigId;
-
   private final List<String> excludedClasses;
   private final String excludedClassesFile;
   private final Set<String> excludedClassLoaders;
   private final List<String> excludedCodeSources;
   private final Set<String> deferredClassLoaders;
-
   private final String deferIntegrationsUntil;
-
   private final ResolverCacheConfig resolverCacheConfig;
   private final String resolverCacheDir;
   private final boolean resolverNamesAreUnique;
@@ -205,30 +189,22 @@ public class InstrumenterConfig {
   private final Boolean resolverUseUrlCaches;
   private final int resolverResetInterval;
   private final boolean visitorClassParsing;
-
   private final boolean unsafeClassInjection;
-
   private final boolean runtimeContextFieldInjection;
   private final boolean serialVersionUIDFieldInjection;
   private final boolean runtimeContextMapPerStore;
-
   private final String traceAnnotations;
   private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
   private final Map<String, Set<String>> traceNativeMethods;
   private final Map<String, Set<String>> measureMethods;
   private final Map<String, Set<String>> measureNativeMethods;
-
   private final boolean internalExitOnFailure;
-
   private final Collection<String> additionalJaxRsAnnotations;
-
   private final boolean rumEnabled;
   private final boolean dataJobsEnabled;
-
   private final boolean agentlessLogSubmissionEnabled;
   private final boolean apiSecurityEndpointCollectionEnabled;
-
   private final boolean appLogsCollectionEnabled;
   private final boolean legacyContextManagerEnabled;
 
@@ -245,48 +221,52 @@ public class InstrumenterConfig {
     this.configProvider = configProvider;
 
     if (null != configProvider.getString(TRIAGE_REPORT_TRIGGER)) {
-      triageEnabled = true; // explicitly setting a trigger implies triage mode
+      // explicitly setting a trigger implies triage mode
+      triageEnabled = true;
     } else {
       // default to same state as debug mode, unless explicitly overridden
       boolean debugEnabled = configProvider.getBoolean(TRACE_DEBUG, false);
       triageEnabled = configProvider.getBoolean(TRACE_TRIAGE, debugEnabled);
     }
 
-    integrationsEnabled =
-        configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
-    detailedInstrumentationErrors =
-        configProvider.getBoolean(DETAILED_INSTRUMENTATION_ERRORS, false);
+    integrationsEnabled = configProvider.getBoolean(
+        INTEGRATIONS_ENABLED,
+        DEFAULT_INTEGRATIONS_ENABLED);
+    detailedInstrumentationErrors = configProvider.getBoolean(
+        DETAILED_INSTRUMENTATION_ERRORS,
+        false);
 
-    codeOriginEnabled =
-        configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
-    codeOriginInterfaceSupport =
-        configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
-            DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
+    codeOriginEnabled = configProvider.getBoolean(
+        CODE_ORIGIN_FOR_SPANS_ENABLED,
+        getDefaultCodeOriginForSpanEnabled());
+    codeOriginInterfaceSupport = configProvider.getBoolean(
+        CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
+        DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
-    metricsOtelEnabled =
-        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
+    metricsOtelEnabled = configProvider.getBoolean(
+        METRICS_OTEL_ENABLED,
+        DEFAULT_METRICS_OTEL_ENABLED);
     logsOtelEnabled = configProvider.getBoolean(LOGS_OTEL_ENABLED, DEFAULT_LOGS_OTEL_ENABLED);
 
-    profilingEnabled =
-        ProfilingEnablement.of(
-            configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
+    profilingEnabled = ProfilingEnablement.of(configProvider.getString(
+        PROFILING_ENABLED,
+        String.valueOf(PROFILING_ENABLED_DEFAULT)));
     rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
 
     appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
 
     if (!Platform.isNativeImageBuilder()) {
-      ciVisibilityEnabled =
-          configProvider.getBoolean(CIVISIBILITY_ENABLED, DEFAULT_CIVISIBILITY_ENABLED);
-      appSecActivation =
-          ProductActivation.fromString(
-              configProvider.getStringNotEmpty(APPSEC_ENABLED, DEFAULT_APPSEC_ENABLED));
-      iastActivation =
-          ProductActivation.fromString(
-              configProvider.getStringNotEmpty(IAST_ENABLED, DEFAULT_IAST_ENABLED));
+      ciVisibilityEnabled = configProvider.getBoolean(
+          CIVISIBILITY_ENABLED,
+          DEFAULT_CIVISIBILITY_ENABLED);
+      appSecActivation = ProductActivation.fromString(configProvider.getStringNotEmpty(
+          APPSEC_ENABLED,
+          DEFAULT_APPSEC_ENABLED));
+      iastActivation = ProductActivation.fromString(configProvider.getStringNotEmpty(
+          IAST_ENABLED,
+          DEFAULT_IAST_ENABLED));
       final Boolean iastEnabled = configProvider.getBoolean(IAST_ENABLED);
       iastFullyDisabled = iastEnabled != null && !iastEnabled;
       usmEnabled = configProvider.getBoolean(USM_ENABLED, DEFAULT_USM_ENABLED);
@@ -307,11 +287,12 @@ public class InstrumenterConfig {
 
     traceExecutorsAll = configProvider.getBoolean(TRACE_EXECUTORS_ALL, DEFAULT_TRACE_EXECUTORS_ALL);
     traceExecutors = tryMakeImmutableList(configProvider.getList(TRACE_EXECUTORS));
-    traceThreadPoolExecutorsExclude =
-        tryMakeImmutableSet(configProvider.getList(TRACE_THREAD_POOL_EXECUTORS_EXCLUDE));
+    traceThreadPoolExecutorsExclude = tryMakeImmutableSet(configProvider.getList(
+        TRACE_THREAD_POOL_EXECUTORS_EXCLUDE));
 
-    jdbcPreparedStatementClassName =
-        configProvider.getString(JDBC_PREPARED_STATEMENT_CLASS_NAME, "");
+    jdbcPreparedStatementClassName = configProvider.getString(
+        JDBC_PREPARED_STATEMENT_CLASS_NAME,
+        "");
     jdbcConnectionClassName = configProvider.getString(JDBC_CONNECTION_CLASS_NAME, "");
     jdbcPoolWaitingEnabled = configProvider.getBoolean(JDBC_POOL_WAITING_ENABLED, false);
 
@@ -322,9 +303,9 @@ public class InstrumenterConfig {
     akkaForkJoinExecutorTaskName = configProvider.getString(AKKA_FORK_JOIN_EXECUTOR_TASK_NAME, "");
     akkaForkJoinPoolName = configProvider.getString(AKKA_FORK_JOIN_POOL_NAME, "");
 
-    directAllocationProfilingEnabled =
-        configProvider.getBoolean(
-            PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
+    directAllocationProfilingEnabled = configProvider.getBoolean(
+        PROFILING_DIRECT_ALLOCATION_ENABLED,
+        PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT);
 
     excludedClasses = tryMakeImmutableList(configProvider.getList(TRACE_CLASSES_EXCLUDE));
     excludedClassesFile = configProvider.getString(TRACE_CLASSES_EXCLUDE_FILE);
@@ -334,70 +315,72 @@ public class InstrumenterConfig {
 
     deferIntegrationsUntil = configProvider.getString(EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL);
 
-    resolverCacheConfig =
-        configProvider.getEnum(
-            RESOLVER_CACHE_CONFIG, ResolverCacheConfig.class, ResolverCacheConfig.MEMOS);
+    resolverCacheConfig = configProvider.getEnum(
+        RESOLVER_CACHE_CONFIG,
+        ResolverCacheConfig.class,
+        ResolverCacheConfig.MEMOS);
     resolverCacheDir = configProvider.getString(RESOLVER_CACHE_DIR);
     resolverNamesAreUnique = configProvider.getBoolean(RESOLVER_NAMES_ARE_UNIQUE, false);
-    resolverSimpleMethodGraph =
-        // use simpler approach everywhere except GraalVM, where it affects reachability analysis
-        configProvider.getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
+    resolverSimpleMethodGraph = configProvider
+      // use simpler approach everywhere except GraalVM, where it affects reachability analysis
+      .getBoolean(RESOLVER_SIMPLE_METHOD_GRAPH, !Platform.isNativeImageBuilder());
     resolverUseLoadClass = configProvider.getBoolean(RESOLVER_USE_LOADCLASS, true);
     resolverUseUrlCaches = configProvider.getBoolean(RESOLVER_USE_URL_CACHES);
-    resolverResetInterval =
-        Platform.isNativeImageBuilder()
-            ? 0
-            : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
+    resolverResetInterval = Platform.isNativeImageBuilder()
+        ? 0
+        : configProvider.getInteger(RESOLVER_RESET_INTERVAL, DEFAULT_RESOLVER_RESET_INTERVAL);
 
     unsafeClassInjection = configProvider.getBoolean(UNSAFE_CLASS_INJECTION, false);
     visitorClassParsing = configProvider.getBoolean(VISITOR_CLASS_PARSING, false);
 
-    runtimeContextFieldInjection =
-        configProvider.getBoolean(
-            RUNTIME_CONTEXT_FIELD_INJECTION, DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
-    serialVersionUIDFieldInjection =
-        configProvider.getBoolean(
-            SERIALVERSIONUID_FIELD_INJECTION, DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
-    runtimeContextMapPerStore =
-        configProvider.getBoolean(
-            RUNTIME_CONTEXT_MAP_PER_STORE, DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE);
+    runtimeContextFieldInjection = configProvider.getBoolean(
+        RUNTIME_CONTEXT_FIELD_INJECTION,
+        DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION);
+    serialVersionUIDFieldInjection = configProvider.getBoolean(
+        SERIALVERSIONUID_FIELD_INJECTION,
+        DEFAULT_SERIALVERSIONUID_FIELD_INJECTION);
+    runtimeContextMapPerStore = configProvider.getBoolean(
+        RUNTIME_CONTEXT_MAP_PER_STORE,
+        DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE);
 
     instrumentationConfigId = configProvider.getString(INSTRUMENTATION_CONFIG_ID, "");
 
     traceAnnotations = configProvider.getString(TRACE_ANNOTATIONS, DEFAULT_TRACE_ANNOTATIONS);
-    traceAnnotationAsync =
-        configProvider.getBoolean(TRACE_ANNOTATION_ASYNC, DEFAULT_TRACE_ANNOTATION_ASYNC);
-    traceMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
-    traceNativeMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
-    measureMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
-    measureNativeMethods =
-        MethodFilterConfigParser.parse(
-            configProvider.getString(MEASURE_NATIVE_METHODS, DEFAULT_MEASURE_NATIVE_METHODS));
+    traceAnnotationAsync = configProvider.getBoolean(
+        TRACE_ANNOTATION_ASYNC,
+        DEFAULT_TRACE_ANNOTATION_ASYNC);
+    traceMethods = MethodFilterConfigParser.parse(configProvider.getString(
+        TRACE_METHODS,
+        DEFAULT_TRACE_METHODS));
+    traceNativeMethods = MethodFilterConfigParser.parse(configProvider.getString(
+        TRACE_NATIVE_METHODS,
+        DEFAULT_TRACE_NATIVE_METHODS));
+    measureMethods = MethodFilterConfigParser.parse(configProvider.getString(
+        MEASURE_METHODS,
+        DEFAULT_MEASURE_METHODS));
+    measureNativeMethods = MethodFilterConfigParser.parse(configProvider.getString(
+        MEASURE_NATIVE_METHODS,
+        DEFAULT_MEASURE_NATIVE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
-    this.additionalJaxRsAnnotations =
-        tryMakeImmutableSet(configProvider.getList(JAX_RS_ADDITIONAL_ANNOTATIONS));
-    this.websocketTracingEnabled =
-        configProvider.getBoolean(
-            TRACE_WEBSOCKET_MESSAGES_ENABLED, DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
+    this.additionalJaxRsAnnotations = tryMakeImmutableSet(configProvider.getList(
+        JAX_RS_ADDITIONAL_ANNOTATIONS));
+    this.websocketTracingEnabled = configProvider.getBoolean(
+        TRACE_WEBSOCKET_MESSAGES_ENABLED,
+        DEFAULT_WEBSOCKET_MESSAGES_ENABLED);
     this.pekkoSchedulerEnabled = configProvider.getBoolean(TRACE_PEKKO_SCHEDULER_ENABLED, false);
 
-    agentlessLogSubmissionEnabled =
-        configProvider.getBoolean(AGENTLESS_LOG_SUBMISSION_ENABLED, false);
+    agentlessLogSubmissionEnabled = configProvider.getBoolean(
+        AGENTLESS_LOG_SUBMISSION_ENABLED,
+        false);
 
-    apiSecurityEndpointCollectionEnabled =
-        configProvider.getBoolean(
-            API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
-            DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+    apiSecurityEndpointCollectionEnabled = configProvider.getBoolean(
+        API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
+        DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
 
-    appLogsCollectionEnabled =
-        configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
+    appLogsCollectionEnabled = configProvider.getBoolean(
+        APP_LOGS_COLLECTION_ENABLED,
+        DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
     legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
   }
@@ -434,15 +417,16 @@ public class InstrumenterConfig {
    * @return boolean on whether the integration is enabled
    */
   public boolean isIntegrationEnabled(
-      final Iterable<String> integrationNames, final boolean defaultEnabled) {
+      final Iterable<String> integrationNames,
+      final boolean defaultEnabled) {
     // If default is enabled, we want to disable individually.
     // If default is disabled, we want to enable individually.
     boolean anyEnabled = defaultEnabled;
     for (final String name : integrationNames) {
       final String primaryKey = "trace." + name + ".enabled";
-      final String[] aliases = {
-        "trace.integration." + name + ".enabled", "integration." + name + ".enabled"
-      }; // listed in order of precedence
+      final String[] aliases =
+          {"trace.integration." + name + ".enabled", "integration." + name + ".enabled"};
+      // listed in order of precedence
       final boolean configEnabled = configProvider.getBoolean(primaryKey, defaultEnabled, aliases);
       if (defaultEnabled) {
         anyEnabled &= configEnabled;
@@ -454,9 +438,13 @@ public class InstrumenterConfig {
   }
 
   public boolean isIntegrationShortcutMatchingEnabled(
-      final Iterable<String> integrationNames, final boolean defaultEnabled) {
+      final Iterable<String> integrationNames,
+      final boolean defaultEnabled) {
     return configProvider.isEnabled(
-        integrationNames, "integration.", ".matching.shortcut.enabled", defaultEnabled);
+        integrationNames,
+        "integration.",
+        ".matching.shortcut.enabled",
+        defaultEnabled);
   }
 
   public boolean isTraceEnabled() {
@@ -722,9 +710,13 @@ public class InstrumenterConfig {
   }
 
   public boolean isLegacyInstrumentationEnabled(
-      final boolean defaultEnabled, final String... integrationNames) {
+      final boolean defaultEnabled,
+      final String... integrationNames) {
     return configProvider.isEnabled(
-        Arrays.asList(integrationNames), "", ".legacy.tracing.enabled", defaultEnabled);
+        Arrays.asList(integrationNames),
+        "",
+        ".legacy.tracing.enabled",
+        defaultEnabled);
   }
 
   public boolean isRumEnabled() {
@@ -752,11 +744,8 @@ public class InstrumenterConfig {
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
-  private static final InstrumenterConfig INSTANCE =
-      new InstrumenterConfig(
-          Platform.isNativeImageBuilder()
-              ? ConfigProvider.withoutCollector()
-              : ConfigProvider.getInstance());
+  private static final InstrumenterConfig INSTANCE = new InstrumenterConfig(
+      Platform.isNativeImageBuilder() ? ConfigProvider.withoutCollector() : ConfigProvider.getInstance());
 
   public static boolean getDefaultCodeOriginForSpanEnabled() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {

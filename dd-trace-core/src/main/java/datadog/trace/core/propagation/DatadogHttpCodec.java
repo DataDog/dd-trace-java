@@ -6,7 +6,6 @@ import static datadog.trace.core.propagation.XRayHttpCodec.XRayContextInterprete
 import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -23,10 +22,11 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A codec designed for HTTP transport via headers using Datadog headers */
+/**
+ * A codec designed for HTTP transport via headers using Datadog headers
+ */
 class DatadogHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(DatadogHttpCodec.class);
-
   static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
   static final String TRACE_ID_KEY = "x-datadog-trace-id";
   static final String SPAN_ID_KEY = "x-datadog-parent-id";
@@ -44,7 +44,6 @@ class DatadogHttpCodec {
   }
 
   private static class Injector implements HttpCodec.Injector {
-
     private final Map<String, String> invertedBaggageMapping;
 
     public Injector(Map<String, String> invertedBaggageMapping) {
@@ -54,8 +53,9 @@ class DatadogHttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
-
+        final DDSpanContext context,
+        final C carrier,
+        final CarrierSetter<C> setter) {
       setter.set(carrier, TRACE_ID_KEY, context.getTraceId().toString());
       setter.set(carrier, SPAN_ID_KEY, DDSpanId.toString(context.getSpanId()));
       if (context.lockSamplingPriority()) {
@@ -75,7 +75,6 @@ class DatadogHttpCodec {
         header = header != null ? header : OT_BAGGAGE_PREFIX + entry.getKey();
         setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
       }
-
       // inject x-datadog-tags
       String datadogTags = context.getPropagationTags().headerValue(HeaderType.DATADOG);
       if (datadogTags != null) {
@@ -85,13 +84,12 @@ class DatadogHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(
-        traceConfigSupplier, () -> new DatadogContextInterpreter(config));
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier) {
+    return new TagContextExtractor(traceConfigSupplier, () -> new DatadogContextInterpreter(config));
   }
 
   private static class DatadogContextInterpreter extends ContextInterpreter {
-
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;
     private static final int ORIGIN = 2;
@@ -100,7 +98,6 @@ class DatadogHttpCodec {
     private static final int E2E_START = 5;
     private static final int DD_TAGS = 6;
     private static final int IGNORE = -1;
-
     private final boolean isAwsPropagationEnabled;
 
     private DatadogContextInterpreter(Config config) {

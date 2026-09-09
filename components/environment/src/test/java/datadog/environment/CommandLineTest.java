@@ -9,7 +9,6 @@ import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.environment.CommandLineHelper.Result;
 import datadog.environment.CommandLineHelper.RunArguments;
 import java.io.BufferedReader;
@@ -26,7 +25,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class CommandLineTest {
-
   static Stream<Arguments> data() {
     // spotless:off
     return Stream.of(
@@ -109,9 +107,8 @@ class CommandLineTest {
 
   private static List<String> expectedArsFromArgFile(String name) {
     List<String> arguments = new ArrayList<>();
-    try (InputStream stream =
-            requireNonNull(
-                CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
+    try (InputStream stream = requireNonNull(CommandLineTest.class
+      .getResourceAsStream("/argfiles/" + name + "-expected.txt"));
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
       String line;
       while ((line = reader.readLine()) != null) {

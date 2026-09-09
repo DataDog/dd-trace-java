@@ -6,25 +6,23 @@ import scala.Option;
 import scala.collection.immutable.Map;
 
 public class Spark213PlanUtils extends AbstractSparkPlanUtils {
-  private static final MethodHandle constructor =
-      methodLoader.constructor(
-          SparkPlanInfo.class,
-          String.class,
-          String.class,
-          scala.collection.immutable.Seq.class,
-          scala.collection.immutable.Map.class,
-          scala.collection.immutable.Seq.class);
-  private static final MethodHandle databricksConstructor =
-      methodLoader.constructor(
-          SparkPlanInfo.class,
-          String.class,
-          String.class,
-          scala.collection.immutable.Seq.class,
-          scala.collection.immutable.Map.class,
-          scala.collection.immutable.Seq.class,
-          Option.class,
-          String.class,
-          Option.class);
+  private static final MethodHandle constructor = methodLoader.constructor(
+      SparkPlanInfo.class,
+      String.class,
+      String.class,
+      scala.collection.immutable.Seq.class,
+      scala.collection.immutable.Map.class,
+      scala.collection.immutable.Seq.class);
+  private static final MethodHandle databricksConstructor = methodLoader.constructor(
+      SparkPlanInfo.class,
+      String.class,
+      String.class,
+      scala.collection.immutable.Seq.class,
+      scala.collection.immutable.Map.class,
+      scala.collection.immutable.Seq.class,
+      Option.class,
+      String.class,
+      Option.class);
 
   @Override
   protected MethodHandle getConstructor() {
@@ -39,7 +37,11 @@ public class Spark213PlanUtils extends AbstractSparkPlanUtils {
   @Override
   protected Object[] getStandardArgs(SparkPlanInfo planInfo, Map meta) {
     return new Object[] {
-      planInfo.nodeName(), planInfo.simpleString(), planInfo.children(), meta, planInfo.metrics()
+        planInfo.nodeName(),
+        planInfo.simpleString(),
+        planInfo.children(),
+        meta,
+        planInfo.metrics()
     };
   }
 }

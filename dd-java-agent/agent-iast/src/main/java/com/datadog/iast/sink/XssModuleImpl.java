@@ -1,7 +1,6 @@
 package com.datadog.iast.sink;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Location;
 import com.datadog.iast.model.VulnerabilityType;
@@ -12,7 +11,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class XssModuleImpl extends SinkModuleBase implements XssModule {
-
   private static final int MAX_LENGTH = 500;
 
   public XssModuleImpl(final Dependencies dependencies) {
@@ -80,7 +78,7 @@ public class XssModuleImpl extends SinkModuleBase implements XssModule {
     }
 
     @Override
-    public Location build(final @Nullable AgentSpan span) {
+    public Location build(@Nullable final AgentSpan span) {
       return Location.forSpanAndClassAndMethod(span, truncate(clazz), truncate(method));
     }
   }

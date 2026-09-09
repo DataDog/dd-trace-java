@@ -3,7 +3,9 @@ package datadog.trace.bootstrap.debugger;
 import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.util.List;
 
-/** Probe information associated with a snapshot */
+/**
+ * Probe information associated with a snapshot
+ */
 public interface ProbeImplementation {
   ProbeImplementation UNKNOWN =
       new NoopProbeImplementation(new ProbeId("UNKNOWN", 0), ProbeLocation.UNKNOWN);

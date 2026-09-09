@@ -10,10 +10,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class NoOpGitClient implements GitClient {
-
   public static final GitClient INSTANCE = new NoOpGitClient();
 
-  private NoOpGitClient() {}
+  private NoOpGitClient() {
+  }
 
   @Override
   public boolean isShallow() {
@@ -82,7 +82,8 @@ public class NoOpGitClient implements GitClient {
   @Nonnull
   @Override
   public List<String> getObjects(
-      Collection<String> commitsToSkip, Collection<String> commitsToInclude) {
+      Collection<String> commitsToSkip,
+      Collection<String> commitsToInclude) {
     return Collections.emptyList();
   }
 

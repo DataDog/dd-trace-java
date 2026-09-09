@@ -11,24 +11,25 @@ import java.security.Provider;
 @Sink(VulnerabilityTypes.WEAK_HASH)
 @CallSite(spi = IastCallSites.class)
 public class WeakHashInstrumentationCallSite {
-
-  @CallSite.Before(
-      "java.security.MessageDigest java.security.MessageDigest.getInstance(java.lang.String)")
+  @CallSite.Before("java.security.MessageDigest java.security.MessageDigest.getInstance(java."
+      + "lang.String)")
   public static void beforeGetInstance(@CallSite.Argument final String algo) {
     onHashingAlgorithm(algo);
   }
 
-  @CallSite.Before(
-      "java.security.MessageDigest java.security.MessageDigest.getInstance(java.lang.String, java.lang.String)")
+  @CallSite.Before("java.security.MessageDigest java.security.MessageDigest.getInstance(java."
+      + "lang.String, java.lang.String)")
   public static void beforeGetInstance(
-      @CallSite.Argument final String algo, @CallSite.Argument final String provider) {
+      @CallSite.Argument final String algo,
+      @CallSite.Argument final String provider) {
     onHashingAlgorithm(algo);
   }
 
-  @CallSite.Before(
-      "java.security.MessageDigest java.security.MessageDigest.getInstance(java.lang.String, java.security.Provider)")
+  @CallSite.Before("java.security.MessageDigest java.security.MessageDigest.getInstance(java."
+      + "lang.String, java.security.Provider)")
   public static void beforeGetInstance(
-      @CallSite.Argument final String algo, @CallSite.Argument final Provider provider) {
+      @CallSite.Argument final String algo,
+      @CallSite.Argument final Provider provider) {
     onHashingAlgorithm(algo);
   }
 

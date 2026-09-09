@@ -5,7 +5,6 @@ import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
-
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.util.ClassFileLines;
@@ -31,11 +30,12 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Frame;
 
-/** Common class for generating instrumentation */
+/**
+ * Common class for generating instrumentation
+ */
 public abstract class Instrumenter {
   protected static final String CONSTRUCTOR_NAME = "<init>";
   protected static final String PROBEID_TAG_NAME = "debugger.probeid";
-
   protected final ProbeDefinition definition;
   protected final ClassLoader classLoader;
   protected final ClassNode classNode;
@@ -91,8 +91,11 @@ public abstract class Instrumenter {
   private String[] extractArgumentNames(Type[] argTypes) {
     String[] argumentNames = new String[argOffset];
     if (methodNode.localVariables != null && !methodNode.localVariables.isEmpty()) {
-      localVarBaseOffset =
-          methodNode.localVariables.stream().mapToInt(v -> v.index).min().orElse(0);
+      localVarBaseOffset = methodNode.localVariables
+        .stream()
+        .mapToInt(v -> v.index)
+        .min()
+        .orElse(0);
       for (LocalVariableNode localVariableNode : methodNode.localVariables) {
         int idx = localVariableNode.index - localVarBaseOffset;
         if (idx < argOffset) {
@@ -138,7 +141,8 @@ public abstract class Instrumenter {
       }
       if (stackCount == 0 && first.getOpcode() == Opcodes.INVOKESPECIAL) {
         MethodInsnNode methodInsnNode = (MethodInsnNode) first;
-        if (methodInsnNode.owner.equals(classNode.superName)) { // super() case
+        if (methodInsnNode.owner.equals(classNode.superName)) {
+          // super() case
           return first;
         }
         if (methodInsnNode.owner.equals(classNode.name)
@@ -173,7 +177,9 @@ public abstract class Instrumenter {
   // returns the extra values sitting *below* `valuesToKeep` values already
   // accounted for at the top of the stack (e.g. the return value), as POP/POP2 insns
   protected InsnList stackCleanupInsnList(
-      AbstractInsnNode node, int valuesToKeep, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+      AbstractInsnNode node,
+      int valuesToKeep,
+      Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     InsnList result = new InsnList();
     Frame<BasicValue> frame = frames.get(node);
     if (frame == null) {
@@ -187,7 +193,8 @@ public abstract class Instrumenter {
   }
 
   protected AbstractInsnNode processInstruction(
-      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+      AbstractInsnNode node,
+      Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     switch (node.getOpcode()) {
       case Opcodes.RET:
       case Opcodes.RETURN:
@@ -205,7 +212,8 @@ public abstract class Instrumenter {
           AbstractInsnNode prev = node.getPrevious();
           methodNode.instructions.remove(node);
           methodNode.instructions.insert(
-              prev, new JumpInsnNode(Opcodes.GOTO, getReturnHandler(node)));
+              prev,
+              new JumpInsnNode(Opcodes.GOTO, getReturnHandler(node)));
           return prev;
         }
     }
@@ -213,7 +221,8 @@ public abstract class Instrumenter {
   }
 
   protected InsnList getBeforeReturnInsnList(
-      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+      AbstractInsnNode node,
+      Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     return null;
   }
 
@@ -228,7 +237,8 @@ public abstract class Instrumenter {
     methodNode.instructions.add(returnHandlerLabel);
     // stack top is return value (if any)
     InsnList handler = getReturnHandlerInsnList();
-    handler.add(exitNode); // stack: []
+    // stack: []
+    handler.add(exitNode);
     methodNode.instructions.add(handler);
     return returnHandlerLabel;
   }
@@ -242,15 +252,22 @@ public abstract class Instrumenter {
       insnList.add(new InsnNode(Opcodes.ACONST_NULL));
       return;
     }
-    ldc(insnList, tags.length); // stack: [int]
-    insnList.add(
-        new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName())); // stack: [array]
+    // stack: [int]
+    ldc(insnList, tags.length);
+    // stack: [array]
+    insnList
+      // stack: [array]
+      .add(new TypeInsnNode(Opcodes.ANEWARRAY, STRING_TYPE.getInternalName()));
     int counter = 0;
     for (ProbeDefinition.Tag tag : tags) {
-      insnList.add(new InsnNode(Opcodes.DUP)); // stack: [array, array]
-      ldc(insnList, counter++); // stack: [array, array, int]
-      ldc(insnList, tag.toString()); // stack: [array, array, int, string]
-      insnList.add(new InsnNode(Opcodes.AASTORE)); // stack: [array]
+      // stack: [array, array]
+      insnList.add(new InsnNode(Opcodes.DUP));
+      // stack: [array, array, int]
+      ldc(insnList, counter++);
+      // stack: [array, array, int, string]
+      ldc(insnList, tag.toString());
+      // stack: [array]
+      insnList.add(new InsnNode(Opcodes.AASTORE));
     }
   }
 
@@ -299,7 +316,10 @@ public abstract class Instrumenter {
     for (FinallyBlock finallyBlock : finallyBlocks) {
       methodNode.tryCatchBlocks.add(
           new TryCatchBlockNode(
-              finallyBlock.startLabel, finallyBlock.endLabel, finallyBlock.handlerLabel, null));
+              finallyBlock.startLabel,
+              finallyBlock.endLabel,
+              finallyBlock.handlerLabel,
+              null));
     }
   }
 

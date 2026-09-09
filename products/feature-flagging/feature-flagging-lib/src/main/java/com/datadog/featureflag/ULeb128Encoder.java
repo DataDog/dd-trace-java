@@ -23,8 +23,8 @@ import java.util.TreeSet;
  * [0x64, 0x08, 0x14, 0x02]} → base64 {@code "ZAgUAg=="}.
  */
 final class ULeb128Encoder {
-
-  private ULeb128Encoder() {}
+  private ULeb128Encoder() {
+  }
 
   /**
    * ULEB128 delta-varint encodes the given serial ids into a bare base64 string.
@@ -45,8 +45,9 @@ final class ULeb128Encoder {
     int length = 0;
     int previous = 0;
     for (final Integer id : sorted) {
-      long delta =
-          ((long) id) - previous; // long to stay safe; deltas are non-negative (sorted asc)
+      // long to stay safe; deltas are non-negative (sorted asc)
+      long // long to stay safe; deltas are non-negative (sorted asc)
+      delta = ((long) id) - previous;
       previous = id;
       while (delta > 0x7FL) {
         buffer[length++] = (byte) ((delta & 0x7FL) | 0x80L);
@@ -84,14 +85,12 @@ final class ULeb128Encoder {
   // Per-thread SHA-256 instance: hashing runs on every doLog=true subject capture, so a
   // ThreadLocal avoids a provider lookup + allocation per call on that hot path. digest() resets
   // the instance after each hash; we also reset() defensively before use.
-  private static final ThreadLocal<MessageDigest> SHA_256 =
-      ThreadLocal.withInitial(
-          () -> {
-            try {
-              return MessageDigest.getInstance("SHA-256");
-            } catch (final NoSuchAlgorithmException e) {
-              // SHA-256 is mandated by the JLS on every JVM; unreachable in practice.
-              throw new IllegalStateException("SHA-256 algorithm not available", e);
-            }
-          });
+  private static final ThreadLocal<MessageDigest> SHA_256 = ThreadLocal.withInitial(() -> {
+    try {
+      return MessageDigest.getInstance("SHA-256");
+    } catch (final NoSuchAlgorithmException e) {
+      // SHA-256 is mandated by the JLS on every JVM; unreachable in practice.
+      throw new IllegalStateException("SHA-256 algorithm not available", e);
+    }
+  });
 }

@@ -45,19 +45,22 @@ import org.slf4j.LoggerFactory;
  * in that case.
  */
 public interface TaintedMap extends Iterable<TaintedObject> {
-
-  /** Default capacity. It MUST be a power of 2. */
+  /**
+   * Default capacity. It MUST be a power of 2.
+   */
   int DEFAULT_CAPACITY = 1 << 14;
-
-  /** Bitmask to convert hashes to positive integers. */
+  /**
+   * Bitmask to convert hashes to positive integers.
+   */
   int POSITIVE_MASK = Integer.MAX_VALUE;
-
-  /** Max allowed size for the linked list inside a bucket */
+  /**
+   * Max allowed size for the linked list inside a bucket
+   */
   int DEFAULT_MAX_BUCKET_SIZE = 10;
-
-  /** Max age of entries contained in the map (worst case will be {@code 2 * maxAge}) */
+  /**
+   * Max age of entries contained in the map (worst case will be {@code 2 * maxAge})
+   */
   int DEFAULT_MAX_AGE = 5;
-
   TimeUnit DEFAULT_MAX_AGE_UNIT = TimeUnit.MINUTES;
 
   /**
@@ -65,8 +68,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
    * cases no purge will happen as they will be cleared on the end of the context.
    */
   static TaintedMap build(final int capacity) {
-    final TaintedMapImpl map =
-        new TaintedMapImpl(capacity, DEFAULT_MAX_BUCKET_SIZE, -1, null, null);
+    final TaintedMapImpl map = new TaintedMapImpl(capacity, DEFAULT_MAX_BUCKET_SIZE, -1, null, null);
     return IastSystem.DEBUG ? new Debug(map) : map;
   }
 
@@ -75,44 +77,51 @@ public interface TaintedMap extends Iterable<TaintedObject> {
    * case there is a purge logic that will clear stale entries according to the scheduled interval.
    */
   static TaintedMap buildWithPurge(final int capacity, int maxAge, TimeUnit maxAgeUnit) {
-    final TaintedMapImpl map =
-        new TaintedMapImpl(
-            capacity, DEFAULT_MAX_BUCKET_SIZE, maxAge, maxAgeUnit, AgentTaskScheduler.get());
+    final TaintedMapImpl map = new TaintedMapImpl(
+        capacity,
+        DEFAULT_MAX_BUCKET_SIZE,
+        maxAge,
+        maxAgeUnit,
+        AgentTaskScheduler.get());
     return IastSystem.DEBUG ? new Debug(map) : map;
   }
 
   @Nullable
   TaintedObject get(@Nonnull Object key);
 
-  void put(final @Nonnull TaintedObject entry);
+  void put(@Nonnull final TaintedObject entry);
 
   int count();
 
   void clear();
 
   class TaintedMapImpl implements TaintedMap, Runnable {
-
     protected final TaintedObject[] table;
-
-    /** Bitmask for fast modulo with table length. */
+    /**
+     * Bitmask for fast modulo with table length.
+     */
     protected final int lengthMask;
-
-    /** Max size of each bucket. */
+    /**
+     * Max size of each bucket.
+     */
     protected final int maxBucketSize;
-
     /**
      * Flag for the current alive tainted objects (red/black style marking for max age calculation).
      */
-    @SuppressFBWarnings(
-        value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-        justification =
-            "The design explicitly tolerates losses in high-concurrency scenarios. The delayed visibility of the generation flag can cause some entries to be purged a bit earlier or later than ideal, but this is still within the acceptable boundaries of the design.")
+    @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The "
+        + "design explicitly tolerates losses in high-concurrency scenarios. The delayed "
+        + "visibility of the generation flag can cause some entries to be purged a bit "
+        + "earlier or later than ideal, but this is still within the acceptable boundaries "
+        + "of the design.")
     protected boolean generation;
-
-    /** Whether to collect the {@link IastMetric#TAINTED_FLAT_MODE} metric or not */
+    /**
+     * Whether to collect the {@link IastMetric#TAINTED_FLAT_MODE} metric or not
+     */
     protected boolean collectFlatBucketMetric;
 
-    /** Default constructor. Uses {@link #DEFAULT_CAPACITY}. */
+    /**
+     * Default constructor. Uses {@link #DEFAULT_CAPACITY}.
+     */
     TaintedMapImpl() {
       this(DEFAULT_CAPACITY);
     }
@@ -136,7 +145,10 @@ public interface TaintedMap extends Iterable<TaintedObject> {
      * @param maxAgeUnit unit for the max age
      */
     TaintedMapImpl(
-        final int capacity, final int maxBucketSize, final int maxAge, final TimeUnit maxAgeUnit) {
+        final int capacity,
+        final int maxBucketSize,
+        final int maxAge,
+        final TimeUnit maxAgeUnit) {
       this(capacity, maxBucketSize, maxAge, maxAgeUnit, AgentTaskScheduler.get());
     }
 
@@ -166,7 +178,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
      */
     @Nullable
     @Override
-    public TaintedObject get(final @Nonnull Object key) {
+    public TaintedObject get(@Nonnull final Object key) {
       final int index = indexObject(key);
       TaintedObject entry = head(index);
       while (entry != null) {
@@ -186,7 +198,7 @@ public interface TaintedMap extends Iterable<TaintedObject> {
      * @param entry Tainted object.
      */
     @Override
-    public void put(final @Nonnull TaintedObject entry) {
+    public void put(@Nonnull final TaintedObject entry) {
       final int index = index(entry.positiveHashCode);
       TaintedObject cur = head(index);
       if (cur == null) {
@@ -242,7 +254,8 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     private Iterator<TaintedObject> iterator(final int start, final int stop) {
       return new Iterator<TaintedObject>() {
         int currentIndex = start;
-        @Nullable TaintedObject currentSubPos;
+        @Nullable
+        TaintedObject currentSubPos;
 
         @Override
         public boolean hasNext() {
@@ -303,7 +316,9 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       return next;
     }
 
-    /** Gets the first reachable reference that has not been GC'ed */
+    /**
+     * Gets the first reachable reference that has not been GC'ed
+     */
     @Nullable
     protected TaintedObject findAlive(@Nullable TaintedObject item) {
       while (item != null && item.get() == null) {
@@ -312,12 +327,15 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       return item;
     }
 
-    /** Runnable used to purge stale entries after max age */
+    /**
+     * Runnable used to purge stale entries after max age
+     */
     @Override
     public void run() {
       for (int bucket = 0; bucket < table.length; bucket++) {
         for (TaintedObject cur = head(bucket), prev = null; cur != null; cur = next(cur)) {
-          if (cur.generation != generation) { // entry added to the map in previous generation
+          if (cur.generation != generation) {
+            // entry added to the map in previous generation
             if (prev == null) {
               table[bucket] = cur.next;
             } else {
@@ -334,14 +352,12 @@ public interface TaintedMap extends Iterable<TaintedObject> {
   }
 
   class Debug implements TaintedMap, Wrapper<TaintedMapImpl> {
-
     static final Logger LOGGER = LoggerFactory.getLogger(TaintedMap.class);
-
-    /** Interval to compute statistics in debug mode * */
+    /**
+     * Interval to compute statistics in debug mode *
+     */
     static final int COMPUTE_STATISTICS_INTERVAL = 1 << 17;
-
     private final TaintedMapImpl delegate;
-
     private final AtomicLong puts = new AtomicLong(0);
 
     public Debug(final TaintedMapImpl delegate) {
@@ -351,7 +367,8 @@ public interface TaintedMap extends Iterable<TaintedObject> {
     @Override
     public void put(@Nonnull final TaintedObject entry) {
       delegate.put(entry);
-      final long putOps = puts.updateAndGet(current -> current == Long.MAX_VALUE ? 0 : current + 1);
+      final long putOps = puts.updateAndGet(current -> current == Long.MAX_VALUE ? 0 : current
+          + 1);
       if (putOps % COMPUTE_STATISTICS_INTERVAL == 0 && LOGGER.isDebugEnabled()) {
         AgentTaskScheduler.get().execute(this::computeStatistics);
       }
@@ -420,7 +437,9 @@ public interface TaintedMap extends Iterable<TaintedObject> {
       return String.format("%2.2f%%", total == 0 ? 0 : (actual * 100D / total));
     }
 
-    /** Computes different percentiles, values array MUST be sorted beforehand */
+    /**
+     * Computes different percentiles, values array MUST be sorted beforehand
+     */
     private static String percentile(final int[] values, final int percentile) {
       assert percentile >= 0 && percentile <= 100;
       final String prefix;
@@ -448,7 +467,6 @@ public interface TaintedMap extends Iterable<TaintedObject> {
   }
 
   class NoOp implements TaintedMap {
-
     public static final TaintedMap INSTANCE = new NoOp();
 
     @Nullable

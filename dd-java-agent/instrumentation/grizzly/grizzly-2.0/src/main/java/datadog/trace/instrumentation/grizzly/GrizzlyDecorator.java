@@ -77,7 +77,6 @@ public class GrizzlyDecorator extends HttpServerDecorator<Request, Request, Resp
 
   public static class GrizzlyBlockResponseFunction implements BlockResponseFunction {
     private static final Logger log = LoggerFactory.getLogger(GrizzlyBlockResponseFunction.class);
-
     private final Request request;
 
     public GrizzlyBlockResponseFunction(Request request) {

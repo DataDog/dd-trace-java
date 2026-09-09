@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.gradle;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -11,7 +10,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForSingleType {
-
   public GradlePluginInjectorInstrumentation() {
     super("gradle", "gradle-plugin-injector");
   }
@@ -47,13 +45,13 @@ public class GradlePluginInjectorInstrumentation extends InstrumenterModule.CiVi
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CiVisibilityService",
-      packageName + ".JavaCompilerPluginArgumentsProvider",
-      packageName + ".TracerArgumentsProvider",
-      packageName + ".AndroidGradleUtils",
-      packageName + ".CiVisibilityGradleListener",
-      packageName + ".CiVisibilityPluginExtension",
-      packageName + ".CiVisibilityPlugin"
+        packageName + ".CiVisibilityService",
+        packageName + ".JavaCompilerPluginArgumentsProvider",
+        packageName + ".TracerArgumentsProvider",
+        packageName + ".AndroidGradleUtils",
+        packageName + ".CiVisibilityGradleListener",
+        packageName + ".CiVisibilityPluginExtension",
+        packageName + ".CiVisibilityPlugin"
     };
   }
 

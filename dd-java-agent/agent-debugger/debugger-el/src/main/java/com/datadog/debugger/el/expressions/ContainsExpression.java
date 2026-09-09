@@ -2,7 +2,6 @@ package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkStringLength;
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
@@ -24,11 +23,13 @@ public class ContainsExpression implements BooleanExpression {
     Value<?> targetValue = target.evaluate(evalContext);
     if (targetValue.isUndefined()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for undefined value",
+          PrettyPrintVisitor.print(this));
     }
     if (targetValue.isNull()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for null value",
+          PrettyPrintVisitor.print(this));
     }
     Value<?> val = value.evaluate(evalContext);
     if (val.isUndefined()) {
@@ -45,7 +46,8 @@ public class ContainsExpression implements BooleanExpression {
         return result;
       }
       throw new EvaluationException(
-          "Cannot evaluate the expression for non-string value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for non-string value",
+          PrettyPrintVisitor.print(this));
     }
     if (targetValue instanceof CollectionValue) {
       try {

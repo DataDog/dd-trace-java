@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springscheduling;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springscheduling.SpringSchedulingDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -13,7 +12,6 @@ import java.lang.reflect.Method;
 import org.aopalliance.intercept.MethodInvocation;
 
 public class SpannedMethodInvocation implements MethodInvocation {
-
   private final ContextContinuation continuation;
   private final MethodInvocation delegate;
 

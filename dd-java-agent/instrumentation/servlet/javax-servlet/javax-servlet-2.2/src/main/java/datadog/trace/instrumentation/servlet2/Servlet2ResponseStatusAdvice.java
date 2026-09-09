@@ -8,7 +8,8 @@ import net.bytebuddy.asm.Advice;
 public class Servlet2ResponseStatusAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(
-      @Advice.This final HttpServletResponse response, @Advice.Argument(0) final Integer status) {
+      @Advice.This final HttpServletResponse response,
+      @Advice.Argument(0) final Integer status) {
     InstrumentationContext.get(ServletResponse.class, Integer.class).put(response, status);
   }
 }

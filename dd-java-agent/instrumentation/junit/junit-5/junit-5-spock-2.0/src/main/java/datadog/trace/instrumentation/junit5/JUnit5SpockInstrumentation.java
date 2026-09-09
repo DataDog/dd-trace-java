@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.junit5;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,8 @@ import org.spockframework.runtime.SpockEngine;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JUnit5SpockInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-spock");
   }
@@ -37,15 +36,15 @@ public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils",
-      packageName + ".TestDataFactory",
-      packageName + ".execution.RetryDescriptorFactory",
-      packageName + ".execution.RetryDescriptorFactories",
-      packageName + ".SpockRetryDescriptorFactory",
-      packageName + ".SpockUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SpockTracingListener",
-      packageName + ".CompositeEngineListener",
+        packageName + ".JUnitPlatformUtils",
+        packageName + ".TestDataFactory",
+        packageName + ".execution.RetryDescriptorFactory",
+        packageName + ".execution.RetryDescriptorFactories",
+        packageName + ".SpockRetryDescriptorFactory",
+        packageName + ".SpockUtils",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".SpockTracingListener",
+        packageName + ".CompositeEngineListener"
     };
   }
 
@@ -56,11 +55,9 @@ public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
         JUnit5SpockInstrumentation.class.getName() + "$SpockAdvice");
   }
 
-  @SuppressFBWarnings(
-      value = "UC_USELESS_OBJECT",
-      justification = "executionRequest is the argument of the original method")
+  @SuppressFBWarnings(value = "UC_USELESS_OBJECT", justification = "executionRequest is the "
+      + "argument of the original method")
   public static class SpockAdvice {
-
     @Advice.OnMethodEnter
     public static void addTracingListener(
         @Advice.This TestEngine testEngine,
@@ -84,11 +81,10 @@ public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
-      executionRequest =
-          new ExecutionRequest(
-              executionRequest.getRootTestDescriptor(),
-              compositeListener,
-              executionRequest.getConfigurationParameters());
+      executionRequest = new ExecutionRequest(
+          executionRequest.getRootTestDescriptor(),
+          compositeListener,
+          executionRequest.getConfigurationParameters());
     }
 
     // JUnit 5.3.0 and above

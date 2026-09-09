@@ -7,13 +7,10 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.iast.stratum.SourceMapper;
 
 public class SourceMapperImpl implements SourceMapper {
-
   // This is only available if IAST source mapping is enabled
-  public static final SourceMapperImpl INSTANCE =
-      Config.get().isIastSourceMappingEnabled()
-          ? new SourceMapperImpl(StratumManager.getInstance())
-          : null;
-
+  public static final SourceMapperImpl INSTANCE = Config.get().isIastSourceMappingEnabled()
+      ? new SourceMapperImpl(StratumManager.getInstance())
+      : null;
   private final StratumManager stratumManager;
 
   private SourceMapperImpl(StratumManager stratumManager) {

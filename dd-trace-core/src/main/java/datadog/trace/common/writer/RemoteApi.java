@@ -7,14 +7,11 @@ import java.util.OptionalInt;
 import org.slf4j.Logger;
 
 public abstract class RemoteApi {
-
   protected final IOLogger ioLogger = new IOLogger(getLogger());
-
   protected long totalTraces = 0;
   protected long receivedTraces = 0;
   protected long sentTraces = 0;
   protected long failedTraces = 0;
-
   private final boolean compressionEnabled;
 
   protected RemoteApi(boolean compressionEnabled) {
@@ -43,7 +40,9 @@ public abstract class RemoteApi {
     String responseBody = getResponseBody(response);
     String sendErrorString =
         createSendLogMessage(
-            traceCount, sizeInBytes, responseBody.isEmpty() ? "Error" : responseBody);
+            traceCount,
+            sizeInBytes,
+            responseBody.isEmpty() ? "Error" : responseBody);
 
     ioLogger.error(sendErrorString, toLoggerResponse(response, responseBody), outer);
   }
@@ -56,7 +55,9 @@ public abstract class RemoteApi {
   }
 
   protected String createSendLogMessage(
-      final int traceCount, final int sizeInBytes, final String prefix) {
+      final int traceCount,
+      final int sizeInBytes,
+      final String prefix) {
     String sizeString = sizeInBytes > 1024 ? (sizeInBytes / 1024) + "KB" : sizeInBytes + "B";
     return prefix
         + " while sending "
@@ -103,32 +104,44 @@ public abstract class RemoteApi {
    * parsing the response from the Datadog agent.
    */
   public static final class Response {
-    /** Factory method for a successful request with a trivial response body */
+    /**
+     * Factory method for a successful request with a trivial response body
+     */
     public static Response success(final int status) {
       return new Response(true, status, null, null);
     }
 
-    /** Factory method for a successful request with a trivial response body */
+    /**
+     * Factory method for a successful request with a trivial response body
+     */
     public static Response success(final int status, String response) {
       return new Response(true, status, null, response);
     }
 
-    /** Factory method for a successful request will a malformed response body */
+    /**
+     * Factory method for a successful request will a malformed response body
+     */
     public static Response success(final int status, final Throwable exception) {
       return new Response(true, status, exception, null);
     }
 
-    /** Factory method for a request that receive an error status in response */
+    /**
+     * Factory method for a request that receive an error status in response
+     */
     public static Response failed(final int status) {
       return new Response(false, status, null, null);
     }
 
-    /** Factory method for a request that receive an error status and a trivial response body */
+    /**
+     * Factory method for a request that receive an error status and a trivial response body
+     */
     public static Response failed(final int status, String response) {
       return new Response(false, status, null, response);
     }
 
-    /** Factory method for a failed communication attempt */
+    /**
+     * Factory method for a failed communication attempt
+     */
     public static Response failed(final Throwable exception) {
       return new Response(false, null, exception, null);
     }
@@ -139,7 +152,10 @@ public abstract class RemoteApi {
     private final String response;
 
     private Response(
-        final boolean success, final Integer status, final Throwable exception, String response) {
+        final boolean success,
+        final Integer status,
+        final Throwable exception,
+        String response) {
       this.success = success;
       this.status = status;
       this.exception = exception;

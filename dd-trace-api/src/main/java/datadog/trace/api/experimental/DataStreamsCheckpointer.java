@@ -4,7 +4,9 @@ import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Tracer;
 import datadog.trace.api.internal.InternalTracer;
 
-/** An interface to Data Streams checkpointer, allowing passing the context manually. */
+/**
+ * An interface to Data Streams checkpointer, allowing passing the context manually.
+ */
 public interface DataStreamsCheckpointer {
   static DataStreamsCheckpointer get() {
     Tracer tracer = GlobalTracer.get();
@@ -41,16 +43,13 @@ public interface DataStreamsCheckpointer {
   void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier);
 
   final class NoOp implements DataStreamsCheckpointer {
-
     public static final DataStreamsCheckpointer INSTANCE = new NoOp();
 
     @Override
-    public void setConsumeCheckpoint(
-        String type, String source, DataStreamsContextCarrier carrier) {}
+    public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}
 
     @Override
-    public void setProduceCheckpoint(
-        String type, String target, DataStreamsContextCarrier carrier) {}
+    public void setProduceCheckpoint(String type, String target, DataStreamsContextCarrier carrier) {}
 
     @Override
     public void trackTransaction(String transactionId, String checkpointName) {}

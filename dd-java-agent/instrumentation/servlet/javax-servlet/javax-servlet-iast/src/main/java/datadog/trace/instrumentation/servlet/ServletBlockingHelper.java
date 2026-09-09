@@ -63,7 +63,6 @@ public class ServletBlockingHelper {
       HttpServletRequest httpServletRequest,
       HttpServletResponse resp,
       Flow.Action.RequestBlockingAction rba) {
-
     commitBlockingResponse(
         segment,
         httpServletRequest,

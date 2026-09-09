@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.alipay.sofa.rpc.config.ApplicationConfig;
 import com.alipay.sofa.rpc.config.ConsumerConfig;
 import com.alipay.sofa.rpc.config.ProviderConfig;
@@ -55,9 +54,7 @@ import org.junit.jupiter.api.TestInstance;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest {
   // No configurePreAgent() override — gRPC instrumentation is enabled by default.
-
   private static final int TRIPLE_PORT = 12204;
-
   private ProviderConfig<TripleGreeterService> tripleProviderConfig;
   private TripleGreeterService greeterService;
 
@@ -66,25 +63,22 @@ public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest
   // TracingServerInterceptor at build time.
   @BeforeEach
   void setupServer() {
-    tripleProviderConfig =
-        new ProviderConfig<TripleGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-server"))
-            .setInterfaceId(TripleGreeterService.class.getName())
-            .setRef(new TripleGreeterServiceImpl())
-            .setServer(
-                new ServerConfig().setProtocol("tri").setHost("127.0.0.1").setPort(TRIPLE_PORT))
-            .setRegister(false);
+    tripleProviderConfig = new ProviderConfig<TripleGreeterService>()
+      .setApplication(new ApplicationConfig().setAppName("test-server"))
+      .setInterfaceId(TripleGreeterService.class.getName())
+      .setRef(new TripleGreeterServiceImpl())
+      .setServer(new ServerConfig().setProtocol("tri").setHost("127.0.0.1").setPort(TRIPLE_PORT))
+      .setRegister(false);
     tripleProviderConfig.export();
 
-    greeterService =
-        new ConsumerConfig<TripleGreeterService>()
-            .setApplication(new ApplicationConfig().setAppName("test-client"))
-            .setInterfaceId(TripleGreeterService.class.getName())
-            .setDirectUrl("tri://127.0.0.1:" + TRIPLE_PORT)
-            .setProtocol("tri")
-            .setRegister(false)
-            .setSubscribe(false)
-            .refer();
+    greeterService = new ConsumerConfig<TripleGreeterService>()
+      .setApplication(new ApplicationConfig().setAppName("test-client"))
+      .setInterfaceId(TripleGreeterService.class.getName())
+      .setDirectUrl("tri://127.0.0.1:" + TRIPLE_PORT)
+      .setProtocol("tri")
+      .setRegister(false)
+      .setSubscribe(false)
+      .refer();
   }
 
   @AfterEach
@@ -109,7 +103,6 @@ public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest
     }
 
     assertEquals("Hello, World", reply);
-
     // Client spans (caller, sofarpc[client], grpc.client) are flushed when the client-side
     // root span finishes. Server spans (grpc.server, grpc.message, sofarpc[server]) are flushed
     // when grpc.server — the server-side local root — finishes on its own thread.
@@ -121,10 +114,11 @@ public class SofaRpcTripleWithGrpcForkedTest extends AbstractInstrumentationTest
     DDSpan grpcServerSpan = findSpan(allSpans, "grpc.server", null);
 
     assertNotNull(
-        serverSofaSpan, "Expected sofarpc[server] span. Spans found: " + describeSpans(allSpans));
+        serverSofaSpan,
+        "Expected sofarpc[server] span. Spans found: " + describeSpans(allSpans));
     assertNotNull(
-        grpcServerSpan, "Expected grpc.server span. Spans found: " + describeSpans(allSpans));
-
+        grpcServerSpan,
+        "Expected grpc.server span. Spans found: " + describeSpans(allSpans));
     // sofarpc.request[server] must be a direct child of grpc.server, not grpc.client
     assertEquals(
         grpcServerSpan.getSpanId(),

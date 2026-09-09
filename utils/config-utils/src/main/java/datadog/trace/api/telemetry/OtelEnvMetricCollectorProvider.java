@@ -3,7 +3,8 @@ package datadog.trace.api.telemetry;
 public final class OtelEnvMetricCollectorProvider {
   private static OtelEnvMetricCollector INSTANCE = null;
 
-  private OtelEnvMetricCollectorProvider() {}
+  private OtelEnvMetricCollectorProvider() {
+  }
 
   public static OtelEnvMetricCollector get() {
     if (INSTANCE == null) {

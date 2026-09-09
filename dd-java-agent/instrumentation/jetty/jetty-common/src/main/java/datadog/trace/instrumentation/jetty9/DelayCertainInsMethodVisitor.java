@@ -81,7 +81,10 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
 
   @Override
   public void visitFieldInsn(
-      final int opcode, final String owner, final String name, final String descriptor) {
+      final int opcode,
+      final String owner,
+      final String name,
+      final String descriptor) {
     if (opcode == Opcodes.GETSTATIC) {
       heldVisitations.add(new GetStaticFieldInsn(opcode, owner, name, descriptor));
     } else if (opcode == Opcodes.GETFIELD) {
@@ -161,7 +164,10 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
 
   @Override
   public AnnotationVisitor visitInsnAnnotation(
-      int typeRef, TypePath typePath, String descriptor, boolean visible) {
+      int typeRef,
+      TypePath typePath,
+      String descriptor,
+      boolean visible) {
     commitVisitations();
     return super.visitInsnAnnotation(typeRef, typePath, descriptor, visible);
   }
@@ -174,14 +180,22 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
 
   @Override
   public AnnotationVisitor visitTryCatchAnnotation(
-      int typeRef, TypePath typePath, String descriptor, boolean visible) {
+      int typeRef,
+      TypePath typePath,
+      String descriptor,
+      boolean visible) {
     commitVisitations();
     return super.visitTryCatchAnnotation(typeRef, typePath, descriptor, visible);
   }
 
   @Override
   public void visitLocalVariable(
-      String name, String descriptor, String signature, Label start, Label end, int index) {
+      String name,
+      String descriptor,
+      String signature,
+      Label start,
+      Label end,
+      int index) {
     commitVisitations();
     super.visitLocalVariable(name, descriptor, signature, start, end, index);
   }
@@ -197,7 +211,13 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
       boolean visible) {
     commitVisitations();
     return super.visitLocalVariableAnnotation(
-        typeRef, typePath, start, end, index, descriptor, visible);
+        typeRef,
+        typePath,
+        start,
+        end,
+        index,
+        descriptor,
+        visible);
   }
 
   @Override
@@ -249,7 +269,11 @@ public class DelayCertainInsMethodVisitor extends MethodVisitor {
     public final boolean isInterface;
 
     public VirtualMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface) {
       this.opcode = opcode;
       this.owner = owner;
       this.name = name;

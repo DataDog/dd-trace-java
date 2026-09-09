@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -19,7 +18,6 @@ import net.bytebuddy.asm.Advice;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextJsonAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void before() {
     CallDepthThreadLocalMap.incrementCallDepth(RoutingContext.class);
@@ -30,7 +28,6 @@ class RoutingContextJsonAdvice {
       @Advice.Return Object obj_,
       @ActiveRequestContext RequestContext reqCtx,
       @Advice.Thrown(readOnly = false) Throwable throwable) {
-
     // in newer versions of vert.x rc.getBodyAsJson() calls internally rc.body().asJsonObject()
     // so we need to prevent sending the body twice to the WAF
     if (CallDepthThreadLocalMap.decrementCallDepth(RoutingContext.class) != 0) {

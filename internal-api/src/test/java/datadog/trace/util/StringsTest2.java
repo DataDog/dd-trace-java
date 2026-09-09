@@ -3,7 +3,6 @@ package datadog.trace.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Iterator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,7 +54,8 @@ public class StringsTest2 {
   @DisplayName("split - leading separator")
   public void splitLeadingSeparator() {
     Iterator<SubSequence> iter = Strings.split("&foo=bar", '&').iterator();
-    assertSubSeq("", 0, 0, iter.next()); // empty string before the separator
+    // empty string before the separator
+    assertSubSeq("", 0, 0, iter.next());
     assertSubSeq("foo=bar", 1, 8, iter.next());
     assertFalse(iter.hasNext());
   }
@@ -65,7 +65,8 @@ public class StringsTest2 {
   public void splitTrailingSeparator() {
     Iterator<SubSequence> iter = Strings.split("foo=bar&", '&').iterator();
     assertSubSeq("foo=bar", 0, 7, iter.next());
-    assertSubSeq("", 8, 8, iter.next()); // empty string after the separator
+    // empty string after the separator
+    assertSubSeq("", 8, 8, iter.next());
     assertFalse(iter.hasNext());
   }
 
@@ -73,8 +74,10 @@ public class StringsTest2 {
   @DisplayName("split - only separator")
   public void splitOnlySeparator() {
     Iterator<SubSequence> iter = Strings.split("&", '&').iterator();
-    assertSubSeq("", 0, 0, iter.next()); // empty string before the separator
-    assertSubSeq("", 1, 1, iter.next()); // empty string after the separator
+    // empty string before the separator
+    assertSubSeq("", 0, 0, iter.next());
+    // empty string after the separator
+    assertSubSeq("", 1, 1, iter.next());
     assertFalse(iter.hasNext());
   }
 
@@ -92,7 +95,6 @@ public class StringsTest2 {
       assertContentEquals(expected, iter.next());
     }
     assertFalse(iter.hasNext());
-
     // repeat, just to check iterable functionality
     Iterator<SubSequence> iter2 = iterable.iterator();
     for (String expected : strSplit) {
@@ -108,7 +110,10 @@ public class StringsTest2 {
   }
 
   static void assertSubSeq(
-      String expected, int expectedBeginIndex, int expectedEndIndex, SubSequence actualSeq) {
+      String expected,
+      int expectedBeginIndex,
+      int expectedEndIndex,
+      SubSequence actualSeq) {
     assertContentEquals(expected, actualSeq);
     assertEquals(expectedBeginIndex, actualSeq.beginIndex(), "beginIndex");
     assertEquals(expectedEndIndex, actualSeq.endIndex(), "endIndex");

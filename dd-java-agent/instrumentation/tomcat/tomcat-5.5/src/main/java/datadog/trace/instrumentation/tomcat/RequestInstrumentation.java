@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.tomcat.TomcatDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
@@ -33,9 +32,8 @@ import org.apache.catalina.connector.Response;
 @AutoService(InstrumenterModule.class)
 public final class RequestInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   public RequestInstrumentation() {
     super("tomcat");
   }
@@ -48,13 +46,13 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".TomcatDecorator",
-      packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
-      packageName + ".TomcatBlockingHelper",
-      packageName + ".RequestURIDataAdapter",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".TomcatDecorator",
+        packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
+        packageName + ".TomcatBlockingHelper",
+        packageName + ".RequestURIDataAdapter"
     };
   }
 
@@ -146,7 +144,11 @@ public final class RequestInstrumentation extends InstrumenterModule.Tracing
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions) {
       MethodVisitor superMethodVisitor =
           super.visitMethod(access, name, descriptor, signature, exceptions);
       if (name.equals("parseParameters") && "()V".equals(descriptor)) {

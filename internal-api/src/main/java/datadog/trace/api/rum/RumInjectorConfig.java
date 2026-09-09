@@ -1,7 +1,6 @@
 package datadog.trace.api.rum;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_SITE;
-
 import datadog.json.JsonWriter;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,52 +19,76 @@ public class RumInjectorConfig {
     REGIONS.put("ap2.datadoghq.com", "ap2");
   }
 
-  /** RUM application ID */
+  /**
+   * RUM application ID
+   */
   public final String applicationId;
-
-  /** The client token provided by Datadog to authenticate requests. */
+  /**
+   * The client token provided by Datadog to authenticate requests.
+   */
   public final String clientToken;
-
-  /** The Datadog site to which data will be sent (e.g., `datadoghq.com`). */
+  /**
+   * The Datadog site to which data will be sent (e.g., `datadoghq.com`).
+   */
   public final String site;
-
-  /** The name of the service being monitored. */
-  @Nullable public final String service;
-
-  /** The environment of the service (e.g., `prod`, `staging` or `dev). */
-  @Nullable public final String env;
-
-  /** SDK major version. */
+  /**
+   * The name of the service being monitored.
+   */
+  @Nullable
+  public final String service;
+  /**
+   * The environment of the service (e.g., `prod`, `staging` or `dev).
+   */
+  @Nullable
+  public final String env;
+  /**
+   * SDK major version.
+   */
   public final int majorVersion;
-
-  /** The version of the service (e.g., `0.1.0`, `a8dj92`, `2024-30`). */
-  @Nullable public final String version;
-
-  /** Enables or disables the automatic collection of users actions (e.g., clicks). */
-  @Nullable public final Boolean trackUserInteractions;
-
-  /** Enables or disables the collection of resource events (e.g., loading of images or scripts). */
-  @Nullable public final Boolean trackResources;
-
-  /** Enables or disables the collection of long task events. */
-  @Nullable public final Boolean trackLongTask;
-
-  /** The privacy level for data collection. */
-  @Nullable public final PrivacyLevel defaultPrivacyLevel;
-
-  /** The percentage of user sessions to be tracked (between 0.0 and 100.0). */
-  @Nullable public final Float sessionSampleRate;
-
+  /**
+   * The version of the service (e.g., `0.1.0`, `a8dj92`, `2024-30`).
+   */
+  @Nullable
+  public final String version;
+  /**
+   * Enables or disables the automatic collection of users actions (e.g., clicks).
+   */
+  @Nullable
+  public final Boolean trackUserInteractions;
+  /**
+   * Enables or disables the collection of resource events (e.g., loading of images or scripts).
+   */
+  @Nullable
+  public final Boolean trackResources;
+  /**
+   * Enables or disables the collection of long task events.
+   */
+  @Nullable
+  public final Boolean trackLongTask;
+  /**
+   * The privacy level for data collection.
+   */
+  @Nullable
+  public final PrivacyLevel defaultPrivacyLevel;
+  /**
+   * The percentage of user sessions to be tracked (between 0.0 and 100.0).
+   */
+  @Nullable
+  public final Float sessionSampleRate;
   /**
    * The percentage of tracked sessions that will include Session Replay data (between 0.0 and
    * 100.0).
    */
-  @Nullable public final Float sessionReplaySampleRate;
-
-  /** The remote configuration identifier. */
-  @Nullable public final String remoteConfigurationId;
-
-  /** The JSON representation of injector config to use in the injected SDK snippet. */
+  @Nullable
+  public final Float sessionReplaySampleRate;
+  /**
+   * The remote configuration identifier.
+   */
+  @Nullable
+  public final String remoteConfigurationId;
+  /**
+   * The JSON representation of injector config to use in the injected SDK snippet.
+   */
   public final String jsonPayload;
 
   public RumInjectorConfig(
@@ -214,7 +237,6 @@ public class RumInjectorConfig {
     ALLOW("allow"),
     MASK("mask"),
     MASK_USER_INPUT("mask-user-input");
-
     private final String json;
 
     PrivacyLevel(String json) {

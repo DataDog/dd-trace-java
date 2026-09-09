@@ -24,7 +24,9 @@ public final class SourceCompiler {
       String version,
       List<String> additionalOptions) {
     JavaCompiler jc = ToolProvider.getSystemJavaCompiler();
-    if (jc == null) throw new RuntimeException("Compiler unavailable");
+    if (jc == null) {
+      throw new RuntimeException("Compiler unavailable");
+    }
 
     JavaSourceFromString jsfs = new JavaSourceFromString(className, source);
 

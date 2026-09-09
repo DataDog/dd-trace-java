@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.httpclient;
 
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.http.HttpResponse;
 import java.util.function.BiConsumer;

@@ -25,7 +25,6 @@ import static net.bytebuddy.jar.asm.Opcodes.POP;
 import static net.bytebuddy.jar.asm.Opcodes.POP2;
 import static net.bytebuddy.jar.asm.Opcodes.SIPUSH;
 import static net.bytebuddy.jar.asm.Opcodes.SWAP;
-
 import datadog.trace.agent.tooling.csi.CallSiteAdvice.StackDupMode;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +33,6 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
 public abstract class CallSiteUtils {
-
   public static final String OBJET_TYPE = "java/lang/Object";
   private static final BoxingHandler[] BOX_HANDLERS = new BoxingHandler[Type.METHOD + 1];
   private static final Map<String, int[]> STACK_MANIP_TABLE = new HashMap<>();
@@ -59,10 +57,12 @@ public abstract class CallSiteUtils {
     STACK_MANIP_TABLE.put("123|12", new int[] {DUP_X2, POP, DUP2_X1});
     STACK_MANIP_TABLE.put("123L|12", new int[] {DUP2_X2, POP2, DUP2_X2});
     STACK_MANIP_TABLE.put(
-        "1L23|1L2", new int[] {DUP2_X2, POP2, DUP2_X2, DUP2_X2, POP2, DUP2_X2, POP});
+        "1L23|1L2",
+        new int[] {DUP2_X2, POP2, DUP2_X2, DUP2_X2, POP2, DUP2_X2, POP});
     STACK_MANIP_TABLE.put("123|13", new int[] {DUP2_X1, POP2, DUP_X2, SWAP, DUP_X1});
     STACK_MANIP_TABLE.put(
-        "123L|13L", new int[] {DUP2_X2, POP2, DUP2_X2, POP, DUP_X2, POP, DUP2_X1});
+        "123L|13L",
+        new int[] {DUP2_X2, POP2, DUP2_X2, POP, DUP_X2, POP, DUP2_X1});
     STACK_MANIP_TABLE.put("1L23|1L3", new int[] {DUP2_X2, POP2, DUP2_X2, DUP2_X1, POP2, DUP_X2});
     STACK_MANIP_TABLE.put("1234|1", new int[] {DUP2_X2, POP2, DUP2_X2, POP});
     STACK_MANIP_TABLE.put("1234|12", new int[] {DUP2_X2, POP2, DUP2_X2});
@@ -70,10 +70,12 @@ public abstract class CallSiteUtils {
     STACK_MANIP_TABLE.put("1234|14", new int[] {DUP2_X2, POP2, DUP2_X2, POP, SWAP, DUP_X1});
     STACK_MANIP_TABLE.put("1234|124", new int[] {DUP2_X2, POP2, DUP2_X2, DUP2_X1, POP2, DUP_X2});
     STACK_MANIP_TABLE.put(
-        "1234|134", new int[] {DUP2_X2, POP2, DUP2_X2, POP, DUP_X2, POP, DUP2_X1});
+        "1234|134",
+        new int[] {DUP2_X2, POP2, DUP2_X2, POP, DUP_X2, POP, DUP2_X1});
   }
 
-  private CallSiteUtils() {}
+  private CallSiteUtils() {
+  }
 
   public static void swap(final MethodVisitor mv, final int secondToLastSize, final int lastSize) {
     if (secondToLastSize == 1 && lastSize == 1) {
@@ -199,7 +201,8 @@ public abstract class CallSiteUtils {
       pushArray(mv, argumentTypes.length, argumentTypes);
       loadArray(mv, argumentTypes.length, argumentTypes);
       loadArray(mv, argumentTypes, indices);
-      mv.visitInsn(POP); // pop out array
+      // pop out array
+      mv.visitInsn(POP);
     } else {
       for (int opcode : opcodes) {
         mv.visitInsn(opcode);
@@ -211,7 +214,6 @@ public abstract class CallSiteUtils {
     if (indices.length == 0) {
       return null;
     }
-
     // if we don't use index 0, we can reduce the stack manipulation to that
     // of one where there are fewer arguments in the stack
     int minIdx = Integer.MAX_VALUE;
@@ -270,8 +272,7 @@ public abstract class CallSiteUtils {
    * This method duplicates the parameters in the stack by using a temporal array that will only
    * live in the stack
    */
-  private static void dupN(
-      final MethodVisitor mv, final Type[] parameters, final StackDupMode mode) {
+  private static void dupN(final MethodVisitor mv, final Type[] parameters, final StackDupMode mode) {
     final int arraySize = parameters.length;
     pushArray(mv, arraySize, parameters);
     switch (mode) {
@@ -308,7 +309,9 @@ public abstract class CallSiteUtils {
   }
 
   private static void pushArray(
-      final MethodVisitor mv, final int arraySize, final Type[] parameters) {
+      final MethodVisitor mv,
+      final int arraySize,
+      final Type[] parameters) {
     pushInteger(mv, arraySize);
     mv.visitTypeInsn(ANEWARRAY, OBJET_TYPE);
     for (int i = parameters.length - 1; i >= 0; i--) {
@@ -316,10 +319,12 @@ public abstract class CallSiteUtils {
       final int stackObjectSize = param.getSize();
       // 1. duplicate the array
       mv.visitInsn(stackObjectSize == 1 ? DUP_X1 : DUP_X2);
-      swap(mv, stackObjectSize, 1); // [..., STACK_OBJECT, ARRAY]
+      // [..., STACK_OBJECT, ARRAY]
+      swap(mv, stackObjectSize, 1);
       // 2. store the index in the array
       mv.visitIntInsn(BIPUSH, i);
-      swap(mv, stackObjectSize, 1); // [..., STACK_OBJECT, INDEX]
+      // [..., STACK_OBJECT, INDEX]
+      swap(mv, stackObjectSize, 1);
       // 3. add the element to the array
       box(mv, param);
       mv.visitInsn(AASTORE);
@@ -327,7 +332,9 @@ public abstract class CallSiteUtils {
   }
 
   private static void loadArray(
-      final MethodVisitor mv, final int arraySize, final Type[] parameters) {
+      final MethodVisitor mv,
+      final int arraySize,
+      final Type[] parameters) {
     for (int i = 0; i < arraySize; i++) {
       final Type type = parameters[i];
       loadNthArgFromArray(mv, type, i);
@@ -354,7 +361,8 @@ public abstract class CallSiteUtils {
       unbox(mv, type);
     }
     // 4. move the array to the end of the stack
-    swap(mv, 1, stackObjectSize); // [..., ARRAY, STACK_OBJECT]
+    // [..., ARRAY, STACK_OBJECT]
+    swap(mv, 1, stackObjectSize);
   }
 
   private static void checkCast(final MethodVisitor mv, final Type parameter) {
@@ -396,12 +404,13 @@ public abstract class CallSiteUtils {
     private final String boxedType;
     private final String boxMethod;
     private final String unboxMethod;
-
     private final String boxDescriptor;
     private final String unboxDescriptor;
 
     private JdkBoxingHandler(
-        final String boxedType, final String primitiveType, final String unboxMethod) {
+        final String boxedType,
+        final String primitiveType,
+        final String unboxMethod) {
       this(boxedType, primitiveType, "valueOf", unboxMethod);
     }
 

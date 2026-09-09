@@ -1,7 +1,6 @@
 package datadog.trace.common.writer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.trace.api.DDTags;
@@ -11,12 +10,9 @@ import datadog.trace.core.CoreSpan;
 import java.util.List;
 
 public interface RemoteMapper extends Mapper<List<? extends CoreSpan<?>>> {
-
   RemoteMapper NO_OP = new NoopRemoteMapper();
-
   static final byte[] RUNTIME_ID = DDTags.RUNTIME_ID_TAG.getBytes(UTF_8);
   static final byte[] LANGUAGE = DDTags.LANGUAGE_TAG_KEY.getBytes(UTF_8);
-
   static final byte[] SERVICE = "service".getBytes(UTF_8);
   static final byte[] NAME = "name".getBytes(UTF_8);
   static final byte[] RESOURCE = "resource".getBytes(UTF_8);
@@ -29,7 +25,6 @@ public interface RemoteMapper extends Mapper<List<? extends CoreSpan<?>>> {
   static final byte[] ERROR = "error".getBytes(UTF_8);
   static final byte[] METRICS = "metrics".getBytes(UTF_8);
   static final byte[] META = "meta".getBytes(UTF_8);
-
   UTF8BytesString HTTP_STATUS = UTF8BytesString.create(Tags.HTTP_STATUS);
 
   Payload newPayload();
@@ -39,7 +34,6 @@ public interface RemoteMapper extends Mapper<List<? extends CoreSpan<?>>> {
   String endpoint();
 
   class NoopRemoteMapper implements RemoteMapper {
-
     @Override
     public void map(List<? extends CoreSpan<?>> data, Writable packer) {}
 

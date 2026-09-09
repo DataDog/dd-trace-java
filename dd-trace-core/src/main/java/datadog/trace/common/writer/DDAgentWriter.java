@@ -5,7 +5,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_AGENT_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.metrics.api.Monitoring;
@@ -21,7 +20,6 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 
 public class DDAgentWriter extends RemoteWriter {
-
   public static DDAgentWriterBuilder builder() {
     return new DDAgentWriterBuilder();
   }
@@ -29,7 +27,6 @@ public class DDAgentWriter extends RemoteWriter {
   private static final int BUFFER_SIZE = 1024;
 
   public static class DDAgentWriterBuilder {
-
     String agentHost = DEFAULT_AGENT_HOST;
     int traceAgentPort = DEFAULT_TRACE_AGENT_PORT;
     String unixDomainSocket = null;
@@ -45,7 +42,6 @@ public class DDAgentWriter extends RemoteWriter {
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
     boolean alwaysFlush = false;
-
     private DDAgentApi agentApi;
     private Prioritization prioritization;
     private DDAgentFeaturesDiscovery featureDiscovery;
@@ -112,8 +108,7 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder nativeMetricsReportingEnabled(
-        boolean nativeMetricsReportingEnabled) {
+    public DDAgentWriterBuilder nativeMetricsReportingEnabled(boolean nativeMetricsReportingEnabled) {
       this.nativeMetricsReportingEnabled = nativeMetricsReportingEnabled;
       return this;
     }
@@ -151,40 +146,40 @@ public class DDAgentWriter extends RemoteWriter {
 
     public DDAgentWriter build() {
       final HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + traceAgentPort);
-      final OkHttpClient client =
-          null == featureDiscovery || null == agentApi
-              ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
-              : null;
+      final OkHttpClient client = null == featureDiscovery || null == agentApi
+          ? buildHttpClient(true, unixDomainSocket, namedPipe, timeoutMillis)
+          : null;
       if (null == featureDiscovery) {
-        featureDiscovery =
-            new DDAgentFeaturesDiscovery(
-                client,
-                monitoring,
-                agentUrl,
-                protocolVersion,
-                nativeMetricsReportingEnabled,
-                metricsIgnoreAgentVersion);
+        featureDiscovery = new DDAgentFeaturesDiscovery(
+            client,
+            monitoring,
+            agentUrl,
+            protocolVersion,
+            nativeMetricsReportingEnabled,
+            metricsIgnoreAgentVersion);
       }
       if (null == agentApi) {
-        agentApi =
-            new DDAgentApi(
-                client, agentUrl, featureDiscovery, monitoring, nativeMetricsReportingEnabled);
+        agentApi = new DDAgentApi(
+            client,
+            agentUrl,
+            featureDiscovery,
+            monitoring,
+            nativeMetricsReportingEnabled);
       }
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
       final PayloadDispatcher dispatcher =
           new PayloadDispatcherImpl(mapperDiscovery, agentApi, healthMetrics, monitoring);
-      final TraceProcessingWorker traceProcessingWorker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              healthMetrics,
-              dispatcher,
-              // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
-              droppingPolicy != null ? droppingPolicy : featureDiscovery,
-              null == prioritization ? FAST_LANE : prioritization,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      final TraceProcessingWorker traceProcessingWorker = new TraceProcessingWorker(
+          traceBufferSize,
+          healthMetrics,
+          dispatcher,
+          // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
+          droppingPolicy != null ? droppingPolicy : featureDiscovery,
+          null == prioritization ? FAST_LANE : prioritization,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler);
 
       return new DDAgentWriter(
           traceProcessingWorker,

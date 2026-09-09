@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.josejwt;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -20,8 +19,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JWTParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JWTParserInstrumentation() {
     super("jwt", "auth0-jwt");
   }
@@ -40,11 +39,11 @@ public class JWTParserInstrumentation extends InstrumenterModule.Iast
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class InstrumenterAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onEnter(
-        @Advice.Argument(0) String json, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(0) String json,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
 
       if (module != null) {

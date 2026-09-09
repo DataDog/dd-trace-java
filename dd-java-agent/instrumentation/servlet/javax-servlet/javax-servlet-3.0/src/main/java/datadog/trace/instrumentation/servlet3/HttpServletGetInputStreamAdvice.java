@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.gateway.CallbackProvider;

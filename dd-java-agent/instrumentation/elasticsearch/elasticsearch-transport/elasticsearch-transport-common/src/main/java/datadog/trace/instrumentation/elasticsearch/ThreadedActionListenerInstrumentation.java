@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,8 +23,8 @@ import org.elasticsearch.action.support.ThreadedActionListener;
  */
 @AutoService(InstrumenterModule.class)
 public final class ThreadedActionListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ThreadedActionListenerInstrumentation() {
     super("elasticsearch", "elasticsearch-transport");
   }
@@ -38,7 +37,8 @@ public final class ThreadedActionListenerInstrumentation extends InstrumenterMod
   @Override
   public Map<String, String> contextStore() {
     return singletonMap(
-        "org.elasticsearch.action.support.ThreadedActionListener", State.class.getName());
+        "org.elasticsearch.action.support.ThreadedActionListener",
+        State.class.getName());
   }
 
   @Override
@@ -63,7 +63,8 @@ public final class ThreadedActionListenerInstrumentation extends InstrumenterMod
     @Advice.OnMethodEnter
     public static ContextScope before(@Advice.This ThreadedActionListener listener) {
       return startTaskScope(
-          InstrumentationContext.get(ThreadedActionListener.class, State.class), listener);
+          InstrumentationContext.get(ThreadedActionListener.class, State.class),
+          listener);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)

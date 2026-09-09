@@ -1,7 +1,6 @@
 package datadog.opentracing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.test.util.DDJavaSpecification;
@@ -12,7 +11,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class OTSpanTest extends DDJavaSpecification {
-
   static DDTracer tracer;
 
   @BeforeAll
@@ -29,7 +27,10 @@ class OTSpanTest extends DDJavaSpecification {
 
   @Test
   void testResourceNameAssignmentThroughMutableSpanCasting() {
-    OTSpan testSpan = (OTSpan) tracer.buildSpan("parent").withResourceName("test-resource").start();
+    OTSpan testSpan = (OTSpan) tracer
+      .buildSpan("parent")
+      .withResourceName("test-resource")
+      .start();
     OTScopeManager.OTScope testScope = (OTScopeManager.OTScope) tracer.activateSpan(testSpan);
 
     Span active = tracer.activeSpan();
@@ -42,8 +43,8 @@ class OTSpanTest extends DDJavaSpecification {
     assertEquals("correct-resource", testSpan.getResourceName());
 
     testSpan
-        .getDelegate()
-        .setResourceName("should-be-ignored", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+      .getDelegate()
+      .setResourceName("should-be-ignored", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
 
     assertEquals("correct-resource", testSpan.getResourceName());
 

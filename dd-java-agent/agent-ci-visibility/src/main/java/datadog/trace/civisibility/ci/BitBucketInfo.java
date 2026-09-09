@@ -4,7 +4,6 @@ import static datadog.trace.api.git.GitUtils.filterSensitiveInfo;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -13,7 +12,6 @@ import datadog.trace.util.Strings;
 import javax.annotation.Nonnull;
 
 class BitBucketInfo implements CIProviderInfo {
-
   // https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/
   public static final String BITBUCKET = "BITBUCKET_BUILD_NUMBER";
   public static final String BITBUCKET_PROVIDER_NAME = "bitbucket";
@@ -28,7 +26,6 @@ class BitBucketInfo implements CIProviderInfo {
   public static final String BITBUCKET_GIT_TAG = "BITBUCKET_TAG";
   public static final String BITBUCKET_PR_DESTINATION_BRANCH = "BITBUCKET_PR_DESTINATION_BRANCH";
   public static final String BITBUCKET_PR_NUMBER = "BITBUCKET_PR_ID";
-
   private final CiEnvironment environment;
 
   BitBucketInfo(CiEnvironment environment) {
@@ -62,15 +59,16 @@ class BitBucketInfo implements CIProviderInfo {
     final String number = environment.get(BITBUCKET_BUILD_NUMBER);
     final String url = buildPipelineUrl(repo, number);
 
-    return CIInfo.builder(environment)
-        .ciProviderName(BITBUCKET_PROVIDER_NAME)
-        .ciPipelineId(buildPipelineId())
-        .ciPipelineName(repo)
-        .ciPipelineNumber(number)
-        .ciPipelineUrl(url)
-        .ciJobUrl(url)
-        .ciWorkspace(expandTilde(environment.get(BITBUCKET_WORKSPACE_PATH)))
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(BITBUCKET_PROVIDER_NAME)
+      .ciPipelineId(buildPipelineId())
+      .ciPipelineName(repo)
+      .ciPipelineNumber(number)
+      .ciPipelineUrl(url)
+      .ciJobUrl(url)
+      .ciWorkspace(expandTilde(environment.get(BITBUCKET_WORKSPACE_PATH)))
+      .build();
   }
 
   @Nonnull
@@ -85,8 +83,7 @@ class BitBucketInfo implements CIProviderInfo {
   }
 
   private String buildPipelineUrl(final String repo, final String number) {
-    return String.format(
-        "https://bitbucket.org/%s/addon/pipelines/home#!/results/%s", repo, number);
+    return String.format("https://bitbucket.org/%s/addon/pipelines/home#!/results/%s", repo, number);
   }
 
   private String buildPipelineId() {

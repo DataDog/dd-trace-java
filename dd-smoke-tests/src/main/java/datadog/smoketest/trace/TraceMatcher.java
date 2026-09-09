@@ -2,7 +2,6 @@ package datadog.smoketest.trace;
 
 import static java.util.Comparator.comparingLong;
 import static java.util.stream.Collectors.toSet;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -35,23 +34,24 @@ public final class TraceMatcher {
   /*
    * Span comparators.
    */
-  /** Span comparator to sort by start time. */
+  /**
+   * Span comparator to sort by start time.
+   */
   public static final Comparator<DecodedSpan> START_TIME_COMPARATOR =
       comparingLong(DecodedSpan::getStart).thenComparingLong(DecodedSpan::getSpanId);
-
   /*
    * Span assertion options.
    */
-  /** Sorts spans by start time. */
+  /**
+   * Sorts spans by start time.
+   */
   public static final UnaryOperator<Options> SORT_BY_START_TIME =
       options -> options.sort(START_TIME_COMPARATOR);
-
   /**
    * Sorts spans by ancestry, root spans (or which parents are absent from the trace chunk) first,
    * followed by their children by start time, depth-first.
    */
   public static final UnaryOperator<Options> SORT_BY_ANCESTRY = Options::sortByAncestry;
-
   private final Options options;
   private final SpanMatcher[] matchers;
 
@@ -108,7 +108,9 @@ public final class TraceMatcher {
       if (parentId != 0 && !spanIds.contains(parentId)) {
         parentId = 0;
       }
-      spansByParentId.computeIfAbsent(parentId, k -> new ArrayList<>()).add(span);
+      spansByParentId
+        .computeIfAbsent(parentId, k -> new ArrayList<>())
+        .add(span);
     }
     spansByParentId.forEach((k, v) -> v.sort(START_TIME_COMPARATOR));
 

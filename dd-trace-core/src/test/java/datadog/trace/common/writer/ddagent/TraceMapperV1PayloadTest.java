@@ -37,7 +37,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -80,44 +79,43 @@ import org.tabletest.junit.TableTest;
 
 @ExtendWith(WithConfigExtension.class)
 class TraceMapperV1PayloadTest {
-
   private static final String DECISION_MAKER_TAG = "_dd.p.dm";
-
-  /** Every field the v1 payload header carries, mirroring {@code TraceMapperV1.buildHeader}. */
-  private static final Set<Integer> EXPECTED_PAYLOAD_FIELD_IDS =
-      new HashSet<>(
-          asList(
-              PayloadField.CONTAINER_ID,
-              PayloadField.LANGUAGE_NAME,
-              PayloadField.LANGUAGE_VERSION,
-              PayloadField.TRACER_VERSION,
-              PayloadField.RUNTIME_ID,
-              PayloadField.ENV,
-              PayloadField.HOSTNAME,
-              PayloadField.APP_VERSION,
-              PayloadField.ATTRIBUTES,
-              PayloadField.CHUNKS));
-
-  /** Every field a v1 span carries, mirroring {@code TraceMapperV1.encodeSpans}. */
-  private static final Set<Integer> EXPECTED_SPAN_FIELD_IDS =
-      new HashSet<>(
-          asList(
-              SpanField.SERVICE,
-              SpanField.NAME,
-              SpanField.RESOURCE,
-              SpanField.SPAN_ID,
-              SpanField.PARENT_ID,
-              SpanField.START,
-              SpanField.DURATION,
-              SpanField.ERROR,
-              SpanField.ATTRIBUTES,
-              SpanField.TYPE,
-              SpanField.LINKS,
-              SpanField.EVENTS,
-              SpanField.ENV,
-              SpanField.VERSION,
-              SpanField.COMPONENT,
-              SpanField.KIND));
+  /**
+   * Every field the v1 payload header carries, mirroring {@code TraceMapperV1.buildHeader}.
+   */
+  private static final Set<Integer> EXPECTED_PAYLOAD_FIELD_IDS = new HashSet<>(
+      asList(
+          PayloadField.CONTAINER_ID,
+          PayloadField.LANGUAGE_NAME,
+          PayloadField.LANGUAGE_VERSION,
+          PayloadField.TRACER_VERSION,
+          PayloadField.RUNTIME_ID,
+          PayloadField.ENV,
+          PayloadField.HOSTNAME,
+          PayloadField.APP_VERSION,
+          PayloadField.ATTRIBUTES,
+          PayloadField.CHUNKS));
+  /**
+   * Every field a v1 span carries, mirroring {@code TraceMapperV1.encodeSpans}.
+   */
+  private static final Set<Integer> EXPECTED_SPAN_FIELD_IDS = new HashSet<>(
+      asList(
+          SpanField.SERVICE,
+          SpanField.NAME,
+          SpanField.RESOURCE,
+          SpanField.SPAN_ID,
+          SpanField.PARENT_ID,
+          SpanField.START,
+          SpanField.DURATION,
+          SpanField.ERROR,
+          SpanField.ATTRIBUTES,
+          SpanField.TYPE,
+          SpanField.LINKS,
+          SpanField.EVENTS,
+          SpanField.ENV,
+          SpanField.VERSION,
+          SpanField.COMPONENT,
+          SpanField.KIND));
 
   // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
@@ -138,7 +136,10 @@ class TraceMapperV1PayloadTest {
     "hundred traces, high cardinality | 100          | 100        | false         "
   })
   void tracesWrittenCorrectly(
-      String scenario, int bufferSizeKb, int traceCount, boolean lowCardinality) {
+      String scenario,
+      int bufferSizeKb,
+      int traceCount,
+      boolean lowCardinality) {
     List<List<PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
     TraceMapperV1 traceMapper = new TraceMapperV1();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
@@ -189,24 +190,23 @@ class TraceMapperV1PayloadTest {
     tags.put("attr.string", "value");
     tags.put("attr.bool", true);
     tags.put("attr.number", 12.5d);
-    PojoSpan span =
-        new PojoSpan(
-            "service-a",
-            "operation-a",
-            "resource-a",
-            DDTraceId.ONE,
-            123L,
-            0L,
-            1000L,
-            2000L,
-            1,
-            singletonMap(DECISION_MAKER_TAG, "-3"),
-            tags,
-            "web",
-            false,
-            SAMPLER_KEEP,
-            200,
-            "rum");
+    PojoSpan span = new PojoSpan(
+        "service-a",
+        "operation-a",
+        "resource-a",
+        DDTraceId.ONE,
+        123L,
+        0L,
+        1000L,
+        2000L,
+        1,
+        singletonMap(DECISION_MAKER_TAG, "-3"),
+        tags,
+        "web",
+        false,
+        SAMPLER_KEEP,
+        200,
+        "rum");
 
     byte[] encoded = serializeV1Payload(span);
     List<String> stringTable = newStringTable();
@@ -254,7 +254,9 @@ class TraceMapperV1PayloadTest {
     "unparseable value             | invalid          | 0                        "
   })
   void samplingMechanismNormalizationFromDecisionMaker(
-      String scenario, String decisionMakerTag, int expectedSamplingMechanism) throws IOException {
+      String scenario,
+      String decisionMakerTag,
+      int expectedSamplingMechanism) throws IOException {
     Map<String, String> baggage = new HashMap<>();
     if (decisionMakerTag != null) {
       baggage.put(DECISION_MAKER_TAG, decisionMakerTag);
@@ -471,7 +473,6 @@ class TraceMapperV1PayloadTest {
     tags.put("usr", user);
     String loginSuccessTag = "appsec.events.users.login.success";
     tags.put(loginSuccessTag, loginSuccess);
-
     // status code 0 keeps the encoder from adding an http.status_code attribute
     Map<String, Object> attributes =
         readFirstSpan(serializeV1Payload(span(tags, 0))).getAttributes();
@@ -482,11 +483,12 @@ class TraceMapperV1PayloadTest {
     assertAttributeValueEquals(30L, attributes.get("usr.profile.age"), "usr.profile.age");
     assertEquals("login", attributes.get(loginSuccessTag + ".metadata0.event"));
     assertAttributeValueEquals(
-        1L, attributes.get(loginSuccessTag + ".metadata0.attempts"), "attempts");
+        1L,
+        attributes.get(loginSuccessTag + ".metadata0.attempts"),
+        "attempts");
     assertEquals(false, attributes.get(loginSuccessTag + ".metadata1.blocked"));
     // the 7 flattened entries plus thread.id and thread.name, and nothing else
     assertEquals(9, attributes.size());
-
     // the map-valued tags themselves are replaced by their flattened entries
     assertFalse(attributes.containsKey("usr"));
     assertFalse(attributes.containsKey(loginSuccessTag));
@@ -500,7 +502,6 @@ class TraceMapperV1PayloadTest {
     tags.put("tag.long", 9L);
     tags.put("tag.float", 3.5f);
     tags.put("tag.double", 4.25d);
-
     // status code 0 keeps the encoder from adding an http.status_code attribute
     Map<String, Object> attributes =
         readFirstSpan(serializeV1Payload(span(tags, 0))).getAttributes();
@@ -529,12 +530,10 @@ class TraceMapperV1PayloadTest {
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer {
-
     private final List<List<PojoSpan>> expectedTraces;
     private final TraceMapperV1 mapper;
     private final PayloadVerifiers.CapturingChannel channel =
         new PayloadVerifiers.CapturingChannel(200 << 10);
-
     private int position = 0;
 
     private PayloadVerifier(List<List<PojoSpan>> expectedTraces, TraceMapperV1 mapper) {
@@ -595,8 +594,9 @@ class TraceMapperV1PayloadTest {
   }
 
   private static void verifyChunk(
-      MessageUnpacker unpacker, List<PojoSpan> expectedTrace, List<String> stringTable)
-      throws IOException {
+      MessageUnpacker unpacker,
+      List<PojoSpan> expectedTrace,
+      List<String> stringTable) throws IOException {
     int chunkFieldCount = unpacker.unpackMapHeader();
     assertEquals(6, chunkFieldCount);
 
@@ -646,14 +646,16 @@ class TraceMapperV1PayloadTest {
     assertEqualsWithNullAsEmpty(firstSpan.getOrigin(), origin);
     assertEquals(1, chunkAttributes.size());
     assertEqualsWithNullAsEmpty(
-        firstSpan.getLocalRootSpan().getServiceName(), (String) chunkAttributes.get("service"));
+        firstSpan.getLocalRootSpan().getServiceName(),
+        (String) chunkAttributes.get("service"));
     assertArrayEquals(traceIdBytes(firstSpan.getTraceId()), traceId);
     assertEquals(expectedSamplingMechanism(firstSpan.getBaggage()), samplingMechanism.intValue());
   }
 
   private static void verifySpans(
-      MessageUnpacker unpacker, List<PojoSpan> expectedTrace, List<String> stringTable)
-      throws IOException {
+      MessageUnpacker unpacker,
+      List<PojoSpan> expectedTrace,
+      List<String> stringTable) throws IOException {
     int spanCount = unpacker.unpackArrayHeader();
     assertEquals(expectedTrace.size(), spanCount);
 
@@ -663,8 +665,9 @@ class TraceMapperV1PayloadTest {
   }
 
   private static void verifySpan(
-      MessageUnpacker unpacker, PojoSpan expectedSpan, List<String> stringTable)
-      throws IOException {
+      MessageUnpacker unpacker,
+      PojoSpan expectedSpan,
+      List<String> stringTable) throws IOException {
     int spanFieldCount = unpacker.unpackMapHeader();
     assertEquals(EXPECTED_SPAN_FIELD_IDS.size(), spanFieldCount);
 
@@ -742,7 +745,6 @@ class TraceMapperV1PayloadTest {
           fail("Unexpected span field id: " + fieldId);
       }
     }
-
     // A 16-entry map could still repeat one field id and omit another, which would leave a decoded
     // value at its initial sentinel. Pinning the id set makes each field present exactly once, so
     // the value assertions below cannot pass on an unwritten field (e.g. parentId 0, error false).
@@ -807,14 +809,18 @@ class TraceMapperV1PayloadTest {
   }
 
   private static void addFlattenedExpectedAttribute(
-      Map<String, Object> expectedAttributes, String key, Object value) {
+      Map<String, Object> expectedAttributes,
+      String key,
+      Object value) {
     if (!(value instanceof Map)) {
       expectedAttributes.put(key, value);
       return;
     }
     for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
       addFlattenedExpectedAttribute(
-          expectedAttributes, key + "." + entry.getKey(), entry.getValue());
+          expectedAttributes,
+          key + "." + entry.getKey(),
+          entry.getValue());
     }
   }
 
@@ -839,7 +845,9 @@ class TraceMapperV1PayloadTest {
     }
   }
 
-  /** Asserts the next value is encoded as an unsigned 64-bit integer, and returns it. */
+  /**
+   * Asserts the next value is encoded as an unsigned 64-bit integer, and returns it.
+   */
   private static long unpackUint64(MessageUnpacker unpacker) throws IOException {
     assertEquals(MessageFormat.UINT64, unpacker.getNextFormat());
     return unpackUnsignedLong(unpacker);
@@ -849,7 +857,9 @@ class TraceMapperV1PayloadTest {
     return serializeV1Payload(singletonList(span));
   }
 
-  /** Maps a single trace and returns the complete v1 payload bytes. */
+  /**
+   * Maps a single trace and returns the complete v1 payload bytes.
+   */
   private static byte[] serializeV1Payload(List<PojoSpan> trace) {
     TraceMapperV1 mapper = new TraceMapperV1();
     CapturedBody capturedBody = new CapturedBody(mapper);
@@ -882,7 +892,9 @@ class TraceMapperV1PayloadTest {
     return span(123L, 0L, emptyMap(), emptyMap(), 200, spanLinks);
   }
 
-  /** A span carrying the fields shared by most tests; only the varying pieces are parameters. */
+  /**
+   * A span carrying the fields shared by most tests; only the varying pieces are parameters.
+   */
   private static PojoSpan span(
       long spanId,
       long parentId,
@@ -933,12 +945,17 @@ class TraceMapperV1PayloadTest {
     }
   }
 
-  /** A span counting how many times its tags and baggage were handed to the mapper. */
+  /**
+   * A span counting how many times its tags and baggage were handed to the mapper.
+   */
   private static final class CountingPojoSpan extends PojoSpan {
     private int processTagsAndBaggageCount = 0;
 
     private CountingPojoSpan(
-        String operationName, CharSequence resourceName, long spanId, long parentId) {
+        String operationName,
+        CharSequence resourceName,
+        long spanId,
+        long parentId) {
       super(
           "service-a",
           operationName,
@@ -965,7 +982,9 @@ class TraceMapperV1PayloadTest {
     }
   }
 
-  /** {@link SpanLink}'s constructor is protected, so tests reach it through a subclass. */
+  /**
+   * {@link SpanLink}'s constructor is protected, so tests reach it through a subclass.
+   */
   private static final class TestSpanLink extends SpanLink {
     private TestSpanLink(
         DDTraceId traceId,

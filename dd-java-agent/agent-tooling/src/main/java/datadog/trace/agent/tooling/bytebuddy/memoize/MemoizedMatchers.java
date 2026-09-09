@@ -8,7 +8,6 @@ import static datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.MatcherKind
 import static datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.MatcherKind.METHOD;
 import static datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer.MatcherKind.TYPE;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
-
 import datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.BitSet;
@@ -20,7 +19,9 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Supplies memoized matchers. */
+/**
+ * Supplies memoized matchers.
+ */
 public final class MemoizedMatchers implements HierarchyMatchers.Supplier {
   public static void registerAsSupplier() {
     PreloadHierarchy.observeClassDefinitions();
@@ -81,13 +82,15 @@ public final class MemoizedMatchers implements HierarchyMatchers.Supplier {
     return new HasSuperMethod(Memoizer.prepare(METHOD, matcher, true), matcher);
   }
 
-  /** Keeps track of which context-field matchers we've supplied so far. */
+  /**
+   * Keeps track of which context-field matchers we've supplied so far.
+   */
   private static final Map<String, HasContextField> contextFields = new HashMap<>();
 
   @Override
   public ElementMatcher.Junction<TypeDescription> declaresContextField(
-      String keyType, String contextType) {
-
+      String keyType,
+      String contextType) {
     // is there a chance a type might match, but be excluded (skipped) from field-injection?
     ExcludeFilter.ExcludeType excludeType = ExcludeFilter.ExcludeType.fromFieldType(keyType);
 

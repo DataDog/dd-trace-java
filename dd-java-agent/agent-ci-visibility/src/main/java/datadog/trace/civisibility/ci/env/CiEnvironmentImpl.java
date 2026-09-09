@@ -4,7 +4,6 @@ import datadog.environment.EnvironmentVariables;
 import java.util.Map;
 
 public class CiEnvironmentImpl implements CiEnvironment {
-
   private final Map<String, String> env;
 
   public CiEnvironmentImpl(Map<String, String> env) {

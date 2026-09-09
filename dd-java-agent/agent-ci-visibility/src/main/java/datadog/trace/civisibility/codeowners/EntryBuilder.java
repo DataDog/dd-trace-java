@@ -32,9 +32,7 @@ import org.slf4j.LoggerFactory;
  *     file description</a>
  */
 public class EntryBuilder {
-
   private static final Logger log = LoggerFactory.getLogger(EntryBuilder.class);
-
   private final CharacterMatcher.Factory characterMatcherFactory;
   private final char[] c;
   private int offset;
@@ -61,10 +59,10 @@ public class EntryBuilder {
   public @Nullable Entry parse(Collection<String> sectionDefaultOwners) {
     try {
       skipWhitespace();
-
       if (offset == c.length // empty line
           || c[offset] == '#' // comment
-          || isSectionHeader()) { // GitLab section header (including optional '^[')
+          || isSectionHeader()) {
+        // GitLab section header (including optional '^[')
         return null;
       }
 
@@ -80,7 +78,6 @@ public class EntryBuilder {
         owners = sectionDefaultOwners;
       }
       return new Entry(matcher, owners, exclusion, indexKey);
-
     } catch (Exception e) {
       log.warn("Skipping malformed CODEOWNERS entry: {}", new String(c), e);
       return null;
@@ -106,16 +103,20 @@ public class EntryBuilder {
       return null;
     }
     if (c[offset] == '^') {
-      offset++; // consume the optional-section marker
+      // consume the optional-section marker
+      offset++;
     }
-    offset++; // consume the opening '['
+    // consume the opening '['
+    offset++;
     int nameStart = offset;
     while (offset < c.length && c[offset] != ']') {
-      offset++; // consume the section name (which may contain spaces)
+      // consume the section name (which may contain spaces)
+      offset++;
     }
     String name = new String(c, nameStart, offset - nameStart);
     if (offset < c.length) {
-      offset++; // consume the closing ']'
+      // consume the closing ']'
+      offset++;
     }
     // skip the optional [N] required-approvals count that may immediately follow the name
     if (offset < c.length && c[offset] == '[') {
@@ -123,7 +124,8 @@ public class EntryBuilder {
         offset++;
       }
       if (offset < c.length) {
-        offset++; // consume the closing ']'
+        // consume the closing ']'
+        offset++;
       }
     }
     return new SectionHeader(name, parseOwners());
@@ -148,18 +150,22 @@ public class EntryBuilder {
   private boolean isSectionHeader() {
     int i = offset;
     if (i < c.length && c[i] == '^') {
-      i++; // optional-section marker
+      // optional-section marker
+      i++;
     }
     if (i >= c.length || c[i] != '[') {
       return false;
     }
     while (i < c.length && c[i] != ']') {
-      i++; // scan to the section name's closing ']'
+      // scan to the section name's closing ']'
+      i++;
     }
     if (i >= c.length) {
-      return false; // unterminated brackets: not a well-formed section header
+      // unterminated brackets: not a well-formed section header
+      return false;
     }
-    i++; // move past ']'
+    // move past ']'
+    i++;
     return i >= c.length || Character.isWhitespace(c[i]) || c[i] == '[' || c[i] == '#';
   }
 
@@ -175,30 +181,23 @@ public class EntryBuilder {
     for (; offset < c.length; offset++) {
       if (isPatternTerminator(c[offset])) {
         break;
-
       } else if (consumeDoubleAsterisk()) {
         characterMatchers.offerLast(DoubleAsteriskMatcher.INSTANCE);
         patternContainsSlashes = true;
-
       } else if (c[offset] == '/') {
         // closing slash gets special treatment
         if (offset + 1 < c.length && !isPatternTerminator(c[offset + 1])) {
           characterMatchers.offerLast(characterMatcherFactory.create('/'));
           patternContainsSlashes = true;
         }
-
       } else if (c[offset] == '*') {
         characterMatchers.offerLast(AsteriskMatcher.INSTANCE);
-
       } else if (c[offset] == '?') {
         characterMatchers.offerLast(QuestionMarkMatcher.INSTANCE);
-
       } else if (c[offset] == '[') {
         characterMatchers.offerLast(parseRangeCharacterMatcher());
-
       } else if (c[offset] == '\\') {
         characterMatchers.offerLast(characterMatcherFactory.create(c[++offset]));
-
       } else {
         characterMatchers.offerLast(characterMatcherFactory.create(c[offset]));
       }
@@ -209,7 +208,8 @@ public class EntryBuilder {
     }
 
     boolean patternEndsWithSlash = c[offset - 1] == '/';
-    if (!patternEndsWithSlash) { // pattern should match the end of the string
+    if (!patternEndsWithSlash) {
+      // pattern should match the end of the string
       if (c[offset - 1] == '*') {
         characterMatchers.offerLast(EndOfLineMatcher.INSTANCE);
       } else {
@@ -289,12 +289,10 @@ public class EntryBuilder {
       // there is no last '/', releasing last character
       offset = position - 1;
       return true;
-
     } else if (c[position] == '/') {
       // consuming last '/'
       offset = position;
       return true;
-
     } else {
       return false;
     }
@@ -305,7 +303,8 @@ public class EntryBuilder {
   }
 
   private Matcher parseRangeCharacterMatcher() {
-    offset++; // consume opening '['
+    // consume opening '['
+    offset++;
 
     Collection<RangeMatcher.Range> ranges = new ArrayList<>();
     for (; offset < c.length; offset++) {
@@ -315,7 +314,6 @@ public class EntryBuilder {
         } else {
           throw new IllegalArgumentException("Empty character range");
         }
-
       } else {
         ranges.add(parseRange());
       }
@@ -343,7 +341,8 @@ public class EntryBuilder {
       }
 
       if (offset == c.length || c[offset] == '#') {
-        break; // anything that goes after # is a comment, stop parsing
+        // anything that goes after # is a comment, stop parsing
+        break;
       }
 
       int ownerIdx = offset;

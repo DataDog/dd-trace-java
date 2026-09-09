@@ -12,7 +12,6 @@ import scala.collection.immutable.Map;
 
 abstract class AbstractSparkPlanUtils {
   private static final Logger log = LoggerFactory.getLogger(AbstractSparkPlanUtils.class);
-
   protected static final MethodHandles methodLoader =
       new MethodHandles(ClassLoader.getSystemClassLoader());
 
@@ -26,7 +25,8 @@ abstract class AbstractSparkPlanUtils {
   // Attempt to create a new SparkPlanInfo with additional metadata replaced
   // Since the fields are immutable we must instantiate a new SparkPlanInfo to do this
   public SparkPlanInfo upsertSparkPlanInfoMetadata(
-      SparkPlanInfo planInfo, scala.collection.immutable.Map<String, String> meta) {
+      SparkPlanInfo planInfo,
+      scala.collection.immutable.Map<String, String> meta) {
     if (getDatabricksConstructor() != null) {
       List<Object> databricksArgs = new ArrayList<>(Arrays.asList(getStandardArgs(planInfo, meta)));
       try {
@@ -45,8 +45,7 @@ abstract class AbstractSparkPlanUtils {
     }
 
     if (getConstructor() != null) {
-      SparkPlanInfo newPlan =
-          methodLoader.invoke(getConstructor(), getStandardArgs(planInfo, meta));
+      SparkPlanInfo newPlan = methodLoader.invoke(getConstructor(), getStandardArgs(planInfo, meta));
       if (newPlan != null) {
         return newPlan;
       }

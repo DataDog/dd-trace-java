@@ -14,8 +14,7 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
   OffsetCommitCallback callback;
   KafkaConsumerInfo kafkaConsumerInfo;
 
-  public DDOffsetCommitCallback(
-      OffsetCommitCallback callback, KafkaConsumerInfo kafkaConsumerInfo) {
+  public DDOffsetCommitCallback(OffsetCommitCallback callback, KafkaConsumerInfo kafkaConsumerInfo) {
     this.callback = callback;
     this.kafkaConsumerInfo = kafkaConsumerInfo;
   }
@@ -37,18 +36,19 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
         Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
         if (consumerMetadata != null) {
           MetadataState metadataState =
-              InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
+              InstrumentationContext
+            .get(Metadata.class, MetadataState.class)
+            .get(consumerMetadata);
           clusterId = metadataState != null ? metadataState.clusterId : null;
         }
       }
 
-      DataStreamsTags tags =
-          DataStreamsTags.createWithPartition(
-              "kafka_commit",
-              entry.getKey().topic(),
-              String.valueOf(entry.getKey().partition()),
-              clusterId,
-              consumerGroup);
+      DataStreamsTags tags = DataStreamsTags.createWithPartition(
+          "kafka_commit",
+          entry.getKey().topic(),
+          String.valueOf(entry.getKey().partition()),
+          clusterId,
+          consumerGroup);
       AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
     }
   }

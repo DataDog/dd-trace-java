@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +16,8 @@ public class KafkaProducerCallback implements Callback {
   private final Callback callback;
   private final AgentSpan parent;
   private final AgentSpan span;
-  @Nullable private final String clusterId;
+  @Nullable
+  private final String clusterId;
 
   public KafkaProducerCallback(
       final Callback callback,
@@ -52,13 +52,12 @@ public class KafkaProducerCallback implements Callback {
       return;
     }
 
-    DataStreamsTags tags =
-        DataStreamsTags.createWithPartition(
-            "kafka_produce",
-            metadata.topic(),
-            String.valueOf(metadata.partition()),
-            clusterId,
-            null);
+    DataStreamsTags tags = DataStreamsTags.createWithPartition(
+        "kafka_produce",
+        metadata.topic(),
+        String.valueOf(metadata.partition()),
+        clusterId,
+        null);
     AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, metadata.offset());
   }
 }

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.http.HttpRetryPolicy;
@@ -24,7 +23,6 @@ import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.Test;
 
 class BackendApiFactoryTest {
-
   private static final MediaType JSON = MediaType.parse("application/json");
 
   @Test
@@ -44,8 +42,7 @@ class BackendApiFactoryTest {
     try {
       final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
       final BackendApiFactory factory =
-          new BackendApiFactory(
-              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
+          new BackendApiFactory(Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
       final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, false);
 
       assertNotNull(api);
@@ -72,22 +69,20 @@ class BackendApiFactoryTest {
     try {
       final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
       final BackendApiFactory factory =
-          new BackendApiFactory(
-              Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
+          new BackendApiFactory(Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
       final BackendApi api =
           factory.createEvpProxyApi(
-              Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
+              Intake.EVENT_PLATFORM,
+              false,
+              HttpRetryPolicy.Factory.NEVER_RETRY);
 
       assertNotNull(api);
-      assertThrows(
-          HttpResponseException.class,
-          () ->
-              api.post(
-                  "flagevaluation",
-                  RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
-                  stream -> null,
-                  null,
-                  false));
+      assertThrows(HttpResponseException.class, () -> api.post(
+          "flagevaluation",
+          RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+          stream -> null,
+          null,
+          false));
 
       assertEquals(1, agent.getRequestCount());
     } finally {
@@ -96,7 +91,8 @@ class BackendApiFactoryTest {
   }
 
   private static SharedCommunicationObjects sharedCommunicationObjects(
-      final DDAgentFeaturesDiscovery discovery, final HttpUrl agentUrl) {
+      final DDAgentFeaturesDiscovery discovery,
+      final HttpUrl agentUrl) {
     final TestSharedCommunicationObjects sco = new TestSharedCommunicationObjects(discovery);
     sco.agentUrl = agentUrl != null ? agentUrl : HttpUrl.get("http://localhost:8126/");
     sco.agentHttpClient = new OkHttpClient();

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static utils.TestHelper.setFieldInConfig;
-
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -44,14 +43,10 @@ import org.junit.jupiter.api.BeforeEach;
 
 public class CapturingTestBase {
   protected static final String LANGUAGE = "java";
-
   protected static final ProbeId PROBE_ID = new ProbeId("beae1807-f3b0-4ea8-a74f-826790c5e6f5", 0);
-
   protected static final String SERVICE_NAME = "service-name";
-
   private static final JsonAdapter<Map<String, Object>> GENERIC_ADAPTER =
       MoshiHelper.createGenericAdapter();
-
   protected Config config;
   protected ConfigurationUpdater configurationUpdater;
   protected ClassFileTransformer currentTransformer;
@@ -77,7 +72,10 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureArgs(
-      CapturedContext context, String name, String typeName, String value) {
+      CapturedContext context,
+      String name,
+      String typeName,
+      String value) {
     CapturedContext.CapturedValue capturedValue = context.getArguments().get(name);
     assertEquals(typeName, capturedValue.getType());
     assertEquals(value, MoshiSnapshotTestHelper.getValue(capturedValue));
@@ -96,7 +94,9 @@ public class CapturingTestBase {
         results.put(
             "@" + NOT_CAPTURED_REASON,
             CapturedContext.CapturedValue.notCapturedReason(
-                null, null, valued.getNotCapturedReason()));
+                null,
+                null,
+                valued.getNotCapturedReason()));
       }
       if (valued.getValue() == null) {
         return results;
@@ -110,14 +110,20 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureFields(
-      CapturedContext context, String name, String typeName, String value) {
+      CapturedContext context,
+      String name,
+      String typeName,
+      String value) {
     CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     assertEquals(value, MoshiSnapshotTestHelper.getValue(field));
   }
 
   protected void assertCaptureFields(
-      CapturedContext context, String name, String typeName, Collection<?> collection) {
+      CapturedContext context,
+      String name,
+      String typeName,
+      Collection<?> collection) {
     CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     Iterator<?> iterator = collection.iterator();
@@ -161,7 +167,10 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureFields(
-      CapturedContext context, String name, String typeName, Map<Object, Object> expectedMap) {
+      CapturedContext context,
+      String name,
+      String typeName,
+      Map<Object, Object> expectedMap) {
     CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertEquals(typeName, field.getType());
     Map<Object, Object> map = getMap(field);
@@ -197,21 +206,30 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureFieldsNotCaptured(
-      CapturedContext context, String name, String expectedReasonRegEx) {
+      CapturedContext context,
+      String name,
+      String expectedReasonRegEx) {
     CapturedContext.CapturedValue field = getFields(context.getArguments().get("this")).get(name);
     assertTrue(
-        field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
+        field.getNotCapturedReason().matches(expectedReasonRegEx),
+        field.getNotCapturedReason());
   }
 
   protected void assertCaptureLocals(
-      CapturedContext context, String name, String typeName, String value) {
+      CapturedContext context,
+      String name,
+      String typeName,
+      String value) {
     CapturedContext.CapturedValue localVar = context.getLocals().get(name);
     assertEquals(typeName, localVar.getType());
     assertEquals(value, MoshiSnapshotTestHelper.getValue(localVar));
   }
 
   protected void assertCaptureLocals(
-      CapturedContext context, String name, String typeName, Map<String, String> expectedFields) {
+      CapturedContext context,
+      String name,
+      String typeName,
+      Map<String, String> expectedFields) {
     CapturedContext.CapturedValue localVar = context.getLocals().get(name);
     assertEquals(typeName, localVar.getType());
     Map<String, CapturedContext.CapturedValue> fields = getFields(localVar);
@@ -233,7 +251,9 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureReturnValue(
-      CapturedContext context, String typeName, Map<String, String> expectedFields) {
+      CapturedContext context,
+      String typeName,
+      Map<String, String> expectedFields) {
     CapturedContext.CapturedValue returnValue = context.getLocals().get("@return");
     assertEquals(typeName, returnValue.getType());
     Map<String, CapturedContext.CapturedValue> fields = getFields(returnValue);
@@ -249,14 +269,21 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureStaticFieldsNotCaptured(
-      CapturedContext context, String name, String expectedReasonRegEx) {
+      CapturedContext context,
+      String name,
+      String expectedReasonRegEx) {
     CapturedContext.CapturedValue field = context.getStaticFields().get(name);
     assertTrue(
-        field.getNotCapturedReason().matches(expectedReasonRegEx), field.getNotCapturedReason());
+        field.getNotCapturedReason().matches(expectedReasonRegEx),
+        field.getNotCapturedReason());
   }
 
   protected void assertCaptureThrowable(
-      CapturedContext context, String typeName, String message, String methodName, int lineNumber) {
+      CapturedContext context,
+      String typeName,
+      String message,
+      String methodName,
+      int lineNumber) {
     CapturedContext.CapturedThrowable throwable = context.getCapturedThrowable();
     assertCaptureThrowable(throwable, typeName, message, methodName, lineNumber);
   }
@@ -277,14 +304,19 @@ public class CapturingTestBase {
   }
 
   protected void assertCaptureExpressions(
-      CapturedContext context, String name, String typeName, String value) {
+      CapturedContext context,
+      String name,
+      String typeName,
+      String value) {
     CapturedContext.CapturedValue expression = context.getCaptureExpressions().get(name);
     assertEquals(typeName, expression.getType());
     assertEquals(value, MoshiSnapshotTestHelper.getValue(expression));
   }
 
   protected TestSnapshotListener installMethodProbe(
-      String typeName, String methodName, String signature) {
+      String typeName,
+      String methodName,
+      String signature) {
     LogProbe logProbe =
         createMethodProbe(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature);
     return installProbes(logProbe);
@@ -296,7 +328,10 @@ public class CapturingTestBase {
   }
 
   protected static LogProbe createMethodProbe(
-      ProbeId id, String typeName, String methodName, String signature) {
+      ProbeId id,
+      String typeName,
+      String methodName,
+      String signature) {
     return createProbeBuilder(id, typeName, methodName, signature).build();
   }
 
@@ -305,25 +340,31 @@ public class CapturingTestBase {
   }
 
   protected TestSnapshotListener installProbes(ProbeDefinition... probes) {
-    return installProbes(
-        Configuration.builder().setService(CapturedSnapshotTest.SERVICE_NAME).add(probes).build());
+    return installProbes(Configuration
+      .builder()
+      .setService(CapturedSnapshotTest.SERVICE_NAME)
+      .add(probes)
+      .build());
   }
 
   public static LogProbe.Builder createProbeBuilder(
-      ProbeId id, String typeName, String methodName, String signature) {
+      ProbeId id,
+      String typeName,
+      String methodName,
+      String signature) {
     return createProbeBuilder(id)
-        .captureSnapshot(true)
-        .where(typeName, methodName, signature, (String[]) null)
-        // Increase sampling limit to avoid being sampled during tests
-        .sampling(new LogProbe.Sampling(100));
+      .captureSnapshot(true)
+      .where(typeName, methodName, signature, (String[]) null)
+      // Increase sampling limit to avoid being sampled during tests
+      .sampling(new LogProbe.Sampling(100));
   }
 
   public static LogProbe.Builder createProbeBuilder(ProbeId id, String sourceFile, int line) {
     return createProbeBuilder(id)
-        .captureSnapshot(true)
-        .where(sourceFile, line)
-        // Increase sampling limit to avoid being sampled during tests
-        .sampling(new LogProbe.Sampling(100));
+      .captureSnapshot(true)
+      .where(sourceFile, line)
+      // Increase sampling limit to avoid being sampled during tests
+      .sampling(new LogProbe.Sampling(100));
   }
 
   public static LogProbe.Builder createProbeBuilder(ProbeId id) {
@@ -335,20 +376,18 @@ public class CapturingTestBase {
     instrumentationListener = new MockInstrumentationListener();
     probeStatusSink = mock(ProbeStatusSink.class);
     TestSnapshotListener listener = new TestSnapshotListener(config, probeStatusSink);
-    configurationUpdater =
-        new ConfigurationUpdater(
-            instr,
-            DebuggerTransformer::new,
-            config,
-            new DebuggerSink(config, probeStatusSink),
-            new ClassesToRetransformFinder());
-    currentTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            instrumentationListener,
-            configurationUpdater.getProbeMetadata(),
-            listener);
+    configurationUpdater = new ConfigurationUpdater(
+        instr,
+        DebuggerTransformer::new,
+        config,
+        new DebuggerSink(config, probeStatusSink),
+        new ClassesToRetransformFinder());
+    currentTransformer = new DebuggerTransformer(
+        config,
+        configuration,
+        instrumentationListener,
+        configurationUpdater.getProbeMetadata(),
+        listener);
     instr.addTransformer(currentTransformer);
     DebuggerAgentHelper.injectSink(listener);
     DebuggerContext.initProbeResolver(configurationUpdater::resolve);
@@ -377,17 +416,22 @@ public class CapturingTestBase {
   }
 
   protected TestSnapshotListener installMethodProbeAtExit(
-      String typeName, String methodName, String signature) {
+      String typeName,
+      String methodName,
+      String signature) {
     LogProbe logProbes =
         createMethodProbeAtExit(CapturedSnapshotTest.PROBE_ID, typeName, methodName, signature);
     return installProbes(logProbes);
   }
 
   protected static LogProbe createMethodProbeAtExit(
-      ProbeId id, String typeName, String methodName, String signature) {
+      ProbeId id,
+      String typeName,
+      String methodName,
+      String signature) {
     return createProbeBuilder(id, typeName, methodName, signature)
-        .evaluateAt(MethodLocation.EXIT)
-        .build();
+      .evaluateAt(MethodLocation.EXIT)
+      .build();
   }
 
   interface TestMethod {

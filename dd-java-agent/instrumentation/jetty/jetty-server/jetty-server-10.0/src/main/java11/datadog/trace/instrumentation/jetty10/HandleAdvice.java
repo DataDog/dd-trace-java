@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -17,17 +16,16 @@ import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
 public class HandleAdvice {
-
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.This final HttpChannel channel,
         @Advice.Local("parentScope") ContextScope parentScope) {
       Request req = channel.getRequest();
       if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
-        return; // re-entry: HandleAdvice will attach existing context
+        // re-entry: HandleAdvice will attach existing context
+        return;
       }
       Context parentContext = DECORATE.extract(req);
       req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
@@ -44,7 +42,8 @@ public class HandleAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(
-      @Advice.This final HttpChannel channel, @Advice.Local("agentSpan") AgentSpan span) {
+      @Advice.This final HttpChannel channel,
+      @Advice.Local("agentSpan") AgentSpan span) {
     Request req = channel.getRequest();
 
     Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);
@@ -73,6 +72,7 @@ public class HandleAdvice {
   }
 
   private void muzzleCheck(Request r) {
-    r.getAsyncContext(); // there must be a getAsyncContext returning a javax AsyncContext
+    // there must be a getAsyncContext returning a javax AsyncContext
+    r.getAsyncContext();
   }
 }

@@ -9,15 +9,12 @@ import java.util.Collection;
 import java.util.Objects;
 
 public class AppSecEventWrapper {
-
-  private static final JsonAdapter<AppSecEventWrapper> ADAPTER =
-      new Moshi.Builder()
-          .add(Double.class, new IntegralDoubleJsonAdapter())
-          .build()
-          .adapter(AppSecEventWrapper.class);
+  private static final JsonAdapter<AppSecEventWrapper> ADAPTER = new Moshi.Builder()
+    .add(Double.class, new IntegralDoubleJsonAdapter())
+    .build()
+    .adapter(AppSecEventWrapper.class);
 
   // Writes whole-number Doubles (e.g. key_path array indices) without a trailing ".0".
-
   private static final class IntegralDoubleJsonAdapter extends JsonAdapter<Double> {
     @Override
     public Double fromJson(JsonReader reader) throws IOException {
@@ -49,8 +46,12 @@ public class AppSecEventWrapper {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     AppSecEventWrapper that = (AppSecEventWrapper) o;
     return Objects.equals(triggers, that.triggers);
   }

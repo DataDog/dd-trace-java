@@ -5,7 +5,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
-/** Substitute {@link ContextStore} that uses strong-references to track contexts. */
+/**
+ * Substitute {@link ContextStore} that uses strong-references to track contexts.
+ */
 public class StrongMapContextStore<K, C> implements ContextStore<K, C> {
   private final ConcurrentMap<K, C> map = new ConcurrentHashMap<>();
 

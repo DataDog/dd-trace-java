@@ -11,17 +11,15 @@ import java.net.URI;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
-@CallSite(
-    spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileIORaspHelper.class)
+@CallSite(spi = {IastCallSites.class, RaspCallSites.class}, helpers = FileIORaspHelper.class)
 public class PathsCallSite {
-
-  @CallSite.Before(
-      "java.nio.file.Path java.nio.file.Paths.get(java.lang.String, java.lang.String[])")
+  @CallSite.Before("java.nio.file.Path java.nio.file.Paths.get(java.lang.String, java.lang."
+      + "String[])")
   public static void beforeGet(
       @CallSite.Argument @Nullable final String first,
       @CallSite.Argument @Nullable final String[] more) {
-    if (first != null && more != null) { // both parameters should be not null
+    if (first != null && more != null) {
+      // both parameters should be not null
       iastCallback(first, more);
       raspCallback(first, more);
     }

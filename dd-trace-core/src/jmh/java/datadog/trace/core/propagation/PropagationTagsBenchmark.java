@@ -2,7 +2,6 @@ package datadog.trace.core.propagation;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -27,23 +26,20 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 @SuppressForbidden
 public class PropagationTagsBenchmark {
-
   /**
    * In order to avoid JMH splitting up the strings, all ',' are replaced by '|' in the parameter.
    * The parameter is split at '|' and the first element is the propagation tags header type. The
    * rest of the elements are joined with ',' to form the header to be parsed.
    */
   @Param({
-    "datadog|_dd.p.anytag=value|_dd.p.dm=934086a686-4",
-    "w3c|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4",
-    "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4|bar=baz",
-    "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;other:value;t.dm:934086a686-4|bar=baz"
+      "datadog|_dd.p.anytag=value|_dd.p.dm=934086a686-4",
+      "w3c|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4",
+      "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;t.dm:934086a686-4|bar=baz",
+      "w3c|foo=bar|dd=s:1;o:some;t.anytag:value;other:value;t.dm:934086a686-4|bar=baz"
   })
   String extractHeaderType;
-
   @Param({"datadog", "w3c"})
   String injectHeaderType;
-
   PropagationTags.Factory factory;
   PropagationTags.HeaderType extractHT;
   PropagationTags.HeaderType injectHT;

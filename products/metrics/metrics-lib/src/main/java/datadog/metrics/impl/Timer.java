@@ -3,7 +3,6 @@ package datadog.metrics.impl;
 import static datadog.metrics.impl.Utils.mergeTags;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.metrics.api.Histogram;
 import datadog.metrics.api.Recording;
 import datadog.metrics.api.statsd.StatsDClient;
@@ -13,22 +12,17 @@ import datadog.metrics.api.statsd.StatsDClient;
  * configurable period of time.
  */
 public class Timer extends Recording {
-
   private static final long THIRTY_SECONDS_AS_MICROS = SECONDS.toMicros(30);
-
   private static final String[] P_50 = new String[] {"stat:p50"};
   private static final String[] P_99 = new String[] {"stat:p99"};
   private static final String[] MAX = new String[] {"stat:max"};
-
   private final String name;
   private final StatsDClient statsd;
   private final Histogram histogram;
   private final long flushAfterNanos;
-
   private final String[] p50Tags;
   private final String[] p99Tags;
   private final String[] maxTags;
-
   private long start;
   private long lastFlush = 0;
 

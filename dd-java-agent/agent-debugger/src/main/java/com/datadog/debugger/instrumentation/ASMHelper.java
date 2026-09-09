@@ -4,7 +4,6 @@ import static com.datadog.debugger.instrumentation.Types.REFLECTIVE_FIELD_VALUE_
 import static java.lang.String.format;
 import static org.objectweb.asm.Type.getMethodDescriptor;
 import static org.objectweb.asm.Type.getObjectType;
-
 import com.datadog.debugger.agent.Generated;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -51,10 +50,11 @@ import org.objectweb.asm.util.TraceClassVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Helper class for bytecode generation */
+/**
+ * Helper class for bytecode generation
+ */
 public class ASMHelper {
   private static final Logger LOGGER = LoggerFactory.getLogger(ASMHelper.class);
-
   public static final Type INT_TYPE = new Type(org.objectweb.asm.Type.INT_TYPE);
   public static final Type OBJECT_TYPE = new Type(Types.OBJECT_TYPE);
   public static final Type STRING_TYPE = new Type(Types.STRING_TYPE);
@@ -92,8 +92,9 @@ public class ASMHelper {
     List<String> strings = Arrays.asList(writer.toString().split("\n"));
     for (int i = 0; i < strings.size(); i++) {
       if (strings.get(i).matches(format(".*(private|public).* %s\\(.*", method))) {
-        while (!strings.get(i).equals(""))
+        while (!strings.get(i).equals("")) {
           joiner.add(String.format("[%3d] %s", i, strings.get(i++)));
+        }
       }
     }
     return joiner.toString();
@@ -166,7 +167,8 @@ public class ASMHelper {
             owner.getInternalName(),
             name,
             getMethodDescriptor(returnType, argTypes),
-            false)); // stack: [ret_type]
+            // stack: [ret_type]
+            false));
   }
 
   public static void ldc(InsnList insnList, int val) {
@@ -184,7 +186,10 @@ public class ASMHelper {
   public static void getStatic(InsnList insnList, org.objectweb.asm.Type owner, String fieldName) {
     insnList.add(
         new FieldInsnNode(
-            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, owner.getDescriptor()));
+            Opcodes.GETSTATIC,
+            owner.getInternalName(),
+            fieldName,
+            owner.getDescriptor()));
   }
 
   public static void getStatic(
@@ -194,7 +199,10 @@ public class ASMHelper {
       org.objectweb.asm.Type fieldType) {
     insnList.add(
         new FieldInsnNode(
-            Opcodes.GETSTATIC, owner.getInternalName(), fieldName, fieldType.getDescriptor()));
+            Opcodes.GETSTATIC,
+            owner.getInternalName(),
+            fieldName,
+            fieldType.getDescriptor()));
   }
 
   public static Type decodeSignature(String signature) {
@@ -202,11 +210,11 @@ public class ASMHelper {
     FieldSignatureVisitor fieldSignatureVisitor = new FieldSignatureVisitor();
     sigReader.acceptType(fieldSignatureVisitor);
     org.objectweb.asm.Type mainType = getObjectType(fieldSignatureVisitor.getMainClassName());
-    List<Type> genericTypes =
-        fieldSignatureVisitor.genericTypes.stream()
-            .map(org.objectweb.asm.Type::getObjectType)
-            .map(Type::new)
-            .collect(Collectors.toList());
+    List<Type> genericTypes = fieldSignatureVisitor.genericTypes
+      .stream()
+      .map(org.objectweb.asm.Type::getObjectType)
+      .map(Type::new)
+      .collect(Collectors.toList());
     return new Type(mainType, genericTypes);
   }
 
@@ -220,15 +228,17 @@ public class ASMHelper {
    * @return the loaded class
    */
   public static Class<?> ensureSafeClassLoad(
-      String className, String currentClassTransformed, ClassLoader classLoader) {
+      String className,
+      String currentClassTransformed,
+      ClassLoader classLoader) {
     if (currentClassTransformed == null) {
       // This is required to make sure we are not loading the class being transformed during
       // transformation as it will generate a LinkageError with
       // "attempted duplicate class definition"
       throw new IllegalArgumentException(
           "Cannot ensure loading class: "
-              + className
-              + " safely as current class being transformed is not provided (null)");
+          + className
+          + " safely as current class being transformed is not provided (null)");
     }
     if (className.equals(currentClassTransformed)) {
       throw new IllegalArgumentException(
@@ -242,14 +252,16 @@ public class ASMHelper {
   }
 
   public static void emitReflectiveCall(
-      InsnList insnList, Type fieldType, org.objectweb.asm.Type targetType) {
+      InsnList insnList,
+      Type fieldType,
+      org.objectweb.asm.Type targetType) {
     int sort = fieldType.getMainType().getSort();
     String methodName = getReflectiveMethodName(sort);
     // stack: [target_object, string]
-    org.objectweb.asm.Type returnType =
-        sort == org.objectweb.asm.Type.OBJECT || sort == org.objectweb.asm.Type.ARRAY
-            ? Types.OBJECT_TYPE
-            : fieldType.getMainType();
+    org.objectweb.asm.Type returnType = sort == org.objectweb.asm.Type.OBJECT
+        || sort == org.objectweb.asm.Type.ARRAY
+        ? Types.OBJECT_TYPE
+        : fieldType.getMainType();
     invokeStatic(
         insnList,
         REFLECTIVE_FIELD_VALUE_RESOLVER_TYPE,
@@ -347,7 +359,9 @@ public class ASMHelper {
   }
 
   public static void invokeConstructor(
-      InsnList insnList, org.objectweb.asm.Type owner, org.objectweb.asm.Type... argTypes) {
+      InsnList insnList,
+      org.objectweb.asm.Type owner,
+      org.objectweb.asm.Type... argTypes) {
     // expected stack: [instance, arg_type_1 ... arg_type_N]
     insnList.add(
         new MethodInsnNode(
@@ -359,9 +373,13 @@ public class ASMHelper {
     // stack: []
   }
 
-  /** Checks if the given variable is in scope at the given location */
+  /**
+   * Checks if the given variable is in scope at the given location
+   */
   public static boolean isInScope(
-      MethodNode methodNode, LocalVariableNode variableNode, AbstractInsnNode location) {
+      MethodNode methodNode,
+      LocalVariableNode variableNode,
+      AbstractInsnNode location) {
     AbstractInsnNode startScope =
         variableNode.start != null ? variableNode.start : methodNode.instructions.getFirst();
     AbstractInsnNode endScope =
@@ -377,7 +395,8 @@ public class ASMHelper {
   }
 
   public static boolean isStoreCompatibleType(
-      org.objectweb.asm.Type previousType, org.objectweb.asm.Type currentType) {
+      org.objectweb.asm.Type previousType,
+      org.objectweb.asm.Type currentType) {
     if (previousType == null || currentType == null) {
       return false;
     }
@@ -444,7 +463,8 @@ public class ASMHelper {
    * know at exit points of a method what remains on the stack
    */
   protected static Map<AbstractInsnNode, Frame<BasicValue>> computeFrames(
-      String owner, MethodNode methodNode) {
+      String owner,
+      MethodNode methodNode) {
     // Initial guess used for methodNode.maxStack when retrying computeFrames() below; small
     // enough to be cheap, large enough to cover the vast majority of probe-generated methods on
     // the first attempt.
@@ -495,10 +515,13 @@ public class ASMHelper {
   }
 
   private static boolean isInsufficientMaxStack(AnalyzerException ex) {
-    return ex.getMessage() != null && ex.getMessage().contains("Insufficient maximum stack size");
+    return ex.getMessage() != null
+        && ex.getMessage().contains("Insufficient maximum stack size");
   }
 
-  /** Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types */
+  /**
+   * Wraps ASM's {@link org.objectweb.asm.Type} with associated generic types
+   */
   public static class Type {
     private final org.objectweb.asm.Type mainType;
     private final List<Type> genericTypes;

@@ -3,11 +3,9 @@ package com.datadog.featureflag;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 class ULeb128EncoderTest {
-
   @Test
   void hashTargetingKeyMatchesCanonicalPiiVector() {
     // Canonical vector shared across all SDK implementations — see system-tests PR #7316.

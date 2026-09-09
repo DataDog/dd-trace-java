@@ -5,13 +5,15 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class StackTraceEvent {
-
   public static final String DEFAULT_LANGUAGE = "java";
-
-  @Nullable private final String language;
-  @Nullable private final String id;
-  @Nullable private final String message;
-  @Nonnull private final List<StackTraceFrame> frames;
+  @Nullable
+  private final String language;
+  @Nullable
+  private final String id;
+  @Nullable
+  private final String message;
+  @Nonnull
+  private final List<StackTraceFrame> frames;
 
   public StackTraceEvent(
       @Nonnull final List<StackTraceFrame> frames,

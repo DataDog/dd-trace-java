@@ -17,7 +17,9 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
   }
 
   public LLMObsSpan startAgentSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
@@ -30,17 +32,23 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
   }
 
   public LLMObsSpan startToolSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startTaskSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
   public LLMObsSpan startWorkflowSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 
@@ -54,7 +62,9 @@ public class NoOpLLMObsSpanFactory implements LLMObs.LLMObsSpanFactory {
   }
 
   public LLMObsSpan startRetrievalSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return NoOpLLMObsSpan.INSTANCE;
   }
 }

@@ -11,9 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MethodVisitorWrapper {
-
   private static final Logger log = LoggerFactory.getLogger(MethodVisitorWrapper.class);
-
   private static final MethodHandle visitMethodInsnHandle;
   private static final MethodHandle visitInsnHandle;
   private static final MethodHandle visitIntInsnHandle;
@@ -30,32 +28,39 @@ public class MethodVisitorWrapper {
     MethodHandles.Lookup lookup = MethodHandles.lookup();
     Class<?> shadedMethodVisitorClass =
         getJacocoClass(jacocoClassLoader, jacocoPackageName, ".asm.MethodVisitor");
-    visitMethodInsnHandle =
-        accessMethod(
-            lookup,
-            shadedMethodVisitorClass,
-            "visitMethodInsn",
-            int.class,
-            String.class,
-            String.class,
-            String.class,
-            boolean.class);
+    visitMethodInsnHandle = accessMethod(
+        lookup,
+        shadedMethodVisitorClass,
+        "visitMethodInsn",
+        int.class,
+        String.class,
+        String.class,
+        String.class,
+        boolean.class);
     visitInsnHandle = accessMethod(lookup, shadedMethodVisitorClass, "visitInsn", int.class);
-    visitIntInsnHandle =
-        accessMethod(lookup, shadedMethodVisitorClass, "visitIntInsn", int.class, int.class);
-    visitLdcInsnHandle =
-        accessMethod(lookup, shadedMethodVisitorClass, "visitLdcInsn", Object.class);
+    visitIntInsnHandle = accessMethod(
+        lookup,
+        shadedMethodVisitorClass,
+        "visitIntInsn",
+        int.class,
+        int.class);
+    visitLdcInsnHandle = accessMethod(
+        lookup,
+        shadedMethodVisitorClass,
+        "visitLdcInsn",
+        Object.class);
 
     Class<?> shadedTypeClass = getJacocoClass(jacocoClassLoader, jacocoPackageName, ".asm.Type");
     getTypeHandle = accessMethod(lookup, shadedTypeClass, "getType", String.class);
   }
 
   private static Class<?> getJacocoClass(
-      ClassLoader classLoader, String jacocoPackageName, String classNameSuffix) {
+      ClassLoader classLoader,
+      String jacocoPackageName,
+      String classNameSuffix) {
     String className = jacocoPackageName + classNameSuffix;
     try {
       return classLoader.loadClass(className);
-
     } catch (Throwable throwable) {
       log.error("Could not load Jacoco class: {}", className, throwable);
       return null;
@@ -63,7 +68,10 @@ public class MethodVisitorWrapper {
   }
 
   private static MethodHandle accessMethod(
-      MethodHandles.Lookup lookup, Class<?> clazz, String methodName, Class<?>... arguments) {
+      MethodHandles.Lookup lookup,
+      Class<?> clazz,
+      String methodName,
+      Class<?>... arguments) {
     if (clazz == null) {
       return null;
     }

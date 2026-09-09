@@ -14,22 +14,18 @@ import org.springframework.messaging.MessageHeaders;
 
 public final class SpringMessageExtractAdapter
     implements AgentPropagation.ContextVisitor<Message<?>> {
-
-  private static final Function<String, String> KEY_MAPPER =
-      new Function<String, String>() {
-        @SuppressForbidden
-        @Override
-        public String apply(String key) {
-          // normalize headers from different providers; raw SQS, JMS, spring-messaging, etc.
-          if ("AWSTraceHeader".equals(key) || "Sqs_Msa_AWSTraceHeader".equals(key)) {
-            return "x-amzn-trace-id";
-          }
-          return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
-        }
-      };
-
+  private static final Function<String, String> KEY_MAPPER = new Function<String, String>() {
+    @SuppressForbidden
+    @Override
+    public String apply(String key) {
+      // normalize headers from different providers; raw SQS, JMS, spring-messaging, etc.
+      if ("AWSTraceHeader".equals(key) || "Sqs_Msa_AWSTraceHeader".equals(key)) {
+        return "x-amzn-trace-id";
+      }
+      return key.replace("__dash__", "-").replace('$', '-').toLowerCase(Locale.ROOT);
+    }
+  };
   private final DDCache<String, String> cache = DDCaches.newFixedSizeCache(32);
-
   public static final SpringMessageExtractAdapter GETTER = new SpringMessageExtractAdapter();
 
   @Override

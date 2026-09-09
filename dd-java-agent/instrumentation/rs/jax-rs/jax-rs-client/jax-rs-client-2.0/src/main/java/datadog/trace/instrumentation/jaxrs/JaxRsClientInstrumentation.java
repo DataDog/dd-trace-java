@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JaxRsClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JaxRsClientInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-client");
   }
@@ -35,10 +34,10 @@ public final class JaxRsClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JaxRsClientDecorator",
-      packageName + ".ClientTracingFeature",
-      packageName + ".ClientTracingFilter",
-      packageName + ".InjectAdapter",
+        packageName + ".JaxRsClientDecorator",
+        packageName + ".ClientTracingFeature",
+        packageName + ".ClientTracingFilter",
+        packageName + ".InjectAdapter"
     };
   }
 
@@ -50,7 +49,6 @@ public final class JaxRsClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class ClientBuilderAdvice {
-
     @Advice.OnMethodExit
     public static void registerFeature(
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Client client) {

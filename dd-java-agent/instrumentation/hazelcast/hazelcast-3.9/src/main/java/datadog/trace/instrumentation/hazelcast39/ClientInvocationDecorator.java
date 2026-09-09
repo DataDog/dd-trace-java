@@ -7,19 +7,18 @@ import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.HAZEL
 import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.HAZELCAST_OPERATION;
 import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.HAZELCAST_SERVICE;
 import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.INSTRUMENTATION_NAME;
-
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
-/** Decorate Hazelcast client invocations with relevant contextual information. */
+/**
+ * Decorate Hazelcast client invocations with relevant contextual information.
+ */
 public class ClientInvocationDecorator extends ClientDecorator {
-
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service(INSTRUMENTATION_NAME);
-
   public static final ClientInvocationDecorator DECORATE = new ClientInvocationDecorator();
 
   @Override
@@ -42,13 +41,14 @@ public class ClientInvocationDecorator extends ClientDecorator {
     return SERVICE_NAME;
   }
 
-  /** Decorate trace based on service execution metadata. */
+  /**
+   * Decorate trace based on service execution metadata.
+   */
   public void onServiceExecution(
       final AgentSpan span,
       final String operationName,
       final String objectName,
       long correlationId) {
-
     if (objectName != null) {
       span.setResourceName(UTF8BytesString.create(String.join(" ", operationName, objectName)));
       span.setTag(HAZELCAST_NAME, objectName);

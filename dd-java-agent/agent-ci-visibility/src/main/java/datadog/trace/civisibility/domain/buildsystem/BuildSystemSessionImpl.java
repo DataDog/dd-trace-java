@@ -2,7 +2,6 @@ package datadog.trace.civisibility.domain.buildsystem;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.civisibility.domain.SpanTagsPropagator.TagMergeSpec;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.domain.BuildModuleLayout;
@@ -42,7 +41,6 @@ import javax.annotation.Nullable;
 
 public class BuildSystemSessionImpl<T extends CoverageProcessor> extends AbstractTestSession
     implements BuildSystemSession {
-
   private final String startCommand;
   private final ModuleSignalRouter moduleSignalRouter;
   private final ExecutionSettingsFactory executionSettingsFactory;
@@ -87,29 +85,32 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
     this.coverageProcessorFactory = coverageProcessorFactory;
     this.coverageProcessor = coverageProcessorFactory.sessionCoverage(span.getSpanId());
 
-    ExecutionSettings executionSettings =
-        executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
-    this.settings =
-        new BuildSessionSettings(
-            executionSettings.isCodeCoverageReportUploadEnabled(),
-            getCoverageIncludedPackages(config, repoIndexProvider),
-            config.getCiVisibilityCodeCoverageExcludes());
+    ExecutionSettings executionSettings = executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
+    this.settings = new BuildSessionSettings(
+        executionSettings.isCodeCoverageReportUploadEnabled(),
+        getCoverageIncludedPackages(config, repoIndexProvider),
+        config.getCiVisibilityCodeCoverageExcludes());
 
     signalServer.registerSignalHandler(
-        SignalType.MODULE_EXECUTION_RESULT, moduleSignalRouter::onModuleSignalReceived);
+        SignalType.MODULE_EXECUTION_RESULT,
+        moduleSignalRouter::onModuleSignalReceived);
     signalServer.registerSignalHandler(
-        SignalType.MODULE_COVERAGE_DATA_JACOCO, moduleSignalRouter::onModuleSignalReceived);
+        SignalType.MODULE_COVERAGE_DATA_JACOCO,
+        moduleSignalRouter::onModuleSignalReceived);
     signalServer.registerSignalHandler(
-        SignalType.REPO_INDEX_REQUEST, this::onRepoIndexRequestReceived);
+        SignalType.REPO_INDEX_REQUEST,
+        this::onRepoIndexRequestReceived);
     signalServer.registerSignalHandler(
-        SignalType.EXECUTION_SETTINGS_REQUEST, this::onExecutionSettingsRequestReceived);
+        SignalType.EXECUTION_SETTINGS_REQUEST,
+        this::onExecutionSettingsRequestReceived);
     signalServer.start();
 
     setTag(Tags.TEST_COMMAND, startCommand);
   }
 
   private static List<String> getCoverageIncludedPackages(
-      Config config, RepoIndexProvider repoIndexProvider) {
+      Config config,
+      RepoIndexProvider repoIndexProvider) {
     if (!config.isCiVisibilityCodeCoverageEnabled()) {
       return Collections.emptyList();
     }
@@ -138,7 +139,6 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
       String moduleName = request.getModuleName();
       ExecutionSettings settings = executionSettingsFactory.create(jvmInfo, moduleName);
       return new ExecutionSettingsResponse(settings);
-
     } catch (Exception e) {
       return new ErrorResponse("Error while getting module execution settings: " + e.getMessage());
     }
@@ -201,7 +201,8 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
         TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_FLAKY_TESTS, Boolean::logicalOr),
         TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_KNOWN_TESTS, Boolean::logicalOr),
         TagMergeSpec.of(
-            DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS, Boolean::logicalOr));
+            DDTags.CI_LIBRARY_CONFIGURATION_ERROR_TEST_MANAGEMENT_TESTS,
+            Boolean::logicalOr));
   }
 
   @Override

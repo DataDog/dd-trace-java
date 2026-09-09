@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.vertx_4_0.server.VertxVersionMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,8 +29,8 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class MultiMapInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.HasTypeAdvice, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   private final String className = MultiMapInstrumentation.class.getName();
 
   public MultiMapInstrumentation() {

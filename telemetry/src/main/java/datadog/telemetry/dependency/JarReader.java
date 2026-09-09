@@ -47,7 +47,7 @@ class JarReader {
     if (jarFile.isDirectory()) {
       return new Extracted(jarFile.getName(), new HashMap<>(), new Attributes(), true, () -> null);
     }
-    try (final JarFile jar = new JarFile(jarPath, false /* no verify */)) {
+    try (final JarFile jar = new JarFile(jarPath, false)) {
       final Map<String, Properties> pomProperties = new HashMap<>();
       final Enumeration<? extends ZipEntry> entries = jar.entries();
       while (entries.hasMoreElements()) {
@@ -63,28 +63,23 @@ class JarReader {
       final Manifest manifest = jar.getManifest();
       final Attributes attributes =
           (manifest == null) ? new Attributes() : manifest.getMainAttributes();
-      return new Extracted(
-          new File(jar.getName()).getName(),
-          pomProperties,
-          attributes,
-          false,
-          () -> Files.newInputStream(Paths.get(jarPath)));
+      return new Extracted(new File(jar.getName()).getName(), pomProperties, attributes, false, () -> Files.newInputStream(Paths.get(
+          jarPath)));
     }
   }
 
   public static Extracted readNestedJarFile(final String outerJarPath, final String innerJarPath)
       throws IOException {
-    try (final JarFile outerJar = new JarFile(outerJarPath, false /* no verify */)) {
+    try (final JarFile outerJar = new JarFile(outerJarPath, false)) {
       final ZipEntry entry = outerJar.getEntry(innerJarPath);
       if (entry == null) {
         throw new NoSuchFileException("Nested jar not found: " + innerJarPath);
       }
       if (entry.isDirectory()) {
-        return new Extracted(
-            new File(innerJarPath).getName(), new HashMap<>(), new Attributes(), true, () -> null);
+        return new Extracted(new File(innerJarPath).getName(), new HashMap<>(), new Attributes(), true, () -> null);
       }
       try (final InputStream is = outerJar.getInputStream(entry);
-          final JarInputStream innerJar = new JarInputStream(is, false /* no verify */)) {
+          final JarInputStream innerJar = new JarInputStream(is, false)) {
         final Map<String, Properties> pomProperties = new HashMap<>();
         ZipEntry innerEntry;
         while ((innerEntry = innerJar.getNextEntry()) != null) {
@@ -97,12 +92,9 @@ class JarReader {
         final Manifest manifest = innerJar.getManifest();
         final Attributes attributes =
             (manifest == null) ? new Attributes() : manifest.getMainAttributes();
-        return new Extracted(
-            new File(innerJarPath).getName(),
-            pomProperties,
-            attributes,
-            false,
-            () -> new NestedJarInputStream(outerJarPath, innerJarPath));
+        return new Extracted(new File(innerJarPath).getName(), pomProperties, attributes, false, () -> new NestedJarInputStream(
+            outerJarPath,
+            innerJarPath));
       }
     }
   }
@@ -113,7 +105,7 @@ class JarReader {
 
     public NestedJarInputStream(final String outerPath, final String innerPath) throws IOException {
       super();
-      this.outerJar = new JarFile(outerPath, false /* no verify */);
+      this.outerJar = new JarFile(outerPath, false);
       final ZipEntry entry = outerJar.getEntry(innerPath);
       this.innerInputStream = outerJar.getInputStream(entry);
     }

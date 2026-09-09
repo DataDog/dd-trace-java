@@ -7,7 +7,6 @@ import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
 import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
@@ -25,7 +24,8 @@ import java.nio.charset.StandardCharsets;
 public final class CrashUploaderScriptInitializer {
   private static final String SETUP_FAILURE_MESSAGE = "Crash tracking will not work properly.";
 
-  private CrashUploaderScriptInitializer() {}
+  private CrashUploaderScriptInitializer() {
+  }
 
   @VisibleForTesting
   static boolean initialize(String onErrorVal, String onErrorFile) {
@@ -36,11 +36,15 @@ public final class CrashUploaderScriptInitializer {
   static boolean initialize(String onErrorVal, String onErrorFile, String javacorePath) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
       LOG.debug(
-          SEND_TELEMETRY, "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
+          SEND_TELEMETRY,
+          "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
       return false;
     }
     if (onErrorFile == null || onErrorFile.isEmpty()) {
-      onErrorFile = SystemProperties.get("user.dir") + "/hs_err_pid" + PidHelper.getPid() + ".log";
+      onErrorFile = SystemProperties.get("user.dir")
+          + "/hs_err_pid"
+          + PidHelper.getPid()
+          + ".log";
       LOG.debug("No -XX:ErrorFile value, defaulting to {}", onErrorFile);
     } else {
       onErrorFile = Strings.replace(onErrorFile, "%p", PidHelper.getPid());
@@ -53,8 +57,10 @@ public final class CrashUploaderScriptInitializer {
     }
 
     File scriptFile = new File(onErrorVal.replace(" %p", ""));
-    boolean isDDCrashUploader =
-        scriptFile.getName().toLowerCase(ROOT).contains("dd_crash_uploader");
+    boolean isDDCrashUploader = scriptFile
+      .getName()
+      .toLowerCase(ROOT)
+      .contains("dd_crash_uploader");
     if (isDDCrashUploader && !copyCrashUploaderScript(scriptFile, onErrorFile, agentJar)) {
       return false;
     }
@@ -68,7 +74,9 @@ public final class CrashUploaderScriptInitializer {
   }
 
   private static boolean copyCrashUploaderScript(
-      File scriptFile, String onErrorFile, String agentJar) {
+      File scriptFile,
+      String onErrorFile,
+      String agentJar) {
     File scriptDirectory = scriptFile.getParentFile();
     if (!scriptDirectory.exists()) {
       if (!scriptDirectory.mkdirs()) {
@@ -86,7 +94,7 @@ public final class CrashUploaderScriptInitializer {
         LOG.warn(
             SEND_TELEMETRY,
             "Untrusted crash tracking script folder {} (wrong owner or group/world bits set). "
-                + SETUP_FAILURE_MESSAGE,
+            + SETUP_FAILURE_MESSAGE,
             scriptDirectory);
         return false;
       }
@@ -102,7 +110,7 @@ public final class CrashUploaderScriptInitializer {
       LOG.warn(
           SEND_TELEMETRY,
           "Untrusted crash uploader script {} (wrong owner or group/world-writable). "
-              + SETUP_FAILURE_MESSAGE,
+          + SETUP_FAILURE_MESSAGE,
           scriptFile);
       return false;
     } catch (IOException e) {
@@ -115,7 +123,8 @@ public final class CrashUploaderScriptInitializer {
     return true;
   }
 
-  static class UntrustedScriptException extends IOException {}
+  static class UntrustedScriptException extends IOException {
+  }
 
   /**
    * Writes the crash uploader script if it does not already exist. When the script already exists
@@ -123,14 +132,14 @@ public final class CrashUploaderScriptInitializer {
    * this method to throw {@link UntrustedScriptException} so the caller can return {@code false}.
    */
   private static void writeCrashUploaderScript(
-      InputStream template, File scriptFile, String execClass, String crashFile)
-      throws IOException {
+      InputStream template,
+      File scriptFile,
+      String execClass,
+      String crashFile) throws IOException {
     if (!scriptFile.exists()) {
       try (BufferedReader br = new BufferedReader(new InputStreamReader(template));
-          BufferedWriter bw =
-              new BufferedWriter(
-                  new OutputStreamWriter(
-                      new FileOutputStream(scriptFile), StandardCharsets.UTF_8))) {
+          BufferedWriter bw = new BufferedWriter(
+              new OutputStreamWriter(new FileOutputStream(scriptFile), StandardCharsets.UTF_8))) {
         String line;
         while ((line = br.readLine()) != null) {
           bw.write(template(line, execClass, crashFile));

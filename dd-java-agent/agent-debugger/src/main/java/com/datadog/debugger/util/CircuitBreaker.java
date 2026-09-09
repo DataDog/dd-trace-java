@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 // return false until the time window has passed.
 public class CircuitBreaker {
   private static final Logger LOGGER = LoggerFactory.getLogger(CircuitBreaker.class);
-
   private final int maxTrips;
   private final Duration timeWindow;
   private AtomicInteger count = new AtomicInteger(0);

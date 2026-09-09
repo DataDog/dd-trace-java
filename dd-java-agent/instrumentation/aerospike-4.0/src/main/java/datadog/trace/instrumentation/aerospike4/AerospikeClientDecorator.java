@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aerospike4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.DB_CLIENT_SPLIT_BY_INSTANCE;
-
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.Node;
@@ -22,7 +21,6 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   public static final UTF8BytesString JAVA_AEROSPIKE = UTF8BytesString.create("java-aerospike");
   public static final UTF8BytesString OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
-
   public static final AerospikeClientDecorator DECORATE = new AerospikeClientDecorator();
 
   @Override
@@ -66,8 +64,10 @@ public class AerospikeClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   public void onConnection(
-      final AgentSpan span, final Node node, final Cluster cluster, final Partition partition) {
-
+      final AgentSpan span,
+      final Node node,
+      final Cluster cluster,
+      final Partition partition) {
     onPeerConnection(span, node.getAddress());
 
     if (cluster != null && cluster.getUser() != null) {

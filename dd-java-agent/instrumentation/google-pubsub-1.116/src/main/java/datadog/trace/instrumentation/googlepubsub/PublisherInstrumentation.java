@@ -13,7 +13,6 @@ import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PRODUCE
 import static datadog.trace.instrumentation.googlepubsub.PubSubDecorator.PUBSUB_PRODUCE;
 import static datadog.trace.instrumentation.googlepubsub.TextMapInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.cloud.pubsub.v1.Publisher;
 import com.google.pubsub.v1.PubsubMessage;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -25,8 +24,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 public final class PublisherInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.google.cloud.pubsub.v1.Publisher";
@@ -54,7 +53,8 @@ public final class PublisherInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
       scope.close();
@@ -69,12 +69,13 @@ public final class PublisherInstrumentation
         @Advice.Argument(value = 0, readOnly = false) PubsubMessage msg,
         @Advice.This Publisher publisher) {
       AgentSpan span = activeSpan();
-      if (span == null) return;
-      DataStreamsTags tags =
-          create(
-              "google-pubsub",
-              OUTBOUND,
-              PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString()).toString());
+      if (span == null) {
+        return;
+      }
+      DataStreamsTags tags = create(
+          "google-pubsub",
+          OUTBOUND,
+          PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString()).toString());
       PubsubMessage.Builder builder = msg.toBuilder();
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), builder, SETTER);

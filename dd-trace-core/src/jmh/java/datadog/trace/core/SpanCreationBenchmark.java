@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -105,20 +104,18 @@ public class SpanCreationBenchmark {
   // The DB-shaped span gets its own operation name -- a real jdbc span is never "servlet.request",
   // and keeping the two shapes distinct by operation avoids conflating them.
   private static final String JDBC_OPERATION_NAME = "database.query";
-
   // int tag values are deliberately kept inside Integer's built-in cache (-128..127) so valueOf
   // returns a shared box and boxing does not allocate — the bench then measures tag storage / path
   // cost, not incidental boxing (which differs between setTag(int) and the builder's
   // withTag(Number)).
-
   // Web-server-shaped known tags — the profile the dense store / SpanPrototype target.
   private static final String COMPONENT_VALUE = "tomcat-server";
   private static final String HTTP_METHOD_VALUE = "GET";
   private static final String HTTP_ROUTE_VALUE = "/owners/{ownerId}";
   private static final String HTTP_URL_VALUE = "http://localhost:8080/owners/42";
-  private static final int HTTP_STATUS_VALUE = 100; // in-cache; value itself is immaterial here
+  // in-cache; value itself is immaterial here
+  private static final int HTTP_STATUS_VALUE = 100;
   private static final int PEER_PORT_VALUE = 80;
-
   // JDBC/DB-client-shaped known tags — a higher-tag-count shape (9 vs the web shape's 7), matching
   // what DatabaseClientDecorator + JDBCDecorator set on a statement span.
   private static final String DB_COMPONENT_VALUE = "java-jdbc-statement";
@@ -128,8 +125,8 @@ public class SpanCreationBenchmark {
   private static final String DB_OPERATION_VALUE = "SELECT";
   private static final String DB_STATEMENT_VALUE = "SELECT * FROM owners WHERE id = ?";
   private static final String DB_PEER_HOSTNAME_VALUE = "db.internal";
-  private static final int DB_PEER_PORT_VALUE = 90; // in-cache; value itself is immaterial here
-
+  // in-cache; value itself is immaterial here
+  private static final int DB_PEER_PORT_VALUE = 90;
   CoreTracer tracer;
 
   @Setup
@@ -144,21 +141,27 @@ public class SpanCreationBenchmark {
     this.tracer.close();
   }
 
-  /** Baseline: create + finish a bare span via startSpan, no tags. */
+  /**
+   * Baseline: create + finish a bare span via startSpan, no tags.
+   */
   @Benchmark
   public void bareStartSpan() {
     AgentSpan span = tracer.startSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME);
     span.finish();
   }
 
-  /** Baseline: create + finish a bare span via the builder path, no tags. */
+  /**
+   * Baseline: create + finish a bare span via the builder path, no tags.
+   */
   @Benchmark
   public void bareBuildSpan() {
     AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
     span.finish();
   }
 
-  /** Web-server-shaped span: create -> set the typical known tags -> finish. */
+  /**
+   * Web-server-shaped span: create -> set the typical known tags -> finish.
+   */
   @Benchmark
   public void webServerSpan() {
     AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME).start();
@@ -182,21 +185,22 @@ public class SpanCreationBenchmark {
    */
   @Benchmark
   public void webServerSpanViaBuilder() {
-    AgentSpan span =
-        tracer
-            .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
-            .withTag(Tags.COMPONENT, COMPONENT_VALUE)
-            .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
-            .withTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE)
-            .withTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE)
-            .withTag(Tags.HTTP_URL, HTTP_URL_VALUE)
-            .withTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE)
-            .withTag(Tags.PEER_PORT, PEER_PORT_VALUE)
-            .start();
+    AgentSpan span = tracer
+      .buildSpan(INSTRUMENTATION_NAME, SERVER_OPERATION_NAME)
+      .withTag(Tags.COMPONENT, COMPONENT_VALUE)
+      .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
+      .withTag(Tags.HTTP_METHOD, HTTP_METHOD_VALUE)
+      .withTag(Tags.HTTP_ROUTE, HTTP_ROUTE_VALUE)
+      .withTag(Tags.HTTP_URL, HTTP_URL_VALUE)
+      .withTag(Tags.HTTP_STATUS, HTTP_STATUS_VALUE)
+      .withTag(Tags.PEER_PORT, PEER_PORT_VALUE)
+      .start();
     span.finish();
   }
 
-  /** JDBC/DB-client-shaped span: create -> set the typical DB known tags (9) -> finish. */
+  /**
+   * JDBC/DB-client-shaped span: create -> set the typical DB known tags (9) -> finish.
+   */
   @Benchmark
   public void jdbcClientSpan() {
     AgentSpan span = tracer.buildSpan(INSTRUMENTATION_NAME, JDBC_OPERATION_NAME).start();

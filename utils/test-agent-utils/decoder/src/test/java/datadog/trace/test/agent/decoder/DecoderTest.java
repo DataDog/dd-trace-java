@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +16,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 public class DecoderTest {
-
   @Test
   public void decodeV05() throws Throwable {
     String resourceName = "/greeting.msgpack";

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import org.apache.kafka.connect.util.ConnectorTaskId;
 
 @AutoService(InstrumenterModule.class)
 public final class ConnectWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   static final String TARGET_TYPE = "org.apache.kafka.connect.runtime.WorkerTask";
 
   public ConnectWorkerInstrumentation() {
@@ -27,9 +26,7 @@ public final class ConnectWorkerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".TaskListener",
-    };
+    return new String[] {packageName + ".TaskListener"};
   }
 
   @Override
@@ -46,13 +43,12 @@ public final class ConnectWorkerInstrumentation extends InstrumenterModule.Traci
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.connect.util.ConnectorTaskId")))
-            .and(takesArgument(1, named("org.apache.kafka.connect.runtime.TaskStatus$Listener"))),
+          .and(takesArgument(0, named("org.apache.kafka.connect.util.ConnectorTaskId")))
+          .and(takesArgument(1, named("org.apache.kafka.connect.runtime.TaskStatus$Listener"))),
         ConnectWorkerInstrumentation.class.getName() + "$ConstructorAdvice");
   }
 
   public static class ConstructorAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrap(
         @Advice.Argument(value = 0, readOnly = true) ConnectorTaskId id,

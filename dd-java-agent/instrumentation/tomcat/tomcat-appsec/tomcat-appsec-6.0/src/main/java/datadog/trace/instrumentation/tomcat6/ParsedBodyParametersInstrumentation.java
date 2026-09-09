@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -28,8 +27,8 @@ import org.apache.tomcat.util.http.Parameters;
 
 @AutoService(InstrumenterModule.class)
 public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ParsedBodyParametersInstrumentation() {
     super("tomcat");
   }
@@ -41,12 +40,12 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
 
   // paramHashValues was also of type Hashtable, but only for 4 days between
   // commits c1c2e29d55ea41d76ab4bf688dbaafb9b100eadf and 211c381310db7ded0c7e1a1ef11dd4f62e7c71bb
-  private static final Reference PARAM_HASH_VALUES_MAP_REFERENCE =
-      new Reference.Builder("org.apache.tomcat.util.http.Parameters")
-          .withField(new String[0], 0, "paramHashValues", "Ljava/util/Map;")
-          .or()
-          .withField(new String[0], 0, "paramHashValues", "Ljava/util/HashMap;")
-          .build();
+  private static final Reference PARAM_HASH_VALUES_MAP_REFERENCE = new Reference.Builder(
+      "org.apache.tomcat.util.http.Parameters")
+    .withField(new String[0], 0, "paramHashValues", "Ljava/util/Map;")
+    .or()
+    .withField(new String[0], 0, "paramHashValues", "Ljava/util/HashMap;")
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -56,11 +55,11 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        // also matches the variant taking an extra encoding parameter
         named("processParameters")
-            .and(takesArgument(0, byte[].class))
-            .and(takesArgument(1, int.class))
-            .and(takesArgument(2, int.class)),
+          .and(takesArgument(0, byte[].class))
+          .and(takesArgument(1, int.class))
+          // also matches the variant taking an extra encoding parameter
+          .and(takesArgument(2, int.class)),
         getClass().getName() + "$ProcessParametersAdvice");
 
     transformer.applyAdvice(
@@ -89,8 +88,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
   public static class ProcessParametersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static int before(
-        @Advice.FieldValue(value = "paramHashValues")
-            final Map<String, ArrayList<String>> paramValuesField,
+        @Advice.FieldValue(value = "paramHashValues") final Map<String, ArrayList<String>> paramValuesField,
         @Advice.Local("origParamHashValues") Map<String, ArrayList<String>> origParamValues) {
       int depth = CallDepthThreadLocalMap.incrementCallDepth(Parameters.class);
       if (depth == 0 && !paramValuesField.isEmpty()) {

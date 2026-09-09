@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.trace.api.profiling.Timing;
@@ -10,21 +9,16 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nullable;
 
 public final class State {
-
   public static ContextStore.Factory<State> FACTORY = State::new;
-
   private static final AtomicReferenceFieldUpdater<State, ContextContinuation> CONTINUATION =
-      AtomicReferenceFieldUpdater.newUpdater(
-          State.class, ContextContinuation.class, "continuation");
-
+      AtomicReferenceFieldUpdater.newUpdater(State.class, ContextContinuation.class, "continuation");
   private volatile ContextContinuation continuation = null;
-
   private static final AtomicReferenceFieldUpdater<State, Timing> TIMING =
       AtomicReferenceFieldUpdater.newUpdater(State.class, Timing.class, "timing");
-
   private volatile Timing timing = null;
 
-  private State() {}
+  private State() {
+  }
 
   public boolean captureAndSetContinuation(final Context context) {
     if (CONTINUATION.compareAndSet(this, null, CLAIMED)) {

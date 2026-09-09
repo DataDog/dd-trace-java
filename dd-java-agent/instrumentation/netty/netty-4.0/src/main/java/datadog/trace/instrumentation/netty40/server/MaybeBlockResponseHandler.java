@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIB
 import static datadog.trace.instrumentation.netty40.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.context.Context;
 import datadog.trace.api.gateway.Flow;
@@ -35,7 +34,8 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
   public static final ChannelOutboundHandler INSTANCE = new MaybeBlockResponseHandler();
   public static final Logger log = LoggerFactory.getLogger(MaybeBlockResponseHandler.class);
 
-  private MaybeBlockResponseHandler() {}
+  private MaybeBlockResponseHandler() {
+  }
 
   private static boolean isAnalyzedResponse(Channel ch) {
     return ch.attr(ANALYZED_RESPONSE_KEY).get() != null;
@@ -88,9 +88,11 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
       return;
     }
 
-    Flow<Void> flow =
-        DECORATE.callIGCallbackResponseAndHeaders(
-            span, origResponse, origResponse.getStatus().code(), ResponseExtractAdapter.GETTER);
+    Flow<Void> flow = DECORATE.callIGCallbackResponseAndHeaders(
+        span,
+        origResponse,
+        origResponse.getStatus().code(),
+        ResponseExtractAdapter.GETTER);
     markAnalyzedResponse(channel);
     Flow.Action action = flow.getAction();
     if (!(action instanceof Flow.Action.RequestBlockingAction)) {
@@ -127,15 +129,13 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
 
     requestContext.getTraceSegment().effectivelyBlocked();
     log.debug("About to write and flush blocking response {}", response);
-    ctx.writeAndFlush(response, prm)
-        .addListener(
-            fut -> {
-              if (!fut.isSuccess()) {
-                log.warn("Write of blocking response failed", fut.cause());
-              } else {
-                log.debug("Write of blocking response succeeded");
-              }
-              channel.close();
-            });
+    ctx.writeAndFlush(response, prm).addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.cause());
+      } else {
+        log.debug("Write of blocking response succeeded");
+      }
+      channel.close();
+    });
   }
 }

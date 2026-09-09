@@ -37,7 +37,6 @@ public final class SubSequence implements CharSequence {
   private final String str;
   private final int beginIndex;
   private final int endIndex;
-
   private String cachedSubstr = null;
 
   SubSequence(String str, int startIndex, int endIndex) {
@@ -46,12 +45,16 @@ public final class SubSequence implements CharSequence {
     this.endIndex = endIndex;
   }
 
-  /** Beginning index of the subseqence in the backing String - can be useful in text processing */
+  /**
+   * Beginning index of the subseqence in the backing String - can be useful in text processing
+   */
   public int beginIndex() {
     return this.beginIndex;
   }
 
-  /** Ending index of the subsequence in the backing String - can be useful in text processing */
+  /**
+   * Ending index of the subsequence in the backing String - can be useful in text processing
+   */
   public int endIndex() {
     return this.endIndex;
   }
@@ -76,13 +79,16 @@ public final class SubSequence implements CharSequence {
     return new SubSequence(this.str, newBeginIndex, newEndIndex);
   }
 
-  /** Appends this SubSequence to the StringBuilder Equivalent to builder.append(this) but faster */
+  /**
+   * Appends this SubSequence to the StringBuilder Equivalent to builder.append(this) but faster
+   */
   public void appendTo(StringBuilder builder) {
     int beginIndex = this.beginIndex;
     int endIndex = this.endIndex;
-
     // Guards against the special case empty SubSequence at this.str.length
-    if (beginIndex != endIndex) builder.append(this.str, beginIndex, endIndex);
+    if (beginIndex != endIndex) {
+      builder.append(this.str, beginIndex, endIndex);
+    }
   }
 
   /**
@@ -112,8 +118,12 @@ public final class SubSequence implements CharSequence {
   @Override
   @SuppressFBWarnings("EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS")
   public boolean equals(Object obj) {
-    if (obj instanceof String) return this.equals((String) obj);
-    if (obj instanceof CharSequence) return this.contentEquals((CharSequence) obj);
+    if (obj instanceof String) {
+      return this.equals((String) obj);
+    }
+    if (obj instanceof CharSequence) {
+      return this.contentEquals((CharSequence) obj);
+    }
 
     return false;
   }
@@ -134,13 +144,19 @@ public final class SubSequence implements CharSequence {
    * String}.
    */
   public final boolean contentEquals(CharSequence that) {
-    if (that == null) return false;
+    if (that == null) {
+      return false;
+    }
 
     int len = this.length();
-    if (len != that.length()) return false;
+    if (len != that.length()) {
+      return false;
+    }
 
     for (int i = 0; i < len; ++i) {
-      if (this.charAt(i) != that.charAt(i)) return false;
+      if (this.charAt(i) != that.charAt(i)) {
+        return false;
+      }
     }
     return true;
   }
@@ -253,7 +269,9 @@ public final class SubSequence implements CharSequence {
   @Override
   public String toString() {
     String cached = this.cachedSubstr;
-    if (cached != null) return cached;
+    if (cached != null) {
+      return cached;
+    }
 
     int beginIndex = this.beginIndex;
     int endIndex = this.endIndex;

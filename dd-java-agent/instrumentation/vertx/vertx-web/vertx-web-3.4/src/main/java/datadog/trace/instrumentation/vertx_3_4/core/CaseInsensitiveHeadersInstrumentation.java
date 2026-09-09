@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -33,9 +32,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   private final String className = CaseInsensitiveHeadersInstrumentation.class.getName();
 
   public CaseInsensitiveHeadersInstrumentation() {
@@ -61,17 +59,17 @@ public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Ia
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("get"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
+          .and(isPublic())
+          .and(named("get"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class)),
         className + "$GetAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("getAll"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class)),
+          .and(isPublic())
+          .and(named("getAll"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class)),
         className + "$GetAllAdvice");
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesNoArguments()),
@@ -94,7 +92,11 @@ public class CaseInsensitiveHeadersInstrumentation extends InstrumenterModule.Ia
       if (propagation != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         propagation.taintStringIfTainted(
-            ctx, result, self, SourceTypes.REQUEST_PARAMETER_VALUE, name);
+            ctx,
+            result,
+            self,
+            SourceTypes.REQUEST_PARAMETER_VALUE,
+            name);
       }
     }
   }

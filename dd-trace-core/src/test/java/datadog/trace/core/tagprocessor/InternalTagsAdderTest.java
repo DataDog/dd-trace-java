@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
@@ -17,7 +16,6 @@ import java.util.Objects;
 import org.tabletest.junit.TableTest;
 
 class InternalTagsAdderTest extends DDJavaSpecification {
-
   @TableTest({
     "scenario          | serviceName | expectsBaseService",
     "different service | anotherOne  | true              ",
@@ -25,7 +23,8 @@ class InternalTagsAdderTest extends DDJavaSpecification {
     "case insensitive  | TeSt        | false             "
   })
   void shouldAddBaseServiceWhenServiceDiffersToDdService(
-      String serviceName, boolean expectsBaseService) {
+      String serviceName,
+      boolean expectsBaseService) {
     InternalTagsAdder calculator = new InternalTagsAdder("test", null);
     DDSpanContext spanContext = mock(DDSpanContext.class);
     when(spanContext.getServiceName()).thenReturn(serviceName);
@@ -52,16 +51,18 @@ class InternalTagsAdderTest extends DDJavaSpecification {
     "same service, only ddVersion      | same        | 1.0       |                | 1.0     "
   })
   void shouldAddVersionWhenDdServiceEqualsServiceNameAndVersionSet(
-      String serviceName, String ddVersion, String initialVersion, String expected) {
+      String serviceName,
+      String ddVersion,
+      String initialVersion,
+      String expected) {
     InternalTagsAdder calculator = new InternalTagsAdder("same", ddVersion);
     DDSpanContext spanContext = mock(DDSpanContext.class);
     when(spanContext.getServiceName()).thenReturn(serviceName);
 
-    TagMap unsafeTags =
-        TagMap.fromMap(
-            initialVersion != null
-                ? Collections.singletonMap("version", initialVersion)
-                : Collections.emptyMap());
+    TagMap unsafeTags = TagMap.fromMap(
+        initialVersion != null
+        ? Collections.singletonMap("version", initialVersion)
+        : Collections.emptyMap());
     calculator.processTags(unsafeTags, spanContext, link -> {});
 
     verify(spanContext, times(1)).getServiceName();

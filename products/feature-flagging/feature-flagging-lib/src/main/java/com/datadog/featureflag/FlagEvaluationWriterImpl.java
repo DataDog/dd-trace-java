@@ -3,7 +3,6 @@ package com.datadog.featureflag;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EVALUATION_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.BackendApi;
@@ -52,12 +51,10 @@ import org.slf4j.LoggerFactory;
  * so shutdown loss is observable rather than silent.
  */
 public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(FlagEvaluationWriterImpl.class);
-
-  static final int DEFAULT_CAPACITY = 1 << 12; // 4096 elements, per cross-SDK RFC
+  // 4096 elements, per cross-SDK RFC
+  static final int DEFAULT_CAPACITY = 1 << 12;
   static final int FLUSH_INTERVAL_SECONDS = 10;
-
   static final int FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES = EvpProxy.PAYLOAD_SIZE_LIMIT_BYTES;
   static final String FLAG_EVALUATION_DROPPED_METRIC = "flagevaluation.rows.dropped";
   static final String FLAG_EVALUATION_DEGRADED_METRIC = "flagevaluation.rows.degraded";
@@ -71,7 +68,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   static final String DEGRADED_REASON_PAYLOAD_LIMIT = "payload_limit";
   private static final String FLAG_EVALUATION_ROUTE = "flagevaluation";
   private static final CoreMetricCollector CORE_METRICS = CoreMetricCollector.getInstance();
-
   private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
   private final FlagEvaluationSerializingHandler serializer;
   private final Thread serializerThread;
@@ -90,7 +86,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
    * tried to enqueue (backpressure). Incremented on the hook thread, surfaced on flush.
    */
   private final AtomicLong droppedQueueOverflow = new AtomicLong(0);
-
   /**
    * Per-reason-tag counters for evaluations whose context was truncated by copyPrunedContext. Keyed
    * by the sorted comma-separated reason string (e.g. "max_key_length,max_value_length").
@@ -115,17 +110,16 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final Supplier<BackendApi> backendApiSupplier,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
-    this.serializer =
-        new FlagEvaluationSerializingHandler(
-            backendApiSupplier,
-            queue,
-            flushInterval,
-            timeUnit,
-            FeatureFlagEvpContext.from(config),
-            droppedQueueOverflow,
-            contextTruncatedCounts,
-            this::close,
-            FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
+    this.serializer = new FlagEvaluationSerializingHandler(
+        backendApiSupplier,
+        queue,
+        flushInterval,
+        timeUnit,
+        FeatureFlagEvpContext.from(config),
+        droppedQueueOverflow,
+        contextTruncatedCounts,
+        this::close,
+        FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EVALUATION_PROCESSOR, serializer);
   }
 
@@ -141,7 +135,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
   }
 
-  /** Test seam: starts the worker thread WITHOUT registering with the global gateway. */
+  /**
+   * Test seam: starts the worker thread WITHOUT registering with the global gateway.
+   */
   void startForTest() {
     synchronized (lifecycleLock) {
       if (closed.get()) {
@@ -151,7 +147,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
   }
 
-  /** Test seam: current full-tier bucket count in the worker's aggregator. */
+  /**
+   * Test seam: current full-tier bucket count in the worker's aggregator.
+   */
   int aggregatorFullTierSizeForTest() {
     return serializer.aggregator.fullTierSize();
   }
@@ -244,14 +242,18 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     return queue.size() < queue.capacity();
   }
 
-  /** Counts one queue-overflow drop without offering an event. */
+  /**
+   * Counts one queue-overflow drop without offering an event.
+   */
   public void countPreQueueOverflow() {
     droppedQueueOverflow.incrementAndGet();
   }
 
   @Override
   public void countContextTruncated(final String reason) {
-    contextTruncatedCounts.computeIfAbsent(reason, k -> new AtomicLong(0)).incrementAndGet();
+    contextTruncatedCounts
+      .computeIfAbsent(reason, k -> new AtomicLong(0))
+      .incrementAndGet();
   }
 
   private boolean isClosedOrEnqueueDisabled() {
@@ -266,41 +268,41 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     countMetric(FLAG_EVALUATION_DROPPED_METRIC, 1, DROP_REASON_CLOSED);
   }
 
-  /** Returns the count of events dropped due to queue-overflow backpressure (observable). */
+  /**
+   * Returns the count of events dropped due to queue-overflow backpressure (observable).
+   */
   long droppedQueueOverflow() {
     return droppedQueueOverflow.get();
   }
 
-  /** Test seam: returns one queued event without starting the worker. */
+  /**
+   * Test seam: returns one queued event without starting the worker.
+   */
   FlagEvalEvent pollQueuedEventForTest() {
     return queue.poll();
   }
 
-  /** Test seam: flushes serializer state without starting the worker. */
+  /**
+   * Test seam: flushes serializer state without starting the worker.
+   */
   void flushForTest() {
     serializer.flush();
   }
 
   // ---- Serializing handler (background thread logic) ----
-
   static class FlagEvaluationSerializingHandler implements Runnable {
     private final MessagePassingBlockingQueue<FlagEvalEvent> queue;
     private final long ticksRequiredToFlush;
-
-    @SuppressFBWarnings(
-        value = "AT_NONATOMIC_64BIT_PRIMITIVE",
-        justification = "the field is confined to the single serializer thread")
+    @SuppressFBWarnings(value = "AT_NONATOMIC_64BIT_PRIMITIVE", justification = "the field is "
+        + "confined to the single serializer thread")
     private long lastTicks;
-
-    private final FeatureFlagEvpPublisher<FlagEvaluationPayloads.FlagEvaluationsRequest>
-        evpPublisher;
+    private final FeatureFlagEvpPublisher<FlagEvaluationPayloads.FlagEvaluationsRequest> evpPublisher;
     final Map<String, String> context;
     private final AtomicLong droppedQueueOverflow;
     private final ConcurrentHashMap<String, AtomicLong> contextTruncatedCounts;
     private final Runnable errorCallback;
     private final int payloadSizeLimitBytes;
     final FlagEvaluationAggregator aggregator = new FlagEvaluationAggregator();
-
     // Shutdown coordination: set by close(), drives a final drain+flush before the worker exits.
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
     private final CountDownLatch finalFlushDone = new CountDownLatch(1);
@@ -316,9 +318,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final Runnable errorCallback,
         final int payloadSizeLimitBytes) {
       this.queue = queue;
-      this.evpPublisher =
-          new FeatureFlagEvpPublisher<>(
-              backendApiSupplier, FlagEvaluationPayloads.FlagEvaluationsRequest.class);
+      this.evpPublisher = new FeatureFlagEvpPublisher<>(
+          backendApiSupplier,
+          FlagEvaluationPayloads.FlagEvaluationsRequest.class);
       this.context = context;
       this.droppedQueueOverflow = droppedQueueOverflow;
       this.contextTruncatedCounts = contextTruncatedCounts;
@@ -329,7 +331,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       LOGGER.debug("starting flag evaluation serializer");
     }
 
-    /** Signals the worker to drain the queue and perform a final flush before exiting. */
+    /**
+     * Signals the worker to drain the queue and perform a final flush before exiting.
+     */
     void requestShutdown() {
       shutdownRequested.set(true);
     }
@@ -388,8 +392,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
 
     // ---- Aggregation logic ----
-
-    /** Routes an event into the full tier or degraded tier, or drops and counts on overflow. */
+    /**
+     * Routes an event into the full tier or degraded tier, or drops and counts on overflow.
+     */
     void aggregateEvent(final FlagEvalEvent event) {
       try {
         aggregator.aggregate(event);
@@ -399,7 +404,6 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
 
     // ---- Flush logic ----
-
     void flushIfNecessary() {
       if (shouldFlush()) {
         flush();
@@ -414,7 +418,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       if (qDrops > 0) {
         LOGGER.warn(
             "flag evaluation queue full - dropped {} evaluation(s) under backpressure"
-                + " (best-effort telemetry)",
+            + " (best-effort telemetry)",
             qDrops);
       }
       final long dgDrops = aggregator.droppedDegradedOverflow.getAndSet(0);
@@ -422,10 +426,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       if (dgDrops > 0) {
         LOGGER.warn(
             "degraded aggregation tier full - dropped {} evaluation(s); raise degraded cap"
-                + " (best-effort telemetry)",
+            + " (best-effort telemetry)",
             dgDrops);
       }
-
       // Drain per-reason context-truncation counters and emit one metric per unique reason tag.
       for (final Map.Entry<String, AtomicLong> entry : contextTruncatedCounts.entrySet()) {
         final long count = entry.getValue().getAndSet(0);
@@ -461,8 +464,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         }
         if (payloads.droppedPayloadLimit > 0) {
           LOGGER.warn(
-              "flag evaluation payload too large - dropped {} evaluation(s)"
-                  + " (best-effort telemetry)",
+              "flag evaluation payload too large - dropped {} evaluation(s)" + " (best-effort telemetry)",
               payloads.droppedPayloadLimit);
         }
         for (final byte[] payload : payloads.bodies) {
@@ -487,14 +489,18 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       final List<FlagEvaluationPayloads.FlagEvaluationEvent> events =
           new ArrayList<>(aggregator.bucketCount());
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.fullBuckets()) {
-        events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                bucket, true, bucket.observeFullEvaluationData, flushTimeMs));
+        events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            true,
+            bucket.observeFullEvaluationData,
+            flushTimeMs));
       }
       for (final FlagEvaluationAggregator.EvalBucket bucket : aggregator.degradedBuckets()) {
-        events.add(
-            FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
-                bucket, false, bucket.observeFullEvaluationData, flushTimeMs));
+        events.add(FlagEvaluationPayloads.FlagEvaluationEvent.fromBucket(
+            bucket,
+            false,
+            bucket.observeFullEvaluationData,
+            flushTimeMs));
       }
       return events;
     }
@@ -514,15 +520,14 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
   }
 
   // ---- Test-seam inner class (package-private) ----
-
   /**
    * Test-accessible handler that exposes {@link #drainAndAggregate()} and {@link #flush()} without
    * starting a real background thread.
    */
   static class SerializingHandlerForTest extends FlagEvaluationSerializingHandler {
-
     SerializingHandlerForTest(
-        final Supplier<BackendApi> backendApiSupplier, final Map<String, String> context) {
+        final Supplier<BackendApi> backendApiSupplier,
+        final Map<String, String> context) {
       this(backendApiSupplier, context, FLAG_EVALUATION_PAYLOAD_SIZE_LIMIT_BYTES);
     }
 
@@ -533,23 +538,28 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       super(
           backendApiSupplier,
           Queues.mpscBlockingConsumerArrayQueue(DEFAULT_CAPACITY),
-          Long.MAX_VALUE, // effectively never auto-flush
+          // effectively never auto-flush
+          Long.MAX_VALUE,
           TimeUnit.NANOSECONDS,
           context,
           new AtomicLong(0),
           new ConcurrentHashMap<>(),
-          () -> {},
+            () -> {},
           payloadSizeLimitBytes);
     }
 
     private final List<FlagEvalEvent> staged = new ArrayList<>();
 
-    /** Adds an event to the staged list (simulates hook enqueue). */
+    /**
+     * Adds an event to the staged list (simulates hook enqueue).
+     */
     void add(final FlagEvalEvent event) {
       staged.add(event);
     }
 
-    /** Aggregates all staged events and returns the current aggregation state. */
+    /**
+     * Aggregates all staged events and returns the current aggregation state.
+     */
     FlagEvaluationAggregator.AggregatedState drainAndAggregate() {
       for (final FlagEvalEvent e : staged) {
         aggregateEvent(e);
@@ -558,7 +568,9 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
       return aggregator.snapshot();
     }
 
-    /** Simulates filling the full tier to GLOBAL_CAP by injecting synthetic distinct buckets. */
+    /**
+     * Simulates filling the full tier to GLOBAL_CAP by injecting synthetic distinct buckets.
+     */
     void simulateFullTierAtCap() {
       aggregator.simulateFullTierAtCap();
     }
@@ -580,8 +592,7 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
         final String allocationKey,
         final String errorMessage,
         final long evalTimeMs) {
-      aggregator.addDegradedBucketForTest(
-          flagKey, variant, allocationKey, errorMessage, evalTimeMs);
+      aggregator.addDegradedBucketForTest(flagKey, variant, allocationKey, errorMessage, evalTimeMs);
     }
 
     void clearAggregationForTest() {
@@ -593,9 +604,12 @@ public class FlagEvaluationWriterImpl implements FlagEvaluationWriter {
     }
   }
 
-  /** Factory method for test use - creates a SerializingHandlerForTest. */
+  /**
+   * Factory method for test use - creates a SerializingHandlerForTest.
+   */
   static SerializingHandlerForTest createHandlerForTest(
-      final Supplier<BackendApi> backendApiSupplier, final Map<String, String> context) {
+      final Supplier<BackendApi> backendApiSupplier,
+      final Map<String, String> context) {
     return new SerializingHandlerForTest(backendApiSupplier, context);
   }
 

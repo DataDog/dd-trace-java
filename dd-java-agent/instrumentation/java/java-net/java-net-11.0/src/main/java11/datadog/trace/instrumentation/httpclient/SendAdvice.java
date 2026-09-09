@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.INSTRUMENTATION_NAME;
 import static datadog.trace.instrumentation.httpclient.JavaNetClientDecorator.OPERATION_NAME;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -36,7 +35,6 @@ public class SendAdvice {
 
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, httpRequest);
-
       // propagation is done by another instrumentation since Headers are immutable
       return scope;
     } catch (BlockingException e) {

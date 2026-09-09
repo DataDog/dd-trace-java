@@ -31,11 +31,9 @@ import java.util.Collection;
 import java.util.List;
 
 public class KarateTracingListener implements RunListener {
-
   private static final String FRAMEWORK_NAME = "karate";
   public static final String FRAMEWORK_VERSION = KarateUtils.getKarateVersion();
   public static final String KARATE_STEP_SPAN_NAME = "karate.step";
-
   private final ContextStore<Scenario, ExecutionContext> scenarioContext;
 
   public KarateTracingListener(ContextStore<Scenario, ExecutionContext> scenarioContext) {
@@ -99,7 +97,8 @@ public class KarateTracingListener implements RunListener {
     FeatureResult result = event.result();
     if (result != null && result.isFailed()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteFailure(
-          suiteDescriptor, suiteThrowable(result));
+          suiteDescriptor,
+          suiteThrowable(result));
     } else if (result != null && result.isEmpty()) {
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSuiteSkip(suiteDescriptor, null);
     }
@@ -128,7 +127,7 @@ public class KarateTracingListener implements RunListener {
 
       if (skipReason != null
           && !(skipReason == SkipReason.ITR
-              && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
+          && categories.contains(CIConstants.Tags.ITR_UNSKIPPABLE_TAG))) {
         TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestIgnore(
             suiteDescriptor,
             testDescriptor,
@@ -162,7 +161,9 @@ public class KarateTracingListener implements RunListener {
   }
 
   public static void afterScenario(
-      ScenarioRuntime sr, ScenarioResult result, ExecutionContext context) {
+      ScenarioRuntime sr,
+      ScenarioResult result,
+      ExecutionContext context) {
     if (skipTracking(sr)) {
       return;
     }
@@ -183,8 +184,7 @@ public class KarateTracingListener implements RunListener {
     }
 
     TestExecutionTracker executionTracker = context != null ? context.getExecutionPolicy() : null;
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(
-        testDescriptor, null, executionTracker);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(testDescriptor, null, executionTracker);
   }
 
   private void beforeStep(StepRunEvent event) {
@@ -268,6 +268,6 @@ public class KarateTracingListener implements RunListener {
     AgentSpan activeSpan = AgentTracer.activeSpan();
     return activeSpan == null
         || (!KARATE_STEP_SPAN_NAME.contentEquals(activeSpan.getSpanName())
-            && !Tags.SPAN_KIND_TEST.contentEquals(activeSpan.getSpanType()));
+        && !Tags.SPAN_KIND_TEST.contentEquals(activeSpan.getSpanType()));
   }
 }

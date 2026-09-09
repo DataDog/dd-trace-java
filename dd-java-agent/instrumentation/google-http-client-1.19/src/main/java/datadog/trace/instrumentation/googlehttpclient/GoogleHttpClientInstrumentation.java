@@ -13,7 +13,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
@@ -26,7 +25,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public GoogleHttpClientInstrumentation() {
     super("google-http-client");
   }
@@ -42,7 +42,8 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".GoogleHttpClientDecorator", packageName + ".HeadersInjectAdapter"
+        packageName + ".GoogleHttpClientDecorator",
+        packageName + ".HeadersInjectAdapter"
     };
   }
 
@@ -51,24 +52,23 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvices(
         isMethod().and(isPublic()).and(named("execute")).and(takesArguments(0)),
         GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAdvice",
-        GoogleHttpClientInstrumentation.class.getName()
-            + "$GoogleHttpClientContextPropagationAdvice");
+        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientContextPropagationAdvice");
 
     transformer.applyAdvices(
         isMethod()
-            .and(isPublic())
-            .and(named("executeAsync"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, (named("java.util.concurrent.Executor")))),
+          .and(isPublic())
+          .and(named("executeAsync"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, (named("java.util.concurrent.Executor")))),
         GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientAsyncAdvice",
-        GoogleHttpClientInstrumentation.class.getName()
-            + "$GoogleHttpClientContextPropagationAdvice");
+        GoogleHttpClientInstrumentation.class.getName() + "$GoogleHttpClientContextPropagationAdvice");
   }
 
   public static class GoogleHttpClientAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(
-        @Advice.This HttpRequest request, @Advice.Local("inherited") AgentSpan inheritedSpan) {
+        @Advice.This HttpRequest request,
+        @Advice.Local("inherited") AgentSpan inheritedSpan) {
       AgentSpan activeSpan = activeSpan();
       // detect if span was propagated here by java-concurrent handling
       // of async requests
@@ -103,7 +103,6 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class GoogleHttpClientAsyncAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.This HttpRequest request) {
       AgentSpan span = startSpan("google-http-client", HTTP_REQUEST);
@@ -113,7 +112,8 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       final AgentSpan span = scope.span();
       if (throwable != null) {
         DECORATE.onError(span, throwable);

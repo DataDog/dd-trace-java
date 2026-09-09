@@ -5,7 +5,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.core.CoreSpan;
 import java.util.Arrays;
 import java.util.Collection;
@@ -18,14 +17,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class CompositePayloadDispatcherTest {
-
-  @Mock PayloadDispatcher dispatcherA;
-  @Mock PayloadDispatcher dispatcherB;
+  @Mock
+  PayloadDispatcher dispatcherA;
+  @Mock
+  PayloadDispatcher dispatcherB;
 
   @Test
   void testOnDroppedTrace() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+    CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
     int droppedSpansCount = 1234;
 
     dispatcher.onDroppedTrace(droppedSpansCount);
@@ -38,8 +37,7 @@ class CompositePayloadDispatcherTest {
   @Test
   @SuppressWarnings("unchecked")
   void testAddTrace() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+    CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
     List<CoreSpan<?>> trace = Collections.singletonList(mock(CoreSpan.class));
 
     dispatcher.addTrace(trace);
@@ -51,8 +49,7 @@ class CompositePayloadDispatcherTest {
 
   @Test
   void testFlush() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+    CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
 
     dispatcher.flush();
 
@@ -63,8 +60,7 @@ class CompositePayloadDispatcherTest {
 
   @Test
   void testGetApis() {
-    CompositePayloadDispatcher dispatcher =
-        new CompositePayloadDispatcher(dispatcherA, dispatcherB);
+    CompositePayloadDispatcher dispatcher = new CompositePayloadDispatcher(dispatcherA, dispatcherB);
     RemoteApi apiA = mock(RemoteApi.class);
     RemoteApi apiB = mock(RemoteApi.class);
     when(dispatcherA.getApis()).thenReturn(Collections.singletonList(apiA));

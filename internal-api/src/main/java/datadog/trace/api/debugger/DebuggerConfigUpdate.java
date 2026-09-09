@@ -59,14 +59,16 @@ public class DebuggerConfigUpdate {
   }
 
   public static DebuggerConfigUpdate coalesce(
-      DebuggerConfigUpdate existing, DebuggerConfigUpdate update) {
+      DebuggerConfigUpdate existing,
+      DebuggerConfigUpdate update) {
     if (existing == null) {
       return update;
     }
 
     return new DebuggerConfigUpdate(
         coalesceSetting(
-            existing.dynamicInstrumentationEnabled, update.dynamicInstrumentationEnabled),
+            existing.dynamicInstrumentationEnabled,
+            update.dynamicInstrumentationEnabled),
         coalesceSetting(existing.exceptionReplayEnabled, update.exceptionReplayEnabled),
         coalesceSetting(existing.codeOriginEnabled, update.codeOriginEnabled),
         coalesceSetting(existing.distributedDebuggerEnabled, update.distributedDebuggerEnabled));

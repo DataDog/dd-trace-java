@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.gradle.legacy;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,8 +13,8 @@ import org.gradle.invocation.DefaultGradle;
 
 @AutoService(InstrumenterModule.class)
 public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public GradleBuildListenerInstrumentation() {
     super("gradle", "gradle-build-listener");
   }
@@ -34,14 +33,14 @@ public class GradleBuildListenerInstrumentation extends InstrumenterModule.CiVis
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".GradleUtils",
-      packageName + ".GradleProjectConfigurator",
-      packageName + ".GradleProjectConfigurator$_configureCompilerPlugin_closure1",
-      packageName + ".GradleProjectConfigurator$_configureJacoco_closure2",
-      packageName + ".GradleProjectConfigurator$_configureJacoco_closure3",
-      packageName + ".GradleProjectConfigurator$_forEveryTestTask_closure4",
-      packageName + ".GradleBuildListener",
-      packageName + ".GradleBuildListener$TestTaskExecutionListener"
+        packageName + ".GradleUtils",
+        packageName + ".GradleProjectConfigurator",
+        packageName + ".GradleProjectConfigurator$_configureCompilerPlugin_closure1",
+        packageName + ".GradleProjectConfigurator$_configureJacoco_closure2",
+        packageName + ".GradleProjectConfigurator$_configureJacoco_closure3",
+        packageName + ".GradleProjectConfigurator$_forEveryTestTask_closure4",
+        packageName + ".GradleBuildListener",
+        packageName + ".GradleBuildListener$TestTaskExecutionListener"
     };
   }
 

@@ -6,12 +6,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
 
 class FunctionsBase64Test {
-
   @Test
   void utf8BytesToStringConvertsBytes() {
     byte[] bytes = "hello".getBytes(UTF_8);

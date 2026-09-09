@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
-
 import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.GrowableBuffer;
@@ -26,32 +25,28 @@ import java.util.Map;
 import okhttp3.RequestBody;
 
 public final class TraceMapperV0_4 implements TraceMapper {
-  static final SimpleUtf8Cache TAG_CACHE =
-      Config.get().getTagNameUtf8CacheSize() > 0
-          ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
-          : null;
-
-  static final GenerationalUtf8Cache VALUE_CACHE =
-      Config.get().getTagValueUtf8CacheSize() > 0
-          ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
-          : null;
-
+  static final SimpleUtf8Cache TAG_CACHE = Config.get().getTagNameUtf8CacheSize() > 0
+      ? new SimpleUtf8Cache(Config.get().getTagNameUtf8CacheSize())
+      : null;
+  static final GenerationalUtf8Cache VALUE_CACHE = Config.get().getTagValueUtf8CacheSize() > 0
+      ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
+      : null;
   // Controls how often the UTF8 caches are recalibrated. The caches adapt to shifts in tag-value
   // cardinality over a timescale much longer than a single span, so recalibrating periodically
   // rather than per-span preserves their effectiveness without paying recalibrate()'s O(cacheSize)
   // cost on every span. Must be a power of two (see the mask in shouldRecalibrate).
   static final long RECALIBRATE_SPAN_INTERVAL = 512;
-
   // True when at least one cache exists. static-final so the JIT can fold the whole recalibrate
   // block away when both caches are off.
   private static final boolean RECALIBRATE = (TAG_CACHE != null || VALUE_CACHE != null);
-
   // Advanced by the single serializer thread. The value is a recalibration cadence, not an exact
   // count, so a plain counter suffices -- no atomic/volatile needed; a benign race would at most
   // nudge when recalibrate fires.
   private static long spanCounter;
 
-  /** True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter. */
+  /**
+   * True once every {@link #RECALIBRATE_SPAN_INTERVAL} spans; advances the span counter.
+   */
   static boolean shouldRecalibrate() {
     return RECALIBRATE && (++spanCounter & (RECALIBRATE_SPAN_INTERVAL - 1)) == 0;
   }
@@ -68,7 +63,6 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   private static final class MetaWriter implements MetadataConsumer {
-
     private Writable writable;
     private boolean firstSpanInTrace;
     private boolean lastSpanInTrace;
@@ -89,30 +83,31 @@ public final class TraceMapperV0_4 implements TraceMapper {
     @Override
     public void accept(Metadata metadata) {
       if (shouldRecalibrate()) {
-        if (TAG_CACHE != null) TAG_CACHE.recalibrate();
-        if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
+        if (TAG_CACHE != null) {
+          TAG_CACHE.recalibrate();
+        }
+        if (VALUE_CACHE != null) {
+          VALUE_CACHE.recalibrate();
+        }
       }
 
       TagMap tags = metadata.getTags();
-
       // Also write on top-level spans so that inferred proxy spans (which may be in the middle
       // of the serialized list due to phased-finish ordering) always carry the sampling decision.
       final boolean writeSamplingPriority =
           firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
-      int metaSize =
-          metadata.getBaggage().size()
-              + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
-              + (null == metadata.getOrigin() ? 0 : 1)
-              + (null == processTags ? 0 : 1)
-              + 1;
-      int metricsSize =
-          (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
-              + (metadata.measured() ? 1 : 0)
-              + (metadata.topLevel() ? 1 : 0)
-              + (metadata.longRunningVersion() != 0 ? 1 : 0)
-              + 1;
+      int metaSize = metadata.getBaggage().size()
+          + tags.size()
+          + (null == metadata.getHttpStatusCode() ? 0 : 1)
+          + (null == metadata.getOrigin() ? 0 : 1)
+          + (null == processTags ? 0 : 1)
+          + 1;
+      int metricsSize = (writeSamplingPriority && metadata.hasSamplingPriority() ? 1 : 0)
+          + (metadata.measured() ? 1 : 0)
+          + (metadata.topLevel() ? 1 : 0)
+          + (metadata.longRunningVersion() != 0 ? 1 : 0)
+          + 1;
 
       for (TagMap.EntryReader entryReader : tags) {
         if (entryReader.isNumber()) {
@@ -152,35 +147,31 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(THREAD_ID);
       writable.writeLong(metadata.getThreadId());
 
-      tags.forEach(
-          writable,
-          (w, entry) -> {
-            if (!entry.isNumber()) return;
+      tags.forEach(writable, (w, entry) -> {
+        if (!entry.isNumber()) {
+          return;
+        }
 
-            w.writeString(entry.tag(), TAG_CACHE);
+        w.writeString(entry.tag(), TAG_CACHE);
 
-            switch (entry.type()) {
-              case TagMap.EntryReader.INT:
-                w.writeInt(entry.intValue());
-                break;
-
-              case TagMap.EntryReader.LONG:
-                w.writeLong(entry.longValue());
-                break;
-
-              case TagMap.EntryReader.FLOAT:
-                w.writeFloat(entry.floatValue());
-                break;
-
-              case TagMap.EntryReader.DOUBLE:
-                w.writeDouble(entry.doubleValue());
-                break;
-
-              default:
-                w.writeObject(entry.objectValue(), VALUE_CACHE);
-                break;
-            }
-          });
+        switch (entry.type()) {
+          case TagMap.EntryReader.INT:
+            w.writeInt(entry.intValue());
+            break;
+          case TagMap.EntryReader.LONG:
+            w.writeLong(entry.longValue());
+            break;
+          case TagMap.EntryReader.FLOAT:
+            w.writeFloat(entry.floatValue());
+            break;
+          case TagMap.EntryReader.DOUBLE:
+            w.writeDouble(entry.doubleValue());
+            break;
+          default:
+            w.writeObject(entry.objectValue(), VALUE_CACHE);
+            break;
+        }
+      });
 
       writable.writeUTF8(META);
       writable.startMap(metaSize);
@@ -206,21 +197,21 @@ public final class TraceMapperV0_4 implements TraceMapper {
         writable.writeUTF8(processTags);
       }
 
-      tags.forEach(
-          writable,
-          (w, entryReader) -> {
-            if (entryReader.isNumber()) return;
+      tags.forEach(writable, (w, entryReader) -> {
+        if (entryReader.isNumber()) {
+          return;
+        }
 
-            String tag = entryReader.tag();
-            Object value = entryReader.objectValue();
-            if (value instanceof Map) {
-              // Write map as flat map
-              writeFlatMap(w, tag, (Map) value);
-            } else {
-              w.writeString(tag, TAG_CACHE);
-              w.writeObjectString(value, VALUE_CACHE);
-            }
-          });
+        String tag = entryReader.tag();
+        Object value = entryReader.objectValue();
+        if (value instanceof Map) {
+          // Write map as flat map
+          writeFlatMap(w, tag, (Map) value);
+        } else {
+          w.writeString(tag, TAG_CACHE);
+          w.writeObjectString(value, VALUE_CACHE);
+        }
+      });
     }
 
     /**
@@ -277,10 +268,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
    * toString} representation of the object will be used instead
    */
   public static class MetaStructWriter {
-
     private static final UTF8BytesString META_STRUCT = UTF8BytesString.create("meta_struct");
     private static final int BUFFER_SIZE = 1 << 10;
-
     private Writable writable;
 
     MetaStructWriter withWritable(final Writable writable) {
@@ -357,9 +346,10 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeInt(span.getError());
       /* 11, 12 */
       span.processTagsAndBaggage(
-          metaWriter
-              .withWritable(writable)
-              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
+          metaWriter.withWritable(writable).forSpan(
+              i == 0,
+              i == trace.size() - 1,
+              !firstSpanWritten),
           i == 0);
       if (!metaStruct.isEmpty()) {
         /* 13 */
@@ -376,7 +366,8 @@ public final class TraceMapperV0_4 implements TraceMapper {
 
   @Override
   public int messageBufferSize() {
-    return size; // 5MB
+    // 5MB
+    return size;
   }
 
   @Override
@@ -390,7 +381,6 @@ public final class TraceMapperV0_4 implements TraceMapper {
   }
 
   private static class PayloadV0_4 extends Payload {
-
     @Override
     public int sizeInBytes() {
       return msgpackArrayHeaderSize(traceCount()) + body.remaining();

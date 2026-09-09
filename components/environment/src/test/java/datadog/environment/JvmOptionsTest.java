@@ -12,7 +12,6 @@ import static java.util.Objects.requireNonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.environment.CommandLineHelper.Result;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -39,9 +38,11 @@ class JvmOptionsTest {
         arguments("-Xms256m\t-Xmx512m", asList("-Xms256m", "-Xmx512m")),
         arguments("\t -Xms256m \t -Xmx512m \t", asList("-Xms256m", "-Xmx512m")),
         arguments(
-            "-Xmx512m -Dprop=\"value with space\"", asList("-Xmx512m", "-Dprop=value with space")),
+            "-Xmx512m -Dprop=\"value with space\"",
+            asList("-Xmx512m", "-Dprop=value with space")),
         arguments(
-            "-Xmx512m -Dprop='value with space'", asList("-Xmx512m", "-Dprop=value with space")),
+            "-Xmx512m -Dprop='value with space'",
+            asList("-Xmx512m", "-Dprop=value with space")),
         arguments("-Xmx512m -Dprop='mixing\"quotes'", asList("-Xmx512m", "-Dprop=mixing\"quotes")),
         arguments("-Xmx512m -Dprop=\"mixing'quotes\"", asList("-Xmx512m", "-Dprop=mixing'quotes")));
   }
@@ -103,8 +104,7 @@ class JvmOptionsTest {
       String useCase,
       Map<String, String> environmentVariables,
       CommandLineHelper.RunArguments arguments,
-      CommandLineHelper.RunArguments expectedArguments)
-      throws Exception {
+      CommandLineHelper.RunArguments expectedArguments) throws Exception {
     // Skip unsupported test cases
     skipJdkJavaOptionsOnJava8(environmentVariables);
     // Run test process
@@ -175,8 +175,8 @@ class JvmOptionsTest {
 
   private void skipJdkJavaOptionsOnJava8(Map<String, String> environmentVariables) {
     assumeTrue(
-        JavaVirtualMachine.isJavaVersionAtLeast(9)
-            || !environmentVariables.containsKey("JDK_JAVA_OPTIONS"));
+            JavaVirtualMachine.isJavaVersionAtLeast(9)
+        || !environmentVariables.containsKey("JDK_JAVA_OPTIONS"));
   }
 
   private static Map<String, String> env(String... keysAndValues) {
@@ -196,9 +196,8 @@ class JvmOptionsTest {
 
   private static List<String> expectedArsFromArgFile(String name) {
     List<String> arguments = new ArrayList<>();
-    try (InputStream stream =
-            requireNonNull(
-                CommandLineTest.class.getResourceAsStream("/argfiles/" + name + "-expected.txt"));
+    try (InputStream stream = requireNonNull(CommandLineTest.class
+      .getResourceAsStream("/argfiles/" + name + "-expected.txt"));
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
       String line;
       while ((line = reader.readLine()) != null) {

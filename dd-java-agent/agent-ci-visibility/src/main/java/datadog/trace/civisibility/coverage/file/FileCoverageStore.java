@@ -28,9 +28,7 @@ import org.slf4j.LoggerFactory;
  * no line info is available. The advantage of lower granularity is lower performance overhead.
  */
 public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
-
   private static final Logger log = LoggerFactory.getLogger(FileCoverageStore.class);
-
   private final CiVisibilityMetricCollector metrics;
   private final SourcePathResolver sourcePathResolver;
 
@@ -46,7 +44,10 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes) {
+      DDTraceId testSessionId,
+      Long testSuiteId,
+      long testSpanId,
+      Collection<FileProbes> probes) {
     Set<Class<?>> combinedClasses = Collections.newSetFromMap(new IdentityHashMap<>());
     Collection<String> combinedNonCodeResources = new HashSet<>();
 
@@ -101,7 +102,6 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
   }
 
   public static final class Factory implements CoverageStore.Factory {
-
     private final CiVisibilityMetricCollector metrics;
     private final SourcePathResolver sourcePathResolver;
 

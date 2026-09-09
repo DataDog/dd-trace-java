@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.memoize;
 
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import datadog.instrument.utils.ClassNameFilter;
 import datadog.trace.agent.tooling.InstrumenterMetrics;
 import datadog.trace.agent.tooling.bytebuddy.TypeInfoCache;
@@ -37,13 +36,13 @@ public final class Memoizer {
     METHOD,
     CLASS,
     INTERFACE,
-    TYPE // i.e. class or interface
+    // i.e. class or interface
+    TYPE
   }
 
   private static final BitSet NO_MATCH = new BitSet(0);
-
-  private static final int SIZE_HINT = 320; // estimated number of matchers
-
+  // estimated number of matchers
+  private static final int SIZE_HINT = 320;
   // records the kind of matcher and whether matches should be inherited
   private static final BitSet annotationMatcherIds = new BitSet(SIZE_HINT);
   private static final BitSet fieldMatcherIds = new BitSet(SIZE_HINT);
@@ -51,36 +50,29 @@ public final class Memoizer {
   private static final BitSet classMatcherIds = new BitSet(SIZE_HINT);
   private static final BitSet interfaceMatcherIds = new BitSet(SIZE_HINT);
   private static final BitSet inheritedMatcherIds = new BitSet(SIZE_HINT);
-
   // matchers that are ready for memoization
   static final List<ElementMatcher> matchers = new ArrayList<>();
-
   // small cache to de-duplicate memoization requests
   private static final DDCache<ElementMatcher, MemoizingMatcher> memoizingMatcherCache =
       DDCaches.newFixedSizeIdentityCache(8);
-
-  private static final boolean namesAreUnique = InstrumenterConfig.get().isResolverNamesAreUnique();
-
+  private static final boolean namesAreUnique = InstrumenterConfig
+    .get()
+    .isResolverNamesAreUnique();
   // compact filter recording uninteresting types
   private static final ClassNameFilter noMatchFilter = NoMatchFilter.build();
-
   // caches positive memoized matches
   private static final TypeInfoCache<BitSet> memos =
       new TypeInfoCache<>(InstrumenterConfig.get().getResolverMemoPoolSize(), namesAreUnique);
-
   // local memoized results, used to detect circular references
   static final ThreadLocal<Map<String, BitSet>> localMemosHolder =
       ThreadLocal.withInitial(HashMap::new);
-
-  private static final int INTERNAL_MATCHERS = 3; // isClass, isConcrete, isPartial
-
+  // isClass, isConcrete, isPartial
+  private static final int INTERNAL_MATCHERS = 3;
   // memoize whether the type is a class
   static final MemoizingMatcher isClass = prepare(MatcherKind.CLASS, ElementMatchers.any(), true);
-
   // memoize whether the type is a concrete class, i.e. no abstract methods
   static final MemoizingMatcher isConcrete =
       prepare(MatcherKind.CLASS, not(ElementMatchers.isAbstract()), false);
-
   // memoize whether this is based on partial information due to missing types
   static final MemoizingMatcher isPartial = prepare(MatcherKind.TYPE, ElementMatchers.none(), true);
 
@@ -100,16 +92,20 @@ public final class Memoizer {
     return new MemoizingMatcher(matchers.size());
   }
 
-  /** Prepares a matcher for memoization. */
+  /**
+   * Prepares a matcher for memoization.
+   */
   static <T> MemoizingMatcher prepare(
-      MatcherKind kind, ElementMatcher<T> matcher, boolean inherited) {
-
+      MatcherKind kind,
+      ElementMatcher<T> matcher,
+      boolean inherited) {
     MemoizingMatcher memoizingMatcher =
         memoizingMatcherCache.computeIfAbsent(matcher, Memoizer::withMatcherId);
 
     int matcherId = memoizingMatcher.matcherId;
     if (matcherId < matchers.size()) {
-      return memoizingMatcher; // de-duplicated matcher
+      // de-duplicated matcher
+      return memoizingMatcher;
     } else {
       matchers.add(matcher);
     }
@@ -143,7 +139,9 @@ public final class Memoizer {
     return memoizingMatcher;
   }
 
-  /** Matcher wrapper that triggers memoization on request. */
+  /**
+   * Matcher wrapper that triggers memoization on request.
+   */
   static final class MemoizingMatcher
       extends ElementMatcher.Junction.ForNonNullValues<TypeDescription> {
     final int matcherId;
@@ -174,11 +172,11 @@ public final class Memoizer {
   }
 
   static BitSet doMemoize(TypeDescription type, Map<String, BitSet> localMemos) {
-
     String name = type.getName();
     BitSet memo = localMemos.get(name);
     if (null != memo) {
-      return memo; // short-circuit circular references
+      // short-circuit circular references
+      return memo;
     }
 
     long fromTick = InstrumenterMetrics.tick();
@@ -191,7 +189,8 @@ public final class Memoizer {
     }
 
     localMemos.put(name, memo = new BitSet(matchers.size()));
-    boolean wasFullParsing = TypePoolFacade.disableFullDescriptions(); // only need outlines here
+    // only need outlines here
+    boolean wasFullParsing = TypePoolFacade.disableFullDescriptions();
     try {
       TypeDescription.Generic superType = type.getSuperClass();
       long superTick = InstrumenterMetrics.tick();
@@ -201,7 +200,8 @@ public final class Memoizer {
       for (TypeDescription.Generic intf : type.getInterfaces()) {
         inherit(memoizeHierarchy(intf.asErasure(), localMemos), memo);
       }
-      fromTick += (InstrumenterMetrics.tick() - superTick); // adjust to exclude super-type ticks
+      // adjust to exclude super-type ticks
+      fromTick += (InstrumenterMetrics.tick() - superTick);
       for (AnnotationDescription ann : type.getDeclaredAnnotations()) {
         record(annotationMatcherIds, ann.getAnnotationType(), memo);
       }
@@ -230,13 +230,11 @@ public final class Memoizer {
     }
 
     InstrumenterMetrics.buildTypeMemo(fromTick);
-
     // update no-match filter if there's no interesting matches and result is complete
     if (memo.nextSetBit(INTERNAL_MATCHERS) < 0 && !memo.get(isPartial.matcherId)) {
       noMatchFilter.add(name);
       return NO_MATCH;
     }
-
     // otherwise share result for this location (other locations may have different results)
     if (namesAreUnique || name.startsWith("java.") || !(type instanceof WithLocation)) {
       memos.share(name, 0, null, memo);
@@ -248,7 +246,9 @@ public final class Memoizer {
     return memo;
   }
 
-  /** Any type not recorded as a definite "no-match" is a potential match. */
+  /**
+   * Any type not recorded as a definite "no-match" is a potential match.
+   */
   static boolean potentialMatch(String name) {
     return !noMatchFilter.contains(name);
   }
@@ -259,7 +259,9 @@ public final class Memoizer {
         || sharedMemo.sameClassFile(((WithLocation) type).getClassFile());
   }
 
-  /** Inherit positive matches from a super-class or interface. */
+  /**
+   * Inherit positive matches from a super-class or interface.
+   */
   private static void inherit(BitSet superMemo, BitSet memo) {
     int matcherId = superMemo.nextSetBit(0);
     while (matcherId >= 0) {
@@ -270,7 +272,9 @@ public final class Memoizer {
     }
   }
 
-  /** Run a series of memoized matchers and record positive matches. */
+  /**
+   * Run a series of memoized matchers and record positive matches.
+   */
   @SuppressWarnings("unchecked")
   private static void record(BitSet matcherIds, Object type, BitSet memo) {
     int matcherId = matcherIds.nextSetBit(0);

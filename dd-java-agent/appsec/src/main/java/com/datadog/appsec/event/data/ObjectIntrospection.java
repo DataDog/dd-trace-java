@@ -3,7 +3,6 @@ package com.datadog.appsec.event.data;
 import static com.datadog.appsec.ddwaf.WAFModule.MAX_DEPTH;
 import static com.datadog.appsec.ddwaf.WAFModule.MAX_ELEMENTS;
 import static com.datadog.appsec.ddwaf.WAFModule.MAX_STRING_SIZE;
-
 import com.datadog.appsec.gateway.AppSecRequestContext;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.telemetry.WafMetricCollector;
@@ -25,9 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ObjectIntrospection {
-
   private static final Logger log = LoggerFactory.getLogger(ObjectIntrospection.class);
-
   private static final Method trySetAccessible;
 
   static {
@@ -43,7 +40,8 @@ public final class ObjectIntrospection {
     trySetAccessible = method;
   }
 
-  private ObjectIntrospection() {}
+  private ObjectIntrospection() {
+  }
 
   /**
    * Listener interface for optional per-call truncation logic. Single-method invoked when any
@@ -51,7 +49,9 @@ public final class ObjectIntrospection {
    */
   @FunctionalInterface
   public interface TruncationListener {
-    /** Called after default truncation handling if any truncation occurred. */
+    /**
+     * Called after default truncation handling if any truncation occurred.
+     */
     void onTruncation();
   }
 
@@ -93,14 +93,17 @@ public final class ObjectIntrospection {
    * truncation logic, then invokes listener if provided.
    */
   public static Object convert(
-      Object obj, AppSecRequestContext requestContext, TruncationListener listener) {
+      Object obj,
+      AppSecRequestContext requestContext,
+      TruncationListener listener) {
     State state = new State(requestContext);
     Object converted = guardedConversion(obj, 0, state);
     if (state.stringTooLong || state.listMapTooLarge || state.objectTooDeep) {
       // Default truncation handling: always run
       requestContext.setWafTruncated();
-      WafMetricCollector.get()
-          .wafInputTruncated(state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
+      WafMetricCollector
+        .get()
+        .wafInputTruncated(state.stringTooLong, state.listMapTooLarge, state.objectTooDeep);
       // Optional extra per-call logic: only requestContext is passed
       if (listener != null) {
         listener.onTruncation();
@@ -165,17 +168,14 @@ public final class ObjectIntrospection {
       state.objectTooDeep = true;
       return null;
     }
-
     // booleans and numbers are preserved
     if (obj instanceof Boolean || obj instanceof Number) {
       return obj;
     }
-
     // strings are preserved, but we need to check the length
     if (obj instanceof String) {
       return checkStringLength((String) obj, state);
     }
-
     // char sequences are transformed just in case they are not immutable,
     if (obj instanceof CharSequence) {
       return checkStringLength(obj.toString(), state);
@@ -184,25 +184,25 @@ public final class ObjectIntrospection {
     if (obj instanceof Character) {
       return obj.toString();
     }
-
     // Date objects - avoid accessing private fastTime field
     if (obj instanceof Date) {
       return ((Date) obj).getTime();
     }
-
     // Jackson databind nodes (via reflection)
     Class<?> clazz = obj.getClass();
     if (clazz.getName().startsWith("com.fasterxml.jackson.databind.node.")) {
       try {
         return doConversionJacksonNode(
-            new JacksonContext(clazz.getClassLoader()), obj, depth, state);
+            new JacksonContext(clazz.getClassLoader()),
+            obj,
+            depth,
+            state);
       } catch (Throwable e) {
         // in case of failure let default conversion run
         log.debug("Error handling jackson node {}", clazz, e);
         return null;
       }
     }
-
     // maps
     if (obj instanceof Map) {
       Map<Object, Object> newMap = new HashMap<>((int) Math.ceil(((Map) obj).size() / .75));
@@ -217,7 +217,6 @@ public final class ObjectIntrospection {
       }
       return newMap;
     }
-
     // iterables
     if (obj instanceof Iterable) {
       final Iterator<?> it = ((Iterable<?>) obj).iterator();
@@ -257,7 +256,6 @@ public final class ObjectIntrospection {
         return newList;
       }
     }
-
     // arrays
     if (clazz.isArray()) {
       int length = Array.getLength(obj);
@@ -267,18 +265,17 @@ public final class ObjectIntrospection {
       }
       return newList;
     }
-
     // else general objects
     Map<String, Object> newMap = new HashMap<>();
     List<Field[]> allFields = new ArrayList<>();
-    for (Class<?> classToLook = clazz;
+    for (
+        Class<?> classToLook = clazz;
         classToLook != null && classToLook != Object.class;
         classToLook = classToLook.getSuperclass()) {
       allFields.add(classToLook.getDeclaredFields());
     }
 
-    outer:
-    for (Field[] fields : allFields) {
+    outer: for (Field[] fields : allFields) {
       for (Field f : fields) {
         if (state.elemsLeft <= 0) {
           state.listMapTooLarge = true;
@@ -380,8 +377,10 @@ public final class ObjectIntrospection {
    * <p>The method applies the same truncation limits as the main conversion logic:
    */
   private static Object doConversionJacksonNode(
-      final JacksonContext ctx, final Object node, final int depth, final State state)
-      throws Throwable {
+      final JacksonContext ctx,
+      final Object node,
+      final int depth,
+      final State state) throws Throwable {
     if (node == null) {
       return null;
     }

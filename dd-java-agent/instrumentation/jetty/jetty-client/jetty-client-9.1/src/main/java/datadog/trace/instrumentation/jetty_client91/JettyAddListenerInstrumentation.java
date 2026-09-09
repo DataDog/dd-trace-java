@@ -6,7 +6,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,7 +19,8 @@ import org.eclipse.jetty.client.api.Response;
 
 @AutoService(InstrumenterModule.class)
 public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JettyAddListenerInstrumentation() {
     super("jetty-client");
   }
@@ -49,27 +49,27 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("listener"))
-            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$RequestListener"))),
+          .and(isPublic())
+          .and(named("listener"))
+          .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$RequestListener"))),
         JettyAddListenerInstrumentation.class.getName() + "$WrapRequestListener");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("onSuccess"))
-            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$SuccessListener"))),
+          .and(isPublic())
+          .and(named("onSuccess"))
+          .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$SuccessListener"))),
         JettyAddListenerInstrumentation.class.getName() + "$WrapRequestSuccessListener");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("onFailure"))
-            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$FailureListener"))),
+          .and(isPublic())
+          .and(named("onFailure"))
+          .and(takesArgument(0, named("org.eclipse.jetty.client.api.Request$FailureListener"))),
         JettyAddListenerInstrumentation.class.getName() + "$WrapRequestFailureListener");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("onComplete"))
-            .and(takesArgument(0, named("org.eclipse.jetty.client.api.Response$CompleteListener"))),
+          .and(isPublic())
+          .and(named("onComplete"))
+          .and(takesArgument(0, named("org.eclipse.jetty.client.api.Response$CompleteListener"))),
         JettyAddListenerInstrumentation.class.getName() + "$WrapResponseCompleteListener");
   }
 
@@ -79,16 +79,16 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Request.RequestListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 
     private String muzzleCheck(Request request) {
-      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+      // Before 9.1 returns an HttpMethod.
+      return request.getMethod();
     }
   }
 
@@ -98,16 +98,16 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Request.FailureListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 
     private String muzzleCheck(Request request) {
-      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+      // Before 9.1 returns an HttpMethod.
+      return request.getMethod();
     }
   }
 
@@ -117,16 +117,16 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Request.SuccessListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 
     private String muzzleCheck(Request request) {
-      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+      // Before 9.1 returns an HttpMethod.
+      return request.getMethod();
     }
   }
 
@@ -136,16 +136,16 @@ public class JettyAddListenerInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Request request,
         @Advice.Argument(value = 0, readOnly = false) Response.CompleteListener listener) {
       if (!(listener instanceof CallbackWrapper)) {
-        listener =
-            new CallbackWrapper(
-                activeSpan(),
-                InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
-                listener);
+        listener = new CallbackWrapper(
+            activeSpan(),
+            InstrumentationContext.get(Request.class, AgentSpan.class).get(request),
+            listener);
       }
     }
 
     private String muzzleCheck(Request request) {
-      return request.getMethod(); // Before 9.1 returns an HttpMethod.
+      // Before 9.1 returns an HttpMethod.
+      return request.getMethod();
     }
   }
 }

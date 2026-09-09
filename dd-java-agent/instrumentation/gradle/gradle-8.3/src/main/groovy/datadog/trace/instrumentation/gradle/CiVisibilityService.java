@@ -24,8 +24,8 @@ import org.gradle.tooling.events.FinishEvent;
 import org.gradle.tooling.events.OperationCompletionListener;
 
 public abstract class CiVisibilityService
-    implements BuildService<BuildServiceParameters.None>, OperationCompletionListener {
-
+    implements BuildService<BuildServiceParameters.None>,
+    OperationCompletionListener {
   // using constant session key, since the service is already build-scoped
   private static final Object SESSION_KEY = new Object();
   private final Config config = Config.get();
@@ -71,8 +71,7 @@ public abstract class CiVisibilityService
   public Collection<String> getTracerJvmArgs(String taskPath) {
     List<String> jvmArgs = new ArrayList<>();
 
-    BuildModuleSettings moduleSettings =
-        buildEventsHandler.getModuleSettings(SESSION_KEY, taskPath);
+    BuildModuleSettings moduleSettings = buildEventsHandler.getModuleSettings(SESSION_KEY, taskPath);
     Map<String, String> propagatedSystemProperties = moduleSettings.getSystemProperties();
     // propagate to child process all "dd." system properties available in current process
     for (Map.Entry<String, String> e : propagatedSystemProperties.entrySet()) {
@@ -102,12 +101,17 @@ public abstract class CiVisibilityService
       String startCommand,
       String gradleVersion,
       boolean nestedBuild) {
-    Map<String, Object> additionalTags =
-        nestedBuild
-            ? Collections.singletonMap(Tags.TEST_GRADLE_NESTED_BUILD, true)
-            : Collections.emptyMap();
+    Map<String, Object> additionalTags = nestedBuild
+        ? Collections.singletonMap(Tags.TEST_GRADLE_NESTED_BUILD, true)
+        : Collections.emptyMap();
     buildEventsHandler.onTestSessionStart(
-        SESSION_KEY, buildPath, projectRoot, startCommand, "gradle", gradleVersion, additionalTags);
+        SESSION_KEY,
+        buildPath,
+        projectRoot,
+        startCommand,
+        "gradle",
+        gradleVersion,
+        additionalTags);
   }
 
   public void onBuildTaskStart(String taskPath) {
@@ -141,7 +145,9 @@ public abstract class CiVisibilityService
   }
 
   public void onModuleFinish(
-      String taskPath, @Nullable Throwable failure, @Nullable String skipReason) {
+      String taskPath,
+      @Nullable Throwable failure,
+      @Nullable String skipReason) {
     if (failure != null) {
       buildEventsHandler.onTestModuleFail(SESSION_KEY, taskPath, failure);
     } else if (skipReason != null) {

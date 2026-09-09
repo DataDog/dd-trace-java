@@ -23,11 +23,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * @see BootstrapClasspathSetupListener#isBootstrapClass(Class)
  */
 public final class TestClassShadowingExtension
-    implements BeforeAllCallback, AfterAllCallback, BeforeEachCallback, AfterEachCallback {
-
+    implements BeforeAllCallback,
+    AfterAllCallback,
+    BeforeEachCallback,
+    AfterEachCallback {
   private static final ExtensionContext.Namespace NAMESPACE =
       ExtensionContext.Namespace.create("dd", "spock");
-
   private static final String INSTRUMENTATION_CLASSLOADER = "instrumentation-class-loader";
   private static final String ORIGINAL_CLASSLOADER = "original-thread-context-class-loader";
 
@@ -56,9 +57,9 @@ public final class TestClassShadowingExtension
   private static void assertNotBootstrapClass(final Class<?> testClass, final Class<?> clazz) {
     if (BootstrapClasspathSetupListener.isBootstrapClass(clazz)) {
       throw new IllegalStateException(
-          testClass.getName()
-              + ": Bootstrap classes are not allowed in test class field or method signatures. Offending class: "
-              + clazz.getName());
+              testClass.getName()
+          + ": Bootstrap classes are not allowed in test class field or method signatures. Offending class: "
+          + clazz.getName());
     }
   }
 
@@ -71,8 +72,9 @@ public final class TestClassShadowingExtension
   public void beforeEach(ExtensionContext ctx) {
     ClassLoader instrumentationClassloader =
         ctx.getStore(NAMESPACE).get(INSTRUMENTATION_CLASSLOADER, ClassLoader.class);
-    ctx.getStore(NAMESPACE)
-        .put(ORIGINAL_CLASSLOADER, Thread.currentThread().getContextClassLoader());
+    ctx.getStore(NAMESPACE).put(
+        ORIGINAL_CLASSLOADER,
+        Thread.currentThread().getContextClassLoader());
     Thread.currentThread().setContextClassLoader(instrumentationClassloader);
   }
 
@@ -84,7 +86,9 @@ public final class TestClassShadowingExtension
     }
   }
 
-  /** Run test classes in a classloader which loads test classes before delegating. */
+  /**
+   * Run test classes in a classloader which loads test classes before delegating.
+   */
   private static class InstrumentationClassLoader extends ClassLoader {
     private final ClassLoader parent;
     private final String shadowPrefix;
@@ -95,7 +99,9 @@ public final class TestClassShadowingExtension
       this.shadowPrefix = shadowPrefix;
     }
 
-    /** Forcefully inject the bytes of clazz into this classloader. */
+    /**
+     * Forcefully inject the bytes of clazz into this classloader.
+     */
     Class<?> shadow(Class<?> clazz) throws IOException {
       Class<?> loaded = findLoadedClass(clazz.getName());
       if (loaded != null && loaded.getClassLoader() == this) {

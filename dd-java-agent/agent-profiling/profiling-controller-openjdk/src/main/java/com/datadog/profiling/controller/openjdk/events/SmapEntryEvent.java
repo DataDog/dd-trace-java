@@ -19,120 +19,87 @@ import jdk.jfr.StackTrace;
 @StackTrace(false)
 public class SmapEntryEvent extends Event {
   private static final EventType TYPE = EventType.getEventType(SmapEntryEvent.class);
-
   @Label("Region Start Address")
   long startAddress;
-
   @Label("Region End Address")
   long endAddress;
-
   @Label("Region Permissions")
   String perms;
-
   @Label("Offset into mapping")
   long offset;
-
   @Label("Device")
   String dev;
-
   @Label("INode ID")
   int inodeID;
-
   @Label("Path associated with mapping")
   String pathname;
-
   @Label("Mapping Size")
   long size;
-
   @Label("Page Size")
   long kernelPageSize;
-
   @Label("Memory Management Unit Page Size")
   long mmuPageSize;
-
   @Label("Resident Set Size")
   @DataAmount
   long rss;
-
   @Label("Proportional Set Size")
   @DataAmount
   long pss;
-
   @Label("Dirty Proportional Set Size")
   @DataAmount
   long pssDirty;
-
   @Label("Shared Clean Pages")
   long sharedClean;
-
   @Label("Shared Dirty Pages")
   @DataAmount
   long sharedDirty;
-
   @Label("Private Clean Pages")
   @DataAmount
   long privateClean;
-
   @Label("Private Dirty Pages")
   @DataAmount
   long privateDirty;
-
   @Label("Referenced Memory")
   long referenced;
-
   @Label("Anonymous Memory")
   @DataAmount
   long anonymous;
-
   @Label("Kernel Same-page Merging")
   @DataAmount
   long ksm;
-
   @Label("Lazily Freed Memory")
   @DataAmount
   long lazyFree;
-
   @Label("Anon Huge Pages")
   @DataAmount
   long anonHugePages;
-
   @Label("Shared Memory Huge Pages")
   @DataAmount
   long shmemPmdMapped;
-
   @Label("Page Cache Huge Pages")
   @DataAmount
   long filePmdMapped;
-
   @Label("Shared Huge Pages")
   @DataAmount
   long sharedHugetlb;
-
   @Label("Private Huge Pages")
   @DataAmount
   long privateHugetlb;
-
   @Label("Swap Size")
   @DataAmount
   long swap;
-
   @Label("Proportional Swap Size")
   @DataAmount
   long swapPss;
-
   @Label("Locked Memory")
   @DataAmount
   long locked;
-
   @Label("THP Eligible")
   boolean thpEligible;
-
   @Label("VM Flags")
   String vmFlags;
-
   @Label("Encountered foreign keys")
   boolean encounteredForeignKeys;
-
   @Label("NMT Category")
   String nmtCategory;
 

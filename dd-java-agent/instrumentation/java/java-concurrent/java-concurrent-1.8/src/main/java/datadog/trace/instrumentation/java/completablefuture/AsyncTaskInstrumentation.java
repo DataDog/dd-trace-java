@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -20,11 +19,12 @@ import net.bytebuddy.asm.Advice;
  * duplicate checkpoint emission.
  */
 public final class AsyncTaskInstrumentation
-    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   static final String[] CLASS_NAMES = {
-    "java.util.concurrent.CompletableFuture$AsyncSupply",
-    "java.util.concurrent.CompletableFuture$AsyncRun",
+      "java.util.concurrent.CompletableFuture$AsyncSupply",
+      "java.util.concurrent.CompletableFuture$AsyncRun"
   };
 
   @Override

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.playws1;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
-
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,7 +15,6 @@ public class AsyncHandlerWrapper implements AsyncHandler {
   private final AsyncHandler delegate;
   private final AgentSpan span;
   private final ContextContinuation continuation;
-
   private final Response.ResponseBuilder builder = new Response.ResponseBuilder();
 
   public AsyncHandlerWrapper(final AsyncHandler delegate, final AgentSpan span) {

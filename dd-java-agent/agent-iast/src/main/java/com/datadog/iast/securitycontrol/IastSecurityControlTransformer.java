@@ -2,7 +2,6 @@ package com.datadog.iast.securitycontrol;
 
 import static org.objectweb.asm.ClassReader.SKIP_DEBUG;
 import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
-
 import datadog.trace.api.iast.securitycontrol.SecurityControl;
 import java.lang.instrument.ClassFileTransformer;
 import java.util.List;
@@ -15,10 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class IastSecurityControlTransformer implements ClassFileTransformer {
-
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(IastSecurityControlTransformer.class);
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(IastSecurityControlTransformer.class);
   private final Map<String, List<SecurityControl>> securityControls;
 
   public IastSecurityControlTransformer(Map<String, List<SecurityControl>> securityControls) {
@@ -35,7 +31,8 @@ public class IastSecurityControlTransformer implements ClassFileTransformer {
       byte[] classfileBuffer) {
     List<SecurityControl> match = securityControls.get(className);
     if (match == null || match.isEmpty()) {
-      return null; // Do not transform classes that do not have a security control
+      // Do not transform classes that do not have a security control
+      return null;
     }
     try {
       ClassReader cr = new ClassReader(classfileBuffer);

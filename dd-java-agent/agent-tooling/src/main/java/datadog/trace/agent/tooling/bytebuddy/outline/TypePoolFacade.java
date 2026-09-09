@@ -3,14 +3,15 @@ package datadog.trace.agent.tooling.bytebuddy.outline;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findDescriptor;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.findType;
 import static datadog.trace.agent.tooling.bytebuddy.outline.TypeFactory.typeFactory;
-
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.memoize.Memoizer;
 import datadog.trace.api.InstrumenterConfig;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
-/** {@link TypePool} facade that looks up types using the active thread's {@link TypeFactory}. */
+/**
+ * {@link TypePool} facade that looks up types using the active thread's {@link TypeFactory}.
+ */
 public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier {
   public static final TypePoolFacade INSTANCE = new TypePoolFacade();
 
@@ -25,7 +26,9 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     return INSTANCE;
   }
 
-  /** Switches the active thread's context to use the given class-loader. */
+  /**
+   * Switches the active thread's context to use the given class-loader.
+   */
   public static void switchContext(ClassLoader classLoader) {
     typeFactory.get().switchContext(classLoader);
   }
@@ -44,17 +47,23 @@ public final class TypePoolFacade implements TypePool, SharedTypePools.Supplier 
     typeFactory.get().endInstall();
   }
 
-  /** Record a new transform request for the named class-file. */
+  /**
+   * Record a new transform request for the named class-file.
+   */
   public static void beginTransform(String name, byte[] bytecode) {
     typeFactory.get().beginTransform(name, bytecode);
   }
 
-  /** Switch to full descriptions, needed for the actual class transformation. */
+  /**
+   * Switch to full descriptions, needed for the actual class transformation.
+   */
   public static void enableFullDescriptions() {
     typeFactory.get().enableFullDescriptions();
   }
 
-  /** Temporarily switch back to outlines, e.g. for last-minute memoization. */
+  /**
+   * Temporarily switch back to outlines, e.g. for last-minute memoization.
+   */
   public static boolean disableFullDescriptions() {
     return typeFactory.get().disableFullDescriptions();
   }

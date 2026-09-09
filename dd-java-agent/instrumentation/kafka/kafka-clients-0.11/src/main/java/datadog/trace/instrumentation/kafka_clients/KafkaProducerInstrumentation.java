@@ -25,7 +25,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
@@ -59,8 +58,8 @@ import org.apache.kafka.common.record.RecordBatch;
 
 @AutoService(InstrumenterModule.class)
 public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public KafkaProducerInstrumentation() {
     super("kafka", "kafka-0.11");
   }
@@ -72,7 +71,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
+    // < 3.8
+    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"));
   }
 
   @Override
@@ -83,18 +83,18 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator",
-      packageName + ".TextMapInjectAdapterInterface",
-      packageName + ".TextMapInjectAdapter",
-      packageName + ".TextMapExtractAdapter",
-      packageName + ".NoopTextMapInjectAdapter",
-      packageName + ".KafkaProducerCallback",
-      "datadog.trace.instrumentation.kafka_common.StreamingContext",
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      "datadog.trace.instrumentation.kafka_common.Utils",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
+        packageName + ".KafkaDecorator",
+        packageName + ".TextMapInjectAdapterInterface",
+        packageName + ".TextMapInjectAdapter",
+        packageName + ".TextMapExtractAdapter",
+        packageName + ".NoopTextMapInjectAdapter",
+        packageName + ".KafkaProducerCallback",
+        "datadog.trace.instrumentation.kafka_common.StreamingContext",
+        "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+        "datadog.trace.instrumentation.kafka_common.Utils",
+        "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+        "datadog.trace.instrumentation.kafka_common.PendingConfig",
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
     };
   }
 
@@ -109,31 +109,31 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
-            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
-            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
+          .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
+          .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
+          .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
         KafkaProducerInstrumentation.class.getName() + "$ProducerConstructorAdvice");
 
     transformer.applyAdvices(
         isMethod()
-            .and(isPublic())
-            .and(named("send"))
-            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
-            .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
+          .and(isPublic())
+          .and(named("send"))
+          .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
+          .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
         KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice",
         KafkaProducerInstrumentation.class.getName() + "$ContextPropagationAdvice");
 
     transformer.applyAdvice(
         isMethod()
-            .and(isPrivate())
-            .and(takesArgument(0, int.class))
-            .and(named("ensureValidRecordSize")), // intercepting this call allows us to see the
+          .and(isPrivate())
+          .and(takesArgument(0, int.class))
+          // intercepting this call allows us to see the
+          .and(named("ensureValidRecordSize")),
         // estimated message size
         KafkaProducerInstrumentation.class.getName() + "$PayloadSizeAdvice");
   }
 
   public static class ProducerAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
@@ -144,12 +144,10 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       MetadataState metadataState =
           InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
       String clusterId = metadataState != null ? metadataState.clusterId : null;
-
       // Set cluster ID for Schema Registry instrumentation
       if (clusterId != null) {
         ClusterIdHolder.set(clusterId);
       }
-
       // Try to extract existing trace context from record headers
       final AgentSpanContext extractedContext =
           extractContextAndGetSpanContext(record.headers(), TextMapExtractAdapter.GETTER);
@@ -180,7 +178,8 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       // Clear cluster ID from Schema Registry instrumentation
       ClusterIdHolder.clear();
 
@@ -192,14 +191,15 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextPropagationAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
       AgentSpan span = activeSpan();
-      if (span == null) return;
+      if (span == null) {
+        return;
+      }
       MetadataState metadataState =
           InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
       String clusterId = metadataState != null ? metadataState.clusterId : null;
@@ -230,14 +230,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         }
       } catch (final IllegalStateException e) {
         // headers must be read-only from reused record. try again with new one.
-        record =
-            new ProducerRecord<>(
-                record.topic(),
-                record.partition(),
-                record.timestamp(),
-                record.key(),
-                record.value(),
-                record.headers());
+        record = new ProducerRecord<>(
+            record.topic(),
+            record.partition(),
+            record.timestamp(),
+            record.key(),
+            record.value(),
+            record.headers());
 
         defaultPropagator().inject(span, record.headers(), setter);
         if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
@@ -250,13 +249,14 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       if (TIME_IN_QUEUE_ENABLED) {
         setter.injectTimeInQueue(record.headers());
       }
-      AgentTracer.get()
-          .getDataStreamsMonitoring()
-          .trackTransaction(
-              span,
-              DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS,
-              record.headers(),
-              DSM_TRANSACTION_SOURCE_READER);
+      AgentTracer
+        .get()
+        .getDataStreamsMonitoring()
+        .trackTransaction(
+            span,
+            DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS,
+            record.headers(),
+            DSM_TRANSACTION_SOURCE_READER);
     }
   }
 
@@ -265,18 +265,18 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     public static void captureConfiguration(
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(0) ProducerConfig producerConfig) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext
+        .get(Metadata.class, MetadataState.class)
+        .getOrCreate(metadata, MetadataState::new);
       if (Config.get().isDataStreamsEnabled()) {
         KafkaConfigHelper.storePendingProducerConfig(
-            state, KafkaConfigHelper.extractProducerConfig(producerConfig));
+            state,
+            KafkaConfigHelper.extractProducerConfig(producerConfig));
       }
     }
   }
 
   public static class PayloadSizeAdvice {
-
     /**
      * Instrumentation for the method KafkaProducer.ensureValidRecordSize that is called as part of
      * sending a kafka payload. This gives us access to an estimate of the payload size "for free",
@@ -287,17 +287,16 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       StatsPoint saved = activeSpan().spanContext().getPathwayContext().getSavedStats();
       if (saved != null) {
         // create new stats including the payload size
-        StatsPoint updated =
-            new StatsPoint(
-                saved.getTags(),
-                saved.getHash(),
-                saved.getParentHash(),
-                saved.getAggregationHash(),
-                saved.getTimestampNanos(),
-                saved.getPathwayLatencyNano(),
-                saved.getEdgeLatencyNano(),
-                estimatedPayloadSize,
-                saved.getServiceNameOverride());
+        StatsPoint updated = new StatsPoint(
+            saved.getTags(),
+            saved.getHash(),
+            saved.getParentHash(),
+            saved.getAggregationHash(),
+            saved.getTimestampNanos(),
+            saved.getPathwayLatencyNano(),
+            saved.getEdgeLatencyNano(),
+            estimatedPayloadSize,
+            saved.getServiceNameOverride());
         // then send the point
         AgentTracer.get().getDataStreamsMonitoring().add(updated);
       }

@@ -1,7 +1,6 @@
 package org.example;
 
 import static org.junit.Assert.assertEquals;
-
 import java.util.Arrays;
 import java.util.Collection;
 import org.junit.Test;

@@ -1,11 +1,12 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Visitor;
 
-/** Will negate the resolved {@linkplain BooleanExpression} */
+/**
+ * Will negate the resolved {@linkplain BooleanExpression}
+ */
 public final class NotExpression implements BooleanExpression {
   private final BooleanExpression predicate;
 

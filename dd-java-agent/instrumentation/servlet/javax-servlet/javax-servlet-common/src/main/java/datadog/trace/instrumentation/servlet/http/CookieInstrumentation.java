@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.servlet.http;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -22,9 +21,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class CookieInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   public CookieInstrumentation() {
     super("servlet", "servlet-cookie");
   }
@@ -71,7 +69,6 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetValueAdvice {
-
     @Advice.OnMethodExit
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void afterGetValue(

@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorat
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -22,7 +21,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class EndpointInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private final String namespace;
 
   public EndpointInstrumentation(String namespace) {
@@ -43,18 +43,16 @@ public class EndpointInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("onOpen")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))),
+          .and(named("onOpen")
+            .and(takesArguments(2))
+            .and(takesArgument(0, named(namespace + ".websocket.Session")))),
         getClass().getName() + "$CaptureHandshakeSpanAdvice");
     transformer.applyAdvice(
         isPublic()
-            .and(
-                named("onClose")
-                    .and(takesArguments(2))
-                    .and(takesArgument(0, named(namespace + ".websocket.Session")))
-                    .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))),
+          .and(named("onClose")
+            .and(takesArguments(2))
+            .and(takesArgument(0, named(namespace + ".websocket.Session")))
+            .and(takesArgument(1, named(namespace + ".websocket.CloseReason")))),
         getClass().getName() + "$SessionCloseAdvice");
   }
 
@@ -67,9 +65,9 @@ public class EndpointInstrumentation
         if (Config.get().isWebsocketMessagesInheritSampling()) {
           current.forceSamplingDecision();
         }
-        InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
-            .getOrPut(
-                session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
+        InstrumentationContext
+          .get(Session.class, HandlerContext.Sender.class)
+          .getOrPut(session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
       }
     }
   }
@@ -85,12 +83,12 @@ public class EndpointInstrumentation
       if (sessionState == null) {
         return null;
       }
-      handlerContext =
-          new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
+      handlerContext = new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
 
-      return activateSpan(
-          DECORATE.startInboundCloseSpan(
-              handlerContext, closeReason.getReasonPhrase(), closeReason.getCloseCode().getCode()));
+      return activateSpan(DECORATE.startInboundCloseSpan(
+          handlerContext,
+          closeReason.getReasonPhrase(),
+          closeReason.getCloseCode().getCode()));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ShedLockedTask {
-
   private final CountDownLatch latch = new CountDownLatch(2);
   private final AtomicInteger invoked = new AtomicInteger();
 

@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -16,7 +15,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ConfigurationFileLoaderTest {
-
   @Test
   public void load() throws Exception {
     Path probeFilePath =

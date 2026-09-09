@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.liberty23.LibertyDecorator.DD_PARENT
 import static datadog.trace.instrumentation.liberty23.LibertyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.srt.SRTServletRequest;
 import com.ibm.ws.webcontainer.srt.SRTServletResponse;
@@ -40,8 +39,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class LibertyServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public LibertyServerInstrumentation() {
     super("liberty");
   }
@@ -54,34 +53,35 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServletExtractAdapter",
-      packageName + ".HttpServletExtractAdapter$Request",
-      packageName + ".HttpServletExtractAdapter$Response",
-      packageName + ".LibertyDecorator",
-      packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.servlet5.JakartaServletBlockingHelper",
-      packageName + ".RequestMessageFromServletRequestHelper",
+        packageName + ".HttpServletExtractAdapter",
+        packageName + ".HttpServletExtractAdapter$Request",
+        packageName + ".HttpServletExtractAdapter$Response",
+        packageName + ".LibertyDecorator",
+        packageName + ".LibertyDecorator$LibertyBlockResponseFunction",
+        packageName + ".RequestURIDataAdapter",
+        "datadog.trace.instrumentation.servlet5.JakartaServletBlockingHelper",
+        packageName + ".RequestMessageFromServletRequestHelper"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        REQUEST_MSG_TYPE, "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+        REQUEST_MSG_TYPE,
+        "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("invokeFilters"))
-            .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
-            .and(takesArgument(1, named("jakarta.servlet.ServletResponse")))
-            .and(takesArgument(2, named("com.ibm.wsspi.webcontainer.servlet.IServletContext")))
-            .and(takesArgument(3, named("com.ibm.wsspi.webcontainer.RequestProcessor")))
-            .and(takesArgument(4, EnumSet.class))
-            .and(takesArgument(5, named("com.ibm.wsspi.http.HttpInboundConnection"))),
+          .and(named("invokeFilters"))
+          .and(takesArgument(0, named("jakarta.servlet.ServletRequest")))
+          .and(takesArgument(1, named("jakarta.servlet.ServletResponse")))
+          .and(takesArgument(2, named("com.ibm.wsspi.webcontainer.servlet.IServletContext")))
+          .and(takesArgument(3, named("com.ibm.wsspi.webcontainer.RequestProcessor")))
+          .and(takesArgument(4, EnumSet.class))
+          .and(takesArgument(5, named("com.ibm.wsspi.http.HttpInboundConnection"))),
         LibertyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         LibertyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
   }
@@ -99,7 +99,8 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       SRTServletRequest request = (SRTServletRequest) req;
       try {
         if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
-          return; // skip re-entry
+          // skip re-entry
+          return;
         }
       } catch (NullPointerException e) {
       }
@@ -110,15 +111,17 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) parentScope.close();
+      if (parentScope != null) {
+        parentScope.close();
+      }
     }
   }
 
   @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public static class HandleRequestAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-    public static boolean /* skip */ onEnter(
+    public static boolean /* skip */
+    onEnter(
         @Advice.Local("contextScope") ContextScope scope,
         @Advice.Argument(0) ServletRequest req,
         @Advice.Argument(1) ServletResponse resp) {
@@ -126,7 +129,6 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
         return false;
       }
       SRTServletRequest request = (SRTServletRequest) req;
-
       // if we try to get an attribute that doesn't exist open liberty might complain with an
       // exception
       try {
@@ -160,12 +162,13 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       DECORATE.onRequest(span, request, request, parentContext);
       request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       request.setAttribute(
-          CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+          CorrelationIdentifier.getTraceIdKey(),
+          CorrelationIdentifier.getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
       if (ActiveSubsystems.APPSEC_ACTIVE) {
-        ContextStore store =
-            InstrumentationContext.get(
-                REQUEST_MSG_TYPE, "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
+        ContextStore store = InstrumentationContext.get(
+            REQUEST_MSG_TYPE,
+            "datadog.trace.bootstrap.instrumentation.api.AgentSpan");
         // Provide the span to lower layers
         // The span is associated with the c.i.w.http.channel.internal.HttpRequestMessageImpl object
         store.put(RequestMessageFromServletRequestHelper.getHttpRequestMessage(request), span);
@@ -173,12 +176,17 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
         JakartaServletBlockingHelper.commitBlockingResponse(
-            span.getRequestContext().getTraceSegment(), request, (SRTServletResponse) resp, rba);
+            span.getRequestContext().getTraceSegment(),
+            request,
+            (SRTServletResponse) resp,
+            rba);
         // prevent caching of the handler
         req.setAttribute(
-            "javax.servlet.error.status_code", ((SRTServletResponse) resp).getStatusCode());
+            "javax.servlet.error.status_code",
+            ((SRTServletResponse) resp).getStatusCode());
         span.getRequestContext().getTraceSegment().effectivelyBlocked();
-        return true; // skip method body
+        // skip method body
+        return true;
       }
 
       return false;

@@ -5,18 +5,14 @@ import java.util.List;
 
 public class ServiceVersion {
   private final String service;
-
   private final String env;
   private final String version;
   private final String language;
   private final List<Scope> scopes;
-
   @Json(name = "upload_id")
   private final String uploadId;
-
   @Json(name = "batch_num")
   private final long batchNum;
-
   @Json(name = "final")
   private final boolean isFinal;
 

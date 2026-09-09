@@ -8,11 +8,10 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 public class ModuleCoverageDataJacoco extends ModuleSignal {
+  @Nonnull
+  private final byte[] coverageData;
 
-  @Nonnull private final byte[] coverageData;
-
-  public ModuleCoverageDataJacoco(
-      DDTraceId sessionId, long moduleId, @Nonnull byte[] coverageData) {
+  public ModuleCoverageDataJacoco(DDTraceId sessionId, long moduleId, @Nonnull byte[] coverageData) {
     super(sessionId, moduleId);
     this.coverageData = coverageData;
   }
@@ -44,7 +43,12 @@ public class ModuleCoverageDataJacoco extends ModuleSignal {
 
   @Override
   public String toString() {
-    return "ModuleCoverageDataJacoco{" + "sessionId=" + sessionId + ", moduleId=" + moduleId + '}';
+    return "ModuleCoverageDataJacoco{"
+        + "sessionId="
+        + sessionId
+        + ", moduleId="
+        + moduleId
+        + '}';
   }
 
   @Override

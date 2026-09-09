@@ -6,7 +6,8 @@ public class StreamTaskContext {
   private AgentScope agentScope;
   private String applicationId;
 
-  public StreamTaskContext() {}
+  public StreamTaskContext() {
+  }
 
   public void setAgentScope(AgentScope agentScope) {
     this.agentScope = agentScope;

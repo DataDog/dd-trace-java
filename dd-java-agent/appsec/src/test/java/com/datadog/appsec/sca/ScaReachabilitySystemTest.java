@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class ScaReachabilitySystemTest {
-
   @AfterEach
   void tearDown() {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
@@ -35,7 +33,12 @@ class ScaReachabilitySystemTest {
     assertNotNull(ScaReachabilityDependencyRegistry.INSTANCE.getPeriodicWorkCallback());
 
     ScaReachabilityCallback.onMethodHit(
-        "GHSA-start", "com.example:lib", "1.0.0", "missing.Vulnerable", "danger", 42);
+        "GHSA-start",
+        "com.example:lib",
+        "1.0.0",
+        "missing.Vulnerable",
+        "danger",
+        42);
 
     List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();

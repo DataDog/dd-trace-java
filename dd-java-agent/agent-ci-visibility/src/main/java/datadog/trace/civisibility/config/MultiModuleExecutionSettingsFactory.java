@@ -11,7 +11,6 @@ import javax.annotation.Nullable;
  * Used for efficiency: caches settings for multiple modules that are executed with the same JVM.
  */
 public class MultiModuleExecutionSettingsFactory implements ExecutionSettingsFactory {
-
   private final DDCache<JvmInfo, Map<String, ExecutionSettings>> cache;
   private final ExecutionSettingsFactoryImpl delegate;
 

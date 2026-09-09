@@ -7,22 +7,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class TracerEnvironment {
-
   private final String service;
   private final String env;
-
   @Json(name = "repository_url")
   private final String repositoryUrl;
-
   private final String branch;
   private final String sha;
-
   @Json(name = "commit_message")
   private final String commitMessage;
-
   @Json(name = "test_level")
   private final String testLevel = "test";
-
   private final Configurations configurations;
 
   private TracerEnvironment(
@@ -112,7 +106,8 @@ public class TracerEnvironment {
     private String env;
     private String repositoryUrl;
     private String branch;
-    private String tag; // will act as fallback if no branch is provided
+    // will act as fallback if no branch is provided
+    private String tag;
     private String sha;
     private String commitMessage;
     private String osPlatform;

@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerRequestInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public HttpServerRequestInstrumentation() {
     super("vertx", "vertx-3.4");
   }
@@ -36,8 +36,8 @@ public class HttpServerRequestInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.vertx_3_4.server.WafPublishingBodyHandler",
-      "datadog.trace.instrumentation.vertx_3_4.server.WafPublishingBodyHandler$BufferWrapper",
+        "datadog.trace.instrumentation.vertx_3_4.server.WafPublishingBodyHandler",
+        "datadog.trace.instrumentation.vertx_3_4.server.WafPublishingBodyHandler$BufferWrapper"
     };
   }
 
@@ -45,9 +45,9 @@ public class HttpServerRequestInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("bodyHandler"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.vertx.core.Handler"))),
+          .and(named("bodyHandler"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.vertx.core.Handler"))),
         HttpServerRequestInstrumentation.class.getName() + "$BodyHandlerAdvice");
   }
 

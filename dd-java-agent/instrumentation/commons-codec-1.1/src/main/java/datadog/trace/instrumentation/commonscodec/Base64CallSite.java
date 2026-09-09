@@ -11,9 +11,8 @@ import org.apache.commons.codec.binary.Base64;
 
 @Propagation
 @CallSite(spi = IastCallSites.class)
-// TODO complete propagation support
-public class Base64CallSite {
-
+public class // TODO complete propagation support
+Base64CallSite {
   @CallSite.After("byte[] org.apache.commons.codec.binary.Base64.encodeBase64(byte[])")
   @Nonnull
   public static byte[] afterEncodeBase64(

@@ -41,20 +41,24 @@ public class LegacyConstructorAdvice {
     // new - search for the ConsumerDelegate instead of KafkaConsumer
     if (kafkaConsumerInfo.getConsumerGroup().isPresent()
         || kafkaConsumerInfo.getmetadata().isPresent()) {
-      InstrumentationContext.get(ConsumerDelegate.class, KafkaConsumerInfo.class)
-          .put(consumer, kafkaConsumerInfo);
+      InstrumentationContext
+        .get(ConsumerDelegate.class, KafkaConsumerInfo.class)
+        .put(consumer, kafkaConsumerInfo);
       if (coordinator != null) {
-        InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-            .put(coordinator, kafkaConsumerInfo);
+        InstrumentationContext
+          .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+          .put(coordinator, kafkaConsumerInfo);
       }
     }
 
     if (Config.get().isDataStreamsEnabled()) {
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext
+        .get(Metadata.class, MetadataState.class)
+        .getOrCreate(metadata, MetadataState::new);
       KafkaConfigHelper.storePendingConsumerConfig(
-          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+          state,
+          normalizedConsumerGroup,
+          KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
   }
 

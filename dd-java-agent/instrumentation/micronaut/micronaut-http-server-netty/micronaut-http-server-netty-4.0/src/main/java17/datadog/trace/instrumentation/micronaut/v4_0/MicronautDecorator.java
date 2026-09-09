@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.micronaut.v4_0;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -19,7 +18,6 @@ public class MicronautDecorator
   public static final String SPAN_ATTRIBUTE = "datadog.trace.instrumentation.micronaut-netty.Span";
   public static final String PARENT_SPAN_ATTRIBUTE =
       "datadog.trace.instrumentation.micronaut-netty.ParentSpan";
-
   public static MicronautDecorator DECORATE = new MicronautDecorator();
 
   @Override

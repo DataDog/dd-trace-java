@@ -23,16 +23,15 @@ import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** API for making Git-data-related requests to backend */
+/**
+ * API for making Git-data-related requests to backend
+ */
 public class GitDataApi {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GitDataApi.class);
-
   private static final MediaType JSON = MediaType.get("application/json");
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
   private static final String SEARCH_COMMITS_URI = "git/repository/search_commits";
   private static final String UPLOAD_PACKFILES_URI = "git/repository/packfile";
-
   private final BackendApi backendApi;
   private final CiVisibilityMetricCollector metricCollector;
   private final JsonAdapter<SearchCommitsRequest> searchCommitsRequestAdapter;
@@ -66,20 +65,18 @@ public class GitDataApi {
     String json = searchCommitsRequestAdapter.toJson(searchCommitsRequest);
     RequestBody requestBody = RequestBody.create(JSON, json);
 
-    OkHttpUtils.CustomListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS)
-            .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.GIT_REQUESTS_SEARCH_COMMITS_MS)
-            .build();
+    OkHttpUtils.CustomListener telemetryListener = new TelemetryListener.Builder(metricCollector)
+      .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS)
+      .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_SEARCH_COMMITS_ERRORS)
+      .requestDuration(CiVisibilityDistributionMetric.GIT_REQUESTS_SEARCH_COMMITS_MS)
+      .build();
 
-    SearchCommitsResponse response =
-        backendApi.post(
-            SEARCH_COMMITS_URI,
-            requestBody,
-            is -> searchCommitsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
-            telemetryListener,
-            false);
+    SearchCommitsResponse response = backendApi.post(
+        SEARCH_COMMITS_URI,
+        requestBody,
+        is -> searchCommitsResponseAdapter.fromJson(Okio.buffer(Okio.source(is))),
+        telemetryListener,
+        false);
 
     return response.data.stream().map(Commit::getId).collect(Collectors.toSet());
   }
@@ -104,24 +101,25 @@ public class GitDataApi {
     String packFileName = packFile.getFileName().toString();
     String packFileNameWithoutRandomPrefix = packFileName.substring(packFileName.indexOf('-') + 1);
 
-    RequestBody requestBody =
-        new MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("pushedSha", "pushedSha.json", pushedShaBody)
-            .addFormDataPart("packfile", packFileNameWithoutRandomPrefix, packFileBody)
-            .build();
+    RequestBody requestBody = new MultipartBody.Builder()
+      .setType(MultipartBody.FORM)
+      .addFormDataPart("pushedSha", "pushedSha.json", pushedShaBody)
+      .addFormDataPart("packfile", packFileNameWithoutRandomPrefix, packFileBody)
+      .build();
 
-    OkHttpUtils.CustomListener telemetryListener =
-        new TelemetryListener.Builder(metricCollector)
-            .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK)
-            .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK_ERRORS)
-            .requestDuration(CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_MS)
-            .requestBytes(CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_BYTES)
-            .build();
+    OkHttpUtils.CustomListener telemetryListener = new TelemetryListener.Builder(metricCollector)
+      .requestCount(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK)
+      .requestErrors(CiVisibilityCountMetric.GIT_REQUESTS_OBJECTS_PACK_ERRORS)
+      .requestDuration(CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_MS)
+      .requestBytes(CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_BYTES)
+      .build();
 
-    String response =
-        backendApi.post(
-            UPLOAD_PACKFILES_URI, requestBody, IOUtils::readFully, telemetryListener, false);
+    String response = backendApi.post(
+        UPLOAD_PACKFILES_URI,
+        requestBody,
+        IOUtils::readFully,
+        telemetryListener,
+        false);
     LOGGER.debug("Uploading pack file {} returned response {}", packFile, response);
   }
 

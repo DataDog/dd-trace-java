@@ -8,7 +8,6 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import annotatedsample.RxJava3TracedMethods;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.agent.test.assertions.SpanMatcher;
@@ -26,7 +25,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 @WithConfig(key = "trace.otel.enabled", value = "true")
 class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
-
   static final String EXCEPTION_MESSAGE = "Test exception";
 
   // The COMPONENT and SPAN_KIND tags are stored as UTF8BytesString, so we compare by string content
@@ -44,8 +42,8 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
   // (CharSequence equality is asymmetric: String#equals(UTF8BytesString) is false).
   static SpanMatcher otelSpan(String name) {
     return span()
-        .operationName(java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(name)))
-        .resourceName((CharSequence cs) -> name.contentEquals(cs));
+      .operationName(java.util.regex.Pattern.compile(java.util.regex.Pattern.quote(name)))
+      .resourceName((CharSequence cs) -> name.contentEquals(cs));
   }
 
   /**
@@ -57,14 +55,15 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
     SINGLE("Single"),
     OBSERVABLE("Observable"),
     FLOWABLE("Flowable");
-
     final String type;
 
     ReactiveType(String type) {
       this.type = type;
     }
 
-    /** Runs the blocking terminal operation that drives the async result to completion. */
+    /**
+     * Runs the blocking terminal operation that drives the async result to completion.
+     */
     void runTerminal(Object asyncType) {
       switch (this) {
         case COMPLETABLE:
@@ -87,7 +86,9 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
       }
     }
 
-    /** Subscribes and immediately disposes (cancels) the async result. */
+    /**
+     * Subscribes and immediately disposes (cancels) the async result.
+     */
     void subscribeAndDispose(Object asyncType) {
       switch (this) {
         case COMPLETABLE:
@@ -167,7 +168,6 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
   void success(ReactiveType type) {
     CountDownLatch latch = new CountDownLatch(1);
     Object asyncType = type.traceAsync(latch);
-
     // The span must not be finished before the async result completes.
     assertEquals(0, writer.size());
 
@@ -176,9 +176,8 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
 
     String method = "traceAsync" + type.type;
     assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .tags(defaultTags(), otelComponent(), internalSpanKind())));
+        trace(otelSpan("RxJava3TracedMethods." + method)
+          .tags(defaultTags(), otelComponent(), internalSpanKind())));
   }
 
   @ParameterizedTest(name = "test WithSpan annotated async method failing {0}")
@@ -195,14 +194,13 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
 
     String method = "traceAsyncFailing" + type.type;
     assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .error()
-                .tags(
-                    defaultTags(),
-                    otelComponent(),
-                    internalSpanKind(),
-                    error(IllegalStateException.class, EXCEPTION_MESSAGE))));
+        trace(otelSpan("RxJava3TracedMethods." + method)
+          .error()
+          .tags(
+              defaultTags(),
+              otelComponent(),
+              internalSpanKind(),
+              error(IllegalStateException.class, EXCEPTION_MESSAGE))));
   }
 
   @ParameterizedTest(name = "test WithSpan annotated async method cancelled {0}")
@@ -218,9 +216,8 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
 
     String method = "traceAsync" + type.type;
     assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .tags(defaultTags(), otelComponent(), internalSpanKind())));
+        trace(otelSpan("RxJava3TracedMethods." + method)
+          .tags(defaultTags(), otelComponent(), internalSpanKind())));
   }
 
   @ParameterizedTest(name = "test WithSpan annotated never async method cancelled {0}")
@@ -234,8 +231,7 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
 
     String method = "traceAsyncNever" + type.type;
     assertTraces(
-        trace(
-            otelSpan("RxJava3TracedMethods." + method)
-                .tags(defaultTags(), otelComponent(), internalSpanKind())));
+        trace(otelSpan("RxJava3TracedMethods." + method)
+          .tags(defaultTags(), otelComponent(), internalSpanKind())));
   }
 }

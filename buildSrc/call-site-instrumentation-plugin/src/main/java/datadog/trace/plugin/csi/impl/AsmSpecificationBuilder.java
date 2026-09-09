@@ -18,7 +18,6 @@ import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static org.objectweb.asm.ClassReader.SKIP_CODE;
 import static org.objectweb.asm.ClassReader.SKIP_DEBUG;
 import static org.objectweb.asm.ClassReader.SKIP_FRAMES;
-
 import datadog.trace.plugin.csi.SpecificationBuilder;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AdviceSpecification;
 import datadog.trace.plugin.csi.impl.CallSiteSpecification.AfterSpecification;
@@ -54,7 +53,6 @@ import org.objectweb.asm.Type;
  * class files and build the related {@link CallSiteSpecification} instances
  */
 public class AsmSpecificationBuilder implements SpecificationBuilder {
-
   @Override
   @Nonnull
   public Optional<CallSiteSpecification> build(@Nonnull final File file) {
@@ -69,9 +67,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
   }
 
   private static class SpecificationVisitor extends ClassVisitor {
-
     private static final String CALL_SITE = classNameToDescriptor(CALL_SITE_ANNOTATION);
-
     private Type clazz;
     private boolean isCallSite;
     private final List<AdviceSpecification> advices = new ArrayList<>();
@@ -101,7 +97,6 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
       if (isCallSite) {
         helpers.add(clazz);
         return new AnnotationVisitor(ASM_API_VERSION) {
-
           @Override
           public AnnotationVisitor visitArray(final String name) {
             if ("spi".equals(name)) {
@@ -159,11 +154,8 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
   }
 
   private static class AdviceMethodVisitor extends MethodVisitor {
-
     private static final Map<String, AdviceSpecificationCtor> ADVICE_BUILDERS = new HashMap<>();
-
     private static final Set<String> REPEATABLE_ADVICES = new HashSet<>();
-
     private static final Map<String, ParameterSpecificationCtor> PARAMETER_BUILDERS =
         new HashMap<>();
 
@@ -175,8 +167,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
       REPEATABLE_ADVICES.add(classNameToDescriptor(AROUND_ARRAY_ANNOTATION));
       REPEATABLE_ADVICES.add(classNameToDescriptor(AFTER_ARRAY_ANNOTATION));
       PARAMETER_BUILDERS.put(classNameToDescriptor(THIS_ANNOTATION), ThisSpecification::new);
-      PARAMETER_BUILDERS.put(
-          classNameToDescriptor(ARGUMENT_ANNOTATION), ArgumentSpecification::new);
+      PARAMETER_BUILDERS.put(classNameToDescriptor(ARGUMENT_ANNOTATION), ArgumentSpecification::new);
       PARAMETER_BUILDERS.put(classNameToDescriptor(RETURN_ANNOTATION), ReturnSpecification::new);
       PARAMETER_BUILDERS.put(classNameToDescriptor(ALL_ARGS_ANNOTATION), AllArgsSpecification::new);
       PARAMETER_BUILDERS.put(
@@ -225,8 +216,7 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
             if ("value".equals(name)) {
               return new AnnotationVisitor(ASM_API_VERSION) {
                 @Override
-                public AnnotationVisitor visitAnnotation(
-                    final String name, final String descriptor) {
+                public AnnotationVisitor visitAnnotation(final String name, final String descriptor) {
                   return AdviceMethodVisitor.this.visitAnnotation(descriptor, true);
                 }
               };
@@ -240,18 +230,23 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public AnnotationVisitor visitParameterAnnotation(
-        final int parameter, final String descriptor, final boolean visible) {
+        final int parameter,
+        final String descriptor,
+        final boolean visible) {
       if (!adviceData.isEmpty()) {
         final ParameterSpecificationCtor parameterCtor = PARAMETER_BUILDERS.get(descriptor);
         if (parameterCtor != null) {
           ParameterSpecification parameterSpec = parameterCtor.build();
           if (parameterSpec instanceof ArgumentSpecification) {
             final long index =
-                parameters.values().stream()
-                    .filter(it -> it instanceof ArgumentSpecification)
-                    .count();
+                parameters
+              .values()
+              .stream()
+              .filter(it -> it instanceof ArgumentSpecification)
+              .count();
             ((ArgumentSpecification) parameterSpec)
-                .setIndex((int) index); // can change in annotation visitor
+              // can change in annotation visitor
+              .setIndex((int) index);
           }
           parameters.put(parameter, parameterSpec);
 
@@ -273,13 +268,10 @@ public class AsmSpecificationBuilder implements SpecificationBuilder {
 
     @Override
     public void visitEnd() {
-      adviceData.forEach(
-          (adviceCtor, list) ->
-              list.stream()
-                  .map(
-                      data ->
-                          adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
-                  .forEach(spec.advices::add));
+      adviceData.forEach((adviceCtor, list) -> list
+        .stream()
+        .map(data -> adviceCtor.build(advice, parameters, data.signature, data.invokeDynamic))
+        .forEach(spec.advices::add));
     }
   }
 

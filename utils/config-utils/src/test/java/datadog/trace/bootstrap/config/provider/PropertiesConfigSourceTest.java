@@ -2,14 +2,12 @@ package datadog.trace.bootstrap.config.provider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 public class PropertiesConfigSourceTest extends DDJavaSpecification {
-
   @Test
   void throwsWhenPropertiesAreNull() {
     assertThrows(AssertionError.class, () -> new PropertiesConfigSource(null, true));

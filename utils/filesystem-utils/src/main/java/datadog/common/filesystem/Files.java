@@ -3,9 +3,10 @@ package datadog.common.filesystem;
 import java.io.File;
 import javax.annotation.Nonnull;
 
-/** Utility methods related to file operations. */
+/**
+ * Utility methods related to file operations.
+ */
 public final class Files {
-
   private Files() {
     // Prevent instantiation
   }

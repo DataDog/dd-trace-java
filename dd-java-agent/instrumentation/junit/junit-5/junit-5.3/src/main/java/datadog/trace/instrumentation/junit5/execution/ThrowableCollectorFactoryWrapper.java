@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.junit5.execution;
 import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 public class ThrowableCollectorFactoryWrapper implements ThrowableCollector.Factory {
-
   private final ThrowableCollector.Factory delegate;
   private final ThreadLocal<Boolean> suppressFailures = ThreadLocal.withInitial(() -> false);
   private final ThreadLocal<ThrowableCollector> collector = new ThreadLocal<>();

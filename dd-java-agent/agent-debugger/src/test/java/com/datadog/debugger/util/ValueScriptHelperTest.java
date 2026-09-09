@@ -1,7 +1,6 @@
 package com.datadog.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -11,7 +10,6 @@ import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class ValueScriptHelperTest {
-
   private static final int PROBE_VERSION = 42;
   private static final ProbeId PROBE_ID = new ProbeId("12fd-8490-c111-4374-ffde", PROBE_VERSION);
   private static final ProbeLocation PROBE_LOCATION =

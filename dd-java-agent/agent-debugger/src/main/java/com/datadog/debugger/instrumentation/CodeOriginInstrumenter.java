@@ -5,7 +5,6 @@ import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
 import static java.lang.Integer.parseInt;
 import static java.lang.String.format;
-
 import com.datadog.debugger.instrumentation.InstrumentationResult.Status;
 import com.datadog.debugger.probe.CodeOriginProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -33,7 +32,9 @@ public class CodeOriginInstrumenter extends Instrumenter {
   }
 
   public CodeOriginInstrumenter(
-      ProbeDefinition definition, MethodInfo methodInfo, List<Integer> probeIndices) {
+      ProbeDefinition definition,
+      MethodInfo methodInfo,
+      List<Integer> probeIndices) {
     super(definition, methodInfo, null, probeIndices);
   }
 
@@ -41,13 +42,16 @@ public class CodeOriginInstrumenter extends Instrumenter {
   public Status instrument() {
     AbstractInsnNode insertionPoint = stripSetup();
     methodNode.instructions.insert(
-        insertionPoint != null ? insertionPoint : findInsertionPoint(), codeOriginCall());
+        insertionPoint != null ? insertionPoint : findInsertionPoint(),
+        codeOriginCall());
 
     return Status.INSTALLED;
   }
 
   private static String buildDescription(AbstractInsnNode node) {
-    if (!(node instanceof MethodInsnNode)) return "";
+    if (!(node instanceof MethodInsnNode)) {
+      return "";
+    }
     MethodInsnNode method = (MethodInsnNode) node;
     return format("%s#%s", method.owner, method.name);
   }

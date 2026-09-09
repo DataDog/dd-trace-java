@@ -12,12 +12,13 @@ import javax.annotation.Nonnull;
  * CallSiteAdvice} implementations.
  */
 public abstract class CallSiteInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForCallSite, Instrumenter.HasTypeAdvice {
-
+    implements Instrumenter.ForCallSite,
+    Instrumenter.HasTypeAdvice {
   private Advices advices;
 
   public CallSiteInstrumentation(
-      @Nonnull final String name, @Nonnull final String... additionalNames) {
+      @Nonnull final String name,
+      @Nonnull final String... additionalNames) {
     super(name, additionalNames);
   }
 
@@ -26,7 +27,9 @@ public abstract class CallSiteInstrumentation extends InstrumenterModule
     transformer.applyAdvice(new CallSiteTransformer(name(), advices()));
   }
 
-  /** Utility to be able to tune the advices in subclasses */
+  /**
+   * Utility to be able to tune the advices in subclasses
+   */
   protected Advices buildAdvices(final Iterable<CallSites> callSites) {
     return Advices.fromCallSites(callSites);
   }

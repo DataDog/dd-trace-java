@@ -15,7 +15,6 @@ public class JavaCompilerPluginArgumentsProvider implements CommandLineArgumentP
   public Iterable<String> asArguments() {
     List<String> arguments = new ArrayList<>();
     arguments.add("-Xplugin:DatadogCompilerPlugin");
-
     // disable compiler warnings related to annotation processing,
     // since "fail-on-warning" linters might complain about the annotation that the compiler plugin
     // injects

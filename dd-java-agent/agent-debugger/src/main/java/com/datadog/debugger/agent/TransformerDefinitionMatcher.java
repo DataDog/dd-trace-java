@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.Trie.reverseStr;
-
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.util.ClassFileHelper;
 import java.util.ArrayList;
@@ -14,14 +13,14 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Handles class matching logic for probe definition */
+/**
+ * Handles class matching logic for probe definition
+ */
 public class TransformerDefinitionMatcher {
   private static final Logger LOG = LoggerFactory.getLogger(TransformerDefinitionMatcher.class);
-
   private final Map<String, List<ProbeDefinition>> definitionsByClass;
   private final Map<String, List<ProbeDefinition>> definitionsBySimpleFileNames = new HashMap<>();
-  private final Map<String, List<ProbeDefinition>> definitionsByQualifiedFileNames =
-      new HashMap<>();
+  private final Map<String, List<ProbeDefinition>> definitionsByQualifiedFileNames = new HashMap<>();
   private final Trie definitionFileNames;
 
   public TransformerDefinitionMatcher(Configuration configuration) {
@@ -64,9 +63,11 @@ public class TransformerDefinitionMatcher {
       fileName = fileName.toLowerCase(Locale.ROOT);
       Map<String, List<ProbeDefinition>> targetMap =
           fileName.indexOf('/') != -1
-              ? definitionsByQualifiedFileNames
-              : definitionsBySimpleFileNames;
-      targetMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>()).add(definition);
+          ? definitionsByQualifiedFileNames
+          : definitionsBySimpleFileNames;
+      targetMap
+        .computeIfAbsent("/" + fileName, key -> new ArrayList<>())
+        .add(definition);
     }
   }
 
@@ -90,7 +91,10 @@ public class TransformerDefinitionMatcher {
   }
 
   public List<ProbeDefinition> match(
-      Class<?> classBeingRedefined, String classFilePath, String typeName, byte[] classfileBuffer) {
+      Class<?> classBeingRedefined,
+      String classFilePath,
+      String typeName,
+      byte[] classfileBuffer) {
     List<ProbeDefinition> byTypeDefinitions =
         matchProbeDefinitionsByType(classBeingRedefined, typeName);
     List<ProbeDefinition> results = new ArrayList<>(byTypeDefinitions);
@@ -101,7 +105,8 @@ public class TransformerDefinitionMatcher {
   }
 
   private List<ProbeDefinition> matchProbeDefinitionsByType(
-      Class<?> classBeingRedefined, String typeName) {
+      Class<?> classBeingRedefined,
+      String typeName) {
     List<ProbeDefinition> byTypeDefinitions = new ArrayList<>();
     // try matching on FQN (java.lang.String)
     List<ProbeDefinition> definitions = definitionsByClass.get(typeName);
@@ -109,10 +114,11 @@ public class TransformerDefinitionMatcher {
       byTypeDefinitions.addAll(definitions);
     }
     // fallback to matching on SimpleName (String)
-    String simpleClassName =
-        classBeingRedefined != null
-            ? classBeingRedefined.getSimpleName()
-            : typeName.substring(typeName.lastIndexOf('.') + 1); // strip the package name
+    String simpleClassName = classBeingRedefined != null
+        ? classBeingRedefined.getSimpleName()
+        : typeName
+      // strip the package name
+      .substring(typeName.lastIndexOf('.') + 1);
     if (typeName.equals(simpleClassName)) {
       return byTypeDefinitions;
     }
@@ -124,7 +130,8 @@ public class TransformerDefinitionMatcher {
   }
 
   private List<ProbeDefinition> matchProbeDefinitionsBySourceFile(
-      String className, byte[] classfileBuffer) {
+      String className,
+      byte[] classfileBuffer) {
     // try to match filename, need to retrieve the source filename from classfile
     String reversedClassName = reverseStr(className);
     int idx = reversedClassName.indexOf('/');

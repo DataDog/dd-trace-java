@@ -17,7 +17,6 @@ import org.msgpack.core.MessageUnpacker;
  * payload for streaming string decoding.
  */
 public class TraceV1 implements DecodedTrace {
-
   /**
    * Unpacks an array of traces from the unpacker.
    *
@@ -97,7 +96,9 @@ public class TraceV1 implements DecodedTrace {
   }
 
   private static DecodedSpan[] withChunkFields(
-      DecodedSpan[] spans, long traceId, Integer samplingPriority) {
+      DecodedSpan[] spans,
+      long traceId,
+      Integer samplingPriority) {
     if (spans.length == 0) {
       return spans;
     }
@@ -110,22 +111,21 @@ public class TraceV1 implements DecodedTrace {
           && !metrics.containsKey("_sampling_priority_v1")) {
         metrics.put("_sampling_priority_v1", samplingPriority);
       }
-      updated[i] =
-          new SpanV1(
-              span.getService(),
-              span.getName(),
-              span.getResource(),
-              traceId == 0 ? span.getTraceId() : traceId,
-              span.getSpanId(),
-              span.getParentId(),
-              span.getStart(),
-              span.getDuration(),
-              span.getError(),
-              span.getType(),
-              metrics,
-              span.getMeta(),
-              span.getMetaStruct(),
-              span.getLinks());
+      updated[i] = new SpanV1(
+          span.getService(),
+          span.getName(),
+          span.getResource(),
+          traceId == 0 ? span.getTraceId() : traceId,
+          span.getSpanId(),
+          span.getParentId(),
+          span.getStart(),
+          span.getDuration(),
+          span.getError(),
+          span.getType(),
+          metrics,
+          span.getMeta(),
+          span.getMetaStruct(),
+          span.getLinks());
     }
     return updated;
   }

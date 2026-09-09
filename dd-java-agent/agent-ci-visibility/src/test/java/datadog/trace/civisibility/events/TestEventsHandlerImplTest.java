@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.TestIdentifier;
@@ -20,16 +19,13 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
 class TestEventsHandlerImplTest {
-
   @Test
   void doesNotCreateSessionWhenUnused() {
     AtomicInteger creations = new AtomicInteger();
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return mock(TestFrameworkSession.class);
-            });
+    TestEventsHandlerImpl<Object, Object> handler = handler(() -> {
+      creations.incrementAndGet();
+      return mock(TestFrameworkSession.class);
+    });
 
     handler.close();
 
@@ -44,12 +40,10 @@ class TestEventsHandlerImplTest {
     TestIdentifier test = new TestIdentifier("suite", "test", null);
     when(module.skipReason(test)).thenReturn(SkipReason.ITR);
     AtomicInteger creations = new AtomicInteger();
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return session;
-            });
+    TestEventsHandlerImpl<Object, Object> handler = handler(() -> {
+      creations.incrementAndGet();
+      return session;
+    });
 
     assertSame(SkipReason.ITR, handler.skipReason(test));
     assertSame(SkipReason.ITR, handler.skipReason(test));
@@ -68,13 +62,10 @@ class TestEventsHandlerImplTest {
     when(session.testModuleStart("module", null)).thenReturn(module);
     AtomicInteger creations = new AtomicInteger();
 
-    TestEventsHandlerImpl<Object, Object> handler =
-        handler(
-            () -> {
-              creations.incrementAndGet();
-              return session;
-            },
-            true);
+    TestEventsHandlerImpl<Object, Object> handler = handler(() -> {
+      creations.incrementAndGet();
+      return session;
+    }, true);
 
     assertEquals(1, creations.get());
     handler.close();
@@ -88,7 +79,8 @@ class TestEventsHandlerImplTest {
   }
 
   private static TestEventsHandlerImpl<Object, Object> handler(
-      Supplier<TestFrameworkSession> testSessionSupplier, boolean eagerSessionStart) {
+      Supplier<TestFrameworkSession> testSessionSupplier,
+      boolean eagerSessionStart) {
     ContextStore<Object, DDTestSuite> suiteStore = new StrongMapContextStore<>();
     ContextStore<Object, DDTest> testStore = new StrongMapContextStore<>();
     return new TestEventsHandlerImpl<>(

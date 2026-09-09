@@ -3,7 +3,6 @@ package server;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
 import io.vertx.core.Vertx;
@@ -35,7 +34,6 @@ import org.junit.jupiter.api.Test;
  * response.
  */
 class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
-
   private static Vertx vertx;
   private static HttpServer server;
   private static int port;
@@ -49,32 +47,29 @@ class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
     vertx = Vertx.vertx();
     Router router = Router.router(vertx);
     router
-        .route("/fail")
-        .handler(
-            ctx -> {
-              ResponseExceptionFiringHelper.fireException(
-                  ctx.response(), new IOException("simulated response I/O failure"));
-              try {
-                ctx.response().setStatusCode(500).end("error");
-              } catch (IllegalStateException ignore) {
-                // handleException may have left the response in a state where end() is rejected;
-                // the span is already finished by our addEndHandler callback.
-              }
-            });
+      .route("/fail")
+      .handler(ctx -> {
+        ResponseExceptionFiringHelper.fireException(
+            ctx.response(),
+            new IOException("simulated response I/O failure"));
+        try {
+          ctx.response().setStatusCode(500).end("error");
+        } catch (IllegalStateException ignore) {
+          // handleException may have left the response in a state where end() is rejected;
+          // the span is already finished by our addEndHandler callback.
+        }
+      });
 
     CountDownLatch ready = new CountDownLatch(1);
-    server =
-        vertx
-            .createHttpServer()
-            .requestHandler(router)
-            .listen(
-                port,
-                result -> {
-                  if (result.failed()) {
-                    throw new RuntimeException("Failed to start Vert.x server", result.cause());
-                  }
-                  ready.countDown();
-                });
+    server = vertx
+      .createHttpServer()
+      .requestHandler(router)
+      .listen(port, result -> {
+        if (result.failed()) {
+          throw new RuntimeException("Failed to start Vert.x server", result.cause());
+        }
+        ready.countDown();
+      });
     if (!ready.await(10, TimeUnit.SECONDS)) {
       throw new IllegalStateException("Vert.x server did not start in time");
     }
@@ -109,7 +104,6 @@ class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
     } finally {
       conn.disconnect();
     }
-
     // If addEndHandler did not finish the route-handler span, assertTraces would time out
     // waiting for the trace to flush.
     // The netty.request span is marked as errored because the route handler ends with
@@ -119,12 +113,12 @@ class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
         trace(
             SORT_BY_START_TIME,
             span()
-                .operationName(Pattern.compile(Pattern.quote("netty.request")))
-                .type(DDSpanTypes.HTTP_SERVER)
-                .error(),
+              .operationName(Pattern.compile(Pattern.quote("netty.request")))
+              .type(DDSpanTypes.HTTP_SERVER)
+              .error(),
             span()
-                .childOfPrevious()
-                .operationName(Pattern.compile(Pattern.quote("vertx.route-handler")))
-                .type(DDSpanTypes.HTTP_SERVER)));
+              .childOfPrevious()
+              .operationName(Pattern.compile(Pattern.quote("vertx.route-handler")))
+              .type(DDSpanTypes.HTTP_SERVER)));
   }
 }

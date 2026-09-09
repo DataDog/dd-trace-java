@@ -1,13 +1,11 @@
 package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.util.ConfigStrings.toEnvVar;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.config.inversion.ConfigHelper;
 import java.util.Map;
 
 public class AgentArgsInjector {
-
   /**
    * Parses agent arguments and sets corresponding system properties.
    *

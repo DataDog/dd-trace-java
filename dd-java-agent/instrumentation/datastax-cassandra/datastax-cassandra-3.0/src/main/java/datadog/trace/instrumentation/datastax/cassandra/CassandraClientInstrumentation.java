@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
@@ -17,8 +16,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public CassandraClientInstrumentation() {
     super("cassandra");
   }
@@ -33,10 +32,10 @@ public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CassandraClientDecorator",
-      packageName + ".TracingSession",
-      packageName + ".TracingSession$SessionTransfomer",
-      packageName + ".TracingSession$1",
+        packageName + ".CassandraClientDecorator",
+        packageName + ".TracingSession",
+        packageName + ".TracingSession$SessionTransfomer",
+        packageName + ".TracingSession$1"
     };
   }
 
@@ -68,10 +67,9 @@ public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
       if (session.getClass().getName().endsWith("cassandra.TracingSession")) {
         return;
       }
-      session =
-          new TracingSession(
-              session,
-              InstrumentationContext.get(Cluster.class, String.class).get(session.getCluster()));
+      session = new TracingSession(
+          session,
+          InstrumentationContext.get(Cluster.class, String.class).get(session.getCluster()));
     }
   }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.debugger;
 
 import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
-
 import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
@@ -19,13 +18,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
-/** Stores different kind of data (arguments, locals, fields, exception) for a specific location */
+/**
+ * Stores different kind of data (arguments, locals, fields, exception) for a specific location
+ */
 public class CapturedContext implements ValueReferenceResolver {
   public static final CapturedContext EMPTY_CONTEXT = new CapturedContext(null);
   public static final CapturedContext EMPTY_CAPTURING_CONTEXT =
       new CapturedContext(ProbeImplementation.UNKNOWN);
   private final transient Map<String, CapturedValue> extensions = new HashMap<>();
-
   private Map<String, CapturedValue> arguments;
   private Map<String, CapturedValue> locals;
   private CapturedThrowable throwable;
@@ -36,7 +36,8 @@ public class CapturedContext implements ValueReferenceResolver {
   private final Map<String, Status> statusByProbeId = new LinkedHashMap<>();
   private Map<String, CapturedValue> captureExpressions;
 
-  public CapturedContext() {}
+  public CapturedContext() {
+  }
 
   public CapturedContext(
       CapturedValue[] arguments,
@@ -66,7 +67,8 @@ public class CapturedContext implements ValueReferenceResolver {
   private CapturedContext(ProbeImplementation probeImplementation) {
     if (probeImplementation != null) {
       this.statusByProbeId.put(
-          probeImplementation.getProbeId().getEncodedId(), probeImplementation.createStatus());
+          probeImplementation.getProbeId().getEncodedId(),
+          probeImplementation.createStatus());
     }
   }
 
@@ -126,9 +128,10 @@ public class CapturedContext implements ValueReferenceResolver {
         Object targetedValue = capturedTarget.getValue();
         if (targetedValue != null) {
           // resolve to a CapturedValue instance
-          result =
-              ReflectiveFieldValueResolver.getFieldAsCapturedValue(
-                  targetedValue.getClass(), targetedValue, memberName);
+          result = ReflectiveFieldValueResolver.getFieldAsCapturedValue(
+              targetedValue.getClass(),
+              targetedValue,
+              memberName);
         } else {
           result = CapturedValue.UNDEFINED;
         }
@@ -145,9 +148,10 @@ public class CapturedContext implements ValueReferenceResolver {
           }
         }
       }
-      result =
-          ReflectiveFieldValueResolver.getFieldAsCapturedValue(
-              target.getClass(), target, memberName);
+      result = ReflectiveFieldValueResolver.getFieldAsCapturedValue(
+          target.getClass(),
+          target,
+          memberName);
     }
     checkUndefined(result, memberName, "Cannot dereference field: ");
     return result;
@@ -259,7 +263,10 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   public void setLimits(
-      int maxReferenceDepth, int maxCollectionSize, int maxLength, int maxFieldCount) {
+      int maxReferenceDepth,
+      int maxCollectionSize,
+      int maxLength,
+      int maxFieldCount) {
     this.limits = new Limits(maxReferenceDepth, maxCollectionSize, maxLength, maxFieldCount);
   }
 
@@ -298,17 +305,25 @@ public class CapturedContext implements ValueReferenceResolver {
   public void freeze(TimeoutChecker timeoutChecker) {
     if (captureExpressions != null) {
       // freeze only capture expressions
-      captureExpressions.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+      captureExpressions
+        .values()
+        .forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
       return;
     }
     if (arguments != null) {
-      arguments.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+      arguments
+        .values()
+        .forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
     if (locals != null) {
-      locals.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+      locals
+        .values()
+        .forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
     if (staticFields != null) {
-      staticFields.values().forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
+      staticFields
+        .values()
+        .forEach(capturedValue -> capturedValue.freeze(timeoutChecker));
     }
   }
 
@@ -318,15 +333,16 @@ public class CapturedContext implements ValueReferenceResolver {
       long startTimestamp,
       MethodLocation methodLocation,
       boolean singleProbe) {
-    Status status =
-        statusByProbeId.computeIfAbsent(
-            probeImplementation.getProbeId().getEncodedId(),
-            key -> probeImplementation.createStatus());
+    Status status = statusByProbeId.computeIfAbsent(probeImplementation
+      .getProbeId()
+      .getEncodedId(), key -> probeImplementation.createStatus());
     if (methodLocation == MethodLocation.EXIT && startTimestamp > 0) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
           ValueReferences.DURATION_EXTENSION_NAME,
-          CapturedValue.of(duration / 1_000_000.0)); // convert to ms
+          CapturedValue
+            // convert to ms
+            .of(duration / 1_000_000.0));
     }
     this.thisClassName = thisClassName;
     boolean shouldEvaluate =
@@ -362,8 +378,12 @@ public class CapturedContext implements ValueReferenceResolver {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     CapturedContext context = (CapturedContext) o;
     return Objects.equals(arguments, context.arguments)
         && Objects.equals(locals, context.locals)
@@ -420,13 +440,12 @@ public class CapturedContext implements ValueReferenceResolver {
 
   public static class Status {
     public static final Status EMPTY_STATUS = new Status(ProbeImplementation.UNKNOWN);
-    public static final Status EMPTY_CAPTURING_STATUS =
-        new Status(ProbeImplementation.UNKNOWN) {
-          @Override
-          public boolean isCapturing() {
-            return true;
-          }
-        };
+    public static final Status EMPTY_CAPTURING_STATUS = new Status(ProbeImplementation.UNKNOWN) {
+      @Override
+      public boolean isCapturing() {
+        return true;
+      }
+    };
     private final List<EvaluationError> errors = new ArrayList<>();
     protected final ProbeImplementation probeImplementation;
 
@@ -451,10 +470,11 @@ public class CapturedContext implements ValueReferenceResolver {
     }
   }
 
-  /** Stores a captured value */
+  /**
+   * Stores a captured value
+   */
   public static class CapturedValue {
     public static final CapturedValue UNDEFINED = CapturedValue.of(Values.UNDEFINED_OBJECT);
-
     private String name;
     private final String declaredType;
     private final String type;
@@ -474,10 +494,9 @@ public class CapturedContext implements ValueReferenceResolver {
         String notCapturedReason) {
       this.name = name;
       this.declaredType = declaredType;
-      this.type =
-          value != null && !isPrimitive(declaredType)
-              ? value.getClass().getTypeName()
-              : declaredType;
+      this.type = value != null && !isPrimitive(declaredType)
+          ? value.getClass().getTypeName()
+          : declaredType;
       this.value = value;
       this.fields = fields == null ? Collections.emptyMap() : fields;
       this.limits = limits;
@@ -562,7 +581,12 @@ public class CapturedContext implements ValueReferenceResolver {
 
     public static CapturedValue raw(String type, Object value, String notCapturedReason) {
       return new CapturedValue(
-          null, type, value, Limits.DEFAULT, Collections.emptyMap(), notCapturedReason);
+          null,
+          type,
+          value,
+          Limits.DEFAULT,
+          Collections.emptyMap(),
+          notCapturedReason);
     }
 
     public static CapturedValue raw(
@@ -576,10 +600,18 @@ public class CapturedContext implements ValueReferenceResolver {
     }
 
     private static CapturedValue build(
-        String name, String declaredType, Object value, Limits limits, String notCapturedReason) {
-      CapturedValue val =
-          new CapturedValue(
-              name, declaredType, value, limits, Collections.emptyMap(), notCapturedReason);
+        String name,
+        String declaredType,
+        Object value,
+        Limits limits,
+        String notCapturedReason) {
+      CapturedValue val = new CapturedValue(
+          name,
+          declaredType,
+          value,
+          limits,
+          Collections.emptyMap(),
+          notCapturedReason);
       return val;
     }
 
@@ -616,8 +648,12 @@ public class CapturedContext implements ValueReferenceResolver {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       CapturedValue that = (CapturedValue) o;
       return Objects.equals(name, that.name)
           && Objects.equals(declaredType, that.declaredType)
@@ -656,12 +692,13 @@ public class CapturedContext implements ValueReferenceResolver {
     }
   }
 
-  /** Stores an captured exception */
+  /**
+   * Stores an captured exception
+   */
   public static class CapturedThrowable {
     private final String type;
     private final String message;
     private final transient WeakReference<Throwable> throwable;
-
     /*
      * Need to exclude stacktrace from equals/hashCode computation.
      * It is making equal-based testing very difficult and in fact it is not really necessary.
@@ -677,7 +714,10 @@ public class CapturedContext implements ValueReferenceResolver {
     }
 
     public CapturedThrowable(
-        String type, String message, List<CapturedStackFrame> stacktrace, Throwable t) {
+        String type,
+        String message,
+        List<CapturedStackFrame> stacktrace,
+        Throwable t) {
       this.type = type;
       this.message = message;
       this.stacktrace = new ArrayList<>(stacktrace);
@@ -713,8 +753,12 @@ public class CapturedContext implements ValueReferenceResolver {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       CapturedThrowable that = (CapturedThrowable) o;
       return Objects.equals(type, that.type)
           && Objects.equals(message, that.message)

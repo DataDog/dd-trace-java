@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.play23;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -164,7 +163,9 @@ public class PlayHttpServerDecorator
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull Throwable throwable,
+      byte errorPriority) {
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
@@ -172,7 +173,7 @@ public class PlayHttpServerDecorator
       throwable = throwable.getCause();
     }
     while ((throwable instanceof InvocationTargetException
-            || throwable instanceof UndeclaredThrowableException)
+        || throwable instanceof UndeclaredThrowableException)
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }

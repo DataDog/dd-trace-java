@@ -3,7 +3,6 @@ package datadog.trace.civisibility.ci;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -13,7 +12,6 @@ import datadog.trace.util.Strings;
 import javax.annotation.Nonnull;
 
 class AppVeyorInfo implements CIProviderInfo {
-
   // https://www.appveyor.com/docs/environment-variables/
   public static final String APPVEYOR = "APPVEYOR";
   public static final String APPVEYOR_PROVIDER_NAME = "appveyor";
@@ -29,13 +27,10 @@ class AppVeyorInfo implements CIProviderInfo {
   public static final String APPVEYOR_REPO_COMMIT_MESSAGE_BODY =
       "APPVEYOR_REPO_COMMIT_MESSAGE_EXTENDED";
   public static final String APPVEYOR_REPO_COMMIT_AUTHOR_NAME = "APPVEYOR_REPO_COMMIT_AUTHOR";
-  public static final String APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL =
-      "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL";
-  public static final String APPVEYOR_PR_HEAD_REPO_BRANCH =
-      "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
+  public static final String APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL = "APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL";
+  public static final String APPVEYOR_PR_HEAD_REPO_BRANCH = "APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH";
   public static final String APPVEYOR_PR_HEAD_COMMIT = "APPVEYOR_PULL_REQUEST_HEAD_COMMIT";
   public static final String APPVEYOR_PR_NUMBER = "APPVEYOR_PULL_REQUEST_NUMBER";
-
   private final CiEnvironment environment;
 
   AppVeyorInfo(CiEnvironment environment) {
@@ -72,15 +67,16 @@ class AppVeyorInfo implements CIProviderInfo {
   public CIInfo buildCIInfo() {
     final String url =
         buildPipelineUrl(environment.get(APPVEYOR_REPO_NAME), environment.get(APPVEYOR_BUILD_ID));
-    return CIInfo.builder(environment)
-        .ciProviderName(APPVEYOR_PROVIDER_NAME)
-        .ciPipelineId(environment.get(APPVEYOR_BUILD_ID))
-        .ciPipelineName(environment.get(APPVEYOR_REPO_NAME))
-        .ciPipelineNumber(environment.get(APPVEYOR_PIPELINE_NUMBER))
-        .ciPipelineUrl(url)
-        .ciJobUrl(url)
-        .ciWorkspace(expandTilde(environment.get(APPVEYOR_WORKSPACE_PATH)))
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(APPVEYOR_PROVIDER_NAME)
+      .ciPipelineId(environment.get(APPVEYOR_BUILD_ID))
+      .ciPipelineName(environment.get(APPVEYOR_REPO_NAME))
+      .ciPipelineNumber(environment.get(APPVEYOR_PIPELINE_NUMBER))
+      .ciPipelineUrl(url)
+      .ciJobUrl(url)
+      .ciWorkspace(expandTilde(environment.get(APPVEYOR_WORKSPACE_PATH)))
+      .build();
   }
 
   @Nonnull

@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @AutoService(InstrumenterModule.class)
 public class AppSecDispatcherServletWithPathPatternsInstrumentation
     extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public AppSecDispatcherServletWithPathPatternsInstrumentation() {
     super("spring-web");
   }
@@ -50,21 +49,21 @@ public class AppSecDispatcherServletWithPathPatternsInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isProtected())
-            .and(named("onRefresh"))
-            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
-            .and(takesArguments(1)),
-        AppSecDispatcherServletWithPathPatternsInstrumentation.class.getName()
-            + "$AppSecHandlerMappingAdvice");
+          .and(isProtected())
+          .and(named("onRefresh"))
+          .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
+          .and(takesArguments(1)),
+            AppSecDispatcherServletWithPathPatternsInstrumentation.class.getName()
+        + "$AppSecHandlerMappingAdvice");
   }
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && InstrumenterConfig.get().isApiSecurityEndpointCollectionEnabled();
+    return super.isEnabled()
+        && InstrumenterConfig.get().isApiSecurityEndpointCollectionEnabled();
   }
 
   public static class AppSecHandlerMappingAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterRefresh(@Advice.Argument(0) final ApplicationContext springCtx) {
       final Map<String, RequestMappingHandlerMapping> handlers =

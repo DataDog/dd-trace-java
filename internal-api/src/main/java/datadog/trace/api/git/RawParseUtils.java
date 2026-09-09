@@ -1,7 +1,6 @@
 package datadog.trace.api.git;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
@@ -15,12 +14,11 @@ import java.util.Arrays;
  * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
  */
 public final class RawParseUtils {
-
-  private RawParseUtils() {}
+  private RawParseUtils() {
+  }
 
   public static final byte[] COMMITTER = "committer ".getBytes(StandardCharsets.UTF_8);
   public static final byte[] AUTHOR = "author ".getBytes(StandardCharsets.UTF_8);
-
   private static final byte[] digits10;
 
   static {
@@ -42,12 +40,13 @@ public final class RawParseUtils {
   public static int commitMessage(final byte[] b, int ptr) {
     final int sz = b.length;
     if (ptr == 0) {
-      ptr += 46; // skip the "tree ..." line.
+      // skip the "tree ..." line.
+      ptr += 46;
     }
     while (ptr < sz && b[ptr] == 'p') {
-      ptr += 48; // skip this parent.
+      // skip this parent.
+      ptr += 48;
     }
-
     // Skip any remaining header lines, ignoring what their actual
     // header line type is. This is identical to the logic for a tag.
     //
@@ -65,7 +64,8 @@ public final class RawParseUtils {
   public static int tagMessage(final byte[] b, int ptr) {
     final int sz = b.length;
     if (ptr == 0) {
-      ptr += 48; // skip the "object ..." line.
+      // skip the "object ..." line.
+      ptr += 48;
     }
     while (ptr < sz && b[ptr] != '\n') {
       ptr = nextLF(b, ptr);
@@ -89,10 +89,12 @@ public final class RawParseUtils {
   public static int committer(final byte[] b, int ptr) {
     final int sz = b.length;
     if (ptr == 0) {
-      ptr += 46; // skip the "tree ..." line.
+      // skip the "tree ..." line.
+      ptr += 46;
     }
     while (ptr < sz && b[ptr] == 'p') {
-      ptr += 48; // skip this parent.
+      // skip this parent.
+      ptr += 48;
     }
     if (ptr < sz && b[ptr] == 'a') {
       ptr = nextLF(b, ptr);
@@ -113,10 +115,12 @@ public final class RawParseUtils {
   public static final int author(final byte[] b, int ptr) {
     final int sz = b.length;
     if (ptr == 0) {
-      ptr += 46; // skip the "tree ..." line.
+      // skip the "tree ..." line.
+      ptr += 46;
     }
     while (ptr < sz && b[ptr] == 'p') {
-      ptr += 48; // skip this parent.
+      // skip this parent.
+      ptr += 48;
     }
     return match(b, ptr, AUTHOR);
   }
@@ -216,7 +220,6 @@ public final class RawParseUtils {
       return d.decode(b).toString();
     } catch (final CharacterCodingException e) {
       b.reset();
-
       // Fall back to an ISO-8859-1 style encoding. At least all of
       // the bytes will be present in the output.
       //

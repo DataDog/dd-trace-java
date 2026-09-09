@@ -5,7 +5,6 @@ import datadog.trace.api.civisibility.telemetry.TagValue;
 public enum SkipReason implements TagValue {
   ITR("Skipped by Datadog Test Impact Analysis"),
   DISABLED("Flaky test is disabled by Datadog");
-
   private final String s;
   private final String description;
 

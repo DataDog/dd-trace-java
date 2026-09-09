@@ -6,14 +6,13 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 
 public class PullRequestInfo {
-
   public static final PullRequestInfo EMPTY =
       new PullRequestInfo(null, null, null, CommitInfo.NOOP, null);
-
   private final String baseBranch;
   private final String baseBranchSha;
   private final String baseBranchHeadSha;
-  @Nonnull private final CommitInfo headCommit;
+  @Nonnull
+  private final CommitInfo headCommit;
   private final String pullRequestNumber;
 
   public PullRequestInfo(
@@ -73,8 +72,7 @@ public class PullRequestInfo {
    * @param second Fallback PR info
    * @return Combined PR info
    */
-  public static PullRequestInfo coalesce(
-      final PullRequestInfo first, final PullRequestInfo second) {
+  public static PullRequestInfo coalesce(final PullRequestInfo first, final PullRequestInfo second) {
     return new PullRequestInfo(
         Strings.coalesce(first.baseBranch, second.baseBranch),
         Strings.coalesce(first.baseBranchSha, second.baseBranchSha),

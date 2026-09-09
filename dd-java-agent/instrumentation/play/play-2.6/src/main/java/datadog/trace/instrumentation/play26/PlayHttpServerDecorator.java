@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.play26;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
@@ -43,9 +42,7 @@ public class PlayHttpServerDecorator
   public static final CharSequence PLAY_REQUEST = UTF8BytesString.create("play.request");
   public static final CharSequence PLAY_ACTION = UTF8BytesString.create("play-action");
   public static final PlayHttpServerDecorator DECORATE = new PlayHttpServerDecorator();
-
   private static final MethodHandle TYPED_KEY_GET_UNDERLYING;
-
   private static final DDCache<String, CharSequence> PATH_CACHE = DDCaches.newFixedSizeCache(32);
 
   static {
@@ -53,18 +50,19 @@ public class PlayHttpServerDecorator
     MethodHandle typedKeyGetUnderlyingCheck = null;
     try {
       // This method was added in Play 2.6.8
-      typedKeyGetUnderlyingCheck =
-          lookup.findVirtual(
-              TypedKey.class,
-              "asScala",
-              MethodType.methodType(play.api.libs.typedmap.TypedKey.class));
+      typedKeyGetUnderlyingCheck = lookup.findVirtual(
+          TypedKey.class,
+          "asScala",
+          MethodType.methodType(play.api.libs.typedmap.TypedKey.class));
     } catch (final NoSuchMethodException | IllegalAccessException ignored) {
     }
     // Fallback
     if (typedKeyGetUnderlyingCheck == null) {
       try {
-        typedKeyGetUnderlyingCheck =
-            lookup.findGetter(TypedKey.class, "underlying", play.api.libs.typedmap.TypedKey.class);
+        typedKeyGetUnderlyingCheck = lookup.findGetter(
+            TypedKey.class,
+            "underlying",
+            play.api.libs.typedmap.TypedKey.class);
       } catch (final NoSuchFieldException | IllegalAccessException ignored) {
       }
     }
@@ -137,21 +135,22 @@ public class PlayHttpServerDecorator
       // more about routes here:
       // https://github.com/playframework/playframework/blob/master/documentation/manual/releases/release26/migration26/Migration26.md
       Option<HandlerDef> defOption = Option.empty();
-      if (TYPED_KEY_GET_UNDERLYING != null) { // Should always be non-null but just to make sure
+      if (TYPED_KEY_GET_UNDERLYING != null) {
+        // Should always be non-null but just to make sure
         try {
-          defOption =
-              request
-                  .attrs()
-                  .get(
-                      (play.api.libs.typedmap.TypedKey<HandlerDef>)
-                          TYPED_KEY_GET_UNDERLYING.invokeExact(Router.Attrs.HANDLER_DEF));
+          defOption = request
+            .attrs()
+            .get(
+                (play.api.libs.typedmap.TypedKey<HandlerDef>) TYPED_KEY_GET_UNDERLYING.invokeExact(
+                    Router.Attrs.HANDLER_DEF));
         } catch (final Throwable ignored) {
         }
       }
       if (!defOption.isEmpty()) {
         CharSequence path =
-            PATH_CACHE.computeIfAbsent(
-                defOption.get().path(), p -> addMissingSlash(p, request.path()));
+            PATH_CACHE.computeIfAbsent(defOption.get().path(), p -> addMissingSlash(
+            p,
+            request.path()));
         HTTP_RESOURCE_DECORATOR.withRoute(span, request.method(), path, true);
         dispatchRoute(span, path);
       }
@@ -215,7 +214,9 @@ public class PlayHttpServerDecorator
 
   @Override
   protected void doOnError(
-      @Nonnull final AgentSpan span, @Nonnull Throwable throwable, byte errorPriority) {
+      @Nonnull final AgentSpan span,
+      @Nonnull Throwable throwable,
+      byte errorPriority) {
     if (REPORT_HTTP_STATUS) {
       span.setHttpStatusCode(500);
     }
@@ -223,7 +224,7 @@ public class PlayHttpServerDecorator
       throwable = throwable.getCause();
     }
     while ((throwable instanceof InvocationTargetException
-            || throwable instanceof UndeclaredThrowableException)
+        || throwable instanceof UndeclaredThrowableException)
         && throwable.getCause() != null) {
       throwable = throwable.getCause();
     }

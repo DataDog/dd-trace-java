@@ -8,7 +8,6 @@ import io.cucumber.core.backend.StepDefinition;
 import java.util.Arrays;
 
 public class CucumberStepDecorator extends BaseDecorator {
-
   public static CucumberStepDecorator DECORATE = new CucumberStepDecorator();
 
   @Override

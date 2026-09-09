@@ -4,7 +4,6 @@ import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import datadog.trace.bootstrap.debugger.el.Values;

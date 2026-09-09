@@ -23,12 +23,10 @@ import org.slf4j.LoggerFactory;
  */
 public class DatabricksParentContext implements AgentSpanContext {
   private static final Logger log = LoggerFactory.getLogger(DatabricksParentContext.class);
-
   private final DDTraceId traceId;
   private final long spanId;
 
-  public DatabricksParentContext(
-      String jobId, String jobRunId, String taskRunId, int attemptNumber) {
+  public DatabricksParentContext(String jobId, String jobRunId, String taskRunId, int attemptNumber) {
     MessageDigest digest = null;
     try {
       digest = MessageDigest.getInstance("SHA-1");
@@ -46,7 +44,11 @@ public class DatabricksParentContext implements AgentSpanContext {
   }
 
   private DDTraceId computeTraceId(
-      MessageDigest digest, String jobId, String jobRunId, String taskRunId, int attemptNumber) {
+      MessageDigest digest,
+      String jobId,
+      String jobRunId,
+      String taskRunId,
+      int attemptNumber) {
     byte[] inputBytes;
 
     if (jobRunId != null) {

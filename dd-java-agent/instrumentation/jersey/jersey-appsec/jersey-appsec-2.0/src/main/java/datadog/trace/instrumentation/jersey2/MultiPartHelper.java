@@ -17,11 +17,11 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.message.internal.MediaTypes;
 
 public final class MultiPartHelper {
-
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
-  private MultiPartHelper() {}
+  private MultiPartHelper() {
+  }
 
   public static void collectBodyPart(
       FormDataBodyPart bodyPart,
@@ -44,7 +44,9 @@ public final class MultiPartHelper {
       // the unbounded getValue(); the cap counts total accumulated values across all field names,
       // not distinct keys, so repeating the same field name cannot bypass the limit. cd.getName()
       // is a safe field accessor, unlike bodyPart.getName() which re-parses the disposition header.
-      bodyMap.computeIfAbsent(cd.getName(), k -> new ArrayList<>()).add(readContent(bodyPart));
+      bodyMap
+        .computeIfAbsent(cd.getName(), k -> new ArrayList<>())
+        .add(readContent(bodyPart));
     }
     // rawFilename == null  → no filename attribute → form field → skip filenames and content
     // rawFilename == ""    → filename attribute present but empty → content YES, filenames NO
@@ -53,7 +55,9 @@ public final class MultiPartHelper {
     if (filenames != null && rawFilename != null && !rawFilename.isEmpty()) {
       filenames.add(rawFilename);
     }
-    if (filesContent != null && rawFilename != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
+    if (filesContent != null
+        && rawFilename != null
+        && filesContent.size() < MAX_FILES_TO_INSPECT) {
       filesContent.add(readFileContent(bodyPart));
     }
   }
@@ -85,7 +89,9 @@ public final class MultiPartHelper {
       // getEntityAs(InputStream.class) is backed by BodyPartEntity which supports re-reading:
       // each call creates a fresh stream from the buffered MIME part data.
       try (InputStream is = bodyPart.getEntityAs(InputStream.class)) {
-        if (is == null) return "";
+        if (is == null) {
+          return "";
+        }
         return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
       }
     } catch (IOException ignored) {

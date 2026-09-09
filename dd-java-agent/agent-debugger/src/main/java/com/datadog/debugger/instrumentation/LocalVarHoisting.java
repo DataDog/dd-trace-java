@@ -117,8 +117,7 @@ public class LocalVarHoisting {
       Collection<LocalVariableNode> hoisted) {
     if (forbiddenSlots.contains(varNode.index)) {
       // If the slot is forbidden, we can skip it
-      LOGGER.debug(
-          "Variable: {} at index: {} is in a forbidden slot.", varNode.name, varNode.index);
+      LOGGER.debug("Variable: {} at index: {} is in a forbidden slot.", varNode.name, varNode.index);
       return;
     }
     int countSlot = countBySlot.get(varNode.index);
@@ -137,7 +136,7 @@ public class LocalVarHoisting {
       // not safely hoistable, we can still try aggressive hoisting
       LOGGER.debug(
           "Variable: {} at index: {} is not safely hoistable, resons: "
-              + "countSlot={}, countName={}, isOnlyOneType={}, isSingleSlotType={}",
+          + "countSlot={}, countName={}, isOnlyOneType={}, isSingleSlotType={}",
           varNode.name,
           varNode.index,
           countSlot,
@@ -168,7 +167,8 @@ public class LocalVarHoisting {
     Type[] argTypes = Type.getArgumentTypes(method.desc);
     int count = 0;
     if ((method.access & Opcodes.ACC_STATIC) == 0) {
-      count = 1; // 'this' parameter
+      // 'this' parameter
+      count = 1;
     }
     for (Type type : argTypes) {
       count += type.getSize();
@@ -177,7 +177,9 @@ public class LocalVarHoisting {
   }
 
   private static void addStore0Insn(
-      InsnList insnList, LocalVariableNode localVar, Type localVarType) {
+      InsnList insnList,
+      LocalVariableNode localVar,
+      Type localVarType) {
     switch (localVarType.getSort()) {
       case Type.BOOLEAN:
       case Type.CHAR:
@@ -203,8 +205,10 @@ public class LocalVarHoisting {
   }
 
   private static void extendRange(LocalVariableNode varNode, LabelNode first, LabelNode last) {
-    varNode.start = first; // Set the start of the variable to the first instruction
-    varNode.end = last; // Set the end of the variable to the last instruction
+    // Set the start of the variable to the first instruction
+    varNode.start = first;
+    // Set the end of the variable to the last instruction
+    varNode.end = last;
   }
 
   private static void scanLocalVariableTable(
@@ -212,7 +216,8 @@ public class LocalVarHoisting {
       Map<Integer, Integer> countBySlot,
       Map<String, Integer> countByName) {
     if (localVariables == null) {
-      return; // No local variables to process
+      // No local variables to process
+      return;
     }
     for (LocalVariableNode varNode : localVariables) {
       int slot = varNode.index;
@@ -222,7 +227,9 @@ public class LocalVarHoisting {
   }
 
   private static void scanInstructions(
-      InsnList instructions, Map<Integer, SlotInfo> slots, Set<Integer> forbiddenSlots) {
+      InsnList instructions,
+      Map<Integer, SlotInfo> slots,
+      Set<Integer> forbiddenSlots) {
     for (int i = 0; i < instructions.size(); i++) {
       AbstractInsnNode insn = instructions.get(i);
       if (insn instanceof VarInsnNode) {
@@ -284,16 +291,19 @@ public class LocalVarHoisting {
     }
 
     public boolean isSingleSlotType() {
-      return definitions.stream()
-          .map(d -> d.type)
-          .distinct()
-          .allMatch(type -> type != Opcodes.DSTORE && type != Opcodes.LSTORE);
+      return definitions
+        .stream()
+        .map(d -> d.type)
+        .distinct()
+        .allMatch(type -> type != Opcodes.DSTORE && type != Opcodes.LSTORE);
     }
   }
 
   private static class Definition {
-    final int index; // ASM instruction index
-    final int type; // type of the variable based on OpCode (e.g., ISORE, ASTORe, etc.)
+    // ASM instruction index
+    final int index;
+    // type of the variable based on OpCode (e.g., ISORE, ASTORe, etc.)
+    final int type;
 
     Definition(int index, int type) {
       this.index = index;
@@ -302,8 +312,10 @@ public class LocalVarHoisting {
   }
 
   private static class Use {
-    final int index; // ASM instruction index
-    final int type; // type of the variable based on OpCode (e.g., ILOAD, ALOAD, etc.)
+    // ASM instruction index
+    final int index;
+    // type of the variable based on OpCode (e.g., ILOAD, ALOAD, etc.)
+    final int type;
 
     Use(int index, int type) {
       this.index = index;

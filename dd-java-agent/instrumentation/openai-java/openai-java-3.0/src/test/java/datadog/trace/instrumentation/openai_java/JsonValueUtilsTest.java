@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.openai.core.JsonValue;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -13,7 +12,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class JsonValueUtilsTest {
-
   @Test
   void testNullReturnsNull() {
     assertNull(JsonValueUtils.jsonValueToObject(null));
@@ -96,9 +94,9 @@ class JsonValueUtilsTest {
 
   @Test
   void testNestedArray() {
-    Object result =
-        JsonValueUtils.jsonValueToObject(
-            JsonValue.from(Arrays.asList(Arrays.asList(1, 2), Arrays.asList(3, 4))));
+    Object result = JsonValueUtils.jsonValueToObject(JsonValue.from(Arrays.asList(
+        Arrays.asList(1, 2),
+        Arrays.asList(3, 4))));
 
     assertInstanceOf(List.class, result);
     @SuppressWarnings("unchecked")

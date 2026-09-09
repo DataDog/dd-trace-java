@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.osgi43;
 
 import static org.osgi.framework.wiring.BundleRevision.PACKAGE_NAMESPACE;
-
 import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
@@ -18,11 +17,12 @@ import org.osgi.framework.wiring.BundleWiring;
  * would have been imported if the original code had needed them.
  */
 public final class BundleWiringHelper {
-
   // placeholder when we want byte-buddy to skip the original call and return null
   private static final Object SKIP_REQUEST = new Object();
 
-  /** Probes for the named resource without using any class-loader related methods. */
+  /**
+   * Probes for the named resource without using any class-loader related methods.
+   */
   public static Object probeResource(final Bundle origin, final String resourceName) {
     if (null == origin) {
       // bundle reference has gone stale, e.g. the bundle was uninstalled
@@ -54,7 +54,9 @@ public final class BundleWiringHelper {
     return SKIP_REQUEST;
   }
 
-  /** Delegates resource request to any direct dependencies (Import-Package, Require-Bundle etc.) */
+  /**
+   * Delegates resource request to any direct dependencies (Import-Package, Require-Bundle etc.)
+   */
   public static URL getResource(final Bundle origin, final String resourceName) {
     if (null == origin) {
       // bundle reference has gone stale, e.g. the bundle was uninstalled
@@ -86,7 +88,9 @@ public final class BundleWiringHelper {
     return null;
   }
 
-  /** Delegates class-load request to those direct dependencies that provide a similar package. */
+  /**
+   * Delegates class-load request to those direct dependencies that provide a similar package.
+   */
   public static Class<?> loadClass(final Bundle origin, final String className) {
     if (null == origin) {
       // bundle reference has gone stale, e.g. the bundle was uninstalled
@@ -123,10 +127,12 @@ public final class BundleWiringHelper {
     for (int i = 0; i < providedPackage.length(); i++) {
       char c = providedPackage.charAt(i);
       if (i >= className.length() || c != className.charAt(i)) {
-        return false; // no common package prefix
+        // no common package prefix
+        return false;
       }
       if (c == '.' && ++segmentsMatched >= 3) {
-        break; // three package segments matched, assume related
+        // three package segments matched, assume related
+        break;
       }
     }
     return true;

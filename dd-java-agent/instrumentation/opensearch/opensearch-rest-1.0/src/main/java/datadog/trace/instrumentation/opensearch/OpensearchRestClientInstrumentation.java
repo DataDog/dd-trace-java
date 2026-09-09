@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.opensearch.OpensearchRestClientDecor
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,8 +22,8 @@ import org.opensearch.client.ResponseListener;
 
 @AutoService(InstrumenterModule.class)
 public class OpensearchRestClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public OpensearchRestClientInstrumentation() {
     super("opensearch", "opensearch-rest");
   }
@@ -32,8 +31,8 @@ public class OpensearchRestClientInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.opensearch.OpensearchRestClientDecorator",
-      packageName + ".RestResponseListener",
+        "datadog.trace.instrumentation.opensearch.OpensearchRestClientDecorator",
+        packageName + ".RestResponseListener"
     };
   }
 
@@ -46,27 +45,24 @@ public class OpensearchRestClientInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("performRequest"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.opensearch.client.Request"))),
+          .and(named("performRequest"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.opensearch.client.Request"))),
         OpensearchRestClientInstrumentation.class.getName() + "$OpensearchRestClientAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("performRequestAsync"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.opensearch.client.Request")))
-            .and(takesArgument(1, named("org.opensearch.client.ResponseListener"))),
+          .and(named("performRequestAsync"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("org.opensearch.client.Request")))
+          .and(takesArgument(1, named("org.opensearch.client.ResponseListener"))),
         OpensearchRestClientInstrumentation.class.getName() + "$OpensearchRestClientAdvice");
   }
 
   public static class OpensearchRestClientAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final Request request,
-        @Advice.Argument(value = 1, readOnly = false, optional = true)
-            ResponseListener responseListener) {
-
+        @Advice.Argument(value = 1, readOnly = false, optional = true) ResponseListener responseListener) {
       final AgentSpan span = startSpan(OPENSEARCH_JAVA.toString(), OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onRequest(

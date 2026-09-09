@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
@@ -155,10 +154,11 @@ class IsEmptyExpressionTest {
         exception.getMessage());
     IsEmptyExpression syncMap =
         new IsEmptyExpression(new MapValue(Collections.synchronizedMap(new HashMap<>())));
-    exception =
-        assertThrows(UnsupportedOperationException.class, () -> syncMap.evaluate(evalContext));
+    exception = assertThrows(UnsupportedOperationException.class, () -> syncMap.evaluate(
+        evalContext));
     assertEquals(
-        "Unsupported Map class: java.util.Collections$SynchronizedMap", exception.getMessage());
+        "Unsupported Map class: java.util.Collections$SynchronizedMap",
+        exception.getMessage());
   }
 
   @Test

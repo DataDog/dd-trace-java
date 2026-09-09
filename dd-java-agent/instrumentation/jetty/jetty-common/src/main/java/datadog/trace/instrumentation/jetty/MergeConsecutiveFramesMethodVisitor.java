@@ -7,7 +7,9 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 
-/** If it sees an F_SAME frame together with another one, it suppresses the F_SAME one. */
+/**
+ * If it sees an F_SAME frame together with another one, it suppresses the F_SAME one.
+ */
 public class MergeConsecutiveFramesMethodVisitor extends MethodVisitor {
   private final List<FrameVisitation> heldFrames = new ArrayList<>();
 
@@ -48,7 +50,8 @@ public class MergeConsecutiveFramesMethodVisitor extends MethodVisitor {
       FrameVisitation firstFrame = heldFrames.get(0);
       heldFrames.removeIf(FrameVisitation::isFSame);
       if (heldFrames.isEmpty()) {
-        heldFrames.add(firstFrame); // add back one if all we have is F_SAME
+        // add back one if all we have is F_SAME
+        heldFrames.add(firstFrame);
       }
     }
 
@@ -93,7 +96,11 @@ public class MergeConsecutiveFramesMethodVisitor extends MethodVisitor {
 
   @Override
   public void visitMethodInsn(
-      int opcode, String owner, String name, String descriptor, boolean isInterface) {
+      int opcode,
+      String owner,
+      String name,
+      String descriptor,
+      boolean isInterface) {
     commitFrames();
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
   }

@@ -11,7 +11,6 @@ import javax.annotation.Nullable;
  * aggregator thread; the producer just shuffles references.
  */
 final class SpanSnapshot implements InboxItem {
-
   final CharSequence resourceName;
   final String serviceName;
   final CharSequence operationName;
@@ -21,34 +20,37 @@ final class SpanSnapshot implements InboxItem {
   final boolean synthetic;
   final boolean traceRoot;
   final String spanKind;
-
   /**
    * Schema for {@link #peerTagValues}. {@code null} when the span has no peer tags. The schema
    * carries the names + {@link TagCardinalityHandler}s in parallel array form; {@code
    * peerTagValues} holds the per-span tag values at the same indices.
    */
-  final @Nullable PeerTagSchema peerTagSchema;
-
+  @Nullable
+  final PeerTagSchema peerTagSchema;
   /**
    * Peer tag values captured from the span, parallel to {@code peerTagSchema.names}. A {@code null}
    * entry means the span didn't have that peer tag set. {@code null} (the whole array) when {@link
    * #peerTagSchema} is {@code null}.
    */
-  final @Nullable String[] peerTagValues;
-
-  final @Nullable String httpMethod;
-  final @Nullable String httpEndpoint;
-  final @Nullable String grpcStatusCode;
-
+  @Nullable
+  final String[] peerTagValues;
+  @Nullable
+  final String httpMethod;
+  @Nullable
+  final String httpEndpoint;
+  @Nullable
+  final String grpcStatusCode;
   /**
    * Additional metric tag values captured from the span, parallel to {@code
    * additionalTagsSchema.names}. A {@code null} entry means the span didn't have that tag set.
    * {@code null} (the whole array) when no additional tags are configured or none were set on the
    * span. Length cap is applied on the aggregator thread; the producer carries raw values only.
    */
-  final @Nullable String[] additionalTagValues;
-
-  /** Duration in nanoseconds, OR-ed with {@code ERROR_TAG} / {@code TOP_LEVEL_TAG} as needed. */
+  @Nullable
+  final String[] additionalTagValues;
+  /**
+   * Duration in nanoseconds, OR-ed with {@code ERROR_TAG} / {@code TOP_LEVEL_TAG} as needed.
+   */
   final long tagAndDuration;
 
   SpanSnapshot(

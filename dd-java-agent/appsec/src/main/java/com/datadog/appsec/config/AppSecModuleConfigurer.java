@@ -8,7 +8,8 @@ public interface AppSecModuleConfigurer {
 
   interface SubconfigListener {
     void onNewSubconfig(Object newConfig, Reconfiguration reconfiguration)
-        throws AppSecModule.AppSecModuleActivationException, AbstractWafException;
+        throws AppSecModule.AppSecModuleActivationException,
+        AbstractWafException;
   }
 
   void addTraceSegmentPostProcessor(TraceSegmentPostProcessor interceptor);

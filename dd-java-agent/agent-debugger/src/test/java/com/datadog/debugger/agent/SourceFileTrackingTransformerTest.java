@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import static com.datadog.debugger.agent.SourceFileTrackingTransformer.MAX_QUEUE_SIZE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static utils.TestClassFileHelper.getClassFileBytes;
-
 import com.datadog.debugger.probe.LogProbe;
 import datadog.trace.api.Config;
 import java.lang.instrument.IllegalClassFormatException;
@@ -44,15 +43,17 @@ class SourceFileTrackingTransformerTest {
           null,
           getClassFileBytes(MyTopLevelClass.class));
       sourceFileTrackingTransformer.flush();
-      changedClasses =
-          finder.getAllLoadedChangedClasses(
-              new Class[] {TopLevelHelper.class, MyTopLevelClass.class}, comparer);
+      changedClasses = finder.getAllLoadedChangedClasses(
+          new Class[] {TopLevelHelper.class, MyTopLevelClass.class},
+          comparer);
       assertEquals(2, changedClasses.size());
       assertEquals(TopLevelHelper.class, changedClasses.get(0));
       assertEquals(MyTopLevelClass.class, changedClasses.get(1));
     } finally {
       TestHelper.setFieldInConfig(
-          Config.get(), "debuggerThirdPartyExcludes", Collections.emptySet());
+          Config.get(),
+          "debuggerThirdPartyExcludes",
+          Collections.emptySet());
     }
   }
 
@@ -91,19 +92,22 @@ class SourceFileTrackingTransformerTest {
           null,
           getClassFileBytes(InnerHelper.MySecondInner.class));
       sourceFileTrackingTransformer.flush();
-      changedClasses =
-          finder.getAllLoadedChangedClasses(
-              new Class[] {
-                InnerHelper.class, InnerHelper.MyInner.class, InnerHelper.MySecondInner.class
-              },
-              comparer);
+      changedClasses = finder.getAllLoadedChangedClasses(
+          new Class[] {
+          InnerHelper.class,
+          InnerHelper.MyInner.class,
+          InnerHelper.MySecondInner.class
+          },
+          comparer);
       assertEquals(3, changedClasses.size());
       assertEquals(InnerHelper.class, changedClasses.get(0));
       assertEquals(InnerHelper.MyInner.class, changedClasses.get(1));
       assertEquals(InnerHelper.MySecondInner.class, changedClasses.get(2));
     } finally {
       TestHelper.setFieldInConfig(
-          Config.get(), "debuggerThirdPartyExcludes", Collections.emptySet());
+          Config.get(),
+          "debuggerThirdPartyExcludes",
+          Collections.emptySet());
     }
   }
 
@@ -115,7 +119,9 @@ class SourceFileTrackingTransformerTest {
     ConfigurationComparer comparer = createComparer("TopLevelHelper.java");
     byte[] classFileBytes = getClassFileBytes(TopLevelHelper.class);
     replaceInByteArray(
-        classFileBytes, "TopLevelHelper.java".getBytes(), "TopLevelHelper.cloj".getBytes());
+        classFileBytes,
+        "TopLevelHelper.java".getBytes(),
+        "TopLevelHelper.cloj".getBytes());
     sourceFileTrackingTransformer.transform(null, "", null, null, classFileBytes);
     sourceFileTrackingTransformer.flush();
     List<Class<?>> changedClasses =
@@ -163,21 +169,23 @@ class SourceFileTrackingTransformerTest {
         if (oldIdx == oldBytes.length) {
           // Found the oldBytes, replace with newBytes
           System.arraycopy(newBytes, 0, buffer, i - oldIdx + 1, newBytes.length);
-          oldIdx = 0; // Reset for next search
+          // Reset for next search
+          oldIdx = 0;
         }
       } else {
-        oldIdx = 0; // Reset if current byte does not match
+        // Reset if current byte does not match
+        oldIdx = 0;
       }
     }
   }
 
   private ConfigurationComparer createComparer(String sourceFile) {
     Configuration emptyConfig = Configuration.builder().setService("service-name").build();
-    Configuration newConfig =
-        Configuration.builder()
-            .setService("service-name")
-            .add(new LogProbe.Builder().probeId("", 1).where(sourceFile, 42).build())
-            .build();
+    Configuration newConfig = Configuration
+      .builder()
+      .setService("service-name")
+      .add(new LogProbe.Builder().probeId("", 1).where(sourceFile, 42).build())
+      .build();
     return new ConfigurationComparer(emptyConfig, newConfig, new HashMap<>());
   }
 

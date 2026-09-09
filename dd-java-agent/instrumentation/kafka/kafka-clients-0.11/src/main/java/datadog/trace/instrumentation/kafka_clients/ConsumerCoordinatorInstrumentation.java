@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -27,8 +26,8 @@ import org.apache.kafka.common.TopicPartition;
 
 @AutoService(InstrumenterModule.class)
 public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ConsumerCoordinatorInstrumentation() {
     super("kafka", "kafka-0.11");
   }
@@ -40,7 +39,8 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy")); // < 3.8
+    // < 3.8
+    return not(hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"));
   }
 
   @Override
@@ -63,10 +63,10 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaConsumerInfo",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
+        packageName + ".KafkaConsumerInfo",
+        "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+        "datadog.trace.instrumentation.kafka_common.PendingConfig",
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
     };
   }
 
@@ -92,9 +92,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       if (offsets == null) {
         return;
       }
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .get(coordinator);
+      KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext
+        .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+        .get(coordinator);
 
       if (kafkaConsumerInfo == null) {
         return;
@@ -117,13 +117,12 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
           continue;
         }
 
-        DataStreamsTags tags =
-            DataStreamsTags.createWithPartition(
-                "kafka_commit",
-                entry.getKey().topic(),
-                String.valueOf(entry.getKey().partition()),
-                clusterId,
-                consumerGroup);
+        DataStreamsTags tags = DataStreamsTags.createWithPartition(
+            "kafka_commit",
+            entry.getKey().topic(),
+            String.valueOf(entry.getKey().partition()),
+            clusterId,
+            consumerGroup);
         AgentTracer.get().getDataStreamsMonitoring().trackBacklog(tags, entry.getValue().offset());
       }
     }
@@ -145,9 +144,9 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
       if (memberId == null || memberId.isEmpty()) {
         return;
       }
-      KafkaConsumerInfo kafkaConsumerInfo =
-          InstrumentationContext.get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
-              .get(coordinator);
+      KafkaConsumerInfo kafkaConsumerInfo = InstrumentationContext
+        .get(ConsumerCoordinator.class, KafkaConsumerInfo.class)
+        .get(coordinator);
       if (kafkaConsumerInfo == null) {
         return;
       }
@@ -164,7 +163,11 @@ public final class ConsumerCoordinatorInstrumentation extends InstrumenterModule
         clusterId = metadataState != null ? metadataState.clusterId : null;
       }
       if (KafkaConfigHelper.reportConsumerGroupMember(
-          clusterId, consumerGroup, memberId, generationId, memberProtocol)) {
+          clusterId,
+          consumerGroup,
+          memberId,
+          generationId,
+          memberProtocol)) {
         kafkaConsumerInfo.setLastReportedMembership(memberId, generationId);
       }
     }

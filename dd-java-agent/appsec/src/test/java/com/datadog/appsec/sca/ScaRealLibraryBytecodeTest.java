@@ -5,7 +5,6 @@ import static com.datadog.appsec.sca.ScaBytecodeTestUtils.loadModified;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.CveSnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
@@ -39,14 +38,16 @@ import org.junit.jupiter.api.Test;
  * </ol>
  */
 class ScaRealLibraryBytecodeTest {
-
   @BeforeEach
   void setUp() {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
-    ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) ->
-            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                artifact, version, vulnId, dotClassName, methodName, line));
+    ScaReachabilityCallback.register((vulnId, artifact, version, dotClassName, methodName, line) -> ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        artifact,
+        version,
+        vulnId,
+        dotClassName,
+        methodName,
+        line));
   }
 
   @AfterEach
@@ -58,7 +59,6 @@ class ScaRealLibraryBytecodeTest {
   // ---------------------------------------------------------------------------
   // Injection tests: ASM can process real library bytecode
   // ---------------------------------------------------------------------------
-
   @Test
   void junrar_createDirectory_injectionProducesBytecodeChange() throws Exception {
     Class<?> localFolderExtractor = Class.forName("com.github.junrar.LocalFolderExtractor");
@@ -80,7 +80,7 @@ class ScaRealLibraryBytecodeTest {
     assertTrue(
         modified.length > original.length,
         "injected bytecode must be larger than original; proves createDirectory exists"
-            + " and the callback was inserted");
+        + " and the callback was inserted");
   }
 
   @Test
@@ -103,12 +103,11 @@ class ScaRealLibraryBytecodeTest {
     assertTrue(
         modified.length > original.length,
         "injected bytecode must be larger than original; proves Array.read exists"
-            + " and the callback was inserted");
+        + " and the callback was inserted");
   }
 
   @Test
-  void tomcat_chunkedInputFilter_parseChunkHeader_injectionProducesBytecodeChange()
-      throws Exception {
+  void tomcat_chunkedInputFilter_parseChunkHeader_injectionProducesBytecodeChange() throws Exception {
     byte[] original = bytecodeOf(org.apache.coyote.http11.filters.ChunkedInputFilter.class);
     Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     callbacks.put(
@@ -132,7 +131,6 @@ class ScaRealLibraryBytecodeTest {
   // ---------------------------------------------------------------------------
   // Callback test: the injected callback fires on a real method call
   // ---------------------------------------------------------------------------
-
   @Test
   void junrar_createDirectory_callbackFiresWhenMethodCalled() throws Exception {
     Class<?> localFolderExtractor = Class.forName("com.github.junrar.LocalFolderExtractor");
@@ -150,12 +148,10 @@ class ScaRealLibraryBytecodeTest {
 
     byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);
-
     // Constructor is package-private in junrar; setAccessible(true) bypasses visibility.
     Constructor<?> ctor = cls.getDeclaredConstructor(File.class);
     ctor.setAccessible(true);
     Object instance = ctor.newInstance(new File("/tmp"));
-
     // createDirectory(FileHeader) is package-private. Passing null triggers the injected callback
     // at method entry before the body tries to access header fields (NPE expected after callback).
     Class<?> fileHeaderClass = Class.forName("com.github.junrar.rarfile.FileHeader");
@@ -169,7 +165,9 @@ class ScaRealLibraryBytecodeTest {
 
     List<ScaReachabilityHit> hits = drainHits();
     assertEquals(
-        1, hits.size(), "createDirectory callback must fire even when method body throws NPE");
+        1,
+        hits.size(),
+        "createDirectory callback must fire even when method body throws NPE");
     ScaReachabilityHit hit = hits.get(0);
     assertEquals("GHSA-hf5p-q87m-crj7", hit.vulnId());
     assertEquals("com.github.junrar:junrar", hit.artifact());
@@ -179,11 +177,9 @@ class ScaRealLibraryBytecodeTest {
   // ---------------------------------------------------------------------------
   // Helpers (duplicated from ScaReachabilityMethodLevelTest to keep tests self-contained)
   // ---------------------------------------------------------------------------
-
   private static List<ScaReachabilityHit> drainHits() {
     List<ScaReachabilityHit> result = new ArrayList<>();
-    for (DependencySnapshot dep :
-        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies()) {
+    for (DependencySnapshot dep : ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies()) {
       for (CveSnapshot cve : dep.cves) {
         if (cve.hit != null) {
           result.add(cve.hit);
@@ -194,8 +190,16 @@ class ScaRealLibraryBytecodeTest {
   }
 
   private static ScaMethodCallbackInjector.MethodCallbackSpec spec(
-      String vulnId, String artifact, String version, String dotClass, String method) {
+      String vulnId,
+      String artifact,
+      String version,
+      String dotClass,
+      String method) {
     return new ScaMethodCallbackInjector.MethodCallbackSpec(
-        vulnId, artifact, version, dotClass, method);
+        vulnId,
+        artifact,
+        version,
+        dotClass,
+        method);
   }
 }

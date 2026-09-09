@@ -1,13 +1,11 @@
 package datadog.trace.instrumentation.graphqljava;
 
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import graphql.execution.instrumentation.SimpleInstrumentationContext;
 import graphql.language.Document;
 
 public class ParsingInstrumentationContext extends SimpleInstrumentationContext<Document> {
-
   private final AgentSpan parsingSpan;
   private final State state;
   private final String rawQuery;

@@ -12,7 +12,6 @@ import javax.annotation.Nonnull;
  * <li>Runs at a point where the sampler decision is already available.
  */
 public interface SpanPostProcessor {
-
   /**
    * Post-processes a span, if needed.
    *
@@ -24,7 +23,6 @@ public interface SpanPostProcessor {
 
   class Holder {
     public static final SpanPostProcessor NOOP = new NoOpSpanPostProcessor();
-
     // XXX: At the moment, a single post-processor can be registered, and only AppSec defines one.
     // If other products add their own, we'll need to refactor this to support multiple processors.
     public static volatile SpanPostProcessor INSTANCE = NOOP;

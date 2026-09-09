@@ -2,7 +2,6 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.util.Collections.emptyList;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -29,7 +28,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 public class TraceGenerator {
-
   public static List<List<PojoSpan>> generateRandomTraces(int howMany, boolean lowCardinality) {
     List<List<PojoSpan>> traces = new ArrayList<>(howMany);
     for (int i = 0; i < howMany; ++i) {
@@ -58,7 +56,10 @@ public class TraceGenerator {
   }
 
   private static PojoSpan randomSpan(
-      long traceId, boolean lowCardinality, CharSequence type, Map<String, Object> extraTags) {
+      long traceId,
+      boolean lowCardinality,
+      CharSequence type,
+      Map<String, Object> extraTags) {
     ThreadLocalRandom random = ThreadLocalRandom.current();
     Map<String, String> baggage = new HashMap<>();
     if (random.nextBoolean()) {
@@ -144,7 +145,6 @@ public class TraceGenerator {
   }
 
   public static class PojoSpan implements CoreSpan<PojoSpan> {
-
     private final CharSequence serviceName;
     private final CharSequence operationName;
     private final CharSequence resourceName;
@@ -229,20 +229,19 @@ public class TraceGenerator {
       this.measured = measured;
       this.samplingPriority = samplingPriority;
       this.httpStatusCode = (short) statusCode;
-      this.metadata =
-          new Metadata(
-              Thread.currentThread().getId(),
-              UTF8BytesString.create(Thread.currentThread().getName()),
-              TagMap.fromMap(tags),
-              baggage,
-              samplingPriority,
-              measured,
-              isTopLevel(),
-              statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
-              origin,
-              0,
-              ProcessTags.getTagsForSerialization(),
-              spanLinks);
+      this.metadata = new Metadata(
+          Thread.currentThread().getId(),
+          UTF8BytesString.create(Thread.currentThread().getName()),
+          TagMap.fromMap(tags),
+          baggage,
+          samplingPriority,
+          measured,
+          isTopLevel(),
+          statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
+          origin,
+          0,
+          ProcessTags.getTagsForSerialization(),
+          spanLinks);
     }
 
     @Override
@@ -409,7 +408,10 @@ public class TraceGenerator {
 
     @Override
     public PojoSpan setSamplingPriority(
-        int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+        int samplingPriority,
+        CharSequence rate,
+        double sampleRate,
+        int samplingMechanism) {
       return this;
     }
 

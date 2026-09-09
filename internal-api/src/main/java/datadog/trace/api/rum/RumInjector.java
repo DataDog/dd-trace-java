@@ -8,9 +8,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Usage in tests")
+@SuppressFBWarnings(value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR", justification = "Usage "
+    + "in tests")
 public final class RumInjector {
   private static final RumInjector INSTANCE =
       new RumInjector(Config.get(), InstrumenterConfig.get());
@@ -18,21 +17,18 @@ public final class RumInjector {
   private static final char[] MARKER_CHARS = MARKER.toCharArray();
   private static final Function<String, byte[]> MARKER_BYTES =
       charset -> {
-        try {
-          return MARKER.getBytes(charset);
-        } catch (Throwable t) {
-          return null;
-        }
-      };
-
+    try {
+      return MARKER.getBytes(charset);
+    } catch (Throwable t) {
+      return null;
+    }
+  };
   private final boolean enabled;
   private final String snippet;
   private final char[] snippetChars;
-
   private final DDCache<String, byte[]> snippetCache;
   private final DDCache<String, byte[]> markerCache;
   private final Function<String, byte[]> snippetBytes;
-
   private static volatile RumTelemetryCollector telemetryCollector = RumTelemetryCollector.NO_OP;
 
   RumInjector(Config config, InstrumenterConfig instrumenterConfig) {
@@ -45,14 +41,13 @@ public final class RumInjector {
       this.snippetCache = DDCaches.newFixedSizeCache(16);
       this.markerCache = DDCaches.newFixedSizeCache(16);
       this.snippetChars = this.snippet.toCharArray();
-      this.snippetBytes =
-          charset -> {
-            try {
-              return snippet.getBytes(charset);
-            } catch (Throwable t) {
-              return null;
-            }
-          };
+      this.snippetBytes = charset -> {
+        try {
+          return snippet.getBytes(charset);
+        } catch (Throwable t) {
+          return null;
+        }
+      };
     } else {
       this.enabled = false;
       this.snippet = null;
@@ -129,7 +124,9 @@ public final class RumInjector {
     return this.markerCache.computeIfAbsent(encoding, MARKER_BYTES);
   }
 
-  /** Starts telemetry collection if RUM injection is enabled. */
+  /**
+   * Starts telemetry collection if RUM injection is enabled.
+   */
   public static void enableTelemetry() {
     if (INSTANCE.isEnabled()) {
       telemetryCollector = new RumInjectorMetrics();
@@ -139,7 +136,9 @@ public final class RumInjector {
     }
   }
 
-  /** Shuts down telemetry collection and resets the telemetry collector to NO_OP. */
+  /**
+   * Shuts down telemetry collection and resets the telemetry collector to NO_OP.
+   */
   public static void shutdownTelemetry() {
     telemetryCollector.close();
     telemetryCollector = RumTelemetryCollector.NO_OP;

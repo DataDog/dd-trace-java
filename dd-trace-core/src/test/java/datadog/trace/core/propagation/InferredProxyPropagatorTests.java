@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.of;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.gateway.InferredProxySpan;
@@ -31,7 +30,6 @@ class InferredProxyPropagatorTests {
   private static final String PROXY_HTTP_METHOD_KEY = "x-dd-proxy-httpmethod";
   private static final String PROXY_DOMAIN_NAME_KEY = "x-dd-proxy-domain-name";
   private static final MapVisitor MAP_VISITOR = new MapVisitor();
-
   private InferredProxyPropagator propagator;
 
   @BeforeEach
@@ -65,7 +63,8 @@ class InferredProxyPropagatorTests {
     assertNull(inferredProxySpan, "Invalid inferred proxy span should not be extracted");
   }
 
-  static Stream<Arguments> invalidOrMissingHeadersProviderForPropagator() { // Renamed
+  static Stream<Arguments> invalidOrMissingHeadersProviderForPropagator() {
+    // Renamed
     Map<String, String> missingSystem = new HashMap<>();
     missingSystem.put(PROXY_REQUEST_TIME_MS_KEY, "12345");
     missingSystem.put(PROXY_PATH_KEY, "/foo");
@@ -102,7 +101,6 @@ class InferredProxyPropagatorTests {
     InferredProxySpan inferredProxySpan = fromContext(context);
     assertNotNull(inferredProxySpan);
     assertTrue(inferredProxySpan.isValid());
-
     // The resourcePath header should be extracted and available
     // for use in http.route and resource.name
   }
@@ -122,7 +120,6 @@ class InferredProxyPropagatorTests {
     InferredProxySpan inferredProxySpan = fromContext(context);
     assertNotNull(inferredProxySpan);
     assertTrue(inferredProxySpan.isValid());
-
     // Should still be valid without resourcePath (backwards compatibility)
   }
 
@@ -141,7 +138,6 @@ class InferredProxyPropagatorTests {
     InferredProxySpan inferredProxySpan = fromContext(context);
     assertNotNull(inferredProxySpan);
     assertTrue(inferredProxySpan.isValid());
-
     // aws-httpapi should also support resourcePath extraction
   }
 

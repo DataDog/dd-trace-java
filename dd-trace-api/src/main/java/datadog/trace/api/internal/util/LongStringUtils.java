@@ -1,7 +1,6 @@
 package datadog.trace.api.internal.util;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
-
 import java.util.Arrays;
 
 /**
@@ -9,9 +8,11 @@ import java.util.Arrays;
  * methods.
  */
 public class LongStringUtils {
-  private static final long MAX_FIRST_PART = 0x1999999999999999L; // Max unsigned 64 bits / 10
+  // Max unsigned 64 bits / 10
+  private static final long MAX_FIRST_PART = 0x1999999999999999L;
 
-  private LongStringUtils() {}
+  private LongStringUtils() {
+  }
 
   /**
    * Parse the hex representation of the unsigned 64 bit long from the {@code String}.
@@ -68,7 +69,9 @@ public class LongStringUtils {
   private static int firstNonZeroCharacter(CharSequence s, int start) {
     int firstNonZero = start;
     for (; firstNonZero < s.length(); firstNonZero++) {
-      if (s.charAt(firstNonZero) != '0') break;
+      if (s.charAt(firstNonZero) != '0') {
+        break;
+      }
     }
     return firstNonZero;
   }
@@ -82,12 +85,15 @@ public class LongStringUtils {
     if (len > 0) {
       char firstChar = s.charAt(0);
       if (firstChar == '-') {
-        throw new NumberFormatException(
-            String.format("Illegal leading minus sign on unsigned string %s.", s));
+        throw new NumberFormatException(String.format(
+            "Illegal leading minus sign on unsigned string %s.",
+            s));
       } else {
-        if (len <= 18) { // Signed 64 bits max is 19 digits, so this always fits
+        if (len <= 18) {
+          // Signed 64 bits max is 19 digits, so this always fits
           return Long.parseLong(s);
-        } else if (len > 20) { // Unsigned 64 bits max is 20 digits, so this always overflows
+        } else if (len > 20) {
+          // Unsigned 64 bits max is 20 digits, so this always overflows
           throw numberFormatOutOfLongRange(s);
         }
         // Now do the first part and the last character
@@ -126,13 +132,13 @@ public class LongStringUtils {
    * @return NumberFormatException
    */
   public static NumberFormatException numberFormatOutOfLongRange(CharSequence s) {
-    return new NumberFormatException(
-        String.format("String value %s exceeds range of unsigned long.", s));
+    return new NumberFormatException(String.format(
+        "String value %s exceeds range of unsigned long.",
+        s));
   }
 
-  private static final byte[] HEX_DIGITS = {
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
-  };
+  private static final byte[] HEX_DIGITS =
+      {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
   public static String toHexStringPadded(long id, int size) {
     byte[] bytes = allocatePaddedHexStringBytes(size);

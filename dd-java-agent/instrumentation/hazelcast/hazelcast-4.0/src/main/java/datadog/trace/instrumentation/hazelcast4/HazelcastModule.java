@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.hazelcast4;
 
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.DEFAULT_ENABLED;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.INSTRUMENTATION_NAME;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,6 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public final class HazelcastModule extends InstrumenterModule.Tracing {
-
   public HazelcastModule() {
     super(INSTRUMENTATION_NAME);
   }
@@ -31,22 +29,22 @@ public final class HazelcastModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HazelcastConstants",
-      packageName + ".HazelcastDecorator",
-      packageName + ".SpanFinishingExecutionCallback",
-      packageName + ".InvocationAdvice"
+        packageName + ".HazelcastConstants",
+        packageName + ".HazelcastDecorator",
+        packageName + ".SpanFinishingExecutionCallback",
+        packageName + ".InvocationAdvice"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.hazelcast.client.impl.spi.impl.ClientInvocation", String.class.getName());
+        "com.hazelcast.client.impl.spi.impl.ClientInvocation",
+        String.class.getName());
   }
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return Arrays.asList(
-        new ClientInvocationInstrumentation(), new ClientListenerInstrumentation());
+    return Arrays.asList(new ClientInvocationInstrumentation(), new ClientListenerInstrumentation());
   }
 }

@@ -12,7 +12,6 @@ import org.springframework.web.servlet.HandlerMapping;
  * enabled (see {@code ResourceNameFilterMappingInstrumentation}).
  */
 public class ResourceNameFilterMappingAdvice {
-
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterRefresh(
       @Advice.Argument(0) final ApplicationContext springCtx,

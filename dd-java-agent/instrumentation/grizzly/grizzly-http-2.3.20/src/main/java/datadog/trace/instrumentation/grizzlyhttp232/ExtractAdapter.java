@@ -8,11 +8,11 @@ import org.glassfish.grizzly.http.HttpResponsePacket;
 import org.glassfish.grizzly.http.util.MimeHeaders;
 
 public class ExtractAdapter<T extends HttpHeader> implements AgentPropagation.ContextVisitor<T> {
-
   @SuppressWarnings("rawtypes")
   private static final ExtractAdapter GETTER = new ExtractAdapter();
 
-  private ExtractAdapter() {}
+  private ExtractAdapter() {
+  }
 
   @SuppressWarnings("unchecked")
   public static AgentPropagation.ContextVisitor<HttpRequestPacket> requestGetter() {

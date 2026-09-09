@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.restlet.ResourceDecorator.RESTLET_ROUTE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,8 +15,8 @@ import org.restlet.util.Series;
 
 @AutoService(InstrumenterModule.class)
 public final class RouteInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public RouteInstrumentation() {
     super("restlet-http");
   }
@@ -31,16 +30,17 @@ public final class RouteInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("beforeHandle"))
-            .and(takesArgument(0, named("org.restlet.Request")))
-            .and(takesArgument(1, named("org.restlet.Response"))),
+          .and(named("beforeHandle"))
+          .and(takesArgument(0, named("org.restlet.Request")))
+          .and(takesArgument(1, named("org.restlet.Response"))),
         getClass().getName() + "$RouteBeforeHandleAdvice");
   }
 
   public static class RouteBeforeHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void beginRequest(
-        @Advice.This final TemplateRoute route, @Advice.Argument(0) final Request request) {
+        @Advice.This final TemplateRoute route,
+        @Advice.Argument(0) final Request request) {
       String pattern = route.getTemplate().getPattern();
       if (null == pattern || pattern.equals("")) {
         return;

@@ -5,7 +5,6 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -25,8 +24,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class GetPartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public GetPartsInstrumentation() {
     super("liberty");
   }
@@ -34,8 +33,8 @@ public class GetPartsInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "com.ibm.ws.webcontainer.srt.SRTServletRequest",
-      "com.ibm.ws.webcontainer31.srt.SRTServletRequest31",
+        "com.ibm.ws.webcontainer.srt.SRTServletRequest",
+        "com.ibm.ws.webcontainer31.srt.SRTServletRequest31"
     };
   }
 

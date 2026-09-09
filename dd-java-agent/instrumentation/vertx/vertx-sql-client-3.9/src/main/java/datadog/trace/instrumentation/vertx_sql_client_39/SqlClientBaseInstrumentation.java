@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,7 +14,8 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class SqlClientBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SqlClientBaseInstrumentation() {
     super("vertx", "vertx-sql-client");
   }
@@ -37,17 +37,17 @@ public class SqlClientBaseInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("query"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("java.lang.String"))),
+          .and(isPublic())
+          .and(named("query"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("java.lang.String"))),
         packageName + ".SqlClientBaseAdvice$NormalQuery");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("preparedQuery"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("java.lang.String"))),
+          .and(isPublic())
+          .and(named("preparedQuery"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("java.lang.String"))),
         packageName + ".SqlClientBaseAdvice$PreparedQuery");
   }
 }

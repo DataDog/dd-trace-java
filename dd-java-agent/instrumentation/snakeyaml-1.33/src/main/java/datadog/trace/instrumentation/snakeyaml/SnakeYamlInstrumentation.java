@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,8 +22,8 @@ import org.yaml.snakeyaml.constructor.Constructor;
 
 @AutoService(InstrumenterModule.class)
 public class SnakeYamlInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SnakeYamlInstrumentation() {
     super("snakeyaml", "snakeyaml");
   }
@@ -44,9 +43,7 @@ public class SnakeYamlInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SnakeYamlHelper",
-    };
+    return new String[] {packageName + ".SnakeYamlHelper"};
   }
 
   @Override
@@ -58,20 +55,17 @@ public class SnakeYamlInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("load")
-            .and(isMethod())
-            .and(
-                takesArguments(String.class)
-                    .or(takesArguments(InputStream.class))
-                    .or(takesArguments(Reader.class))),
+          .and(isMethod())
+          .and(takesArguments(String.class)
+            .or(takesArguments(InputStream.class))
+            .or(takesArguments(Reader.class))),
         SnakeYamlInstrumentation.class.getName() + "$LoadAdvice");
   }
 
   public static class LoadAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.UNTRUSTED_DESERIALIZATION)
-    public static void onEnter(
-        @Advice.Argument(0) final Object data, @Advice.This final Yaml self) {
+    public static void onEnter(@Advice.Argument(0) final Object data, @Advice.This final Yaml self) {
       if (data == null) {
         return;
       }

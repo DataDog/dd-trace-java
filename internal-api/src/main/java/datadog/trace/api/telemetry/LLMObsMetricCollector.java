@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 public final class LLMObsMetricCollector
     implements MetricCollector<LLMObsMetricCollector.LLMObsMetric> {
   private static final String METRIC_NAMESPACE = "mlobs";
-
   private static final Logger log = LoggerFactory.getLogger(LLMObsMetricCollector.class);
   private static final LLMObsMetricCollector INSTANCE = new LLMObsMetricCollector();
 
@@ -38,10 +37,10 @@ public final class LLMObsMetricCollector
   public static final String USER_PROCESSOR_CALLED_METRIC = "user_processor_called";
   public static final String FEEDBACK_SUBMITTED_METRIC = "feedback_submitted";
   public static final String COUNT_METRIC_TYPE = "count";
-
-  /** Tag value used when a submission failed before the real value could be determined. */
+  /**
+   * Tag value used when a submission failed before the real value could be determined.
+   */
   private static final String OTHER = "other";
-
   private static final String IS_ROOT_SPAN_TRUE = "is_root_span:1";
   private static final String IS_ROOT_SPAN_FALSE = "is_root_span:0";
   private static final String AUTOINSTRUMENTED_TRUE = "autoinstrumented:1";
@@ -50,7 +49,6 @@ public final class LLMObsMetricCollector
   private static final String ERROR_FALSE = "error:0";
   private static final String HAS_SESSION_ID_TRUE = "has_session_id:1";
   private static final String HAS_SESSION_ID_FALSE = "has_session_id:0";
-
   /**
    * Upper bound on the number of distinct tag combinations tracked. Tag values are drawn from
    * bounded sets (integrations, span kinds, and four booleans), so legitimate cardinality is in the
@@ -59,11 +57,9 @@ public final class LLMObsMetricCollector
    * #prepareMetrics()}), so this is a lifetime ceiling, not a concurrent one.
    */
   static final int MAX_TAG_COMBINATIONS = 512;
-
   private final BlockingQueue<LLMObsMetric> metricsQueue;
   private final DDCache<String, String> integrationTagCache;
   private final DDCache<String, String> spanKindTagCache;
-
   /**
    * Counter per tag combination, aggregated in-process and flushed once per metrics interval by
    * {@link #prepareMetrics()}.
@@ -101,14 +97,13 @@ public final class LLMObsMetricCollector
         integrationTagCache.computeIfAbsent(integration, key -> "integration:" + key);
     String spanKindTag = spanKindTagCache.computeIfAbsent(spanKind, key -> "span_kind:" + key);
 
-    List<String> tags =
-        Arrays.asList(
-            integrationTag,
-            spanKindTag,
-            isRootSpan ? IS_ROOT_SPAN_TRUE : IS_ROOT_SPAN_FALSE,
-            isAutoInstrumented ? AUTOINSTRUMENTED_TRUE : AUTOINSTRUMENTED_FALSE,
-            hasError ? ERROR_TRUE : ERROR_FALSE,
-            hasSessionId ? HAS_SESSION_ID_TRUE : HAS_SESSION_ID_FALSE);
+    List<String> tags = Arrays.asList(
+        integrationTag,
+        spanKindTag,
+        isRootSpan ? IS_ROOT_SPAN_TRUE : IS_ROOT_SPAN_FALSE,
+        isAutoInstrumented ? AUTOINSTRUMENTED_TRUE : AUTOINSTRUMENTED_FALSE,
+        hasError ? ERROR_TRUE : ERROR_FALSE,
+        hasSessionId ? HAS_SESSION_ID_TRUE : HAS_SESSION_ID_FALSE);
 
     LongAdder counter = spanFinishedCounters.get(tags);
     if (counter == null) {
@@ -134,14 +129,13 @@ public final class LLMObsMetricCollector
    * @param error whether the processor failed
    */
   public void recordUserProcessorCalled(boolean error) {
-    LLMObsMetric metric =
-        new LLMObsMetric(
-            METRIC_NAMESPACE,
-            true,
-            USER_PROCESSOR_CALLED_METRIC,
-            COUNT_METRIC_TYPE,
-            1L,
-            Collections.singletonList(error ? ERROR_TRUE : ERROR_FALSE));
+    LLMObsMetric metric = new LLMObsMetric(
+        METRIC_NAMESPACE,
+        true,
+        USER_PROCESSOR_CALLED_METRIC,
+        COUNT_METRIC_TYPE,
+        1L,
+        Collections.singletonList(error ? ERROR_TRUE : ERROR_FALSE));
     if (!metricsQueue.offer(metric)) {
       log.debug("Unable to add telemetry metric {}", USER_PROCESSOR_CALLED_METRIC);
     }
@@ -162,7 +156,9 @@ public final class LLMObsMetricCollector
    *     was accepted
    */
   public void recordFeedbackSubmitted(
-      @Nullable String metricType, @Nullable String targetType, @Nullable String error) {
+      @Nullable String metricType,
+      @Nullable String targetType,
+      @Nullable String error) {
     List<String> tags = new ArrayList<>(4);
     tags.add(error == null ? ERROR_FALSE : ERROR_TRUE);
     if (error != null) {
@@ -171,9 +167,13 @@ public final class LLMObsMetricCollector
     tags.add("metric_type:" + (metricType == null ? OTHER : metricType));
     tags.add("target_type:" + (targetType == null ? OTHER : targetType));
 
-    LLMObsMetric metric =
-        new LLMObsMetric(
-            METRIC_NAMESPACE, true, FEEDBACK_SUBMITTED_METRIC, COUNT_METRIC_TYPE, 1L, tags);
+    LLMObsMetric metric = new LLMObsMetric(
+        METRIC_NAMESPACE,
+        true,
+        FEEDBACK_SUBMITTED_METRIC,
+        COUNT_METRIC_TYPE,
+        1L,
+        tags);
     if (!metricsQueue.offer(metric)) {
       log.debug("Unable to add telemetry metric {}", FEEDBACK_SUBMITTED_METRIC);
     }
@@ -189,14 +189,13 @@ public final class LLMObsMetricCollector
       if (value == 0) {
         continue;
       }
-      LLMObsMetric metric =
-          new LLMObsMetric(
-              METRIC_NAMESPACE,
-              true,
-              SPAN_FINISHED_METRIC,
-              COUNT_METRIC_TYPE,
-              value,
-              entry.getKey());
+      LLMObsMetric metric = new LLMObsMetric(
+          METRIC_NAMESPACE,
+          true,
+          SPAN_FINISHED_METRIC,
+          COUNT_METRIC_TYPE,
+          value,
+          entry.getKey());
       if (!metricsQueue.offer(metric)) {
         // Queue is full; give the count back to the counter so it is reported in a later interval
         // instead of being lost, and stop staging for now.
@@ -217,7 +216,9 @@ public final class LLMObsMetricCollector
     return drained;
   }
 
-  /** Clears all staged counters and metrics. Visible for testing only. */
+  /**
+   * Clears all staged counters and metrics. Visible for testing only.
+   */
   @VisibleForTesting
   public void resetForTesting() {
     spanFinishedCounters.clear();

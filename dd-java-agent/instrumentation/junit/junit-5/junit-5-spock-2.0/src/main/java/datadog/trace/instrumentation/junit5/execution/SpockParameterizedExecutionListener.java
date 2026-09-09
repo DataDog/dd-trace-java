@@ -13,7 +13,8 @@ public class SpockParameterizedExecutionListener implements EngineExecutionListe
   private final Map<TestDescriptor, CompletableFuture<?>> pending;
 
   public SpockParameterizedExecutionListener(
-      EngineExecutionListener delegate, Map<TestDescriptor, CompletableFuture<?>> pending) {
+      EngineExecutionListener delegate,
+      Map<TestDescriptor, CompletableFuture<?>> pending) {
     this.delegate = delegate;
     this.pending = pending;
   }
@@ -39,7 +40,8 @@ public class SpockParameterizedExecutionListener implements EngineExecutionListe
 
   @Override
   public void executionFinished(
-      TestDescriptor testDescriptor, TestExecutionResult testExecutionResult) {
+      TestDescriptor testDescriptor,
+      TestExecutionResult testExecutionResult) {
     delegate.executionFinished(testDescriptor, testExecutionResult);
   }
 

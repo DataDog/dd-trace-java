@@ -3,7 +3,6 @@ package datadog.smoketest.controller;
 import javax.servlet.http.HttpServletRequestWrapper;
 
 public class JavaxHttpServletRequestWrapperTestSuite implements ServletRequestTestSuite {
-
   private final HttpServletRequestWrapper request;
 
   public JavaxHttpServletRequestWrapperTestSuite(final HttpServletRequestWrapper request) {

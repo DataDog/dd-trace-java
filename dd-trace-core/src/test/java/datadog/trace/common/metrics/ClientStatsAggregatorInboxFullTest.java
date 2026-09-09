@@ -6,7 +6,6 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.SpanKindFilter;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test;
  * metrics.
  */
 class ClientStatsAggregatorInboxFullTest {
-
   @Test
   void publishFiresOnStatsInboxFullOnceInboxIsAtCapacity() {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
@@ -30,25 +28,25 @@ class ClientStatsAggregatorInboxFullTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
-
     // Small inbox; jctools MPSC array queue rounds up to the next power of two, so use a power of
     // two directly. Note: we deliberately do NOT call aggregator.start() so the consumer thread
     // never drains -- snapshots accumulate in the inbox until capacity, then the next publish hits
     // the size-vs-capacity fast path.
     int queueSize = 8;
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            queueSize,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
-
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */
+        16,
+        queueSize,
+        /* reportingInterval */
+        10,
+        SECONDS,
+        /* includeEndpointInMetrics */
+        false);
     // Publish well past capacity. The first `queueSize` calls land in the inbox; subsequent calls
     // see size >= capacity and hit the fast path.
     for (int i = 0; i < queueSize * 4; i++) {

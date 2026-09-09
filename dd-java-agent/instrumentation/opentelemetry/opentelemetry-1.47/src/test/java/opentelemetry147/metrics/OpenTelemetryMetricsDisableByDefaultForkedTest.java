@@ -4,7 +4,6 @@ package opentelemetry147.metrics;
 // verifying that the instrumentation is disabled by default.
 // GlobalOpenTelemetry holds static state that must reset between variants.
 class OpenTelemetryMetricsDisableByDefaultForkedTest extends OpenTelemetryMetricsActivationTest {
-
   @Override
   boolean shouldBeInjected() {
     return false;

@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import static java.lang.Long.MAX_VALUE;
-
 import java.security.SecureRandom;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;

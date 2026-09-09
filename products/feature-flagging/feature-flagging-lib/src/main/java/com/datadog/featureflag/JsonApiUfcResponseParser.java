@@ -9,14 +9,11 @@ import okio.BufferedSource;
 import okio.Okio;
 
 final class JsonApiUfcResponseParser {
-
   private static final String UNIVERSAL_FLAG_CONFIGURATION_TYPE = "universal-flag-configuration";
   private static final JsonReader.Options RESPONSE_FIELDS = JsonReader.Options.of("data");
   private static final JsonReader.Options DATA_FIELDS = JsonReader.Options.of("type", "attributes");
-
   static final JsonApiUfcResponseParser INSTANCE =
       new JsonApiUfcResponseParser(UniversalFlagConfigParser.INSTANCE);
-
   private final UniversalFlagConfigParser ufcParser;
 
   JsonApiUfcResponseParser(final UniversalFlagConfigParser ufcParser) {
@@ -74,9 +71,7 @@ final class JsonApiUfcResponseParser {
       }
     }
     reader.endObject();
-    return UNIVERSAL_FLAG_CONFIGURATION_TYPE.equals(type)
-        ? validConfiguration(configuration)
-        : null;
+    return UNIVERSAL_FLAG_CONFIGURATION_TYPE.equals(type) ? validConfiguration(configuration) : null;
   }
 
   @Nullable

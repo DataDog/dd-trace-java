@@ -7,7 +7,6 @@ import datadog.trace.api.iast.telemetry.Verbosity;
  * IastInstrumentation
  */
 public interface IastCallSites {
-
   interface HasTelemetry {
     void setVerbosity(Verbosity verbosity);
   }

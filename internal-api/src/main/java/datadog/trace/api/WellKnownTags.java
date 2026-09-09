@@ -3,7 +3,6 @@ package datadog.trace.api;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 
 public class WellKnownTags {
-
   private final UTF8BytesString runtimeId;
   private final UTF8BytesString hostname;
   private final UTF8BytesString env;

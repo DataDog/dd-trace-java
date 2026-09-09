@@ -11,7 +11,6 @@ import java.util.Collection;
 import java.util.Set;
 
 public class SetValue implements CollectionValue<Object>, ValueExpression<SetValue> {
-
   private final Object setHolder;
 
   public SetValue(Object object) {

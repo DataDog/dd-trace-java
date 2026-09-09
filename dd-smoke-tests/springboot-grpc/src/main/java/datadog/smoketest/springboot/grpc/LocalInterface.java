@@ -8,7 +8,6 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 public class LocalInterface implements AutoCloseable {
-
   private final Server server;
 
   public LocalInterface() throws IOException {

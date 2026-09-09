@@ -14,13 +14,12 @@ import org.slf4j.Logger;
 import org.slf4j.Marker;
 
 public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
-
   private final boolean telemetryLogCollectionEnabled = isLogCollectionEnabled();
-
   private volatile LoggerHelperFactory helperFactory = null;
   private volatile LogLevel override = null;
 
-  public DDLoggerFactory() {}
+  public DDLoggerFactory() {
+  }
 
   // Only used for testing
   public DDLoggerFactory(LoggerHelperFactory helperFactory) {
@@ -94,13 +93,19 @@ public class DDLoggerFactory implements ILoggerFactory, LogLevelSwitcher {
   // So to get property/env we use this custom function
   private static boolean isLogCollectionEnabled() {
     return isFlagEnabled(
-            "dd.instrumentation.telemetry.enabled", "DD_INSTRUMENTATION_TELEMETRY_ENABLED", true)
+        "dd.instrumentation.telemetry.enabled",
+        "DD_INSTRUMENTATION_TELEMETRY_ENABLED",
+        true)
         && isFlagEnabled(
-            "dd.telemetry.log-collection.enabled", "DD_TELEMETRY_LOG_COLLECTION_ENABLED", true);
+            "dd.telemetry.log-collection.enabled",
+            "DD_TELEMETRY_LOG_COLLECTION_ENABLED",
+            true);
   }
 
   private static boolean isFlagEnabled(
-      final String systemProperty, final String envVar, final boolean defaultValue) {
+      final String systemProperty,
+      final String envVar,
+      final boolean defaultValue) {
     String value = SystemProperties.get(systemProperty);
     if ("true".equalsIgnoreCase(value)) {
       return true;

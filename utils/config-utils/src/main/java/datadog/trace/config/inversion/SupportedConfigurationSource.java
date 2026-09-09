@@ -8,7 +8,6 @@ import java.util.List;
  * for Config Inversion Can be extended for testing with custom configuration data.
  */
 class SupportedConfigurationSource {
-
   /**
    * @return Set of supported environment variable keys
    */
@@ -42,6 +41,7 @@ class SupportedConfigurationSource {
    */
   public String envFromTelemetryKey(String telemetryKey) {
     return GeneratedSupportedConfigurations.REVERSE_PROPERTY_KEYS_MAP.getOrDefault(
-        telemetryKey, null);
+        telemetryKey,
+        null);
   }
 }

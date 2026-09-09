@@ -18,7 +18,6 @@ import javax.annotation.Nullable;
 
 public class NoOpTestEventsHandler<SuiteKey, TestKey>
     implements TestEventsHandler<SuiteKey, TestKey> {
-
   @Override
   public void onTestSuiteStart(
       SuiteKey descriptor,
@@ -75,7 +74,9 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
 
   @Override
   public void onTestFinish(
-      TestKey descriptor, @Nullable Long endTime, @Nullable TestExecutionTracker executionTracker) {
+      TestKey descriptor,
+      @Nullable Long endTime,
+      @Nullable TestExecutionTracker executionTracker) {
     // do nothing
   }
 
@@ -102,13 +103,16 @@ public class NoOpTestEventsHandler<SuiteKey, TestKey>
   @Nonnull
   @Override
   public TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData source, Collection<String> testTags) {
+      TestIdentifier test,
+      TestSourceData source,
+      Collection<String> testTags) {
     return Regular.INSTANCE;
   }
 
   @Override
   public int executionPriority(
-      @Nullable TestIdentifier test, @Nonnull TestSourceData testSourceData) {
+      @Nullable TestIdentifier test,
+      @Nonnull TestSourceData testSourceData) {
     return 0;
   }
 

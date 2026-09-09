@@ -5,7 +5,6 @@ import java.util.List;
 import org.openjdk.jmh.infra.Blackhole;
 
 public class BlackholeWriter implements Writer {
-
   private final Blackhole blackhole;
   private final TraceCounters counters;
   private final int tokens;

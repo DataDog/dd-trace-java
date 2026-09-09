@@ -3,12 +3,10 @@ package datadog.communication.serialization;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.Test;
 
 public class GrowableBufferTest {
-
   @Test
   public void byteBufferTriggersResize() {
     GrowableBuffer gb = new GrowableBuffer(5);

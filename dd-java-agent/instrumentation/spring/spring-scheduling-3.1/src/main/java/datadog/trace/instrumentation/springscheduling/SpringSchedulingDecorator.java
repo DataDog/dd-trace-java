@@ -9,10 +9,10 @@ import org.springframework.scheduling.support.ScheduledMethodRunnable;
 public class SpringSchedulingDecorator extends BaseDecorator {
   public static final CharSequence SCHEDULED_CALL = UTF8BytesString.create("scheduled.call");
   public static final SpringSchedulingDecorator DECORATE = new SpringSchedulingDecorator();
-
   private static final boolean MEASURED = Config.get().isSpringSchedulingMeasuredEnabled();
 
-  private SpringSchedulingDecorator() {}
+  private SpringSchedulingDecorator() {
+  }
 
   @Override
   protected String[] instrumentationNames() {

@@ -1,7 +1,6 @@
 package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;

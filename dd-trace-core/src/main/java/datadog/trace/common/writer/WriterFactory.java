@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTI
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
-
 import datadog.common.container.ServerlessInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.DroppingPolicy;
@@ -35,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class WriterFactory {
-
   private static final Logger log = LoggerFactory.getLogger(WriterFactory.class);
 
   public static Writer createWriter(
@@ -45,7 +43,12 @@ public class WriterFactory {
       final SingleSpanSampler singleSpanSampler,
       final HealthMetrics healthMetrics) {
     return createWriter(
-        config, commObjects, sampler, singleSpanSampler, healthMetrics, config.getWriterType());
+        config,
+        commObjects,
+        sampler,
+        singleSpanSampler,
+        healthMetrics,
+        config.getWriterType());
   }
 
   @SuppressForbidden
@@ -56,7 +59,6 @@ public class WriterFactory {
       final SingleSpanSampler singleSpanSampler,
       final HealthMetrics healthMetrics,
       String configuredType) {
-
     int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
 
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
@@ -64,21 +66,29 @@ public class WriterFactory {
     } else if (PRINTING_WRITER_TYPE.equals(configuredType)) {
       return new PrintingWriter(System.out, true);
     } else if (configuredType.startsWith(TRACE_STRUCTURE_WRITER_TYPE)) {
-      return new TraceStructureWriter(
-          Strings.replace(configuredType, TRACE_STRUCTURE_WRITER_TYPE, ""));
+      return new TraceStructureWriter(Strings.replace(
+          configuredType,
+          TRACE_STRUCTURE_WRITER_TYPE,
+          ""));
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
       return new MultiWriter(
-          config, commObjects, sampler, singleSpanSampler, healthMetrics, configuredType);
+          config,
+          commObjects,
+          sampler,
+          singleSpanSampler,
+          healthMetrics,
+          configuredType);
     } else if (OTLP_WRITER_TYPE.equals(configuredType)) {
-      return OtlpWriter.builder()
-          .endpoint(config.getOtlpTracesEndpoint())
-          .headers(config.getOtlpTracesHeaders())
-          .protocol(config.getOtlpTracesProtocol())
-          .compression(config.getOtlpTracesCompression())
-          .timeoutMillis(config.getOtlpTracesTimeout())
-          .spanSamplingRules(singleSpanSampler)
-          .flushIntervalMilliseconds(flushIntervalMilliseconds)
-          .build();
+      return OtlpWriter
+        .builder()
+        .endpoint(config.getOtlpTracesEndpoint())
+        .headers(config.getOtlpTracesHeaders())
+        .protocol(config.getOtlpTracesProtocol())
+        .compression(config.getOtlpTracesCompression())
+        .timeoutMillis(config.getOtlpTracesTimeout())
+        .spanSamplingRules(singleSpanSampler)
+        .flushIntervalMilliseconds(flushIntervalMilliseconds)
+        .build();
     }
 
     if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
@@ -93,11 +103,11 @@ public class WriterFactory {
         config.getEnumValue(PRIORITIZATION_TYPE, Prioritization.class, FAST_LANE);
     if (ENSURE_TRACE == prioritization) {
       log.info(
-          "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
+          "Using 'EnsureTrace' prioritization type. (Do not use this type if your "
+          + "application is running in production mode)");
     }
 
     DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
-
     // CI Visibility payload-files mode writes traces to local files instead of the agent.
     if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
       BazelMode bazelMode = BazelMode.get();
@@ -108,20 +118,18 @@ public class WriterFactory {
 
       PayloadDispatcher dispatcher = createCiVisBazelPayloadDispatcher(testsDir, coverageDir);
 
-      TraceProcessingWorker worker =
-          new TraceProcessingWorker(
-              1024,
-              healthMetrics,
-              dispatcher,
-              DroppingPolicy.DISABLED,
-              prioritization,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      TraceProcessingWorker worker = new TraceProcessingWorker(
+          1024,
+          healthMetrics,
+          dispatcher,
+          DroppingPolicy.DISABLED,
+          prioritization,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler);
 
       return new DDIntakeWriter(worker, dispatcher, healthMetrics, 5, TimeUnit.SECONDS, false);
     }
-
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
     if (DD_AGENT_WRITER_TYPE.equals(configuredType) && (config.isCiVisibilityEnabled())) {
@@ -130,7 +138,8 @@ public class WriterFactory {
         configuredType = DD_INTAKE_WRITER_TYPE;
       } else {
         log.info(
-            "CI Visibility functionality is limited. Please upgrade to Agent v6.40+ or v7.40+ or enable Agentless mode.");
+            "CI Visibility functionality is limited. Please upgrade to Agent v6.40+ or v7.40+ "
+            + "or enable Agentless mode.");
       }
     }
 
@@ -140,14 +149,14 @@ public class WriterFactory {
       final RemoteApi remoteApi =
           createDDIntakeRemoteApi(config, commObjects, featuresDiscovery, trackType);
 
-      DDIntakeWriter.DDIntakeWriterBuilder builder =
-          DDIntakeWriter.builder()
-              .addTrack(trackType, remoteApi)
-              .prioritization(prioritization)
-              .healthMetrics(healthMetrics)
-              .monitoring(commObjects.monitoring)
-              .singleSpanSampler(singleSpanSampler)
-              .flushIntervalMilliseconds(flushIntervalMilliseconds);
+      DDIntakeWriter.DDIntakeWriterBuilder builder = DDIntakeWriter
+        .builder()
+        .addTrack(trackType, remoteApi)
+        .prioritization(prioritization)
+        .healthMetrics(healthMetrics)
+        .monitoring(commObjects.monitoring)
+        .singleSpanSampler(singleSpanSampler)
+        .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (config.isCiVisibilityEnabled()) {
         builder.flushTimeout(5, TimeUnit.SECONDS);
@@ -164,8 +173,8 @@ public class WriterFactory {
         builder.addTrack(TrackType.LLMOBS, llmobsApi);
       }
       remoteWriter = builder.build();
-
-    } else { // configuredType == DDAgentWriter
+    } else {
+      // configuredType == DDAgentWriter
       boolean alwaysFlush = false;
       if (config.isAgentConfiguredUsingDefault()
           && ServerlessInfo.get().isRunningInServerlessEnvironment()) {
@@ -180,35 +189,33 @@ public class WriterFactory {
         }
       }
 
-      DDAgentApi ddAgentApi =
-          new DDAgentApi(
-              commObjects.agentHttpClient,
-              commObjects.agentUrl,
-              featuresDiscovery,
-              commObjects.monitoring,
-              config.isTracerMetricsEnabled());
+      DDAgentApi ddAgentApi = new DDAgentApi(
+          commObjects.agentHttpClient,
+          commObjects.agentUrl,
+          featuresDiscovery,
+          commObjects.monitoring,
+          config.isTracerMetricsEnabled());
 
       if (sampler instanceof RemoteResponseListener) {
         ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
       }
-
       // Drop p0 (sampled-out) traces when client-side stats are being computed -- either via the
       // native agent-stats path (featuresDiscovery) or the OTLP trace metrics path
       final boolean otlpSpanMetricsEnabled = config.isOtelTracesSpanMetricsEnabled();
       final DroppingPolicy droppingPolicy =
           () -> otlpSpanMetricsEnabled || featuresDiscovery.active();
 
-      DDAgentWriter.DDAgentWriterBuilder builder =
-          DDAgentWriter.builder()
-              .agentApi(ddAgentApi)
-              .featureDiscovery(featuresDiscovery)
-              .droppingPolicy(droppingPolicy)
-              .prioritization(prioritization)
-              .healthMetrics(healthMetrics)
-              .monitoring(commObjects.monitoring)
-              .alwaysFlush(alwaysFlush)
-              .spanSamplingRules(singleSpanSampler)
-              .flushIntervalMilliseconds(flushIntervalMilliseconds);
+      DDAgentWriter.DDAgentWriterBuilder builder = DDAgentWriter
+        .builder()
+        .agentApi(ddAgentApi)
+        .featureDiscovery(featuresDiscovery)
+        .droppingPolicy(droppingPolicy)
+        .prioritization(prioritization)
+        .healthMetrics(healthMetrics)
+        .monitoring(commObjects.monitoring)
+        .alwaysFlush(alwaysFlush)
+        .spanSamplingRules(singleSpanSampler)
+        .flushIntervalMilliseconds(flushIntervalMilliseconds);
 
       if (config.isCiVisibilityEnabled()) {
         builder.flushTimeout(5, TimeUnit.SECONDS);
@@ -222,7 +229,8 @@ public class WriterFactory {
 
   @Nonnull
   private static PayloadDispatcher createCiVisBazelPayloadDispatcher(
-      String testsDir, String coverageDir) {
+      String testsDir,
+      String coverageDir) {
     FileBasedPayloadDispatcher testDispatcher =
         new FileBasedPayloadDispatcher(testsDir, "tests", TrackType.CITESTCYCLE);
 
@@ -253,26 +261,27 @@ public class WriterFactory {
         boolean agentRunning = null != featuresDiscovery.getTraceEndpoint();
         if (agentRunning) {
           log.info(
-              "LLM Observability configured to use agent proxy, but not compatible with agent version {}. Please upgrade to v7.55+.",
+              "LLM Observability configured to use agent proxy, but not compatible with agent "
+              + "version {}. Please upgrade to v7.55+.",
               featuresDiscovery.getVersion());
         } else {
           log.info("LLM Observability configured to use agent proxy, but agent is not running.");
         }
         log.info("LLM Observability will use agentless data submission instead.");
       }
-
     } else if (TrackType.CITESTCOV == trackType || TrackType.CITESTCYCLE == trackType) {
       useProxyApi = evpProxySupported && !config.isCiVisibilityAgentlessEnabled();
     }
 
     if (useProxyApi) {
-      return DDEvpProxyApi.builder()
-          .httpClient(commObjects.agentHttpClient)
-          .agentUrl(commObjects.agentUrl)
-          .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
-          .trackType(trackType)
-          .compressionEnabled(featuresDiscovery.supportsContentEncodingHeadersWithEvpProxy())
-          .build();
+      return DDEvpProxyApi
+        .builder()
+        .httpClient(commObjects.agentHttpClient)
+        .agentUrl(commObjects.agentUrl)
+        .evpProxyEndpoint(featuresDiscovery.getEvpProxyEndpoint())
+        .trackType(trackType)
+        .compressionEnabled(featuresDiscovery.supportsContentEncodingHeadersWithEvpProxy())
+        .build();
     } else {
       HttpUrl hostUrl = null;
       String llmObsAgentlessUrl = config.getLlMObsAgentlessUrl();
@@ -287,14 +296,16 @@ public class WriterFactory {
         hostUrl = HttpUrl.get(llmObsAgentlessUrl);
         log.info("Using host URL '{}' to report LLM Obs traces in Agentless mode.", hostUrl);
       }
-      return DDIntakeApi.builder()
-          .hostUrl(hostUrl)
-          .httpClient(commObjects.getIntakeHttpClient())
-          .apiKey(config.getApiKey())
-          .trackType(trackType)
-          .build();
+      return DDIntakeApi
+        .builder()
+        .hostUrl(hostUrl)
+        .httpClient(commObjects.getIntakeHttpClient())
+        .apiKey(config.getApiKey())
+        .trackType(trackType)
+        .build();
     }
   }
 
-  private WriterFactory() {}
+  private WriterFactory() {
+  }
 }

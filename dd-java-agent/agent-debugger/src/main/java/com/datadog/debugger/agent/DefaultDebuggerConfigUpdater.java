@@ -1,7 +1,6 @@
 package com.datadog.debugger.agent;
 
 import static datadog.trace.api.Config.isExplicitlyDisabled;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
@@ -13,9 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultDebuggerConfigUpdater.class);
-
   private final Config config;
 
   public DefaultDebuggerConfigUpdater(Config config) {

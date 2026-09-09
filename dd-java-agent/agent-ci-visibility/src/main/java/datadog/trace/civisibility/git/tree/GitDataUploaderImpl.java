@@ -22,9 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GitDataUploaderImpl implements GitDataUploader {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GitDataUploaderImpl.class);
-
   private final Config config;
   private final CiVisibilityMetricCollector metricCollector;
   private final GitDataApi gitDataApi;
@@ -53,14 +51,12 @@ public class GitDataUploaderImpl implements GitDataUploader {
     this.gitInfoProvider = gitInfoProvider;
     this.repoRoot = repoRoot;
     this.remoteName = remoteName;
-
     // maven has a way of calling System.exit() when the build is done.
     // this is a hack to make it wait until git data upload has finished
-    uploadFinishedShutdownHook =
-        AgentThreadFactory.newAgentThread(
-            AgentThreadFactory.AgentThread.CI_GIT_DATA_SHUTDOWN_HOOK,
-            this::waitForUploadToFinish,
-            false);
+    uploadFinishedShutdownHook = AgentThreadFactory.newAgentThread(
+        AgentThreadFactory.AgentThread.CI_GIT_DATA_SHUTDOWN_HOOK,
+        this::waitForUploadToFinish,
+        false);
   }
 
   /**
@@ -72,13 +68,13 @@ public class GitDataUploaderImpl implements GitDataUploader {
     if (callback == null) {
       synchronized (this) {
         if (callback == null) {
-
           callback = new CompletableFuture<>();
           Runtime.getRuntime().addShutdownHook(uploadFinishedShutdownHook);
 
-          Thread gitDataUploadThread =
-              AgentThreadFactory.newAgentThread(
-                  AgentThreadFactory.AgentThread.CI_GIT_DATA_UPLOADER, this::uploadGitData, false);
+          Thread gitDataUploadThread = AgentThreadFactory.newAgentThread(
+              AgentThreadFactory.AgentThread.CI_GIT_DATA_UPLOADER,
+              this::uploadGitData,
+              false);
           gitDataUploadThread.start();
         }
       }
@@ -136,14 +132,16 @@ public class GitDataUploaderImpl implements GitDataUploader {
 
       Path packFilesDirectory = gitClient.createPackFiles(objectHashes);
       try {
-        List<Path> packFiles =
-            Files.list(packFilesDirectory)
-                .filter(
-                    pf -> pf.getFileName().toString().endsWith(".pack")) // skipping ".idx" files
-                .collect(Collectors.toList());
+        List<Path> packFiles = Files
+          .list(packFilesDirectory)
+          .filter(
+              // skipping ".idx" files
+          pf -> pf.getFileName().toString().endsWith(".pack"))
+          .collect(Collectors.toList());
 
         metricCollector.add(
-            CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_FILES, packFiles.size());
+            CiVisibilityDistributionMetric.GIT_REQUESTS_OBJECTS_PACK_FILES,
+            packFiles.size());
 
         for (Path packFile : packFiles) {
           try {
@@ -152,14 +150,12 @@ public class GitDataUploaderImpl implements GitDataUploader {
             throw new RuntimeException("Could not upload pack file " + packFile, e);
           }
         }
-
       } finally {
         FileUtils.delete(packFilesDirectory);
       }
 
       LOGGER.debug("Git data upload finished");
       callback.complete(null);
-
     } catch (Exception e) {
       LOGGER.error(
           LogCollector.EXCLUDE_TELEMETRY,

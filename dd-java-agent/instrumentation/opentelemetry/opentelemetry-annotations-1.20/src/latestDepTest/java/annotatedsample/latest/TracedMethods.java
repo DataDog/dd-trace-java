@@ -8,7 +8,6 @@ import static io.opentelemetry.api.trace.SpanKind.INTERNAL;
 import static io.opentelemetry.api.trace.SpanKind.PRODUCER;
 import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import io.opentelemetry.instrumentation.annotations.SpanAttribute;
 import io.opentelemetry.instrumentation.annotations.WithSpan;
 import java.util.List;
@@ -97,40 +96,38 @@ public class TracedMethods {
 
   @WithSpan
   public static CompletableFuture<String> traceAsyncCompletableFuture(CountDownLatch latch) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          await(latch);
-          return "hello!";
-        });
+    return CompletableFuture.supplyAsync(() -> {
+      await(latch);
+      return "hello!";
+    });
   }
 
   @WithSpan
   public static CompletableFuture<String> traceAsyncFailingCompletableFuture(
-      CountDownLatch latch, RuntimeException exception) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          await(latch);
-          throw exception;
-        });
+      CountDownLatch latch,
+      RuntimeException exception) {
+    return CompletableFuture.supplyAsync(() -> {
+      await(latch);
+      throw exception;
+    });
   }
 
   @WithSpan
   public static CompletionStage<String> traceAsyncCompletionStage(CountDownLatch latch) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          await(latch);
-          return "hello!";
-        });
+    return CompletableFuture.supplyAsync(() -> {
+      await(latch);
+      return "hello!";
+    });
   }
 
   @WithSpan
   public static CompletionStage<String> traceAsyncFailingCompletionStage(
-      CountDownLatch latch, RuntimeException exception) {
-    return CompletableFuture.supplyAsync(
-        () -> {
-          await(latch);
-          throw exception;
-        });
+      CountDownLatch latch,
+      RuntimeException exception) {
+    return CompletableFuture.supplyAsync(() -> {
+      await(latch);
+      throw exception;
+    });
   }
 
   @WithSpan

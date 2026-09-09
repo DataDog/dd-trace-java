@@ -52,7 +52,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiVisibilitySystem {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(CiVisibilitySystem.class);
 
   public static void start(Instrumentation inst, SharedCommunicationObjects sco) {
@@ -67,10 +66,10 @@ public class CiVisibilitySystem {
         && !injectedTracerVersion.equals(TracerVersion.TRACER_VERSION)) {
       throw new FatalAgentMisconfigurationError(
           "Running JVM with tracer version "
-              + TracerVersion.TRACER_VERSION
-              + " however parent process attempted to inject "
-              + injectedTracerVersion
-              + ". Do not inject the tracer into the forked JVMs manually, or ensure the manually injected version is the same as the one injected automatically");
+          + TracerVersion.TRACER_VERSION
+          + " however parent process attempted to inject "
+          + injectedTracerVersion
+          + ". Do not inject the tracer into the forked JVMs manually, or ensure the manually injected version is the same as the one injected automatically");
     }
 
     sco.createRemaining(config);
@@ -79,10 +78,9 @@ public class CiVisibilitySystem {
       inst.addTransformer(new CompilerModuleExporter(inst));
     }
 
-    CiVisibilityMetricCollector metricCollector =
-        config.isCiVisibilityTelemetryEnabled()
-            ? new CiVisibilityMetricCollectorImpl()
-            : NoOpMetricCollector.INSTANCE;
+    CiVisibilityMetricCollector metricCollector = config.isCiVisibilityTelemetryEnabled()
+        ? new CiVisibilityMetricCollectorImpl()
+        : NoOpMetricCollector.INSTANCE;
     InstrumentationBridge.registerMetricCollector(metricCollector);
 
     CiVisibilityServices services =
@@ -95,14 +93,12 @@ public class CiVisibilitySystem {
       CiVisibilityRepoServices repoServices = services.repoServices(getCurrentPath());
 
       ExecutionSettings executionSettings =
-          repoServices.executionSettingsFactory.create(
-              JvmInfo.CURRENT_JVM, repoServices.moduleName);
+          repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, repoServices.moduleName);
       if (executionSettings.isCodeCoverageEnabled()
-          &&
           // lines coverage is built on top of Jacoco,
-          // so if lines are explicitly enabled,
-          // we rely on Jacoco instrumentation rather than on our own coverage mechanism
-          !config.isCiVisibilityCoverageLinesEnabled()) {
+      // so if lines are explicitly enabled,
+      // we rely on Jacoco instrumentation rather than on our own coverage mechanism
+      && !config.isCiVisibilityCoverageLinesEnabled()) {
         Predicate<String> instrumentationFilter =
             createCoverageInstrumentationFilter(services, repoServices);
         inst.addTransformer(new CoverageClassTransformer(instrumentationFilter));
@@ -136,19 +132,18 @@ public class CiVisibilitySystem {
   }
 
   private static Predicate<String> createCoverageInstrumentationFilter(
-      CiVisibilityServices services, CiVisibilityRepoServices repoServices) {
+      CiVisibilityServices services,
+      CiVisibilityRepoServices repoServices) {
     String[] includedPackages = services.config.getCiVisibilityCodeCoverageIncludedPackages();
     if (includedPackages.length == 0 && services.processHierarchy.isHeadless()) {
       RepoIndex repoIndex = repoServices.repoIndexProvider.getIndex();
-      includedPackages =
-          Config.convertJacocoExclusionFormatToPackagePrefixes(repoIndex.getRootPackages());
+      includedPackages = Config.convertJacocoExclusionFormatToPackagePrefixes(repoIndex.getRootPackages());
     }
     String[] excludedPackages = services.config.getCiVisibilityCodeCoverageExcludedPackages();
     return new CoverageInstrumentationFilter(includedPackages, excludedPackages);
   }
 
-  private static BuildEventsHandler.Factory buildEventsHandlerFactory(
-      CiVisibilityServices services) {
+  private static BuildEventsHandler.Factory buildEventsHandlerFactory(CiVisibilityServices services) {
     BuildSystemSession.Factory sessionFactory = buildSystemSessionFactory(services);
     return new BuildEventsHandler.Factory() {
       @Override
@@ -162,7 +157,6 @@ public class CiVisibilitySystem {
     private final CiVisibilityServices services;
     private final CiVisibilityRepoServices repoServices;
     private final TestFrameworkSession.Factory sessionFactory;
-
     private final Collection<TestEventsHandler<?, ?>> handlers = new CopyOnWriteArrayList<>();
 
     private TestEventsHandlerFactory(
@@ -173,13 +167,17 @@ public class CiVisibilitySystem {
       this.services = services;
       this.repoServices = repoServices;
       if (services.processHierarchy.isChild()) {
-        sessionFactory =
-            childTestFrameworkSessionFactory(
-                services, repoServices, coverageServices, executionSettings);
+        sessionFactory = childTestFrameworkSessionFactory(
+            services,
+            repoServices,
+            coverageServices,
+            executionSettings);
       } else {
-        sessionFactory =
-            headlessTestFrameworkSessionFactory(
-                services, repoServices, coverageServices, executionSettings);
+        sessionFactory = headlessTestFrameworkSessionFactory(
+            services,
+            repoServices,
+            coverageServices,
+            executionSettings);
       }
     }
 
@@ -190,16 +188,13 @@ public class CiVisibilitySystem {
         @Nullable ContextStore<TestKey, DDTest> testStore,
         Collection<LibraryCapability> capabilities) {
       boolean eagerSessionStart = !services.processHierarchy.isHeadless();
-      TestEventsHandler<SuiteKey, TestKey> handler =
-          new TestEventsHandlerImpl<>(
-              services.metricCollector,
-              () ->
-                  sessionFactory.startSession(
-                      repoServices.moduleName, component, null, capabilities),
-              repoServices.moduleName,
-              eagerSessionStart,
-              suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
-              testStore != null ? testStore : new StrongMapContextStore<>());
+      TestEventsHandler<SuiteKey, TestKey> handler = new TestEventsHandlerImpl<>(
+          services.metricCollector,
+          () -> sessionFactory.startSession(repoServices.moduleName, component, null, capabilities),
+          repoServices.moduleName,
+          eagerSessionStart,
+          suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
+          testStore != null ? testStore : new StrongMapContextStore<>());
       handlers.add(handler);
       return handler;
     }
@@ -211,15 +206,15 @@ public class CiVisibilitySystem {
     }
   }
 
-  private static BuildSystemSession.Factory buildSystemSessionFactory(
-      CiVisibilityServices services) {
-    return (String projectName,
-        Path projectRoot,
-        String startCommand,
-        String buildSystemName,
-        Long startTime) -> {
+  private static BuildSystemSession.Factory buildSystemSessionFactory(CiVisibilityServices services) {
+    return (
+               String projectName,
+               Path projectRoot,
+               String startCommand,
+               String buildSystemName,
+               Long startTime
+           ) -> {
       CiVisibilityRepoServices repoServices = services.repoServices(projectRoot);
-
       // Session needs to see the most recent commit in a repo.
       // Cache shouldn't be a problem normally,
       // but it can get stale if we're inside a long-running Gradle daemon
@@ -262,22 +257,22 @@ public class CiVisibilitySystem {
       CiVisibilityRepoServices repoServices,
       CiVisibilityCoverageServices.Child coverageServices,
       ExecutionSettings executionSettings) {
-    return (String projectName,
-        String component,
-        Long startTime,
-        Collection<LibraryCapability> capabilities) -> {
+    return (
+               String projectName,
+               String component,
+               Long startTime,
+               Collection<LibraryCapability> capabilities
+           ) -> {
       String sessionName = services.config.getCiVisibilitySessionName();
       String testCommand = services.config.getCiVisibilityTestCommand();
       TestDecorator testDecorator =
           new TestDecoratorImpl(component, sessionName, testCommand, repoServices.ciTags);
 
-      ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(
-              services.config,
-              executionSettings,
-              repoServices.sourcePathResolver,
-              services.linesResolver);
-
+      ExecutionStrategy executionStrategy = new ExecutionStrategy(
+          services.config,
+          executionSettings,
+          repoServices.sourcePathResolver,
+          services.linesResolver);
       // only add report upload capability for children sessions,
       // because report upload is only supported when the build system is instrumented
       capabilities = new ArrayList<>(capabilities);
@@ -304,22 +299,23 @@ public class CiVisibilitySystem {
       CiVisibilityRepoServices repoServices,
       CiVisibilityCoverageServices.Child coverageServices,
       ExecutionSettings executionSettings) {
-    return (String projectName,
-        String component,
-        Long startTime,
-        Collection<LibraryCapability> capabilities) -> {
+    return (
+               String projectName,
+               String component,
+               Long startTime,
+               Collection<LibraryCapability> capabilities
+           ) -> {
       repoServices.gitDataUploader.startOrObserveGitDataUpload();
 
       String sessionName = services.config.getCiVisibilitySessionName();
       TestDecorator testDecorator =
           new TestDecoratorImpl(component, sessionName, projectName, repoServices.ciTags);
 
-      ExecutionStrategy executionStrategy =
-          new ExecutionStrategy(
-              services.config,
-              executionSettings,
-              repoServices.sourcePathResolver,
-              services.linesResolver);
+      ExecutionStrategy executionStrategy = new ExecutionStrategy(
+          services.config,
+          executionSettings,
+          repoServices.sourcePathResolver,
+          services.linesResolver);
       return new HeadlessTestSession(
           projectName,
           startTime,
@@ -336,8 +332,7 @@ public class CiVisibilitySystem {
     };
   }
 
-  private static CIVisibility.SessionFactory manualApiSessionFactory(
-      CiVisibilityServices services) {
+  private static CIVisibility.SessionFactory manualApiSessionFactory(CiVisibilityServices services) {
     return (String projectName, Path projectRoot, String component, Long startTime) -> {
       CiVisibilityRepoServices repoServices = services.repoServices(projectRoot);
 

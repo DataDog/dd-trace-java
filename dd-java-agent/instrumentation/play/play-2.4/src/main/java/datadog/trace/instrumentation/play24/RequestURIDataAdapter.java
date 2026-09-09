@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import play.api.mvc.Request;
 
 final class RequestURIDataAdapter extends URIRawDataAdapter {
-
   private final Request request;
   private final String host;
   private final int port;

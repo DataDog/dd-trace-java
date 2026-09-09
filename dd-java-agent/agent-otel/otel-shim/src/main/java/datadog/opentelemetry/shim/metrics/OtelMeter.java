@@ -3,7 +3,6 @@ package datadog.opentelemetry.shim.metrics;
 import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Stream.concat;
-
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -30,13 +29,10 @@ import org.slf4j.LoggerFactory;
 @ParametersAreNonnullByDefault
 final class OtelMeter implements Meter {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeter.class);
-
   private static final Pattern VALID_INSTRUMENT_NAME_PATTERN =
       Pattern.compile("([A-Za-z])([A-Za-z0-9_\\-./]){0,254}");
-
   static final Meter NOOP_METER = MeterProvider.noop().get("noop");
   static final String NOOP_INSTRUMENT_NAME = "noop";
-
   private final OtelInstrumentationScope instrumentationScope;
 
   OtelMeter(OtelInstrumentationScope instrumentationScope) {
@@ -83,9 +79,9 @@ final class OtelMeter implements Meter {
     return registerObservableCallback(
         callback,
         concat(Stream.of(observableMeasurement), Stream.of(additionalMeasurements))
-            .filter(OtelObservableMeasurement.class::isInstance)
-            .map(OtelObservableMeasurement.class::cast)
-            .collect(toList()));
+          .filter(OtelObservableMeasurement.class::isInstance)
+          .map(OtelObservableMeasurement.class::cast)
+          .collect(toList()));
   }
 
   @Override
@@ -97,24 +93,29 @@ final class OtelMeter implements Meter {
       OtelInstrumentBuilder builder,
       Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
     return OtelMetricRegistry.INSTANCE.registerStorage(
-        instrumentationScope, builder.descriptor(), storageFactory);
+        instrumentationScope,
+        builder.descriptor(),
+        storageFactory);
   }
 
   OtelObservableMeasurement registerObservableStorage(
       OtelInstrumentBuilder builder,
       Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
-    return new OtelObservableMeasurement(
-        OtelMetricRegistry.INSTANCE.registerStorage(
-            instrumentationScope, builder.observableDescriptor(), storageFactory));
+    return new OtelObservableMeasurement(OtelMetricRegistry.INSTANCE.registerStorage(
+        instrumentationScope,
+        builder.observableDescriptor(),
+        storageFactory));
   }
 
   <M> OtelObservableCallback registerObservableCallback(Consumer<M> callback, M measurement) {
     return registerObservableCallback(
-        () -> callback.accept(measurement), singletonList((OtelObservableMeasurement) measurement));
+        () -> callback.accept(measurement),
+        singletonList((OtelObservableMeasurement) measurement));
   }
 
   OtelObservableCallback registerObservableCallback(
-      Runnable callback, List<OtelObservableMeasurement> measurements) {
+      Runnable callback,
+      List<OtelObservableMeasurement> measurements) {
     OtelObservableCallback observable = new OtelObservableCallback(this, callback, measurements);
     OtelMetricRegistry.INSTANCE.registerObservable(instrumentationScope, observable);
     return observable;
@@ -125,14 +126,15 @@ final class OtelMeter implements Meter {
   }
 
   private static boolean validInstrumentName(@Nullable String instrumentName) {
-    if (instrumentName != null && VALID_INSTRUMENT_NAME_PATTERN.matcher(instrumentName).matches()) {
+    if (instrumentName != null
+        && VALID_INSTRUMENT_NAME_PATTERN.matcher(instrumentName).matches()) {
       return true;
     }
 
     LOGGER.warn(
         "Instrument name \"{}\" is invalid, returning noop instrument."
-            + " Instrument names must consist of 255 or fewer characters"
-            + " including alphanumeric, _, ., -, /, and start with a letter.",
+        + " Instrument names must consist of 255 or fewer characters"
+        + " including alphanumeric, _, ., -, /, and start with a letter.",
         instrumentName);
 
     return false;

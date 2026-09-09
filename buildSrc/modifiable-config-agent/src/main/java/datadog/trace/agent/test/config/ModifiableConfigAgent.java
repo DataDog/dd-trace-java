@@ -20,12 +20,12 @@ import org.objectweb.asm.Opcodes;
  * config first.
  */
 public final class ModifiableConfigAgent {
-
   private static final String CONFIG = "datadog/trace/api/Config";
   private static final String INST_CONFIG = "datadog/trace/api/InstrumenterConfig";
   private static final String INSTANCE = "INSTANCE";
 
-  private ModifiableConfigAgent() {}
+  private ModifiableConfigAgent() {
+  }
 
   public static void premain(String args, Instrumentation inst) {
     inst.addTransformer(new InstanceFieldRewriter(), false);
@@ -38,8 +38,7 @@ public final class ModifiableConfigAgent {
         String className,
         Class<?> classBeingRedefined,
         ProtectionDomain protectionDomain,
-        byte[] classfileBuffer)
-        throws IllegalClassFormatException {
+        byte[] classfileBuffer) throws IllegalClassFormatException {
       if (className == null) {
         return null;
       }
@@ -65,12 +64,16 @@ public final class ModifiableConfigAgent {
 
     @Override
     public FieldVisitor visitField(
-        int access, String name, String descriptor, String signature, Object value) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        Object value) {
       if (INSTANCE.equals(name)) {
-        int rewritten =
-            (access & ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED | Opcodes.ACC_FINAL))
-                | Opcodes.ACC_PUBLIC
-                | Opcodes.ACC_VOLATILE;
+        int rewritten = (access
+            & ~(Opcodes.ACC_PRIVATE | Opcodes.ACC_PROTECTED | Opcodes.ACC_FINAL))
+            | Opcodes.ACC_PUBLIC
+            | Opcodes.ACC_VOLATILE;
         return super.visitField(rewritten, name, descriptor, signature, value);
       }
       return super.visitField(access, name, descriptor, signature, value);

@@ -7,11 +7,14 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Custom class/package excludes configured by the user. */
+/**
+ * Custom class/package excludes configured by the user.
+ */
 public class CustomExcludes {
   private static final Logger log = LoggerFactory.getLogger(CustomExcludes.class);
 
-  private CustomExcludes() {}
+  private CustomExcludes() {
+  }
 
   private static final ClassNameTrie excludes;
 

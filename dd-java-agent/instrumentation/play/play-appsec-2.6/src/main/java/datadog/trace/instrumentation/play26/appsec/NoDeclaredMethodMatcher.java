@@ -17,7 +17,10 @@ public class NoDeclaredMethodMatcher implements ElementMatcher<MethodDescription
 
   @Override
   public boolean matches(MethodDescription target) {
-    return !target.getDeclaringType().getDeclaredMethods().stream()
-        .anyMatch(md -> this.methodMatcher.matches(md));
+    return !target
+      .getDeclaringType()
+      .getDeclaredMethods()
+      .stream()
+      .anyMatch(md -> this.methodMatcher.matches(md));
   }
 }

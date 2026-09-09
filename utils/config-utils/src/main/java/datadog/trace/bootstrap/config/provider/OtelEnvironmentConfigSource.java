@@ -48,7 +48,6 @@ import static datadog.trace.api.config.TracerConfig.TRACE_PROPAGATION_STYLE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.util.ConfigStrings.toEnvVar;
 import static datadog.trace.util.ConfigStrings.toEnvVarLowerCase;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.TracePropagationStyle;
@@ -68,16 +67,14 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Maps OpenTelemetry system properties and environment variables to their Datadog equivalents. */
+/**
+ * Maps OpenTelemetry system properties and environment variables to their Datadog equivalents.
+ */
 final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   private static final Logger log = LoggerFactory.getLogger(OtelEnvironmentConfigSource.class);
-
   private final boolean enabled;
-
   private final Map<String, String> otelEnvironment = new HashMap<>();
-
   private final Properties otelConfigFile = loadOtelConfigFile();
-
   private final Properties datadogConfigFile;
 
   @Override
@@ -112,7 +109,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   private void setupOtelEnvironment() {
-
     // only applies when OTEL is enabled by default
     String sdkDisabled = getOtelProperty("otel.sdk.disabled", "dd." + TRACE_OTEL_ENABLED);
     if ("true".equalsIgnoreCase(sdkDisabled)) {
@@ -158,7 +154,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     String tracesSampler = getOtelProperty("otel.traces.sampler", "dd." + TRACE_SAMPLE_RATE);
     String requestHeaders = getOtelHeaders("request-headers", "dd." + REQUEST_HEADER_TAGS);
     String responseHeaders = getOtelHeaders("response-headers", "dd." + RESPONSE_HEADER_TAGS);
-    String extensions = getOtelProperty("otel.javaagent.extensions", "dd." + TRACE_EXTENSIONS_PATH);
+    String extensions = getOtelProperty("otel.javaagent.extensions", "dd."
+        + TRACE_EXTENSIONS_PATH);
     capture(TRACE_PROPAGATION_STYLE, mapPropagationStyle(propagators));
     capture(TRACE_SAMPLE_RATE, mapSampleRate(tracesSampler));
     capture(REQUEST_HEADER_TAGS, mapHeaderTags("http.request.header.", requestHeaders));
@@ -167,10 +164,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(
         OTEL_TRACES_SPAN_METRICS_ENABLED,
         getOtelProperty(
-            "otel.traces.span.metrics.enabled", "dd." + OTEL_TRACES_SPAN_METRICS_ENABLED));
+            "otel.traces.span.metrics.enabled",
+            "dd." + OTEL_TRACES_SPAN_METRICS_ENABLED));
 
     String exporter = getOtelProperty("otel.traces.exporter");
-    if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
+    if ("otlp".equalsIgnoreCase(exporter)) {
+      // traces defaults to non-OTLP (i.e. datadog)
       capture(TRACE_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_TRACES_HEADERS,
@@ -202,7 +201,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(
         METRICS_OTEL_CARDINALITY_LIMIT,
         getOtelProperty(
-            "otel.java.metrics.cardinality.limit", "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
+            "otel.java.metrics.cardinality.limit",
+            "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
     capture(
         METRICS_OTEL_EXPERIMENTAL_ENABLED,
         getOtelProperty(
@@ -210,7 +210,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             "dd." + METRICS_OTEL_EXPERIMENTAL_ENABLED));
 
     String exporter = getOtelProperty("otel.metrics.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP
+    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) {
+      // metrics defaults to OTLP
       capture(METRICS_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_METRICS_HEADERS,
@@ -242,7 +243,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         LOGS_OTEL_INTERVAL,
         getOtelProperty("otel.blrp.schedule.delay", "dd." + LOGS_OTEL_INTERVAL));
     capture(
-        LOGS_OTEL_TIMEOUT, getOtelProperty("otel.blrp.export.timeout", "dd." + LOGS_OTEL_TIMEOUT));
+        LOGS_OTEL_TIMEOUT,
+        getOtelProperty("otel.blrp.export.timeout", "dd." + LOGS_OTEL_TIMEOUT));
     capture(
         LOGS_OTEL_QUEUE_SIZE,
         getOtelProperty("otel.blrp.max.queue.size", "dd." + LOGS_OTEL_QUEUE_SIZE));
@@ -250,17 +252,20 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         LOGS_OTEL_BATCH_SIZE,
         getOtelProperty("otel.blrp.max.export.batch.size", "dd." + LOGS_OTEL_BATCH_SIZE));
     String exporter = getOtelProperty("otel.logs.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // logs defaults to OTLP
+    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) {
+      // logs defaults to OTLP
       capture(LOGS_OTEL_EXPORTER, "otlp");
       capture(OTLP_LOGS_HEADERS, getOtelOtlpProperty("logs", "headers", "dd." + OTLP_LOGS_HEADERS));
       capture(
-          OTLP_LOGS_PROTOCOL, getOtelOtlpProperty("logs", "protocol", "dd." + OTLP_LOGS_PROTOCOL));
+          OTLP_LOGS_PROTOCOL,
+          getOtelOtlpProperty("logs", "protocol", "dd." + OTLP_LOGS_PROTOCOL));
       capture(
           OTLP_LOGS_COMPRESSION,
           getOtelOtlpProperty("logs", "compression", "dd." + OTLP_LOGS_COMPRESSION));
       capture(OTLP_LOGS_TIMEOUT, getOtelOtlpProperty("logs", "timeout", "dd." + OTLP_LOGS_TIMEOUT));
       capture(
-          OTLP_LOGS_ENDPOINT, getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
+          OTLP_LOGS_ENDPOINT,
+          getOtelOtlpProperty("logs", "endpoint", "dd." + OTLP_LOGS_ENDPOINT));
     } else {
       mapDataCollection("logs");
     }
@@ -308,8 +313,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if (null != ddValue) {
       String otelEnvVar = toEnvVar(otelSysProp);
       log.warn("Both {} and {} are set, ignoring {}", toEnvVar(ddSysProp), otelEnvVar, otelEnvVar);
-      OtelEnvMetricCollectorProvider.get()
-          .setHidingOtelEnvVarMetric(toEnvVarLowerCase(otelSysProp), toEnvVarLowerCase(ddSysProp));
+      OtelEnvMetricCollectorProvider
+        .get()
+        .setHidingOtelEnvVarMetric(toEnvVarLowerCase(otelSysProp), toEnvVarLowerCase(ddSysProp));
       return null;
     }
     return otelValue;
@@ -364,8 +370,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     if (null != ddValue) {
       String otelEnvVar = toEnvVar(otelKey);
       log.warn("Both {} and {} are set, ignoring {}", toEnvVar(ddSysProp), otelEnvVar, otelEnvVar);
-      OtelEnvMetricCollectorProvider.get()
-          .setHidingOtelEnvVarMetric(toEnvVarLowerCase(otelKey), toEnvVarLowerCase(ddSysProp));
+      OtelEnvMetricCollectorProvider
+        .get()
+        .setHidingOtelEnvVarMetric(toEnvVarLowerCase(otelKey), toEnvVarLowerCase(ddSysProp));
       return null;
     }
     return otelValue;
@@ -400,14 +407,18 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     return value;
   }
 
-  /** Captures a mapped OpenTelemetry property. */
+  /**
+   * Captures a mapped OpenTelemetry property.
+   */
   private void capture(String key, String value) {
     if (null != value) {
       otelEnvironment.put(key, value);
     }
   }
 
-  /** Loads the optional OpenTelemetry configuration file. */
+  /**
+   * Loads the optional OpenTelemetry configuration file.
+   */
   private static Properties loadOtelConfigFile() {
     String path = getProperty("otel.javaagent.configuration-file");
     if (null != path && !path.isEmpty()) {
@@ -430,7 +441,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     return null;
   }
 
-  /** Parses a comma-separated list of items. */
+  /**
+   * Parses a comma-separated list of items.
+   */
   private static List<String> parseOtelList(String value) {
     List<String> list = new ArrayList<>();
     int start = 0;
@@ -447,7 +460,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     return list;
   }
 
-  /** Parses a comma-separated list of key=value entries. */
+  /**
+   * Parses a comma-separated list of key=value entries.
+   */
   private static Map<String, String> parseOtelMap(String value) {
     Map<String, String> map = new LinkedHashMap<>();
     int start = 0;
@@ -468,7 +483,9 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     return map;
   }
 
-  /** Renders the map as a comma-separated list of key:value entries. */
+  /**
+   * Renders the map as a comma-separated list of key:value entries.
+   */
   private static String renderDatadogMap(Map<String, String> map, int maxEntries) {
     StringBuilder buf = new StringBuilder();
 
@@ -479,12 +496,13 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         break;
       }
     }
-
     // remove trailing comma, mapping empty conversion to null
     return buf.length() > 1 ? buf.substring(0, buf.length() - 1) : null;
   }
 
-  /** Maps OpenTelemetry propagators to a list of accepted propagation styles. */
+  /**
+   * Maps OpenTelemetry propagators to a list of accepted propagation styles.
+   */
   private static String mapPropagationStyle(String propagators) {
     if (null == propagators) {
       return null;
@@ -493,23 +511,26 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     StringBuilder buf = new StringBuilder();
     for (String style : parseOtelList(propagators)) {
       if ("b3".equalsIgnoreCase(style)) {
-        buf.append("b3single,"); // force use of OpenTelemetry alias
+        // force use of OpenTelemetry alias
+        buf.append("b3single,");
       } else {
         try {
           buf.append(TracePropagationStyle.valueOfDisplayName(style)).append(',');
         } catch (IllegalArgumentException e) {
           log.warn("OTEL_PROPAGATORS={} is not supported", style);
-          OtelEnvMetricCollectorProvider.get()
-              .setInvalidOtelEnvVarMetric("otel_propagators", "dd_trace_propagation_style");
+          OtelEnvMetricCollectorProvider
+            .get()
+            .setInvalidOtelEnvVarMetric("otel_propagators", "dd_trace_propagation_style");
         }
       }
     }
-
     // remove trailing comma, mapping empty conversion to null
     return buf.length() > 1 ? buf.substring(0, buf.length() - 1) : null;
   }
 
-  /** Maps known OpenTelemetry samplers to a trace sample rate. */
+  /**
+   * Maps known OpenTelemetry samplers to a trace sample rate.
+   */
   private String mapSampleRate(String tracesSampler) {
     if (null == tracesSampler) {
       return null;
@@ -534,12 +555,15 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     log.warn("OTEL_TRACES_SAMPLER={} is not supported", tracesSampler);
-    OtelEnvMetricCollectorProvider.get()
-        .setInvalidOtelEnvVarMetric("otel_traces_sampler", "dd_trace_sample_rate");
+    OtelEnvMetricCollectorProvider
+      .get()
+      .setInvalidOtelEnvVarMetric("otel_traces_sampler", "dd_trace_sample_rate");
     return null;
   }
 
-  /** Maps an OpenTelemetry exporter setting to the equivalent Datadog collection setting. */
+  /**
+   * Maps an OpenTelemetry exporter setting to the equivalent Datadog collection setting.
+   */
   private String mapDataCollection(String signal) {
     String exporter = getOtelProperty("otel." + signal + ".exporter");
     if (null == exporter) {
@@ -547,17 +571,21 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     }
 
     if ("none".equalsIgnoreCase(exporter)) {
-      return "false"; // "none" maps to disable data collection
+      // "none" maps to disable data collection
+      return "false";
     }
 
     log.warn("OTEL_{}_EXPORTER={} is not supported", signal, exporter.toUpperCase(Locale.ROOT));
-    OtelEnvMetricCollectorProvider.get()
-        .setUnsupportedOtelEnvVarMetric("otel_" + signal + "_exporter");
+    OtelEnvMetricCollectorProvider
+      .get()
+      .setUnsupportedOtelEnvVarMetric("otel_" + signal + "_exporter");
 
     return null;
   }
 
-  /** Merges the OpenTelemetry client and server headers to capture into a single list. */
+  /**
+   * Merges the OpenTelemetry client and server headers to capture into a single list.
+   */
   private String getOtelHeaders(String otelSuffix, String ddSysProp) {
     String clientTags =
         getOtelProperty("otel.instrumentation.http.client.capture-" + otelSuffix, ddSysProp);
@@ -584,7 +612,6 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     for (String header : parseOtelList(headers)) {
       buf.append(header).append(':').append(tagPrefix).append(header).append(',');
     }
-
     // remove trailing comma, mapping empty conversion to null
     return buf.length() > 1 ? buf.substring(0, buf.length() - 1) : null;
   }

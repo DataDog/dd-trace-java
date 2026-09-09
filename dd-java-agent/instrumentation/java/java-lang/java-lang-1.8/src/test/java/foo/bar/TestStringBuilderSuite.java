@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<StringBuilder> {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestStringBuilderSuite.class);
 
   @Override
@@ -102,7 +101,9 @@ public class TestStringBuilderSuite implements TestAbstractStringBuilderSuite<St
 
   @Override
   public CharSequence subSequence(
-      final StringBuilder self, final int beginIndex, final int endIndex) {
+      final StringBuilder self,
+      final int beginIndex,
+      final int endIndex) {
     LOGGER.debug("Before string builder subSequence {} from {} to {}", self, beginIndex, endIndex);
     final CharSequence result = self.subSequence(beginIndex, endIndex);
     LOGGER.debug("After string builder subSequence {}", result);

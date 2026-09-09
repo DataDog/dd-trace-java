@@ -7,5 +7,7 @@ import java.util.Collection;
 
 public interface TraceSegmentPostProcessor {
   void processTraceSegment(
-      TraceSegment segment, AppSecRequestContext ctx, Collection<AppSecEvent> collectedEvents);
+      TraceSegment segment,
+      AppSecRequestContext ctx,
+      Collection<AppSecEvent> collectedEvents);
 }

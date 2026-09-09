@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 public class ConfigInversionMetricCollectorImpl
     implements MetricCollector<ConfigInversionMetricCollectorImpl.ConfigInversionMetric>,
-        ConfigInversionMetricCollector {
+    ConfigInversionMetricCollector {
   private static final Logger log =
       LoggerFactory.getLogger(ConfigInversionMetricCollectorImpl.class);
   private static final String CONFIG_INVERSION_KEY_TAG = "config_name:";
@@ -19,9 +19,7 @@ public class ConfigInversionMetricCollectorImpl
   private static final String NAMESPACE = "tracers";
   private static final ConfigInversionMetricCollectorImpl INSTANCE =
       new ConfigInversionMetricCollectorImpl();
-
-  private final BlockingQueue<ConfigInversionMetricCollectorImpl.ConfigInversionMetric>
-      metricsQueue;
+  private final BlockingQueue<ConfigInversionMetricCollectorImpl.ConfigInversionMetric> metricsQueue;
 
   private ConfigInversionMetricCollectorImpl() {
     this.metricsQueue = new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
@@ -38,7 +36,12 @@ public class ConfigInversionMetricCollectorImpl
   private void setMetricConfigInversionMetric(final String... tags) {
     if (!metricsQueue.offer(
         new ConfigInversionMetricCollectorImpl.ConfigInversionMetric(
-            NAMESPACE, true, CONFIG_INVERSION_METRIC_NAME, "count", 1, tags))) {
+            NAMESPACE,
+            true,
+            CONFIG_INVERSION_METRIC_NAME,
+            "count",
+            1,
+            tags))) {
       log.debug("Unable to add telemetry metric {} for {}", CONFIG_INVERSION_METRIC_NAME, tags[0]);
     }
   }

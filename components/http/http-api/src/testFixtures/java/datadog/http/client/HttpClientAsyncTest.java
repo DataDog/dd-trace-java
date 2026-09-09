@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
-
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -43,8 +42,9 @@ public class HttpClientAsyncTest {
 
   @Test
   void testExecuteAsyncSuccess() throws Exception {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
     this.server.when(expectedRequest).respond(response().withStatusCode(200).withBody("success"));
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
@@ -71,7 +71,6 @@ public class HttpClientAsyncTest {
     HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     CompletableFuture<HttpResponse> future = this.client.executeAsync(request);
-
     // HTTP errors (4xx, 5xx) should complete normally, not exceptionally
     HttpResponse response = future.get(TIMEOUT_SECONDS, SECONDS);
     assertNotNull(response);
@@ -82,8 +81,9 @@ public class HttpClientAsyncTest {
 
   @Test
   void testExecuteAsyncWithListener() throws Exception {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
     this.server.when(expectedRequest).respond(response().withStatusCode(200));
 
     AtomicBoolean startCalled = new AtomicBoolean(false);
@@ -93,29 +93,24 @@ public class HttpClientAsyncTest {
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
     HttpRequest request =
-        HttpRequest.newBuilder()
-            .url(url)
-            .get()
-            .listener(
-                new HttpRequestListener() {
-                  @Override
-                  public void onRequestStart(HttpRequest request) {
-                    startCalled.set(true);
-                  }
+        HttpRequest.newBuilder().url(url).get().listener(new HttpRequestListener() {
+      @Override
+      public void onRequestStart(HttpRequest request) {
+        startCalled.set(true);
+      }
 
-                  @Override
-                  public void onRequestEnd(HttpRequest request, HttpResponse response) {
-                    endCalled.set(true);
-                    capturedResponse.set(response);
-                    latch.countDown();
-                  }
+      @Override
+      public void onRequestEnd(HttpRequest request, HttpResponse response) {
+        endCalled.set(true);
+        capturedResponse.set(response);
+        latch.countDown();
+      }
 
-                  @Override
-                  public void onRequestFailure(HttpRequest request, IOException exception) {
-                    fail("Should not fail");
-                  }
-                })
-            .build();
+      @Override
+      public void onRequestFailure(HttpRequest request, IOException exception) {
+        fail("Should not fail");
+      }
+    }).build();
 
     this.client.executeAsync(request);
 
@@ -139,29 +134,24 @@ public class HttpClientAsyncTest {
     CountDownLatch latch = new CountDownLatch(1);
 
     HttpRequest request =
-        HttpRequest.newBuilder()
-            .url(url)
-            .get()
-            .listener(
-                new HttpRequestListener() {
-                  @Override
-                  public void onRequestStart(HttpRequest request) {
-                    startCalled.set(true);
-                  }
+        HttpRequest.newBuilder().url(url).get().listener(new HttpRequestListener() {
+      @Override
+      public void onRequestStart(HttpRequest request) {
+        startCalled.set(true);
+      }
 
-                  @Override
-                  public void onRequestEnd(HttpRequest request, HttpResponse response) {
-                    fail("Should not succeed");
-                  }
+      @Override
+      public void onRequestEnd(HttpRequest request, HttpResponse response) {
+        fail("Should not succeed");
+      }
 
-                  @Override
-                  public void onRequestFailure(HttpRequest request, IOException exception) {
-                    failureCalled.set(true);
-                    capturedException.set(exception);
-                    latch.countDown();
-                  }
-                })
-            .build();
+      @Override
+      public void onRequestFailure(HttpRequest request, IOException exception) {
+        failureCalled.set(true);
+        capturedException.set(exception);
+        latch.countDown();
+      }
+    }).build();
 
     CompletableFuture<HttpResponse> future = this.client.executeAsync(request);
 
@@ -169,7 +159,6 @@ public class HttpClientAsyncTest {
     assertTrue(startCalled.get(), "onRequestStart should be called");
     assertTrue(failureCalled.get(), "onRequestFailure should be called");
     assertNotNull(capturedException.get());
-
     // The future should also complete exceptionally
     try {
       future.get(TIMEOUT_SECONDS, SECONDS);
@@ -181,25 +170,23 @@ public class HttpClientAsyncTest {
 
   @Test
   void testExecuteAsyncComposition() throws Exception {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
     this.server.when(expectedRequest).respond(response().withStatusCode(200).withBody("42"));
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
     HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
-
     // Test thenApply composition
-    CompletableFuture<Integer> future =
-        this.client
-            .executeAsync(request)
-            .thenApply(
-                response -> {
-                  try {
-                    return Integer.parseInt(response.bodyAsString().trim());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                });
+    CompletableFuture<Integer> future = this.client
+      .executeAsync(request)
+      .thenApply(response -> {
+        try {
+          return Integer.parseInt(response.bodyAsString().trim());
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      });
 
     Integer result = future.get(TIMEOUT_SECONDS, SECONDS);
     assertEquals(42, result);
@@ -213,22 +200,20 @@ public class HttpClientAsyncTest {
         request().withMethod("GET").withPath("/test1");
     org.mockserver.model.HttpRequest expectedRequest2 =
         request().withMethod("GET").withPath("/test2");
-    this.server
-        .when(expectedRequest1)
-        .respond(response().withStatusCode(200).withBody("response1"));
-    this.server
-        .when(expectedRequest2)
-        .respond(response().withStatusCode(200).withBody("response2"));
+    this.server.when(expectedRequest1).respond(response()
+      .withStatusCode(200)
+      .withBody("response1"));
+    this.server.when(expectedRequest2).respond(response()
+      .withStatusCode(200)
+      .withBody("response2"));
 
     HttpRequest request1 =
         HttpRequest.newBuilder().url(HttpUrl.parse(this.baseUrl + "/test1")).get().build();
     HttpRequest request2 =
         HttpRequest.newBuilder().url(HttpUrl.parse(this.baseUrl + "/test2")).get().build();
-
     // Execute both requests concurrently
     CompletableFuture<HttpResponse> future1 = this.client.executeAsync(request1);
     CompletableFuture<HttpResponse> future2 = this.client.executeAsync(request2);
-
     // Wait for both
     CompletableFuture.allOf(future1, future2).get(TIMEOUT_SECONDS, SECONDS);
 

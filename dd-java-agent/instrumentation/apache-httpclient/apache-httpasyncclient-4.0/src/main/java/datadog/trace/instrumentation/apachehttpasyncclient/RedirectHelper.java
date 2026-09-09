@@ -8,10 +8,13 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.protocol.HttpContext;
 
 public final class RedirectHelper {
-  private RedirectHelper() {}
+  private RedirectHelper() {
+  }
 
   public static boolean isSameOrigin(
-      final HttpContext context, final HttpRequest original, final HttpRequest redirect) {
+      final HttpContext context,
+      final HttpRequest original,
+      final HttpRequest redirect) {
     if (!(original instanceof HttpRequestWrapper) || !(redirect instanceof HttpUriRequest)) {
       return false;
     }

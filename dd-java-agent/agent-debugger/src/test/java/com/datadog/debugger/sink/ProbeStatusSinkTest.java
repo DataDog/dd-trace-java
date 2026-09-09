@@ -3,7 +3,6 @@ package com.datadog.debugger.sink;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
-
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.util.MoshiHelper;
@@ -27,20 +26,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ProbeStatusSinkTest {
-
   private static final String SERVICE_NAME = "service-name";
   private static final ProbeId PROBE_ID = new ProbeId(UUID.randomUUID().toString(), 12);
   private static final ProbeId PROBE_ID_NEW_VERSION = new ProbeId(PROBE_ID.getId(), 21);
   private static final ProbeId PROBE_ID2 = new ProbeId(UUID.randomUUID().toString(), 21);
   private static final String MESSAGE = "Foo";
-  private static final int DIAGNOSTICS_INTERVAL = 60 * 60; // in seconds = 1h
+  // in seconds = 1h
+  private static final int DIAGNOSTICS_INTERVAL = 60 * 60;
   private static final Instant AFTER_INTERVAL_HAS_PASSED =
       Instant.now().plus(Duration.ofSeconds(DIAGNOSTICS_INTERVAL + 5));
   private static final Instant BEFORE_INTERVAL_HAS_PASSED =
       Instant.now().plus(Duration.ofSeconds(DIAGNOSTICS_INTERVAL - 5));
-
-  @Mock private Config config;
-
+  @Mock
+  private Config config;
   private Builder builder;
   private ProbeStatusSink probeStatusSink;
 
@@ -202,8 +200,8 @@ class ProbeStatusSinkTest {
     Clock fixed = Clock.fixed(AFTER_INTERVAL_HAS_PASSED, ZoneId.systemDefault());
     List<ProbeStatus> secondDiagnostics = probeStatusSink.getDiagnostics(fixed);
     assertEquals(
-        Collections.singletonList(builder.errorMessage(PROBE_ID, MESSAGE)), secondDiagnostics);
-
+        Collections.singletonList(builder.errorMessage(PROBE_ID, MESSAGE)),
+        secondDiagnostics);
     // expect timestamp to be updated
     assertTrue(firstDiagnostics.get(1).getTimestamp() < secondDiagnostics.get(0).getTimestamp());
   }
@@ -234,17 +232,14 @@ class ProbeStatusSinkTest {
   @Test
   void multipleProbes() {
     ProbeId secondProbeId = new ProbeId(UUID.randomUUID().toString(), 123);
-
     // Emit both right-away after adding the messages
     probeStatusSink.addReceived(PROBE_ID);
     probeStatusSink.addReceived(secondProbeId);
     assertEquals(
         Arrays.asList(builder.receivedMessage(PROBE_ID), builder.receivedMessage(secondProbeId)),
         probeStatusSink.getDiagnostics());
-
     // Change stored diagnostic for PROBE_ID
     probeStatusSink.addInstalled(PROBE_ID);
-
     // Assert only new (installed) message for PROBE_ID is emitted before DIAGNOSTICS_INTERVAL has
     // passed
     Instant beforeIntervalHasPassed = Instant.now();
@@ -267,7 +262,6 @@ class ProbeStatusSinkTest {
   @Test
   void dropRepeatingDiagnostics() {
     probeStatusSink.addReceived(PROBE_ID);
-
     // enqueues only a single error message (checking if queue already have that message).
     for (int i = 1; i <= 100; i++) {
       probeStatusSink.addError(PROBE_ID, "bar");
@@ -301,9 +295,7 @@ class ProbeStatusSinkTest {
     assertEquals(100, firstBatch.size());
     assertEquals(100, secondBatch.size());
     assertEquals(1, thirdBatch.size());
-
     // when fetching all messages the queue will reset and only send last messages for ecah probe
-
     assertEquals(Arrays.asList(builder.installedMessage(PROBE_ID2)), thirdBatch);
   }
 

@@ -1,7 +1,6 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Expression;
@@ -19,7 +18,8 @@ public class CollectionExpressionHelper {
     Map<?, ?> mapHolder = (Map<?, ?>) map.getMapHolder();
     if (!WellKnownClasses.isSafe(mapHolder)) {
       throw new EvaluationException(
-          "Unsupported Map class: " + mapHolder.getClass().getTypeName(), print(expression));
+          "Unsupported Map class: " + mapHolder.getClass().getTypeName(),
+          print(expression));
     }
   }
 
@@ -28,25 +28,31 @@ public class CollectionExpressionHelper {
     if (holder instanceof List) {
       if (!WellKnownClasses.isSafe((List<?>) holder)) {
         throw new EvaluationException(
-            "Unsupported List class: " + holder.getClass().getTypeName(), print(expression));
+            "Unsupported List class: " + holder.getClass().getTypeName(),
+            print(expression));
       }
     }
   }
 
   public static Value<?> evaluateTargetCollection(
-      ValueExpression<?> collectionTarget, Expression<?> expression, EvalContext evalContext) {
+      ValueExpression<?> collectionTarget,
+      Expression<?> expression,
+      EvalContext evalContext) {
     if (collectionTarget == null) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", print(expression));
+          "Cannot evaluate the expression for null value",
+          print(expression));
     }
     Value<?> value = collectionTarget.evaluate(evalContext);
     if (value.isUndefined()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", print(expression));
+          "Cannot evaluate the expression for undefined value",
+          print(expression));
     }
     if (value.isNull()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", print(expression));
+          "Cannot evaluate the expression for null value",
+          print(expression));
     }
     return value;
   }
@@ -55,7 +61,8 @@ public class CollectionExpressionHelper {
     Set<?> setHolder = (Set<?>) set.getSetHolder();
     if (!WellKnownClasses.isSafe(setHolder)) {
       throw new EvaluationException(
-          "Unsupported Set class: " + setHolder.getClass().getTypeName(), print(expression));
+          "Unsupported Set class: " + setHolder.getClass().getTypeName(),
+          print(expression));
     }
     return setHolder;
   }

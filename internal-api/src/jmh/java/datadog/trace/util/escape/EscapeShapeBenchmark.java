@@ -99,11 +99,10 @@ import org.openjdk.jmh.infra.Blackhole;
  *       not costing anything today, and would cost 24 bytes an operation the day a third arrives.
  * </ul>
  */
-@Fork(
-    value = 2,
-    jvmArgsAppend = {
-      "-XX:CompileCommand=dontinline,datadog.trace.util.escape.EscapeShapeBenchmark$UninlinedStrategy::apply"
-    })
+@Fork(value = 2, jvmArgsAppend = {
+    "-XX:CompileCommand=dontinline,datadog.trace.util.escape."
+    + "EscapeShapeBenchmark$UninlinedStrategy::apply"
+})
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Threads(1)
@@ -111,7 +110,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
 public class EscapeShapeBenchmark {
-
   /**
    * Minimal two-method interface -- a value to read and a close to call -- standing in for any
    * short-lived object more complex than a single field.
@@ -138,7 +136,9 @@ public class EscapeShapeBenchmark {
     public void close() {}
   }
 
-  /** A second allocation site, for the merge that C2 has some chance with. */
+  /**
+   * A second allocation site, for the merge that C2 has some chance with.
+   */
   static final class AlternateAllocation implements Outcome {
     private final int seed;
 
@@ -155,19 +155,22 @@ public class EscapeShapeBenchmark {
     public void close() {}
   }
 
-  /** The absent outcome, reachable from a static, so the merge it takes part in is not local. */
-  static final Outcome STATIC_SINGLETON =
-      new Outcome() {
-        @Override
-        public int value() {
-          return 0;
-        }
+  /**
+   * The absent outcome, reachable from a static, so the merge it takes part in is not local.
+   */
+  static final Outcome STATIC_SINGLETON = new Outcome() {
+    @Override
+    public int value() {
+      return 0;
+    }
 
-        @Override
-        public void close() {}
-      };
+    @Override
+    public void close() {}
+  };
 
-  /** One allocation site carrying the outcome in a field: the shape that survives. */
+  /**
+   * One allocation site carrying the outcome in a field: the shape that survives.
+   */
   static final class FlaggedAllocation {
     private final boolean present;
     private final int seed;
@@ -260,7 +263,6 @@ public class EscapeShapeBenchmark {
   // The three arms below are deliberately copy-pasted rather than sharing a helper. A shared helper
   // would carry one profile for all three call sites, so the megamorphic arm would poison the other
   // two and the matrix would report the same answer three times.
-
   @Benchmark
   public void backingMonomorphic(Blackhole bh) {
     Backing backing = one[(counter++ & 0x7fffffff) % one.length];
@@ -333,7 +335,9 @@ public class EscapeShapeBenchmark {
     }
   }
 
-  /** Preallocated and stackless, so the arm measures control flow rather than fillInStackTrace. */
+  /**
+   * Preallocated and stackless, so the arm measures control flow rather than fillInStackTrace.
+   */
   static final class Failure extends RuntimeException {
     static final Failure INSTANCE = new Failure();
 
@@ -362,7 +366,9 @@ public class EscapeShapeBenchmark {
     }
   }
 
-  /** The Optional-style shape, whole: a singleton for one outcome, under try/finally. */
+  /**
+   * The Optional-style shape, whole: a singleton for one outcome, under try/finally.
+   */
   @Benchmark
   public void mergeWithStaticClosedInFinally(Blackhole bh) {
     Outcome cell = alternate() ? new SingleAllocation(counter) : STATIC_SINGLETON;
@@ -373,7 +379,9 @@ public class EscapeShapeBenchmark {
     }
   }
 
-  /** The single-site shape, whole: one allocation carrying a flag, under try/finally. */
+  /**
+   * The single-site shape, whole: one allocation carrying a flag, under try/finally.
+   */
   @Benchmark
   public void flagOnOneAllocationClosedInFinally(Blackhole bh) {
     FlaggedAllocation cell = new FlaggedAllocation(alternate(), counter);

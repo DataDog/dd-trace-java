@@ -1,7 +1,6 @@
 package com.datadog.debugger.el;
 
 import static com.datadog.debugger.el.JsonToExpressionConverter.createPredicate;
-
 import com.datadog.debugger.el.expressions.ThenExpression;
 import com.datadog.debugger.el.expressions.WhenExpression;
 import com.squareup.moshi.JsonAdapter;
@@ -13,10 +12,11 @@ import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 
-/** Implements expression language for probe condition */
+/**
+ * Implements expression language for probe condition
+ */
 public final class ProbeCondition implements DebuggerScript<Boolean> {
   public static final ProbeCondition NONE = new ProbeCondition(null, "");
-
   private final String dslExpression;
   private final WhenExpression when;
   private final ThenExpression then;
@@ -63,8 +63,12 @@ public final class ProbeCondition implements DebuggerScript<Boolean> {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     ProbeCondition that = (ProbeCondition) o;
 

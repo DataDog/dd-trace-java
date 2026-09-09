@@ -1,7 +1,6 @@
 package datadog.communication.ddagent;
 
 import static datadog.trace.api.ProtocolVersion.V0_4;
-
 import datadog.metrics.api.Monitoring;
 
 /**

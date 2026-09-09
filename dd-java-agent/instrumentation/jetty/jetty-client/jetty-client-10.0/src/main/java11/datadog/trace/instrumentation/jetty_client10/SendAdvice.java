@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty_client10;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jetty_client10.JettyClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.jetty_client10.JettyClientDecorator.HTTP_REQUEST;
-
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
@@ -27,7 +26,8 @@ public class SendAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
-      @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
+      @Advice.Enter final AgentSpan span,
+      @Advice.Thrown final Throwable throwable) {
     if (throwable != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);

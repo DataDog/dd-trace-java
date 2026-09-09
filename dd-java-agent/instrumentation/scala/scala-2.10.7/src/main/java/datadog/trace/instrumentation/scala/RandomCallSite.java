@@ -11,7 +11,6 @@ import scala.util.Random;
 @Sink(VulnerabilityTypes.WEAK_RANDOMNESS)
 @CallSite(spi = IastCallSites.class)
 public class RandomCallSite {
-
   @CallSite.Before("boolean scala.util.Random.nextBoolean()")
   @CallSite.Before("int scala.util.Random.nextInt()")
   @CallSite.Before("int scala.util.Random.nextInt(int)")

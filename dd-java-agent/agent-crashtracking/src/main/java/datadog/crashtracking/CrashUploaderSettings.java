@@ -1,6 +1,8 @@
 package datadog.crashtracking;
 
-/** Immutable settings that control what data {@link CrashUploader} includes in uploaded reports. */
+/**
+ * Immutable settings that control what data {@link CrashUploader} includes in uploaded reports.
+ */
 public final class CrashUploaderSettings {
   final boolean extendedInfoEnabled;
 

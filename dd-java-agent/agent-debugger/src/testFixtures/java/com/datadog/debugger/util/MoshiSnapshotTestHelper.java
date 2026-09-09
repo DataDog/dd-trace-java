@@ -23,7 +23,6 @@ import static com.datadog.debugger.util.MoshiSnapshotHelper.TRUNCATED;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TYPE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VALUE;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.VERSION;
-
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.sink.Snapshot;
 import com.squareup.moshi.JsonAdapter;
@@ -51,7 +50,6 @@ import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 
 public class MoshiSnapshotTestHelper {
-
   public static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotTestHelper.CapturedValueAdapter();
 
@@ -105,14 +103,18 @@ public class MoshiSnapshotTestHelper {
             moshi,
             captureTimeOut,
             new CapturedContextAdapter(
-                moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi)));
+                moshi,
+                new CapturedValueAdapter(),
+                new CapturedThrowableAdapter(moshi)));
       }
       if (Types.equals(type, CapturedContext.CapturedValue.class)) {
         return new MoshiSnapshotTestHelper.CapturedValueAdapter();
       }
       if (Types.equals(type, CapturedContext.class)) {
         return new MoshiSnapshotTestHelper.CapturedContextAdapter(
-            moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi));
+            moshi,
+            new CapturedValueAdapter(),
+            new CapturedThrowableAdapter(moshi));
       }
       if (Types.equals(type, ProbeImplementation.class)) {
         return new MoshiSnapshotTestHelper.ProbeDetailsAdapter(moshi);
@@ -124,11 +126,13 @@ public class MoshiSnapshotTestHelper {
   public static Moshi createMoshiSnapshot() {
     // By default, for tests we have a capture timeout of 5 seconds
     return new Moshi.Builder()
-        .add(new MoshiSnapshotTestHelper.SnapshotJsonFactory(Duration.of(5, ChronoUnit.SECONDS)))
-        .add(
-            DebuggerScript.class,
-            new ProbeCondition.ProbeConditionJsonAdapter()) // ProbeDetails in Snapshot
-        .build();
+      .add(new MoshiSnapshotTestHelper.SnapshotJsonFactory(Duration.of(5, ChronoUnit.SECONDS)))
+      // ProbeDetails in Snapshot
+      .add(
+          // ProbeDetails in Snapshot
+          DebuggerScript.class,
+          new ProbeCondition.ProbeConditionJsonAdapter())
+      .build();
   }
 
   private static String primitiveArrayToString(Object obj) {
@@ -161,9 +165,10 @@ public class MoshiSnapshotTestHelper {
   }
 
   private static class CapturesAdapter extends MoshiSnapshotHelper.CapturesAdapter {
-
     public CapturesAdapter(
-        Moshi moshi, Duration captureTimeout, JsonAdapter<CapturedContext> capturedContextAdapter) {
+        Moshi moshi,
+        Duration captureTimeout,
+        JsonAdapter<CapturedContext> capturedContextAdapter) {
       super(moshi, captureTimeout, capturedContextAdapter);
     }
 
@@ -406,7 +411,8 @@ public class MoshiSnapshotTestHelper {
             }
             break;
           case SIZE:
-            jsonReader.nextString(); // consume size value
+            // consume size value
+            jsonReader.nextString();
             break;
           default:
             throw new RuntimeException("Unknown attribute: " + name);
@@ -417,7 +423,8 @@ public class MoshiSnapshotTestHelper {
     }
 
     private Object createPrimitiveArray(
-        String componentType, List<CapturedContext.CapturedValue> values) {
+        String componentType,
+        List<CapturedContext.CapturedValue> values) {
       switch (componentType) {
         case "byte":
           {

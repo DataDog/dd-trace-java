@@ -5,7 +5,6 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -36,9 +35,8 @@ import net.bytebuddy.pool.TypePool;
 @AutoService(InstrumenterModule.class)
 public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   public ParsePartsInstrumentation() {
     super("tomcat");
   }
@@ -56,10 +54,11 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector",
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
-      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl$CachedMethods",
+        "datadog.trace.instrumentation.tomcat7.ParameterCollector",
+        "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
+        "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
+        "datadog.trace.instrumentation.tomcat7."
+        + "ParameterCollector$ParameterCollectorImpl$CachedMethods"
     };
   }
 
@@ -72,8 +71,8 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseParts")
-            .and(takesArguments(0).or(takesArguments(1).and(takesArgument(0, boolean.class))))
-            .and(isPrivate()),
+          .and(takesArguments(0).or(takesArguments(1).and(takesArgument(0, boolean.class))))
+          .and(isPrivate()),
         getClass().getName() + "$ParsePartsAdvice");
   }
 
@@ -87,16 +86,14 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
         RequestContext requestContext = agentSpan.getRequestContext();
         if (requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null) {
           reqCtx = requestContext;
-          boolean inspectContent =
-              AgentTracer.get()
-                      .getCallbackProvider(RequestContextSlot.APPSEC)
-                      .getCallback(EVENTS.requestFilesContent())
-                  != null;
+          boolean inspectContent = AgentTracer
+            .get()
+            .getCallbackProvider(RequestContextSlot.APPSEC)
+            .getCallback(EVENTS.requestFilesContent()) != null;
           collector = new ParameterCollector.ParameterCollectorImpl(inspectContent);
           return;
         }
       }
-
       // this variable is used in the custom instrumentation below
       collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
     }
@@ -206,7 +203,11 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions) {
       MethodVisitor superMv = super.visitMethod(access, name, descriptor, signature, exceptions);
       if ("parseParts".equals(name) && ("()V".equals(descriptor) || "(Z)V".equals(descriptor))) {
         return new ParsePartsMethodVisitor(api, superMv, "(Z)V".equals(descriptor) ? 2 : 1);
@@ -226,7 +227,11 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
 
     @Override
     public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface) {
       if (opcode == Opcodes.INVOKEVIRTUAL
           && owner.equals("org/apache/tomcat/util/http/Parameters")
           && name.equals("addParameter")

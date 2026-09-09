@@ -29,7 +29,9 @@ public interface DDPartialKeyCache<K, V> {
       Comparator<K, V> comparator,
       Producer<K, ? extends V> producer);
 
-  /** Clear the cache. */
+  /**
+   * Clear the cache.
+   */
   void clear();
 
   @FunctionalInterface

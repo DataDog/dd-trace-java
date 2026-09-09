@@ -1,15 +1,15 @@
 package datadog.trace.api.config;
 
-/** Constant with names of configuration options for CI visibility. */
+/**
+ * Constant with names of configuration options for CI visibility.
+ */
 public final class CiVisibilityConfig {
-
   public static final String CIVISIBILITY_ENABLED = "civisibility.enabled";
   public static final String CIVISIBILITY_TRACE_SANITATION_ENABLED =
       "civisibility.trace.sanitation.enabled";
   public static final String CIVISIBILITY_AGENTLESS_ENABLED = "civisibility.agentless.enabled";
   public static final String CIVISIBILITY_AGENTLESS_URL = "civisibility.agentless.url";
-  public static final String CIVISIBILITY_INTAKE_AGENTLESS_URL =
-      "civisibility.intake.agentless.url";
+  public static final String CIVISIBILITY_INTAKE_AGENTLESS_URL = "civisibility.intake.agentless.url";
   public static final String CIVISIBILITY_SOURCE_DATA_ENABLED = "civisibility.source.data.enabled";
   public static final String CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED =
       "civisibility.build.instrumentation.enabled";
@@ -85,12 +85,10 @@ public final class CiVisibilityConfig {
   public static final String TEST_FAILED_TEST_REPLAY_ENABLED = "test.failed.test.replay.enabled";
   public static final String CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED =
       "civisibility.gradle.dependency.verification.enabled";
-
   /* Git PR info */
   public static final String GIT_PULL_REQUEST_BASE_BRANCH = "git.pull.request.base.branch";
   public static final String GIT_PULL_REQUEST_BASE_BRANCH_SHA = "git.pull.request.base.branch.sha";
   public static final String GIT_COMMIT_HEAD_SHA = "git.commit.head.sha";
-
   /* COVERAGE SETTINGS */
   public static final String CODE_COVERAGE_FLAGS = "code.coverage.flags";
   public static final String CIVISIBILITY_CODE_COVERAGE_ENABLED =
@@ -110,16 +108,18 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_GRADLE_SOURCE_SETS = "civisibility.gradle.sourcesets";
   public static final String CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED =
       "civisibility.code.coverage.report.upload.enabled";
-
   public static final String TEST_SESSION_NAME = "test.session.name";
-
   /* Bazel support */
-  /** Path to the manifest file that enables reading configuration from local JSON files. */
+  /**
+   * Path to the manifest file that enables reading configuration from local JSON files.
+   */
   public static final String TEST_OPTIMIZATION_MANIFEST_FILE = "test.optimization.manifest.file";
-
-  /** When true, spans are serialized to JSON files on disk instead of sent over the network. */
+  /**
+   * When true, spans are serialized to JSON files on disk instead of sent over the network.
+   */
   public static final String TEST_OPTIMIZATION_PAYLOADS_IN_FILES =
       "test.optimization.payloads.in.files";
 
-  private CiVisibilityConfig() {}
+  private CiVisibilityConfig() {
+  }
 }

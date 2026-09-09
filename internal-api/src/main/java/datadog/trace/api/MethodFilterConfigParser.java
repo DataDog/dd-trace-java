@@ -13,10 +13,14 @@ public final class MethodFilterConfigParser {
   private static final Logger log = LoggerFactory.getLogger(MethodFilterConfigParser.class);
 
   private static Map<String, Set<String>> logWarn(
-      String message, int start, int end, String configString) {
+      String message,
+      int start,
+      int end,
+      String configString) {
     String part = configString.substring(start, end).trim();
     log.warn(
-        "Invalid trace method config {} in part '{}'. Must match 'package.Class$Name[method1,method2];?' or 'package.Class$Name[*];?'. Config string: '{}'",
+        "Invalid trace method config {} in part '{}'. Must match 'package."
+        + "Class$Name[method1,method2];?' or 'package.Class$Name[*];?'. Config string: '{}'",
         message,
         part,
         configString);
@@ -95,7 +99,8 @@ public final class MethodFilterConfigParser {
             String method = configString.substring(methodStart, methodEnd).trim();
             if (isIllegalMethodName(method)) {
               toTrace = logWarn("with illegal method name", start, end, configString);
-              methods++; // don't log empty method warning at end
+              // don't log empty method warning at end
+              methods++;
               next = -1;
               break;
             } else if (method.isEmpty()) {
@@ -103,7 +108,8 @@ public final class MethodFilterConfigParser {
               if (emptyMethods > 1) {
                 // we can't have multiple empty methods
                 toTrace = logWarn("with multiple emtpy method names", start, end, configString);
-                methods++; // don't log empty method warning at end
+                // don't log empty method warning at end
+                methods++;
                 next = -1;
                 break;
               }
@@ -111,8 +117,11 @@ public final class MethodFilterConfigParser {
               methods++;
               if (emptyMethods > 0) {
                 // the empty method name was not the last one, which makes it illegal
-                toTrace =
-                    logWarn("with method name and emtpy method name", start, end, configString);
+                toTrace = logWarn(
+                    "with method name and emtpy method name",
+                    start,
+                    end,
+                    configString);
                 next = -1;
                 break;
               }

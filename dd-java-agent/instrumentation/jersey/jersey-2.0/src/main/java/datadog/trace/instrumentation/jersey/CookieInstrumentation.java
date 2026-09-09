@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -21,8 +20,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CookieInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public CookieInstrumentation() {
     super("jersey");
   }
@@ -54,7 +53,11 @@ public class CookieInstrumentation extends InstrumenterModule.Iast
       if (module != null) {
         IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
         module.taintStringIfTainted(
-            ctx, cookieName, self, SourceTypes.REQUEST_COOKIE_NAME, cookieName);
+            ctx,
+            cookieName,
+            self,
+            SourceTypes.REQUEST_COOKIE_NAME,
+            cookieName);
       }
     }
   }

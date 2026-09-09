@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AppSecSpanPostProcessor implements SpanPostProcessor {
-
   private static final Logger log = LoggerFactory.getLogger(AppSecSpanPostProcessor.class);
   private static final String SCHEMA_DERIVATIVE_PREFIX = "_dd.appsec.s.";
   private final ApiSecuritySampler sampler;
@@ -73,7 +72,9 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
   }
 
   private void extractSchemas(
-      final AppSecRequestContext ctx, final TraceSegment traceSegment, final String framework) {
+      final AppSecRequestContext ctx,
+      final TraceSegment traceSegment,
+      final String framework) {
     final EventProducerService.DataSubscriberInfo sub =
         producerService.getDataSubscribers(KnownAddresses.WAF_CONTEXT_PROCESSOR);
     if (sub == null || sub.isEmpty()) {
@@ -81,9 +82,9 @@ public class AppSecSpanPostProcessor implements SpanPostProcessor {
       return;
     }
 
-    final DataBundle bundle =
-        new SingletonDataBundle<>(
-            KnownAddresses.WAF_CONTEXT_PROCESSOR, Collections.singletonMap("extract-schema", true));
+    final DataBundle bundle = new SingletonDataBundle<>(
+        KnownAddresses.WAF_CONTEXT_PROCESSOR,
+        Collections.singletonMap("extract-schema", true));
     try {
       GatewayContext gwCtx = new GatewayContext(false);
       producerService.publishDataEvent(sub, ctx, bundle, gwCtx);

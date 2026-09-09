@@ -106,7 +106,6 @@ public class ListIterationBenchmark {
     ARRAY_LIST_5(() -> newArrayList(5)),
     ARRAY_LIST_10(() -> newArrayList(10)),
     ARRAY_LIST_100(() -> newArrayList(100));
-
     private final Supplier<List<Element>> factory;
 
     ListSpec(Supplier<List<Element>> factory) {
@@ -118,8 +117,8 @@ public class ListIterationBenchmark {
     }
   }
 
-  @Param ListSpec listSpec;
-
+  @Param
+  ListSpec listSpec;
   List<Element> list;
 
   @Setup(Level.Trial)

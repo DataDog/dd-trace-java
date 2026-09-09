@@ -115,7 +115,9 @@ public class DebuggerContext {
     DebuggerContext.codeOriginRecorder = codeOriginRecorder;
   }
 
-  /** Returns the probe details based on the probe idx provided. */
+  /**
+   * Returns the probe details based on the probe idx provided.
+   */
   public static ProbeImplementation resolveProbe(int probeIndex) {
     ProbeResolver resolver = probeResolver;
     if (resolver == null) {
@@ -137,9 +139,10 @@ public class DebuggerContext {
     return filter.isDenied(fullyQualifiedClassName);
   }
 
-  /** Increments or updates the specified metric No-op if no implementation is available */
-  public static void metric(
-      String probeId, MetricKind kind, String name, long value, String[] tags) {
+  /**
+   * Increments or updates the specified metric No-op if no implementation is available
+   */
+  public static void metric(String probeId, MetricKind kind, String name, long value, String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
@@ -166,9 +169,15 @@ public class DebuggerContext {
     }
   }
 
-  /** Updates the specified metric No-op if no implementation is available */
+  /**
+   * Updates the specified metric No-op if no implementation is available
+   */
   public static void metric(
-      String probeId, MetricKind kind, String name, double value, String[] tags) {
+      String probeId,
+      MetricKind kind,
+      String name,
+      double value,
+      String[] tags) {
     try {
       MetricForwarder forwarder = metricForwarder;
       if (forwarder == null) {
@@ -192,7 +201,9 @@ public class DebuggerContext {
     }
   }
 
-  /** Serializes the specified value as string Returns null if no implementation is available */
+  /**
+   * Serializes the specified value as string Returns null if no implementation is available
+   */
   public static String serializeValue(CapturedContext.CapturedValue value) {
     ValueSerializer serializer = valueSerializer;
     if (serializer == null) {
@@ -202,7 +213,9 @@ public class DebuggerContext {
     return serializer.serializeValue(value);
   }
 
-  /** Creates a span, returns null if no implementation available */
+  /**
+   * Creates a span, returns null if no implementation available
+   */
   public static DebuggerSpan createSpan(String probeId, String operationName, String[] tags) {
     try {
       Tracer localTracer = tracer;
@@ -281,20 +294,20 @@ public class DebuggerContext {
         if (probeImplementation == null) {
           continue;
         }
-        CapturedContext.Status status =
-            context.evaluate(
-                probeImplementation,
-                callingClass.getTypeName(),
-                startTimestamp,
-                methodLocation,
-                false);
+        CapturedContext.Status status = context.evaluate(
+            probeImplementation,
+            callingClass.getTypeName(),
+            startTimestamp,
+            methodLocation,
+            false);
         needFreeze |= status.shouldFreezeContext();
       }
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
       if (needFreeze) {
-        Duration timeout =
-            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        Duration timeout = Duration.ofMillis(Config
+          .get()
+          .getDynamicInstrumentationCaptureTimeout());
         context.freeze(TimeoutChecker.create(Config.get(), timeout));
       }
     } catch (Exception ex) {
@@ -317,19 +330,19 @@ public class DebuggerContext {
       if (probeImplementation == null) {
         return;
       }
-      CapturedContext.Status status =
-          context.evaluate(
-              probeImplementation,
-              callingClass.getTypeName(),
-              startTimestamp,
-              methodLocation,
-              true);
+      CapturedContext.Status status = context.evaluate(
+          probeImplementation,
+          callingClass.getTypeName(),
+          startTimestamp,
+          methodLocation,
+          true);
       boolean needFreeze = status.shouldFreezeContext();
       // only freeze the context when we have at lest one snapshot probe, and we should send
       // snapshot
       if (needFreeze) {
-        Duration timeout =
-            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        Duration timeout = Duration.ofMillis(Config
+          .get()
+          .getDynamicInstrumentationCaptureTimeout());
         context.freeze(TimeoutChecker.create(Config.get(), timeout));
       }
     } catch (Exception ex) {
@@ -342,7 +355,10 @@ public class DebuggerContext {
    * conditions and commit snapshot to send it if needed. This is for line probes.
    */
   public static void evalContextAndCommit(
-      CapturedContext context, Class<?> callingClass, int line, int... probeIndices) {
+      CapturedContext context,
+      Class<?> callingClass,
+      int line,
+      int... probeIndices) {
     try {
       List<ProbeImplementation> probeImplementations = new ArrayList<>();
       for (int probeIndex : probeIndices) {
@@ -351,7 +367,11 @@ public class DebuggerContext {
           continue;
         }
         context.evaluate(
-            probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT, false);
+            probeImplementation,
+            callingClass.getTypeName(),
+            -1,
+            MethodLocation.DEFAULT,
+            false);
         probeImplementations.add(probeImplementation);
       }
       for (ProbeImplementation probeImplementation : probeImplementations) {
@@ -367,7 +387,10 @@ public class DebuggerContext {
    * int...)} for single probe
    */
   public static void evalContextAndCommit(
-      CapturedContext context, Class<?> callingClass, int line, int probeIndex) {
+      CapturedContext context,
+      Class<?> callingClass,
+      int line,
+      int probeIndex) {
     // Cannot call the multi probe version here, because it will add a new level for stacktrace
     // recording
     try {
@@ -376,7 +399,11 @@ public class DebuggerContext {
         return;
       }
       context.evaluate(
-          probeImplementation, callingClass.getTypeName(), -1, MethodLocation.DEFAULT, true);
+          probeImplementation,
+          callingClass.getTypeName(),
+          -1,
+          MethodLocation.DEFAULT,
+          true);
       probeImplementation.commit(context, line);
     } catch (Exception ex) {
       LOGGER.debug("Error in evalContextAndCommit: ", ex);
@@ -388,7 +415,9 @@ public class DebuggerContext {
       ProbeImplementation probe = probeResolver.resolve(probeIndex);
       if (probe != null) {
         probe.commit(
-            CapturedContext.EMPTY_CONTEXT, CapturedContext.EMPTY_CONTEXT, Collections.emptyList());
+            CapturedContext.EMPTY_CONTEXT,
+            CapturedContext.EMPTY_CONTEXT,
+            Collections.emptyList());
       }
     } catch (Exception e) {
       LOGGER.debug("Error in codeOrigin: ", e);
@@ -416,7 +445,7 @@ public class DebuggerContext {
         ProbeImplementation probeImplementation;
         if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
             && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
-                || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+            || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
           probeImplementation = entryStatus.probeImplementation;
         } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
           probeImplementation = exitStatus.probeImplementation;
@@ -452,7 +481,7 @@ public class DebuggerContext {
       ProbeImplementation probeImplementation;
       if (entryStatus.probeImplementation != ProbeImplementation.UNKNOWN
           && (entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.ENTRY
-              || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
+          || entryStatus.probeImplementation.getEvaluateAt() == MethodLocation.DEFAULT)) {
         probeImplementation = entryStatus.probeImplementation;
       } else if (exitStatus.probeImplementation.getEvaluateAt() == MethodLocation.EXIT) {
         probeImplementation = exitStatus.probeImplementation;
@@ -479,7 +508,10 @@ public class DebuggerContext {
   }
 
   public static void captureCodeOrigin(
-      String typeName, String methodName, String descriptor, boolean entry) {
+      String typeName,
+      String methodName,
+      String descriptor,
+      boolean entry) {
     try {
       CodeOriginRecorder recorder = codeOriginRecorder;
       if (recorder != null) {

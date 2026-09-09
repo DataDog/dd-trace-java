@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -57,14 +56,16 @@ class ContextTest {
     assertNull(context3.get(STRING_KEY));
     // Test null key handling
     assertThrows(
-        NullPointerException.class, () -> context.with(null, "test"), "Context forbids null keys");
+        NullPointerException.class,
+        () -> context.with(null, "test"),
+        "Context forbids null keys");
     // Test null value handling
     assertDoesNotThrow(
-        () -> context.with(BOOLEAN_KEY, null), "Null value should not throw exception");
+        () -> context.with(BOOLEAN_KEY, null),
+        "Null value should not throw exception");
     // Test null implicitly keyed value handling - should preserve existing context, not discard it
     Context withNull = context1.with((ImplicitContextKeyed) null);
-    assertEquals(
-        context1, withNull, "Null implicitly keyed value should preserve existing context");
+    assertEquals(context1, withNull, "Null implicitly keyed value should preserve existing context");
   }
 
   @ParameterizedTest
@@ -117,10 +118,10 @@ class ContextTest {
   }
 
   @SuppressWarnings({
-    "EqualsWithItself",
-    "SimplifiableAssertion",
-    "ConstantValue",
-    "EqualsBetweenInconvertibleTypes"
+      "EqualsWithItself",
+      "SimplifiableAssertion",
+      "ConstantValue",
+      "EqualsBetweenInconvertibleTypes"
   })
   @Test
   void testEqualsAndHashCode() {

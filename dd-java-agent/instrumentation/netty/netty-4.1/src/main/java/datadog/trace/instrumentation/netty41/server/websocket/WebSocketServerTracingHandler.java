@@ -4,8 +4,8 @@ import io.netty.channel.CombinedChannelDuplexHandler;
 
 public class WebSocketServerTracingHandler
     extends CombinedChannelDuplexHandler<
-        WebSocketServerInboundTracingHandler, WebSocketServerOutboundTracingHandler> {
-
+    WebSocketServerInboundTracingHandler,
+    WebSocketServerOutboundTracingHandler> {
   public WebSocketServerTracingHandler() {
     super(
         WebSocketServerInboundTracingHandler.INSTANCE,

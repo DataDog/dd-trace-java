@@ -1,6 +1,8 @@
 package datadog.json;
 
-/** The {@link JsonStructure} keeps track of JSON value being built. */
+/**
+ * The {@link JsonStructure} keeps track of JSON value being built.
+ */
 interface JsonStructure {
   /**
    * Begins an object.
@@ -23,7 +25,9 @@ interface JsonStructure {
    */
   void endObject();
 
-  /** Begins an array. */
+  /**
+   * Begins an array.
+   */
   void beginArray();
 
   /**

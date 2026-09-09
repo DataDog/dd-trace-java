@@ -14,7 +14,8 @@ public class BodyAdvice {
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Sink(VulnerabilityTypes.XSS)
   public static void setBody(
-      @Advice.This ElementTagStructureHandler self, @Advice.Argument(0) final CharSequence text) {
+      @Advice.This ElementTagStructureHandler self,
+      @Advice.Argument(0) final CharSequence text) {
     final XssModule module = InstrumentationBridge.XSS;
     if (module != null) {
       ContextStore<IElementTagStructureHandler, ThymeleafContext> contextStore =

@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.HTTP_URL_CONNECTION;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -12,7 +11,6 @@ import java.net.HttpURLConnection;
 
 public class HttpUrlState {
   public static final ContextStore.Factory<HttpUrlState> FACTORY = HttpUrlState::new;
-
   private volatile AgentSpan span = null;
   private volatile boolean finished = false;
 
@@ -38,7 +36,9 @@ public class HttpUrlState {
   }
 
   public void finishSpan(
-      final HttpURLConnection connection, final int responseCode, final Throwable throwable) {
+      final HttpURLConnection connection,
+      final int responseCode,
+      final Throwable throwable) {
     try (final ContextScope scope = activateSpan(span)) {
       if (responseCode > 0) {
         // safe to access response data as 'responseCode' is set

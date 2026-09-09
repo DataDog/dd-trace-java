@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
-
   public static final String DD_GIT_REPOSITORY_URL = "git.repository.url";
   public static final String DD_GIT_BRANCH = "git.branch";
   public static final String DD_GIT_TAG = "git.tag";
@@ -34,7 +33,6 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
     if (gitRepositoryUrl == null) {
       gitRepositoryUrl = Config.get().getGlobalTags().get(Tags.GIT_REPOSITORY_URL);
     }
-
     // The user can set the DD_GIT_BRANCH manually but
     // using the value returned by the CI Provider, so
     // we need to normalize the value. Also, it can contain
@@ -63,17 +61,15 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
     final String gitCommitCommitterEmail = configProvider.getString(DD_GIT_COMMIT_COMMITTER_EMAIL);
     final String gitCommitCommitterDate = configProvider.getString(DD_GIT_COMMIT_COMMITTER_DATE);
 
-    GitInfo gitInfo =
-        new GitInfo(
-            gitRepositoryUrl,
-            gitBranch,
-            gitTag,
-            new CommitInfo(
-                gitCommitSha,
-                new PersonInfo(gitCommitAuthorName, gitCommitAuthorEmail, gitCommitAuthorDate),
-                new PersonInfo(
-                    gitCommitCommitterName, gitCommitCommitterEmail, gitCommitCommitterDate),
-                gitCommitMessage));
+    GitInfo gitInfo = new GitInfo(
+        gitRepositoryUrl,
+        gitBranch,
+        gitTag,
+        new CommitInfo(
+            gitCommitSha,
+            new PersonInfo(gitCommitAuthorName, gitCommitAuthorEmail, gitCommitAuthorDate),
+            new PersonInfo(gitCommitCommitterName, gitCommitCommitterEmail, gitCommitCommitterDate),
+            gitCommitMessage));
 
     if (!gitInfo.isEmpty()) {
       // if there is any git metadata supplied by the user, we want to check that repo URL and
@@ -81,7 +77,9 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
       String repoUrl = gitInfo.getRepositoryURL();
       if (repoUrl == null || repoUrl.isEmpty()) {
         log.error(
-            "Could not resolve git repository URL (can be provided via {} env var or corresponding system property, {} config property or by embedding git metadata at build time)",
+            "Could not resolve git repository URL (can be provided via {} env var or "
+            + "corresponding system property, {} config property or by embedding git metadata at "
+            + "build time)",
             ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_REPOSITORY_URL),
             GeneralConfig.TAGS);
       }
@@ -90,9 +88,9 @@ public class UserSuppliedGitInfoBuilder implements GitInfoBuilder {
       if (!GitUtils.isValidCommitShaFull(commitSha)) {
         log.error(
             "Git commit SHA could not be resolved or is invalid: {}"
-                + " (can be provided via {}"
-                + " env var or corresponding system property, {}"
-                + " config property or by embedding git metadata at build time; must be a full-length SHA",
+            + " (can be provided via {}"
+            + " env var or corresponding system property, {}"
+            + " config property or by embedding git metadata at build time; must be a full-length SHA",
             commitSha,
             ConfigStrings.propertyNameToEnvironmentVariableName(DD_GIT_COMMIT_SHA),
             GeneralConfig.TAGS);

@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Map;
 
 public interface LogHandler {
-
   /**
    * Handles the log implementation in the Span.
    *

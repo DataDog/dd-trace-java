@@ -8,7 +8,6 @@ import static com.datadog.debugger.instrumentation.Types.DEBUGGER_SPAN_TYPE;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static com.datadog.debugger.instrumentation.Types.THROWABLE_TYPE;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
-
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.util.ClassFileLines;
@@ -90,7 +89,9 @@ public class SpanInstrumenter extends Instrumenter {
         DEBUGGER_SPAN_TYPE,
         STRING_TYPE,
         STRING_TYPE,
-        Types.asArray(STRING_TYPE, 1)); // tags
+        Types
+          // tags
+          .asArray(STRING_TYPE, 1));
     // stack: [span]
     insnList.add(new VarInsnNode(Opcodes.ASTORE, spanVar));
     // stack: []

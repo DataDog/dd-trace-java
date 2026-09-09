@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -43,7 +42,6 @@ import org.msgpack.core.MessageUnpacker;
 
 @ExtendWith(WithConfigExtension.class)
 class TraceMapperV04PayloadTest {
-
   // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
   // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
   @BeforeEach
@@ -100,25 +98,27 @@ class TraceMapperV04PayloadTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("fullSixtyFourBitTraceAndSpanIdentifiersArguments")
   void fullSixtyFourBitTraceAndSpanIdentifiers(
-      String scenario, DDTraceId traceId, long spanId, long parentId) {
-    PojoSpan span =
-        new PojoSpan(
-            "service",
-            "operation",
-            "resource",
-            traceId,
-            spanId,
-            parentId,
-            123L,
-            456L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "type",
-            false,
-            0,
-            0,
-            "origin");
+      String scenario,
+      DDTraceId traceId,
+      long spanId,
+      long parentId) {
+    PojoSpan span = new PojoSpan(
+        "service",
+        "operation",
+        "resource",
+        traceId,
+        spanId,
+        parentId,
+        123L,
+        456L,
+        0,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        "type",
+        false,
+        0,
+        0,
+        "origin");
     List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(span));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
@@ -139,24 +139,23 @@ class TraceMapperV04PayloadTest {
 
   @Test
   void metaStructSupport() {
-    PojoSpan span =
-        new PojoSpan(
-            "service",
-            "operation",
-            "resource",
-            DDTraceId.ONE,
-            1L,
-            -1L,
-            123L,
-            456L,
-            0,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            "type",
-            false,
-            0,
-            0,
-            "origin");
+    PojoSpan span = new PojoSpan(
+        "service",
+        "operation",
+        "resource",
+        DDTraceId.ONE,
+        1L,
+        -1L,
+        123L,
+        456L,
+        0,
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        "type",
+        false,
+        0,
+        0,
+        "origin");
     List<Map<String, String>> stack = new ArrayList<>();
     for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
       Map<String, String> frame = new HashMap<>();
@@ -168,25 +167,21 @@ class TraceMapperV04PayloadTest {
     span.setMetaStruct("stack", stack);
     List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(span));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
-    PayloadVerifier verifier =
-        new PayloadVerifier(
-            traces,
-            traceMapper,
-            (expected, received) -> {
-              MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(received);
-              List<?> expectedStack = (List<?>) expected;
-              int size = unpacker.unpackArrayHeader();
-              assertEquals(expectedStack.size(), size);
-              for (Object entry : expectedStack) {
-                @SuppressWarnings("unchecked")
-                Map<String, String> stackEntry = (Map<String, String>) entry;
-                int fields = unpacker.unpackMapHeader();
-                for (int f = 0; f < fields; ++f) {
-                  String field = unpacker.unpackString();
-                  assertEquals(stackEntry.get(field), unpacker.unpackString());
-                }
-              }
-            });
+    PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper, (expected, received) -> {
+      MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(received);
+      List<?> expectedStack = (List<?>) expected;
+      int size = unpacker.unpackArrayHeader();
+      assertEquals(expectedStack.size(), size);
+      for (Object entry : expectedStack) {
+        @SuppressWarnings("unchecked")
+        Map<String, String> stackEntry = (Map<String, String>) entry;
+        int fields = unpacker.unpackMapHeader();
+        for (int f = 0; f < fields; ++f) {
+          String field = unpacker.unpackString();
+          assertEquals(stackEntry.get(field), unpacker.unpackString());
+        }
+      }
+    });
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier));
 
     packer.format(Collections.singletonList(span), traceMapper);
@@ -232,13 +227,11 @@ class TraceMapperV04PayloadTest {
   }
 
   private static final class PayloadVerifier implements ByteBufferConsumer {
-
     private final List<List<PojoSpan>> expectedTraces;
     private final TraceMapperV0_4 mapper;
     private final MetaStructVerifier<Object> metaStructVerifier;
     private final PayloadVerifiers.CapturingChannel channel =
         new PayloadVerifiers.CapturingChannel(200 << 10);
-
     private int position = 0;
 
     private PayloadVerifier(List<List<PojoSpan>> traces, TraceMapperV0_4 mapper) {
@@ -388,7 +381,8 @@ class TraceMapperV04PayloadTest {
         mapper.reset();
         channel.resetForWriting();
         assertEquals(
-            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0, processTagsCount);
+            Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0,
+            processTagsCount);
       }
     }
 

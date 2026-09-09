@@ -8,7 +8,6 @@ import datadog.trace.api.gateway.Flow;
 import java.util.Collection;
 
 public interface EventProducerService {
-
   /**
    * Determines the data callbacks for the given addresses. The return value can be cached if it's
    * guaranteed that no modifications to the subscriptions will be made between usages, and that the
@@ -36,8 +35,7 @@ public interface EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext appSecRequestContext,
       DataBundle newData,
-      GatewayContext gatewayContext)
-      throws ExpiredSubscriberInfoException;
+      GatewayContext gatewayContext) throws ExpiredSubscriberInfoException;
 
   interface DataSubscriberInfo {
     boolean isEmpty();

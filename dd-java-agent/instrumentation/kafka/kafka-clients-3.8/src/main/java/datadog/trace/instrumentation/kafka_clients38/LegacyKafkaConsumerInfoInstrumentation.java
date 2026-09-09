@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,16 +25,16 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
-
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithTypeStructure {
   public LegacyKafkaConsumerInfoInstrumentation() {
     super("kafka", "kafka-3.8");
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy"); // since 3.8
+    // since 3.8
+    return hasClassNamed("org.apache.kafka.clients.MetadataRecoveryStrategy");
   }
 
   @Override
@@ -45,7 +44,8 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
         "org.apache.kafka.clients.Metadata",
         "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
-        "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
+        "org.apache.kafka.clients.consumer.ConsumerRecords",
+        KafkaConsumerInfo.class.getName());
     contextStores.put(
         "org.apache.kafka.clients.consumer.internals.ConsumerCoordinator",
         KafkaConsumerInfo.class.getName());
@@ -75,13 +75,13 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KafkaDecorator",
-      packageName + ".KafkaConsumerInfo",
-      packageName + ".KafkaConsumerInstrumentationHelper",
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
-      "datadog.trace.instrumentation.kafka_common.PendingConfig",
-      "datadog.trace.instrumentation.kafka_common.MetadataState",
+        packageName + ".KafkaDecorator",
+        packageName + ".KafkaConsumerInfo",
+        packageName + ".KafkaConsumerInstrumentationHelper",
+        "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+        "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+        "datadog.trace.instrumentation.kafka_common.PendingConfig",
+        "datadog.trace.instrumentation.kafka_common.MetadataState"
     };
   }
 
@@ -89,16 +89,16 @@ public final class LegacyKafkaConsumerInfoInstrumentation extends InstrumenterMo
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
-            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
-            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
+          .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerConfig")))
+          .and(takesArgument(1, named("org.apache.kafka.common.serialization.Deserializer")))
+          .and(takesArgument(2, named("org.apache.kafka.common.serialization.Deserializer"))),
         packageName + ".LegacyConstructorAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("poll"))
-            .and(takesArguments(1))
-            .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
+          .and(isPublic())
+          .and(named("poll"))
+          .and(takesArguments(1))
+          .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecords"))),
         packageName + ".RecordsAdvice");
   }
 }

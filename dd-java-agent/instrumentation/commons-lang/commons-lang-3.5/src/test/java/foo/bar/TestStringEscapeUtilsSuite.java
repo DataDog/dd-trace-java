@@ -3,7 +3,6 @@ package foo.bar;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 public class TestStringEscapeUtilsSuite {
-
   public static String escapeHtml3(String input) {
     return StringEscapeUtils.escapeHtml3(input);
   }

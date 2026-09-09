@@ -36,7 +36,8 @@ public interface RequestContext extends Closeable {
   class Noop implements RequestContext {
     public static final RequestContext INSTANCE = new Noop();
 
-    private Noop() {}
+    private Noop() {
+    }
 
     @Override
     public <T> T getData(RequestContextSlot slot) {

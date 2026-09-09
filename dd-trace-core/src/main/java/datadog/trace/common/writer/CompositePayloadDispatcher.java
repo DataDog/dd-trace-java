@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.List;
 
 public class CompositePayloadDispatcher implements PayloadDispatcher {
-
   private final PayloadDispatcher[] delegates;
 
   public CompositePayloadDispatcher(PayloadDispatcher... delegates) {

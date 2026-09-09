@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_U
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.ContextContinuation;
@@ -20,7 +19,8 @@ import org.xnio.channels.StreamSinkChannel;
 
 @AutoService(InstrumenterModule.class)
 public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public HttpServerExchangeSenderInstrumentation() {
     super("undertow", "undertow-2.0");
   }
@@ -33,14 +33,14 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".IgnoreSendAttribute",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowBlockResponseFunction",
+        packageName + ".IgnoreSendAttribute",
+        packageName + ".UndertowDecorator",
+        packageName + ".UndertowExtractAdapter",
+        packageName + ".UndertowExtractAdapter$Request",
+        packageName + ".UndertowExtractAdapter$Response",
+        packageName + ".UndertowBlockingHandler",
+        packageName + ".HttpServerExchangeURIDataAdapter",
+        packageName + ".UndertowBlockResponseFunction"
     };
   }
 
@@ -56,7 +56,8 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
    */
   static class GetResponseChannelAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-    static boolean /* skip */ before(
+    static boolean /* skip */
+    before(
         @Advice.This HttpServerExchange xchg,
         @Advice.FieldValue("responseChannel") StreamSinkChannel channel) {
       if (channel != null) {
@@ -73,9 +74,11 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
       xchg.putAttachment(IgnoreSendAttribute.IGNORE_SEND_KEY, IgnoreSendAttribute.INSTANCE);
 
       AgentSpan span = spanFromContext(continuation.context());
-      Flow<Void> flow =
-          UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
-              span, xchg, xchg.getStatusCode(), UndertowExtractAdapter.Response.GETTER);
+      Flow<Void> flow = UndertowDecorator.DECORATE.callIGCallbackResponseAndHeaders(
+          span,
+          xchg,
+          xchg.getStatusCode(),
+          UndertowExtractAdapter.Response.GETTER);
       Flow.Action action = flow.getAction();
       if (!(action instanceof Flow.Action.RequestBlockingAction)) {
         return false;
@@ -85,14 +88,14 @@ public class HttpServerExchangeSenderInstrumentation extends InstrumenterModule.
 
       xchg.putAttachment(UndertowBlockingHandler.REQUEST_BLOCKING_DATA, rba);
       xchg.putAttachment(
-          UndertowBlockingHandler.TRACE_SEGMENT, span.getRequestContext().getTraceSegment());
+          UndertowBlockingHandler.TRACE_SEGMENT,
+          span.getRequestContext().getTraceSegment());
       UndertowBlockingHandler.INSTANCE.handleRequest(xchg);
       return true;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    static void after(
-        @Advice.Enter boolean skip, @Advice.Thrown(readOnly = false) Throwable thrown) {
+    static void after(@Advice.Enter boolean skip, @Advice.Thrown(readOnly = false) Throwable thrown) {
       if (!skip) {
         return;
       }

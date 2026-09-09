@@ -15,15 +15,12 @@ import org.bson.BsonWriter;
 import org.bson.types.ObjectId;
 
 public final class BsonScrubber31 implements BsonWriter, BsonScrubber {
-
-  private static final ThreadLocal<Context> CONTEXT =
-      new ThreadLocal<Context>() {
-        @Override
-        protected Context initialValue() {
-          return new Context();
-        }
-      };
-
+  private static final ThreadLocal<Context> CONTEXT = new ThreadLocal<Context>() {
+    @Override
+    protected Context initialValue() {
+      return new Context();
+    }
+  };
   private final Context context;
   private boolean obfuscate = true;
 
@@ -45,11 +42,14 @@ public final class BsonScrubber31 implements BsonWriter, BsonScrubber {
       switch (name) {
         case "documents":
         case "deletes":
-        case "updates": // we don't want to record data in resource names!
+        // we don't want to record data in resource names!
+        case "updates":
         case "$in":
         case "$setOnInsert":
         case "$set":
-        case "arrayFilters": // collapse long lists
+        case
+            // collapse long lists
+        "arrayFilters":
           context.discardSubTree();
           obfuscate = true;
           break;
@@ -480,7 +480,8 @@ public final class BsonScrubber31 implements BsonWriter, BsonScrubber {
   }
 
   private void pipeJavascriptWithScope(
-      String attribute, final BsonJavaScriptWithScope javaScriptWithScope) {
+      String attribute,
+      final BsonJavaScriptWithScope javaScriptWithScope) {
     writeJavaScriptWithScope(javaScriptWithScope.getCode());
     pipeDocument(attribute, javaScriptWithScope.getScope());
   }

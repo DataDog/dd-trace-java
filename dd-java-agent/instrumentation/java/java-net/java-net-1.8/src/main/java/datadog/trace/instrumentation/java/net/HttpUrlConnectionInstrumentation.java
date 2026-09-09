@@ -9,7 +9,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,10 +25,9 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForKnownTypes,
-        Instrumenter.ForConfiguredType,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForKnownTypes,
+    Instrumenter.ForConfiguredType,
+    Instrumenter.HasMethodAdvice {
   public HttpUrlConnectionInstrumentation() {
     super("httpurlconnection");
   }
@@ -38,9 +36,9 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
   public String[] knownMatchingTypes() {
     // we deliberately exclude various subclasses that are simple delegators
     return new String[] {
-      "sun.net.www.protocol.http.HttpURLConnection",
-      "java.net.HttpURLConnection",
-      "weblogic.net.http.HttpURLConnection"
+        "sun.net.www.protocol.http.HttpURLConnection",
+        "java.net.HttpURLConnection",
+        "weblogic.net.http.HttpURLConnection"
     };
   }
 
@@ -66,12 +64,10 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class HttpUrlConnectionAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static HttpUrlState methodEnter(
         @Advice.This final HttpURLConnection thiz,
         @Advice.FieldValue("connected") final boolean connected) {
-
       final ContextStore<HttpURLConnection, HttpUrlState> contextStore =
           InstrumentationContext.get(HttpURLConnection.class, HttpUrlState.class);
       final HttpUrlState state = contextStore.getOrCreate(thiz, HttpUrlState.FACTORY);
@@ -99,7 +95,6 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing
         @Advice.FieldValue("responseCode") final int responseCode,
         @Advice.Thrown final Throwable throwable,
         @Advice.Origin("#m") final String methodName) {
-
       if (state == null) {
         return;
       }

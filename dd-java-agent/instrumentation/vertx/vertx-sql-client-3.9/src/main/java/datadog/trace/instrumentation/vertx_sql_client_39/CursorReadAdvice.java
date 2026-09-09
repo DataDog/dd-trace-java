@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.vertx_sql_client_39.VertxSqlClientDecorator.DECORATE;
-
 import datadog.context.ContextContinuation;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -22,17 +21,17 @@ public class CursorReadAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope beforeRead(
       @Advice.Argument(value = 1, readOnly = false) Handler<AsyncResult<RowSet<Row>>> handler,
-      @Advice.FieldValue(value = "ps", typing = Assigner.Typing.DYNAMIC)
-          final PreparedStatement ps) {
+      @Advice.FieldValue(value = "ps", typing = Assigner.Typing.DYNAMIC) final PreparedStatement ps) {
     if (handler instanceof QueryResultHandlerWrapper) {
       return null;
     }
     final AgentSpan parentSpan = activeSpan();
     final ContextContinuation parentContinuation =
         null == parentSpan ? null : captureSpan(parentSpan);
-    final AgentSpan clientSpan =
-        DECORATE.startAndDecorateSpanForStatement(
-            ps, InstrumentationContext.get(PreparedStatement.class, Pair.class), true);
+    final AgentSpan clientSpan = DECORATE.startAndDecorateSpanForStatement(
+        ps,
+        InstrumentationContext.get(PreparedStatement.class, Pair.class),
+        true);
     if (null == clientSpan) {
       return null;
     }
@@ -43,7 +42,8 @@ public class CursorReadAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterRead(
-      @Advice.Thrown final Throwable throwable, @Advice.Enter final AgentScope clientScope) {
+      @Advice.Thrown final Throwable throwable,
+      @Advice.Enter final AgentScope clientScope) {
     if (null != clientScope) {
       clientScope.close();
     }

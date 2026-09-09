@@ -5,7 +5,6 @@ import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionBetween;
 
 public class ExcludedVersions {
-
   public static void checkVersionExclusion() throws IllegalStateException {
     if (isVersionExcluded()) {
       throw new IllegalStateException("Excluded java version: " + getRuntimeVersion());

@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class LambdaTaskConfigurer implements SchedulingConfigurer {
-
   public final CountDownLatch singleUseLatch = new CountDownLatch(1);
 
   @Override

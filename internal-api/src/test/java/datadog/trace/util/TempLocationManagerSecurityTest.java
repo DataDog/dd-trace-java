@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.time.SystemTimeSource;
 import java.io.IOException;
@@ -27,8 +26,8 @@ import org.junit.jupiter.params.provider.ValueSource;
  * <p>All tests are POSIX-only; skipped automatically on non-POSIX file systems.
  */
 public class TempLocationManagerSecurityTest {
-
-  @TempDir Path baseDir;
+  @TempDir
+  Path baseDir;
 
   @BeforeEach
   void requirePosix() {
@@ -56,8 +55,8 @@ public class TempLocationManagerSecurityTest {
     String pid = PidHelper.getPid();
     Path pidDir = baseTempSubdir.resolve("pid_" + pid);
     Files.createDirectories(
-        pidDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-
+        pidDir,
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
     // Manager must not throw and must return the pre-existing dir
     TempLocationManager mgr = assertDoesNotThrow(() -> instance(baseDir));
     Path tempDir = mgr.getTempDir();
@@ -87,7 +86,8 @@ public class TempLocationManagerSecurityTest {
     String pid = PidHelper.getPid();
     Path pidDir = baseTempSubdir.resolve("pid_" + pid);
     Files.createDirectories(
-        pidDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(perms)));
+        pidDir,
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(perms)));
 
     assertThrows(IllegalStateException.class, () -> instance(baseDir));
   }
@@ -97,15 +97,15 @@ public class TempLocationManagerSecurityTest {
     // First build a clean tree so the manager initialises without error
     TempLocationManager mgr = instance(baseDir);
     Path tempDir = mgr.getTempDir();
-
     // Now plant an insecure subdir
     Path subDir = tempDir.resolve("sub");
     Files.createDirectories(
-        subDir, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx")));
-
+        subDir,
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxrwxrwx")));
     // getTempDir(subPath, false) should detect group/world bits and throw
-    assertThrows(
-        IllegalStateException.class, () -> mgr.getTempDir(tempDir.relativize(subDir), false));
+    assertThrows(IllegalStateException.class, () -> mgr.getTempDir(
+        tempDir.relativize(subDir),
+        false));
   }
 
   @Test
@@ -130,13 +130,13 @@ public class TempLocationManagerSecurityTest {
     Set<PosixFilePermission> perms = Files.getPosixFilePermissions(dir);
     for (PosixFilePermission bit :
         new PosixFilePermission[] {
-          PosixFilePermission.GROUP_READ,
-          PosixFilePermission.GROUP_WRITE,
-          PosixFilePermission.GROUP_EXECUTE,
-          PosixFilePermission.OTHERS_READ,
-          PosixFilePermission.OTHERS_WRITE,
-          PosixFilePermission.OTHERS_EXECUTE
-        }) {
+        PosixFilePermission.GROUP_READ,
+        PosixFilePermission.GROUP_WRITE,
+        PosixFilePermission.GROUP_EXECUTE,
+        PosixFilePermission.OTHERS_READ,
+        PosixFilePermission.OTHERS_WRITE,
+        PosixFilePermission.OTHERS_EXECUTE
+    }) {
       if (perms.contains(bit)) {
         throw new AssertionError("Expected 0700 but found group/world bit " + bit + " on " + dir);
       }

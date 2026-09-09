@@ -5,7 +5,6 @@ import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIM
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
@@ -17,7 +16,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** Test context tracking through {@code VirtualThread} lifecycle - park/unpark (remount) cycles. */
+/**
+ * Test context tracking through {@code VirtualThread} lifecycle - park/unpark (remount) cycles.
+ */
 public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
@@ -35,15 +36,13 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
       public void run() {
         spanId[0] = GlobalTracer.get().getSpanId();
 
-        Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  spanIdBeforeUnmount[0] = GlobalTracer.get().getSpanId();
-                  for (int remount = 0; remount < remountCount; remount++) {
-                    tryUnmount();
-                    spanIdsAfterRemount[remount] = GlobalTracer.get().getSpanId();
-                  }
-                });
+        Thread thread = Thread.startVirtualThread(() -> {
+          spanIdBeforeUnmount[0] = GlobalTracer.get().getSpanId();
+          for (int remount = 0; remount < remountCount; remount++) {
+            tryUnmount();
+            spanIdsAfterRemount[remount] = GlobalTracer.get().getSpanId();
+          }
+        });
         try {
           thread.join(TIMEOUT);
         } catch (InterruptedException e) {
@@ -73,17 +72,15 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
       @Override
       @Trace(operationName = "parent")
       public void run() {
-        Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  tryUnmount();
-                  // Runnable to create child span, not async related
-                  new Runnable() {
-                    @Override
-                    @Trace(operationName = "child")
-                    public void run() {}
-                  }.run();
-                });
+        Thread thread = Thread.startVirtualThread(() -> {
+          tryUnmount();
+          // Runnable to create child span, not async related
+          new Runnable() {
+            @Override
+            @Trace(operationName = "child")
+            public void run() {}
+          }.run();
+        });
         try {
           thread.join(TIMEOUT);
         } catch (InterruptedException e) {
@@ -91,7 +88,8 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         }
         blockUntilChildSpansFinished(1);
       }
-    }.run();
+    }
+      .run();
 
     assertTraces(
         trace(
@@ -115,12 +113,10 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         List<Thread> threads = new ArrayList<>();
         for (int i = 0; i < threadCount; i++) {
           int index = i;
-          threads.add(
-              Thread.startVirtualThread(
-                  () -> {
-                    tryUnmount();
-                    spanIdsAfterRemount[index] = CorrelationIdentifier.getSpanId();
-                  }));
+          threads.add(Thread.startVirtualThread(() -> {
+            tryUnmount();
+            spanIdsAfterRemount[index] = CorrelationIdentifier.getSpanId();
+          }));
         }
 
         for (Thread thread : threads) {
@@ -149,16 +145,13 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
     AtomicReference<String> spanIdBeforeUnmount = new AtomicReference<>();
     AtomicReference<String> spanIdAfterRemount = new AtomicReference<>();
 
-    Thread.startVirtualThread(
-            () -> {
-              spanIdBeforeUnmount.set(CorrelationIdentifier.getSpanId());
-              tryUnmount();
-              spanIdAfterRemount.set(CorrelationIdentifier.getSpanId());
-            })
-        .join(TIMEOUT);
+    Thread.startVirtualThread(() -> {
+      spanIdBeforeUnmount.set(CorrelationIdentifier.getSpanId());
+      tryUnmount();
+      spanIdAfterRemount.set(CorrelationIdentifier.getSpanId());
+    }).join(TIMEOUT);
 
-    assertEquals(
-        "0", spanIdBeforeUnmount.get(), "there should be no active context before unmount");
+    assertEquals("0", spanIdBeforeUnmount.get(), "there should be no active context before unmount");
     assertEquals("0", spanIdAfterRemount.get(), "there should be no active context after remount");
   }
 
@@ -177,13 +170,11 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
       public void run() {
         parentSpanId[0] = GlobalTracer.get().getSpanId();
 
-        Thread thread =
-            Thread.startVirtualThread(
-                () -> {
-                  beforeChild[0] = GlobalTracer.get().getSpanId();
-                  childWork(insideChildBeforeUnmount, insideChildAfterRemount);
-                  afterChild[0] = GlobalTracer.get().getSpanId();
-                });
+        Thread thread = Thread.startVirtualThread(() -> {
+          beforeChild[0] = GlobalTracer.get().getSpanId();
+          childWork(insideChildBeforeUnmount, insideChildAfterRemount);
+          afterChild[0] = GlobalTracer.get().getSpanId();
+        });
         try {
           thread.join();
         } catch (InterruptedException e) {
@@ -192,18 +183,18 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
         blockUntilChildSpansFinished(1);
       }
     }.run();
-
     // Verify context ordering at each checkpoint
     assertEquals(parentSpanId[0], beforeChild[0], "parent should be active before child span");
     assertNotEquals("0", insideChildBeforeUnmount[0], "child should be active before unmount");
     assertNotEquals(
-        parentSpanId[0], insideChildBeforeUnmount[0], "active span should be child, not parent");
+        parentSpanId[0],
+        insideChildBeforeUnmount[0],
+        "active span should be child, not parent");
     assertEquals(
         insideChildBeforeUnmount[0],
         insideChildAfterRemount[0],
         "child should still be active after remount (no out-of-order scope close)");
     assertEquals(parentSpanId[0], afterChild[0], "parent should be active after child span closes");
-
     // Verify trace structure
     assertTraces(
         trace(

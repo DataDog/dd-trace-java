@@ -24,7 +24,8 @@ import javax.annotation.Nullable;
  * folds in the encoded list, so the contract stays consistent.
  */
 public final class AggregateEntryTestUtils {
-  private AggregateEntryTestUtils() {}
+  private AggregateEntryTestUtils() {
+  }
 
   /**
    * Builds an {@link AggregateEntry} from positional args. Bypasses the cardinality handlers so
@@ -96,24 +97,23 @@ public final class AggregateEntryTestUtils {
     UTF8BytesString[] peerTagsArr = peerTagsList.toArray(new UTF8BytesString[0]);
     UTF8BytesString[] additionalTagsArr =
         additionalTags == null ? new UTF8BytesString[0] : additionalTags;
-    long keyHash =
-        AggregateEntry.hashOf(
-            resourceUtf,
-            serviceUtf,
-            operationNameUtf,
-            serviceSourceUtf,
-            typeUtf,
-            spanKindUtf,
-            httpMethodUtf,
-            httpEndpointUtf,
-            grpcUtf,
-            (short) httpStatusCode,
-            synthetic,
-            traceRoot,
-            peerTagsArr,
-            peerTagsArr.length,
-            additionalTagsArr,
-            additionalTagsArr.length);
+    long keyHash = AggregateEntry.hashOf(
+        resourceUtf,
+        serviceUtf,
+        operationNameUtf,
+        serviceSourceUtf,
+        typeUtf,
+        spanKindUtf,
+        httpMethodUtf,
+        httpEndpointUtf,
+        grpcUtf,
+        (short) httpStatusCode,
+        synthetic,
+        traceRoot,
+        peerTagsArr,
+        peerTagsArr.length,
+        additionalTagsArr,
+        additionalTagsArr.length);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -141,17 +141,23 @@ public final class AggregateEntryTestUtils {
     return e.recordOneDuration(durationNanos);
   }
 
-  /** Records one error hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+  /**
+   * Records one error hit of {@code durationNanos} on {@code e}. See {@link #recordOk}.
+   */
   public static AggregateEntry recordError(AggregateEntry e, long durationNanos) {
     return e.recordOneDuration(durationNanos | AggregateEntry.ERROR_TAG);
   }
 
-  /** Records one top-level OK hit of {@code durationNanos} on {@code e}. See {@link #recordOk}. */
+  /**
+   * Records one top-level OK hit of {@code durationNanos} on {@code e}. See {@link #recordOk}.
+   */
   public static AggregateEntry recordTopLevel(AggregateEntry e, long durationNanos) {
     return e.recordOneDuration(durationNanos | AggregateEntry.TOP_LEVEL_TAG);
   }
 
-  /** Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}. */
+  /**
+   * Clears the per-cycle counters and histograms on {@code e}. See {@link #recordOk}.
+   */
   public static void clear(AggregateEntry e) {
     e.clearAggregate();
   }
@@ -161,8 +167,12 @@ public final class AggregateEntryTestUtils {
    * intentionally excluded -- this compares the key identity, not the aggregate.
    */
   public static boolean equals(AggregateEntry a, AggregateEntry b) {
-    if (a == b) return true;
-    if (a == null || b == null) return false;
+    if (a == b) {
+      return true;
+    }
+    if (a == null || b == null) {
+      return false;
+    }
     return a.getHttpStatusCode() == b.getHttpStatusCode()
         && a.isSynthetics() == b.isSynthetics()
         && a.isTraceRoot() == b.isTraceRoot()
@@ -177,8 +187,8 @@ public final class AggregateEntryTestUtils {
         && Objects.equals(a.getHttpEndpoint(), b.getHttpEndpoint())
         && Objects.equals(a.getGrpcStatusCode(), b.getGrpcStatusCode())
         // Additional tags are part of the key (folded into keyHash in schema order), so entries
-        // that differ only in additional tags must not compare equal.
-        && Arrays.equals(a.getAdditionalTags(), b.getAdditionalTags());
+    // that differ only in additional tags must not compare equal.
+    && Arrays.equals(a.getAdditionalTags(), b.getAdditionalTags());
   }
 
   /**

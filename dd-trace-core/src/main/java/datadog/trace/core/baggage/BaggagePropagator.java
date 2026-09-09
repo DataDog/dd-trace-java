@@ -61,7 +61,6 @@ public class BaggagePropagator implements Propagator {
         || (baggage = Baggage.fromContext(context)) == null) {
       return;
     }
-
     // Inject cached header if any as optimized path
     String headerValue = baggage.getW3cHeader();
     if (headerValue != null) {
@@ -106,7 +105,6 @@ public class BaggagePropagator implements Propagator {
     // Save header as cache to re-inject it later if baggage did not change
     baggage.setW3cHeader(headerValue);
     setter.set(carrier, BAGGAGE_KEY, headerValue);
-
     // Record successful baggage injection for telemetry
     BAGGAGE_METRICS.onBaggageInjected();
   }
@@ -122,10 +120,8 @@ public class BaggagePropagator implements Propagator {
     if (baggage == null) {
       return context;
     }
-
     // Record successful baggage extraction for telemetry
     BAGGAGE_METRICS.onBaggageExtracted();
-
     // TODO: consider a better way to link baggage with the extracted (legacy) TagContext
     AgentSpan extractedSpan = AgentSpan.fromContext(context);
     if (extractedSpan != null) {
@@ -141,9 +137,12 @@ public class BaggagePropagator implements Propagator {
   private class BaggageExtractor implements BiConsumer<String, String> {
     private static final char KEY_VALUE_SEPARATOR = '=';
     private static final char PAIR_SEPARATOR = ',';
-    @Nullable private Baggage extracted;
+    @Nullable
+    private Baggage extracted;
 
-    /** URL decode value */
+    /**
+     * URL decode value
+     */
     private String decode(final String value) {
       String decoded = value;
       try {
@@ -180,7 +179,8 @@ public class BaggagePropagator implements Propagator {
         }
         if (kvSeparatorInd > end) {
           LOG.debug(
-              "Dropping baggage headers due to key with no value {}", input.substring(start, end));
+              "Dropping baggage headers due to key with no value {}",
+              input.substring(start, end));
           BAGGAGE_METRICS.onBaggageMalformed();
           return null;
         }
@@ -192,7 +192,6 @@ public class BaggagePropagator implements Propagator {
           return null;
         }
         baggage.put(key, value);
-
         // need to percent-encode non-ascii headers we pass down
         if (w3cHeader != null
             && (UTF_ESCAPER.keyNeedsEncoding(key) || UTF_ESCAPER.valNeedsEncoding(value))) {

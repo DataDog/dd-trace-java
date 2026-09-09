@@ -10,14 +10,15 @@ import org.slf4j.LoggerFactory;
  * itself using either system properties, environment or properties override.
  */
 public interface ExceptionProfiling {
-
   void start();
 
   ExceptionSampleEvent process(final Throwable t);
 
   boolean recordExceptionMessage();
 
-  /** Lazy initialization-on-demand. */
+  /**
+   * Lazy initialization-on-demand.
+   */
   final class Holder {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProfiling.class);
     static final ExceptionProfiling INSTANCE = create();
@@ -75,7 +76,6 @@ public interface ExceptionProfiling {
   }
 
   final class ExceptionProfilingImpl implements ExceptionProfiling {
-
     private final ExceptionHistogram histogram;
     private final ExceptionSampler sampler;
     private final boolean recordExceptionMessage;

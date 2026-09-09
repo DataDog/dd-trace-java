@@ -2,7 +2,6 @@ package datadog.trace.common.sampling;
 
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES;
 import static datadog.trace.api.config.TracerConfig.SPAN_SAMPLING_RULES_FILE;
-
 import datadog.trace.api.Config;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
@@ -12,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public interface SingleSpanSampler {
-
   <T extends CoreSpan<T>> boolean setSamplingPriority(T span);
 
   final class Builder {
@@ -22,7 +20,8 @@ public interface SingleSpanSampler {
       String spanSamplingRules = config.getSpanSamplingRules();
       String spanSamplingRulesFile = config.getSpanSamplingRulesFile();
 
-      boolean spanSamplingRulesDefined = spanSamplingRules != null && !spanSamplingRules.isEmpty();
+      boolean spanSamplingRulesDefined = spanSamplingRules != null
+          && !spanSamplingRules.isEmpty();
       boolean spanSamplingRulesFileDefined =
           spanSamplingRulesFile != null && !spanSamplingRulesFile.isEmpty();
 
@@ -49,7 +48,8 @@ public interface SingleSpanSampler {
       return null;
     }
 
-    private Builder() {}
+    private Builder() {
+    }
   }
 
   final class RuleBasedSingleSpanSampler implements SingleSpanSampler {
@@ -62,13 +62,14 @@ public interface SingleSpanSampler {
       this.spanSamplingRules = new ArrayList<>();
       for (SpanSamplingRules.Rule rule : rules.getRules()) {
         RateSampler sampler = new DeterministicSampler.SpanSampler(rule.getSampleRate());
-        SimpleRateLimiter simpleRateLimiter =
-            rule.getMaxPerSecond() == Integer.MAX_VALUE
-                ? null
-                : new SimpleRateLimiter(rule.getMaxPerSecond());
-        RateSamplingRule.SpanSamplingRule spanSamplingRule =
-            new RateSamplingRule.SpanSamplingRule(
-                rule.getService(), rule.getName(), sampler, simpleRateLimiter);
+        SimpleRateLimiter simpleRateLimiter = rule.getMaxPerSecond() == Integer.MAX_VALUE
+            ? null
+            : new SimpleRateLimiter(rule.getMaxPerSecond());
+        RateSamplingRule.SpanSamplingRule spanSamplingRule = new RateSamplingRule.SpanSamplingRule(
+            rule.getService(),
+            rule.getName(),
+            sampler,
+            simpleRateLimiter);
         spanSamplingRules.add(spanSamplingRule);
       }
     }

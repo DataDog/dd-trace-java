@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 
 public abstract class HandlerContext {
   final Logger LOGGER = LoggerFactory.getLogger(HandlerContext.class);
-
   private final AgentSpan handshakeSpan;
   private AgentSpan websocketSpan;
   private final String sessionId;
@@ -93,7 +92,8 @@ public abstract class HandlerContext {
           int sz = msgSizeCalculator.getLengthFunction().applyAsInt(data);
           msgSize += sz;
           if (partialDelivery && sz == 0) {
-            msgChunks--; // if we receive an empty frame with the fin bit don't count it as a chunk
+            // if we receive an empty frame with the fin bit don't count it as a chunk
+            msgChunks--;
           }
         } catch (Throwable t) {
           LOGGER.debug(

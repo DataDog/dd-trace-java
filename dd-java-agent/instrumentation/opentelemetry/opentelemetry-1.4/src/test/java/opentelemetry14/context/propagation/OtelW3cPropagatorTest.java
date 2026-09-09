@@ -4,7 +4,6 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.TextMapPropagator;
@@ -35,7 +34,10 @@ class OtelW3cPropagatorTest extends AbstractPropagatorTest {
 
   @Override
   void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
+      Map<String, String> headers,
+      String traceId,
+      String spanId,
+      byte sampling) {
     String sampleFlag = sampling == SAMPLER_KEEP ? "01" : "00";
     String expectedTraceParent = "00-" + traceId + "-" + spanId + "-" + sampleFlag;
     assertEquals(expectedTraceParent, headers.get("traceparent"));

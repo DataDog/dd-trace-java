@@ -14,7 +14,6 @@ import java.util.Map;
  * directly.
  */
 public class CapturedEnvironment {
-
   public static class ProcessInfo {
     public String mainClass;
     public File jarFile;
@@ -33,7 +32,6 @@ public class CapturedEnvironment {
   }
 
   private static final CapturedEnvironment INSTANCE = new CapturedEnvironment();
-
   private final Map<String, String> properties;
   private ProcessInfo processInfo;
 
@@ -73,7 +71,6 @@ public class CapturedEnvironment {
     if (("true".equalsIgnoreCase(inAas) || "1".equals(inAas)) && siteName != null) {
       return siteName;
     }
-
     // preserve the original logic that is case sensitive on the .jar extension
     if (processInfo.jarFile != null && processInfo.jarFile.getName().endsWith(".jar")) {
       return processInfo.jarFile.getName().replace(".jar", "");

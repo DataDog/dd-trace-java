@@ -3,7 +3,6 @@ package datadog.trace.core;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,14 +13,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 public class TraceCorrelationTest extends DDCoreJavaSpecification {
-
   @ValueSource(booleans = {true, false})
   @ParameterizedTest
   void getTraceIdWithoutTrace(boolean log128bTraceId) {
     WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));
+        TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
+        String.valueOf(log128bTraceId));
     WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
+        TRACE_128_BIT_TRACEID_LOGGING_ENABLED,
+        String.valueOf(log128bTraceId));
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AgentSpan span = tracer.buildSpan("datadog", "test").start();
@@ -38,9 +38,11 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
   @ParameterizedTest
   void getTraceIdWithTrace(boolean log128bTraceId) {
     WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));
+        TRACE_128_BIT_TRACEID_GENERATION_ENABLED,
+        String.valueOf(log128bTraceId));
     WithConfigExtension.injectSysConfig(
-        TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
+        TRACE_128_BIT_TRACEID_LOGGING_ENABLED,
+        String.valueOf(log128bTraceId));
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AgentSpan span = tracer.buildSpan("datadog", "test").start();

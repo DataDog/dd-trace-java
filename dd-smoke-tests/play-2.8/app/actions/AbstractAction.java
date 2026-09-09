@@ -10,7 +10,6 @@ import play.mvc.Http;
 import play.mvc.Result;
 
 public abstract class AbstractAction extends Action.Simple {
-
   private final String operationName;
 
   protected AbstractAction(String operationName) {

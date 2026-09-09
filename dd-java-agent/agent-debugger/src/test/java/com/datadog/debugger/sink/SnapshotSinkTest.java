@@ -8,7 +8,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.agent.JsonSnapshotSerializer;
@@ -43,11 +42,14 @@ public class SnapshotSinkTest {
   private static final ProbeId PROBE_ID = new ProbeId("12fd-8490-c111-4374-ffde", 42);
   private static final ProbeLocation PROBE_LOCATION =
       new ProbeLocation("java.lang.String", "indexOf", null, null);
-
-  @Mock private Config config;
-  @Mock private BatchUploader snapshotUploader;
-  @Mock private BatchUploader logUploader;
-  @Captor private ArgumentCaptor<byte[]> payloadCaptor;
+  @Mock
+  private Config config;
+  @Mock
+  private BatchUploader snapshotUploader;
+  @Mock
+  private BatchUploader logUploader;
+  @Captor
+  private ArgumentCaptor<byte[]> payloadCaptor;
   private ProbeStatusSink probeStatusSink;
   private String EXPECTED_SNAPSHOT_TAGS;
 
@@ -61,21 +63,19 @@ public class SnapshotSinkTest {
     when(config.getEnv()).thenReturn("test");
     when(config.getVersion()).thenReturn("foo");
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(1);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost:8126/debugger/v1/input");
 
     EXPECTED_SNAPSHOT_TAGS =
         "^env:test,version:foo,debugger_version:\\d+\\.\\d+\\.\\d+[^~]*~[0-9a-f]+,agent_version:null,host_name:"
-            + config.getHostName()
-            + "$";
+        + config.getHostName()
+        + "$";
     probeStatusSink = new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false);
   }
 
   @ParameterizedTest(name = "Process tags enabled ''{0}''")
   @ValueSource(booleans = {true, false})
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(value = "datadog.environment.JavaVirtualMachine#isJ9", disabledReason = "Flaky on "
+      + "J9 JVMs")
   public void addHighRateSnapshot(boolean processTagsEnabled) throws IOException {
     when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
     ProcessTags.reset(config);
@@ -93,17 +93,18 @@ public class SnapshotSinkTest {
     assertEquals("java.lang.String", intakeRequest.getLoggerName());
     assertEquals("indexOf", intakeRequest.getLoggerMethod());
     assertEquals(PROBE_ID.getId(), intakeRequest.getDebugger().getSnapshot().getProbe().getId());
-    assertEquals(
-        PROBE_LOCATION, intakeRequest.getDebugger().getSnapshot().getProbe().getLocation());
-    assertTrue(
-        intakeRequest
-            .getDebugger()
-            .getRuntimeId()
-            .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
+    assertEquals(PROBE_LOCATION, intakeRequest
+      .getDebugger()
+      .getSnapshot()
+      .getProbe()
+      .getLocation());
+    assertTrue(intakeRequest
+      .getDebugger()
+      .getRuntimeId()
+      .matches("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"));
     if (processTagsEnabled) {
       assertNotNull(ProcessTags.getTagsForSerialization());
-      assertEquals(
-          ProcessTags.getTagsForSerialization().toString(), intakeRequest.getProcessTags());
+      assertEquals(ProcessTags.getTagsForSerialization().toString(), intakeRequest.getProcessTags());
     } else {
       assertNull(intakeRequest.getProcessTags());
     }
@@ -117,28 +118,32 @@ public class SnapshotSinkTest {
     for (int i = 0; i < 1000; i++) {
       snapshotSink.addHighRate(createSnapshot());
     }
-    snapshotSink.highRateFlush(null); // interval / 4
+    // interval / 4
+    snapshotSink.highRateFlush(null);
     long currentInterval = snapshotSink.getCurrentHighRateFlushInterval();
     assertEquals(previousInterval / 4, currentInterval);
     previousInterval = currentInterval;
     for (int i = 0; i < 520; i++) {
       snapshotSink.addHighRate(createSnapshot());
     }
-    snapshotSink.highRateFlush(null); // interval / 2
+    // interval / 2
+    snapshotSink.highRateFlush(null);
     currentInterval = snapshotSink.getCurrentHighRateFlushInterval();
     assertEquals(previousInterval / 2, currentInterval);
     previousInterval = currentInterval;
     for (int i = 0; i < 110; i++) {
       snapshotSink.addHighRate(createSnapshot());
     }
-    snapshotSink.highRateFlush(null); // interval - HIGH_RATE_STEP_SIZE
+    // interval - HIGH_RATE_STEP_SIZE
+    snapshotSink.highRateFlush(null);
     currentInterval = snapshotSink.getCurrentHighRateFlushInterval();
     assertEquals(previousInterval - SnapshotSink.HIGH_RATE_STEP_SIZE, currentInterval);
     previousInterval = currentInterval;
     for (int i = 0; i < 1000; i++) {
       snapshotSink.addHighRate(createSnapshot());
     }
-    snapshotSink.highRateFlush(null); // interval / 4 => min
+    // interval / 4 => min
+    snapshotSink.highRateFlush(null);
     currentInterval = snapshotSink.getCurrentHighRateFlushInterval();
     assertEquals(SnapshotSink.HIGH_RATE_MIN_FLUSH_INTERVAL_MS, currentInterval);
   }
@@ -152,12 +157,14 @@ public class SnapshotSinkTest {
       for (int i = 0; i < 1000; i++) {
         snapshotSink.addHighRate(createSnapshot());
       }
-      snapshotSink.highRateFlush(null); // interval / 4
+      // interval / 4
+      snapshotSink.highRateFlush(null);
       previousInterval = snapshotSink.getCurrentHighRateFlushInterval();
     }
     assertEquals(SnapshotSink.HIGH_RATE_MIN_FLUSH_INTERVAL_MS, previousInterval);
     previousInterval = snapshotSink.getCurrentHighRateFlushInterval();
-    snapshotSink.highRateFlush(null); // backoff: interval + HIGH_RATE_STEP_SIZE
+    // backoff: interval + HIGH_RATE_STEP_SIZE
+    snapshotSink.highRateFlush(null);
     long currentInterval = snapshotSink.getCurrentHighRateFlushInterval();
     assertEquals(previousInterval + SnapshotSink.HIGH_RATE_STEP_SIZE, currentInterval);
   }

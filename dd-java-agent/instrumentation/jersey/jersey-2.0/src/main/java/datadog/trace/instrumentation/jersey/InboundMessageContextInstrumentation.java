@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.jersey.JerseyTaintHelper.taintMultiV
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -28,8 +27,8 @@ import org.glassfish.jersey.message.internal.InboundMessageContext;
 
 @AutoService(InstrumenterModule.class)
 public class InboundMessageContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public InboundMessageContextInstrumentation() {
     super("jersey");
   }
@@ -41,12 +40,14 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
         namedOneOf("header", "headers", "remove").and(returns(named(instrumentedType()))),
         baseName + "$SetHeadersAdvice");
     transformer.applyAdvice(
-        named("getHeaders").and(isPublic()).and(takesArguments(0)), baseName + "$GetHeadersAdvice");
+        named("getHeaders").and(isPublic()).and(takesArguments(0)),
+        baseName + "$GetHeadersAdvice");
     transformer.applyAdvice(
         named("getRequestCookies").and(isPublic()).and(takesArguments(0)),
         baseName + "$CookiesAdvice");
     transformer.applyAdvice(
-        named("readEntity").and(isPublic()).and(takesArguments(4)), baseName + "$ReadEntityAdvice");
+        named("readEntity").and(isPublic()).and(takesArguments(4)),
+        baseName + "$ReadEntityAdvice");
   }
 
   @Override
@@ -56,14 +57,13 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JerseyTaintHelper",
-    };
+    return new String[] {packageName + ".JerseyTaintHelper"};
   }
 
-  /** This advice tries to skip tainting the headers before they are ready */
+  /**
+   * This advice tries to skip tainting the headers before they are ready
+   */
   public static class SetHeadersAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter() {
       CallDepthThreadLocalMap.incrementCallDepth(InboundMessageContext.class);
@@ -108,7 +108,8 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(
-        @Advice.Return Map<String, Object> cookies, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return Map<String, Object> cookies,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (cookies == null || cookies.isEmpty()) {
         return;
       }
@@ -128,7 +129,8 @@ public class InboundMessageContextInstrumentation extends InstrumenterModule.Ias
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
     public static void onExit(
-        @Advice.Return Object result, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return Object result,
+        @ActiveRequestContext RequestContext reqCtx) {
       if (result == null) {
         return;
       }

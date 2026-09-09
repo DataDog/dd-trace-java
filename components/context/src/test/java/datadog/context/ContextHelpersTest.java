@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import java.util.function.BinaryOperator;
 import java.util.logging.Level;
 import java.util.stream.Stream;
@@ -91,7 +90,9 @@ class ContextHelpersTest {
   @Test
   void testNullCarriers() {
     assertThrows(
-        NullPointerException.class, () -> findFirst(null, CARRIER_1), "Should fail on null key");
+        NullPointerException.class,
+        () -> findFirst(null, CARRIER_1),
+        "Should fail on null key");
     assertThrows(
         NullPointerException.class,
         () -> findFirst(STRING_KEY, (Object) null),
@@ -101,7 +102,9 @@ class ContextHelpersTest {
         () -> findFirst(STRING_KEY, null, CARRIER_1),
         "Should fail on null context");
     assertThrows(
-        NullPointerException.class, () -> findAll(null, CARRIER_1), "Should fail on null key");
+        NullPointerException.class,
+        () -> findAll(null, CARRIER_1),
+        "Should fail on null key");
     assertThrows(
         NullPointerException.class,
         () -> findAll(STRING_KEY, (Object) null),
@@ -118,7 +121,9 @@ class ContextHelpersTest {
     Context context = root().with(STRING_KEY, VALUE_1);
     try (ContextScope ignored = context.attach()) {
       assertEquals(
-          VALUE_1, findFirst(STRING_KEY, CURRENT), "Failed to get value from current context");
+          VALUE_1,
+          findFirst(STRING_KEY, CURRENT),
+          "Failed to get value from current context");
       assertIterableEquals(
           singleton(VALUE_1),
           findAll(STRING_KEY, CURRENT),
@@ -139,13 +144,11 @@ class ContextHelpersTest {
     assertEquals(VALUE_1, combined.get(STRING_KEY), "First duplicate value should be kept");
     assertEquals(true, combined.get(BOOLEAN_KEY), "Values from first context should be kept");
     assertEquals(3.14F, combined.get(FLOAT_KEY), "Values from second context should be kept");
-
     // Test SingletonContext optimization
     context1 = root().with(STRING_KEY, VALUE_1);
     context2 = root().with(STRING_KEY, VALUE_2);
     combined = combine(context1, context2);
     assertEquals(VALUE_1, combined.get(STRING_KEY), "First duplicate value should be kept");
-
     // Test IndexedContext optimization where later context has more elements
     context1 = root().with(STRING_KEY, VALUE_1).with(FLOAT_KEY, 3.14F);
     context2 = root().with(STRING_KEY, VALUE_2).with(LONG_KEY, 567L);
@@ -153,7 +156,6 @@ class ContextHelpersTest {
     assertEquals(VALUE_1, combined.get(STRING_KEY), "First duplicate value should be kept");
     assertEquals(3.14F, combined.get(FLOAT_KEY), "Values from first context should be kept");
     assertEquals(567L, combined.get(LONG_KEY), "Values from first context should be kept");
-
     // Test IndexedContext optimization where context has same size but only later context has value
     context1 = root().with(LONG_KEY, 567L).with(STRING_KEY, VALUE_1);
     context2 = root().with(LONG_KEY, 789L).with(FLOAT_KEY, 3.14F);
@@ -161,7 +163,6 @@ class ContextHelpersTest {
     assertEquals(567L, combined.get(LONG_KEY), "First duplicate value should be kept");
     assertEquals(VALUE_1, combined.get(STRING_KEY), "Values from first context should be kept");
     assertEquals(3.14F, combined.get(FLOAT_KEY), "Values from first context should be kept");
-
     // Test IndexedContext optimization with same size context and no new values
     context1 = root().with(STRING_KEY, VALUE_1).with(LONG_KEY, 567L);
     context2 = root().with(STRING_KEY, VALUE_2).with(LONG_KEY, 789L);
@@ -179,9 +180,9 @@ class ContextHelpersTest {
 
     BinaryOperator<Context> errorStatsMerger =
         (left, right) -> {
-          ErrorStats mergedStats = ErrorStats.merge(left.get(errorKey), right.get(errorKey));
-          return left.with(errorKey, mergedStats);
-        };
+      ErrorStats mergedStats = ErrorStats.merge(left.get(errorKey), right.get(errorKey));
+      return left.with(errorKey, mergedStats);
+    };
     Context combined = combine(errorStatsMerger, context1, context2, context3);
     ErrorStats combinedStats = combined.get(errorKey);
     assertNotNull(combinedStats, "Failed to combined error stats");

@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.cu
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static scala.concurrent.impl.Promise.Transformation;
-
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
@@ -21,8 +20,8 @@ import scala.util.Try;
  * from the {@code resolve} method.
  */
 public final class DefaultPromiseInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "scala.concurrent.impl.Promise$DefaultPromise";
@@ -31,7 +30,8 @@ public final class DefaultPromiseInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("tryComplete0")), getClass().getName() + "$TryComplete");
+        isMethod().and(named("tryComplete0")),
+        getClass().getName() + "$TryComplete");
   }
 
   public static final class TryComplete {
@@ -58,7 +58,9 @@ public final class DefaultPromiseInstrumentation
       }
     }
 
-    /** Promise.Transformation was introduced in scala 2.13 */
+    /**
+     * Promise.Transformation was introduced in scala 2.13
+     */
     private static void muzzleCheck(final Transformation callback) {
       callback.submitWithValue(null);
     }

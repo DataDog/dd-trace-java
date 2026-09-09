@@ -46,7 +46,6 @@ import org.slf4j.LoggerFactory;
  */
 public class ProxyTestModule implements TestFrameworkModule {
   private static final Logger log = LoggerFactory.getLogger(ProxyTestModule.class);
-
   private final AgentSpanContext parentProcessModuleContext;
   private final String moduleName;
   private final ExecutionStrategy executionStrategy;
@@ -127,7 +126,9 @@ public class ProxyTestModule implements TestFrameworkModule {
   @Override
   @Nonnull
   public TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+      TestIdentifier test,
+      TestSourceData testSource,
+      Collection<String> testTags) {
     return executionStrategy.executionPolicy(test, testSource, testTags);
   }
 
@@ -148,9 +149,9 @@ public class ProxyTestModule implements TestFrameworkModule {
     long parentProcessModuleId = parentProcessModuleContext.getSpanId();
 
     try (SignalClient signalClient = signalClientFactory.create()) {
-      ModuleSignal coverageSignal =
-          childProcessCoverageReporter.createCoverageSignal(
-              parentProcessSessionId, parentProcessModuleId);
+      ModuleSignal coverageSignal = childProcessCoverageReporter.createCoverageSignal(
+          parentProcessSessionId,
+          parentProcessModuleId);
       if (coverageSignal != null) {
         signalClient.send(coverageSignal);
       }
@@ -181,7 +182,6 @@ public class ProxyTestModule implements TestFrameworkModule {
               hasFailedTestReplayTests,
               testsSkippedTotal,
               new TreeSet<>(testFrameworks)));
-
     } catch (Exception e) {
       log.error("Error while reporting module execution result", e);
     }

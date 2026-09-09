@@ -7,7 +7,6 @@ import static datadog.trace.api.DDSpanTypes.MESSAGE_CONSUMER;
 import static datadog.trace.api.DDSpanTypes.MESSAGE_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static java.lang.Math.min;
-
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -31,8 +30,8 @@ public class WithSpanDecorator extends AsyncResultDecorator {
   private static MethodHandle maybeGetInheritContextHandle() {
     try {
       return new MethodHandles(WithSpan.class.getClassLoader())
-          .method(WithSpan.class, "inheritContext")
-          .asType(MethodType.methodType(boolean.class, WithSpan.class));
+        .method(WithSpan.class, "inheritContext")
+        .asType(MethodType.methodType(boolean.class, WithSpan.class));
     } catch (Throwable ignored) {
       // not available before 2.14.0
     }
@@ -46,7 +45,8 @@ public class WithSpanDecorator extends AsyncResultDecorator {
 
   @Override
   protected CharSequence spanType() {
-    return null; // Will be defined per span from WithSpan annotation parameter
+    // Will be defined per span from WithSpan annotation parameter
+    return null;
   }
 
   @Override
@@ -117,9 +117,7 @@ public class WithSpanDecorator extends AsyncResultDecorator {
 
   public void addTagsFromMethodArgs(AgentSpan span, Method method, Object[] args) {
     Parameter[] parameters = method.getParameters();
-    for (int parameterIndex = 0;
-        parameterIndex < min(parameters.length, args.length);
-        parameterIndex++) {
+    for (int parameterIndex = 0; parameterIndex < min(parameters.length, args.length); parameterIndex++) {
       Parameter parameter = parameters[parameterIndex];
       SpanAttribute annotation = parameter.getAnnotation(SpanAttribute.class);
       if (annotation != null) {

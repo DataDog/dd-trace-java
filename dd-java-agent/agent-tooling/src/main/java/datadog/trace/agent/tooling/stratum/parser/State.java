@@ -8,13 +8,9 @@ import java.util.Deque;
 
 class State {
   private SourceMap sourceMap;
-
   private StratumExt stratum;
-
   private EmbeddedStratum parentStratum = new EmbeddedStratum();
-
   private final Deque<StackItem> stateStack = new ArrayDeque<>();
-
   int lineNumber;
 
   public EmbeddedStratum done() {
@@ -84,7 +80,6 @@ class State {
 
   private class StackItem {
     SourceMap sourceMap;
-
     EmbeddedStratum parentStratum;
 
     public StackItem(final SourceMap sourceMap, final EmbeddedStratum parentStratum) {

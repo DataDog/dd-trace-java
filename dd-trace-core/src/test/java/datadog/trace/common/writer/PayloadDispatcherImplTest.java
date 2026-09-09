@@ -10,7 +10,6 @@ import static org.mockito.ArgumentMatchers.intThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
@@ -38,7 +37,6 @@ import org.junit.jupiter.api.Timeout;
 import org.tabletest.junit.TableTest;
 
 class PayloadDispatcherImplTest extends DDJavaSpecification {
-
   static final MonitoringImpl monitoring =
       new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
 
@@ -56,21 +54,20 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
     DDAgentApi api = mock(DDAgentApi.class);
-    when(api.sendSerializedTraces(any()))
-        .thenAnswer(
-            inv -> {
-              flushed.set(true);
-              return RemoteApi.Response.success(200);
-            });
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+    when(api.sendSerializedTraces(any())).thenAnswer(inv -> {
+      flushed.set(true);
+      return RemoteApi.Response.success(200);
+    });
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery),
+        api,
+        healthMetrics,
+        monitoring);
     List<DDSpan> trace = Collections.singletonList(realSpan());
 
     while (!flushed.get()) {
       dispatcher.addTrace(trace);
     }
-
     // the dispatcher has flushed
     assertTrue(flushed.get());
   }
@@ -90,9 +87,11 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     DDAgentApi api = mock(DDAgentApi.class);
     when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
     when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.success(200));
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery),
+        api,
+        healthMetrics,
+        monitoring);
     List<DDSpan> trace = Collections.singletonList(realSpan());
 
     for (int i = 0; i < traceCount; ++i) {
@@ -114,16 +113,17 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     "v0.5 10 traces  | 'v0.5/traces' | 10        ",
     "v0.5 100 traces | 'v0.5/traces' | 100       "
   })
-  void testShouldReportFailedRequestToMonitor(String traceEndpoint, int traceCount)
-      throws Exception {
+  void testShouldReportFailedRequestToMonitor(String traceEndpoint, int traceCount) throws Exception {
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     DDAgentApi api = mock(DDAgentApi.class);
     when(discovery.getTraceEndpoint()).thenReturn(traceEndpoint);
     when(api.sendSerializedTraces(any())).thenReturn(RemoteApi.Response.failed(400));
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery),
+        api,
+        healthMetrics,
+        monitoring);
     List<DDSpan> trace = Collections.singletonList(realSpan());
 
     for (int i = 0; i < traceCount; ++i) {
@@ -142,9 +142,11 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     DDAgentApi api = mock(DDAgentApi.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.getTraceEndpoint()).thenReturn(null);
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery),
+        api,
+        healthMetrics,
+        monitoring);
     List<DDSpan> trace = Collections.singletonList(realSpan());
 
     dispatcher.addTrace(trace);
@@ -158,23 +160,21 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
     DDAgentApi api = mock(DDAgentApi.class);
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
-
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery),
+        api,
+        healthMetrics,
+        monitoring);
     // add traces and dropped counts
     dispatcher.addTrace(Collections.emptyList());
     dispatcher.onDroppedTrace(20);
     dispatcher.onDroppedTrace(2);
     Payload payload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
-
     // dropped counts are accumulated
     assertEquals(22, payload.droppedSpans());
     assertEquals(2, payload.droppedTraces());
-
     // create another payload
     Payload newPayload = dispatcher.newPayload(1, ByteBuffer.allocate(0));
-
     // counts are reset after access
     assertEquals(0, newPayload.droppedSpans());
     assertEquals(0, newPayload.droppedTraces());
@@ -183,50 +183,46 @@ class PayloadDispatcherImplTest extends DDJavaSpecification {
   DDSpan realSpan() throws Exception {
     // getTracer() and mapServiceName() are package-private in TraceCollector; use a custom
     // Answer to handle them at runtime without compile-time accessibility issues
-    PendingTrace trace =
-        mock(
-            PendingTrace.class,
-            invocation -> {
-              Class<?> returnType = invocation.getMethod().getReturnType();
-              if (CoreTracer.class.isAssignableFrom(returnType)) {
-                // Use RETURNS_DEFAULTS so getTagInterceptor() returns null (matching Groovy Stub
-                // behavior)
-                return mock(CoreTracer.class);
-              }
-              if (returnType == String.class) {
-                Object[] args = invocation.getArguments();
-                // mapServiceName(String) - return the argument unchanged
-                if (args.length > 0 && args[0] instanceof String) {
-                  return args[0];
-                }
-                return "";
-              }
-              return org.mockito.Mockito.RETURNS_DEFAULTS.answer(invocation);
-            });
-    DDSpanContext context =
-        new DDSpanContext(
-            DDTraceId.ONE,
-            1L,
-            DDSpanId.ZERO,
-            null,
-            "",
-            "",
-            "",
-            PrioritySampling.UNSET,
-            "",
-            Collections.emptyMap(),
-            false,
-            "",
-            0,
-            trace,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
+    PendingTrace trace = mock(PendingTrace.class, invocation -> {
+      Class<?> returnType = invocation.getMethod().getReturnType();
+      if (CoreTracer.class.isAssignableFrom(returnType)) {
+        // Use RETURNS_DEFAULTS so getTagInterceptor() returns null (matching Groovy Stub
+        // behavior)
+        return mock(CoreTracer.class);
+      }
+      if (returnType == String.class) {
+        Object[] args = invocation.getArguments();
+        // mapServiceName(String) - return the argument unchanged
+        if (args.length > 0 && args[0] instanceof String) {
+          return args[0];
+        }
+        return "";
+      }
+      return org.mockito.Mockito.RETURNS_DEFAULTS.answer(invocation);
+    });
+    DDSpanContext context = new DDSpanContext(
+        DDTraceId.ONE,
+        1L,
+        DDSpanId.ZERO,
+        null,
+        "",
+        "",
+        "",
+        PrioritySampling.UNSET,
+        "",
+        Collections.emptyMap(),
+        false,
+        "",
+        0,
+        trace,
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        PropagationTags.factory().empty());
     Constructor<DDSpan> ctor =
-        DDSpan.class.getDeclaredConstructor(
-            String.class, long.class, DDSpanContext.class, List.class);
+        DDSpan.class
+      .getDeclaredConstructor(String.class, long.class, DDSpanContext.class, List.class);
     ctor.setAccessible(true);
     return ctor.newInstance("test", 0L, context, null);
   }

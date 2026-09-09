@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.maven3;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.File;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -16,19 +15,20 @@ import org.codehaus.plexus.PlexusContainer;
 import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractMavenTest {
-  @TempDir static Path WORKING_DIRECTORY;
+  @TempDir
+  static Path WORKING_DIRECTORY;
 
   protected AbstractMavenTest() {
     System.setProperty(
-        "maven.multiModuleProjectDirectory", WORKING_DIRECTORY.toAbsolutePath().toString());
+        "maven.multiModuleProjectDirectory",
+        WORKING_DIRECTORY.toAbsolutePath().toString());
   }
 
   protected void executeMaven(
       Function<ExecutionEvent, Boolean> mojoStartedHandler,
       String pomPath,
       String goal,
-      String... additionalArgs)
-      throws Exception {
+      String... additionalArgs) throws Exception {
     executeMaven(mojoStartedHandler, pomPath, goal, null, null, additionalArgs);
   }
 
@@ -38,16 +38,14 @@ public abstract class AbstractMavenTest {
       String goal,
       PrintStream stdOut,
       PrintStream stderr,
-      String... additionalArgs)
-      throws Exception {
+      String... additionalArgs) throws Exception {
     MojoStartedSpy spy = new MojoStartedSpy(mojoStartedHandler);
-    MavenCli mavenCli =
-        new MavenCli() {
-          @Override
-          protected void customizeContainer(PlexusContainer container) {
-            container.addComponent(spy, EventSpy.class, null);
-          }
-        };
+    MavenCli mavenCli = new MavenCli() {
+      @Override
+      protected void customizeContainer(PlexusContainer container) {
+        container.addComponent(spy, EventSpy.class, null);
+      }
+    };
 
     File pomFile = new File(AbstractMavenTest.class.getResource(pomPath).toURI());
 

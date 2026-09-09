@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class ProcessUtils {
-
   private static final Logger log = LoggerFactory.getLogger(ProcessUtils.class);
 
   /**
@@ -32,20 +31,19 @@ public abstract class ProcessUtils {
   public static String getCurrentJvmPath() {
     if (JavaVirtualMachine.isJavaVersionAtLeast(9)) {
       try {
-        Supplier<String> jdk9Supplier =
-            (Supplier<String>)
-                Class.forName("datadog.trace.util.JDK9ExecutableSupplier")
-                    .getDeclaredConstructor()
-                    .newInstance();
+        Supplier<String> jdk9Supplier = (Supplier<String>) Class
+          .forName("datadog.trace.util.JDK9ExecutableSupplier")
+          .getDeclaredConstructor()
+          .newInstance();
         return jdk9Supplier.get();
       } catch (Throwable e) {
         log.debug("Could not get process executable path using JDK9ExecutableSupplier", e);
       }
     }
-
     // JDK/JRE home, does not include "bin/java" portion
     return SystemProperties.get("java.home");
   }
 
-  private ProcessUtils() {}
+  private ProcessUtils() {
+  }
 }

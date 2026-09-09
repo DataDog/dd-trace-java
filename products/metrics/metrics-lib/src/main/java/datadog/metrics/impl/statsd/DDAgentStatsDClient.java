@@ -36,38 +36,44 @@ public final class DDAgentStatsDClient implements StatsDClient {
 
   @Override
   public void gauge(final String metricName, final long value, final String... tags) {
-    connection.statsd.recordGaugeValue(
-        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+    connection.statsd.recordGaugeValue(nameMapping.apply(metricName), value, tagMapping.apply(tags));
   }
 
   @Override
   public void gauge(final String metricName, final double value, final String... tags) {
-    connection.statsd.recordGaugeValue(
-        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+    connection.statsd.recordGaugeValue(nameMapping.apply(metricName), value, tagMapping.apply(tags));
   }
 
   @Override
   public void histogram(final String metricName, final long value, final String... tags) {
     connection.statsd.recordHistogramValue(
-        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+        nameMapping.apply(metricName),
+        value,
+        tagMapping.apply(tags));
   }
 
   @Override
   public void histogram(final String metricName, final double value, final String... tags) {
     connection.statsd.recordHistogramValue(
-        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+        nameMapping.apply(metricName),
+        value,
+        tagMapping.apply(tags));
   }
 
   @Override
   public void distribution(String metricName, long value, String... tags) {
     connection.statsd.recordDistributionValue(
-        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+        nameMapping.apply(metricName),
+        value,
+        tagMapping.apply(tags));
   }
 
   @Override
   public void distribution(String metricName, double value, String... tags) {
     connection.statsd.recordDistributionValue(
-        nameMapping.apply(metricName), value, tagMapping.apply(tags));
+        nameMapping.apply(metricName),
+        value,
+        tagMapping.apply(tags));
   }
 
   @Override
@@ -76,29 +82,32 @@ public final class DDAgentStatsDClient implements StatsDClient {
       final String status,
       final String message,
       final String... tags) {
-
-    ServiceCheck serviceCheck =
-        ServiceCheck.builder()
-            .withName(nameMapping.apply(serviceCheckName))
-            .withStatus(serviceCheckStatus(status))
-            .withMessage(message)
-            .withTags(tagMapping.apply(tags))
-            .build();
+    ServiceCheck serviceCheck = ServiceCheck
+      .builder()
+      .withName(nameMapping.apply(serviceCheckName))
+      .withStatus(serviceCheckStatus(status))
+      .withMessage(message)
+      .withTags(tagMapping.apply(tags))
+      .build();
 
     connection.statsd.recordServiceCheckRun(serviceCheck);
   }
 
   @Override
   public void recordEvent(
-      String type, String source, String eventName, String message, String... tags) {
+      String type,
+      String source,
+      String eventName,
+      String message,
+      String... tags) {
     Event.AlertType alertType = Event.AlertType.valueOf(type.toUpperCase());
-    Event.Builder eventBuilder =
-        Event.builder()
-            .withTitle(eventName)
-            .withText(message)
-            .withSourceTypeName(source)
-            .withDate(System.currentTimeMillis())
-            .withAlertType(alertType);
+    Event.Builder eventBuilder = Event
+      .builder()
+      .withTitle(eventName)
+      .withText(message)
+      .withSourceTypeName(source)
+      .withDate(System.currentTimeMillis())
+      .withAlertType(alertType);
     connection.statsd.recordEvent(eventBuilder.build(), tagMapping.apply(tags));
   }
 

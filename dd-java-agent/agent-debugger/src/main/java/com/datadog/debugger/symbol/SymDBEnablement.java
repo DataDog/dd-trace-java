@@ -31,7 +31,6 @@ public class SymDBEnablement implements ProductListener {
   private static final String SYM_DB_RC_KEY = "symDb";
   private static final int READ_BUFFER_SIZE = 4096;
   private static final int CLASSFILE_BUFFER_SIZE = 8192;
-
   private final Instrumentation instrumentation;
   private final Config config;
   private final SymbolAggregator symbolAggregator;
@@ -78,8 +77,7 @@ public class SymDBEnablement implements ProductListener {
   public void commit(PollingRateHinter pollingRateHinter) {}
 
   private static SymDbRemoteConfigRecord deserializeSymDb(byte[] content) throws IOException {
-    return SYM_DB_JSON_ADAPTER.fromJson(
-        Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
+    return SYM_DB_JSON_ADAPTER.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
   }
 
   public void stopSymbolExtraction() {
@@ -104,12 +102,14 @@ public class SymDBEnablement implements ProductListener {
         LOGGER.debug(
             "Last upload was on {}",
             LocalDateTime.ofInstant(
-                Instant.ofEpochMilli(lastUploadTimestamp), ZoneId.systemDefault()));
+                Instant.ofEpochMilli(lastUploadTimestamp),
+                ZoneId.systemDefault()));
         return;
       }
       try {
-        symbolExtractionTransformer =
-            new SymbolExtractionTransformer(symbolAggregator, classNameFilter);
+        symbolExtractionTransformer = new SymbolExtractionTransformer(
+            symbolAggregator,
+            classNameFilter);
         instrumentation.addTransformer(symbolExtractionTransformer);
         SymDBReport symDBReport = new BasicSymDBReport();
         extractSymbolForLoadedClasses(symDBReport);
@@ -127,12 +127,12 @@ public class SymDBEnablement implements ProductListener {
   private void extractSymbolForLoadedClasses(SymDBReport symDBReport) {
     Class<?>[] classesToExtract;
     try {
-      classesToExtract =
-          Arrays.stream(instrumentation.getAllLoadedClasses())
-              // getAllLoadedClasses can return null classes (Class Unloading)
-              .filter(clazz -> clazz != null && !classNameFilter.isExcluded(clazz.getTypeName()))
-              .filter(instrumentation::isModifiableClass)
-              .toArray(Class<?>[]::new);
+      classesToExtract = Arrays
+        .stream(instrumentation.getAllLoadedClasses())
+        // getAllLoadedClasses can return null classes (Class Unloading)
+        .filter(clazz -> clazz != null && !classNameFilter.isExcluded(clazz.getTypeName()))
+        .filter(instrumentation::isModifiableClass)
+        .toArray(Class<?>[]::new);
     } catch (Throwable ex) {
       LOGGER.debug("Failed to get all loaded classes", ex);
       return;

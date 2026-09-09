@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.any;
-
 import datadog.instrument.utils.ClassLoaderValue;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Tracer;
@@ -20,17 +19,15 @@ import org.slf4j.LoggerFactory;
 
 public final class ClassLoaderMatchers {
   private static final Logger log = LoggerFactory.getLogger(ClassLoaderMatchers.class);
-
   public static final ElementMatcher.Junction<ClassLoader> ANY_CLASS_LOADER = any();
-
   private static final ClassLoader BOOTSTRAP_CLASSLOADER = null;
-
   private static final Set<String> EXCLUDED_CLASSLOADER_NAMES =
       InstrumenterConfig.get().getExcludedClassLoaders();
-
   private static final boolean CHECK_EXCLUDES = !EXCLUDED_CLASSLOADER_NAMES.isEmpty();
 
-  /** A private constructor that must not be invoked. */
+  /**
+   * A private constructor that must not be invoked.
+   */
   private ClassLoaderMatchers() {
     throw new UnsupportedOperationException();
   }
@@ -46,7 +43,9 @@ public final class ClassLoaderMatchers {
       case "org.apache.cxf.common.util.ASMHelper$TypeHelperClassLoader":
       case "com.ibm.xml.xlxp2.jaxb.codegen.AbstractGeneratedStubFactory$RootStubClassLoader":
       case "sun.misc.Launcher$ExtClassLoader":
-      case "org.springframework.context.support.ContextTypeMatchClassLoader$ContextOverridingClassLoader":
+      case
+          "org.springframework.context.support."
+          + "ContextTypeMatchClassLoader$ContextOverridingClassLoader":
       case "org.openjdk.nashorn.internal.runtime.ScriptLoader":
       case "jdk.nashorn.internal.runtime.ScriptLoader":
       case "org.codehaus.janino.ByteArrayClassLoader":
@@ -95,8 +94,7 @@ public final class ClassLoaderMatchers {
    * @param classNames the classNames to match.
    * @return true if any class is available as a resource and not the bootstrap classloader.
    */
-  public static ElementMatcher.Junction<ClassLoader> hasClassNamedOneOf(
-      final String... classNames) {
+  public static ElementMatcher.Junction<ClassLoader> hasClassNamedOneOf(final String... classNames) {
     ElementMatcher<ClassLoader>[] matchers = new ElementMatcher[classNames.length];
     for (int i = 0; i < matchers.length; i++) {
       matchers[i] = hasClassNamed(classNames[i]);
@@ -127,8 +125,7 @@ public final class ClassLoaderMatchers {
     return delegates;
   }
 
-  private static boolean loadsExpectedClass(
-      final ClassLoader loader, final Class<?> expectedClass) {
+  private static boolean loadsExpectedClass(final ClassLoader loader, final Class<?> expectedClass) {
     try {
       return loader.loadClass(expectedClass.getName()) == expectedClass;
     } catch (final Throwable ignored) {
@@ -136,24 +133,27 @@ public final class ClassLoaderMatchers {
     }
   }
 
-  /** Mapping of class-name to has-class matcher. */
+  /**
+   * Mapping of class-name to has-class matcher.
+   */
   static final Map<String, ElementMatcher.Junction<ClassLoader>> hasClassMatchers = new HashMap<>();
-
-  /** Sequence of class resource-names, in order of assigned hasClassId. */
+  /**
+   * Sequence of class resource-names, in order of assigned hasClassId.
+   */
   static final List<String> hasClassResourceNames = new ArrayList<>();
-
-  /** Cache of classloader-instance -> has-class mask. */
-  static final ClassLoaderValue<BitSet> hasClassCache =
-      new ClassLoaderValue<BitSet>() {
-        @Override
-        protected BitSet computeValue(ClassLoader cl) {
-          return buildHasClassMask(cl);
-        }
-      };
-
-  /** Distinct result used to mark an incompatible classloader that the tracer should skip. */
+  /**
+   * Cache of classloader-instance -> has-class mask.
+   */
+  static final ClassLoaderValue<BitSet> hasClassCache = new ClassLoaderValue<BitSet>() {
+    @Override
+    protected BitSet computeValue(ClassLoader cl) {
+      return buildHasClassMask(cl);
+    }
+  };
+  /**
+   * Distinct result used to mark an incompatible classloader that the tracer should skip.
+   */
   static final BitSet INCOMPATIBLE_CLASS_LOADER = new BitSet();
-
   static final BitSet NO_CLASS_NAME_MATCHES = new BitSet();
 
   static BitSet hasClassMask(ClassLoader loader) {

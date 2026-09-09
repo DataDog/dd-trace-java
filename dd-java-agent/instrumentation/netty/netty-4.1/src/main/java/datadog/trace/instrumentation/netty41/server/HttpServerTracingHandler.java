@@ -4,8 +4,8 @@ import io.netty.channel.CombinedChannelDuplexHandler;
 
 public class HttpServerTracingHandler
     extends CombinedChannelDuplexHandler<
-        HttpServerRequestTracingHandler, HttpServerResponseTracingHandler> {
-
+    HttpServerRequestTracingHandler,
+    HttpServerResponseTracingHandler> {
   public HttpServerTracingHandler() {
     super(HttpServerRequestTracingHandler.INSTANCE, HttpServerResponseTracingHandler.INSTANCE);
   }

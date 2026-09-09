@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 @RequestMapping("/xss")
 public class XssController {
-
   private static final String DIRECTORY_TEMPLATES_TEST = "resources/main/templates/";
   private static final String DIRECTORY_TEMPLATES_RUN =
       "dd-smoke-tests/springboot-velocity/src/main/resources/templates/";
@@ -23,8 +22,7 @@ public class XssController {
   public void xssVelocity(
       @RequestParam("velocity") String param,
       @RequestParam("templateName") String templateName,
-      HttpServletResponse response)
-      throws Exception {
+      HttpServletResponse response) throws Exception {
     VelocityEngine velocity = new VelocityEngine();
     // To avoid the creation of a Velocity log file
     velocity.setProperty(

@@ -4,7 +4,6 @@ import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -52,7 +51,6 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3)
 public class AppSecBenchmark {
-
   static {
     BenchmarkUtil.disableLogging();
   }
@@ -81,8 +79,10 @@ public class AppSecBenchmark {
   }
 
   private void maliciousRequest() throws Exception {
-    RequestContext context =
-        new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
+    RequestContext context = new Context(cbp
+      .getCallback(EVENTS.requestStarted())
+      .get()
+      .getResult());
     cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
     cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
     cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Arachni/v1");
@@ -105,8 +105,10 @@ public class AppSecBenchmark {
   }
 
   private void normalRequest() {
-    RequestContext context =
-        new Context(cbp.getCallback(EVENTS.requestStarted()).get().getResult());
+    RequestContext context = new Context(cbp
+      .getCallback(EVENTS.requestStarted())
+      .get()
+      .getResult());
     cbp.getCallback(EVENTS.requestMethodUriRaw()).apply(context, method, uri);
     cbp.getCallback(EVENTS.requestClientSocketAddress()).apply(context, ip, port);
     cbp.getCallback(EVENTS.requestHeader()).accept(context, "User-Agent", "Mozilla/5.0");
@@ -128,13 +130,12 @@ public class AppSecBenchmark {
   static class StubOkHttpClient extends OkHttpClient {
     @Override
     public Call newCall(final Request request) {
-      final Response response =
-          new Response.Builder()
-              .request(request)
-              .protocol(Protocol.HTTP_1_0)
-              .code(200)
-              .message("OK")
-              .build();
+      final Response response = new Response.Builder()
+        .request(request)
+        .protocol(Protocol.HTTP_1_0)
+        .code(200)
+        .message("OK")
+        .build();
 
       return new Call() {
         @Override
@@ -150,15 +151,13 @@ public class AppSecBenchmark {
         @Override
         public void enqueue(Callback responseCallback) {
           final Call thiz = this;
-          new Thread(
-                  () -> {
-                    try {
-                      responseCallback.onResponse(thiz, response);
-                    } catch (IOException e) {
-                      throw new UndeclaredThrowableException(e);
-                    }
-                  })
-              .start();
+          new Thread(() -> {
+            try {
+              responseCallback.onResponse(thiz, response);
+            } catch (IOException e) {
+              throw new UndeclaredThrowableException(e);
+            }
+          }).start();
         }
 
         @Override

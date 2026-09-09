@@ -4,7 +4,6 @@ import static datadog.context.Context.root;
 import static datadog.context.propagation.Concern.named;
 import static datadog.context.propagation.Concern.withPriority;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.context.propagation.Concern;
@@ -24,14 +23,16 @@ public final class AgentPropagation {
   // TODO into the span context for now. Remove priority after the migration is complete.
   public static final Concern DSM_CONCERN = withPriority("data-stream-monitoring", 110);
 
-  private AgentPropagation() {}
+  private AgentPropagation() {
+  }
 
   /**
    * @deprecated Use {@link Propagators} API instead.
    */
   @Deprecated
   public static <C> AgentSpanContext.Extracted extractContextAndGetSpanContext(
-      final C carrier, final ContextVisitor<C> getter) {
+      final C carrier,
+      final ContextVisitor<C> getter) {
     Context extracted = Propagators.defaultPropagator().extract(root(), carrier, getter);
     AgentSpan extractedSpan = fromContext(extracted);
     return extractedSpan == null ? null : (AgentSpanContext.Extracted) extractedSpan.spanContext();
@@ -65,12 +66,10 @@ public final class AgentPropagation {
     @ParametersAreNonnullByDefault
     @Override
     default void forEachKeyValue(C carrier, BiConsumer<String, String> visitor) {
-      forEachKey(
-          carrier,
-          (key, value) -> {
-            visitor.accept(key, value);
-            return true;
-          });
+      forEachKey(carrier, (key, value) -> {
+        visitor.accept(key, value);
+        return true;
+      });
     }
   }
 }

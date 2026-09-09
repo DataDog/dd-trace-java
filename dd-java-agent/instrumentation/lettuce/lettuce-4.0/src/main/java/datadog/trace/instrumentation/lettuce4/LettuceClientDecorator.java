@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.lettuce4;
 
 import static datadog.trace.instrumentation.lettuce4.InstrumentationPoints.getCommandResourceName;
-
 import com.lambdaworks.redis.RedisURI;
 import com.lambdaworks.redis.protocol.RedisCommand;
 import datadog.trace.api.naming.SpanNaming;
@@ -11,9 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabaseClientDecorator;
 
 public class LettuceClientDecorator extends DBTypeProcessingDatabaseClientDecorator<RedisURI> {
-
   public static final CharSequence REDIS_CLIENT = UTF8BytesString.create("redis-client");
-
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation("redis"));
   private static final String SERVICE_NAME =

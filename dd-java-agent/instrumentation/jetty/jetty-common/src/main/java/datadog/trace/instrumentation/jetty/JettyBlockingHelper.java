@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jetty;
 import static java.lang.invoke.MethodHandles.collectArguments;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodType.methodType;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
@@ -65,68 +64,61 @@ public class JettyBlockingHelper {
       // return value varies between versions
       Method getAsyncContext = Request.class.getMethod("getAsyncContext");
       getAsyncContextMH = lookup().unreflect(getAsyncContext);
-      completeMH =
-          lookup()
-              .findVirtual(
-                  getAsyncContextMH.type().returnType(), "complete", methodType(void.class));
+      completeMH = lookup()
+        .findVirtual(getAsyncContextMH.type().returnType(), "complete", methodType(void.class));
     } catch (IllegalAccessException | NoSuchMethodException | RuntimeException e) {
       log.error("Lookup of getAsyncContext failed. Will be unable to commit blocking response", e);
     }
     try {
-      isAsyncStartedMH =
-          lookup().findVirtual(Request.class, "isAsyncStarted", methodType(boolean.class));
+      isAsyncStartedMH = lookup()
+        .findVirtual(Request.class, "isAsyncStarted", methodType(boolean.class));
     } catch (NoSuchMethodException | IllegalAccessException e) {
       log.debug("Could not find {}#isAsyncStarted()", Request.class.getName());
 
       try {
-        Class<?> asyncContinuationCls =
-            Class.forName(
-                "org.eclipse.jetty.server.AsyncContinuation",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
+        Class<?> asyncContinuationCls = Class.forName(
+            "org.eclipse.jetty.server.AsyncContinuation",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
         MethodHandle getAsyncContinuation =
             lookup()
-                .findVirtual(
-                    Request.class, "getAsyncContinuation", methodType(asyncContinuationCls));
+          .findVirtual(Request.class, "getAsyncContinuation", methodType(asyncContinuationCls));
         MethodHandle isAsyncStarted =
             lookup().findVirtual(asyncContinuationCls, "isAsyncStarted", methodType(boolean.class));
         isAsyncStartedMH = MethodHandles.filterArguments(isAsyncStarted, 0, getAsyncContinuation);
       } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException ex) {
         log.error(
             "Could not build method handle for calling request.getAsyncContinuation.isAsyncStarted. "
-                + "Will be unable to commit blocking response",
+            + "Will be unable to commit blocking response",
             e);
       }
     }
     try {
       Class<?> httpConnectionCls;
       try {
-        httpConnectionCls =
-            Class.forName(
-                "org.eclipse.jetty.server.AbstractHttpConnection",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
+        httpConnectionCls = Class.forName(
+            "org.eclipse.jetty.server.AbstractHttpConnection",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
       } catch (ClassNotFoundException cnfe) {
-        httpConnectionCls =
-            Class.forName(
-                "org.eclipse.jetty.server.HttpConnection",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
+        httpConnectionCls = Class.forName(
+            "org.eclipse.jetty.server.HttpConnection",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
       }
       MethodHandle getConnection =
           lookup().findVirtual(Request.class, "getConnection", methodType(httpConnectionCls));
       MethodHandle getEndPoint =
           lookup()
-              .findVirtual(httpConnectionCls, "getEndPoint", MethodType.methodType(EndPoint.class));
+        .findVirtual(httpConnectionCls, "getEndPoint", MethodType.methodType(EndPoint.class));
       MethodHandle close = lookup().findVirtual(EndPoint.class, "close", methodType(void.class));
       abortMH = collectArguments(collectArguments(close, 0, getEndPoint), 0, getConnection);
     } catch (NoSuchMethodException | IllegalAccessException | ClassNotFoundException e) {
       try {
-        Class<?> httpChannelCls =
-            Class.forName(
-                "org.eclipse.jetty.server.HttpChannel",
-                true,
-                JettyBlockingHelper.class.getClassLoader());
+        Class<?> httpChannelCls = Class.forName(
+            "org.eclipse.jetty.server.HttpChannel",
+            true,
+            JettyBlockingHelper.class.getClassLoader());
         MethodHandle getHttpChannel =
             lookup().findVirtual(Request.class, "getHttpChannel", methodType(httpChannelCls));
         MethodHandle getEndPoint =
@@ -143,16 +135,17 @@ public class JettyBlockingHelper {
     GET_ASYNC_CONTEXT = getAsyncContextMH;
     COMPLETE = completeMH;
     IS_ASYNC_STARTED = isAsyncStartedMH;
-    ABORT = abortMH; // excluded from INITIALIZED
-    INITIALIZED =
-        getAsyncContextMH != null
-            && closeOutputMH != null
-            && getAsyncContextMH != null
-            && completeMH != null
-            && isAsyncStartedMH != null;
+    // excluded from INITIALIZED
+    ABORT = abortMH;
+    INITIALIZED = getAsyncContextMH != null
+        && closeOutputMH != null
+        && getAsyncContextMH != null
+        && completeMH != null
+        && isAsyncStartedMH != null;
   }
 
-  private JettyBlockingHelper() {}
+  private JettyBlockingHelper() {
+  }
 
   public static boolean block(
       TraceSegment segment,
@@ -199,7 +192,8 @@ public class JettyBlockingHelper {
           String respEncoding = response.getCharacterEncoding();
           if ("utf-8".equalsIgnoreCase(respEncoding)) {
             response.setHeader("Content-length", Integer.toString(template.length));
-          } // otherwise we don't really know the size after encoding, so don't set the header
+          }
+          // otherwise we don't really know the size after encoding, so don't set the header
           writer.write(respBody);
           writer.close();
         }

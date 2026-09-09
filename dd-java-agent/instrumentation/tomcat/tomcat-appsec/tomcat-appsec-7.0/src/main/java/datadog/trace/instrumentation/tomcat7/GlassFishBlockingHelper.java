@@ -18,7 +18,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 
 public final class GlassFishBlockingHelper {
-
   public static final int MAX_FILE_CONTENT_COUNT = Config.get().getAppSecMaxFileContentCount();
   public static final int MAX_FILE_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
 
@@ -111,9 +110,10 @@ public final class GlassFishBlockingHelper {
           }
           if (contents.size() < MAX_FILE_CONTENT_COUNT) {
             try (InputStream is = part.getInputStream()) {
-              contents.add(
-                  MultipartContentDecoder.readInputStream(
-                      is, MAX_FILE_CONTENT_BYTES, part.getContentType()));
+              contents.add(MultipartContentDecoder.readInputStream(
+                  is,
+                  MAX_FILE_CONTENT_BYTES,
+                  part.getContentType()));
             } catch (Exception ignored) {
               // stream read failed — report empty content rather than skipping the part entirely
               contents.add("");
@@ -129,8 +129,7 @@ public final class GlassFishBlockingHelper {
       Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
-        if (tryBlock(
-            reqCtx, fallbackReq, fallbackResp, (Flow.Action.RequestBlockingAction) action)) {
+        if (tryBlock(reqCtx, fallbackReq, fallbackResp, (Flow.Action.RequestBlockingAction) action)) {
           return true;
         }
       }
@@ -141,7 +140,10 @@ public final class GlassFishBlockingHelper {
       Flow.Action contentAction = contentFlow.getAction();
       if (contentAction instanceof Flow.Action.RequestBlockingAction) {
         return tryBlock(
-            reqCtx, fallbackReq, fallbackResp, (Flow.Action.RequestBlockingAction) contentAction);
+            reqCtx,
+            fallbackReq,
+            fallbackResp,
+            (Flow.Action.RequestBlockingAction) contentAction);
       }
     }
 

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.rxjava;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
@@ -9,18 +8,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import rx.Subscriber;
 
 public class TracedSubscriber<T> extends Subscriber<T> {
-
   private final AtomicReference<AgentSpan> spanRef;
   private final Subscriber<T> delegate;
   private final BaseDecorator decorator;
 
   public TracedSubscriber(
-      final AgentSpan span, final Subscriber<T> delegate, final BaseDecorator decorator) {
+      final AgentSpan span,
+      final Subscriber<T> delegate,
+      final BaseDecorator decorator) {
     spanRef = new AtomicReference<>(span);
     this.delegate = delegate;
     this.decorator = decorator;
-    final SpanFinishingSubscription subscription =
-        new SpanFinishingSubscription(decorator, spanRef);
+    final SpanFinishingSubscription subscription = new SpanFinishingSubscription(decorator, spanRef);
     delegate.add(subscription);
   }
 

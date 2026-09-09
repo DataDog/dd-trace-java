@@ -8,9 +8,7 @@ public enum Language {
   KOTLIN(".kt", false),
   SCALA(".scala", false),
   GHERKIN(".feature", true);
-
   private static final Language[] UNIVERSE = Language.values();
-
   private final String extension;
   private final boolean nonCode;
 

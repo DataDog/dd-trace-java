@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JaxRsAsyncResponseInstrumentation() {
     super("jax-rs", "jaxrs", "jax-rs-annotations");
   }
@@ -30,7 +29,8 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "javax.ws.rs.container.AsyncResponse", AgentSpan.class.getName());
+        "javax.ws.rs.container.AsyncResponse",
+        AgentSpan.class.getName());
   }
 
   @Override
@@ -45,9 +45,7 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JaxRsAnnotationsDecorator",
-    };
+    return new String[] {packageName + ".JaxRsAnnotationsDecorator"};
   }
 
   @Override
@@ -64,11 +62,10 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
   }
 
   public static class AsyncResponseAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
-
+        @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Thrown Throwable throwable) {
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
 
@@ -83,12 +80,10 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
   }
 
   public static class AsyncResponseThrowableAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final AsyncResponse asyncResponse,
         @Advice.Argument(0) final Throwable throwable) {
-
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
 
@@ -103,11 +98,10 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
   }
 
   public static class AsyncResponseCancelAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
-
+        @Advice.This final AsyncResponse asyncResponse,
+        @Advice.Thrown Throwable throwable) {
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
 

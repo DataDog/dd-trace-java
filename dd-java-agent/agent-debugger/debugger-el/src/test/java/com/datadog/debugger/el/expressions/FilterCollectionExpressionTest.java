@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.values.CollectionValue;
@@ -33,7 +32,6 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class FilterCollectionExpressionTest {
-
   private final EvalContext evalContext = createEvalContext(this);
 
   @Test
@@ -121,9 +119,9 @@ class FilterCollectionExpressionTest {
     map.put("c", 3);
     MapValue collection = new MapValue(map);
 
-    FilterCollectionExpression expression =
-        new FilterCollectionExpression(
-            collection, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
+    FilterCollectionExpression expression = new FilterCollectionExpression(
+        collection,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
     CollectionValue<?> filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
@@ -131,9 +129,9 @@ class FilterCollectionExpressionTest {
     assertFalse(filtered.isNull());
     assertFalse(filtered.isUndefined());
 
-    expression =
-        new FilterCollectionExpression(
-            collection, lt(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value(2)));
+    expression = new FilterCollectionExpression(
+        collection,
+        lt(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value(2)));
     filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
@@ -204,8 +202,9 @@ class FilterCollectionExpressionTest {
     assertEquals(1, filtered.count());
     assertEquals("filter(Map, {@key == \"b\"})", print(expression));
 
-    expression =
-        new FilterCollectionExpression(collection, eq(ref(ValueReferences.VALUE_REF), value(2)));
+    expression = new FilterCollectionExpression(
+        collection,
+        eq(ref(ValueReferences.VALUE_REF), value(2)));
     filtered = expression.evaluate(evalContext);
     assertNotEquals(collection, filtered);
     assertEquals(1, filtered.count());
@@ -309,13 +308,14 @@ class FilterCollectionExpressionTest {
   @Test
   void testUnsupportedList() {
     ListValue collection = new ListValue(new CustomList());
-    FilterCollectionExpression expression =
-        new FilterCollectionExpression(
-            collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
+    FilterCollectionExpression expression = new FilterCollectionExpression(
+        collection,
+        eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(
-        "Unsupported List class: com.datadog.debugger.el.expressions.FilterCollectionExpressionTest$CustomList",
+        "Unsupported List class: com.datadog.debugger.el.expressions."
+        + "FilterCollectionExpressionTest$CustomList",
         exception.getMessage());
     assertEquals("filter(List, {@it == \"foo\"})", print(expression));
   }
@@ -328,7 +328,8 @@ class FilterCollectionExpressionTest {
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(
-        "Unsupported Map class: com.datadog.debugger.el.expressions.FilterCollectionExpressionTest$CustomMap",
+        "Unsupported Map class: com.datadog.debugger.el.expressions."
+        + "FilterCollectionExpressionTest$CustomMap",
         exception.getMessage());
     assertEquals("filter(Map, {@value == 2})", print(expression));
   }
@@ -336,20 +337,24 @@ class FilterCollectionExpressionTest {
   @Test
   void testUnsupportedSet() {
     SetValue collection = new SetValue(new CustomSet());
-    FilterCollectionExpression expression =
-        new FilterCollectionExpression(
-            collection, eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
+    FilterCollectionExpression expression = new FilterCollectionExpression(
+        collection,
+        eq(ref(ValueReferences.ITERATOR_REF), value("foo")));
     EvaluationException exception =
         assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals(
-        "Unsupported Set class: com.datadog.debugger.el.expressions.FilterCollectionExpressionTest$CustomSet",
+        "Unsupported Set class: com.datadog.debugger.el.expressions."
+        + "FilterCollectionExpressionTest$CustomSet",
         exception.getMessage());
     assertEquals("filter(Set, {@it == \"foo\"})", print(expression));
   }
 
-  static class CustomList extends java.util.ArrayList<String> {}
+  static class CustomList extends java.util.ArrayList<String> {
+  }
 
-  static class CustomMap extends HashMap<String, Integer> {}
+  static class CustomMap extends HashMap<String, Integer> {
+  }
 
-  static class CustomSet extends java.util.HashSet<String> {}
+  static class CustomSet extends java.util.HashSet<String> {
+  }
 }

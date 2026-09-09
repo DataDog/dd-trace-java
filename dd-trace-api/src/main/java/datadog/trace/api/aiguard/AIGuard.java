@@ -28,10 +28,10 @@ import javax.annotation.Nullable;
  * }</pre>
  */
 public abstract class AIGuard {
-
   protected static Evaluator EVALUATOR = new NoOpEvaluator();
 
-  protected AIGuard() {}
+  protected AIGuard() {
+  }
 
   /**
    * Evaluates a collection of messages using default options to determine if they are safe to
@@ -122,7 +122,6 @@ public abstract class AIGuard {
    * </ul>
    */
   public static class AIGuardClientError extends RuntimeException {
-
     private final Object errors;
 
     public AIGuardClientError(final String message, final Throwable cause) {
@@ -140,13 +139,21 @@ public abstract class AIGuard {
     }
   }
 
-  /** Actions that can be recommended by an AIGuard evaluation. */
+  /**
+   * Actions that can be recommended by an AIGuard evaluation.
+   */
   public enum Action {
-    /** Content is safe to proceed with execution */
+    /**
+     * Content is safe to proceed with execution
+     */
     ALLOW,
-    /** Current action should be blocked from execution */
+    /**
+     * Current action should be blocked from execution
+     */
     DENY,
-    /** Workflow should be immediately terminated due to severe risk */
+    /**
+     * Workflow should be immediately terminated due to severe risk
+     */
     ABORT
   }
 
@@ -163,7 +170,6 @@ public abstract class AIGuard {
    * </ul>
    */
   public static class Evaluation {
-
     final Action action;
     final String reason;
     final List<String> tags;
@@ -252,7 +258,6 @@ public abstract class AIGuard {
    * }</pre>
    */
   public static class ImageURL {
-
     private final String url;
 
     /**
@@ -294,14 +299,18 @@ public abstract class AIGuard {
    * }</pre>
    */
   public static class ContentPart {
-
-    /** Type of content part. */
+    /**
+     * Type of content part.
+     */
     public enum Type {
-      /** Text content */
+      /**
+       * Text content
+       */
       TEXT,
-      /** Image URL content */
+      /**
+       * Image URL content
+       */
       IMAGE_URL;
-
       @Override
       public String toString() {
         return name().toLowerCase(Locale.ROOT);
@@ -309,8 +318,10 @@ public abstract class AIGuard {
     }
 
     private final Type type;
-    @Nullable private final String text;
-    @Nullable private final ImageURL imageUrl;
+    @Nullable
+    private final String text;
+    @Nullable
+    private final ImageURL imageUrl;
 
     /**
      * Private constructor to enforce use of factory methods.
@@ -320,7 +331,9 @@ public abstract class AIGuard {
      * @param imageUrl the image URL (required for IMAGE_URL type)
      */
     private ContentPart(
-        @Nonnull final Type type, @Nullable final String text, @Nullable final ImageURL imageUrl) {
+        @Nonnull final Type type,
+        @Nullable final String text,
+        @Nullable final ImageURL imageUrl) {
       this.type = type;
       this.text = text;
       this.imageUrl = imageUrl;
@@ -418,10 +431,11 @@ public abstract class AIGuard {
    * }</pre>
    */
   public static class Message {
-
     private final String role;
-    @Nullable private final String content;
-    @Nullable private final List<ContentPart> contentParts;
+    @Nullable
+    private final String content;
+    @Nullable
+    private final List<ContentPart> contentParts;
     private final List<ToolCall> toolCalls;
     private final String toolCallId;
 
@@ -544,7 +558,8 @@ public abstract class AIGuard {
      */
     @Nonnull
     public static Message message(
-        @Nonnull final String role, @Nonnull final List<ContentPart> contentParts) {
+        @Nonnull final String role,
+        @Nonnull final List<ContentPart> contentParts) {
       return new Message(role, contentParts, null, null);
     }
 
@@ -590,10 +605,10 @@ public abstract class AIGuard {
    * }</pre>
    */
   public static final class Options {
-
-    /** Default options that follow the remote is_blocking_enabled setting. */
+    /**
+     * Default options that follow the remote is_blocking_enabled setting.
+     */
     public static final Options DEFAULT = new Options().block(true);
-
     private boolean block = true;
 
     /**
@@ -631,7 +646,6 @@ public abstract class AIGuard {
    * }</pre>
    */
   public static class ToolCall {
-
     private final String id;
     private final Function function;
 
@@ -669,7 +683,6 @@ public abstract class AIGuard {
      * arguments.
      */
     public static class Function {
-
       private final String name;
       private final String arguments;
 

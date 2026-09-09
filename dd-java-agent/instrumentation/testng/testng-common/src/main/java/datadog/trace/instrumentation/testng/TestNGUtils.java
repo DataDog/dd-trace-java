@@ -32,22 +32,17 @@ import org.testng.internal.ITestResultNotifier;
 import org.testng.xml.XmlTest;
 
 public abstract class TestNGUtils {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestNGUtils.class);
-
   private static final datadog.trace.util.MethodHandles METHOD_HANDLES =
       new datadog.trace.util.MethodHandles(TestNG.class.getClassLoader());
-
   private static final MethodHandle XML_TEST_GET_PARALLEL =
       METHOD_HANDLES.method(XmlTest.class, "getParallel");
-
   private static final MethodHandle TEST_RESULT_WAS_RETRIED =
       METHOD_HANDLES.method(ITestResult.class, "wasRetried");
   private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER =
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer", ITestResult.class);
   private static final MethodHandle TEST_METHOD_GET_RETRY_ANALYZER_LEGACY =
       METHOD_HANDLES.method(ITestNGMethod.class, "getRetryAnalyzer");
-
   private static final ComparableVersion testNGv75 = new ComparableVersion("7.5");
   private static final ComparableVersion testNGv70 = new ComparableVersion("7.0");
 
@@ -85,7 +80,6 @@ public abstract class TestNGUtils {
     if (parameters == null || parameters.length == 0) {
       return null;
     }
-
     // We build manually the JSON for test.parameters tag.
     // Example: {"arguments":{"0":"param1","1":"param2"}}
     try (JsonWriter writer = new JsonWriter()) {
@@ -163,7 +157,6 @@ public abstract class TestNGUtils {
         }
       }
       throw new RuntimeException("Tracing listener not found: " + testListeners);
-
     } catch (Exception e) {
       throw new RuntimeException("Could not get tracing listener", e);
     }
@@ -213,7 +206,6 @@ public abstract class TestNGUtils {
         manifestProperties.load(manifestStream);
         return manifestProperties.getProperty("Bundle-Version");
       }
-
     } catch (Exception e) {
       return null;
     }
@@ -241,8 +233,7 @@ public abstract class TestNGUtils {
   }
 
   @Nonnull
-  public static TestIdentifier toTestIdentifier(
-      Method method, Object instance, Object[] parameters) {
+  public static TestIdentifier toTestIdentifier(Method method, Object instance, Object[] parameters) {
     Class<?> testClass = instance != null ? instance.getClass() : method.getDeclaringClass();
     String testSuiteName = testClass.getName();
     String testName = method.getName();
@@ -279,10 +270,10 @@ public abstract class TestNGUtils {
   }
 
   public static List<LibraryCapability> capabilities(String version) {
-    List<LibraryCapability> baseCapabilities =
-        new ArrayList<>(
-            Arrays.asList(
-                LibraryCapability.TIA, LibraryCapability.IMPACTED, LibraryCapability.DISABLED));
+    List<LibraryCapability> baseCapabilities = new ArrayList<>(Arrays.asList(
+        LibraryCapability.TIA,
+        LibraryCapability.IMPACTED,
+        LibraryCapability.DISABLED));
 
     boolean isEFDSupported = isEFDSupported(version);
     boolean isExceptionSuppressionSupported = isExceptionSuppressionSupported(version);

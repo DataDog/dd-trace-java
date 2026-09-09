@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.util.logging.LogManager;
 
 public class LogManagerSetter {
-
   // avoid CustomLogManager.class.getName() as that could initialize JUL before we've set the logger
   private static final String CUSTOM_LOG_MANAGER_CLASS_NAME = "jvmbootstraptest.CustomLogManager";
 
@@ -16,9 +15,8 @@ public class LogManagerSetter {
         System.setProperty("java.util.logging.manager", CUSTOM_LOG_MANAGER_CLASS_NAME);
         customAssert(
             LogManager.getLogManager().getClass(),
-            LogManagerSetter.class
-                .getClassLoader()
-                .loadClass(System.getProperty("java.util.logging.manager")),
+            LogManagerSetter.class.getClassLoader().loadClass(System.getProperty(
+                "java.util.logging.manager")),
             "Javaagent should not prevent setting a custom log manager");
       } else {
         customAssert(
@@ -55,15 +53,15 @@ public class LogManagerSetter {
       System.setProperty("java.util.logging.manager", CUSTOM_LOG_MANAGER_CLASS_NAME);
       customAssert(
           LogManager.getLogManager().getClass(),
-          LogManagerSetter.class
-              .getClassLoader()
-              .loadClass(System.getProperty("java.util.logging.manager")),
+          LogManagerSetter.class.getClassLoader().loadClass(System.getProperty(
+              "java.util.logging.manager")),
           "Javaagent should not prevent setting a custom log manager");
-      customAssert(
-          isJmxfetchStarted(true), true, "jmxfetch should start after loading LogManager.");
+      customAssert(isJmxfetchStarted(true), true, "jmxfetch should start after loading LogManager.");
       if (isJFRSupported()) {
         customAssert(
-            isProfilingStarted(true), true, "profiling should start after loading LogManager.");
+            isProfilingStarted(true),
+            true,
+            "profiling should start after loading LogManager.");
       }
     } else if (System.getenv("JBOSS_HOME") != null) {
       System.out.println("JBOSS_HOME != null");
@@ -83,9 +81,8 @@ public class LogManagerSetter {
       System.setProperty("java.util.logging.manager", CUSTOM_LOG_MANAGER_CLASS_NAME);
       customAssert(
           LogManager.getLogManager().getClass(),
-          LogManagerSetter.class
-              .getClassLoader()
-              .loadClass(System.getProperty("java.util.logging.manager")),
+          LogManagerSetter.class.getClassLoader().loadClass(System.getProperty(
+              "java.util.logging.manager")),
           "Javaagent should not prevent setting a custom log manager");
       customAssert(
           isJmxfetchStarted(true),
@@ -118,8 +115,13 @@ public class LogManagerSetter {
   }
 
   private static void customAssert(
-      final Object got, final Object expected, final String assertionMessage) {
-    if (got == expected) return; // null check
+      final Object got,
+      final Object expected,
+      final String assertionMessage) {
+    // null check
+    if (got == expected) {
+      return;
+    }
     if (!got.equals(expected)) {
       throw new RuntimeException(
           "Assertion failed. Expected <" + expected + "> got <" + got + "> " + assertionMessage);
@@ -139,7 +141,6 @@ public class LogManagerSetter {
 
   private static boolean isThreadStarted(final String name, final boolean wait) {
     System.out.println("Checking for thread " + name + "...");
-
     // Wait up to 10 seconds for thread to appear
     for (int i = 0; i < 20; i++) {
       for (final Thread thread : Thread.getAllStackTraces().keySet()) {
@@ -171,7 +172,6 @@ public class LogManagerSetter {
 
   private static boolean isTracerInstalled(final boolean wait) {
     System.out.println("Checking for tracer...");
-
     // Wait up to 10 seconds for tracer to get installed
     for (int i = 0; i < 20; i++) {
       if (AgentTracer.isRegistered()) {
@@ -193,16 +193,18 @@ public class LogManagerSetter {
 
   private static boolean okHttpMayIndirectlyLoadJUL() {
     if ("IBM Corporation".equals(System.getProperty("java.vm.vendor"))) {
-      return true; // IBM JDKs ship with 'IBMSASL' which will load JUL when OkHttp accesses TLS
+      // IBM JDKs ship with 'IBMSASL' which will load JUL when OkHttp accesses TLS
+      return true;
     }
     if (!System.getProperty("java.version").startsWith("1.")) {
-      return false; // JDKs since 9 have reworked JFR to use a different logging facility, not JUL
+      // JDKs since 9 have reworked JFR to use a different logging facility, not JUL
+      return false;
     }
-    return isJFRSupported(); // assume OkHttp will indirectly load JUL via its JFR events
+    // assume OkHttp will indirectly load JUL via its JFR events
+    return isJFRSupported();
   }
 
   private static boolean isJFRSupported() {
-    return Thread.currentThread().getContextClassLoader().getResource("jdk/jfr/Recording.class")
-        != null;
+    return Thread.currentThread().getContextClassLoader().getResource("jdk/jfr/Recording.class") != null;
   }
 }

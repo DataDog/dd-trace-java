@@ -7,7 +7,9 @@ import java.io.InputStream;
 import java.util.List;
 import org.apache.commons.fileupload.FileItem;
 
-/** Reads uploaded file content for WAF inspection. */
+/**
+ * Reads uploaded file content for WAF inspection.
+ */
 public final class FileItemContentReader {
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
   public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
@@ -15,7 +17,9 @@ public final class FileItemContentReader {
   public static String readContent(FileItem fileItem) {
     try (InputStream is = fileItem.getInputStream()) {
       return MultipartContentDecoder.readInputStream(
-          is, MAX_CONTENT_BYTES, fileItem.getContentType());
+          is,
+          MAX_CONTENT_BYTES,
+          fileItem.getContentType());
     } catch (IOException ignored) {
       return "";
     }
@@ -27,5 +31,6 @@ public final class FileItemContentReader {
     }
   }
 
-  private FileItemContentReader() {}
+  private FileItemContentReader() {
+  }
 }

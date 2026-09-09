@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -18,23 +17,22 @@ import org.slf4j.LoggerFactory;
  * succeed and do meaningful work in that span, and then close the span and continuation properly.
  */
 public final class ConcurrentState {
-
   private static final Logger log = LoggerFactory.getLogger(ConcurrentState.class);
-
   public static ContextStore.Factory<ConcurrentState> FACTORY = ConcurrentState::new;
-
   private volatile ContextContinuation continuation = null;
+  private static final AtomicReferenceFieldUpdater<ConcurrentState, ContextContinuation> CONTINUATION = AtomicReferenceFieldUpdater.newUpdater(
+      ConcurrentState.class,
+      ContextContinuation.class,
+      "continuation");
 
-  private static final AtomicReferenceFieldUpdater<ConcurrentState, ContextContinuation>
-      CONTINUATION =
-          AtomicReferenceFieldUpdater.newUpdater(
-              ConcurrentState.class, ContextContinuation.class, "continuation");
-
-  private ConcurrentState() {}
+  private ConcurrentState() {
+  }
 
   @Nullable
   public static <K> ConcurrentState captureContinuation(
-      ContextStore<K, ConcurrentState> contextStore, K key, Context context) {
+      ContextStore<K, ConcurrentState> contextStore,
+      K key,
+      Context context) {
     if (shouldCapture(context)) {
       final ConcurrentState state = contextStore.getOrCreate(key, FACTORY);
       if (!state.captureAndSetContinuation(context) && log.isDebugEnabled()) {
@@ -51,7 +49,8 @@ public final class ConcurrentState {
 
   @Nullable
   public static <K> ContextScope activateAndContinueContinuation(
-      ContextStore<K, ConcurrentState> contextStore, K key) {
+      ContextStore<K, ConcurrentState> contextStore,
+      K key) {
     final ConcurrentState state = contextStore.get(key);
     if (state == null) {
       return null;
@@ -80,7 +79,8 @@ public final class ConcurrentState {
   }
 
   public static <K> void cancelAndClearContinuation(
-      ContextStore<K, ConcurrentState> contextStore, K key) {
+      ContextStore<K, ConcurrentState> contextStore,
+      K key) {
     final ConcurrentState state = contextStore.get(key);
     if (state == null) {
       return;

@@ -12,25 +12,19 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.pool.TypePool;
 
-/** ASM visitor which injects our OpenTelemetry shim into the target API. */
+/**
+ * ASM visitor which injects our OpenTelemetry shim into the target API.
+ */
 public final class OtelShimInjector implements AsmVisitorWrapper {
   static final OtelShimInjector INSTANCE = new OtelShimInjector();
-
   static final String TRACER_PROVIDER_DESCRIPTOR = "Lio/opentelemetry/api/trace/TracerProvider;";
-
   static final String CONTEXT_PROPAGATORS_DESCRIPTOR =
       "Lio/opentelemetry/context/propagation/ContextPropagators;";
-
   static final String CONTEXT_DESCRIPTOR = "Lio/opentelemetry/context/Context;";
-
   static final String GET_TRACER_PROVIDER_METHOD_DESCRIPTOR = "()" + TRACER_PROVIDER_DESCRIPTOR;
-
   static final String GET_PROPAGATORS_METHOD_DESCRIPTOR = "()" + CONTEXT_PROPAGATORS_DESCRIPTOR;
-
   static final String CURRENT_CONTEXT_METHOD_DESCRIPTOR = "()" + CONTEXT_DESCRIPTOR;
-
   static final String ROOT_CONTEXT_METHOD_DESCRIPTOR = "()" + CONTEXT_DESCRIPTOR;
-
   static final String SHIM_PACKAGE_PREFIX = "datadog/opentelemetry/shim/";
 
   @Override
@@ -86,7 +80,8 @@ public final class OtelShimInjector implements AsmVisitorWrapper {
           mv.visitInsn(Opcodes.ARETURN);
           mv.visitEnd();
           return null;
-        } else if ("current".equals(name) && CURRENT_CONTEXT_METHOD_DESCRIPTOR.equals(descriptor)) {
+        } else if ("current".equals(name)
+            && CURRENT_CONTEXT_METHOD_DESCRIPTOR.equals(descriptor)) {
           mv.visitCode();
           mv.visitMethodInsn(
               Opcodes.INVOKESTATIC,

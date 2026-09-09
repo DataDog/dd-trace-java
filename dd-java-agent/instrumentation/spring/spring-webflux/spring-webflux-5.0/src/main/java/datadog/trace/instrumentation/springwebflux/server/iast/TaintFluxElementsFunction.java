@@ -6,7 +6,6 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import java.util.function.Function;
 
 public class TaintFluxElementsFunction<T> implements Function<T, T> {
-
   final IastContext ctx;
   final PropagationModule propagation;
 

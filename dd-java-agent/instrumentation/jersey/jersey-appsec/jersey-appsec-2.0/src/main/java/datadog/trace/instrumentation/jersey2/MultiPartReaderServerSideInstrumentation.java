@@ -5,7 +5,6 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -29,8 +28,8 @@ import org.glassfish.jersey.media.multipart.MultiPart;
 
 @AutoService(InstrumenterModule.class)
 public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public MultiPartReaderServerSideInstrumentation() {
     super("jersey");
   }
@@ -54,9 +53,9 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("readMultiPart")
-            .and(isProtected())
-            .and(returns(named("org.glassfish.jersey.media.multipart.MultiPart")))
-            .and(takesArguments(6)),
+          .and(isProtected())
+          .and(returns(named("org.glassfish.jersey.media.multipart.MultiPart")))
+          .and(takesArguments(6)),
         getClass().getName() + "$ReadMultiPartAdvice");
   }
 
@@ -94,9 +93,10 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
 
       if (map != null) {
         Flow<Void> flow = callback.apply(reqCtx, map);
-        BlockingException be =
-            MultiPartHelper.tryBlock(
-                reqCtx, flow, "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
+        BlockingException be = MultiPartHelper.tryBlock(
+            reqCtx,
+            flow,
+            "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
         if (be != null) {
           t = be;
         }
@@ -107,7 +107,9 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
         if (t == null) {
           BlockingException be =
               MultiPartHelper.tryBlock(
-                  reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+                  reqCtx,
+                  filenamesFlow,
+                  "Blocked request (multipart file upload)");
           if (be != null) {
             t = be;
           }
@@ -116,9 +118,10 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
 
       if (t == null && filesContent != null && !filesContent.isEmpty()) {
         Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-        BlockingException be =
-            MultiPartHelper.tryBlock(
-                reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+        BlockingException be = MultiPartHelper.tryBlock(
+            reqCtx,
+            contentFlow,
+            "Blocked request (multipart file upload content)");
         if (be != null) {
           t = be;
         }

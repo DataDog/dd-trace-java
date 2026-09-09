@@ -15,7 +15,9 @@ public final class PostProcessorChain extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagMap unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks) {
     for (final TagsPostProcessor tagsPostProcessor : chain) {
       tagsPostProcessor.processTags(unsafeTags, spanContext, spanLinks);
     }

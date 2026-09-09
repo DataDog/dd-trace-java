@@ -9,7 +9,10 @@ public class NoOpLLMObsEvalProcessor implements LLMObs.LLMObsEvalProcessor {
 
   @Override
   public void SubmitEvaluation(
-      LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {}
+      LLMObsSpan llmObsSpan,
+      String label,
+      double scoreValue,
+      Map<String, Object> tags) {}
 
   @Override
   public void SubmitEvaluation(
@@ -21,7 +24,10 @@ public class NoOpLLMObsEvalProcessor implements LLMObs.LLMObsEvalProcessor {
 
   @Override
   public void SubmitEvaluation(
-      LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {}
+      LLMObsSpan llmObsSpan,
+      String label,
+      String categoricalValue,
+      Map<String, Object> tags) {}
 
   @Override
   public void SubmitEvaluation(

@@ -20,9 +20,7 @@ import java.util.function.Function;
  * @param <V> value type
  */
 abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
-
   static final int MAXIMUM_CAPACITY = 1 << 30;
-
   private final int mask;
   // This is a cache, so there is no need for volatile, atomics or synchronized.
   // All race conditions here are benign since you always read or write a full
@@ -75,7 +73,6 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
     int h = hash(key);
     int firstPos = h & mask;
     V value;
-
     // try to find a slot or a match 3 times
     for (int i = 1; true; i++) {
       int pos = h & mask;
@@ -150,7 +147,8 @@ abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
 
     int hash(K key) {
       int hash = System.identityHashCode(key);
-      return hash - (hash << 7); // multiply by -127 to improve identityHashCode spread
+      // multiply by -127 to improve identityHashCode spread
+      return hash - (hash << 7);
     }
 
     boolean equals(K key, Pair<K, V> current) {

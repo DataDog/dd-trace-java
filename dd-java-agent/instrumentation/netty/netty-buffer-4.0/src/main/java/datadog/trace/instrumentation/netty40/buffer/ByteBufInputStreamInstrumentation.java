@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,9 +17,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   public ByteBufInputStreamInstrumentation() {
     super("netty", "netty-4.0");
   }
@@ -39,20 +37,20 @@ public class ByteBufInputStreamInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(isPublic())
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("io.netty.buffer.ByteBuf")))
-            .and(takesArgument(1, int.class))
-            .and(takesArgument(2, boolean.class)),
+          .and(isPublic())
+          .and(takesArguments(3))
+          .and(takesArgument(0, named("io.netty.buffer.ByteBuf")))
+          .and(takesArgument(1, int.class))
+          .and(takesArgument(2, boolean.class)),
         ByteBufInputStreamInstrumentation.class.getName() + "$ConstructorAdvice");
   }
 
   public static class ConstructorAdvice {
-
     @Advice.OnMethodExit
     @Propagation
     public static void onExit(
-        @Advice.This final Object self, @Advice.Argument(0) final Object buffer) {
+        @Advice.This final Object self,
+        @Advice.Argument(0) final Object buffer) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       try {
         if (module != null) {

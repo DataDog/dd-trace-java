@@ -6,13 +6,16 @@ import io.reactivex.MaybeObserver;
 import io.reactivex.disposables.Disposable;
 import javax.annotation.Nonnull;
 
-/** Wrapper that makes sure spans from observer events treat the captured span as their parent. */
+/**
+ * Wrapper that makes sure spans from observer events treat the captured span as their parent.
+ */
 public final class TracingMaybeObserver<T> implements MaybeObserver<T> {
   private final MaybeObserver<T> observer;
   private final Context parentContext;
 
   public TracingMaybeObserver(
-      @Nonnull final MaybeObserver<T> observer, @Nonnull final Context parentContext) {
+      @Nonnull final MaybeObserver<T> observer,
+      @Nonnull final Context parentContext) {
     this.observer = observer;
     this.parentContext = parentContext;
   }

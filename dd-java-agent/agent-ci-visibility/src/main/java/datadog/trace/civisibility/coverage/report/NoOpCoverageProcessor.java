@@ -5,10 +5,10 @@ import datadog.trace.civisibility.config.ExecutionSettings;
 import javax.annotation.Nullable;
 
 public class NoOpCoverageProcessor implements CoverageProcessor {
-
   private static final NoOpCoverageProcessor INSTANCE = new NoOpCoverageProcessor();
 
-  private NoOpCoverageProcessor() {}
+  private NoOpCoverageProcessor() {
+  }
 
   @Nullable
   @Override

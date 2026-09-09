@@ -2,7 +2,9 @@ package datadog.nativeloader;
 
 import java.net.URL;
 
-/** Resolves a component / path pair to a {@link URL} - called by a {@link LibraryResolver} */
+/**
+ * Resolves a component / path pair to a {@link URL} - called by a {@link LibraryResolver}
+ */
 @FunctionalInterface
 public interface PathLocator {
   /**

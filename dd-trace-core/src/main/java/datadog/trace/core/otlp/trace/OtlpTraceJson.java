@@ -21,7 +21,6 @@ import static datadog.trace.core.otlp.common.OtlpTraceFlags.NO_TRACE_FLAGS;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
-
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -36,19 +35,26 @@ import datadog.trace.core.propagation.PropagationTags;
 import java.util.List;
 import java.util.Map;
 
-/** Provides writers for OpenTelemetry's "trace.proto" JSON encoding. */
+/**
+ * Provides writers for OpenTelemetry's "trace.proto" JSON encoding.
+ */
 public final class OtlpTraceJson {
-
   private static final UTF8BytesString SERVICE_NAME = UTF8BytesString.create("service.name");
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
-  private OtlpTraceJson() {}
+  private OtlpTraceJson() {
+  }
 
-  /** Writes one complete {@code Span} JSON object. */
+  /**
+   * Writes one complete {@code Span} JSON object.
+   */
   public static void writeSpan(
-      JsonWriter writer, DDSpan span, MetaWriter metaWriter, List<? extends AgentSpanLink> links) {
+      JsonWriter writer,
+      DDSpan span,
+      MetaWriter metaWriter,
+      List<? extends AgentSpanLink> links) {
     PropagationTags propagationTags = span.spanContext().getPropagationTags();
 
     writer.beginObject();
@@ -80,8 +86,8 @@ public final class OtlpTraceJson {
     writer.name("kind").value(spanKind(span.spanContext().getSpanKindString()));
     writer.name("startTimeUnixNano").value(Long.toString(span.getStartTime()));
     writer
-        .name("endTimeUnixNano")
-        .value(Long.toString(span.getStartTime() + PendingTrace.getDurationNano(span)));
+      .name("endTimeUnixNano")
+      .value(Long.toString(span.getStartTime() + PendingTrace.getDurationNano(span)));
 
     writer.name("attributes").beginArray();
     if (!Config.get().getServiceName().equals(span.getServiceName())) {
@@ -109,14 +115,17 @@ public final class OtlpTraceJson {
       if (errorMessage instanceof String) {
         writer.name("message").value((String) errorMessage);
       }
-      writer.name("code").value(2); // STATUS_CODE_ERROR
+      // STATUS_CODE_ERROR
+      writer.name("code").value(2);
       writer.endObject();
     }
 
     writer.endObject();
   }
 
-  /** Writes one complete {@code SpanLink} JSON object. */
+  /**
+   * Writes one complete {@code SpanLink} JSON object.
+   */
   public static void writeSpanLink(JsonWriter writer, AgentSpanLink spanLink) {
     writer.beginObject();
 
@@ -129,8 +138,11 @@ public final class OtlpTraceJson {
     Map<?, ?> attributes = spanLink.attributes().asMap();
     if (!attributes.isEmpty()) {
       writer.name("attributes").beginArray();
-      attributes.forEach(
-          (key, value) -> writeAttribute(writer, STRING_ATTRIBUTE, key.toString(), value));
+      attributes.forEach((key, value) -> writeAttribute(
+          writer,
+          STRING_ATTRIBUTE,
+          key.toString(),
+          value));
       writer.endArray();
     }
 
@@ -167,7 +179,6 @@ public final class OtlpTraceJson {
 
   public static class MetaWriter implements MetadataConsumer {
     private final JsonWriter writer;
-
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
@@ -175,12 +186,16 @@ public final class OtlpTraceJson {
       this.writer = writer;
     }
 
-    /** Call this to ensure process tags are written out for the next span. */
+    /**
+     * Call this to ensure process tags are written out for the next span.
+     */
     public void includeProcessTags() {
       includeProcessTags = true;
     }
 
-    /** Call this to ensure sampling tags are written out for the next span. */
+    /**
+     * Call this to ensure sampling tags are written out for the next span.
+     */
     public void includeSamplingTags() {
       includeSamplingTags = true;
     }
@@ -218,7 +233,6 @@ public final class OtlpTraceJson {
       }
 
       metadata.getTags().forEach(writer, OtlpTraceJson::writeSpanTag);
-
       // reset for next span
       includeProcessTags = false;
       includeSamplingTags = false;

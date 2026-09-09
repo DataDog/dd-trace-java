@@ -5,7 +5,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @Configuration
 @EnableScheduling
 public class LambdaTaskConfig {
-
   @Bean
   LambdaTaskConfigurer lambdaTaskConfigurer() {
     return new LambdaTaskConfigurer();

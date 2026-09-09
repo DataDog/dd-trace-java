@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 
 import static datadog.trace.bootstrap.instrumentation.jdbc.DBInfo.DEFAULT;
 import static java.lang.Math.max;
-
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
@@ -27,7 +26,7 @@ import java.util.regex.Pattern;
  * project to keep the Muzzle generated dependency references smaller.
  */
 public enum JDBCConnectionUrlParser {
-  GENERIC_URL_LIKE() {
+  GENERIC_URL_LIKE {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       try {
@@ -71,8 +70,7 @@ public enum JDBCConnectionUrlParser {
       }
     }
   },
-
-  MODIFIED_URL_LIKE() {
+  MODIFIED_URL_LIKE {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       String serverName = "";
@@ -165,7 +163,6 @@ public enum JDBCConnectionUrlParser {
       return builder.type(type);
     }
   },
-
   POSTGRES("postgresql", "edb") {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 5432;
@@ -182,7 +179,6 @@ public enum JDBCConnectionUrlParser {
       return GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
     }
   },
-
   MYSQL("mysql", "mariadb") {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 3306;
@@ -200,8 +196,8 @@ public enum JDBCConnectionUrlParser {
       final int typeEndLoc = dbInfo.getType().length();
       if (protoLoc > typeEndLoc && !jdbcUrl.substring(typeEndLoc + 1, protoLoc).equals("aws")) {
         return MARIA_SUBPROTO
-            .doParse(jdbcUrl.substring(protoLoc + 3), builder)
-            .subtype(jdbcUrl.substring(typeEndLoc + 1, protoLoc));
+          .doParse(jdbcUrl.substring(protoLoc + 3), builder)
+          .subtype(jdbcUrl.substring(typeEndLoc + 1, protoLoc));
       }
       if (protoLoc > 0) {
         return GENERIC_URL_LIKE.doParse(dbInfo.getType() + jdbcUrl.substring(protoLoc), builder);
@@ -234,8 +230,7 @@ public enum JDBCConnectionUrlParser {
       return builder;
     }
   },
-
-  MARIA_SUBPROTO() {
+  MARIA_SUBPROTO {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       if (jdbcUrl.startsWith("**internally_generated**")) {
@@ -246,8 +241,7 @@ public enum JDBCConnectionUrlParser {
       }
       final int hostEndLoc;
       final int clusterSepLoc = jdbcUrl.indexOf(',');
-      final int ipv6End =
-          !jdbcUrl.isEmpty() && jdbcUrl.charAt(0) == '[' ? jdbcUrl.indexOf(']') : -1;
+      final int ipv6End = !jdbcUrl.isEmpty() && jdbcUrl.charAt(0) == '[' ? jdbcUrl.indexOf(']') : -1;
       int portLoc = jdbcUrl.indexOf(':', max(0, ipv6End));
       portLoc = -1 < clusterSepLoc && clusterSepLoc < portLoc ? -1 : portLoc;
       final int dbLoc = jdbcUrl.indexOf('/', max(portLoc, clusterSepLoc));
@@ -284,11 +278,13 @@ public enum JDBCConnectionUrlParser {
       return builder;
     }
   },
-
-  MARIA_ADDRESS() {
-    private final Pattern HOST_REGEX = Pattern.compile("\\(\\s*host\\s*=\\s*([^ )]+)\\s*\\)");
-    private final Pattern PORT_REGEX = Pattern.compile("\\(\\s*port\\s*=\\s*([\\d]+)\\s*\\)");
-    private final Pattern USER_REGEX = Pattern.compile("\\(\\s*user\\s*=\\s*([^ )]+)\\s*\\)");
+  MARIA_ADDRESS {
+    private final Pattern HOST_REGEX =
+        Pattern.compile("\\\\(\\\\s*host\\\\s*=\\\\s*([^ )]+)" + "\\\\s*\\\\)");
+    private final Pattern PORT_REGEX =
+        Pattern.compile("\\\\(\\\\s*port\\\\s*=\\\\s*([\\\\d]+)" + "\\\\s*\\\\)");
+    private final Pattern USER_REGEX =
+        Pattern.compile("\\\\(\\\\s*user\\\\s*=\\\\s*([^ )]+)" + "\\\\s*\\\\)");
 
     @Override
     DBInfo.Builder doParse(String jdbcUrl, final DBInfo.Builder builder) {
@@ -314,7 +310,6 @@ public enum JDBCConnectionUrlParser {
       return builder;
     }
   },
-
   SAP("sap") {
     private static final String DEFAULT_HOST = "localhost";
 
@@ -327,7 +322,6 @@ public enum JDBCConnectionUrlParser {
       return GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
     }
   },
-
   MSSQLSERVER("microsoft", "sqlserver") {
     private static final String DEFAULT_HOST = "localhost";
     private static final int DEFAULT_PORT = 1433;
@@ -351,7 +345,6 @@ public enum JDBCConnectionUrlParser {
       return MODIFIED_URL_LIKE.doParse(jdbcUrl, builder);
     }
   },
-
   DB2("db2", "as400") {
     private static final int DEFAULT_PORT = 50000;
 
@@ -364,7 +357,6 @@ public enum JDBCConnectionUrlParser {
       return MODIFIED_URL_LIKE.doParse(jdbcUrl, builder);
     }
   },
-
   ORACLE("oracle") {
     private static final int DEFAULT_PORT = 1521;
 
@@ -387,11 +379,9 @@ public enum JDBCConnectionUrlParser {
       }
     }
   },
-
-  ORACLE_CONNECT_INFO() {
+  ORACLE_CONNECT_INFO {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
-
       final String host;
       final Integer port;
       final String instance;
@@ -448,8 +438,7 @@ public enum JDBCConnectionUrlParser {
       return builder.instance(instance);
     }
   },
-
-  ORACLE_AT() {
+  ORACLE_AT {
     @Override
     DBInfo.Builder doParse(final String jdbcUrl, final DBInfo.Builder builder) {
       if (jdbcUrl.contains("@(description")) {
@@ -482,14 +471,15 @@ public enum JDBCConnectionUrlParser {
       return ORACLE_CONNECT_INFO.doParse(connectInfo.substring(hostStart), builder);
     }
   },
-
   /**
    * This parser can locate incorrect data if multiple addresses are defined but not everything is
    * defined in the first block. (It would locate data from subsequent address blocks.
    */
-  ORACLE_AT_DESCRIPTION() {
-    private final Pattern HOST_REGEX = Pattern.compile("\\(\\s*host\\s*=\\s*([^ )]+)\\s*\\)");
-    private final Pattern PORT_REGEX = Pattern.compile("\\(\\s*port\\s*=\\s*([\\d]+)\\s*\\)");
+  ORACLE_AT_DESCRIPTION {
+    private final Pattern HOST_REGEX =
+        Pattern.compile("\\\\(\\\\s*host\\\\s*=\\\\s*([^ )]+)" + "\\\\s*\\\\)");
+    private final Pattern PORT_REGEX =
+        Pattern.compile("\\\\(\\\\s*port\\\\s*=\\\\s*([\\\\d]+)" + "\\\\s*\\\\)");
     private final Pattern INSTANCE_REGEX =
         Pattern.compile("\\(\\s*service_name\\s*=\\s*([^ )]+)\\s*\\)");
 
@@ -522,7 +512,6 @@ public enum JDBCConnectionUrlParser {
       return builder;
     }
   },
-
   H2("h2") {
     private static final int DEFAULT_PORT = 8082;
 
@@ -582,7 +571,6 @@ public enum JDBCConnectionUrlParser {
       return builder;
     }
   },
-
   HSQL("hsqldb") {
     private static final String DEFAULT_USER = "SA";
     private static final int DEFAULT_PORT = 9001;
@@ -631,7 +619,6 @@ public enum JDBCConnectionUrlParser {
       return builder.instance(instance);
     }
   },
-
   DERBY("derby") {
     private static final String DEFAULT_USER = "APP";
     private static final int DEFAULT_PORT = 1527;
@@ -714,8 +701,9 @@ public enum JDBCConnectionUrlParser {
       return builder.instance(instance);
     }
   },
-
-  /** http://jtds.sourceforge.net/faq.html#urlFormat */
+  /**
+   * http://jtds.sourceforge.net/faq.html#urlFormat
+   */
   JTDS("jtds") {
     private static final int DEFAULT_SQL_SERVER_PORT = 1433;
     private static final int DEFAULT_SYBASE_PORT = 7100;
@@ -777,7 +765,6 @@ public enum JDBCConnectionUrlParser {
       return builder;
     }
   },
-
   REDSHIFT("redshift") {
     @Override
     DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
@@ -792,7 +779,6 @@ public enum JDBCConnectionUrlParser {
       return builder;
     }
   },
-
   SNOWFLAKE("snowflake") {
     @Override
     DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
@@ -803,7 +789,6 @@ public enum JDBCConnectionUrlParser {
       return GENERIC_URL_LIKE.doParse(url, builder);
     }
   },
-
   IRIS("iris") {
     @Override
     DBInfo.Builder doParse(String jdbcUrl, DBInfo.Builder builder) {
@@ -826,14 +811,12 @@ public enum JDBCConnectionUrlParser {
         // that uri is opaque so we need to adjust it in order to be parsed with the classical
         // hierarchical way
         return GENERIC_URL_LIKE
-            .doParse("sybase://" + jdbcUrl.substring("sybase:tds:".length()), builder)
-            .subtype("tds");
+          .doParse("sybase://" + jdbcUrl.substring("sybase:tds:".length()), builder)
+          .subtype("tds");
       }
       return GENERIC_URL_LIKE.doParse(jdbcUrl, builder);
     }
-  },
-  ;
-
+  };
   private static final Map<String, JDBCConnectionUrlParser> typeParsers = new HashMap<>();
 
   static {
@@ -848,7 +831,6 @@ public enum JDBCConnectionUrlParser {
       DDCaches.newFixedSizeCache(32);
   private static final Function<Pair<String, Properties>, DBInfo> PARSE =
       input -> parse(input.getLeft(), input.getRight());
-
   private final String[] typeKeys;
 
   JDBCConnectionUrlParser(final String... typeKeys) {
@@ -911,10 +893,9 @@ public enum JDBCConnectionUrlParser {
         final int idx = pair.indexOf('=');
         final String key = idx > 0 ? URLDecoder.decode(pair.substring(0, idx), "UTF-8") : pair;
         if (!query_pairs.containsKey(key)) {
-          final String value =
-              idx > 0 && pair.length() > idx + 1
-                  ? URLDecoder.decode(pair.substring(idx + 1), "UTF-8")
-                  : null;
+          final String value = idx > 0 && pair.length() > idx + 1
+              ? URLDecoder.decode(pair.substring(idx + 1), "UTF-8")
+              : null;
           query_pairs.put(key, value);
         }
       } catch (final UnsupportedEncodingException e) {
@@ -926,7 +907,8 @@ public enum JDBCConnectionUrlParser {
   }
 
   private static void populateStandardProperties(
-      final DBInfo.Builder builder, final Map<?, ?> props) {
+      final DBInfo.Builder builder,
+      final Map<?, ?> props) {
     if (props != null && !props.isEmpty()) {
       if (props.containsKey("user")) {
         builder.user((String) props.get("user"));

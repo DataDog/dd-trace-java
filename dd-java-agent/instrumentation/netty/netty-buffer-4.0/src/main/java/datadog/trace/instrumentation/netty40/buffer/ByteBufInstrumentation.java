@@ -8,9 +8,8 @@ import datadog.trace.agent.tooling.bytebuddy.iast.TaintableVisitor;
 @AutoService(InstrumenterModule.class)
 public class ByteBufInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   private final String className = ByteBufInstrumentation.class.getName();
 
   public ByteBufInstrumentation() {

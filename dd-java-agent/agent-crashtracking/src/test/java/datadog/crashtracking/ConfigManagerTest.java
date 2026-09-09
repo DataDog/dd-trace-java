@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
@@ -21,7 +20,7 @@ public class ConfigManagerTest {
   public void testConfigWriteAndRead() throws IOException {
     Config config = mock(Config.class);
     when(config.getWellKnownTags())
-        .thenReturn(new WellKnownTags("1234", "", "env", "service", "version", ""));
+      .thenReturn(new WellKnownTags("1234", "", "env", "service", "version", ""));
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.isCrashTrackingErrorsIntakeEnabled()).thenReturn(true);
     when(config.isCrashTrackingExtendedInfoEnabled()).thenReturn(true);
@@ -50,8 +49,8 @@ public class ConfigManagerTest {
     when(config.getServiceName()).thenReturn("service");
     when(config.getVersion()).thenReturn("version");
     when(config.getEnv()).thenReturn("env");
-    ConfigManager.StoredConfig storedConfig =
-        new ConfigManager.StoredConfig.Builder(config).build();
+    ConfigManager.StoredConfig storedConfig = new ConfigManager.StoredConfig.Builder(config)
+      .build();
     assertEquals("service", storedConfig.service);
     assertEquals("version", storedConfig.version);
     assertEquals("env", storedConfig.env);

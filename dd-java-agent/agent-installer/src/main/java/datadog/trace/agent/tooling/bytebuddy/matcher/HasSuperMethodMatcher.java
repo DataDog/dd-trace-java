@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.SafeHasSuperTypeMatcher.safeGetSuperClass;
 import static net.bytebuddy.matcher.ElementMatchers.hasSignature;
-
 import java.util.HashSet;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -13,7 +12,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 // TODO: add javadoc
 class HasSuperMethodMatcher<T extends MethodDescription>
     extends ElementMatcher.Junction.ForNonNullValues<T> {
-
   private final ElementMatcher<? super MethodDescription> matcher;
 
   public HasSuperMethodMatcher(final ElementMatcher<? super MethodDescription> matcher) {

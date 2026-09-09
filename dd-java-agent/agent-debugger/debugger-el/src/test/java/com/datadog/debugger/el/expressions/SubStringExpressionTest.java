@@ -4,7 +4,6 @@ import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
@@ -25,8 +24,8 @@ public class SubStringExpressionTest {
         assertThrows(EvaluationException.class, () -> expression1.evaluate(evalContext));
     assertEquals("substring(null, 0, 0)", evaluationException.getExpr());
     SubStringExpression expression2 = new SubStringExpression(DSL.ref("nullValue"), 0, 0);
-    evaluationException =
-        assertThrows(EvaluationException.class, () -> expression2.evaluate(evalContext));
+    evaluationException = assertThrows(EvaluationException.class, () -> expression2.evaluate(
+        evalContext));
     assertEquals("substring(nullValue, 0, 0)", evaluationException.getExpr());
   }
 

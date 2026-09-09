@@ -33,16 +33,13 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(1)
 @State(Scope.Thread)
 public class AppContextSnapshotBenchmark {
-
   @Param({"2", "8"})
   int attrCount;
-
   /**
    * Stack depth for the deepStack benchmark — 16 forces one resize past the default 8-slot pool.
    */
   @Param({"8", "16"})
   int stackDepth;
-
   private DatadogProfiler.AppContextSnapshot source;
   private DatadogProfiler.AppContextSnapshot slot;
   private DatadogProfiler.ScopeStack stack;
@@ -57,13 +54,17 @@ public class AppContextSnapshotBenchmark {
     stack = new DatadogProfiler.ScopeStack(attrCount);
   }
 
-  /** ScopeStack save: copies current snapshot into a pre-allocated pool slot (zero alloc). */
+  /**
+   * ScopeStack save: copies current snapshot into a pre-allocated pool slot (zero alloc).
+   */
   @Benchmark
   public void save() {
     slot.copyFrom(source);
   }
 
-  /** ScopeStack restore: copies pool slot back into the live snapshot (zero alloc). */
+  /**
+   * ScopeStack restore: copies pool slot back into the live snapshot (zero alloc).
+   */
   @Benchmark
   public void restore() {
     source.copyFrom(slot);

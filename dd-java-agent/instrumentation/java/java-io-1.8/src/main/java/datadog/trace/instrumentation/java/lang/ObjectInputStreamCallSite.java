@@ -11,7 +11,6 @@ import java.io.InputStream;
 @Sink(VulnerabilityTypes.UNTRUSTED_DESERIALIZATION)
 @CallSite(spi = IastCallSites.class)
 public class ObjectInputStreamCallSite {
-
   @CallSite.Before("void java.io.ObjectInputStream.<init>(java.io.InputStream)")
   public static void beforeConstructorUntrusted(@CallSite.Argument(0) final InputStream is) {
     final UntrustedDeserializationModule module = InstrumentationBridge.UNTRUSTED_DESERIALIZATION;

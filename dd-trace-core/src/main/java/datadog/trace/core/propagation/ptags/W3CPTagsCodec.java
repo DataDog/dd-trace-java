@@ -1,7 +1,6 @@
 package datadog.trace.core.propagation.ptags;
 
 import static datadog.trace.api.internal.util.LongStringUtils.toHexStringPadded;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -18,16 +17,17 @@ import org.slf4j.LoggerFactory;
 public class W3CPTagsCodec extends PTagsCodec {
   private static final RatelimitedLogger log =
       new RatelimitedLogger(LoggerFactory.getLogger(W3CPTagsCodec.class), 5, TimeUnit.MINUTES);
-
   private static final int MAX_HEADER_SIZE = 256;
   private static final String DATADOG_MEMBER_KEY = "dd=";
-  private static final int EMPTY_SIZE = DATADOG_MEMBER_KEY.length(); // 3
+  // 3
+  private static final int EMPTY_SIZE = DATADOG_MEMBER_KEY.length();
   private static final char MEMBER_SEPARATOR = ',';
   private static final char ELEMENT_SEPARATOR = ';';
   private static final char KEY_VALUE_SEPARATOR = ':';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-  @VisibleForTesting public static final int MAX_MEMBER_COUNT = 32;
+  @VisibleForTesting
+  public static final int MAX_MEMBER_COUNT = 32;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {
@@ -41,12 +41,14 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (firstMemberStart == len) {
       return tagsFactory.empty();
     }
-
     // Validate the whole tracestate and figure out where the dd member key and value are located
     int memberStart = firstMemberStart;
-    int ddMemberStart = -1; // dd member start position (inclusive)
-    int ddMemberValueStart = -1; // dd member value start position (inclusive)
-    int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
+    // dd member start position (inclusive)
+    int ddMemberStart = -1;
+    // dd member value start position (inclusive)
+    int ddMemberValueStart = -1;
+    // dd member value end position including OWS (exclusive)
+    int ddMemberValueEnd = -1;
     int memberIndex = 0;
     int ddMemberIndex = -1;
     while (memberStart < len) {
@@ -104,32 +106,32 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (tagPos >= ddMemberValueEnd) {
         break;
       }
-      int tagKeyEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value,
-              tagPos,
-              ddMemberValueEnd,
-              KEY_VALUE_SEPARATOR,
-              false,
-              W3CPTagsCodec::isAllowedKeyChar);
+      int tagKeyEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagPos,
+          ddMemberValueEnd,
+          KEY_VALUE_SEPARATOR,
+          false,
+          W3CPTagsCodec::isAllowedKeyChar);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt >= ddMemberValueEnd) {
         int nextTagPos = skipMalformedElement(value, tagPos, ddMemberValueEnd);
-        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        // still relay malformed elements
+        maxUnknownSize += (nextTagPos - tagPos);
         tagPos = nextTagPos;
         continue;
       }
       int tagValuePos = tagKeyEndsAt + 1;
-      int tagValueEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value,
-              tagValuePos,
-              ddMemberValueEnd,
-              ELEMENT_SEPARATOR,
-              true,
-              W3CPTagsCodec::isAllowedValueChar);
+      int tagValueEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagValuePos,
+          ddMemberValueEnd,
+          ELEMENT_SEPARATOR,
+          true,
+          W3CPTagsCodec::isAllowedValueChar);
       if (tagValueEndsAt < 0) {
         int nextTagPos = skipMalformedElement(value, tagValuePos, ddMemberValueEnd);
-        maxUnknownSize += (nextTagPos - tagPos); // still relay malformed elements
+        // still relay malformed elements
+        maxUnknownSize += (nextTagPos - tagPos);
         tagPos = nextTagPos;
         continue;
       }
@@ -180,7 +182,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         } else {
           // Not a propagating tag and not a known tag
           if (maxUnknownSize != 0) {
-            maxUnknownSize++; // delimiter
+            // delimiter
+            maxUnknownSize++;
           }
           maxUnknownSize += (tagValueEndsAt - tagPos);
         }
@@ -206,21 +209,23 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int estimateHeaderSize(PTags pTags) {
-    int size = EMPTY_SIZE + 1; // 'dd=' and delimiter;
+    // 'dd=' and delimiter;
+    int size = EMPTY_SIZE + 1;
     // Yes, this is a bit much, but better safe than sorry
     size += pTags.getXDatadogTagsSize();
     if (pTags.getOrigin() != null) {
-      size += pTags.getOrigin().length() + 3; // 'o:' + delimiter
+      // 'o:' + delimiter
+      size += pTags.getOrigin().length() + 3;
     }
     if (pTags.getSamplingPriority() != PrioritySampling.UNSET) {
-      size += 5; // 's:-?[0-9]' + delimiter
+      // 's:-?[0-9]' + delimiter
+      size += 5;
     }
     if (pTags instanceof W3CPTags) {
       W3CPTags w3CPTags = (W3CPTags) pTags;
       size += w3CPTags.maxUnknownSize;
       if (w3CPTags.ddMemberStart != -1) {
-        size +=
-            (w3CPTags.tracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
+        size += (w3CPTags.tracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
       }
     } else if (pTags.tracestate != null) {
       // We assume there is no Datadog list-member
@@ -311,7 +316,11 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private int appendTag(
-      StringBuilder sb, TagElement key, TagElement value, Encoding encoding, int size) {
+      StringBuilder sb,
+      TagElement key,
+      TagElement value,
+      Encoding encoding,
+      int size) {
     if (size >= MAX_HEADER_SIZE) {
       return size;
     }
@@ -336,7 +345,12 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static int validateCharsUntilSeparatorOrEnd(
-      String s, int start, int end, char separator, boolean allowOWC, IntPredicate isValid) {
+      String s,
+      int start,
+      int end,
+      char separator,
+      boolean allowOWC,
+      IntPredicate isValid) {
     if (start >= end) {
       return -1;
     }
@@ -357,7 +371,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (pos < end) {
         c = s.charAt(pos);
         if (c == separator) {
-          break; // trailing separator allowed; caller resumes parsing from here
+          // trailing separator allowed; caller resumes parsing from here
+          break;
         }
       }
     } while (pos < end);
@@ -628,7 +643,9 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   private static int skipMalformedElement(String value, int start, int end) {
     log.warn(
-        "Invalid datadog tags header value: '{}' dropping malformed element at {}", value, start);
+        "Invalid datadog tags header value: '{}' dropping malformed element at {}",
+        value,
+        start);
     int pos = start;
     while (pos < end) {
       char c = value.charAt(pos++);
@@ -659,7 +676,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       return size;
     }
     String original = w3CPTags.tracestate;
-    int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE; // skip over 'dd='
+    // skip over 'dd='
+    int elementStart = w3CPTags.ddMemberStart + EMPTY_SIZE;
     int okSize = size;
     while (elementStart < w3CPTags.ddMemberValueEnd && size < MAX_HEADER_SIZE) {
       elementStart = skipEmptyElements(original, elementStart, w3CPTags.ddMemberValueEnd);
@@ -768,21 +786,20 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static class W3CPTags extends PTags {
-    /** The index of the first tracestate list-member position in {@link #tracestate}. */
+    /**
+     * The index of the first tracestate list-member position in {@link #tracestate}.
+     */
     private final int firstMemberStart;
-
     /**
      * The index of the Datadog tracestate list-member (dd=) position in {@link #tracestate}, {@code
      * -1 if Datadog list-member not found}.
      */
     private final int ddMemberStart;
-
     /**
      * The index of the end Datadog tracestate list-member (dd=) in {@link #tracestate}, {@code -1
      * if Datadog list-member not found}.
      */
     private final int ddMemberValueEnd;
-
     private final int maxUnknownSize;
 
     public W3CPTags(
@@ -822,8 +839,8 @@ public class W3CPTagsCodec extends PTagsCodec {
       long currentHighOrderBits = getTraceIdHighOrderBits();
       // If defined from parsing but different from expected value, mark as decoding error
       if (currentHighOrderBits != 0 && currentHighOrderBits != highOrderBits) {
-        this.error =
-            PROPAGATION_ERROR_INCONSISTENT_TID + toHexStringPadded(currentHighOrderBits, 16);
+        this.error = PROPAGATION_ERROR_INCONSISTENT_TID
+            + toHexStringPadded(currentHighOrderBits, 16);
       }
       super.updateTraceIdHighOrderBits(highOrderBits);
     }

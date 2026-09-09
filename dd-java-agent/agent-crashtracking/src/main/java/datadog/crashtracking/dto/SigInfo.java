@@ -6,22 +6,16 @@ import java.util.Objects;
 public class SigInfo {
   @Json(name = "si_signo")
   public final Integer number;
-
   @Json(name = "si_code")
   public final Integer code;
-
   @Json(name = "si_signo_human_readable")
   public final String name;
-
   @Json(name = "si_code_human_readable")
   public final String action;
-
   @Json(name = "si_addr")
   public final String address;
-
   @Json(name = "si_pid")
   public final Integer pid;
-
   @Json(name = "si_uid")
   public final Integer uid;
 
@@ -44,7 +38,9 @@ public class SigInfo {
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof SigInfo)) return false;
+    if (!(o instanceof SigInfo)) {
+      return false;
+    }
     SigInfo sigInfo = (SigInfo) o;
     return Objects.equals(number, sigInfo.number)
         && Objects.equals(name, sigInfo.name)

@@ -6,7 +6,6 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 public class CoverageClassVisitor extends ClassVisitor {
-
   private final Predicate<String> instrumentationFilter;
   private String className;
 
@@ -29,7 +28,11 @@ public class CoverageClassVisitor extends ClassVisitor {
 
   @Override
   public MethodVisitor visitMethod(
-      int access, String name, String descriptor, String signature, String[] exceptions) {
+      int access,
+      String name,
+      String descriptor,
+      String signature,
+      String[] exceptions) {
     MethodVisitor mv = cv.visitMethod(access, name, descriptor, signature, exceptions);
     return new CoverageMethodVisitor(mv, className, instrumentationFilter);
   }

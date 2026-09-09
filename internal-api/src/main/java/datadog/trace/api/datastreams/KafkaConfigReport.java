@@ -10,8 +10,8 @@ import java.util.Objects;
  */
 public class KafkaConfigReport implements InboxItem {
   private static final int NO_GENERATION = -1;
-
-  private final String type; // "kafka_producer" or "kafka_consumer"
+  // "kafka_producer" or "kafka_consumer"
+  private final String type;
   private final String kafkaClusterId;
   private final String consumerGroup;
   private final String memberId;
@@ -99,8 +99,12 @@ public class KafkaConfigReport implements InboxItem {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     KafkaConfigReport that = (KafkaConfigReport) o;
     return generationId == that.generationId
         && Objects.equals(type, that.type)

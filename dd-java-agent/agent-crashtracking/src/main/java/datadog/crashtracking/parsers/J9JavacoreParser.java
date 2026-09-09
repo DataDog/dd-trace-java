@@ -1,7 +1,6 @@
 package datadog.crashtracking.parsers;
 
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-
 import datadog.common.version.VersionInfo;
 import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
@@ -49,7 +48,6 @@ public final class J9JavacoreParser {
   private static final String J9_USER_ARG_PREFIX = "2CIUSERARG";
   private static final String J9_JAVA_VERSION_PREFIX = "1CIJAVAVERSION ";
   private static final String J9_VM_VERSION_PREFIX = "1CIVMVERSION";
-
   private final BuildIdCollector buildIdCollector;
 
   public J9JavacoreParser() {
@@ -57,33 +55,31 @@ public final class J9JavacoreParser {
   }
 
   private static final String OOM_MARKER = "OutOfMemory";
-
   // J9 event types mapped to signal names and numbers
   private static final String EVENT_GPF = "gpf";
   private static final String EVENT_ABORT = "abort";
   private static final String EVENT_SYSTHROW = "systhrow";
-
   // Section markers
   private static final String SECTION_MARKER = "0SECTION";
   private static final String SECTION_TITLE = "TITLE";
   private static final String SECTION_GPINFO = "GPINFO";
   private static final String SECTION_ENVINFO = "ENVINFO";
   private static final String SECTION_THREADS = "THREADS";
-
   // Tag patterns
   private static final Pattern NEWLINE_SPLITTER = Pattern.compile("\\n");
   private static final Pattern SIG_INFO_PATTERN =
       Pattern.compile("1TISIGINFO\\s+Dump Event \"(\\w+)\"(?:\\s+\\((\\w+)\\))?.*");
-  private static final Pattern DATETIME_PATTERN =
-      Pattern.compile(
-          "1TIDATETIME\\s+Date:\\s+(\\d{4}/\\d{2}/\\d{2})\\s+at\\s+(\\d{2}:\\d{2}:\\d{2})(?::(\\d{3}))?.*");
+  private static final Pattern DATETIME_PATTERN = Pattern.compile(
+      "1TIDATETIME\\\\s+Date:\\\\s+(\\\\d{4}/\\\\d{2}/\\\\d{2})\\\\s+at\\\\s+(\\\\d{2}:"
+      + "\\\\d{2}:\\\\d{2})(?::(\\\\d{3}))?.*");
   private static final Pattern PID_PATTERN =
       Pattern.compile("1CIPROCESSID\\s+Process ID:\\s+(\\d+).*");
   private static final Pattern CURRENT_THREAD_PATTERN =
       Pattern.compile("1XMCURTHDINFO\\s+Current thread.*");
   private static final Pattern THREAD_INFO_PATTERN =
-      Pattern.compile("3XMTHREADINFO\\s+\"(.+?)\".*");
-  private static final Pattern JAVA_STACK_PATTERN = Pattern.compile("4XESTACKTRACE\\s+at\\s+(.+)");
+      Pattern.compile("3XMTHREADINFO\\\\s+\\\"(.+?" + ")\\\".*");
+  private static final Pattern JAVA_STACK_PATTERN =
+      Pattern.compile("4XESTACKTRACE\\\\s+at\\\\s+(" + ".+)");
   private static final Pattern NATIVE_STACK_PATTERN = Pattern.compile("4XENATIVESTACK\\s+(.+)");
   private static final Pattern EXCEPTION_DETAIL_PATTERN =
       Pattern.compile("1TISIGINFO.*[Dd]etail\\s+\"(.+?)\".*");
@@ -133,7 +129,6 @@ public final class J9JavacoreParser {
       if (line.startsWith(J9_USER_ARG_PREFIX)) {
         j9UserArgs.addArg(line.substring(J9_USER_ARG_PREFIX.length()).trim());
       }
-
       // Track section changes
       if (line.startsWith(SECTION_MARKER)) {
         currentSection = detectSection(line);
@@ -153,20 +148,17 @@ public final class J9JavacoreParser {
             eventType = sigMatcher.group(1);
             eventCode = sigMatcher.group(2);
           }
-
           // Extract exception detail for systhrow events
           Matcher detailMatcher = EXCEPTION_DETAIL_PATTERN.matcher(line);
           if (detailMatcher.matches()) {
             exceptionDetail = detailMatcher.group(1);
           }
-
           // Extract timestamp
           Matcher dtMatcher = DATETIME_PATTERN.matcher(line);
           if (dtMatcher.matches()) {
             datetime = parseDateTime(dtMatcher.group(1), dtMatcher.group(2));
           }
           break;
-
         case GPINFO:
           if (line.startsWith("1XHREGISTERS")) {
             registers = new LinkedHashMap<>();
@@ -177,7 +169,6 @@ public final class J9JavacoreParser {
             }
           }
           break;
-
         case ENVINFO:
           // Extract process ID
           Matcher pidMatcher = PID_PATTERN.matcher(line);
@@ -190,14 +181,12 @@ public final class J9JavacoreParser {
             j9VmVersion = line.substring(J9_VM_VERSION_PREFIX.length()).trim();
           }
           break;
-
         case THREADS:
           // Look for current thread marker
           if (CURRENT_THREAD_PATTERN.matcher(line).matches()) {
             inCurrentThread = true;
             continue;
           }
-
           // If in current thread section, look for thread info start
           if (inCurrentThread && line.startsWith("3XMTHREADINFO")) {
             Matcher threadMatcher = THREAD_INFO_PATTERN.matcher(line);
@@ -207,7 +196,6 @@ public final class J9JavacoreParser {
             }
             continue;
           }
-
           // Collect stack frames for current thread
           if (collectingStack) {
             // Java stack frame
@@ -219,7 +207,6 @@ public final class J9JavacoreParser {
               }
               continue;
             }
-
             // Native stack frame
             Matcher nativeStackMatcher = NATIVE_STACK_PATTERN.matcher(line);
             if (nativeStackMatcher.matches()) {
@@ -229,7 +216,6 @@ public final class J9JavacoreParser {
               }
               continue;
             }
-
             // End of stack trace - blank line or new section
             if (line.isEmpty() || line.startsWith("NULL") || line.startsWith("0SECTION")) {
               collectingStack = false;
@@ -237,23 +223,18 @@ public final class J9JavacoreParser {
             }
           }
           break;
-
         default:
           break;
       }
     }
-
     // Check for incomplete parse
     if (!foundThreadSection || (eventType == null && exceptionDetail == null)) {
       incomplete = true;
     }
-
     // Wait for build ID collection to complete
     buildIdCollector.awaitCollectionDone(5);
-
     // Build signal info from event type
     SigInfo sigInfo = buildSigInfo(eventType, eventCode);
-
     // Determine error kind and message
     String kind;
     String message;
@@ -261,16 +242,14 @@ public final class J9JavacoreParser {
       kind = "OutOfMemory";
       message = exceptionDetail != null ? exceptionDetail : "OutOfMemoryError";
     } else if (eventType != null) {
-      kind =
-          sigInfo != null && sigInfo.name != null
-              ? sigInfo.name
-              : eventType.toUpperCase(Locale.ROOT);
+      kind = sigInfo != null && sigInfo.name != null
+          ? sigInfo.name
+          : eventType.toUpperCase(Locale.ROOT);
       message = "Process terminated by signal " + kind;
     } else {
       kind = "InternalError";
       message = "Process terminated by Internal error";
     }
-
     // Enrich frames with build IDs (best effort)
     final List<StackFrame> enrichedFrames = new ArrayList<>(frames.size());
     for (StackFrame frame : frames) {
@@ -278,7 +257,6 @@ public final class J9JavacoreParser {
         enrichedFrames.add(frame);
         continue;
       }
-
       // Try to resolve build ID for this library
       final BuildInfo buildInfo = buildIdCollector.getBuildInfo(frame.path);
       if (buildInfo != null) {
@@ -299,26 +277,23 @@ public final class J9JavacoreParser {
       }
     }
 
-    ErrorData error =
-        new ErrorData(
-            kind,
-            message,
-            currentThreadName,
-            new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+    ErrorData error = new ErrorData(
+        kind,
+        message,
+        currentThreadName,
+        new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
     List<String> runtimeArgs = j9UserArgs.build();
-    RuntimeInfo runtimeInfo =
-        (j9JavaVersion != null || j9VmVersion != null)
-            ? new RuntimeInfo(j9JavaVersion, null, j9VmVersion)
-            : null;
-    Experimental experimental =
-        (registers != null && !registers.isEmpty())
-                || (runtimeArgs != null && !runtimeArgs.isEmpty())
-                || runtimeInfo != null
-            ? new Experimental(registers, null, runtimeArgs, runtimeInfo)
-            : null;
+    RuntimeInfo runtimeInfo = (j9JavaVersion != null || j9VmVersion != null)
+        ? new RuntimeInfo(j9JavaVersion, null, j9VmVersion)
+        : null;
+    Experimental experimental = (registers != null && !registers.isEmpty())
+        || (runtimeArgs != null && !runtimeArgs.isEmpty())
+        || runtimeInfo != null
+        ? new Experimental(registers, null, runtimeArgs, runtimeInfo)
+        : null;
 
     return new CrashLog(
         uuid,
@@ -414,7 +389,6 @@ public final class J9JavacoreParser {
     String function = frameText.trim();
     String file = null;
     Integer line = null;
-
     // Extract source file and line: method(File.java:123)
     int parenStart = function.lastIndexOf('(');
     int parenEnd = function.lastIndexOf(')');
@@ -452,7 +426,6 @@ public final class J9JavacoreParser {
     String function = null;
     String file = null;
     String relAddress = null;
-
     // Try to extract library from [lib+offset] pattern
     int bracketStart = text.indexOf('[');
     int bracketEnd = text.indexOf(']', bracketStart + 1);
@@ -466,7 +439,6 @@ public final class J9JavacoreParser {
         file = libInfo;
       }
     }
-
     // Try to extract function name (before the first parenthesis or bracket)
     int funcEnd = text.indexOf('(');
     if (funcEnd < 0) {
@@ -482,16 +454,13 @@ public final class J9JavacoreParser {
         function = funcPart;
       }
     }
-
     // If we couldn't extract a function name, use the whole text
     if (function == null || function.isEmpty()) {
       function = text;
     }
-
     // Collect library for build ID resolution
     if (file != null && !file.isEmpty()) {
       buildIdCollector.addUnprocessedLibrary(file);
-
       // If the library name looks like a path, also try to resolve its build ID directly
       if (file.contains("/")) {
         try {

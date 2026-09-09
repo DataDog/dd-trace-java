@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.Test;
  * DecodedSpan} model the msgpack decoders produce.
  */
 class JsonDecoderTest {
-
   // A representative JSON trace body (an array of traces, each an array of v0.4-shaped spans), kept
   // as a resource file rather than an inline literal for readability (folding, syntax
   // highlighting).
@@ -60,7 +58,6 @@ class JsonDecoderTest {
     // decoders (SpanV04.unpackNumber) so an assertion behaves identically across both backends.
     assertEquals(1, metrics.get("_dd.top_level"));
     assertEquals(0.75, metrics.get("_dd.agent_psr"));
-
     // A serialized error span carries error != 0; the parent link is the enclosing root span id.
     DecodedSpan child = spans.get(1);
     assertEquals(1, child.getError());
@@ -77,7 +74,13 @@ class JsonDecoderTest {
 
     String withMetaStruct = loadJson("/with-meta-struct.json");
     Map<String, Object> metaStruct =
-        Decoder.decodeJson(withMetaStruct).getTraces().get(0).getSpans().get(0).getMetaStruct();
+        Decoder
+      .decodeJson(withMetaStruct)
+      .getTraces()
+      .get(0)
+      .getSpans()
+      .get(0)
+      .getMetaStruct();
     assertTrue(metaStruct.containsKey("appsec"));
   }
 
@@ -96,17 +99,17 @@ class JsonDecoderTest {
   void decodesUnsignedIds() {
     // Trace/span IDs are unsigned 64-bit; the agent emits them as JSON numbers that can exceed
     // Long.MAX_VALUE. They must be parsed unsigned and kept as the signed bit pattern.
-    String maxUnsigned = Long.toUnsignedString(-1L); // 18446744073709551615 == 2^64 - 1
-    String json =
-        "[[{"
-            + "\"service\": \"s\", \"name\": \"n\", \"resource\": \"r\", \"type\": \"web\","
-            + "\"trace_id\": "
-            + maxUnsigned
-            + ", \"span_id\": "
-            + maxUnsigned
-            + ", \"parent_id\": 0, \"start\": 0, \"duration\": 0, \"error\": 0,"
-            + "\"meta\": {}, \"metrics\": {}"
-            + "}]]";
+    // 18446744073709551615 == 2^64 - 1
+    String maxUnsigned = Long.toUnsignedString(-1L);
+    String json = "[[{"
+        + "\"service\": \"s\", \"name\": \"n\", \"resource\": \"r\", \"type\": \"web\","
+        + "\"trace_id\": "
+        + maxUnsigned
+        + ", \"span_id\": "
+        + maxUnsigned
+        + ", \"parent_id\": 0, \"start\": 0, \"duration\": 0, \"error\": 0,"
+        + "\"meta\": {}, \"metrics\": {}"
+        + "}]]";
     DecodedSpan span = Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0);
     assertEquals(-1L, span.getTraceId(), "unsigned 2^64-1 kept as its signed bit pattern");
     assertEquals(-1L, span.getSpanId());
@@ -119,19 +122,20 @@ class JsonDecoderTest {
     // through Double); integrals beyond long range stay BigInteger (still exact, not Double);
     // fractional metrics stay Double — matching SpanV04/SpanV05.unpackNumber so a metric assertion
     // behaves identically whether the span came from the msgpack or JSON backend.
-    long aboveDoublePrecision = (1L << 53) + 1; // 9007199254740993, not representable as a double
-    BigInteger beyondLong = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE); // 2^63
-    String json =
-        "[[{"
-            + "\"service\": \"s\", \"name\": \"n\", \"resource\": \"r\","
-            + "\"trace_id\": 1, \"span_id\": 1, \"parent_id\": 0, \"start\": 0, \"duration\": 0,"
-            + "\"error\": 0, \"meta\": {},"
-            + "\"metrics\": {\"small\": 1, \"big\": "
-            + aboveDoublePrecision
-            + ", \"huge\": "
-            + beyondLong
-            + ", \"ratio\": 0.5}"
-            + "}]]";
+    // 9007199254740993, not representable as a double
+    long aboveDoublePrecision = (1L << 53) + 1;
+    // 2^63
+    BigInteger beyondLong = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE);
+    String json = "[[{"
+        + "\"service\": \"s\", \"name\": \"n\", \"resource\": \"r\","
+        + "\"trace_id\": 1, \"span_id\": 1, \"parent_id\": 0, \"start\": 0, \"duration\": 0,"
+        + "\"error\": 0, \"meta\": {},"
+        + "\"metrics\": {\"small\": 1, \"big\": "
+        + aboveDoublePrecision
+        + ", \"huge\": "
+        + beyondLong
+        + ", \"ratio\": 0.5}"
+        + "}]]";
     Map<String, Number> metrics =
         Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0).getMetrics();
 
@@ -149,40 +153,43 @@ class JsonDecoderTest {
     // span whose fields silently default to 0/null.
     assertThrows(
         IllegalStateException.class,
-        () ->
-            Decoder.decodeJson(oneSpan("\"trace_id\":1,\"span_id\":1,\"start\":0,\"duration\":0")),
+        () -> Decoder.decodeJson(
+            oneSpan("\\\"trace_id\\\":1,\\\"span_id\\\":1,\\\"start\\\":0,"
+            + "\\\"duration\\\":0")),
         "missing name");
     assertThrows(
         IllegalStateException.class,
-        () ->
-            Decoder.decodeJson(oneSpan("\"name\":\"n\",\"span_id\":1,\"start\":0,\"duration\":0")),
+        () -> Decoder.decodeJson(
+            oneSpan(
+                "\\\"name\\\":\\\"n\\\",\\\"span_id\\\":1,\\\"start\\\":" + "0,\\\"duration\\\":0")),
         "missing trace_id");
     assertThrows(
         IllegalStateException.class,
-        () ->
-            Decoder.decodeJson(oneSpan("\"name\":\"n\",\"trace_id\":1,\"start\":0,\"duration\":0")),
+        () -> Decoder.decodeJson(
+            oneSpan("\"name\":\"n\",\"trace_id\":1,\"start\":0,\"duration\":0")),
         "missing span_id");
     assertThrows(
         IllegalStateException.class,
-        () ->
-            Decoder.decodeJson(
-                oneSpan("\"name\":\"n\",\"trace_id\":1,\"span_id\":1,\"duration\":0")),
+        () -> Decoder.decodeJson(
+            oneSpan("\"name\":\"n\",\"trace_id\":1,\"span_id\":1,\"duration\":0")),
         "missing start");
     assertThrows(
         IllegalStateException.class,
-        () ->
-            Decoder.decodeJson(oneSpan("\"name\":\"n\",\"trace_id\":1,\"span_id\":1,\"start\":0")),
+        () -> Decoder.decodeJson(
+            oneSpan(
+                "\\\"name\\\":\\\"n\\\",\\\"trace_id\\\":1,\\\"span_" + "id\\\":1,\\\"start\\\":0")),
         "missing duration");
-
     // error and parent_id are optional per the agent schema: a span omitting both still decodes,
     // with error defaulting to 0 (no error) and parent_id to 0 (root).
-    DecodedSpan span =
-        Decoder.decodeJson(
-                oneSpan("\"name\":\"n\",\"trace_id\":1,\"span_id\":1,\"start\":0,\"duration\":0"))
-            .getTraces()
-            .get(0)
-            .getSpans()
-            .get(0);
+    DecodedSpan span = Decoder
+      .decodeJson(
+          oneSpan(
+              "\\\"name\\\":\\\"n\\\",\\\"trace_id\\\":1,\\\"span_id\\\":1,"
+              + "\\\"start\\\":0,\\\"duration\\\":0"))
+      .getTraces()
+      .get(0)
+      .getSpans()
+      .get(0);
     assertEquals(0, span.getError(), "absent error => 0");
     assertEquals(0L, span.getParentId(), "absent parent_id => 0 (root)");
   }
@@ -201,12 +208,16 @@ class JsonDecoderTest {
     assertThrows(UnsupportedOperationException.class, traces::clear);
   }
 
-  /** Wraps a single span's JSON fields into a one-trace, one-span payload. */
+  /**
+   * Wraps a single span's JSON fields into a one-trace, one-span payload.
+   */
   private static String oneSpan(String fields) {
     return "[[{" + fields + "}]]";
   }
 
-  /** Reads a JSON test fixture from the classpath (kept as a resource for readability). */
+  /**
+   * Reads a JSON test fixture from the classpath (kept as a resource for readability).
+   */
   private static String loadJson(String resourceName) {
     try (InputStream in = JsonDecoderTest.class.getResourceAsStream(resourceName)) {
       if (in == null) {
@@ -231,25 +242,26 @@ class JsonDecoderTest {
     // through
     // nested objects and arrays, with strings/booleans/null preserved. Otherwise an exact
     // metaStruct(...) assertion or a leaf cast would behave differently across the two backends.
-    long aboveDoublePrecision = (1L << 53) + 1; // 9007199254740993, not representable as a double
-    BigInteger beyondLong = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE); // 2^63
-    String json =
-        "[[{"
-            + "\"service\": \"s\", \"name\": \"n\", \"resource\": \"r\","
-            + "\"trace_id\": 1, \"span_id\": 1, \"parent_id\": 0, \"start\": 0, \"duration\": 0,"
-            + "\"error\": 0, \"meta\": {}, \"metrics\": {},"
-            + "\"meta_struct\": {\"appsec\": {"
-            + "  \"count\": 3,"
-            + "  \"rate\": 0.5,"
-            + "  \"whole\": 3.0,"
-            + "  \"nested\": {\"big\": "
-            + aboveDoublePrecision
-            + ", \"huge\": "
-            + beyondLong
-            + "},"
-            + "  \"list\": [1, 2.5, \"x\", true, null]"
-            + "}}"
-            + "}]]";
+    // 9007199254740993, not representable as a double
+    long aboveDoublePrecision = (1L << 53) + 1;
+    // 2^63
+    BigInteger beyondLong = BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE);
+    String json = "[[{"
+        + "\"service\": \"s\", \"name\": \"n\", \"resource\": \"r\","
+        + "\"trace_id\": 1, \"span_id\": 1, \"parent_id\": 0, \"start\": 0, \"duration\": 0,"
+        + "\"error\": 0, \"meta\": {}, \"metrics\": {},"
+        + "\"meta_struct\": {\"appsec\": {"
+        + "  \"count\": 3,"
+        + "  \"rate\": 0.5,"
+        + "  \"whole\": 3.0,"
+        + "  \"nested\": {\"big\": "
+        + aboveDoublePrecision
+        + ", \"huge\": "
+        + beyondLong
+        + "},"
+        + "  \"list\": [1, 2.5, \"x\", true, null]"
+        + "}}"
+        + "}]]";
     Map<String, Object> metaStruct =
         Decoder.decodeJson(json).getTraces().get(0).getSpans().get(0).getMetaStruct();
 

@@ -16,7 +16,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
-
   /**
    * @param testFramework Name of the testing framework that executes the suite.
    * @param instrumentation Instrumentation that emits the event. Can differ from the testing
@@ -90,7 +89,9 @@ public interface TestEventsHandler<SuiteKey, TestKey> extends Closeable {
 
   @Nonnull
   TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData source, Collection<String> testTags);
+      TestIdentifier test,
+      TestSourceData source,
+      Collection<String> testTags);
 
   /**
    * Returns the priority of the test execution that can be used for ordering tests. The higher the

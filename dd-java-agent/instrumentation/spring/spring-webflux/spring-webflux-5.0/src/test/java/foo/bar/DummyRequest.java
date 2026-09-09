@@ -159,7 +159,8 @@ public class DummyRequest implements HttpServletRequest {
 
   @Override
   public boolean authenticate(HttpServletResponse httpServletResponse)
-      throws IOException, ServletException {
+      throws IOException,
+      ServletException {
     return false;
   }
 
@@ -181,7 +182,8 @@ public class DummyRequest implements HttpServletRequest {
 
   @Override
   public <T extends HttpUpgradeHandler> T upgrade(Class<T> aClass)
-      throws IOException, ServletException {
+      throws IOException,
+      ServletException {
     return null;
   }
 

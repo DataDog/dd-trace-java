@@ -17,18 +17,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatcher {
-
   private static final Logger log = LoggerFactory.getLogger(PayloadDispatcherImpl.class);
-
   private final RemoteApi api;
   private final RemoteMapperDiscovery mapperDiscovery;
   private final HealthMetrics healthMetrics;
   private final Monitoring monitoring;
-
   private Recording batchTimer;
   private RemoteMapper mapper;
   private WritableFormatter packer;
-
   private final LongAdder droppedSpanCount = new LongAdder();
   private final LongAdder droppedTraceCount = new LongAdder();
 
@@ -70,7 +66,8 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     // however, we can't block the application threads from here.
     if (null == mapper || !packer.format(trace, mapper)) {
       healthMetrics.onFailedPublish(
-          trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
+          trace.isEmpty() ? 0 : trace.get(0).samplingPriority(),
+          trace.size());
     }
   }
 
@@ -82,8 +79,9 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       mapper = mapperDiscovery.getMapper();
     }
     if (null == packer && null != mapper) {
-      batchTimer =
-          monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
+      batchTimer = monitoring.newTimer(
+          "tracer.trace.buffer.fill.time",
+          "endpoint:" + mapper.endpoint());
       packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
       batchTimer.start();
     }
@@ -91,10 +89,10 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
 
   Payload newPayload(int messageCount, ByteBuffer buffer) {
     return mapper
-        .newPayload()
-        .withBody(messageCount, buffer)
-        .withDroppedSpans(droppedSpanCount.sumThenReset())
-        .withDroppedTraces(droppedTraceCount.sumThenReset());
+      .newPayload()
+      .withBody(messageCount, buffer)
+      .withDroppedSpans(droppedSpanCount.sumThenReset())
+      .withDroppedTraces(droppedTraceCount.sumThenReset());
   }
 
   @Override

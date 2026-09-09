@@ -1,7 +1,6 @@
 package com.datadog.iast.securitycontrol;
 
 import static org.objectweb.asm.Opcodes.ASM8;
-
 import datadog.trace.api.iast.securitycontrol.SecurityControl;
 import datadog.trace.api.iast.securitycontrol.SecurityControlType;
 import java.util.List;
@@ -14,13 +13,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SecurityControlMethodClassVisitor extends ClassVisitor {
-
   static final Logger LOGGER = LoggerFactory.getLogger(SecurityControlMethodClassVisitor.class);
-
   private final List<SecurityControl> securityControls;
 
   public SecurityControlMethodClassVisitor(
-      final ClassWriter cw, final List<SecurityControl> securityControls) {
+      final ClassWriter cw,
+      final List<SecurityControl> securityControls) {
     super(ASM8, cw);
     this.securityControls = securityControls;
   }
@@ -28,7 +26,11 @@ public class SecurityControlMethodClassVisitor extends ClassVisitor {
   @Override
   @Nullable
   public MethodVisitor visitMethod(
-      int access, String name, String desc, String signature, String[] exceptions) {
+      int access,
+      String name,
+      String desc,
+      String signature,
+      String[] exceptions) {
     MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
     if (mv == null) {
       return null;
@@ -56,7 +58,6 @@ public class SecurityControlMethodClassVisitor extends ClassVisitor {
   }
 
   private boolean shouldBeAdapted(SecurityControl securityControl, String name, String desc) {
-
     if (!securityControl.getMethod().equals(name)) {
       return false;
     }

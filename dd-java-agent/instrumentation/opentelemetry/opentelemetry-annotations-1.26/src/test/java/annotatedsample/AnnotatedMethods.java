@@ -27,7 +27,8 @@ public class AnnotatedMethods {
 
   @AddingSpanAttributes
   public static String sayHelloWithMultipleAttributes(
-      @SpanAttribute("custom-tag1") String param1, @SpanAttribute("custom-tag2") String param2) {
+      @SpanAttribute("custom-tag1") String param1,
+      @SpanAttribute("custom-tag2") String param2) {
     return "hello!";
   }
 }

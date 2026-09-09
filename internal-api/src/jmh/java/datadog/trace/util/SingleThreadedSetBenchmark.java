@@ -64,10 +64,19 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Thread)
 public class SingleThreadedSetBenchmark {
   static final String[] ELEMENTS = {
-    "foo", "bar", "baz", "quux", "hello", "world",
-    "service", "queryString", "lorem", "ipsum", "dolem", "sit"
+      "foo",
+      "bar",
+      "baz",
+      "quux",
+      "hello",
+      "world",
+      "service",
+      "queryString",
+      "lorem",
+      "ipsum",
+      "dolem",
+      "sit"
   };
-
   // Distinct String instances so lookups exercise equals(), not identity.
   static final String[] EQUAL_ELEMENTS = newEqualElements();
 
@@ -108,7 +117,6 @@ public class SingleThreadedSetBenchmark {
   }
 
   // ---- construction: build cost + allocation ----
-
   @Benchmark
   public Set<String> create_hashSet() {
     HashSet<String> set = new HashSet<>();
@@ -145,7 +153,6 @@ public class SingleThreadedSetBenchmark {
   }
 
   // ---- copy ----
-
   @Benchmark
   public Set<String> clone_hashSet() {
     return new HashSet<>(hashSet);
@@ -167,7 +174,6 @@ public class SingleThreadedSetBenchmark {
   }
 
   // ---- read: unsynchronized baseline vs uncontended synchronized (biased-locking story) ----
-
   @Benchmark
   public boolean contains_hashSet() {
     return hashSet.contains(nextLookup());

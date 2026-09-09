@@ -6,9 +6,10 @@ import java.io.Closeable;
 import java.time.Instant;
 import javax.annotation.Nonnull;
 
-/** Interface that represents ongoing recording in profiling system */
+/**
+ * Interface that represents ongoing recording in profiling system
+ */
 public interface OngoingRecording extends Closeable {
-
   /**
    * Stop recording.
    *
@@ -28,7 +29,9 @@ public interface OngoingRecording extends Closeable {
   @Nonnull
   RecordingData snapshot(@Nonnull final Instant start, ProfilingSnapshot.Kind kind);
 
-  /** Close recording without capturing any data */
+  /**
+   * Close recording without capturing any data
+   */
   @Override
   void close();
 }

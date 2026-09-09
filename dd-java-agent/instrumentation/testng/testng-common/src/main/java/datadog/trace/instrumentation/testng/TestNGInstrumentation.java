@@ -20,8 +20,8 @@ import org.testng.annotations.DataProvider;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public static final int ORDER = 0;
 
   public TestNGInstrumentation() {
@@ -41,26 +41,28 @@ public class TestNGInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        MethodDescription::isConstructor, TestNGInstrumentation.class.getName() + "$TestNGAdvice");
+        MethodDescription::isConstructor,
+        TestNGInstrumentation.class.getName() + "$TestNGAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestNGUtils",
-      packageName + ".TestNGSuiteListener",
-      packageName + ".TestNGClassListener",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".TracingListener",
-      packageName + ".execution.RetryAnalyzer",
-      packageName + ".execution.RetryAnnotationTransformer",
+        packageName + ".TestNGUtils",
+        packageName + ".TestNGSuiteListener",
+        packageName + ".TestNGClassListener",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".TracingListener",
+        packageName + ".execution.RetryAnalyzer",
+        packageName + ".execution.RetryAnnotationTransformer"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.testng.ITestResult", "datadog.trace.api.civisibility.DDTest");
+        "org.testng.ITestResult",
+        "datadog.trace.api.civisibility.DDTest");
   }
 
   public static class TestNGAdvice {

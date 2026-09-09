@@ -109,7 +109,9 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (o == null || getClass() != o.getClass()) return false;
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       Tag tag = (Tag) o;
       return Objects.equals(name, tag.name) && Objects.equals(value, tag.value);
     }
@@ -147,7 +149,9 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (o == null || getClass() != o.getClass()) return false;
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       Decoration that = (Decoration) o;
       return Objects.equals(when, that.when) && Objects.equals(tags, that.tags);
     }
@@ -208,11 +212,19 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices) {
     boolean captureEntry = evaluateAt != MethodLocation.EXIT;
     return new CapturedContextInstrumenter(
-            this, methodInfo, diagnostics, probeIndices, false, captureEntry, Limits.DEFAULT)
-        .instrument();
+        this,
+        methodInfo,
+        diagnostics,
+        probeIndices,
+        false,
+        captureEntry,
+        Limits.DEFAULT)
+      .instrument();
   }
 
   @Override
@@ -273,10 +285,9 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
       CapturedContext entryContext,
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions) {
-    CapturedContext.Status status =
-        evaluateAt == MethodLocation.EXIT
-            ? exitContext.getStatus(probeId.getEncodedId())
-            : entryContext.getStatus(probeId.getEncodedId());
+    CapturedContext.Status status = evaluateAt == MethodLocation.EXIT
+        ? exitContext.getStatus(probeId.getEncodedId())
+        : entryContext.getStatus(probeId.getEncodedId());
     if (status == null) {
       return;
     }
@@ -366,8 +377,12 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     SpanDecorationProbe that = (SpanDecorationProbe) o;
     return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)

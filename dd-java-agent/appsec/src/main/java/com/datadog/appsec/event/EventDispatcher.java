@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 public class EventDispatcher implements EventProducerService {
   private static final Logger log = LoggerFactory.getLogger(EventDispatcher.class);
   private static final char[] EMPTY_CHAR_ARRAY = new char[0];
-
   // indexes are the ids we successively attribute to listeners
   // we support up to 2^16 listeners in total
   // The listeners are ordered by priority (from highest to lowest)
@@ -30,7 +29,8 @@ public class EventDispatcher implements EventProducerService {
   private Set<Address<?>> allSubscribedAddresses;
 
   public EventDispatcher() {
-    KnownAddresses.HEADERS_NO_COOKIES.getKey(); // force class initialization
+    // force class initialization
+    KnownAddresses.HEADERS_NO_COOKIES.getKey();
 
     final int addressCount = Address.instanceCount();
     dataListenerSubs = new ArrayList<>(addressCount);
@@ -54,7 +54,8 @@ public class EventDispatcher implements EventProducerService {
     }
 
     public void addSubscription(
-        Collection<Address<?>> anyOfTheseAddresses, DataListener dataListener) {
+        Collection<Address<?>> anyOfTheseAddresses,
+        DataListener dataListener) {
       indexes.put(dataListener, indexes.size());
 
       for (Address<?> addr : anyOfTheseAddresses) {
@@ -74,7 +75,8 @@ public class EventDispatcher implements EventProducerService {
 
     for (int i = 0; i < numListeners; i++) {
       DataListener listener = newDataListenersIdx.get(i);
-      subSet.indexes.put(listener, i); // update index on subSet argument directly
+      // update index on subSet argument directly
+      subSet.indexes.put(listener, i);
     }
 
     int addressCount = Address.instanceCount();
@@ -83,7 +85,6 @@ public class EventDispatcher implements EventProducerService {
     for (int addrSerial = 0; addrSerial < addressCount; addrSerial++) {
       List<DataListener> listenersList = subSet.addrSubs.get(addrSerial);
       listenersList.sort(OrderedCallback.CallbackPriorityComparator.INSTANCE);
-
       // convert list of listeners to char array of their indexes + priority
       char[] newArray = new char[listenersList.size()];
       for (int i = 0; i < newArray.length; i++) {
@@ -117,7 +118,6 @@ public class EventDispatcher implements EventProducerService {
         }
       }
       char[] subsIds = new char[bitSet.cardinality()];
-
       // Copy bits into the array
       for (int bit = bitSet.nextSetBit(0), i = 0; bit >= 0; bit = bitSet.nextSetBit(bit + 1)) {
         // operate on index i here
@@ -133,8 +133,7 @@ public class EventDispatcher implements EventProducerService {
       DataSubscriberInfo subscribers,
       AppSecRequestContext ctx,
       DataBundle newData,
-      GatewayContext gwCtx)
-      throws ExpiredSubscriberInfoException {
+      GatewayContext gwCtx) throws ExpiredSubscriberInfoException {
     if (!((DataSubscriberInfoImpl) subscribers).isEventDispatcher(this)) {
       throw new ExpiredSubscriberInfoException();
     }

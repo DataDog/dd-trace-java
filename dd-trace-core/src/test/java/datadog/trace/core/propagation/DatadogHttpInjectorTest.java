@@ -13,7 +13,6 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -27,7 +26,6 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class DatadogHttpInjectorTest extends AbstractHttpInjectorTest {
-
   @Override
   protected HttpCodec.Injector newInjector() {
     return DatadogHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
@@ -55,8 +53,8 @@ class DatadogHttpInjectorTest extends AbstractHttpInjectorTest {
     Map<String, String> carrier = new HashMap<>();
 
     this.injector.inject(spanContext, carrier, Map::put);
-
-    int expectedSize = 6; // trace_id, span_id, k1, k2, custom_header, datadog_tags
+    // trace_id, span_id, k1, k2, custom_header, datadog_tags
+    int expectedSize = 6;
     assertEquals(traceId, carrier.get(TRACE_ID_KEY));
     assertEquals(spanId, carrier.get(SPAN_ID_KEY));
     if (samplingPriority != UNSET) {
@@ -142,12 +140,11 @@ class DatadogHttpInjectorTest extends AbstractHttpInjectorTest {
     this.injector.inject(spanContext, carrier, Map::put);
 
     String expectedT0 = String.valueOf(spanContext.getEndToEndStartTime() / 1_000_000L);
-    String expectDdPTags =
-        traceId.toHighOrderLong() == 0
-            ? "_dd.p.dm=-4,_dd.p.anytag=value"
-            : "_dd.p.dm=-4,_dd.p.tid="
-                + toHexStringPadded(traceId.toHighOrderLong(), 16)
-                + ",_dd.p.anytag=value";
+    String expectDdPTags = traceId.toHighOrderLong() == 0
+        ? "_dd.p.dm=-4,_dd.p.anytag=value"
+        : "_dd.p.dm=-4,_dd.p.tid="
+        + toHexStringPadded(traceId.toHighOrderLong(), 16)
+        + ",_dd.p.anytag=value";
     assertEquals(traceId.toString(), carrier.get(TRACE_ID_KEY));
     assertEquals("2", carrier.get(SPAN_ID_KEY));
     assertEquals(expectedT0, carrier.get(OT_BAGGAGE_PREFIX + "t0"));
@@ -165,7 +162,12 @@ class DatadogHttpInjectorTest extends AbstractHttpInjectorTest {
       Map<String, String> baggage,
       String ddPTags) {
     return mockSpanContext(
-        DDTraceId.from(traceId), spanId, samplingPriority, origin, baggage, ddPTags);
+        DDTraceId.from(traceId),
+        spanId,
+        samplingPriority,
+        origin,
+        baggage,
+        ddPTags);
   }
 
   private DDSpanContext mockSpanContext(
@@ -175,11 +177,15 @@ class DatadogHttpInjectorTest extends AbstractHttpInjectorTest {
       String origin,
       Map<String, String> baggage,
       String ddPTags) {
-    PropagationTags propagationTags =
-        ddPTags == null
-            ? PropagationTags.factory().empty()
-            : PropagationTags.factory().fromHeaderValue(DATADOG, ddPTags);
+    PropagationTags propagationTags = ddPTags == null
+        ? PropagationTags.factory().empty()
+        : PropagationTags.factory().fromHeaderValue(DATADOG, ddPTags);
     return mockSpanContext(
-        traceId, DDSpanId.from(spanId), samplingPriority, origin, baggage, propagationTags);
+        traceId,
+        DDSpanId.from(spanId),
+        samplingPriority,
+        origin,
+        baggage,
+        propagationTags);
   }
 }

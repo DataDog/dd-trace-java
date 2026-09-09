@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.ro
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class AbstractPollingMessageListenerContainerInstrumentation
     extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public AbstractPollingMessageListenerContainerInstrumentation() {
     super("spring-jms", "jms");
   }
@@ -48,15 +47,16 @@ public class AbstractPollingMessageListenerContainerInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterExecute(@Advice.Argument(2) final MessageConsumer consumer) {
       if (null == consumer) {
-        return; // temporary consumer was created+closed during the call, need for extra clean-up
+        // temporary consumer was created+closed during the call, need for extra clean-up
+        return;
       }
-
       // complete the last polled message span now that we know its execution phase is complete
       // this results in more accurate durations than if we relied on the iteration span cleaner
       // (uses same approach as the 'beforeReceive' advice in JMSMessageConsumerInstrumentation)
       MessageConsumerState consumerState =
-          InstrumentationContext.get(MessageConsumer.class, MessageConsumerState.class)
-              .get(consumer);
+          InstrumentationContext
+        .get(MessageConsumer.class, MessageConsumerState.class)
+        .get(consumer);
       if (null != consumerState) {
         boolean finishSpan = consumerState.getSessionState().isAutoAcknowledge();
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {

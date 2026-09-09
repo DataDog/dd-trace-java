@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -20,7 +19,9 @@ class JsonReaderTest {
   @Test
   void testReadObject() {
     String json =
-        "{\"string\":\"bar\",\"int\":3,\"long\":3456789123,\"float\":3.142,\"double\":3.141592653589793,\"true\":true,\"false\":false,\"null\":null}";
+        "{\\\"string\\\":\\\"bar\\\",\\\"int\\\":3,\\\"long\\\":3456789123,\\\"float\\\":3."
+        + "142,\\\"double\\\":3.141592653589793,\\\"true\\\":true,\\\"false\\\":false,"
+        + "\\\"null\\\":null}";
     try (JsonReader reader = new JsonReader(json)) {
       reader.beginObject();
       assertEquals("string", reader.nextName());
@@ -61,53 +62,45 @@ class JsonReaderTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "null", "1", "[]", "true", "false"})
   void testInvalidObjectStart(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+      }
+    });
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"{", "{\"key\":\"value\"}", "{null}", "{]"})
   void testInvalidObjectEnd(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-            reader.endObject();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+        reader.endObject();
+      }
+    });
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"{\"key\"}", "{\"key\"\"value\"}", "{key:\"value\"}"})
   void testInvalidObjectNames(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-            reader.nextName();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+        reader.nextName();
+      }
+    });
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"{\"key\":value}"})
   void testInvalidObjectValue(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginObject();
-            reader.nextName();
-            reader.nextValue();
-          }
-        });
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginObject();
+        reader.nextName();
+        reader.nextValue();
+      }
+    });
   }
 
   @Test
@@ -129,28 +122,22 @@ class JsonReaderTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "null", "1", "{}", "true", "false"})
   void testInvalidArrayStart(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginArray();
-          }
-        },
-        "Failed to detect invalid array start");
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginArray();
+      }
+    }, "Failed to detect invalid array start");
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"[", "[\"value\"]", "[null", "[}"})
   void testInvalidArrayEnd(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.beginArray();
-            reader.endArray();
-          }
-        },
-        "Failed to detect invalid array end");
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.beginArray();
+        reader.endArray();
+      }
+    }, "Failed to detect invalid array end");
   }
 
   @Test
@@ -174,37 +161,38 @@ class JsonReaderTest {
 
   @Test
   void testReadBoolean() {
-    assertDoesNotThrow(
-        () -> {
-          assertTrue(readBoolean("true"));
-          assertFalse(readBoolean("false"));
-        },
-        "Failed to read boolean value");
+    assertDoesNotThrow(() -> {
+      assertTrue(readBoolean("true"));
+      assertFalse(readBoolean("false"));
+    }, "Failed to read boolean value");
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "ttrue",
-        "ffalse",
-        "TRUE",
-        "FALSE",
-        "null",
-        "\"bar\"",
-        "3",
-        "3456789123",
-        "3.142",
-        "{}",
-        "[]"
-      })
+  @ValueSource(strings = {
+      "ttrue",
+      "ffalse",
+      "TRUE",
+      "FALSE",
+      "null",
+      "\"bar\"",
+      "3",
+      "3456789123",
+      "3.142",
+      "{}",
+      "[]"
+  })
   void testInvalidBoolean(String json) {
     assertThrows(
-        IOException.class, () -> readBoolean(json), "Failed to detect invalid boolean value");
+        IOException.class,
+        () -> readBoolean(json),
+        "Failed to detect invalid boolean value");
   }
 
   @Test
   void testStringEscaping() {
-    String json = "[\"\\\"\",\"\\\\\",\"\\/\",\"\\b\",\"\\f\",\"\\n\",\"\\r\",\"\\t\",\"\\u00C9\"]";
+    String json =
+        "[\\\"\\\\\\\"\\\",\\\"\\\\\\\\\\\",\\\"\\\\/\\\",\\\"\\\\b\\\",\\\"\\\\f\\\","
+        + "\\\"\\\\n\\\",\\\"\\\\r\\\",\\\"\\\\t\\\",\\\"\\\\u00C9\\\"]";
     try (JsonReader reader = new JsonReader(json)) {
       reader.beginArray();
       assertEquals("\"", reader.nextString());
@@ -223,61 +211,62 @@ class JsonReaderTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "bar",
-        "true",
-        "false",
-        "null",
-        "3",
-        "3456789123",
-        "3.142",
-        "{}",
-        "[]",
-        "\"\\uGHIJ\""
-      })
+  @ValueSource(strings = {
+      "bar",
+      "true",
+      "false",
+      "null",
+      "3",
+      "3456789123",
+      "3.142",
+      "{}",
+      "[]",
+      "\"\\uGHIJ\""
+  })
   void testInvalidString(String json) {
-    assertThrows(
-        IOException.class,
-        () -> {
-          try (JsonReader reader = new JsonReader(json)) {
-            reader.nextString();
-          }
-        },
-        "Failed to detect invalid string value");
+    assertThrows(IOException.class, () -> {
+      try (JsonReader reader = new JsonReader(json)) {
+        reader.nextString();
+      }
+    }, "Failed to detect invalid string value");
   }
 
   @Test
   void testReadInt() {
-    assertDoesNotThrow(
-        () -> {
-          assertEquals(1, readInt("1"));
-          assertEquals(0, readInt("0"));
-          assertEquals(-1, readInt("-1"));
-          assertEquals(Integer.MAX_VALUE, readInt("2147483647"));
-          assertEquals(Integer.MIN_VALUE, readInt("-2147483648"));
-        },
-        "Failed to read int value");
+    assertDoesNotThrow(() -> {
+      assertEquals(1, readInt("1"));
+      assertEquals(0, readInt("0"));
+      assertEquals(-1, readInt("-1"));
+      assertEquals(Integer.MAX_VALUE, readInt("2147483647"));
+      assertEquals(Integer.MIN_VALUE, readInt("-2147483648"));
+    }, "Failed to read int value");
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {"\"bar\"", "true", "false", "null", "3456789123", "3.142", "1e100", "{}", "[]"})
+  @ValueSource(strings = {
+      "\"bar\"",
+      "true",
+      "false",
+      "null",
+      "3456789123",
+      "3.142",
+      "1e100",
+      "{}",
+      "[]"
+  })
   void testInvalidInt(String json) {
     assertThrows(IOException.class, () -> readInt(json), "Failed to detect invalid int value");
   }
 
   @Test
   void testReadLong() {
-    assertDoesNotThrow(
-        () -> {
-          assertEquals(1L, readLong("1"));
-          assertEquals(0L, readLong("0"));
-          assertEquals(-1L, readLong("-1"));
-          assertEquals(Long.MAX_VALUE, readLong("9223372036854775807"));
-          assertEquals(Long.MIN_VALUE, readLong("-9223372036854775808"));
-        },
-        "Failed to read long value");
+    assertDoesNotThrow(() -> {
+      assertEquals(1L, readLong("1"));
+      assertEquals(0L, readLong("0"));
+      assertEquals(-1L, readLong("-1"));
+      assertEquals(Long.MAX_VALUE, readLong("9223372036854775807"));
+      assertEquals(Long.MIN_VALUE, readLong("-9223372036854775808"));
+    }, "Failed to read long value");
   }
 
   @ParameterizedTest
@@ -288,22 +277,19 @@ class JsonReaderTest {
 
   @Test
   void testReadDouble() {
-    assertDoesNotThrow(
-        () -> {
-          assertEquals(3.14, readDouble("3.14"), 0.01);
-          assertEquals(-3.14, readDouble("-3.14"), 0.01);
-          assertEquals(-3.14, readDouble("-3.14e0"), 0.01);
-          assertEquals(314, readDouble("3.14e2"), 1);
-          assertEquals(0.0314, readDouble("3.14e-2"), 0.0001);
-        },
-        "Failed to read double value");
+    assertDoesNotThrow(() -> {
+      assertEquals(3.14, readDouble("3.14"), 0.01);
+      assertEquals(-3.14, readDouble("-3.14"), 0.01);
+      assertEquals(-3.14, readDouble("-3.14e0"), 0.01);
+      assertEquals(314, readDouble("3.14e2"), 1);
+      assertEquals(0.0314, readDouble("3.14e-2"), 0.0001);
+    }, "Failed to read double value");
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"\"bar\"", "true", "false", "null", "1ee1", "1e", "{}", "[]"})
   void testInvalidDouble(String json) {
-    assertThrows(
-        IOException.class, () -> readDouble(json), "Failed to detect invalid double value");
+    assertThrows(IOException.class, () -> readDouble(json), "Failed to detect invalid double value");
   }
 
   @Test

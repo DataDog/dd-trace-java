@@ -12,7 +12,6 @@ import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
@@ -27,29 +26,31 @@ import org.apache.http.nio.protocol.HttpAsyncRequestProducer;
 import org.apache.http.protocol.HttpContext;
 
 public class ApacheHttpAsyncClientInstrumentation
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice {
   public ApacheHttpAsyncClientInstrumentation() {
     super();
   }
 
   @Override
   public boolean onlyMatchKnownTypes() {
-    return InstrumenterConfig.get()
-        .isIntegrationShortcutMatchingEnabled(
-            asList("httpasyncclient", "apache-httpasyncclient"), false);
+    return InstrumenterConfig
+      .get()
+      .isIntegrationShortcutMatchingEnabled(
+          asList("httpasyncclient", "apache-httpasyncclient"),
+          false);
   }
 
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.http.impl.nio.client.AbstractHttpAsyncClient",
-      "org.apache.http.impl.nio.client.CloseableHttpAsyncClient",
-      "org.apache.http.impl.nio.client.CloseableHttpAsyncClientBase",
-      "org.apache.http.impl.nio.client.CloseableHttpPipeliningClient",
-      "org.apache.http.impl.nio.client.DefaultHttpAsyncClient",
-      "org.apache.http.impl.nio.client.InternalHttpAsyncClient",
-      "org.apache.http.impl.nio.client.MinimalHttpAsyncClient"
+        "org.apache.http.impl.nio.client.AbstractHttpAsyncClient",
+        "org.apache.http.impl.nio.client.CloseableHttpAsyncClient",
+        "org.apache.http.impl.nio.client.CloseableHttpAsyncClientBase",
+        "org.apache.http.impl.nio.client.CloseableHttpPipeliningClient",
+        "org.apache.http.impl.nio.client.DefaultHttpAsyncClient",
+        "org.apache.http.impl.nio.client.InternalHttpAsyncClient",
+        "org.apache.http.impl.nio.client.MinimalHttpAsyncClient"
     };
   }
 
@@ -67,12 +68,12 @@ public class ApacheHttpAsyncClientInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("execute"))
-            .and(takesArguments(4))
-            .and(takesArgument(0, named("org.apache.http.nio.protocol.HttpAsyncRequestProducer")))
-            .and(takesArgument(1, named("org.apache.http.nio.protocol.HttpAsyncResponseConsumer")))
-            .and(takesArgument(2, named("org.apache.http.protocol.HttpContext")))
-            .and(takesArgument(3, named("org.apache.http.concurrent.FutureCallback"))),
+          .and(named("execute"))
+          .and(takesArguments(4))
+          .and(takesArgument(0, named("org.apache.http.nio.protocol.HttpAsyncRequestProducer")))
+          .and(takesArgument(1, named("org.apache.http.nio.protocol.HttpAsyncResponseConsumer")))
+          .and(takesArgument(2, named("org.apache.http.protocol.HttpContext")))
+          .and(takesArgument(3, named("org.apache.http.concurrent.FutureCallback"))),
         ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientContextPropagationAdvice",
         ApacheHttpAsyncClientInstrumentation.class.getName() + "$ClientAdvice");
   }
@@ -97,7 +98,6 @@ public class ApacheHttpAsyncClientInstrumentation
         @Advice.Argument(value = 0, readOnly = false) HttpAsyncRequestProducer requestProducer,
         @Advice.Argument(2) HttpContext context,
         @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
-
       if (!(requestProducer instanceof DelegatingRequestProducer)) {
         requestProducer = new DelegatingRequestProducer(requestProducer);
       }
@@ -106,9 +106,11 @@ public class ApacheHttpAsyncClientInstrumentation
       final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
-      futureCallback =
-          new TraceContinuedFutureCallback<>(
-              parentContinuation, clientSpan, context, futureCallback);
+      futureCallback = new TraceContinuedFutureCallback<>(
+          parentContinuation,
+          clientSpan,
+          context,
+          futureCallback);
 
       return clientSpan;
     }

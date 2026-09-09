@@ -2,17 +2,18 @@ package datadog.json;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-/** Utility class for simple Java structure mapping into JSON strings. */
+/**
+ * Utility class for simple Java structure mapping into JSON strings.
+ */
 public final class JsonMapper {
-
-  private JsonMapper() {}
+  private JsonMapper() {
+  }
 
   /**
    * Converts a {@link String} to a JSON string.

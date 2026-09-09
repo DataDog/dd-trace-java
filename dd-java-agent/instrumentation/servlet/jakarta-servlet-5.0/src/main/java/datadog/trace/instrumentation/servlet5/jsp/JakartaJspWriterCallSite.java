@@ -11,7 +11,6 @@ import javax.annotation.Nonnull;
 @Sink(VulnerabilityTypes.XSS)
 @CallSite(spi = IastCallSites.class)
 public class JakartaJspWriterCallSite {
-
   @CallSite.Before("void jakarta.servlet.jsp.JspWriter.print(java.lang.String)")
   @CallSite.Before("void jakarta.servlet.jsp.JspWriter.println(java.lang.String)")
   @CallSite.Before("void jakarta.servlet.jsp.JspWriter.write(java.lang.String)")

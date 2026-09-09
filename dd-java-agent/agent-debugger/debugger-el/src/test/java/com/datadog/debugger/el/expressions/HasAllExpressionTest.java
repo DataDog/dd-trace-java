@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.values.ListValue;
@@ -37,7 +36,6 @@ import org.junit.jupiter.api.Test;
 
 class HasAllExpressionTest {
   private final int testField = 10;
-
   EvalContext evalContext = createEvalContext(this);
 
   @Test
@@ -49,8 +47,8 @@ class HasAllExpressionTest {
     assertEquals("all(null, {true})", print(nullExpression));
     HasAllExpression undefinedExpression =
         new HasAllExpression(value(Values.UNDEFINED_OBJECT), null);
-    exception =
-        assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(evalContext));
+    exception = assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(
+        evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("all(UNDEFINED, {true})", print(undefinedExpression));
     HasAllExpression expression = new HasAllExpression(value(new Object[] {this}), null);
@@ -73,14 +71,12 @@ class HasAllExpressionTest {
     assertEquals("all(null, {true})", print(nullExpression1));
 
     HasAllExpression nullExpression2 = all(null, FALSE);
-    exception =
-        assertThrows(EvaluationException.class, () -> nullExpression2.evaluate(evalContext));
+    exception = assertThrows(EvaluationException.class, () -> nullExpression2.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("all(null, {false})", print(nullExpression2));
 
     HasAllExpression nullExpression3 = all(null, eq(ref("testField"), value(10)));
-    exception =
-        assertThrows(EvaluationException.class, () -> nullExpression3.evaluate(evalContext));
+    exception = assertThrows(EvaluationException.class, () -> nullExpression3.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("all(null, {testField == 10})", print(nullExpression3));
   }
@@ -120,10 +116,10 @@ class HasAllExpressionTest {
     GetMemberExpression fldRef = getMember(ref(ValueReferences.ITERATOR_REF), "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
-    RuntimeException runtimeException =
-        assertThrows(
-            RuntimeException.class,
-            () -> all(targetExpression, eq(fldRef, value(10))).evaluate(evalContext));
+    RuntimeException runtimeException = assertThrows(RuntimeException.class, () -> all(
+        targetExpression,
+        eq(fldRef, value(10)))
+      .evaluate(evalContext));
     assertEquals("Cannot dereference field: testField", runtimeException.getMessage());
 
     expression = all(targetExpression, eq(itRef, value("hello")));
@@ -150,10 +146,10 @@ class HasAllExpressionTest {
     ValueRefExpression fldRef = ref(ValueReferences.ITERATOR_REF + "testField");
     ValueRefExpression itRef = ref(ValueReferences.ITERATOR_REF);
 
-    RuntimeException runtimeException =
-        assertThrows(
-            RuntimeException.class,
-            () -> all(targetExpression, eq(fldRef, value(10))).evaluate(evalContext));
+    RuntimeException runtimeException = assertThrows(RuntimeException.class, () -> all(
+        targetExpression,
+        eq(fldRef, value(10)))
+      .evaluate(evalContext));
     assertEquals("Cannot find synthetic var: ittestField", runtimeException.getMessage());
 
     expression = all(targetExpression, eq(itRef, value("hello")));
@@ -197,15 +193,15 @@ class HasAllExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("all(Map, {false})", print(expression));
 
-    expression =
-        all(targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("a")));
+    expression = all(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("a")));
     assertFalse(expression.evaluate(evalContext));
     assertEquals("all(Map, {@it.key == \"a\"})", print(expression));
 
-    expression =
-        all(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
+    expression = all(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("all(Map, {@it.value == \"a\"})", print(expression));
   }
@@ -246,12 +242,11 @@ class HasAllExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("all(Set, {@it == \"key\"})", print(expression));
 
-    expression =
-        all(
-            targetExpression,
-            or(
-                eq(ref(ValueReferences.ITERATOR_REF), value("foo")),
-                eq(ref(ValueReferences.ITERATOR_REF), value("bar"))));
+    expression = all(
+        targetExpression,
+        or(
+            eq(ref(ValueReferences.ITERATOR_REF), value("foo")),
+            eq(ref(ValueReferences.ITERATOR_REF), value("bar"))));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("all(Set, {@it == \"foo\" || @it == \"bar\"})", print(expression));
   }
@@ -338,9 +333,12 @@ class HasAllExpressionTest {
     assertEquals("all(Set, {@it == \"foo\"})", print(expression));
   }
 
-  static class CustomList extends java.util.ArrayList<String> {}
+  static class CustomList extends java.util.ArrayList<String> {
+  }
 
-  static class CustomMap extends HashMap<String, Integer> {}
+  static class CustomMap extends HashMap<String, Integer> {
+  }
 
-  static class CustomSet extends java.util.HashSet<String> {}
+  static class CustomSet extends java.util.HashSet<String> {
+  }
 }

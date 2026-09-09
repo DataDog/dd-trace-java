@@ -9,7 +9,6 @@ import java.util.Set;
 public class ConfigInversionMetricCollectorTestHelper {
   private static final Set<String> SUPPORTED_ENV_VARS =
       new HashSet<>(Arrays.asList("DD_ENV", "DD_SERVICE"));
-
   private static final ConfigInversionMetricCollectorImpl configInversionMetricCollector =
       ConfigInversionMetricCollectorImpl.getInstance();
 

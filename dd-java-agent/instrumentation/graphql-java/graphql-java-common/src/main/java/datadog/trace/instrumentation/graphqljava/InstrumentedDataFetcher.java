@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_JAVA;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import graphql.execution.instrumentation.parameters.InstrumentationFieldFetchParameters;
@@ -55,13 +54,11 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
         throw e;
       }
       if (dataValue instanceof CompletionStage<?>) {
-        return ((CompletionStage<?>) dataValue)
-            .whenComplete(
-                (result, throwable) -> {
-                  DECORATE.onError(fieldSpan, AsyncExceptionUnwrapper.unwrap(throwable));
-                  DECORATE.beforeFinish(fieldSpan);
-                  fieldSpan.finish();
-                });
+        return ((CompletionStage<?>) dataValue).whenComplete((result, throwable) -> {
+          DECORATE.onError(fieldSpan, AsyncExceptionUnwrapper.unwrap(throwable));
+          DECORATE.beforeFinish(fieldSpan);
+          fieldSpan.finish();
+        });
       }
       DECORATE.beforeFinish(fieldSpan);
       fieldSpan.finish();

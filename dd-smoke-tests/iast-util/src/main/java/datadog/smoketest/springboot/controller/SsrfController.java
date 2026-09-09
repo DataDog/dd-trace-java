@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/ssrf")
 public class SsrfController {
-
   @PostMapping
   public String ssrf(
       @RequestParam(value = "url", required = false) final String url,

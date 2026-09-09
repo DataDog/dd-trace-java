@@ -8,9 +8,10 @@ import io.karatelabs.core.Runner;
 import io.karatelabs.gherkin.Scenario;
 import net.bytebuddy.asm.Advice;
 
-/** Advice for the {@code io.karatelabs.core.Runner.Builder} constructor. */
+/**
+ * Advice for the {@code io.karatelabs.core.Runner.Builder} constructor.
+ */
 public class KarateBuilderAdvice {
-
   @Advice.OnMethodExit
   public static void onRunnerBuilderConstructorExit(@Advice.This Runner.Builder builder) {
     ContextStore<Scenario, ExecutionContext> scenarioContext =

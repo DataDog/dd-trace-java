@@ -1,12 +1,10 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 class TraceStatsCardinalityLimitTest {
-
   private static final int DEFAULT = 1024;
   // Mirrors Config.MAX_TRACE_STATS_CARDINALITY_LIMIT (package-private, not visible here).
   private static final int MAX = 1 << 16;
@@ -36,7 +34,8 @@ class TraceStatsCardinalityLimitTest {
   void valueAtMaxIsUsed() {
     // 1 << 16 is the largest accepted value; it is used verbatim.
     assertEquals(
-        MAX, configWith(Integer.toString(MAX)).getTraceStatsCardinalityLimit("resource", DEFAULT));
+        MAX,
+        configWith(Integer.toString(MAX)).getTraceStatsCardinalityLimit("resource", DEFAULT));
   }
 
   @Test
@@ -52,6 +51,7 @@ class TraceStatsCardinalityLimitTest {
     // A value below TagCardinalityHandler's own 1<<29 guard but large enough to allocate
     // multi-gigabyte handler tables must not reach the handler; it falls back to the default.
     assertEquals(
-        DEFAULT, configWith("500000000").getTraceStatsCardinalityLimit("resource", DEFAULT));
+        DEFAULT,
+        configWith("500000000").getTraceStatsCardinalityLimit("resource", DEFAULT));
   }
 }

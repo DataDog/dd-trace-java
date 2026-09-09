@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.jaxws2.WebServiceProviderDecorator.D
 import static datadog.trace.instrumentation.jaxws2.WebServiceProviderDecorator.JAX_WS_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class WebServiceProviderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private static final String WEB_SERVICE_PROVIDER_INTERFACE_NAME = "javax.xml.ws.Provider";
   private static final String WEB_SERVICE_PROVIDER_ANNOTATION_NAME =
       "javax.xml.ws.WebServiceProvider";
@@ -36,20 +35,19 @@ public final class WebServiceProviderInstrumentation extends InstrumenterModule.
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(WEB_SERVICE_PROVIDER_INTERFACE_NAME))
-        .and(declaresAnnotation(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));
+      .and(declaresAnnotation(named(WEB_SERVICE_PROVIDER_ANNOTATION_NAME)));
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".WebServiceProviderDecorator",
-    };
+    return new String[] {packageName + ".WebServiceProviderDecorator"};
   }
 
   @Override
@@ -60,10 +58,10 @@ public final class WebServiceProviderInstrumentation extends InstrumenterModule.
   }
 
   public static final class InvokeAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beginRequest(
-        @Advice.This Object thiz, @Advice.Origin("#m") String method) {
+        @Advice.This Object thiz,
+        @Advice.Origin("#m") String method) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(WebServiceProvider.class);
       if (callDepth > 0) {
         return null;
@@ -78,7 +76,8 @@ public final class WebServiceProviderInstrumentation extends InstrumenterModule.
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void finishRequest(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable error) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable error) {
       if (null == scope) {
         return;
       }
