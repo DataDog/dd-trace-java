@@ -3,8 +3,8 @@ $ErrorActionPreference = "Stop"
 Set-Location "C:\work"
 git config --global --add safe.directory "C:/work"
 
-if ($env:CI_SPLIT -notmatch '^[1-4]/4$') {
-    throw "Expected CI_SPLIT to be one of 1/4, 2/4, 3/4, or 4/4; got '$env:CI_SPLIT'"
+if ($env:CI_SPLIT -notmatch '^[1-9][0-9]*/[1-9][0-9]*$') {
+    throw "Expected CI_SPLIT in positive integer index/total form; got '$env:CI_SPLIT'"
 }
 if ([string]::IsNullOrWhiteSpace($env:GRADLE_TARGET)) {
     throw "GRADLE_TARGET is required"
@@ -14,6 +14,9 @@ if ([string]::IsNullOrWhiteSpace($env:testJvm)) {
 }
 
 $split = $env:CI_SPLIT.Split("/")
+if ([int]$split[0] -gt [int]$split[1]) {
+    throw "Expected the CI_SPLIT index to be at most its total; got '$env:CI_SPLIT'"
+}
 $env:CI_NODE_INDEX = $split[0]
 $env:CI_NODE_TOTAL = $split[1]
 

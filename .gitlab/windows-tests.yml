@@ -99,7 +99,7 @@ test-base-windows:
         files:
           - gradle/wrapper/gradle-wrapper.properties
           - settings.gradle.kts
-        prefix: "windows-gradle-seed-$CI_NODE_INDEX"
+        prefix: "windows-gradle-seed-$CACHE_TYPE-$CI_NODE_INDEX"
       paths: *windows_gradle_cache_paths
       policy: $WINDOWS_SEED_CACHE_POLICY
       unprotect: true
@@ -108,7 +108,7 @@ test-base-windows:
         files:
           - gradle/wrapper/gradle-wrapper.properties
           - settings.gradle.kts
-        prefix: "windows-gradle-$CI_COMMIT_REF_SLUG-$CI_NODE_INDEX"
+        prefix: "windows-gradle-$CACHE_TYPE-$CI_COMMIT_REF_SLUG-$CI_NODE_INDEX"
       paths: *windows_gradle_cache_paths
       policy: pull-push
   script:
@@ -182,3 +182,32 @@ test-base-windows:
       junit:
         - workspace/**/build/test-results/**/*.xml
         - buildSrc/build/test-results/**/*.xml
+
+# Keep the first instrumentation rollout opt-in on every ref. Unlike the Linux
+# test_inst job, this intentionally does not enable the APM Test Agent sidecar:
+# the tests still assert against their in-memory writer, while cross-container
+# Test Agent connectivity can be added as a separate step.
+test-inst-windows:
+  extends: test-base-windows
+  variables:
+    GRADLE_TARGET: ":instrumentationTest"
+    CACHE_TYPE: "inst"
+  parallel:
+    matrix:
+      - testJvm: [ "21" ]
+        CI_SPLIT: [ "1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: manual
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - when: manual
+      allow_failure: true
