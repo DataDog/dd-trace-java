@@ -35,12 +35,6 @@ public final class LambdaTransformerHelper {
         log.debug("Lambda {} skipped: no target class", lambdaClassName);
         return classBytes;
       }
-      // Skip lambdas declared by the agent itself to avoid self-instrumentation and recursion.
-      String targetName = targetClass.getName();
-      if (targetName.startsWith("datadog.") || targetName.startsWith("net.bytebuddy.")) {
-        log.debug("Lambda {} skipped: declared by the agent", lambdaClassName);
-        return classBytes;
-      }
       if (Boolean.TRUE.equals(TRANSFORMING.get())) {
         log.debug("Lambda {} skipped: re-entrant transform", lambdaClassName);
         return classBytes;
