@@ -83,7 +83,7 @@ class LogCollectorTest {
   }
 
   @Test
-  void dropsDuplicatesWhenFull() {
+  void countsEquivalentMessagesWhenFull() {
     // Given
     LogCollector logCollector = new LogCollector(1);
     logCollector.addLogMessage("ERROR", "Message", null);
@@ -92,7 +92,20 @@ class LogCollectorTest {
     logCollector.addLogMessage("ERROR", "Message", null);
 
     // Then
-    assertThat(singleLog(logCollector.drain()).count).isEqualTo(1);
+    assertThat(singleLog(logCollector.drain()).count).isEqualTo(2);
+  }
+
+  @Test
+  void dropsNewLogGroupWhenFull() {
+    // Given
+    LogCollector logCollector = new LogCollector(1);
+    logCollector.addLogMessage("ERROR", "Existing message", null);
+
+    // When
+    logCollector.addLogMessage("ERROR", "New message", null);
+
+    // Then
+    assertThat(singleLog(logCollector.drain()).message).isEqualTo("Existing message");
   }
 
   @Test

@@ -61,18 +61,18 @@ public class LogCollector {
       String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
     long keyHash = RawLogMessage.computeHash(logLevel, message, throwable);
     int bucketIndex = bucketIndex(rawLogMessages.buckets, keyHash);
-    // Fast path for a full table: reject without locking when the target bucket is populated.
-    // If the bucket is empty, drain() may have detached it before releasing capacity, so continue
-    // to the locked capacity check.
-    if (isFull(rawLogMessages) && bucketAt(rawLogMessages, bucketIndex) != null) {
-      // TODO: We could emit a metric for dropped logs.
-      return;
-    }
-
     // Fast path for duplicates: search the target bucket without locking.
     RawLogMessage rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
     if (rawLogMessage != null) {
       rawLogMessage.increment();
+      return;
+    }
+
+    // Fast path after a miss for a full table: reject without locking when the target bucket is
+    // populated. If the bucket is empty, drain() may have detached it before releasing capacity,
+    // so continue to the locked capacity check.
+    if (isFull(rawLogMessages) && bucketAt(rawLogMessages, bucketIndex) != null) {
+      // TODO: We could emit a metric for dropped logs.
       return;
     }
 
