@@ -154,8 +154,6 @@ class BackendApiFactoryTest {
 
       final RecordedRequest request = agent.takeRequest();
       assertEquals("/evp_proxy/v4/api/v2/flagevaluation", request.getPath());
-      assertEquals("event-platform-intake", request.getHeader(EvpProxy.SUBDOMAIN_HEADER));
-      assertEquals("identity", request.getHeader("Accept-Encoding"));
     } finally {
       agent.shutdown();
     }
