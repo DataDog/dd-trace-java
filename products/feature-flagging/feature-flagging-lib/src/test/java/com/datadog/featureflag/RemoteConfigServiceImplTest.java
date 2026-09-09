@@ -184,63 +184,56 @@ class RemoteConfigServiceImplTest {
   }
 
   private static String configWithSerialId(final String serialIdJson) {
-    return "{"
-        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
-        + "\"format\":\"SERVER\","
-        + "\"environment\":{\"name\":\"Test\"},"
-        + "\"flags\":{"
-        + "\"valid-flag\":{"
-        + "\"key\":\"valid-flag\","
-        + "\"enabled\":true,"
-        + "\"variationType\":\"STRING\","
-        + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-        + "\"allocations\":[{"
-        + "\"key\":\"default-allocation\","
-        + "\"rules\":[],"
-        + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[]"
-        + (serialIdJson == null ? "" : ",\"serialId\":" + serialIdJson)
-        + "}],"
-        + "\"doLog\":true"
-        + "}]"
-        + "}"
-        + "}"
-        + "}";
+    return configWithFlags(flagWithSerialId("valid-flag", "expected", serialIdJson));
   }
 
   /** A malformed serial id must bind to its own flag and leave the sibling flag intact. */
   private static String configWithSiblingSerialIds(final String malformedSerialIdJson) {
+    return configWithFlags(
+        flagWithSerialId("malformed-flag", "on", malformedSerialIdJson)
+            + ","
+            + flagWithSerialId("valid-flag", "expected", "7"));
+  }
+
+  private static String configWithFlags(final String flagsJson) {
     return "{"
         + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
         + "\"format\":\"SERVER\","
         + "\"environment\":{\"name\":\"Test\"},"
         + "\"flags\":{"
-        + "\"malformed-flag\":{"
-        + "\"key\":\"malformed-flag\","
+        + flagsJson
+        + "}"
+        + "}";
+  }
+
+  /** A single enabled string flag with one logging allocation. A null serial id omits the key. */
+  private static String flagWithSerialId(
+      final String flagKey, final String variationKey, final String serialIdJson) {
+    return "\""
+        + flagKey
+        + "\":{"
+        + "\"key\":\""
+        + flagKey
+        + "\","
         + "\"enabled\":true,"
         + "\"variationType\":\"STRING\","
-        + "\"variations\":{\"on\":{\"key\":\"on\",\"value\":\"on\"}},"
+        + "\"variations\":{\""
+        + variationKey
+        + "\":{\"key\":\""
+        + variationKey
+        + "\",\"value\":\""
+        + variationKey
+        + "\"}},"
         + "\"allocations\":[{"
         + "\"key\":\"default-allocation\","
         + "\"rules\":[],"
-        + "\"splits\":[{\"variationKey\":\"on\",\"shards\":[],\"serialId\":"
-        + malformedSerialIdJson
+        + "\"splits\":[{\"variationKey\":\""
+        + variationKey
+        + "\",\"shards\":[]"
+        + (serialIdJson == null ? "" : ",\"serialId\":" + serialIdJson)
         + "}],"
         + "\"doLog\":true"
         + "}]"
-        + "},"
-        + "\"valid-flag\":{"
-        + "\"key\":\"valid-flag\","
-        + "\"enabled\":true,"
-        + "\"variationType\":\"STRING\","
-        + "\"variations\":{\"expected\":{\"key\":\"expected\",\"value\":\"expected\"}},"
-        + "\"allocations\":[{"
-        + "\"key\":\"default-allocation\","
-        + "\"rules\":[],"
-        + "\"splits\":[{\"variationKey\":\"expected\",\"shards\":[],\"serialId\":7}],"
-        + "\"doLog\":true"
-        + "}]"
-        + "}"
-        + "}"
         + "}";
   }
 
