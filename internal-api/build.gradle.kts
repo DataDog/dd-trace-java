@@ -58,6 +58,8 @@ extra["excludedClassesCoverage"] = listOf(
   // These are almost fully abstract classes so nothing to test
   "datadog.trace.api.profiling.RecordingData",
   "datadog.trace.api.appsec.AppSecEventTracker",
+  // Anonymous EventTrackerService adapter; covered by AppSecEventTrackerTest in dd-java-agent:appsec
+  "datadog.trace.api.appsec.AppSecEventTracker.1",
   // POJOs
   "datadog.trace.api.appsec.HttpClientPayload",
   "datadog.trace.api.appsec.HttpClientRequest",
