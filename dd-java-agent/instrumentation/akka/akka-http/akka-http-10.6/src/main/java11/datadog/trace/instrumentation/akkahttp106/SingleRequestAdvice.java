@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_HTTP_CLIENT;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.DECORATE;
-
 import akka.http.scaladsl.HttpExt;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
@@ -34,7 +33,8 @@ public class SingleRequestAdvice {
       @Advice.This final HttpExt thiz,
       @Advice.Return final Future<HttpResponse> responseFuture,
       @Advice.Enter final AgentScope scope,
-      @Advice.Thrown final Throwable throwable) {
+      @Advice.Thrown final Throwable throwable
+  ) {
     if (scope == null) {
       return;
     }
@@ -43,7 +43,9 @@ public class SingleRequestAdvice {
 
     if (throwable == null) {
       responseFuture.onComplete(
-          new AkkaHttpClientHelpers.OnCompleteHandler(span), thiz.system().dispatcher());
+          new AkkaHttpClientHelpers.OnCompleteHandler(span),
+          thiz.system().dispatcher()
+      );
       scope.close();
     } else {
       DECORATE.onError(span, throwable);

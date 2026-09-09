@@ -2,14 +2,15 @@ package datadog.trace.instrumentation.akkahttp106;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
 public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice
+{
   public AkkaHttpSingleRequestInstrumentation() {
     super("akka-http", "akka-http-client");
   }
@@ -22,11 +23,11 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AkkaHttpClientHelpers",
-      packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
-      packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
-      packageName + ".AkkaHttpClientHelpers$HasSpanHeader",
-      packageName + ".AkkaHttpClientDecorator",
+        packageName + ".AkkaHttpClientHelpers",
+        packageName + ".AkkaHttpClientHelpers$OnCompleteHandler",
+        packageName + ".AkkaHttpClientHelpers$AkkaHttpHeaders",
+        packageName + ".AkkaHttpClientHelpers$HasSpanHeader",
+        packageName + ".AkkaHttpClientDecorator"
     };
   }
 
@@ -35,6 +36,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
     transformer.applyAdvices(
         named("singleRequest").and(takesArgument(0, named("akka.http.scaladsl.model.HttpRequest"))),
         packageName + ".SingleRequestAdvice",
-        packageName + ".SingleRequestContextPropagationAdvice");
+        packageName + ".SingleRequestContextPropagationAdvice"
+    );
   }
 }
