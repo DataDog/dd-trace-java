@@ -22,10 +22,12 @@ import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.intake.Intake;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Stream;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -35,6 +37,7 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -43,8 +46,18 @@ class BackendApiFactoryTest {
   private static final MediaType JSON = MediaType.parse("application/json");
 
   @ParameterizedTest
-  @ValueSource(strings = {"datadoghq.com", "custom.example", "DATADOGHQ.EU"})
+  @ValueSource(strings = {"datadoghq.com", "custom.example", "DATADOGHQ.EU", "mock-intake.invalid"})
   void eventPlatformDirectIntakeUsesExactHttpsHost(String site) {
+    assertEventPlatformIntakeUrl(site);
+  }
+
+  @ParameterizedTest
+  @MethodSource("boundaryValidSites")
+  void eventPlatformDirectIntakeAcceptsDnsLengthBoundaries(String site) {
+    assertEventPlatformIntakeUrl(site);
+  }
+
+  private static void assertEventPlatformIntakeUrl(final String site) {
     final HttpUrl url = BackendApiFactory.buildEventPlatformIntakeUrl(site);
 
     assertEquals("https", url.scheme());
@@ -73,11 +86,56 @@ class BackendApiFactoryTest {
         "data doghq.com",
         " datadoghq.com",
         "datadoghq.com ",
-        "datadoghq.com\\evil.example"
+        "datadoghq.com\\evil.example",
+        "-foo.bar",
+        "foo-.bar",
+        "foo.-bar",
+        "foo.bar-",
+        "foo_bar.com",
+        ".foo.bar",
+        "foo..bar",
+        "foo.bar."
       })
   void eventPlatformDirectIntakeRejectsUnsafeSite(String site) {
     assertThrows(
         IllegalArgumentException.class, () -> BackendApiFactory.buildEventPlatformIntakeUrl(site));
+  }
+
+  @ParameterizedTest
+  @MethodSource("invalidLengthSites")
+  void eventPlatformDirectIntakeRejectsDnsLengthOverflow(String site) {
+    assertThrows(
+        IllegalArgumentException.class, () -> BackendApiFactory.buildEventPlatformIntakeUrl(site));
+  }
+
+  private static Stream<String> boundaryValidSites() {
+    return Stream.of(
+        repeatedAsciiLabel(63) + ".invalid",
+        repeatedAsciiLabel(63)
+            + "."
+            + repeatedAsciiLabel(63)
+            + "."
+            + repeatedAsciiLabel(63)
+            + "."
+            + repeatedAsciiLabel(39));
+  }
+
+  private static Stream<String> invalidLengthSites() {
+    return Stream.of(
+        repeatedAsciiLabel(64) + ".invalid",
+        repeatedAsciiLabel(63)
+            + "."
+            + repeatedAsciiLabel(63)
+            + "."
+            + repeatedAsciiLabel(63)
+            + "."
+            + repeatedAsciiLabel(40));
+  }
+
+  private static String repeatedAsciiLabel(final int length) {
+    final char[] label = new char[length];
+    Arrays.fill(label, 'a');
+    return new String(label);
   }
 
   @ParameterizedTest

@@ -21,6 +21,8 @@ import org.slf4j.LoggerFactory;
 public class BackendApiFactory {
 
   private static final Logger log = LoggerFactory.getLogger(BackendApiFactory.class);
+  private static final int MAX_DNS_LABEL_LENGTH = 63;
+  private static final int MAX_DNS_HOST_LENGTH = 253;
 
   private final Config config;
   private final SharedCommunicationObjects sharedCommunicationObjects;
@@ -121,11 +123,14 @@ public class BackendApiFactory {
   }
 
   static HttpUrl buildEventPlatformIntakeUrl(String site) {
-    if (site == null || site.isEmpty()) {
+    if (!isValidDnsSuffix(site)) {
       throw new IllegalArgumentException("Invalid Datadog site");
     }
 
     String expectedHost = Intake.EVENT_PLATFORM.getUrlPrefix() + "." + site;
+    if (expectedHost.length() > MAX_DNS_HOST_LENGTH) {
+      throw new IllegalArgumentException("Invalid Datadog site");
+    }
     HttpUrl url =
         new HttpUrl.Builder()
             .scheme("https")
@@ -138,6 +143,38 @@ public class BackendApiFactory {
       throw new IllegalArgumentException("Invalid Datadog site");
     }
     return url;
+  }
+
+  private static boolean isValidDnsSuffix(@Nullable String site) {
+    if (site == null || site.isEmpty()) {
+      return false;
+    }
+
+    int labelLength = 0;
+    for (int i = 0; i < site.length(); i++) {
+      final char character = site.charAt(i);
+      if (character == '.') {
+        if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || site.charAt(i - 1) == '-') {
+          return false;
+        }
+        labelLength = 0;
+      } else {
+        if ((!isAsciiLetterOrDigit(character) && character != '-')
+            || (labelLength == 0 && character == '-')) {
+          return false;
+        }
+        labelLength++;
+      }
+    }
+    return labelLength > 0
+        && labelLength <= MAX_DNS_LABEL_LENGTH
+        && site.charAt(site.length() - 1) != '-';
+  }
+
+  private static boolean isAsciiLetterOrDigit(final char character) {
+    return (character >= 'a' && character <= 'z')
+        || (character >= 'A' && character <= 'Z')
+        || (character >= '0' && character <= '9');
   }
 
   /** Creates an API client that uses the specified retry policy with a compatible local proxy. */
