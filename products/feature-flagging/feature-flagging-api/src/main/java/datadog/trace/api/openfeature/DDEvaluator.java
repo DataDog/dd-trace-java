@@ -43,14 +43,19 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
+  private static final Logger log = LoggerFactory.getLogger(DDEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
+  static final AtomicBoolean USE_LEGACY_EXPOSURE_API = new AtomicBoolean();
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
@@ -576,7 +581,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .build();
     final boolean doLog = allocation.doLog != null && allocation.doLog;
     if (doLog) {
-      dispatchExposure(key, result, context, split.serialId);
+      dispatchExposure(key, result, context, split);
     }
     return result;
   }
@@ -652,23 +657,40 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       final String flag,
       final ProviderEvaluation<T> evaluation,
       final EvaluationContext context,
-      final Integer serialId) {
+      final Split split) {
     final String allocationKey = allocationKey(evaluation);
     final String variantKey = evaluation.getVariant();
     if (allocationKey == null || variantKey == null) {
       return;
     }
-    try {
-      FeatureFlaggingGateway.dispatch(
-          new ExposureEvent(
-              System.currentTimeMillis(),
-              new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
-              new datadog.trace.api.featureflag.exposure.Flag(flag),
-              new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-              new Subject(context.getTargetingKey(), flattenContext(context)),
-              serialId));
-    } catch (LinkageError e) {
+    final long timestamp = System.currentTimeMillis();
+    final datadog.trace.api.featureflag.exposure.Allocation allocation =
+        new datadog.trace.api.featureflag.exposure.Allocation(allocationKey);
+    final datadog.trace.api.featureflag.exposure.Flag exposureFlag =
+        new datadog.trace.api.featureflag.exposure.Flag(flag);
+    final datadog.trace.api.featureflag.exposure.Variant variant =
+        new datadog.trace.api.featureflag.exposure.Variant(variantKey);
+    final Subject subject = new Subject(context.getTargetingKey(), flattenContext(context));
+
+    ExposureEvent event = null;
+    if (!USE_LEGACY_EXPOSURE_API.get()) {
+      try {
+        event =
+            new ExposureEvent(
+                timestamp, allocation, exposureFlag, variant, subject, split.serialId);
+      } catch (NoSuchFieldError | NoSuchMethodError ignored) {
+        if (USE_LEGACY_EXPOSURE_API.compareAndSet(false, true)) {
+          log.warn(
+              "Feature flag exposure serial ID reporting is unavailable with the installed "
+                  + "Datadog Java agent. Legacy exposures will continue; upgrade dd-java-agent "
+                  + "to enable holdout attribution.");
+        }
+      }
     }
+    if (event == null) {
+      event = new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject);
+    }
+    FeatureFlaggingGateway.dispatch(event);
   }
 
   private static <T> String allocationKey(final ProviderEvaluation<T> resolution) {
