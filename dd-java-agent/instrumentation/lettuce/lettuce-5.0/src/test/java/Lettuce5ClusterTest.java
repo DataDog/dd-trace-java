@@ -1,8 +1,9 @@
+import static datadog.trace.agent.test.utils.PortUtils.randomOpenPort;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.redis.testcontainers.RedisClusterContainer;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.DDSpan;
@@ -20,25 +21,53 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 class Lettuce5ClusterTest extends AbstractInstrumentationTest {
   private static final String TEST_SET_KEY = "TESTSETKEY";
   private static final String TEST_SET_VALUE = "TESTSETVAL";
+  private static final int REDIS_CLUSTER_CONTAINER_PORT = 7000;
 
-  private RedisClusterContainer redisCluster;
+  private GenericContainer<?> redisCluster;
   private RedisClusterClient redisClient;
   private StatefulRedisClusterConnection<String, String> connection;
 
   @BeforeEach
   void setUpRedis() throws Exception {
-    redisCluster =
-        new RedisClusterContainer(
-            // RedisClusterContainer is built around this preconfigured cluster image.
-            DockerImageName.parse("grokzen/redis-cluster:6.2.14"));
+    int redisClusterHostPort = randomOpenPort();
+    // Redis cluster discovery returns the announced node port, so the host-side port must be
+    // stable.
+    redisCluster = new GenericContainer<>("redis:6.2.6");
+    redisCluster.setPortBindings(
+        singletonList(redisClusterHostPort + ":" + REDIS_CLUSTER_CONTAINER_PORT));
+    redisCluster
+        .withExposedPorts(REDIS_CLUSTER_CONTAINER_PORT)
+        .withCommand(
+            "sh",
+            "-c",
+            "redis-server --port "
+                + REDIS_CLUSTER_CONTAINER_PORT
+                + " --cluster-enabled yes"
+                + " --cluster-node-timeout 5000 --appendonly no --protected-mode no"
+                + " --cluster-announce-ip 127.0.0.1 --cluster-announce-port "
+                + redisClusterHostPort
+                + " & pid=$!; "
+                + "until redis-cli -p "
+                + REDIS_CLUSTER_CONTAINER_PORT
+                + " ping; do sleep 0.1; done; "
+                + "redis-cli -p "
+                + REDIS_CLUSTER_CONTAINER_PORT
+                + " cluster addslots $(seq 0 16383) && echo CLUSTER_READY; "
+                + "wait $pid")
+        .waitingFor(Wait.forLogMessage(".*CLUSTER_READY.*\\n", 1));
     redisCluster.start();
 
-    redisClient = RedisClusterClient.create(RedisURI.create(redisCluster.getRedisURI()));
+    RedisURI redisURI =
+        RedisURI.Builder.redis(
+                redisCluster.getHost(), redisCluster.getMappedPort(REDIS_CLUSTER_CONTAINER_PORT))
+            .build();
+    redisClient = RedisClusterClient.create(redisURI);
     redisClient.setOptions(ClusterClientOptions.builder().build());
     connection = redisClient.connect();
     new PollingConditions(30)
@@ -65,7 +94,7 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     }
 
     if (redisCluster != null) {
-      redisCluster.stop();
+      redisCluster.close();
     }
   }
 
