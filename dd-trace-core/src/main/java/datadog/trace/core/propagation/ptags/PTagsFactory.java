@@ -125,6 +125,19 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     private volatile LLMObsTagValues llmObsTags;
 
+    /**
+     * The LLM Observability tags as they arrived on the wire, before anything local staged over
+     * them. Never {@code null}.
+     *
+     * <p>Kept separate because these tags have two writers: the codec, at construction, and the
+     * LLMObs propagator, at every injection. Both write {@link #llmObsTags}, and an extracted
+     * context's {@code PropagationTags} become the local root's, so without a record of what was
+     * extracted the propagator cannot clear its own staging without also deleting the caller's
+     * context — silently dropping it at any service that forwards a request without opening an
+     * LLMObs span of its own.
+     */
+    private final LLMObsTagValues extractedLLMObsTags;
+
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
     // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
@@ -208,6 +221,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
       this.llmObsTags = llmObsTagValues;
+      this.extractedLLMObsTags = llmObsTagValues;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -407,6 +421,14 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (!updated.equals(llmObsTags)) {
         clearCachedHeaders();
         llmObsTags = updated;
+      }
+    }
+
+    @Override
+    public void resetLLMObsContext() {
+      if (!extractedLLMObsTags.equals(llmObsTags)) {
+        clearCachedHeaders();
+        llmObsTags = extractedLLMObsTags;
       }
     }
 

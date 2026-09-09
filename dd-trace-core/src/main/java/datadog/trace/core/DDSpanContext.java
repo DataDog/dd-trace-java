@@ -1528,6 +1528,11 @@ public class DDSpanContext
         .updateLLMObsContext(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
   }
 
+  @Override
+  public void resetLLMObsContext() {
+    getPropagationTags().resetLLMObsContext();
+  }
+
   /** TraceSegment Implementation */
   @Override
   public void setTagTop(String key, Object value, boolean sanitize) {

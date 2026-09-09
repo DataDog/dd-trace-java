@@ -19,9 +19,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
  * x-datadog-tags} / {@code tracestate} along with every other propagation tag.
  *
  * <p>Values are resolved from the ambient {@link LLMObsContext} at injection time rather than being
- * written once when a span starts, and every injection rewrites the whole set — clearing it when no
- * LLMObs context applies. That way the innermost active LLMObs span always wins and leaving an
- * LLMObs scope stops contributing its tags, without any save/restore bookkeeping.
+ * written once when a span starts, and every injection rewrites the whole set — falling back to
+ * whatever arrived on the inbound headers when no LLMObs context applies. That way the innermost
+ * active LLMObs span always wins, leaving an LLMObs scope stops contributing its tags, and a
+ * service that opens no LLMObs span of its own still forwards its caller's context — all without
+ * any save/restore bookkeeping.
  */
 public class LLMObsContextPropagator implements Propagator {
 
@@ -41,11 +43,13 @@ public class LLMObsContextPropagator implements Propagator {
     // request that belongs to an unrelated trace.
     AgentSpanContext llmObsContext = LLMObsContext.current();
     if (llmObsContext == null || llmObsContext.getTraceId() != spanContext.getTraceId()) {
-      // Clear rather than return. These tags are staged on the root span context's propagation
+      // Reset rather than return. These tags are staged on the root span context's propagation
       // tags, which the whole local trace shares, so anything an earlier injection wrote would
       // otherwise ride along on this one too — shipping a session and an agent attribution that
-      // are no longer active.
-      spanContext.updateLLMObsContext(null, null, null, null, null);
+      // are no longer active. Reset restores the extracted values instead of clearing outright:
+      // the same object also holds what came in on the wire, and a pass-through service must keep
+      // forwarding its caller's context.
+      spanContext.resetLLMObsContext();
       return;
     }
 

@@ -207,6 +207,12 @@ public abstract class PropagationTags {
       CharSequence parentAgentName,
       CharSequence parentId);
 
+  /**
+   * Discards anything locally staged by {@link #updateLLMObsContext}, restoring the LLM
+   * Observability tag set that was extracted from the inbound headers.
+   */
+  public abstract void resetLLMObsContext();
+
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();
     fillTagMap(result);

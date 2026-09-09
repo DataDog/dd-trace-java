@@ -245,6 +245,93 @@ class LLMObsContextPropagatorTest {
     }
   }
 
+  /** An outbound carrier as a producer with an active agent span would have injected it. */
+  private static Map<String, String> producerCarrier(String mlApp, String sessionId) {
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan producer = newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", mlApp, sessionId);
+      try {
+        return autoInject(AgentTracer.activeSpan());
+      } finally {
+        producer.finish();
+      }
+    }
+  }
+
+  /** Activates an extracted carrier the way a message handler or request filter does. */
+  private static AgentSpan extractSpan(Map<String, String> carrier) {
+    Context extracted =
+        Propagators.defaultPropagator()
+            .extract(Context.root(), carrier, (c, visitor) -> c.forEach(visitor));
+    AgentSpan span = AgentSpan.fromContext(extracted);
+    assertNotNull(span, "expected trace context to be extracted");
+    return span;
+  }
+
+  /**
+   * The local server span a consumer's entry-point instrumentation opens for the extracted context.
+   * This is the span whose propagation tags {@code CoreTracer} takes over from the extracted one,
+   * which is what puts the wire values and anything locally staged in the same place.
+   */
+  private static AgentScope startLocalChildScope(AgentSpan parent) {
+    AgentSpan local =
+        AgentTracer.get().buildSpan("apm", "sqs.consume").asChildOf(parent.spanContext()).start();
+    return AgentTracer.activateSpan(local);
+  }
+
+  /**
+   * A pass-through service — a proxy, a router, or any hop that opens no LLMObs span of its own —
+   * must keep forwarding the context it received. The staged and the extracted tags share one
+   * object, so resetting what this hop staged must restore what arrived rather than clear outright.
+   */
+  @Test
+  void forwardsExtractedContextWhenNoLlmObsSpanIsActive() {
+    Map<String, String> inbound = producerCarrier("checkout", "sess-42");
+    assertTrue(
+        inbound.get("x-datadog-tags").contains(SESSION_ID_TAG + "=sess-42"),
+        () -> "precondition: session_id should be on the wire: " + inbound);
+
+    Map<String, String> outbound;
+    try (AgentScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+      // No LLMObs span here at all: this hop only relays the call.
+      outbound = autoInject(consumeScope.span());
+    }
+
+    String tags = outbound.get("x-datadog-tags");
+    assertNotNull(tags, "expected x-datadog-tags to be injected");
+    for (String tag :
+        new String[] {
+          ML_APP_TAG + "=checkout", SESSION_ID_TAG + "=sess-42", PAGENT_NAME_TAG + "=dispatcher"
+        }) {
+      assertTrue(tags.contains(tag), () -> tag + " dropped by the pass-through hop: " + tags);
+    }
+    assertTrue(tags.contains(PARENT_ID_TAG + "="), () -> "parent_id dropped: " + tags);
+    assertTrue(tags.contains(PAGENT_SPAN_ID_TAG + "="), () -> "pagent_span_id dropped: " + tags);
+  }
+
+  /**
+   * Ordering must not matter: an auto-instrumented outbound call made <em>before</em> the service
+   * opens its own LLMObs span resets the staged tags, and that reset must leave the extracted
+   * values intact for the span that follows.
+   */
+  @Test
+  void injectionBeforeTheLocalLlmObsSpanDoesNotDestroyExtractedContext() {
+    Map<String, String> inbound = producerCarrier("checkout", "sess-42");
+
+    try (AgentScope consumeScope = startLocalChildScope(extractSpan(inbound))) {
+      // e.g. a config fetch or a DB call, instrumented and injected before any LLMObs work starts.
+      autoInject(consumeScope.span());
+
+      DDLLMObsSpan workerTool = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "handler", null, null);
+      try {
+        assertEquals("checkout", LLMObsContext.currentMlApp());
+        assertEquals("sess-42", LLMObsContext.currentSessionId());
+        assertEquals("dispatcher", LLMObsContext.currentParentAgentName());
+      } finally {
+        workerTool.finish();
+      }
+    }
+  }
+
   @Test
   void workerWithoutUpstreamLlmObsContextInheritsNothing() {
     Map<String, String> messageAttributes;
