@@ -44,6 +44,7 @@ public class MetadataInstrumentation extends InstrumenterModule.DataStreams
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.Utils",
     };
   }
 
