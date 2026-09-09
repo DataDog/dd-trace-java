@@ -232,7 +232,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     // service explicitly, which is what would silently discard an upstream ml_app. Config already
     // resolves this to DD_LLMOBS_ML_APP or DD_SERVICE, so the full order is
     // explicit > in-process parent > propagated > DD_LLMOBS_ML_APP > DD_SERVICE, matching
-    // dd-trace-py's documented precedence (see _activate_llmobs_span / resolve_ml_app).
+    // dd-trace-py's documented precedence.
     if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
       resolvedMlApp = Config.get().getLlmObsMlApp();
     }

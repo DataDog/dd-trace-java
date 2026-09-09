@@ -121,9 +121,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     /**
      * The LLM Observability propagation tags, held as one immutable bundle. Never {@code null} —
-     * {@link LLMObsTagValues#EMPTY} means "none". Assigned by every constructor, so no field
-     * initializer: this is a per-extraction allocation and a redundant volatile write is a barrier
-     * paid on every incoming request.
+     * {@link LLMObsTagValues#EMPTY} means "none".
      */
     private volatile LLMObsTagValues llmObsTags;
 
@@ -406,7 +404,6 @@ public class PTagsFactory implements PropagationTags.Factory {
               toTagValue(parentAgentSpanId),
               toTagValue(parentAgentName),
               toTagValue(parentId));
-      // Re-injecting the same context onto the same span is the common case; don't invalidate.
       if (!updated.equals(llmObsTags)) {
         clearCachedHeaders();
         llmObsTags = updated;
@@ -450,8 +447,7 @@ public class PTagsFactory implements PropagationTags.Factory {
      * the tracer, so they have to be checked before they reach the wire. A value the receiving
      * codec rejects doesn't just lose itself: it fails the whole tagset with {@code decoding_error}
      * and takes {@code _dd.p.tid} with it, leaving the two services disagreeing about the upper 64
-     * bits of the trace id. Dropping the one tag is the cheaper loss. Matches dd-trace-py, whose
-     * {@code encode_tagset_values} likewise rejects rather than substitutes.
+     * bits of the trace id. Dropping the one tag is the cheaper loss.
      */
     private static TagValue toTagValue(CharSequence value) {
       if (value == null || value.length() == 0 || !isRepresentable(value)) {

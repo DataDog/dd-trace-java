@@ -199,11 +199,7 @@ public abstract class PropagationTags {
    */
   public abstract CharSequence getLLMObsParentId();
 
-  /**
-   * Sets the whole LLM Observability tag set to propagate with this trace, replacing any set
-   * previously staged. Taken together rather than one tag at a time so the update is atomic: a
-   * concurrent reader never serializes a header mixing values from two different contexts.
-   */
+  /** Sets the whole LLM Observability tag set to propagate with this trace. */
   public abstract void updateLLMObsContext(
       CharSequence mlApp,
       CharSequence sessionId,
