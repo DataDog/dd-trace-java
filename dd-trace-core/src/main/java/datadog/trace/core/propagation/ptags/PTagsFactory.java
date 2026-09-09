@@ -479,13 +479,20 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     /**
-     * Whether every character survives the {@code x-datadog-tags} grammar, which allows printable
-     * ASCII except the {@code ,} that separates tags.
+     * Whether every character survives each carrier the value can travel on: printable ASCII, no
+     * {@code ,} (the {@code x-datadog-tags} separator), nothing the {@code tracestate} conversion
+     * rewrites, and no {@code "} or {@code \} — AWS messaging carries these headers in a {@code
+     * _datadog} JSON attribute that is written and parsed without escaping.
      */
     private static boolean isRepresentable(CharSequence value) {
       for (int i = 0; i < value.length(); i++) {
         char c = value.charAt(i);
-        if (c == ',' || c < ' ' || c > '~') {
+        if (c < ' '
+            || c > '~'
+            || c == ','
+            || c == '"'
+            || c == '\\'
+            || !TagValue.survivesW3CRoundTrip(c)) {
           return false;
         }
       }

@@ -111,6 +111,14 @@ final class TagValue extends TagElement {
     return c;
   }
 
+  /**
+   * Whether {@code c} comes back unchanged from a {@code tracestate} hop. The conversion is lossy
+   * for some characters, so a value carrying one arrives altered at the next service.
+   */
+  static boolean survivesW3CRoundTrip(char c) {
+    return convertW3CtoDD(convertDDtoW3C(c)) == c;
+  }
+
   private final CharSequence[] values = new CharSequence[Encoding.getNumValues()];
   private final int source;
   private final int hash;
