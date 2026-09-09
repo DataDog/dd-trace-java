@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.ExtensionFinder.findExtensions;
 import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores.isIgnored;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
@@ -312,6 +313,10 @@ public class AgentInstaller {
     return (className, targetClass, classBytes, interfaceName) -> {
       for (String enabledInterface : lambdaInterfaces) {
         if (enabledInterface.equals(interfaceName)) {
+          // Apply the system-level name filter before entering the full transformer pipeline.
+          if (isIgnored(targetClass.getName(), true)) {
+            return null;
+          }
           return transformer.transform(className, targetClass, classBytes, interfaceName);
         }
       }
