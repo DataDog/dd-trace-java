@@ -139,7 +139,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
                 adviceClass,
                 instrumentedType,
                 instrumentedMethod);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw AdviceTransformationException.wrap(
             instrumentationClass, adviceClass, instrumentedType, instrumentedMethod, failure);
       }
@@ -169,7 +169,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       this.instrumentedMethod = instrumentedMethod;
     }
 
-    private RuntimeException record(RuntimeException failure) {
+    private RuntimeException record(Throwable failure) {
       return AdviceTransformationException.wrap(
           instrumentationClass, adviceClass, instrumentedType, instrumentedMethod, failure);
     }
@@ -178,7 +178,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitCode() {
       try {
         super.visitCode();
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -187,7 +187,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitFrame(int type, int numLocal, Object[] local, int numStack, Object[] stack) {
       try {
         super.visitFrame(type, numLocal, local, numStack, stack);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -196,7 +196,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitInsn(int opcode) {
       try {
         super.visitInsn(opcode);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -205,7 +205,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitIntInsn(int opcode, int operand) {
       try {
         super.visitIntInsn(opcode, operand);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -214,7 +214,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitVarInsn(int opcode, int varIndex) {
       try {
         super.visitVarInsn(opcode, varIndex);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -223,7 +223,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitTypeInsn(int opcode, String type) {
       try {
         super.visitTypeInsn(opcode, type);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -232,7 +232,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
       try {
         super.visitFieldInsn(opcode, owner, name, descriptor);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -242,7 +242,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         int opcode, String owner, String name, String descriptor, boolean isInterface) {
       try {
         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -252,7 +252,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         String name, String descriptor, Handle bootstrapMethodHandle, Object... arguments) {
       try {
         super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, arguments);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -261,7 +261,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitJumpInsn(int opcode, Label label) {
       try {
         super.visitJumpInsn(opcode, label);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -270,7 +270,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitLabel(Label label) {
       try {
         super.visitLabel(label);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -279,7 +279,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitLdcInsn(Object value) {
       try {
         super.visitLdcInsn(value);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -288,7 +288,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitIincInsn(int varIndex, int increment) {
       try {
         super.visitIincInsn(varIndex, increment);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -297,7 +297,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitTableSwitchInsn(int min, int max, Label defaultLabel, Label... labels) {
       try {
         super.visitTableSwitchInsn(min, max, defaultLabel, labels);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -306,7 +306,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitLookupSwitchInsn(Label defaultLabel, int[] keys, Label[] labels) {
       try {
         super.visitLookupSwitchInsn(defaultLabel, keys, labels);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -315,7 +315,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitMultiANewArrayInsn(String descriptor, int dimensions) {
       try {
         super.visitMultiANewArrayInsn(descriptor, dimensions);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -324,7 +324,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
       try {
         super.visitTryCatchBlock(start, end, handler, type);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -334,7 +334,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         String name, String descriptor, String signature, Label start, Label end, int index) {
       try {
         super.visitLocalVariable(name, descriptor, signature, start, end, index);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -343,7 +343,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitLineNumber(int line, Label start) {
       try {
         super.visitLineNumber(line, start);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -352,7 +352,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitMaxs(int maxStack, int maxLocals) {
       try {
         super.visitMaxs(maxStack, maxLocals);
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -361,7 +361,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitEnd() {
       try {
         super.visitEnd();
-      } catch (RuntimeException failure) {
+      } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
     }
@@ -378,7 +378,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         String adviceClass,
         String targetClass,
         String targetMethod,
-        RuntimeException cause) {
+        Throwable cause) {
       super("Advice transformation failed for " + targetClass + '.' + targetMethod, cause);
       this.instrumentationClass = instrumentationClass;
       this.adviceClass = adviceClass;
@@ -391,9 +391,9 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         String adviceClass,
         TypeDescription instrumentedType,
         MethodDescription instrumentedMethod,
-        RuntimeException failure) {
+        Throwable failure) {
       if (failure instanceof AdviceTransformationException) {
-        return failure;
+        return (AdviceTransformationException) failure;
       }
       return new AdviceTransformationException(
           instrumentationClass,

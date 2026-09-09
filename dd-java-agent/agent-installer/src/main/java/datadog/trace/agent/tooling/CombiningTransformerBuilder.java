@@ -122,7 +122,6 @@ public final class CombiningTransformerBuilder
 
   /** Prepares shared matchers and transformers defined by an instrumentation module. */
   private void prepareInstrumentation(InstrumenterModule module, int instrumentationId) {
-    instrumentationClass = debugEnabled ? module.getClass().getName() : null;
     ignoredMethods = module.methodIgnoreMatcher();
     classLoaderMatcher = module.classLoaderMatcher();
     contextStore = module.contextStore();
@@ -155,6 +154,8 @@ public final class CombiningTransformerBuilder
 
   /** Builds a type-specific transformer, controlled by one or more matchers. */
   private void buildTypeInstrumentation(Instrumenter member) {
+
+    instrumentationClass = debugEnabled ? member.getClass().getName() : null;
 
     int transformationId = instrumenterIndex.transformationId(member);
     if (transformationId < 0) {

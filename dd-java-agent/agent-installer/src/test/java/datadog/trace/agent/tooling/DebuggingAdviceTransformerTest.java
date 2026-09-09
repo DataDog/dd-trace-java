@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.utility.OpenedClassReader.ASM_API;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -12,6 +13,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
@@ -20,6 +22,7 @@ import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.utility.JavaModule;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -45,23 +48,43 @@ class DebuggingAdviceTransformerTest {
         (type, method, visitor, context, typePool, writerFlags, readerFlags) -> {
           throw failure;
         };
-    AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper debugging =
-        DebuggingAdviceTransformer.wrap(
-            delegate, "test.Instrumentation", InvalidArgumentAdvice.class.getName());
 
     RuntimeException thrown =
-        assertThrows(
-            RuntimeException.class,
-            () ->
-                debugging.wrap(
-                    new TypeDescription.ForLoadedType(Target.class),
-                    new MethodDescription.ForLoadedMethod(
-                        Target.class.getDeclaredMethod("greet", String.class)),
-                    null,
-                    null,
-                    null,
-                    0,
-                    0));
+        assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
+
+    assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+    assertSame(failure, thrown.getCause());
+  }
+
+  @Test
+  void preservesLinkageFailureAsCause() {
+    LinkageError failure = new NoClassDefFoundError("missing.AdviceDependency");
+    AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
+        (type, method, visitor, context, typePool, writerFlags, readerFlags) -> {
+          throw failure;
+        };
+
+    RuntimeException thrown =
+        assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
+
+    assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+    assertSame(failure, thrown.getCause());
+  }
+
+  @Test
+  void preservesLinkageFailureRaisedWhileVisitingMethodAsCause() {
+    LinkageError failure = new NoClassDefFoundError("missing.AdviceDependency");
+    AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
+        (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
+            new MethodVisitor(ASM_API) {
+              @Override
+              public void visitCode() {
+                throw failure;
+              }
+            };
+
+    MethodVisitor visitor = wrapTargetMethod(delegate);
+    RuntimeException thrown = assertThrows(RuntimeException.class, visitor::visitCode);
 
     assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
     assertSame(failure, thrown.getCause());
@@ -141,6 +164,28 @@ class DebuggingAdviceTransformerTest {
             Advice.withCustomMapping(), "test.Instrumentation", adviceClass.getName())
         .include(getClass().getClassLoader())
         .advice(named("greet"), adviceClass.getName());
+  }
+
+  private MethodVisitor wrapTargetMethod(
+      AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate) {
+    return DebuggingAdviceTransformer.wrap(
+            delegate, "test.Instrumentation", InvalidArgumentAdvice.class.getName())
+        .wrap(
+            new TypeDescription.ForLoadedType(Target.class),
+            new MethodDescription.ForLoadedMethod(getTargetMethod()),
+            null,
+            null,
+            null,
+            0,
+            0);
+  }
+
+  private Method getTargetMethod() {
+    try {
+      return Target.class.getDeclaredMethod("greet", String.class);
+    } catch (NoSuchMethodException impossible) {
+      throw new AssertionError(impossible);
+    }
   }
 
   private byte[] transform(AgentBuilder.Transformer.ForAdvice transformer, Class<?> adviceClass) {
