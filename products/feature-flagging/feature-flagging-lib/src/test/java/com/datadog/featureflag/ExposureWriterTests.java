@@ -541,7 +541,6 @@ class ExposureWriterTests {
         new Allocation("Allocation_" + id),
         new Flag("Flag_" + id),
         new Variant("Variant_" + id),
-        new Subject("Subject_" + id, attributes),
-        null);
+        new Subject("Subject_" + id, attributes));
   }
 }

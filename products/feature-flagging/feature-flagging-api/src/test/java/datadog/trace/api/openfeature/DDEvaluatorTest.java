@@ -414,6 +414,37 @@ public class DDEvaluatorTest {
   }
 
   /**
+   * A provider from this release can run against an agent whose bootstrap ExposureEvent predates
+   * the serial id, which makes the constructor unresolvable. The evaluation must still return its
+   * value rather than propagate the linkage failure to the caller.
+   */
+  @Test
+  public void linkageFailureWhileDispatchingAnExposureDoesNotBreakEvaluation() {
+    final FeatureFlaggingGateway.ExposureListener listener =
+        event -> {
+          throw new NoSuchMethodError(
+              "datadog.trace.api.featureflag.exposure.ExposureEvent.<init>");
+        };
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      final Map<String, Variant> variations = new HashMap<>();
+      variations.put("on", new Variant("on", 1));
+      final Split split = new Split(emptyList(), "on", emptyMap(), 7);
+      final Allocation allocation =
+          new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.TRUE);
+      final ProviderEvaluation<?> result =
+          evaluateFlag(
+              new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
+              true);
+
+      assertThat(result.getValue(), equalTo(1));
+      assertThat(result.getVariant(), equalTo("on"));
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+    }
+  }
+
+  /**
    * Evaluates a logging allocation whose split carries the given serial id and returns the single
    * dispatched exposure. Span enrichment is off here, as it is by default, so this also pins that
    * the serial id does not travel via the enrichment-gated evaluation metadata.

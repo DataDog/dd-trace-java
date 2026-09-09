@@ -660,16 +660,19 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     if (allocationKey == null || variantKey == null) {
       return;
     }
-    final ExposureEvent event =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
-            new datadog.trace.api.featureflag.exposure.Flag(flag),
-            new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)),
-            serialId);
-
-    FeatureFlaggingGateway.dispatch(event);
+    try {
+      FeatureFlaggingGateway.dispatch(
+          new ExposureEvent(
+              System.currentTimeMillis(),
+              new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
+              new datadog.trace.api.featureflag.exposure.Flag(flag),
+              new datadog.trace.api.featureflag.exposure.Variant(variantKey),
+              new Subject(context.getTargetingKey(), flattenContext(context)),
+              serialId));
+    } catch (LinkageError e) {
+      // Never let exposure recording break flag evaluation. The serial id constructor resolves
+      // against the agent's bootstrap class, which can predate this provider.
+    }
   }
 
   private static <T> String allocationKey(final ProviderEvaluation<T> resolution) {

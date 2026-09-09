@@ -86,15 +86,31 @@ class FeatureFlagEvpPublisherTest {
     assertFalse(exposureJson(null).contains("serial_id"));
   }
 
-  private static String exposureJson(final Integer serialId) {
+  @Test
+  void omitsSerialIdKeyForAnEventBuiltWithoutOne() {
     final ExposureEvent event =
         new ExposureEvent(
             1234L,
             new Allocation("allocation"),
             new Flag("flag"),
             new Variant("variant"),
+            new Subject("subject", emptyMap()));
+
+    assertFalse(exposureJsonOf(event).contains("serial_id"));
+  }
+
+  private static String exposureJson(final Integer serialId) {
+    return exposureJsonOf(
+        new ExposureEvent(
+            1234L,
+            new Allocation("allocation"),
+            new Flag("flag"),
+            new Variant("variant"),
             new Subject("subject", emptyMap()),
-            serialId);
+            serialId));
+  }
+
+  private static String exposureJsonOf(final ExposureEvent event) {
     final FeatureFlagEvpPublisher<ExposuresRequest> publisher =
         new FeatureFlagEvpPublisher<>(mock(BackendApiFactory.class), ExposuresRequest.class);
     return new String(

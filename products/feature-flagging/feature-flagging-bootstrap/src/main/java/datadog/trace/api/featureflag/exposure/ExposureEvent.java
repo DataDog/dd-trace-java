@@ -15,6 +15,20 @@ public class ExposureEvent {
    */
   public final Integer serial_id;
 
+  /**
+   * Convenience constructor; the serial id defaults to absent. Retained so a provider compiled
+   * against an earlier release keeps linking against this class, which ships in the agent while the
+   * provider that constructs it ships as the separate dd-openfeature artifact.
+   */
+  public ExposureEvent(
+      final long timestamp,
+      final Allocation allocation,
+      final Flag flag,
+      final Variant variant,
+      final Subject subject) {
+    this(timestamp, allocation, flag, variant, subject, null);
+  }
+
   public ExposureEvent(
       final long timestamp,
       final Allocation allocation,
