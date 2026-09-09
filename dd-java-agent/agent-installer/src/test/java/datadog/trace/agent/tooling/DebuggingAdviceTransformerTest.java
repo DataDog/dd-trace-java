@@ -22,7 +22,10 @@ import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.jar.asm.AnnotationVisitor;
+import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.TypePath;
 import net.bytebuddy.utility.JavaModule;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -72,19 +75,19 @@ class DebuggingAdviceTransformerTest {
   }
 
   @Test
-  void preservesLinkageFailureRaisedWhileVisitingMethodAsCause() {
+  void preservesLinkageFailureRaisedDuringAdviceApplicationAsCause() {
     LinkageError failure = new NoClassDefFoundError("missing.AdviceDependency");
     AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
         (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
             new MethodVisitor(ASM_API) {
               @Override
-              public void visitCode() {
+              public void visitMaxs(int maxStack, int maxLocals) {
                 throw failure;
               }
             };
 
     MethodVisitor visitor = wrapTargetMethod(delegate);
-    RuntimeException thrown = assertThrows(RuntimeException.class, visitor::visitCode);
+    RuntimeException thrown = assertThrows(RuntimeException.class, () -> visitor.visitMaxs(0, 0));
 
     assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
     assertSame(failure, thrown.getCause());
@@ -96,7 +99,7 @@ class DebuggingAdviceTransformerTest {
     MethodVisitor downstream =
         new MethodVisitor(ASM_API) {
           @Override
-          public void visitCode() {
+          public void visitMaxs(int maxStack, int maxLocals) {
             throw failure;
           }
         };
@@ -104,7 +107,7 @@ class DebuggingAdviceTransformerTest {
     RuntimeException thrown =
         assertThrows(
             RuntimeException.class,
-            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitCode());
+            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitMaxs(0, 0));
 
     assertSame(failure, thrown);
   }
@@ -115,7 +118,7 @@ class DebuggingAdviceTransformerTest {
     MethodVisitor downstream =
         new MethodVisitor(ASM_API) {
           @Override
-          public void visitCode() {
+          public void visitMaxs(int maxStack, int maxLocals) {
             throw failure;
           }
         };
@@ -123,7 +126,35 @@ class DebuggingAdviceTransformerTest {
     LinkageError thrown =
         assertThrows(
             LinkageError.class,
-            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitCode());
+            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitMaxs(0, 0));
+
+    assertSame(failure, thrown);
+  }
+
+  @Test
+  void attributesLocalVariableAnnotationFailureToAdvice() {
+    RuntimeException failure = new IllegalStateException("annotation binding failed");
+    AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate =
+        (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
+            localVariableAnnotationFailureVisitor(null, failure);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class, () -> visitLocalVariableAnnotation(wrapTargetMethod(delegate)));
+
+    assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+    assertSame(failure, thrown.getCause());
+  }
+
+  @Test
+  void doesNotAttributeDownstreamLocalVariableAnnotationFailureToAdvice() {
+    RuntimeException failure = new IllegalStateException("custom annotation visitor failed");
+    MethodVisitor downstream = localVariableAnnotationFailureVisitor(null, failure);
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> visitLocalVariableAnnotation(wrapTargetMethod(forwardingVisitor(), downstream)));
 
     assertSame(failure, thrown);
   }
@@ -227,6 +258,30 @@ class DebuggingAdviceTransformerTest {
   private AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper forwardingVisitor() {
     return (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
         new MethodVisitor(ASM_API, visitor) {};
+  }
+
+  private MethodVisitor localVariableAnnotationFailureVisitor(
+      MethodVisitor delegate, RuntimeException failure) {
+    return new MethodVisitor(ASM_API, delegate) {
+      @Override
+      public AnnotationVisitor visitLocalVariableAnnotation(
+          int typeRef,
+          TypePath typePath,
+          Label[] start,
+          Label[] end,
+          int[] index,
+          String descriptor,
+          boolean visible) {
+        throw failure;
+      }
+    };
+  }
+
+  private void visitLocalVariableAnnotation(MethodVisitor visitor) {
+    Label start = new Label();
+    Label end = new Label();
+    visitor.visitLocalVariableAnnotation(
+        0, null, new Label[] {start}, new Label[] {end}, new int[] {0}, "Ltest/Marker;", true);
   }
 
   private Method getTargetMethod() {

@@ -12,9 +12,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.implementation.Implementation;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.jar.asm.AnnotationVisitor;
 import net.bytebuddy.jar.asm.Handle;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
+import net.bytebuddy.jar.asm.TypePath;
 import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
@@ -233,6 +235,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     }
   }
 
+  /** Tracks callbacks where Byte Buddy binds, emits, or adjusts advice. */
   private abstract static class FailureTrackingMethodVisitor extends MethodVisitor {
 
     private FailureTrackingMethodVisitor(MethodVisitor delegate) {
@@ -240,15 +243,6 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     }
 
     abstract RuntimeException record(Throwable failure);
-
-    @Override
-    public void visitCode() {
-      try {
-        super.visitCode();
-      } catch (RuntimeException | LinkageError failure) {
-        throw record(failure);
-      }
-    }
 
     @Override
     public void visitFrame(int type, int numLocal, Object[] local, int numStack, Object[] stack) {
@@ -388,15 +382,6 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     }
 
     @Override
-    public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
-      try {
-        super.visitTryCatchBlock(start, end, handler, type);
-      } catch (RuntimeException | LinkageError failure) {
-        throw record(failure);
-      }
-    }
-
-    @Override
     public void visitLocalVariable(
         String name, String descriptor, String signature, Label start, Label end, int index) {
       try {
@@ -407,9 +392,17 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     }
 
     @Override
-    public void visitLineNumber(int line, Label start) {
+    public AnnotationVisitor visitLocalVariableAnnotation(
+        int typeRef,
+        TypePath typePath,
+        Label[] start,
+        Label[] end,
+        int[] index,
+        String descriptor,
+        boolean visible) {
       try {
-        super.visitLineNumber(line, start);
+        return super.visitLocalVariableAnnotation(
+            typeRef, typePath, start, end, index, descriptor, visible);
       } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
@@ -419,15 +412,6 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     public void visitMaxs(int maxStack, int maxLocals) {
       try {
         super.visitMaxs(maxStack, maxLocals);
-      } catch (RuntimeException | LinkageError failure) {
-        throw record(failure);
-      }
-    }
-
-    @Override
-    public void visitEnd() {
-      try {
-        super.visitEnd();
       } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
