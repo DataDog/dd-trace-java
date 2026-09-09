@@ -20,7 +20,6 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(DB_TYPE));
   private static final CharSequence SPAN_TYPE = InternalSpanTypes.CACHE;
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("ignite-cache");
-
   private final boolean includeKeys;
 
   public IgniteCacheDecorator() {
@@ -76,7 +75,10 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   public void onQuery(
-      final AgentSpan span, final String cacheName, final String methodName, final Query query) {
+      final AgentSpan span,
+      final String cacheName,
+      final String methodName,
+      final Query query) {
     if (methodName != null) {
       span.setTag("ignite.operation", "cache." + methodName);
     }
@@ -114,8 +116,10 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   public void onOperation(
-      final AgentSpan span, final String cacheName, final String methodName, Object key) {
-
+      final AgentSpan span,
+      final String cacheName,
+      final String methodName,
+      Object key) {
     final StringBuilder resourceName = new StringBuilder("cache.");
     if (methodName != null && methodName.endsWith("Long")) {
       resourceName.append(methodName.substring(0, methodName.length() - "Long".length()));
@@ -139,7 +143,6 @@ public class IgniteCacheDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   public void onIgnite(final AgentSpan span, final Ignite ignite) {
-
     if (ignite == null) {
       return;
     }

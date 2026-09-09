@@ -5,9 +5,7 @@ public enum LoginEvent {
   LOGIN_FAILURE("login_failure"),
   SIGN_UP("signup"),
   CUSTOM("custom");
-
   private static final int numValues = LoginEvent.values().length;
-
   private final String tag;
 
   LoginEvent(final String tag) {

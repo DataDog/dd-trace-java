@@ -74,9 +74,11 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
     if (mapHolder instanceof Map) {
       if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
         Map<?, ?> map = (Map<?, ?>) mapHolder;
-        return map.keySet().stream()
-            .map(obj -> Value.of(obj, ValueType.OBJECT))
-            .collect(Collectors.toSet());
+        return map
+          .keySet()
+          .stream()
+          .map(obj -> Value.of(obj, ValueType.OBJECT))
+          .collect(Collectors.toSet());
       }
       throw new UnsupportedOperationException(
           "Unsupported Map class: " + mapHolder.getClass().getTypeName());

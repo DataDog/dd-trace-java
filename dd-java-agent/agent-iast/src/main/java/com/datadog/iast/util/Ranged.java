@@ -2,13 +2,11 @@ package com.datadog.iast.util;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
 public interface Ranged {
-
   int getStart();
 
   int getLength();
@@ -62,7 +60,9 @@ public interface Ranged {
     }
   }
 
-  /** Computes the intersection of the ranges or {@code null} if they do not intersect */
+  /**
+   * Computes the intersection of the ranges or {@code null} if they do not intersect
+   */
   @Nullable
   default Ranged intersection(final Ranged range) {
     if (this.getStart() == range.getStart() && this.getLength() == range.getLength()) {
@@ -92,7 +92,8 @@ public interface Ranged {
     }
     final int offset = getStart() - range.getStart();
     if (offset == 0) {
-      return getLength() <= range.getLength(); // put smaller ranges first
+      // put smaller ranges first
+      return getLength() <= range.getLength();
     }
     return offset < 0;
   }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,15 +15,13 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class IdGenerationStrategyTest {
-
   @TableTest({
     "scenario           | traceId128BitGenerationEnabled | strategyName                       ",
     "strategies-64-bit  | false                          | {RANDOM, SEQUENTIAL, SECURE_RANDOM}",
     "strategies-128-bit | true                           | {RANDOM, SEQUENTIAL, SECURE_RANDOM}"
   })
   @ParameterizedTest(name = "generate id with {1} and {0} bits")
-  void generateIdWithStrategyAndBitSize(
-      boolean traceId128BitGenerationEnabled, String strategyName) {
+  void generateIdWithStrategyAndBitSize(boolean traceId128BitGenerationEnabled, String strategyName) {
     IdGenerationStrategy strategy =
         IdGenerationStrategy.fromName(strategyName, traceId128BitGenerationEnabled);
     Set<DDTraceId> checked = new HashSet<DDTraceId>();
@@ -36,12 +33,10 @@ class IdGenerationStrategyTest {
       assertNotEquals("foo", traceId);
       assertNotEquals(DDTraceId.ZERO, traceId);
 
-      int expectedHash =
-          (int)
-              (traceId.toHighOrderLong()
-                  ^ (traceId.toHighOrderLong() >>> 32)
-                  ^ traceId.toLong()
-                  ^ (traceId.toLong() >>> 32));
+      int expectedHash = (int) (traceId.toHighOrderLong()
+          ^ (traceId.toHighOrderLong() >>> 32)
+          ^ traceId.toLong()
+          ^ (traceId.toLong() >>> 32));
       assertEquals(expectedHash, traceId.hashCode());
 
       assertFalse(checked.contains(traceId));
@@ -57,15 +52,9 @@ class IdGenerationStrategyTest {
 
   @Test
   void exceptionCreatedOnSecureRandomStrategy() {
-    ExceptionInInitializerError error =
-        assertThrows(
-            ExceptionInInitializerError.class,
-            () ->
-                new IdGenerationStrategy.SRandom(
-                    false,
-                    () -> {
-                      throw new IllegalArgumentException("SecureRandom init exception");
-                    }));
+    ExceptionInInitializerError error = assertThrows(ExceptionInInitializerError.class, () -> new IdGenerationStrategy.SRandom(false, () -> {
+      throw new IllegalArgumentException("SecureRandom init exception");
+    }));
 
     assertNotNull(error.getCause());
     assertEquals("SecureRandom init exception", error.getCause().getMessage());
@@ -76,13 +65,10 @@ class IdGenerationStrategyTest {
     ScriptedSecureRandom random = new ScriptedSecureRandom(new long[] {0L, 47L, 0L, 11L});
     CallCounter providerCallCounter = new CallCounter();
 
-    IdGenerationStrategy strategy =
-        new IdGenerationStrategy.SRandom(
-            false,
-            () -> {
-              providerCallCounter.count++;
-              return random;
-            });
+    IdGenerationStrategy strategy = new IdGenerationStrategy.SRandom(false, () -> {
+      providerCallCounter.count++;
+      return random;
+    });
 
     long traceId = strategy.generateTraceId().toLong();
     long spanId = strategy.generateSpanId();

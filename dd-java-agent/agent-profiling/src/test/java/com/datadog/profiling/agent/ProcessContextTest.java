@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadoghq.profiler.OTelContext;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Config;
@@ -20,16 +19,15 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 class ProcessContextTest {
-
   @Test
   void testRegisterSetsProcessContextValues() {
     ConfigProvider configProvider = mock(ConfigProvider.class);
     when(configProvider.getBoolean(
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
-        .thenReturn(true);
+        eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
+        eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
+      .thenReturn(true);
     when(configProvider.getSet(eq(ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES), any()))
-        .thenReturn(new LinkedHashSet<>(Arrays.asList("http.route", "db.system")));
+      .thenReturn(new LinkedHashSet<>(Arrays.asList("http.route", "db.system")));
 
     Config config = mock(Config.class);
     when(config.getEnv()).thenReturn("test-env");
@@ -40,28 +38,26 @@ class ProcessContextTest {
     when(config.getVersion()).thenReturn("test-version");
 
     OTelContext otelContext = mock(OTelContext.class);
-    DdprofLibraryLoader.OTelContextHolder holder =
-        mock(DdprofLibraryLoader.OTelContextHolder.class);
+    DdprofLibraryLoader.OTelContextHolder holder = mock(DdprofLibraryLoader.OTelContextHolder.class);
     when(holder.getReasonNotLoaded()).thenReturn(null);
     when(holder.getComponent()).thenReturn(otelContext);
 
     try (MockedStatic<Config> configMock = mockStatic(Config.class);
         MockedStatic<DdprofLibraryLoader> ddprofMock = mockStatic(DdprofLibraryLoader.class)) {
-
       configMock.when(Config::get).thenReturn(config);
       ddprofMock.when(DdprofLibraryLoader::otelContext).thenReturn(holder);
 
       ProcessContext.register(configProvider);
 
       verify(otelContext)
-          .initializeAllContext(
-              eq("test-env"),
-              eq("test-host"),
-              eq("test-runtime-id"),
-              eq("test-service"),
-              eq("test-runtime-version"),
-              eq("test-version"),
-              aryEq(new String[] {"http.route", "db.system"}));
+        .initializeAllContext(
+            eq("test-env"),
+            eq("test-host"),
+            eq("test-runtime-id"),
+            eq("test-service"),
+            eq("test-runtime-version"),
+            eq("test-version"),
+            aryEq(new String[] {"http.route", "db.system"}));
     }
   }
 
@@ -69,12 +65,11 @@ class ProcessContextTest {
   void testRegisterSkipsWhenDisabled() {
     ConfigProvider configProvider = mock(ConfigProvider.class);
     when(configProvider.getBoolean(
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
-        .thenReturn(false);
+        eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
+        eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
+      .thenReturn(false);
 
-    DdprofLibraryLoader.OTelContextHolder holder =
-        mock(DdprofLibraryLoader.OTelContextHolder.class);
+    DdprofLibraryLoader.OTelContextHolder holder = mock(DdprofLibraryLoader.OTelContextHolder.class);
 
     try (MockedStatic<DdprofLibraryLoader> ddprofMock = mockStatic(DdprofLibraryLoader.class)) {
       ddprofMock.when(DdprofLibraryLoader::otelContext).thenReturn(holder);
@@ -95,13 +90,12 @@ class ProcessContextTest {
   void testRegisterHandlesLibraryLoadFailure() {
     ConfigProvider configProvider = mock(ConfigProvider.class);
     when(configProvider.getBoolean(
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
-            eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
-        .thenReturn(true);
+        eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED),
+        eq(ProfilingConfig.PROFILING_PROCESS_CONTEXT_ENABLED_DEFAULT)))
+      .thenReturn(true);
 
     Throwable loadError = new RuntimeException("Library load failed");
-    DdprofLibraryLoader.OTelContextHolder holder =
-        mock(DdprofLibraryLoader.OTelContextHolder.class);
+    DdprofLibraryLoader.OTelContextHolder holder = mock(DdprofLibraryLoader.OTelContextHolder.class);
     when(holder.getReasonNotLoaded()).thenReturn(loadError);
 
     try (MockedStatic<DdprofLibraryLoader> ddprofMock = mockStatic(DdprofLibraryLoader.class)) {

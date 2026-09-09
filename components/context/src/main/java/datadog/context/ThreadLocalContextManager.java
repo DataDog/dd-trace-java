@@ -4,16 +4,15 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.annotation.Nullable;
 
-/** {@link ContextManager} that uses a {@link ThreadLocal} to track context per thread. */
+/**
+ * {@link ContextManager} that uses a {@link ThreadLocal} to track context per thread.
+ */
 final class ThreadLocalContextManager implements ContextManager {
   static final ThreadLocalContextManager INSTANCE = new ThreadLocalContextManager();
-
   private static final ThreadLocal<ContextHolder> CONTEXT_HOLDER =
       ThreadLocal.withInitial(ContextHolder::new);
-
   private static final NoopContextContinuation ROOT_CONTINUATION =
       new NoopContextContinuation(Context.root());
-
   private final Object listenersWriteLock = new Object();
   volatile ContextListener[] listeners = {};
 
@@ -35,9 +34,11 @@ final class ThreadLocalContextManager implements ContextManager {
       if (continuation != null) {
         // already attached, safe to release early to avoid resource leak
         continuation.releaseOnScopeClose();
-        return continuation; // acts as no-op scope, avoiding allocation
+        // acts as no-op scope, avoiding allocation
+        return continuation;
       }
-      return context.asScope(); // convert to scope without attaching
+      // convert to scope without attaching
+      return context.asScope();
     }
 
     holder.current = context;
@@ -117,11 +118,9 @@ final class ThreadLocalContextManager implements ContextManager {
   }
 
   private static class ContextScopeImpl implements ContextScope {
-
     private final Context context;
     private final ContextHolder holder;
     private final Context beforeAttach;
-
     private boolean closed;
 
     ContextScopeImpl(Context context, ContextHolder holder, Context beforeAttach) {
@@ -147,7 +146,8 @@ final class ThreadLocalContextManager implements ContextManager {
   }
 
   private static final class ResumedScopeImpl extends ContextScopeImpl {
-    @Nullable private ContextContinuationImpl continuation;
+    @Nullable
+    private ContextContinuationImpl continuation;
 
     ResumedScopeImpl(
         Context context,
@@ -165,21 +165,18 @@ final class ThreadLocalContextManager implements ContextManager {
         continuation.releaseOnScopeClose();
         continuation = null;
       }
-      super.close(); // proceed to try and update the current execution unit
+      // proceed to try and update the current execution unit
+      super.close();
     }
   }
 
   private static final class ContextContinuationImpl implements ContextContinuation, ContextScope {
-
     private static final AtomicIntegerFieldUpdater<ContextContinuationImpl> COUNT =
         AtomicIntegerFieldUpdater.newUpdater(ContextContinuationImpl.class, "count");
-
     // these boundaries were selected to allow for speculative counting and fuzzy checks
     private static final int RELEASED = Integer.MIN_VALUE >> 1;
     private static final int HELD = (Integer.MAX_VALUE >> 1) + 1;
-
     private final Context context;
-
     /**
      * When positive this reflects the number of outstanding resumed scopes as well as whether there
      * is an active hold on the continuation:
@@ -226,7 +223,8 @@ final class ThreadLocalContextManager implements ContextManager {
       } else {
         // continuation released or too many resumes; rollback count
         COUNT.decrementAndGet(this);
-        return this; // acts as no-op scope, avoiding allocation
+        // acts as no-op scope, avoiding allocation
+        return this;
       }
     }
 
@@ -255,7 +253,8 @@ final class ThreadLocalContextManager implements ContextManager {
       } else if (COUNT.decrementAndGet(this) == 0) {
         // slow path: multiple resumes, all scopes now closed (no hold)
         release();
-      } /* else there are outstanding resumes or hold is in place */
+      }
+      /* else there are outstanding resumes or hold is in place */
     }
 
     @Override

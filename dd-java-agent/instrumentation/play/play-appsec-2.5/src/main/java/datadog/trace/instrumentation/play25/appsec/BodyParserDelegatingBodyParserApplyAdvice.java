@@ -18,10 +18,9 @@ public class BodyParserDelegatingBodyParserApplyAdvice {
       return;
     }
     Accumulator<
-            akka.util.ByteString, play.libs.F.Either<play.mvc.Result, Http.MultipartFormData<?>>>
-        acc = ret;
+        akka.util.ByteString,
+        play.libs.F.Either<play.mvc.Result, Http.MultipartFormData<?>>> acc = ret;
 
-    ret =
-        acc.recover(JavaMultipartFormDataRegisterExcF.INSTANCE, JavaParsers$.MODULE$.trampoline());
+    ret = acc.recover(JavaMultipartFormDataRegisterExcF.INSTANCE, JavaParsers$.MODULE$.trampoline());
   }
 }

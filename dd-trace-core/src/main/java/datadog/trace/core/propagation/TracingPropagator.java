@@ -3,7 +3,6 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.ProductTraceSource.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
-
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
@@ -17,7 +16,9 @@ import datadog.trace.core.propagation.HttpCodec.Extractor;
 import datadog.trace.core.propagation.HttpCodec.Injector;
 import javax.annotation.ParametersAreNonnullByDefault;
 
-/** Propagator for tracing concern. */
+/**
+ * Propagator for tracing concern.
+ */
 @ParametersAreNonnullByDefault
 public class TracingPropagator implements Propagator {
   private final boolean enabled;
@@ -74,8 +75,7 @@ public class TracingPropagator implements Propagator {
     return context.with(fromSpanContext(spanContext));
   }
 
-  private static <C> AgentPropagation.ContextVisitor<C> toContextVisitor(
-      CarrierVisitor<C> visitor) {
+  private static <C> AgentPropagation.ContextVisitor<C> toContextVisitor(CarrierVisitor<C> visitor) {
     if (visitor instanceof AgentPropagation.ContextVisitor) {
       return (AgentPropagation.ContextVisitor<C>) visitor;
     }

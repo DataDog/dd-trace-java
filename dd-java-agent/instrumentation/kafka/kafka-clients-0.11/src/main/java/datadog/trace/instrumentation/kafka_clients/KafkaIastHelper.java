@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.api.iast.SourceTypes.KAFKA_MESSAGE_KEY;
 import static datadog.trace.api.iast.SourceTypes.KAFKA_MESSAGE_VALUE;
-
 import datadog.trace.api.iast.IastContext;
 import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.propagation.PropagationModule;
@@ -13,7 +12,6 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 @SuppressWarnings("rawtypes")
 public class KafkaIastHelper {
-
   public static void configure(
       final ContextStore<Deserializer, Boolean> store,
       final Deserializer<?> deserializer,
@@ -40,7 +38,8 @@ public class KafkaIastHelper {
       return null;
     }
     if (module.isTainted(ctx, data)) {
-      return ctx; // prevent double tainting on reentrant calls
+      // prevent double tainting on reentrant calls
+      return ctx;
     }
     final byte source = getSource(store, deserializer);
     if (data instanceof String) {
@@ -68,7 +67,8 @@ public class KafkaIastHelper {
       return null;
     }
     if (module.isTainted(ctx, data)) {
-      return ctx; // prevent double tainting on reentrant calls
+      // prevent double tainting on reentrant calls
+      return ctx;
     }
     final byte source = getSource(store, deserializer);
     int start = data.position();
@@ -101,7 +101,8 @@ public class KafkaIastHelper {
   }
 
   private static byte getSource(
-      final ContextStore<Deserializer, Boolean> store, final Deserializer<?> deserializer) {
+      final ContextStore<Deserializer, Boolean> store,
+      final Deserializer<?> deserializer) {
     if (store == null) {
       return KAFKA_MESSAGE_VALUE;
     }

@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static datadog.trace.bootstrap.AgentClassLoading.INJECTING_HELPERS;
 import static java.util.Arrays.asList;
-
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.EagerHelper;
 import datadog.trace.util.JDK9ModuleAccess;
@@ -28,26 +27,22 @@ import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Injects instrumentation helper classes into the user's classloader. */
+/**
+ * Injects instrumentation helper classes into the user's classloader.
+ */
 public class HelperInjector implements Instrumenter.TransformingAdvice {
   private static final Logger log = LoggerFactory.getLogger(HelperInjector.class);
-
   private static final ClassFileLocator classFileLocator =
       ClassFileLocator.ForClassLoader.of(Utils.getExtendedClassLoader());
-
   private static final boolean unsafeClassInjection =
       InstrumenterConfig.get().isUnsafeClassInjection();
-
   private final boolean useAgentCodeSource;
   private final AdviceShader adviceShader;
   private final String requestingName;
-
   private final Set<String> helperClassNames;
   private final Map<String, byte[]> dynamicTypeMap = new LinkedHashMap<>();
-
   private final Map<ClassLoader, Boolean> injectedClassLoaders =
       Collections.synchronizedMap(new WeakHashMap<>());
-
   private final List<WeakReference<AnnotatedElement>> helperModules = new CopyOnWriteArrayList<>();
 
   /**
@@ -121,15 +116,16 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
       if (classLoader == null) {
         throw new UnsupportedOperationException(
             "Cannot inject helper classes onto boot-class-path; move "
-                + String.join(",", helperClassNames)
-                + " to agent-bootstrap");
+            + String.join(",", helperClassNames)
+            + " to agent-bootstrap");
       }
 
       if (!injectedClassLoaders.containsKey(classLoader)) {
         try {
           if (log.isDebugEnabled()) {
             log.debug(
-                "Injecting helper classes - instrumentation.class={} instrumentation.target.classloader={} instrumentation.helper_classes=[{}]",
+                "Injecting helper classes - instrumentation.class={} instrumentation.target."
+                + "classloader={} instrumentation.helper_classes=[{}]",
                 requestingName,
                 classLoader,
                 String.join(",", helperClassNames));
@@ -137,13 +133,11 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
 
           final Map<String, byte[]> classnameToBytes = getHelperMap();
           final Collection<Class<?>> classes = injectClassLoader(classLoader, classnameToBytes);
-
           // all datadog helper classes are in the unnamed module
           // and there's exactly one unnamed module per classloader
           if (JavaModule.isSupported()) {
             helperModules.add(new WeakReference<>(JDK9ModuleAccess.getUnnamedModule(classLoader)));
           }
-
           // forcibly initialize any eager helpers
           for (Class<?> clazz : classes) {
             if (EagerHelper.class.isAssignableFrom(clazz)) {
@@ -154,12 +148,12 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
               }
             }
           }
-
         } catch (final Exception e) {
           if (log.isErrorEnabled()) {
             // requestingName is concatenated to ensure it is sent to telemetry
             log.error(
-                "Failed to inject helper classes - instrumentation.class={} instrumentation.target.classloader={} instrumentation.target.class={}",
+                "Failed to inject helper classes - instrumentation.class={} instrumentation.target."
+                + "classloader={} instrumentation.target.class={}",
                 requestingName,
                 classLoader,
                 typeDescription,
@@ -177,28 +171,32 @@ public class HelperInjector implements Instrumenter.TransformingAdvice {
   }
 
   private Collection<Class<?>> injectClassLoader(
-      final ClassLoader classLoader, final Map<String, byte[]> classnameToBytes) {
+      final ClassLoader classLoader,
+      final Map<String, byte[]> classnameToBytes) {
     INJECTING_HELPERS.begin();
     try {
       if (useAgentCodeSource) {
         ProtectionDomain protectionDomain = createProtectionDomain(classLoader);
         if (unsafeClassInjection) {
           return new net.bytebuddy.dynamic.loading.ClassInjector.UsingReflection(
-                  classLoader, protectionDomain)
-              .injectRaw(classnameToBytes)
-              .values();
+              classLoader,
+              protectionDomain)
+            .injectRaw(classnameToBytes)
+            .values();
         } else {
           return datadog.instrument.classinject.ClassInjector.injectClasses(
-              classnameToBytes, protectionDomain);
+              classnameToBytes,
+              protectionDomain);
         }
       } else {
         if (unsafeClassInjection) {
           return new net.bytebuddy.dynamic.loading.ClassInjector.UsingReflection(classLoader)
-              .injectRaw(classnameToBytes)
-              .values();
+            .injectRaw(classnameToBytes)
+            .values();
         } else {
           return datadog.instrument.classinject.ClassInjector.injectClasses(
-              classnameToBytes, classLoader);
+              classnameToBytes,
+              classLoader);
         }
       }
     } finally {

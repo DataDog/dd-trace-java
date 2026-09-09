@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.sun.management.UnixOperatingSystemMXBean;
 import datadog.trace.agent.jmxfetch.JvmOtlpRuntimeMetrics;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -43,7 +42,6 @@ import org.junit.jupiter.api.Test;
  * https://github.com/DataDog/semantic-core/blob/main/sor/domains/metrics/integrations/java/_equivalence/
  */
 public class JvmOtlpRuntimeMetricsTest {
-
   @BeforeAll
   static void setUp() {
     System.setProperty("dd.metrics.otel.enabled", "true");
@@ -55,26 +53,25 @@ public class JvmOtlpRuntimeMetricsTest {
     MetricCollector collector = new MetricCollector();
     OtelMetricRegistry.INSTANCE.collectMetrics(collector);
 
-    List<String> expectedMetrics =
-        Arrays.asList(
-            "jvm.memory.used",
-            "jvm.memory.committed",
-            "jvm.memory.limit",
-            "jvm.memory.init",
-            "jvm.memory.used_after_last_gc",
-            "jvm.buffer.memory.used",
-            "jvm.buffer.memory.limit",
-            "jvm.buffer.count",
-            "jvm.thread.count",
-            "jvm.class.loaded",
-            "jvm.class.count",
-            "jvm.class.unloaded",
-            "jvm.cpu.time",
-            "jvm.cpu.count",
-            "jvm.cpu.recent_utilization",
-            "jvm.system.cpu.utilization",
-            "jvm.system.cpu.load_1m",
-            "jvm.gc.duration");
+    List<String> expectedMetrics = Arrays.asList(
+        "jvm.memory.used",
+        "jvm.memory.committed",
+        "jvm.memory.limit",
+        "jvm.memory.init",
+        "jvm.memory.used_after_last_gc",
+        "jvm.buffer.memory.used",
+        "jvm.buffer.memory.limit",
+        "jvm.buffer.count",
+        "jvm.thread.count",
+        "jvm.class.loaded",
+        "jvm.class.count",
+        "jvm.class.unloaded",
+        "jvm.cpu.time",
+        "jvm.cpu.count",
+        "jvm.cpu.recent_utilization",
+        "jvm.system.cpu.utilization",
+        "jvm.system.cpu.load_1m",
+        "jvm.gc.duration");
 
     Set<String> names = collector.metricNames;
     for (String metric : expectedMetrics) {
@@ -95,12 +92,11 @@ public class JvmOtlpRuntimeMetricsTest {
     }
 
     assertEquals(expectedSize, names.size(), "Unexpected metric count: " + new TreeSet<>(names));
-
     // No DD-proprietary names should be present
-    List<String> ddNames =
-        names.stream()
-            .filter(n -> n.startsWith("jvm.heap_memory") || n.startsWith("jvm.thread_count"))
-            .collect(Collectors.toList());
+    List<String> ddNames = names
+      .stream()
+      .filter(n -> n.startsWith("jvm.heap_memory") || n.startsWith("jvm.thread_count"))
+      .collect(Collectors.toList());
     assertTrue(ddNames.isEmpty(), "DD-proprietary names leaked: " + ddNames);
   }
 
@@ -121,14 +117,12 @@ public class JvmOtlpRuntimeMetricsTest {
 
     List<DataPointEntry> points = collector.points.get("jvm.memory.used");
     assertNotNull(points, "jvm.memory.used should have data points");
-    DataPointEntry heapAggregate =
-        points.stream()
-            .filter(
-                p ->
-                    "heap".equals(p.attrs.get("jvm.memory.type"))
-                        && p.attrs.get("jvm.memory.pool.name") == null)
-            .findFirst()
-            .orElse(null);
+    DataPointEntry heapAggregate = points
+      .stream()
+      .filter(p -> "heap".equals(p.attrs.get("jvm.memory.type"))
+          && p.attrs.get("jvm.memory.pool.name") == null)
+      .findFirst()
+      .orElse(null);
     assertNotNull(heapAggregate, "jvm.memory.used should have a heap aggregate data point");
     assertTrue(
         heapAggregate.value.longValue() > 0,
@@ -143,7 +137,6 @@ public class JvmOtlpRuntimeMetricsTest {
     List<DataPointEntry> threadPoints = collector.points.get("jvm.thread.count");
     assertNotNull(threadPoints, "jvm.thread.count should have data points");
     assertFalse(threadPoints.isEmpty(), "jvm.thread.count should have data points");
-
     // Every data point must carry both jvm.thread.daemon (Boolean) and jvm.thread.state (String).
     Set<String> validStates = new HashSet<>();
     for (Thread.State state : Thread.State.values()) {
@@ -164,13 +157,12 @@ public class JvmOtlpRuntimeMetricsTest {
       assertTrue(
           point.value.longValue() > 0,
           "jvm.thread.count bucket should be positive (empty buckets must be skipped), got "
-              + point.value
-              + " for "
-              + point.attrs);
+          + point.value
+          + " for "
+          + point.attrs);
       totalThreads += point.value.longValue();
     }
     assertTrue(totalThreads > 0, "Sum of jvm.thread.count buckets should be positive");
-
     // The test JVM has at minimum: the main test thread (non-daemon) plus GC/JMX/etc. daemon
     // threads — so we should observe at least one daemon=true and one daemon=false bucket.
     Set<String> daemonValues = collector.attributeValues("jvm.thread.count", "jvm.thread.daemon");
@@ -201,14 +193,12 @@ public class JvmOtlpRuntimeMetricsTest {
 
     List<DataPointEntry> points = collector.points.get("jvm.memory.init");
     assertNotNull(points, "jvm.memory.init should have data points");
-    DataPointEntry heapAggregate =
-        points.stream()
-            .filter(
-                p ->
-                    "heap".equals(p.attrs.get("jvm.memory.type"))
-                        && p.attrs.get("jvm.memory.pool.name") == null)
-            .findFirst()
-            .orElse(null);
+    DataPointEntry heapAggregate = points
+      .stream()
+      .filter(p -> "heap".equals(p.attrs.get("jvm.memory.type"))
+          && p.attrs.get("jvm.memory.pool.name") == null)
+      .findFirst()
+      .orElse(null);
     assertNotNull(heapAggregate, "jvm.memory.init should have a heap aggregate data point");
     assertTrue(
         heapAggregate.value.longValue() > 0,
@@ -220,7 +210,6 @@ public class JvmOtlpRuntimeMetricsTest {
     // Force a GC; the JMX NotificationListener should observe the event and record a data
     // point onto the jvm.gc.duration histogram.
     System.gc();
-
     // JMX delivers the notification on the JVM's internal notification thread, so we have
     // to poll briefly. Two seconds is generous — delivery is typically sub-50ms.
     List<DataPointEntry> points = null;
@@ -238,9 +227,10 @@ public class JvmOtlpRuntimeMetricsTest {
     assertNotNull(points, "jvm.gc.duration should have data points after System.gc()");
     assertFalse(points.isEmpty(), "jvm.gc.duration should have at least one data point");
     assertTrue(
-        points.stream()
-            .allMatch(
-                p -> p.attrs.containsKey("jvm.gc.name") && p.attrs.containsKey("jvm.gc.action")),
+        points
+          .stream()
+          .allMatch(p -> p.attrs.containsKey("jvm.gc.name")
+          && p.attrs.containsKey("jvm.gc.action")),
         "Every jvm.gc.duration data point should carry jvm.gc.name and jvm.gc.action attributes");
   }
 
@@ -255,8 +245,9 @@ public class JvmOtlpRuntimeMetricsTest {
   }
 
   static final class MetricCollector
-      implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
-
+      implements OtlpMetricsVisitor,
+      OtlpScopedMetricsVisitor,
+      OtlpMetricVisitor {
     String currentInstrument = "";
     final Map<String, Object> currentAttrs = new LinkedHashMap<>();
     final Set<String> metricNames = new LinkedHashSet<>();
@@ -291,8 +282,8 @@ public class JvmOtlpRuntimeMetricsTest {
         value = ((OtlpDoublePoint) point).value;
       }
       points
-          .computeIfAbsent(currentInstrument, k -> new ArrayList<>())
-          .add(new DataPointEntry(attrs, value));
+        .computeIfAbsent(currentInstrument, k -> new ArrayList<>())
+        .add(new DataPointEntry(attrs, value));
     }
 
     Set<String> attributeValues(String metricName, String attrKey) {
@@ -300,11 +291,12 @@ public class JvmOtlpRuntimeMetricsTest {
       if (entries == null) {
         return new LinkedHashSet<>();
       }
-      return entries.stream()
-          .map(e -> e.attrs.get(attrKey))
-          .filter(Objects::nonNull)
-          .map(Object::toString)
-          .collect(Collectors.toCollection(LinkedHashSet::new));
+      return entries
+        .stream()
+        .map(e -> e.attrs.get(attrKey))
+        .filter(Objects::nonNull)
+        .map(Object::toString)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
     }
   }
 }

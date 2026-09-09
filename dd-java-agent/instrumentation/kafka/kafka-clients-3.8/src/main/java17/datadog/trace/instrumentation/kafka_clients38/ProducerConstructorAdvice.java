@@ -9,17 +9,17 @@ import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.ProducerConfig;
 
 public class ProducerConstructorAdvice {
-
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void captureConfiguration(
       @Advice.FieldValue("metadata") Metadata metadata,
       @Advice.Argument(0) ProducerConfig producerConfig) {
-    MetadataState state =
-        InstrumentationContext.get(Metadata.class, MetadataState.class)
-            .getOrCreate(metadata, MetadataState::new);
+    MetadataState state = InstrumentationContext
+      .get(Metadata.class, MetadataState.class)
+      .getOrCreate(metadata, MetadataState::new);
     if (Config.get().isDataStreamsEnabled()) {
       KafkaConfigHelper.storePendingProducerConfig(
-          state, KafkaConfigHelper.extractProducerConfig(producerConfig));
+          state,
+          KafkaConfigHelper.extractProducerConfig(producerConfig));
     }
   }
 }

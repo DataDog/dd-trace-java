@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.gradle;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class GradleLauncherInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public GradleLauncherInstrumentation() {
     super("gradle", "gradle-daemon-jvm-options");
   }
@@ -44,9 +43,7 @@ public class GradleLauncherInstrumentation extends InstrumenterModule.CiVisibili
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GradleDaemonInjectionUtils",
-    };
+    return new String[] {packageName + ".GradleDaemonInjectionUtils"};
   }
 
   public static class PropertiesAugmentationAdvice {

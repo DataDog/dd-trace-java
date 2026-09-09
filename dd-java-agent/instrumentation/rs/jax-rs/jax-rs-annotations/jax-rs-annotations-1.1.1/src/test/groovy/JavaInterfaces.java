@@ -2,15 +2,12 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 
 public class JavaInterfaces {
-
   interface Jax {
-
     void call();
   }
 
   @Path("interface")
   interface InterfaceWithClassMethodPath extends Jax {
-
     @Override
     @GET
     @Path("invoke")
@@ -19,7 +16,6 @@ public class JavaInterfaces {
 
   @Path("abstract")
   abstract class AbstractClassOnInterfaceWithClassPath implements InterfaceWithClassMethodPath {
-
     @GET
     @Path("call")
     @Override
@@ -32,13 +28,11 @@ public class JavaInterfaces {
 
   @Path("child")
   class ChildClassOnInterface extends AbstractClassOnInterfaceWithClassPath {
-
     @Override
     void actual() {
       // do nothing
     }
   }
-
   // TODO: uncomment when we drop support for Java 7
   //  @Path("interface")
   //  interface DefaultInterfaceWithClassMethodPath extends Jax {

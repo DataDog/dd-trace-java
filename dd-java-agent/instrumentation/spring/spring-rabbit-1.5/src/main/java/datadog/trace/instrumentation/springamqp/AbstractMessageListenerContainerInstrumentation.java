@@ -9,7 +9,6 @@ import static datadog.trace.instrumentation.springamqp.RabbitListenerDecorator.D
 import static java.util.Collections.singleton;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -28,8 +27,9 @@ import org.springframework.amqp.core.Message;
 
 @AutoService(InstrumenterModule.class)
 public class AbstractMessageListenerContainerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   public AbstractMessageListenerContainerInstrumentation() {
     super("spring-rabbit");
   }

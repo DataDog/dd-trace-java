@@ -1,7 +1,6 @@
 package datadog.opentelemetry.tooling;
 
 import static datadog.trace.agent.tooling.ExtensionHandler.MAP_LOGGING;
-
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import java.util.ArrayList;
@@ -17,12 +16,12 @@ import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.jar.asm.commons.ClassRemapper;
 import net.bytebuddy.jar.asm.commons.Remapper;
 
-/** Maps OpenTelemetry instrumentations to use the Datadog {@link InstrumenterModule} API. */
+/**
+ * Maps OpenTelemetry instrumentations to use the Datadog {@link InstrumenterModule} API.
+ */
 public final class OtelInstrumentationMapper extends ClassRemapper {
-
   private static final Set<String> UNSUPPORTED_TYPES =
-      Collections.singleton(
-          "io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
+      Collections.singleton("io/opentelemetry/javaagent/tooling/muzzle/InstrumentationModuleMuzzle");
 
   public OtelInstrumentationMapper(ClassVisitor classVisitor) {
     super(classVisitor, Renamer.INSTANCE);
@@ -51,7 +50,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
         if (null == filtered) {
           filtered = new ArrayList<>(Arrays.asList(interfaces));
         }
-        filtered.remove(i); // remove unsupported interface
+        // remove unsupported interface
+        filtered.remove(i);
       }
     }
     return null != filtered ? filtered.toArray(new String[0]) : interfaces;
@@ -59,8 +59,9 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
 
   static final class Renamer extends Remapper {
     static final Renamer INSTANCE = new Renamer();
-
-    /** Datadog equivalent of OpenTelemetry instrumentation classes. */
+    /**
+     * Datadog equivalent of OpenTelemetry instrumentation classes.
+     */
     private static final Map<String, String> RENAMED_TYPES = new HashMap<>();
 
     static {
@@ -114,12 +115,15 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           "datadog/trace/bootstrap/otel/instrumentation/Java8BytecodeBridge");
     }
 
-    /** OpenTelemetry and related packages shaded inside the tracer. */
+    /**
+     * OpenTelemetry and related packages shaded inside the tracer.
+     */
     private static final Map<String, String> RENAMED_PACKAGES = new HashMap<>();
 
     static {
       RENAMED_PACKAGES.put(
-          "io/opentelemetry/javaagent/shaded/io/opentelemetry/", "datadog/trace/bootstrap/otel/");
+          "io/opentelemetry/javaagent/shaded/io/opentelemetry/",
+          "datadog/trace/bootstrap/otel/");
 
       RENAMED_PACKAGES.put("io/opentelemetry/api/", "datadog/trace/bootstrap/otel/api/");
       RENAMED_PACKAGES.put("io/opentelemetry/context/", "datadog/trace/bootstrap/otel/context/");
@@ -139,8 +143,8 @@ public final class OtelInstrumentationMapper extends ClassRemapper {
           "datadog/trace/bootstrap/otel/instrumentation/internal/");
 
       RENAMED_PACKAGES.put(
-          "io/opentelemetry/javaagent/bootstrap/", "datadog/trace/bootstrap/otel/instrumentation/");
-
+          "io/opentelemetry/javaagent/bootstrap/",
+          "datadog/trace/bootstrap/otel/instrumentation/");
       // we want to keep this package unchanged so it matches against any unshaded extensions
       // dropped in at runtime; use replace to stop it being transformed by the shadow plugin
       RENAMED_PACKAGES.put("org|objectweb|asm|".replace('|', '/'), "net/bytebuddy/jar/asm/");

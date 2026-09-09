@@ -9,10 +9,11 @@ public class SQLCommenter {
   private static final String OPEN_COMMENT = "/*";
   private static final int OPEN_COMMENT_LEN = OPEN_COMMENT.length();
   private static final String CLOSE_COMMENT = "*/";
-
   // Size estimation for StringBuilder pre-allocation
-  private static final int SPACE_CHARS = 2; // Leading and trailing spaces
-  private static final int COMMENT_DELIMITERS = 4; // "/*" + "*/"
+  // Leading and trailing spaces
+  private static final int SPACE_CHARS = 2;
+  // "/*" + "*/"
+  private static final int COMMENT_DELIMITERS = 4;
   private static final int BUFFER_EXTRA = 4;
   private static final int SQL_COMMENT_OVERHEAD = SPACE_CHARS + COMMENT_DELIMITERS + BUFFER_EXTRA;
 
@@ -52,7 +53,6 @@ public class SQLCommenter {
     boolean appendComment = preferAppend;
     if (dbType != null) {
       final SubSequence firstWord = getFirstWord(sql);
-
       // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC
       // callable statements
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
@@ -61,18 +61,15 @@ public class SQLCommenter {
       if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
         return sql;
       }
-
       // Append the comment for mysql JDBC callable statements
       if (firstWord.startsWith("{") && "mysql".equals(dbType)) {
         appendComment = true;
       }
-
       // Both Postgres and MySQL are unhappy with anything before CALL in a stored
       // procedure invocation, but they seem ok with it after so we force append mode
       if (firstWord.equalsIgnoreCase("call")) {
         appendComment = true;
       }
-
       // Append the comment in the case of a pg_hint_plan extension
       if (dbType.startsWith("postgres") && sql.contains("/*+")) {
         appendComment = true;
@@ -88,7 +85,6 @@ public class SQLCommenter {
     if (commentContent == null) {
       return sql;
     }
-
     // SQL-specific wrapping with /* */
     StringBuilder sb =
         new StringBuilder(sql.length() + commentContent.length() + SQL_COMMENT_OVERHEAD);

@@ -3,7 +3,6 @@ package datadog.smoketest.backend;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.Moshi;
@@ -30,7 +29,8 @@ final class AgentBackendMessages {
   private static final JsonAdapter<List<Map<String, Object>>> MESSAGE_LIST_ADAPTER =
       MOSHI.adapter(Types.newParameterizedType(List.class, MESSAGE));
 
-  private AgentBackendMessages() {}
+  private AgentBackendMessages() {
+  }
 
   /**
    * Decodes one captured JSON object (a telemetry intake body, a remote-config poll, ...).
@@ -60,7 +60,8 @@ final class AgentBackendMessages {
       return messages == null ? emptyList() : messages;
     } catch (IOException | JsonDataException e) {
       throw new IllegalStateException(
-          "Failed to parse /test/session/apmtelemetry response: " + json, e);
+          "Failed to parse /test/session/apmtelemetry response: " + json,
+          e);
     }
   }
 
@@ -79,12 +80,12 @@ final class AgentBackendMessages {
     String quotedPath = '"' + path.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
     String targets =
         "{\"signed\":{\"expires\":\"9999-12-31T23:59:59Z\",\"spec_version\":\"1.0.0\",\"targets\":{"
-            + quotedPath
-            + ":{\"custom\":{\"v\":1},\"hashes\":{\"sha256\":\""
-            + sha256(config)
-            + "\"},\"length\":"
-            + raw.length
-            + "}}}}";
+        + quotedPath
+        + ":{\"custom\":{\"v\":1},\"hashes\":{\"sha256\":\""
+        + sha256(config)
+        + "\"},\"length\":"
+        + raw.length
+        + "}}}}";
     Base64.Encoder base64 = Base64.getEncoder();
     return "{\"client_configs\":["
         + quotedPath

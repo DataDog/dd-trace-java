@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.maven3;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -25,13 +24,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MavenProjectConfiguratorTest extends AbstractMavenTest {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfiguratorTest.class);
 
   public static Stream<Arguments> surefireVersions() {
     return Stream.of(
         Arguments.of(
-            "sampleProject/pom.xml", "test", new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}),
+            "sampleProject/pom.xml",
+            "test",
+            new String[] {"-X", "-DargLine=-DmyArgLineProp=true"}),
         Arguments.of(
             "sampleProject/pom.xml",
             "surefire:test",
@@ -41,7 +41,9 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
         Arguments.of("sampleProjectSurefireArgLine/pom.xml", "test", new String[] {"-X"}),
         Arguments.of("sampleProjectSurefireArgLine/pom.xml", "surefire:test", new String[] {"-X"}),
         Arguments.of(
-            "sampleProjectSurefireLateProcessingArgLine/pom.xml", "test", new String[] {"-X"}));
+            "sampleProjectSurefireLateProcessingArgLine/pom.xml",
+            "test",
+            new String[] {"-X"}));
   }
 
   @ParameterizedTest
@@ -56,7 +58,12 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
 
     try {
       executeMaven(
-          this::injectTracer, pomPath, goal, buildOutput, buildError, additionalCmdLineArgs);
+          this::injectTracer,
+          pomPath,
+          goal,
+          buildOutput,
+          buildError,
+          additionalCmdLineArgs);
 
       boolean javaAgentInjected = false;
       boolean argLinePreserved = false;
@@ -67,15 +74,13 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
       String buildOutputLine;
       while ((buildOutputLine = buildOutputReader.readLine()) != null) {
         javaAgentInjected |= buildOutputLine.contains("TEST JAVA AGENT STARTED");
-        argLinePreserved |=
-            buildOutputLine.contains("surefire")
-                && buildOutputLine.contains("Forking command line")
-                && buildOutputLine.contains("-DmyArgLineProp=true");
+        argLinePreserved |= buildOutputLine.contains("surefire")
+            && buildOutputLine.contains("Forking command line")
+            && buildOutputLine.contains("-DmyArgLineProp=true");
       }
 
       assertTrue(javaAgentInjected, "Tracer wasn't injected");
       assertTrue(argLinePreserved, "Original argLine was not preserved");
-
     } catch (Exception | Error e) {
       LOGGER.info("Build output:\n\n{}", stdOutBaos);
       LOGGER.info("Build error:\n\n{}", stdErrBaos);
@@ -96,11 +101,14 @@ public class MavenProjectConfiguratorTest extends AbstractMavenTest {
       when(config.isCiVisibilityAutoConfigurationEnabled()).thenReturn(true);
       when(config.getCiVisibilityDebugPort()).thenReturn(null);
       when(config.getCiVisibilityAgentJarFile())
-          .thenReturn(new File(MavenUtilsTest.class.getResource("simple-agent.jar").toURI()));
+        .thenReturn(new File(MavenUtilsTest.class.getResource("simple-agent.jar").toURI()));
       MavenProjectConfigurator.INSTANCE.configureTracer(
-          session, project, mojoExecution, Collections.emptyMap(), config);
+          session,
+          project,
+          mojoExecution,
+          Collections.emptyMap(),
+          config);
       return true;
-
     } catch (URISyntaxException e) {
       throw new RuntimeException(e);
     }

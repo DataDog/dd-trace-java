@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -26,8 +25,8 @@ import org.reactivestreams.Subscriber;
  * eventually propagate on the downstream signals.
  */
 public class PublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String hierarchyMarkerType() {
     return "org.reactivestreams.Publisher";
@@ -42,17 +41,18 @@ public class PublisherInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, hasInterface(named("org.reactivestreams.Subscriber")))),
+          .and(not(isStatic()))
+          .and(named("subscribe"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, hasInterface(named("org.reactivestreams.Subscriber")))),
         getClass().getName() + "$PublisherSubscribeAdvice");
   }
 
   public static class PublisherSubscribeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onSubscribe(
-        @Advice.This final Publisher self, @Advice.Argument(value = 0) final Subscriber s) {
+        @Advice.This final Publisher self,
+        @Advice.Argument(value = 0) final Subscriber s) {
       return ReactiveStreamsContextPropagation.captureOnSubscribe(
           self,
           s,

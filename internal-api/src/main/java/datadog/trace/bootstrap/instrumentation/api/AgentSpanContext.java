@@ -14,7 +14,6 @@ import java.util.Map;
  * contextualize the associated Span instance.
  */
 public interface AgentSpanContext {
-
   /**
    * Gets the TraceId of the span's trace.
    *

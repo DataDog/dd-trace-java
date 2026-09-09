@@ -5,7 +5,6 @@ import static datadog.trace.api.DDTags.LANGUAGE_TAG_VALUE;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.google.common.collect.Lists;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.communication.serialization.Writable;
@@ -49,10 +48,8 @@ import org.openjdk.jmh.infra.Blackhole;
 @Fork(value = 1)
 @SuppressForbidden
 public class TraceMapperBenchmark {
-
   @Param({"v04", "v04:x-dth", "v05", "v05:x-dth"})
   String mapperName;
-
   private TraceMapper mapper;
   private Writable writable;
   private CoreTracer tracer;
@@ -76,11 +73,11 @@ public class TraceMapperBenchmark {
       String feature = mapperAndFeatures[i];
       switch (feature) {
         case "x-dth":
-          propagationTags =
-              PropagationTags.factory()
-                  .fromHeaderValue(
-                      PropagationTags.HeaderType.DATADOG,
-                      "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
+          propagationTags = PropagationTags
+            .factory()
+            .fromHeaderValue(
+                PropagationTags.HeaderType.DATADOG,
+                "_dd.p.anytag=value,_dd.p.dm=934086a686-4");
           break;
         default:
           throw new IllegalArgumentException("Unknown benchmark feature " + feature + ".");
@@ -94,35 +91,34 @@ public class TraceMapperBenchmark {
 
     writable = new MsgPackWriter(new BlackholeBuffer(blackhole));
 
-    tracer =
-        CoreTracer.builder()
-            .strictTraceWrites(
-                true) // Avoid any extra bookkeeping for traces since we write directly
-            .build();
+    tracer = CoreTracer
+      .builder()
+      // Avoid any extra bookkeeping for traces since we write directly
+      .strictTraceWrites(true)
+      .build();
 
     DDTraceId traceId = DDTraceId.ONE;
     TraceCollector traceCollector = tracer.createTraceCollector(traceId);
-    DDSpanContext rootContext =
-        new DDSpanContext(
-            traceId,
-            2,
-            DDSpanId.ZERO,
-            null,
-            "service",
-            UTF8BytesString.create("operation"),
-            UTF8BytesString.create("resource"),
-            PrioritySampling.SAMPLER_KEEP,
-            null,
-            Collections.<String, String>emptyMap(),
-            false,
-            UTF8BytesString.create("type"),
-            0,
-            traceCollector,
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            propagationTags);
+    DDSpanContext rootContext = new DDSpanContext(
+        traceId,
+        2,
+        DDSpanId.ZERO,
+        null,
+        "service",
+        UTF8BytesString.create("operation"),
+        UTF8BytesString.create("resource"),
+        PrioritySampling.SAMPLER_KEEP,
+        null,
+        Collections.<String, String>emptyMap(),
+        false,
+        UTF8BytesString.create("type"),
+        0,
+        traceCollector,
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        propagationTags);
     DDSpanHelper.setAllTags(rootContext, tags);
     DDSpan root = DDSpanHelper.create("benchmark", System.currentTimeMillis() * 1000, rootContext);
     root.setResourceName(UTF8BytesString.create("benchmark"));

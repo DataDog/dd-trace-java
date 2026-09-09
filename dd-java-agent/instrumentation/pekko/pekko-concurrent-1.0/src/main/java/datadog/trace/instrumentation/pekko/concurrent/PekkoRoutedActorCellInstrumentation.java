@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,8 +18,8 @@ import org.apache.pekko.routing.RoutedActorCell;
 
 @AutoService(InstrumenterModule.class)
 public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public PekkoRoutedActorCellInstrumentation() {
     super("pekko_actor_send", "pekko_actor", "pekko_concurrent", "java_concurrent");
   }
@@ -39,9 +38,8 @@ public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.Cont
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(
-                named("sendMessage")
-                    .and(takesArgument(0, named("org.apache.pekko.dispatch.Envelope")))),
+          .and(named("sendMessage")
+            .and(takesArgument(0, named("org.apache.pekko.dispatch.Envelope")))),
         getClass().getName() + "$SendMessageAdvice");
   }
 
@@ -52,12 +50,14 @@ public class PekkoRoutedActorCellInstrumentation extends InstrumenterModule.Cont
   public static class SendMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope enter(
-        @Advice.This RoutedActorCell zis, @Advice.Argument(value = 0) Envelope envelope) {
+        @Advice.This RoutedActorCell zis,
+        @Advice.Argument(value = 0) Envelope envelope) {
       // If this isn't a management message, it will be deconstructed before being routed through
       // the routing logic, so activate the Scope
       if (!zis.routerConfig().isManagementMessage(envelope.message())) {
         return AdviceUtils.startTaskScope(
-            InstrumentationContext.get(Envelope.class, State.class), envelope);
+            InstrumentationContext.get(Envelope.class, State.class),
+            envelope);
       }
 
       return null;

@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_ACTION;
 import static datadog.trace.instrumentation.play26.PlayHttpServerDecorator.PLAY_REQUEST;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -25,7 +24,6 @@ public class PlayAdvice {
     final Context parentContext;
     final AgentSpan span;
     final ContextScope scope;
-
     // If we have already added a `play.request` span, then don't do it again
     if (req.attrs().contains(HasPlayRequestSpan.KEY)) {
       return null;
@@ -49,7 +47,6 @@ public class PlayAdvice {
     DECORATE.afterStart(span);
 
     req = req.addAttr(HasPlayRequestSpan.KEY, HasPlayRequestSpan.INSTANCE);
-
     // Moved from OnMethodExit
     // Call onRequest on return after tags are populated.
     DECORATE.onRequest(span, req, req, parentContext);
@@ -64,7 +61,6 @@ public class PlayAdvice {
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(0) final Request<?> req,
       @Advice.Return(readOnly = false) final Future<Result> responseFuture) {
-
     if (playControllerScope == null) {
       return;
     }
@@ -82,12 +78,12 @@ public class PlayAdvice {
     }
     playControllerScope.close();
     // span finished in RequestCompleteCallback
-
     final AgentSpan rootSpan = activeSpan();
     // set the resource name on the upstream akka/netty span if there is one
     if (rootSpan != null && playControllerSpan.getResourceName() != null) {
       rootSpan.setResourceName(
-          playControllerSpan.getResourceName(), ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+          playControllerSpan.getResourceName(),
+          ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
     }
   }
 }

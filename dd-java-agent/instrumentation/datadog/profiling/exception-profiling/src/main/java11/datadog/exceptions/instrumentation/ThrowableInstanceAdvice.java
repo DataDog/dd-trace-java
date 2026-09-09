@@ -1,7 +1,6 @@
 package datadog.exceptions.instrumentation;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;

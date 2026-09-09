@@ -14,9 +14,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Represents list of Trace Sampling Rules read from JSON. See TRACE_SAMPLING_RULES */
+/**
+ * Represents list of Trace Sampling Rules read from JSON. See TRACE_SAMPLING_RULES
+ */
 public class TraceSamplingRules {
-
   public static final TraceSamplingRules EMPTY = new TraceSamplingRules(Collections.emptyList());
   private static final Logger log = LoggerFactory.getLogger(TraceSamplingRules.class);
   private static final Moshi MOSHI = new Moshi.Builder().add(new RuleAdapter()).build();
@@ -153,7 +154,6 @@ public class TraceSamplingRules {
 
   private static final class JsonRule {
     private static final JsonAdapter<JsonRule> jsonAdapter = MOSHI.adapter(JsonRule.class);
-
     String service;
     String name;
     String resource;

@@ -3,16 +3,16 @@ package datadog.trace.bootstrap.otel.metrics;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_GAUGE;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER;
-
 import javax.annotation.Nullable;
 
 public final class OtelInstrumentBuilder {
   private final String instrumentName;
   private final OtelInstrumentType instrumentType;
   private final boolean longValues;
-
-  @Nullable private String description;
-  @Nullable private String unit;
+  @Nullable
+  private String description;
+  @Nullable
+  private String unit;
 
   /**
    * Starts building an instrument of long values with the given name and type.
@@ -22,7 +22,8 @@ public final class OtelInstrumentBuilder {
    * @return new instrument builder
    */
   public static OtelInstrumentBuilder ofLongs(
-      String instrumentName, OtelInstrumentType instrumentType) {
+      String instrumentName,
+      OtelInstrumentType instrumentType) {
     return new OtelInstrumentBuilder(instrumentName, instrumentType, true);
   }
 
@@ -34,7 +35,8 @@ public final class OtelInstrumentBuilder {
    * @return new instrument builder
    */
   public static OtelInstrumentBuilder ofLongs(
-      OtelInstrumentBuilder builder, OtelInstrumentType instrumentType) {
+      OtelInstrumentBuilder builder,
+      OtelInstrumentType instrumentType) {
     return new OtelInstrumentBuilder(builder.instrumentName, instrumentType, true);
   }
 
@@ -46,7 +48,8 @@ public final class OtelInstrumentBuilder {
    * @return new instrument builder
    */
   public static OtelInstrumentBuilder ofDoubles(
-      String instrumentName, OtelInstrumentType instrumentType) {
+      String instrumentName,
+      OtelInstrumentType instrumentType) {
     return new OtelInstrumentBuilder(instrumentName, instrumentType, false);
   }
 
@@ -58,12 +61,15 @@ public final class OtelInstrumentBuilder {
    * @return new instrument builder
    */
   public static OtelInstrumentBuilder ofDoubles(
-      OtelInstrumentBuilder builder, OtelInstrumentType instrumentType) {
+      OtelInstrumentBuilder builder,
+      OtelInstrumentType instrumentType) {
     return new OtelInstrumentBuilder(builder.instrumentName, instrumentType, false);
   }
 
   private OtelInstrumentBuilder(
-      String instrumentName, OtelInstrumentType instrumentType, boolean longValues) {
+      String instrumentName,
+      OtelInstrumentType instrumentType,
+      boolean longValues) {
     this.instrumentName = instrumentName;
     this.instrumentType = instrumentType;
     this.longValues = longValues;
@@ -79,12 +85,20 @@ public final class OtelInstrumentBuilder {
 
   public OtelInstrumentDescriptor descriptor() {
     return new OtelInstrumentDescriptor(
-        instrumentName, instrumentType, longValues, description, unit);
+        instrumentName,
+        instrumentType,
+        longValues,
+        description,
+        unit);
   }
 
   public OtelInstrumentDescriptor observableDescriptor() {
     return new OtelInstrumentDescriptor(
-        instrumentName, observableType(instrumentType), longValues, description, unit);
+        instrumentName,
+        observableType(instrumentType),
+        longValues,
+        description,
+        unit);
   }
 
   /**

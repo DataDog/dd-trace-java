@@ -8,7 +8,6 @@ import static datadog.trace.common.writer.ddagent.TraceMapperV1.VALUE_TYPE_INT;
 import static datadog.trace.common.writer.ddagent.TraceMapperV1.VALUE_TYPE_STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import java.io.IOException;
@@ -35,8 +34,9 @@ import org.msgpack.value.ValueType;
  * TraceMapperV1}.
  */
 public final class V1PayloadReader {
-
-  /** msgpack field ids of the top-level payload (header) map, mirroring {@code buildHeader}. */
+  /**
+   * msgpack field ids of the top-level payload (header) map, mirroring {@code buildHeader}.
+   */
   static final class PayloadField {
     static final int CONTAINER_ID = 2;
     static final int LANGUAGE_NAME = 3;
@@ -49,10 +49,13 @@ public final class V1PayloadReader {
     static final int ATTRIBUTES = 10;
     static final int CHUNKS = 11;
 
-    private PayloadField() {}
+    private PayloadField() {
+    }
   }
 
-  /** msgpack field ids of a trace chunk map, mirroring {@code TraceMapperV1.map} (no field 5). */
+  /**
+   * msgpack field ids of a trace chunk map, mirroring {@code TraceMapperV1.map} (no field 5).
+   */
   static final class ChunkField {
     static final int PRIORITY = 1;
     static final int ORIGIN = 2;
@@ -61,10 +64,13 @@ public final class V1PayloadReader {
     static final int TRACE_ID = 6;
     static final int SAMPLING_MECHANISM = 7;
 
-    private ChunkField() {}
+    private ChunkField() {
+    }
   }
 
-  /** msgpack field ids of a span map, mirroring {@code encodeSpans} (16 fields). */
+  /**
+   * msgpack field ids of a span map, mirroring {@code encodeSpans} (16 fields).
+   */
   static final class SpanField {
     static final int SERVICE = 1;
     static final int NAME = 2;
@@ -83,10 +89,13 @@ public final class V1PayloadReader {
     static final int COMPONENT = 15;
     static final int KIND = 16;
 
-    private SpanField() {}
+    private SpanField() {
+    }
   }
 
-  /** msgpack field ids of a span link map, mirroring {@code encodeSpanLinks} (5 fields). */
+  /**
+   * msgpack field ids of a span link map, mirroring {@code encodeSpanLinks} (5 fields).
+   */
   private static final class LinkField {
     static final int TRACE_ID = 1;
     static final int SPAN_ID = 2;
@@ -94,28 +103,37 @@ public final class V1PayloadReader {
     static final int TRACE_STATE = 4;
     static final int TRACE_FLAGS = 5;
 
-    private LinkField() {}
+    private LinkField() {
+    }
   }
 
-  /** msgpack field ids of a span event map, mirroring {@code encodeSpanEvents} (3 fields). */
+  /**
+   * msgpack field ids of a span event map, mirroring {@code encodeSpanEvents} (3 fields).
+   */
   private static final class EventField {
     static final int TIME_UNIX_NANO = 1;
     static final int NAME = 2;
     static final int ATTRIBUTES = 3;
 
-    private EventField() {}
+    private EventField() {
+    }
   }
 
-  private V1PayloadReader() {}
+  private V1PayloadReader() {
+  }
 
-  /** Decodes the first span of the first chunk of an encoded V1 payload. */
+  /**
+   * Decodes the first span of the first chunk of an encoded V1 payload.
+   */
   public static V1Span readFirstSpan(byte[] encoded) throws IOException {
     V1Chunk chunk = readFirstChunk(encoded);
     assertEquals(1, chunk.getSpans().size());
     return chunk.getSpans().get(0);
   }
 
-  /** Decodes the first chunk of an encoded V1 payload. */
+  /**
+   * Decodes the first chunk of an encoded V1 payload.
+   */
   public static V1Chunk readFirstChunk(byte[] encoded) throws IOException {
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(encoded));
     List<String> stringTable = newStringTable();
@@ -150,7 +168,9 @@ public final class V1PayloadReader {
     throw new AssertionError("Could not find first chunk in v1 payload");
   }
 
-  /** Creates a string table seeded with the empty string at index 0, as the writer expects. */
+  /**
+   * Creates a string table seeded with the empty string at index 0, as the writer expects.
+   */
   public static List<String> newStringTable() {
     List<String> stringTable = new ArrayList<>();
     stringTable.add("");
@@ -209,7 +229,8 @@ public final class V1PayloadReader {
   }
 
   public static Map<String, Object> readAttributes(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
+      MessageUnpacker unpacker,
+      List<String> stringTable) throws IOException {
     int arraySize = unpacker.unpackArrayHeader();
     assertEquals(0, arraySize % 3);
     int attributeCount = arraySize / 3;
@@ -223,7 +244,9 @@ public final class V1PayloadReader {
   }
 
   private static Object readAttributeValue(
-      MessageUnpacker unpacker, List<String> stringTable, int valueType) throws IOException {
+      MessageUnpacker unpacker,
+      List<String> stringTable,
+      int valueType) throws IOException {
     switch (valueType) {
       case VALUE_TYPE_STRING:
         return readStreamingString(unpacker, stringTable);
@@ -298,8 +321,8 @@ public final class V1PayloadReader {
             attributes = readEventAttributes(unpacker, stringTable);
             break;
           default:
-            throw new IllegalArgumentException(
-                "Unexpected v1 span event field id: " + eventFieldId);
+            throw new IllegalArgumentException("Unexpected v1 span event field id: "
+                + eventFieldId);
         }
       }
       events.add(new V1SpanEvent(timeUnixNano, name, attributes));
@@ -308,7 +331,8 @@ public final class V1PayloadReader {
   }
 
   private static Map<String, Object> readEventAttributes(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
+      MessageUnpacker unpacker,
+      List<String> stringTable) throws IOException {
     int arraySize = unpacker.unpackArrayHeader();
     assertEquals(0, arraySize % 3);
     int attributeCount = arraySize / 3;
@@ -334,7 +358,8 @@ public final class V1PayloadReader {
           value = readEventArrayValue(unpacker, stringTable);
           break;
         default:
-          throw new IllegalArgumentException("Unknown v1 event attribute value type: " + valueType);
+          throw new IllegalArgumentException("Unknown v1 event attribute value type: "
+              + valueType);
       }
       attributes.put(key, value);
     }
@@ -342,7 +367,8 @@ public final class V1PayloadReader {
   }
 
   private static List<Object> readEventArrayValue(
-      MessageUnpacker unpacker, List<String> stringTable) throws IOException {
+      MessageUnpacker unpacker,
+      List<String> stringTable) throws IOException {
     int arraySize = unpacker.unpackArrayHeader();
     assertEquals(0, arraySize % 2);
     int itemCount = arraySize / 2;
@@ -370,7 +396,9 @@ public final class V1PayloadReader {
   }
 
   public static void skipPayloadField(
-      MessageUnpacker unpacker, int fieldId, List<String> stringTable) throws IOException {
+      MessageUnpacker unpacker,
+      int fieldId,
+      List<String> stringTable) throws IOException {
     switch (fieldId) {
       case PayloadField.CONTAINER_ID:
       case PayloadField.LANGUAGE_NAME:
@@ -490,22 +518,26 @@ public final class V1PayloadReader {
     return bytes;
   }
 
-  /** Encodes a trace id the same way {@link TraceMapperV1} serializes it (16 big-endian bytes). */
+  /**
+   * Encodes a trace id the same way {@link TraceMapperV1} serializes it (16 big-endian bytes).
+   */
   public static byte[] traceIdBytes(DDTraceId traceId) {
-    return ByteBuffer.allocate(16)
-        .putLong(traceId.toHighOrderLong())
-        .putLong(traceId.toLong())
-        .array();
+    return ByteBuffer
+      .allocate(16)
+      .putLong(traceId.toHighOrderLong())
+      .putLong(traceId.toLong())
+      .array();
   }
 
-  /** A decoded V1 span, exposing only the fields the tests assert on. */
+  /**
+   * A decoded V1 span, exposing only the fields the tests assert on.
+   */
   public static final class V1Span {
     private final Map<String, Object> attributes;
     private final List<V1SpanLink> links;
     private final List<V1SpanEvent> events;
 
-    private V1Span(
-        Map<String, Object> attributes, List<V1SpanLink> links, List<V1SpanEvent> events) {
+    private V1Span(Map<String, Object> attributes, List<V1SpanLink> links, List<V1SpanEvent> events) {
       this.attributes = attributes;
       this.links = links;
       this.events = events;
@@ -542,7 +574,9 @@ public final class V1PayloadReader {
     }
   }
 
-  /** A decoded V1 structured span link. */
+  /**
+   * A decoded V1 structured span link.
+   */
   public static final class V1SpanLink {
     private final byte[] traceId;
     private final long spanId;
@@ -584,7 +618,9 @@ public final class V1PayloadReader {
     }
   }
 
-  /** A decoded V1 structured span event. */
+  /**
+   * A decoded V1 structured span event.
+   */
   public static final class V1SpanEvent {
     private final long timeUnixNano;
     private final String name;

@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,7 +16,8 @@ import datadog.trace.agent.tooling.muzzle.Reference;
  */
 @AutoService(InstrumenterModule.class)
 public class PathPatternInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public PathPatternInstrumentation() {
     super("play");
   }
@@ -29,9 +29,7 @@ public class PathPatternInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
-    };
+    return new String[] {"datadog.trace.instrumentation.play.appsec.PathExtractionHelpers"};
   }
 
   @Override
@@ -43,10 +41,10 @@ public class PathPatternInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .and(returns(named("scala.Option"))),
+          .and(not(isStatic()))
+          .and(takesArguments(1))
+          .and(takesArgument(0, String.class))
+          .and(returns(named("scala.Option"))),
         packageName + ".PathPatternApplyAdvice");
   }
 }

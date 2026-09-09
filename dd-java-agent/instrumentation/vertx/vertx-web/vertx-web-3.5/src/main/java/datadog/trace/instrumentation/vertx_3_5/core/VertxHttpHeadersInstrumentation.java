@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -30,12 +29,10 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class VertxHttpHeadersInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   public static final Reference VERTX_HTTP_HEADERS =
       new Reference.Builder("io.vertx.core.http.impl.headers.VertxHttpHeaders").build();
-
   private final String className = VertxHttpHeadersInstrumentation.class.getName();
 
   public VertxHttpHeadersInstrumentation() {
@@ -61,15 +58,15 @@ public class VertxHttpHeadersInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("get"))
-            .and(takesArguments(1).and(takesArgument(0, CharSequence.class))),
+          .and(isPublic())
+          .and(named("get"))
+          .and(takesArguments(1).and(takesArgument(0, CharSequence.class))),
         className + "$GetAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("getAll"))
-            .and(takesArguments(1).and(takesArgument(0, CharSequence.class))),
+          .and(isPublic())
+          .and(named("getAll"))
+          .and(takesArguments(1).and(takesArgument(0, CharSequence.class))),
         className + "$GetAllAdvice");
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(named("entries")).and(takesArguments(0)),

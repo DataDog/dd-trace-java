@@ -2,7 +2,6 @@ package datadog.trace.plugin.csi.impl.assertion;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -11,7 +10,6 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 public class CallSiteAssert {
-
   protected Set<Class<?>> interfaces;
   protected Set<Class<?>> spi;
   protected Set<Class<?>> helpers;

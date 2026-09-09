@@ -12,7 +12,8 @@ public class BlockAllWritesHandler extends SimpleChannelDownstreamHandler {
   public static final ChannelDownstreamHandler INSTANCE = new BlockAllWritesHandler();
   private static final Logger log = LoggerFactory.getLogger(BlockAllWritesHandler.class);
 
-  private BlockAllWritesHandler() {}
+  private BlockAllWritesHandler() {
+  }
 
   @Override
   public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) {

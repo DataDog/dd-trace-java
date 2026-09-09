@@ -3,7 +3,6 @@ package datadog.trace.api.metrics;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -15,10 +14,12 @@ import org.junit.jupiter.api.Test;
  * its own uniquely-named collapse reasons to stay isolated from other tests' counters.
  */
 class StatsMetricsTest {
-
   private static Map<String, StatsMetrics.TaggedCounter> countersByTag() {
-    return StatsMetrics.getInstance().getTaggedCounters().stream()
-        .collect(Collectors.toMap(StatsMetrics.TaggedCounter::getTag, Function.identity()));
+    return StatsMetrics
+      .getInstance()
+      .getTaggedCounters()
+      .stream()
+      .collect(Collectors.toMap(StatsMetrics.TaggedCounter::getTag, Function.identity()));
   }
 
   @AfterEach
@@ -43,7 +44,6 @@ class StatsMetricsTest {
     assertEquals(StatsMetrics.COLLAPSED_SPANS, counter.getName());
     assertEquals(reason, counter.getTag());
     assertEquals(7, counter.getValue(), "getValue reports the running total");
-
     // First drain returns the whole accumulated delta; a second drain with no activity returns 0.
     assertEquals(7, counter.getValueAndReset(), "first drain returns the accumulated delta");
     assertEquals(0, counter.getValueAndReset(), "no new activity -> zero delta");
@@ -73,7 +73,6 @@ class StatsMetricsTest {
 
     metrics.onCollapsedSpans(reason, 0);
     metrics.onCollapsedSpans(reason, -5);
-
     // No counter is created for a reason that never saw a positive count.
     assertNull(countersByTag().get(reason), "no counter created for non-positive counts");
 
@@ -87,7 +86,6 @@ class StatsMetricsTest {
   @Test
   void wholeKeyCollapseIncrementsPreCreatedCounter() {
     StatsMetrics metrics = StatsMetrics.getInstance();
-
     // The whole_key counter is pre-created at construction, so it is always present in the drain.
     StatsMetrics.TaggedCounter counter = countersByTag().get(StatsMetrics.COLLAPSED_WHOLE_KEY);
     assertEquals(StatsMetrics.COLLAPSED_SPANS, counter.getName());
@@ -97,7 +95,6 @@ class StatsMetricsTest {
     metrics.onWholeKeyCollapse();
     metrics.onWholeKeyCollapse();
     assertEquals(before + 2, counter.getValue(), "each call increments the counter by one");
-
     // Routing the same tag through onCollapsedSpans hits the same pre-created counter instance.
     assertTrue(
         countersByTag().get(StatsMetrics.COLLAPSED_WHOLE_KEY) == counter,

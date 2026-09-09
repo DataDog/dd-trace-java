@@ -4,7 +4,6 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DroppingPolicy;
@@ -34,16 +33,13 @@ import org.slf4j.LoggerFactory;
  * the buffer is full. This is to avoid impacting an application thread.
  */
 public class TraceProcessingWorker implements AutoCloseable {
-
   private static final Logger log = LoggerFactory.getLogger(TraceProcessingWorker.class);
-
   private final PrioritizationStrategy prioritizationStrategy;
   private final MessagePassingBlockingQueue<Object> primaryQueue;
   private final MessagePassingBlockingQueue<Object> secondaryQueue;
   private final TraceSerializingHandler serializingHandler;
   private final Thread serializerThread;
   private final int capacity;
-
   private final SpanSamplingWorker spanSamplingWorker;
 
   public TraceProcessingWorker(
@@ -58,24 +54,26 @@ public class TraceProcessingWorker implements AutoCloseable {
     this.capacity = capacity;
     this.primaryQueue = createQueue(capacity);
     this.secondaryQueue = createQueue(capacity);
-    this.spanSamplingWorker =
-        SpanSamplingWorker.build(
-            capacity,
-            primaryQueue,
-            secondaryQueue,
-            singleSpanSampler,
-            healthMetrics,
-            droppingPolicy);
-    this.prioritizationStrategy =
-        prioritization.create(
-            primaryQueue,
-            secondaryQueue,
-            spanSamplingWorker.getSpanSamplingQueue(),
-            droppingPolicy);
+    this.spanSamplingWorker = SpanSamplingWorker.build(
+        capacity,
+        primaryQueue,
+        secondaryQueue,
+        singleSpanSampler,
+        healthMetrics,
+        droppingPolicy);
+    this.prioritizationStrategy = prioritization.create(
+        primaryQueue,
+        secondaryQueue,
+        spanSamplingWorker.getSpanSamplingQueue(),
+        droppingPolicy);
 
-    this.serializingHandler =
-        new TraceSerializingHandler(
-            primaryQueue, secondaryQueue, healthMetrics, dispatcher, flushInterval, timeUnit);
+    this.serializingHandler = new TraceSerializingHandler(
+        primaryQueue,
+        secondaryQueue,
+        healthMetrics,
+        dispatcher,
+        flushInterval,
+        timeUnit);
     this.serializerThread = newAgentThread(TRACE_PROCESSOR, serializingHandler);
   }
 
@@ -110,7 +108,9 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public <T extends CoreSpan<T>> PrioritizationStrategy.PublishResult publish(
-      T root, int samplingPriority, final List<T> trace) {
+      T root,
+      int samplingPriority,
+      final List<T> trace) {
     return prioritizationStrategy.publish(root, samplingPriority, trace);
   }
 
@@ -133,7 +133,6 @@ public class TraceProcessingWorker implements AutoCloseable {
   }
 
   public static class TraceSerializingHandler implements Runnable {
-
     private final MessagePassingBlockingQueue<Object> primaryQueue;
     private final MessagePassingBlockingQueue<Object> secondaryQueue;
     private final HealthMetrics healthMetrics;
@@ -265,14 +264,14 @@ public class TraceProcessingWorker implements AutoCloseable {
         final boolean[] timedOut = {false};
         final BooleanSupplier timeoutCheck =
             () -> {
-              if (timedOut[0]) {
-                return true;
-              }
-              if (System.nanoTime() > deadline) {
-                timedOut[0] = true;
-              }
-              return timedOut[0];
-            };
+          if (timedOut[0]) {
+            return true;
+          }
+          if (System.nanoTime() > deadline) {
+            timedOut[0] = true;
+          }
+          return timedOut[0];
+        };
         for (DDSpan span : trace) {
           postProcessor.process(span, timeoutCheck);
         }

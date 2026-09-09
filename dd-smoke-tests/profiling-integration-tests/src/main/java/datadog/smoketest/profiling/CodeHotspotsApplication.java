@@ -26,7 +26,9 @@ public final class CodeHotspotsApplication {
         break;
       case "fanout":
         application.fanout(
-            Integer.parseInt(args[1]), Long.parseLong(args[2]), Integer.parseInt(args[3]));
+            Integer.parseInt(args[1]),
+            Long.parseLong(args[2]),
+            Integer.parseInt(args[3]));
         break;
       default:
         throw new RuntimeException("Invalid application kind: " + kind);

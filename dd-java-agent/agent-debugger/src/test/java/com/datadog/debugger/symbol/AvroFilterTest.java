@@ -3,7 +3,6 @@ package com.datadog.debugger.symbol;
 import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
 class AvroFilterTest {
@@ -15,21 +14,18 @@ class AvroFilterTest {
     assertFalse(avroFilter.filterOut(scope));
     scope = Scope.builder(ScopeType.CLASS, "", 0, 0).name("org.apache.avro.MyClass").build();
     assertFalse(avroFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .languageSpecifics(
-                new LanguageSpecifics.Builder()
-                    .superClass("org.apache.avro.specific.SpecificRecordBase")
-                    .build())
-            .build();
+    scope = Scope
+      .builder(ScopeType.CLASS, "", 0, 0)
+      .languageSpecifics(new LanguageSpecifics.Builder()
+        .superClass("org.apache.avro.specific.SpecificRecordBase")
+        .build())
+      .build();
     assertFalse(avroFilter.filterOut(scope));
-    scope =
-        Scope.builder(ScopeType.CLASS, "", 0, 0)
-            .symbols(
-                asList(
-                    new Symbol(
-                        SymbolType.STATIC_FIELD, "SCHEMA$", 0, "org.apache.avro.Schema", null)))
-            .build();
+    scope = Scope
+      .builder(ScopeType.CLASS, "", 0, 0)
+      .symbols(
+          asList(new Symbol(SymbolType.STATIC_FIELD, "SCHEMA$", 0, "org.apache.avro.Schema", null)))
+      .build();
     assertTrue(avroFilter.filterOut(scope));
   }
 }

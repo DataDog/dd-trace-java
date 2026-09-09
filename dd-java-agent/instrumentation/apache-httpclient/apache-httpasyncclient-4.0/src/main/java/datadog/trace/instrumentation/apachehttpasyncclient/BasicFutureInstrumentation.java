@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import net.bytebuddy.asm.Advice;
@@ -14,9 +13,8 @@ import org.apache.http.concurrent.FutureCallback;
 
 public final class BasicFutureInstrumentation
     implements Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "org.apache.http.concurrent.BasicFuture";

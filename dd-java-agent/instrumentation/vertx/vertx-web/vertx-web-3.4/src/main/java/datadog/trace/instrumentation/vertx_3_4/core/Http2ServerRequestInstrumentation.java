@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -22,7 +21,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequestInstrumentation {
-
   @Override
   protected ElementMatcher.Junction<MethodDescription> attributesFilter() {
     return isPublic().and(named("formAttributes"));
@@ -43,7 +41,6 @@ public class Http2ServerRequestInstrumentation extends AbstractHttpServerRequest
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class HeadersAdvice {
-
     @Advice.OnMethodEnter
     public static void onEnter(
         @Advice.Local("beforeHeaders") Object beforeHeaders,

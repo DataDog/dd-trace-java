@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 public class SparkExecutorDecorator extends BaseDecorator {
   private static final Logger log = LoggerFactory.getLogger(SparkExecutorDecorator.class);
-
   public static final CharSequence SPARK_TASK = UTF8BytesString.create("spark.task");
   public static final CharSequence SPARK = UTF8BytesString.create("spark");
   public static SparkExecutorDecorator DECORATE = new SparkExecutorDecorator();
@@ -62,7 +61,8 @@ public class SparkExecutorDecorator extends BaseDecorator {
       span.setTag("app_attempt_id", taskRunner.task().appAttemptId().get());
     }
     span.setTag(
-        "application_name", taskRunner.task().localProperties().getProperty("spark.app.name"));
+        "application_name",
+        taskRunner.task().localProperties().getProperty("spark.app.name"));
 
     TaskMetrics metrics = taskRunner.task().metrics();
     span.setMetric("spark.executor_deserialize_time", metrics.executorDeserializeTime());
@@ -84,12 +84,14 @@ public class SparkExecutorDecorator extends BaseDecorator {
     span.setMetric("spark.shuffle_read_bytes", metrics.shuffleReadMetrics().totalBytesRead());
     span.setMetric("spark.shuffle_read_bytes_local", metrics.shuffleReadMetrics().localBytesRead());
     span.setMetric(
-        "spark.shuffle_read_bytes_remote", metrics.shuffleReadMetrics().remoteBytesRead());
+        "spark.shuffle_read_bytes_remote",
+        metrics.shuffleReadMetrics().remoteBytesRead());
     span.setMetric(
         "spark.shuffle_read_bytes_remote_to_disk",
         metrics.shuffleReadMetrics().remoteBytesReadToDisk());
     span.setMetric(
-        "spark.shuffle_read_fetch_wait_time", metrics.shuffleReadMetrics().fetchWaitTime());
+        "spark.shuffle_read_fetch_wait_time",
+        metrics.shuffleReadMetrics().fetchWaitTime());
     span.setMetric("spark.shuffle_read_records", metrics.shuffleReadMetrics().recordsRead());
 
     span.setMetric("spark.shuffle_write_bytes", metrics.shuffleWriteMetrics().bytesWritten());

@@ -5,4 +5,5 @@ package datadog.trace.bootstrap.instrumentation.api;
  *
  * <p>Eager helpers must declare a public static "init" method that takes no arguments.
  */
-public interface EagerHelper {}
+public interface EagerHelper {
+}

@@ -13,7 +13,9 @@ public class TestSecurityManager extends CustomSecurityManager {
   public static final class NoEnvAccess extends TestSecurityManager {
     @Override
     protected final boolean checkRuntimeEnvironmentAccess(
-        RuntimePermission perm, Object ctx, String envVar) {
+        RuntimePermission perm,
+        Object ctx,
+        String envVar) {
       return false;
     }
   }
@@ -21,13 +23,17 @@ public class TestSecurityManager extends CustomSecurityManager {
   public static final class MinimalPropertyAccess extends TestSecurityManager {
     @Override
     protected boolean checkPropertyReadPermission(
-        PropertyPermission perm, Object ctx, String property) {
+        PropertyPermission perm,
+        Object ctx,
+        String property) {
       return minimalCheckPropertyReadPermission(perm, ctx, property);
     }
 
     @Override
     protected boolean checkPropertyWritePermission(
-        PropertyPermission perm, Object ctx, String property) {
+        PropertyPermission perm,
+        Object ctx,
+        String property) {
       return false;
     }
   }
@@ -53,7 +59,9 @@ public class TestSecurityManager extends CustomSecurityManager {
 
   @Override
   protected boolean checkPropertyReadPermission(
-      PropertyPermission perm, Object ctx, String property) {
+      PropertyPermission perm,
+      Object ctx,
+      String property) {
     return isDatadogProperty(property)
         || isOkHttpProperty(property)
         || isSlf4jProperty(property)
@@ -64,7 +72,9 @@ public class TestSecurityManager extends CustomSecurityManager {
 
   @Override
   protected boolean checkPropertyWritePermission(
-      PropertyPermission perm, Object ctx, String property) {
+      PropertyPermission perm,
+      Object ctx,
+      String property) {
     return isDatadogProperty(property)
         || isOkHttpProperty(property)
         || isByteBuddyProperty(property)
@@ -92,19 +102,18 @@ public class TestSecurityManager extends CustomSecurityManager {
   }
 
   @Override
-  protected boolean checkRuntimeEnvironmentAccess(
-      RuntimePermission perm, Object ctx, String envVar) {
-    if (isDatadogEnvVar(envVar)) return true;
+  protected boolean checkRuntimeEnvironmentAccess(RuntimePermission perm, Object ctx, String envVar) {
+    if (isDatadogEnvVar(envVar)) {
+      return true;
+    }
 
     switch (envVar) {
       // jboss sniffing?
       case "JBOSS_HOME":
         return true;
-
       // environment capture?
       case "WEBSITE_SITE_NAME":
         return true;
-
       // AWS properties used during bootstrapping?
       case "AWS_LAMBDA_INITIALIZATION_TYPE":
       case "_HANDLER":
@@ -127,7 +136,9 @@ public class TestSecurityManager extends CustomSecurityManager {
 
   @Override
   protected boolean checkRuntimeClassLoaderModification(
-      RuntimePermission perm, Object ctx, String permName) {
+      RuntimePermission perm,
+      Object ctx,
+      String permName) {
     // override to allow ClassLoader creation & set context ClassLoader
     return true;
   }
@@ -164,20 +175,21 @@ public class TestSecurityManager extends CustomSecurityManager {
       // agent socket communication
       case "/var/run/datadog/apm.socket":
         return true;
-
       // agent sniffing?
       case "/opt/extensions/datadog-agent":
         return true;
-
       // ContainerInfo
       case "/proc/self/cgroup":
         return true;
     }
-
     // version info
-    if (filePath.endsWith("/dd-java-agent.version")) return true;
+    if (filePath.endsWith("/dd-java-agent.version")) {
+      return true;
+    }
 
-    if (filePath.endsWith("/simplelogger.properties")) return true;
+    if (filePath.endsWith("/simplelogger.properties")) {
+      return true;
+    }
 
     return super.checkFileReadPermission(perm, ctx, filePath);
   }
@@ -189,18 +201,18 @@ public class TestSecurityManager extends CustomSecurityManager {
 
   @Override
   protected boolean checkRuntimeFileSystemAccess(
-      RuntimePermission perm, Object ctx, String permission) {
+      RuntimePermission perm,
+      Object ctx,
+      String permission) {
     // used by ContainerInfo
     return true;
   }
 
   @Override
-  protected boolean checkOtherRuntimePermission(
-      RuntimePermission perm, Object ctx, String permName) {
+  protected boolean checkOtherRuntimePermission(RuntimePermission perm, Object ctx, String permName) {
     switch (permName) {
       case "net.bytebuddy.createJavaDispatcher":
         return true;
-
       default:
         return false;
     }

@@ -15,14 +15,15 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class LLMObs {
-  protected LLMObs() {}
+  protected LLMObs() {
+  }
 
   protected static LLMObsSpanFactory SPAN_FACTORY = NoOpLLMObsSpanFactory.INSTANCE;
   protected static LLMObsEvalProcessor EVAL_PROCESSOR = NoOpLLMObsEvalProcessor.INSTANCE;
   private static final Object SPAN_PROCESSOR_LOCK = new Object();
-  @Nullable protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
-  protected static LLMObsFeedbackProcessor FEEDBACK_PROCESSOR =
-      NoOpLLMObsFeedbackProcessor.INSTANCE;
+  @Nullable
+  protected static volatile LLMObsSpanProcessor SPAN_PROCESSOR;
+  protected static LLMObsFeedbackProcessor FEEDBACK_PROCESSOR = NoOpLLMObsFeedbackProcessor.INSTANCE;
 
   public static LLMObsSpan startLLMSpan(
       String spanName,
@@ -30,13 +31,13 @@ public class LLMObs {
       String modelProvider,
       @Nullable String mlApp,
       @Nullable String sessionId) {
-
     return SPAN_FACTORY.startLLMSpan(spanName, modelName, modelProvider, mlApp, sessionId);
   }
 
   public static LLMObsSpan startAgentSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionId);
   }
 
@@ -58,25 +59,27 @@ public class LLMObs {
       @Nullable String mlApp,
       @Nullable String sessionId,
       @Nullable String version) {
-
     return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionId, version);
   }
 
   public static LLMObsSpan startToolSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return SPAN_FACTORY.startToolSpan(spanName, mlApp, sessionId);
   }
 
   public static LLMObsSpan startTaskSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return SPAN_FACTORY.startTaskSpan(spanName, mlApp, sessionId);
   }
 
   public static LLMObsSpan startWorkflowSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
-
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return SPAN_FACTORY.startWorkflowSpan(spanName, mlApp, sessionId);
   }
 
@@ -90,7 +93,9 @@ public class LLMObs {
   }
 
   public static LLMObsSpan startRetrievalSpan(
-      String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId) {
     return SPAN_FACTORY.startRetrievalSpan(spanName, mlApp, sessionId);
   }
 
@@ -110,13 +115,15 @@ public class LLMObs {
       if (SPAN_PROCESSOR != null) {
         throw new IllegalStateException(
             "An LLM Observability span processor is already registered. "
-                + "Deregister it before registering another.");
+            + "Deregister it before registering another.");
       }
       SPAN_PROCESSOR = processor;
     }
   }
 
-  /** Deregisters the current LLM Observability span processor, if one is registered. */
+  /**
+   * Deregisters the current LLM Observability span processor, if one is registered.
+   */
   public static void deregisterProcessor() {
     synchronized (SPAN_PROCESSOR_LOCK) {
       SPAN_PROCESSOR = null;
@@ -124,7 +131,10 @@ public class LLMObs {
   }
 
   public static void SubmitEvaluation(
-      LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags) {
+      LLMObsSpan llmObsSpan,
+      String label,
+      String categoricalValue,
+      Map<String, Object> tags) {
     EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, categoricalValue, tags);
   }
 
@@ -138,7 +148,10 @@ public class LLMObs {
   }
 
   public static void SubmitEvaluation(
-      LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags) {
+      LLMObsSpan llmObsSpan,
+      String label,
+      double scoreValue,
+      Map<String, Object> tags) {
     EVAL_PROCESSOR.SubmitEvaluation(llmObsSpan, label, scoreValue, tags);
   }
 
@@ -205,7 +218,9 @@ public class LLMObs {
     LLMObsSpan startTaskSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
 
     LLMObsSpan startWorkflowSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId);
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId);
 
     LLMObsSpan startEmbeddingSpan(
         String spanName,
@@ -215,12 +230,17 @@ public class LLMObs {
         @Nullable String sessionId);
 
     LLMObsSpan startRetrievalSpan(
-        String spanName, @Nullable String mlApp, @Nullable String sessionId);
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId);
   }
 
   public interface LLMObsEvalProcessor {
     void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, double scoreValue, Map<String, Object> tags);
+        LLMObsSpan llmObsSpan,
+        String label,
+        double scoreValue,
+        Map<String, Object> tags);
 
     void SubmitEvaluation(
         LLMObsSpan llmObsSpan,
@@ -230,7 +250,10 @@ public class LLMObs {
         Map<String, Object> tags);
 
     void SubmitEvaluation(
-        LLMObsSpan llmObsSpan, String label, String categoricalValue, Map<String, Object> tags);
+        LLMObsSpan llmObsSpan,
+        String label,
+        String categoricalValue,
+        Map<String, Object> tags);
 
     void SubmitEvaluation(
         LLMObsSpan llmObsSpan,
@@ -254,20 +277,30 @@ public class LLMObs {
    * runs without the agent attached never sees an exception it would not see in production.
    */
   public static class Feedback {
-
-    /** The kind of value carried by a feedback metric. */
+    /**
+     * The kind of value carried by a feedback metric.
+     */
     public enum MetricType {
-      /** A value from a set of names, e.g. {@code "satisfied"}. */
+      /**
+       * A value from a set of names, e.g. {@code "satisfied"}.
+       */
       CATEGORICAL,
-      /** A numeric value. */
+      /**
+       * A numeric value.
+       */
       SCORE,
-      /** A true/false value, e.g. a thumbs up or down. */
+      /**
+       * A true/false value, e.g. a thumbs up or down.
+       */
       BOOLEAN,
-      /** A structured value. */
+      /**
+       * A structured value.
+       */
       JSON,
-      /** Free-form text, e.g. a written comment. Feedback-only; evaluations reject it. */
+      /**
+       * Free-form text, e.g. a written comment. Feedback-only; evaluations reject it.
+       */
       TEXT;
-
       /**
        * Returns the wire representation of this metric type.
        *
@@ -279,13 +312,18 @@ public class LLMObs {
       }
     }
 
-    /** Whether the submitter considered the targeted operation a success. */
+    /**
+     * Whether the submitter considered the targeted operation a success.
+     */
     public enum Assessment {
-      /** The operation was satisfactory. */
+      /**
+       * The operation was satisfactory.
+       */
       PASS,
-      /** The operation was not satisfactory. */
+      /**
+       * The operation was not satisfactory.
+       */
       FAIL;
-
       /**
        * Returns the wire representation of this assessment.
        *
@@ -297,17 +335,26 @@ public class LLMObs {
       }
     }
 
-    /** The entity a feedback is attached to. Exactly one is set on a given feedback. */
+    /**
+     * The entity a feedback is attached to. Exactly one is set on a given feedback.
+     */
     public enum TargetType {
-      /** A single span. */
+      /**
+       * A single span.
+       */
       SPAN_ID("span_id"),
-      /** A whole trace. */
+      /**
+       * A whole trace.
+       */
       TRACE_ID("trace_id"),
-      /** A session, spanning several traces. */
+      /**
+       * A session, spanning several traces.
+       */
       SESSION_ID("session_id"),
-      /** A customer-defined business entity key, opaque to the tracer. */
+      /**
+       * A customer-defined business entity key, opaque to the tracer.
+       */
       FEEDBACK_JOIN_KEY("feedback_join_key");
-
       private final String wireKey;
 
       TargetType(String wireKey) {
@@ -319,10 +366,14 @@ public class LLMObs {
       }
     }
 
-    /** Who submitted a feedback. */
+    /**
+     * Who submitted a feedback.
+     */
     public static class Submitter {
-      @Nullable private final String id;
-      @Nullable private final String type;
+      @Nullable
+      private final String id;
+      @Nullable
+      private final String type;
 
       /**
        * Creates a submitter. An invalid id is not rejected here but by {@link Feedback#validate()}.
@@ -370,18 +421,29 @@ public class LLMObs {
       }
     }
 
-    @Nullable private final TargetType targetType;
-    @Nullable private final String targetValue;
-    @Nullable private final String label;
-    @Nullable private final MetricType metricType;
-    @Nullable private final Object value;
-    @Nullable private final Submitter submitter;
-    @Nullable private final String mlApp;
-    @Nullable private final Assessment assessment;
-    @Nullable private final String reasoning;
+    @Nullable
+    private final TargetType targetType;
+    @Nullable
+    private final String targetValue;
+    @Nullable
+    private final String label;
+    @Nullable
+    private final MetricType metricType;
+    @Nullable
+    private final Object value;
+    @Nullable
+    private final Submitter submitter;
+    @Nullable
+    private final String mlApp;
+    @Nullable
+    private final Assessment assessment;
+    @Nullable
+    private final String reasoning;
     private final long timestampMs;
-    @Nullable private final Map<String, Object> tags;
-    @Nullable private final ValidationError validationError;
+    @Nullable
+    private final Map<String, Object> tags;
+    @Nullable
+    private final ValidationError validationError;
 
     private Feedback(Builder builder, long timestampMs, @Nullable ValidationError validationError) {
       this.validationError = validationError;
@@ -395,8 +457,9 @@ public class LLMObs {
       this.mlApp = builder.mlApp;
       this.assessment = builder.assessment;
       this.reasoning = builder.reasoning;
-      this.tags =
-          builder.tags == null ? null : Collections.unmodifiableMap(new HashMap<>(builder.tags));
+      this.tags = builder.tags == null
+          ? null
+          : Collections.unmodifiableMap(new HashMap<>(builder.tags));
     }
 
     public static Builder builder() {
@@ -435,7 +498,9 @@ public class LLMObs {
       return metricType;
     }
 
-    /** Returns the feedback value, whose runtime type matches {@link #getMetricType()}. */
+    /**
+     * Returns the feedback value, whose runtime type matches {@link #getMetricType()}.
+     */
     @Nullable
     public Object getValue() {
       return value;
@@ -446,7 +511,9 @@ public class LLMObs {
       return submitter;
     }
 
-    /** Returns the ML app, or null to fall back on the tracer configured one. */
+    /**
+     * Returns the ML app, or null to fall back on the tracer configured one.
+     */
     @Nullable
     public String getMlApp() {
       return mlApp;
@@ -470,7 +537,9 @@ public class LLMObs {
       return timestampMs;
     }
 
-    /** Returns an unmodifiable view of the tags, or null if none were provided. */
+    /**
+     * Returns an unmodifiable view of the tags, or null if none were provided.
+     */
     @Nullable
     public Map<String, Object> getTags() {
       return tags;
@@ -498,7 +567,8 @@ public class LLMObs {
       private Map<String, Object> tags;
       private ValidationError error;
 
-      private Builder() {}
+      private Builder() {
+      }
 
       /**
        * Targets the given span. Wire-equivalent to {@link #spanId(String)} with the span's id.
@@ -723,7 +793,9 @@ public class LLMObs {
        */
       public Feedback build() {
         return new Feedback(
-            this, timestampMs == 0 ? System.currentTimeMillis() : timestampMs, validationError());
+            this,
+            timestampMs == 0 ? System.currentTimeMillis() : timestampMs,
+            validationError());
       }
 
       /**
@@ -738,11 +810,12 @@ public class LLMObs {
           return new ValidationError(
               "invalid_target_count",
               "exactly one of span, spanId, traceId, sessionId or feedbackJoinKey must be specified"
-                  + " to submit feedback");
+              + " to submit feedback");
         }
         if (label == null || label.isEmpty()) {
           return new ValidationError(
-              "invalid_metric_label", "label must be the specified name of the feedback metric");
+              "invalid_metric_label",
+              "label must be the specified name of the feedback metric");
         }
         if (label.indexOf('.') >= 0) {
           return new ValidationError("invalid_label_value", "label value must not contain a '.'");
@@ -751,19 +824,18 @@ public class LLMObs {
           return new ValidationError(
               "invalid_metric_type",
               "exactly one of categoricalValue, scoreValue, booleanValue, jsonValue or textValue"
-                  + " must be specified to submit feedback");
+              + " must be specified to submit feedback");
         }
         if (submitter == null) {
           return new ValidationError(
-              "invalid_submitter", "submitter must be specified to submit feedback");
+              "invalid_submitter",
+              "submitter must be specified to submit feedback");
         }
         if (submitter.getId() == null || submitter.getId().isEmpty()) {
-          return new ValidationError(
-              "invalid_submitter", "submitter id must be a non-empty string");
+          return new ValidationError("invalid_submitter", "submitter id must be a non-empty string");
         }
         if (timestampMs < 0) {
-          return new ValidationError(
-              "invalid_timestamp", "timestampMs must be a non-negative long");
+          return new ValidationError("invalid_timestamp", "timestampMs must be a non-negative long");
         }
         return null;
       }
@@ -780,12 +852,13 @@ public class LLMObs {
           return fail(
               "invalid_target_count",
               "a feedback target was already set to "
-                  + targetType.getWireKey()
-                  + ", exactly one target must be specified");
+              + targetType.getWireKey()
+              + ", exactly one target must be specified");
         }
         if (value == null || value.isEmpty()) {
           return fail(
-              "invalid_" + type.getWireKey(), type.getWireKey() + " must be a non-empty string");
+              "invalid_" + type.getWireKey(),
+              type.getWireKey() + " must be a non-empty string");
         }
         this.targetType = type;
         this.targetValue = value;
@@ -796,9 +869,7 @@ public class LLMObs {
         if (metricType != null) {
           return fail(
               "invalid_metric_type",
-              "a feedback value was already set as "
-                  + metricType
-                  + ", exactly one value must be specified");
+              "a feedback value was already set as " + metricType + ", exactly one value must be specified");
         }
         if (value == null) {
           return fail("invalid_metric_value", "value must not be null for a " + type + " metric");
@@ -810,7 +881,9 @@ public class LLMObs {
     }
   }
 
-  /** A prompt template and its associated attributes for an LLM call. */
+  /**
+   * A prompt template and its associated attributes for an LLM call.
+   */
   public static final class Prompt {
     private final String id;
     private final String version;
@@ -886,7 +959,8 @@ public class LLMObs {
       private List<String> contextVariables;
       private List<String> queryVariables;
 
-      private Builder() {}
+      private Builder() {
+      }
 
       public Builder id(String id) {
         this.id = id;
@@ -943,7 +1017,10 @@ public class LLMObs {
     private Map<String, Object> arguments;
 
     public static ToolCall from(
-        String name, String type, String toolId, Map<String, Object> arguments) {
+        String name,
+        String type,
+        String toolId,
+        Map<String, Object> arguments) {
       return new ToolCall(name, type, toolId, arguments);
     }
 
@@ -990,12 +1067,18 @@ public class LLMObs {
     }
 
     public static ToolDefinition from(
-        String name, String description, Map<String, Object> schema, String version) {
+        String name,
+        String description,
+        Map<String, Object> schema,
+        String version) {
       return new ToolDefinition(name, description, schema, version);
     }
 
     private ToolDefinition(
-        String name, String description, Map<String, Object> schema, String version) {
+        String name,
+        String description,
+        Map<String, Object> schema,
+        String version) {
       this.name = name;
       this.description = description;
       this.schema = schema;
@@ -1064,7 +1147,10 @@ public class LLMObs {
     }
 
     public static LLMMessage from(
-        String role, String content, List<ToolCall> toolCalls, List<ToolResult> toolResults) {
+        String role,
+        String content,
+        List<ToolCall> toolCalls,
+        List<ToolResult> toolResults) {
       return new LLMMessage(role, content, toolCalls, toolResults);
     }
 
@@ -1077,7 +1163,10 @@ public class LLMObs {
     }
 
     private LLMMessage(
-        String role, String content, List<ToolCall> toolCalls, List<ToolResult> toolResults) {
+        String role,
+        String content,
+        List<ToolCall> toolCalls,
+        List<ToolResult> toolResults) {
       this.role = role;
       this.content = content;
       this.toolCalls = toolCalls;
@@ -1112,7 +1201,10 @@ public class LLMObs {
     }
 
     public static Document from(
-        String text, @Nullable String name, @Nullable String id, @Nullable Double score) {
+        String text,
+        @Nullable String name,
+        @Nullable String id,
+        @Nullable Double score) {
       return new Document(text, name, id, score);
     }
 
@@ -1140,7 +1232,9 @@ public class LLMObs {
     }
   }
 
-  /** A tool declared in an agent manifest. */
+  /**
+   * A tool declared in an agent manifest.
+   */
   public static final class AgentTool {
     private final String name;
     private final String description;
@@ -1159,15 +1253,18 @@ public class LLMObs {
      *     mutate nested values after construction
      */
     public static AgentTool from(
-        String name, @Nullable String description, @Nullable Map<String, Object> parameters) {
+        String name,
+        @Nullable String description,
+        @Nullable Map<String, Object> parameters) {
       return new AgentTool(name, description, parameters);
     }
 
     private AgentTool(String name, String description, Map<String, Object> parameters) {
       this.name = name;
       this.description = description;
-      this.parameters =
-          parameters == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(parameters));
+      this.parameters = parameters == null
+          ? null
+          : Collections.unmodifiableMap(new LinkedHashMap<>(parameters));
     }
 
     @Nullable
@@ -1209,14 +1306,12 @@ public class LLMObs {
       this.name = builder.name;
       this.instructions = builder.instructions;
       this.model = builder.model;
-      this.modelSettings =
-          builder.modelSettings == null
-              ? null
-              : Collections.unmodifiableMap(new LinkedHashMap<>(builder.modelSettings));
-      this.tools =
-          builder.tools == null
-              ? null
-              : Collections.unmodifiableList(new ArrayList<>(builder.tools));
+      this.modelSettings = builder.modelSettings == null
+          ? null
+          : Collections.unmodifiableMap(new LinkedHashMap<>(builder.modelSettings));
+      this.tools = builder.tools == null
+          ? null
+          : Collections.unmodifiableList(new ArrayList<>(builder.tools));
     }
 
     @Nullable
@@ -1251,7 +1346,8 @@ public class LLMObs {
       private Map<String, Object> modelSettings;
       private List<AgentTool> tools;
 
-      private Builder() {}
+      private Builder() {
+      }
 
       public Builder name(String name) {
         this.name = name;

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.test.base.TestInstrumentation;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,7 +17,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class ClassInjectingTestInstrumentation extends TestInstrumentation
     implements Instrumenter.WithTypeStructure {
-
   @Override
   public String instrumentedType() {
     return getClass().getName() + "$ToBeInstrumented";
@@ -37,14 +35,14 @@ public class ClassInjectingTestInstrumentation extends TestInstrumentation
 
   public static class ConstructorAdvice {
     @Advice.OnMethodEnter
-    public static void appendToMessage(
-        @Advice.Argument(value = 0, readOnly = false) String message) {
+    public static void appendToMessage(@Advice.Argument(value = 0, readOnly = false) String message) {
       message = message + ":instrumented";
     }
   }
 
   @Retention(RetentionPolicy.RUNTIME)
-  public @interface ToBeMatched {}
+  public @interface ToBeMatched {
+  }
 
   public static final class ToBeInstrumented {
     private final String message;

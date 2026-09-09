@@ -2,7 +2,6 @@ package com.datadog.debugger.sink;
 
 import static com.datadog.debugger.uploader.BatchUploader.APPLICATION_JSON;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.agent.ProbeStatus.Builder;
 import com.datadog.debugger.agent.ProbeStatus.Status;
@@ -27,15 +26,15 @@ import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Collects probe status messages that needs to be sent to the backend */
+/**
+ * Collects probe status messages that needs to be sent to the backend
+ */
 public class ProbeStatusSink {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ProbeStatusSink.class);
   private static final JsonAdapter<ProbeStatus> PROBE_STATUS_ADAPTER =
       MoshiHelper.createMoshiProbeStatus().adapter(ProbeStatus.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(10);
-
   private final BatchUploader diagnosticUploader;
   private final Builder messageBuilder;
   private final Map<String, TimedMessage> probeStatuses = new ConcurrentHashMap<>();
@@ -197,9 +196,7 @@ public class ProbeStatusSink {
   private boolean enqueueTimedMessage(TimedMessage message, Instant now) {
     if (!queue.contains(message.getMessage())) {
       if (queue.offer(
-          message.isAlreadySent()
-              ? message.getMessage().withNewTimestamp(now)
-              : message.getMessage())) {
+          message.isAlreadySent() ? message.getMessage().withNewTimestamp(now) : message.getMessage())) {
         message.setLastEmit(now);
       } else {
         ratelimitedLogger.warn(
@@ -216,8 +213,10 @@ public class ProbeStatusSink {
   private boolean shouldOverwrite(ProbeStatus current, ProbeStatus next) {
     return next.getDiagnostics().getStatus() == Status.ERROR
         || (current.getDiagnostics().getStatus() != next.getDiagnostics().getStatus())
-        || (current.getDiagnostics().getProbeId().getVersion()
-            < next.getDiagnostics().getProbeId().getVersion());
+        || (current.getDiagnostics().getProbeId().getVersion() < next
+      .getDiagnostics()
+      .getProbeId()
+      .getVersion());
   }
 
   private boolean shouldEmitAgain(Instant now, Instant lastEmit) {
@@ -225,7 +224,6 @@ public class ProbeStatusSink {
   }
 
   private static class TimedMessage {
-
     private final ProbeStatus message;
     private Instant lastEmit;
 

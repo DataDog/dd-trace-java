@@ -29,9 +29,7 @@ import org.slf4j.LoggerFactory;
 
 public class DatadogProfilerOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfilerOngoingRecording.class);
-
   private final ProfilerSettingsSupport configMemento;
-
   private final OngoingRecording recording;
   private final Instant started = Instant.now();
 
@@ -43,8 +41,9 @@ public class DatadogProfilerOngoingRecording implements OngoingRecording {
       throw new UnsupportedEnvironmentException("Failed to start Datadog profiler");
     }
     log.debug("Recording {} started", recordingName);
-    this.configMemento =
-        JavaVirtualMachine.isJ9() ? new DatadogProfilerSettings(datadogProfiler) : null;
+    this.configMemento = JavaVirtualMachine.isJ9()
+        ? new DatadogProfilerSettings(datadogProfiler)
+        : null;
   }
 
   @Override

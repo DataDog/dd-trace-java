@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -24,7 +23,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class UriRoutingContextInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public UriRoutingContextInstrumentation() {
     super("jersey");
   }
@@ -71,9 +71,8 @@ public class UriRoutingContextInstrumentation extends InstrumenterModule.AppSec
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
           blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t =
-              new BlockingException(
-                  "Blocked request (for UriRoutingContextInstrumentation/getPathParameters)");
+          t = new BlockingException(
+              "Blocked request (for UriRoutingContextInstrumentation/getPathParameters)");
           reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }

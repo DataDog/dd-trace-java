@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,8 +19,8 @@ import org.junit.runner.notification.RunNotifier;
  */
 @AutoService(InstrumenterModule.class)
 public class JUnitLegacySuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public JUnitLegacySuiteEventsInstrumentation() {
     super("ci-visibility", "junit-4", "junit-38", "powermock");
   }
@@ -29,19 +28,19 @@ public class JUnitLegacySuiteEventsInstrumentation extends InstrumenterModule.Ci
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.junit.internal.runners.JUnit38ClassRunner",
-      "org.powermock.modules.junit4.PowerMockRunner"
+        "org.junit.internal.runners.JUnit38ClassRunner",
+        "org.powermock.modules.junit4.PowerMockRunner"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4TracingListener",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".SkippedByDatadog",
+        packageName + ".JUnit4Utils",
+        packageName + ".TracingListener",
+        packageName + ".JUnit4TracingListener"
     };
   }
 
@@ -62,7 +61,8 @@ public class JUnitLegacySuiteEventsInstrumentation extends InstrumenterModule.Ci
   public static class JUnitLegacySuiteEventsAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void fireSuiteStartedEvent(
-        @Advice.Argument(0) final RunNotifier runNotifier, @Advice.This final Runner runner) {
+        @Advice.Argument(0) final RunNotifier runNotifier,
+        @Advice.This final Runner runner) {
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;
@@ -78,7 +78,8 @@ public class JUnitLegacySuiteEventsInstrumentation extends InstrumenterModule.Ci
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void fireSuiteFinishedEvent(
-        @Advice.Argument(0) final RunNotifier runNotifier, @Advice.This final Runner runner) {
+        @Advice.Argument(0) final RunNotifier runNotifier,
+        @Advice.This final Runner runner) {
       final List<RunListener> runListeners = JUnit4Utils.runListenersFromRunNotifier(runNotifier);
       if (runListeners == null) {
         return;

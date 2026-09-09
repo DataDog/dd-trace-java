@@ -14,7 +14,6 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 public class GitDiffParser {
-
   private static final Pattern CHANGED_FILE_PATTERN =
       Pattern.compile("^diff --git (?<oldfilename>.+) (?<newfilename>.+)$");
   private static final Pattern CHANGED_LINES_PATTERN =
@@ -37,7 +36,6 @@ public class GitDiffParser {
         }
         changedFile = changedFileMatcher.group("newfilename");
         changedLines = new BitSet();
-
       } else {
         Matcher changedLinesMatcher = CHANGED_LINES_PATTERN.matcher(line);
         while (changedLinesMatcher.find()) {
@@ -46,9 +44,7 @@ public class GitDiffParser {
           int count = stringCount != null ? Integer.parseInt(stringCount) : 1;
           if (changedLines == null) {
             throw new IllegalStateException(
-                "Line "
-                    + line
-                    + " contains changed lines information, but no changed file info is available");
+                "Line " + line + " contains changed lines information, but no changed file info is available");
           }
           changedLines.set(startLine, startLine + count);
         }

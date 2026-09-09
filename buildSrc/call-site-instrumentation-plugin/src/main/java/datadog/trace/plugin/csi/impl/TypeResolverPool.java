@@ -2,7 +2,6 @@ package datadog.trace.plugin.csi.impl;
 
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.repeat;
-
 import com.github.javaparser.resolution.TypeSolver;
 import com.github.javaparser.resolution.declarations.ResolvedReferenceTypeDeclaration;
 import com.github.javaparser.resolution.model.SymbolReference;
@@ -20,7 +19,6 @@ import javax.annotation.Nonnull;
 import org.objectweb.asm.Type;
 
 public class TypeResolverPool implements TypeResolver {
-
   private final List<ClassLoader> classpath;
   private final Map<Type, Class<?>> resolvedTypes = new HashMap<>();
   private final Map<MethodType, Executable> resolvedMethods = new HashMap<>();
@@ -72,10 +70,9 @@ public class TypeResolverPool implements TypeResolver {
     switch (type.getSort()) {
       case Type.ARRAY:
         Type element = type.getElementType();
-        String elementClassName =
-            element.getSort() == Type.OBJECT
-                ? "L" + element.getClassName() + ";"
-                : element.getInternalName();
+        String elementClassName = element.getSort() == Type.OBJECT
+            ? "L" + element.getClassName() + ";"
+            : element.getInternalName();
         return repeat('[', type.getDimensions()) + elementClassName;
       case Type.OBJECT:
         return type.getClassName();
@@ -153,7 +150,8 @@ public class TypeResolverPool implements TypeResolver {
 
   @Override
   public SymbolReference<ResolvedReferenceTypeDeclaration> tryToSolveTypeInModule(
-      String qualifiedModuleName, String simpleTypeName) {
+      String qualifiedModuleName,
+      String simpleTypeName) {
     return tryToSolveType(simpleTypeName);
   }
 }

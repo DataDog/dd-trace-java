@@ -49,15 +49,10 @@ import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.slf4j.LoggerFactory;
 
 public abstract class MavenUtils {
-
   private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(MavenUtils.class);
-
   private static final String MAVEN_CMD_LINE_ARGS_ENVIRONMENT_VAR = "MAVEN_CMD_LINE_ARGS";
-
   private static final String MAVEN_VERSION_SYSTEM_PROPERTY = "maven.version";
-
   private static final String MVN_CMD_LINE_INVOCATION = "mvn";
-
   private static final String JAVAAGENT_PREFIX = "-javaagent:";
 
   /**
@@ -121,11 +116,7 @@ public abstract class MavenUtils {
 
     if (!Objects.equals(request.getPom().getParent(), request.getBaseDirectory())
         || !Objects.equals(request.getPom().getName(), "pom.xml")) {
-      command
-          .append(" -")
-          .append(CLIManager.ALTERNATE_POM_FILE)
-          .append('=')
-          .append(request.getPom());
+      command.append(" -").append(CLIManager.ALTERNATE_POM_FILE).append('=').append(request.getPom());
     }
 
     if (request.getReactorFailureBehavior() != null) {
@@ -185,11 +176,7 @@ public abstract class MavenUtils {
     }
 
     if (request.getResumeFrom() != null && !request.getResumeFrom().isEmpty()) {
-      command
-          .append(" -")
-          .append(CLIManager.RESUME_FROM)
-          .append('=')
-          .append(request.getResumeFrom());
+      command.append(" -").append(CLIManager.RESUME_FROM).append('=').append(request.getResumeFrom());
     }
 
     List<String> goals = request.getGoals();
@@ -225,9 +212,8 @@ public abstract class MavenUtils {
       return exceptions.iterator().next();
     } else {
       MavenProject project = result.getProject();
-      Throwable t =
-          new BuildFailureException(
-              "Build failed" + (project != null ? " for " + project.getName() : ""));
+      Throwable t = new BuildFailureException(
+          "Build failed" + (project != null ? " for " + project.getName() : ""));
       for (Throwable e : exceptions) {
         t.addSuppressed(e);
       }
@@ -241,14 +227,14 @@ public abstract class MavenUtils {
     String groupId = plugin.getGroupId();
     String goal = mojoExecution.getGoal();
     return "maven-surefire-plugin".equals(artifactId)
-            && "org.apache.maven.plugins".equals(groupId)
-            && "test".equals(goal)
+        && "org.apache.maven.plugins".equals(groupId)
+        && "test".equals(goal)
         || "maven-failsafe-plugin".equals(artifactId)
-            && "org.apache.maven.plugins".equals(groupId)
-            && "integration-test".equals(goal)
+        && "org.apache.maven.plugins".equals(groupId)
+        && "integration-test".equals(goal)
         || "tycho-surefire-plugin".equals(artifactId)
-            && "org.eclipse.tycho".equals(groupId)
-            && ("test".equals(goal) || "plugin-test".equals(goal) || "bnd-test".equals(goal));
+        && "org.eclipse.tycho".equals(groupId)
+        && ("test".equals(goal) || "plugin-test".equals(goal) || "bnd-test".equals(goal));
   }
 
   public static boolean isJacocoInstrumentationExecution(MojoExecution mojoExecution) {
@@ -271,7 +257,9 @@ public abstract class MavenUtils {
   }
 
   public static Xpp3Dom setXmlConfigurationValue(
-      String value, Xpp3Dom configuration, String... path) {
+      String value,
+      Xpp3Dom configuration,
+      String... path) {
     if (configuration == null) {
       configuration = new Xpp3Dom("configuration");
     }
@@ -323,9 +311,10 @@ public abstract class MavenUtils {
     if (container != null) {
       return container;
     }
-    Object /* org.apache.maven.internal.impl.DefaultSession */ session =
-        METHOD_HANDLES.invoke(SESSION_FIELD, mavenSession);
-    Object /* org.apache.maven.api.services.Lookup */ lookup;
+    Object /* org.apache.maven.internal.impl.DefaultSession */
+    session = METHOD_HANDLES.invoke(SESSION_FIELD, mavenSession);
+    Object /* org.apache.maven.api.services.Lookup */
+    lookup;
     if (LOOKUP_FIELD != null) {
       lookup = METHOD_HANDLES.invoke(LOOKUP_FIELD, session);
     } else {
@@ -358,12 +347,12 @@ public abstract class MavenUtils {
             mojo.getClass().getName());
         return null;
       }
-
-      Object /* org.apache.maven.surefire.booter.Classpath */ classPath;
+      Object /* org.apache.maven.surefire.booter.Classpath */
+      classPath;
 
       Object generatedClassPath = methodHandles.invoke(generateTestClasspathMethod, mojo);
       if ("org.apache.maven.surefire.booter.Classpath"
-          .equals(generatedClassPath.getClass().getName())) {
+        .equals(generatedClassPath.getClass().getName())) {
         classPath = generatedClassPath;
       } else {
         /* org.apache.maven.plugin.surefire.TestClassPath */
@@ -382,13 +371,13 @@ public abstract class MavenUtils {
           findMethod(methodHandles, classPath.getClass(), "getClassPath");
       if (getClassPathMethod == null) {
         LOGGER.debug(
-            "Could not find getClassPath method in {} class", classPath.getClass().getName());
+            "Could not find getClassPath method in {} class",
+            classPath.getClass().getName());
         return null;
       }
 
       List<String> classpath = methodHandles.invoke(getClassPathMethod, classPath);
       return classpath.stream().map(Paths::get).collect(Collectors.toList());
-
     } catch (Exception e) {
       LOGGER.debug("Error while getting classpath for mojoExecution {}", mojoExecution, e);
       return null;
@@ -407,7 +396,6 @@ public abstract class MavenUtils {
         forkedJvm = getEffectiveJvmFallback(session, mojoExecution);
       }
       return forkedJvm != null ? Paths.get(forkedJvm) : null;
-
     } catch (Exception e) {
       LOGGER.debug("Error while getting effective JVM for mojoExecution {}", mojoExecution, e);
       return null;
@@ -415,7 +403,9 @@ public abstract class MavenUtils {
   }
 
   private static Mojo getConfiguredMojo(MavenSession session, MojoExecution mojoExecution)
-      throws ComponentLookupException, PluginResolutionException, PluginManagerException {
+      throws ComponentLookupException,
+      PluginResolutionException,
+      PluginManagerException {
     PlexusContainer container = getContainer(session);
 
     BuildPluginManager buildPluginManager = container.lookup(BuildPluginManager.class);
@@ -476,7 +466,6 @@ public abstract class MavenUtils {
             jvmExecutable.getClass().getName());
         return null;
       }
-
     } catch (Exception e) {
       LOGGER.debug("Error while getting effective JVM for mojo {}", mojo, e);
       return null;
@@ -484,12 +473,17 @@ public abstract class MavenUtils {
   }
 
   private static MethodHandle findMethod(
-      MethodHandles methodHandles, Class<?> mojoClass, String methodName) {
+      MethodHandles methodHandles,
+      Class<?> mojoClass,
+      String methodName) {
     return findMethod(methodHandles, mojoClass, methodName, false);
   }
 
   private static MethodHandle findMethod(
-      MethodHandles methodHandles, Class<?> mojoClass, String methodName, boolean acceptVarargs) {
+      MethodHandles methodHandles,
+      Class<?> mojoClass,
+      String methodName,
+      boolean acceptVarargs) {
     for (Class<?> clazz = mojoClass; clazz != null; clazz = clazz.getSuperclass()) {
       MethodHandle handle = methodHandles.method(clazz, methodName);
       if (handle != null) {
@@ -514,7 +508,9 @@ public abstract class MavenUtils {
     return null;
   }
 
-  /** Fallback method that attempts to recreate the logic used by Maven Surefire plugin */
+  /**
+   * Fallback method that attempts to recreate the logic used by Maven Surefire plugin
+   */
   static String getEffectiveJvmFallback(MavenSession session, MojoExecution mojoExecution) {
     try {
       String jvm = getConfigurationValue(session, mojoExecution, "jvm");
@@ -543,16 +539,14 @@ public abstract class MavenUtils {
           PluginDescriptor pluginDescriptor = mojoDescriptor.getPluginDescriptor();
           ClassRealm pluginRealm = pluginDescriptor.getClassRealm();
           MethodHandles methodHandles = new MethodHandles(pluginRealm);
-          MethodHandle getToolchains =
-              methodHandles.method(
-                  ToolchainManager.class,
-                  "getToolchains",
-                  MavenSession.class,
-                  String.class,
-                  Map.class);
+          MethodHandle getToolchains = methodHandles.method(
+              ToolchainManager.class,
+              "getToolchains",
+              MavenSession.class,
+              String.class,
+              Map.class);
           List<Toolchain> toolchains =
-              methodHandles.invoke(
-                  getToolchains, toolchainManager, session, "jdk", toolchainConfig);
+              methodHandles.invoke(getToolchains, toolchainManager, session, "jdk", toolchainConfig);
           if (toolchains.isEmpty()) {
             LOGGER.debug("Could not find toolchains for {}", toolchainConfig);
             return null;
@@ -563,16 +557,18 @@ public abstract class MavenUtils {
         }
       }
       return null;
-
     } catch (Exception e) {
       LOGGER.debug("Error while getting effective JVM for mojo {}", mojoExecution, e);
       return null;
     }
   }
 
-  @SuppressForbidden // splitting by " " does not involve regexes
+  // splitting by " " does not involve regexes
+  @SuppressForbidden
   public static JavaAgent getJacocoAgent(
-      MavenSession session, MavenProject project, MojoExecution mojoExecution) {
+      MavenSession session,
+      MavenProject project,
+      MojoExecution mojoExecution) {
     String resolvedArgLineValue = getArgLine(session, project, mojoExecution);
     if (resolvedArgLineValue == null) {
       return null;
@@ -598,25 +594,26 @@ public abstract class MavenUtils {
 
   @Nullable
   public static String getArgLine(
-      MavenSession session, MavenProject project, MojoExecution mojoExecution) {
+      MavenSession session,
+      MavenProject project,
+      MojoExecution mojoExecution) {
     try {
       String resolvedArgLineValue = getConfigurationValue(session, mojoExecution, "argLine");
       if (resolvedArgLineValue == null) {
         return null;
       }
-
       // The @{propName} syntax is specific to Surefire/Failsafe plugins
       // so standard expression evaluators won't handle the resolution.
       Properties projectProperties = project.getModel().getProperties();
       for (String key : projectProperties.stringPropertyNames()) {
         String field = "@{" + key + "}";
         if (resolvedArgLineValue.contains(field)) {
-          resolvedArgLineValue =
-              resolvedArgLineValue.replace(field, projectProperties.getProperty(key, ""));
+          resolvedArgLineValue = resolvedArgLineValue.replace(
+              field,
+              projectProperties.getProperty(key, ""));
         }
       }
       return resolvedArgLineValue;
-
     } catch (Exception e) {
       LOGGER.warn("Error while trying to resolve arg line for mojo {}", mojoExecution, e);
       return null;
@@ -625,7 +622,9 @@ public abstract class MavenUtils {
 
   @Nullable
   public static String getConfigurationValue(
-      MavenSession session, MojoExecution mojoExecution, String propertyName) {
+      MavenSession session,
+      MojoExecution mojoExecution,
+      String propertyName) {
     try {
       PlexusConfiguration pomConfiguration = MavenUtils.getConfiguration(mojoExecution);
       PlexusConfiguration property = pomConfiguration.getChild(propertyName);
@@ -637,7 +636,6 @@ public abstract class MavenUtils {
       TypeAwareExpressionEvaluator expressionEvaluator =
           new PluginParameterExpressionEvaluator(session, mojoExecution);
       return (String) expressionEvaluator.evaluate(propertyValue, String.class);
-
     } catch (ExpressionEvaluationException e) {
       LOGGER.warn(
           "Error while trying to resolve {} config property for mojo {}",

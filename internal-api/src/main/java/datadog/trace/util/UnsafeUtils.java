@@ -9,9 +9,7 @@ import org.slf4j.LoggerFactory;
 import sun.misc.Unsafe;
 
 public abstract class UnsafeUtils {
-
   private static final Logger log = LoggerFactory.getLogger(UnsafeUtils.class);
-
   private static final Unsafe UNSAFE = getUnsafe();
 
   private static Unsafe getUnsafe() {
@@ -19,7 +17,6 @@ public abstract class UnsafeUtils {
       Field f = Unsafe.class.getDeclaredField("theUnsafe");
       f.setAccessible(true);
       return (Unsafe) f.get(null);
-
     } catch (Throwable t) {
       log.debug("Unsafe is unavailable", t);
       return null;
@@ -37,9 +34,8 @@ public abstract class UnsafeUtils {
    * @return A shallow clone
    * @param <T> Type of the object being cloned
    */
-  @SuppressFBWarnings(
-      value = "UNS_UNSAFE_CALL",
-      justification = "Intentional sun.misc.Unsafe wrapper for shallow cloning")
+  @SuppressFBWarnings(value = "UNS_UNSAFE_CALL", justification = "Intentional sun.misc.Unsafe "
+      + "wrapper for shallow cloning")
   @SuppressWarnings("unchecked")
   public static <T> T tryShallowClone(T original) {
     if (UNSAFE == null) {
@@ -55,7 +51,6 @@ public abstract class UnsafeUtils {
         clazz = clazz.getSuperclass();
       }
       return clone;
-
     } catch (Throwable t) {
       log.debug("Error while cloning {}: {}", original, t);
       return original;

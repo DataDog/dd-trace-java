@@ -11,7 +11,10 @@ public final class MavenTestExecution {
   private final boolean runsWithJacoco;
 
   public MavenTestExecution(
-      MavenProject project, MojoExecution execution, Path forkedJvmPath, boolean runsWithJacoco) {
+      MavenProject project,
+      MojoExecution execution,
+      Path forkedJvmPath,
+      boolean runsWithJacoco) {
     this.project = project;
     this.execution = execution;
     this.forkedJvmPath = forkedJvmPath;

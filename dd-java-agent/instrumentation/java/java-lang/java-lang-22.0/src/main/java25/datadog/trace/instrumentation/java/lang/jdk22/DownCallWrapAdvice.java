@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.lang.jdk22;
 
 import static datadog.trace.bootstrap.instrumentation.ffm.FFMNativeMethodDecorator.wrap;
 import static datadog.trace.bootstrap.instrumentation.ffm.NativeLibraryHelper.reverseResolveLibraryAndSymbol;
-
 import datadog.trace.api.Pair;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;

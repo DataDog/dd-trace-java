@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.netty41.server;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -39,13 +38,13 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       return;
     }
 
-    final Context storedContext =
-        serverContext == null
-            // HTTP/2 multiplex stream channels only inherit the mirrored context attribute from
-            // Http2MultiplexHandlerStreamChannelInstrumentation.PropagateContextAdvice, without a
-            // per-stream request queue.
-            ? ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).get()
-            : serverContext.tracingContext();
+    final Context storedContext = serverContext == null
+        ? ctx
+      .channel()
+      .attr(CONTEXT_ATTRIBUTE_KEY)
+      // per-stream request queue.
+      .get()
+        : serverContext.tracingContext();
     final AgentSpan span = AgentSpan.fromContext(storedContext);
 
     if (span == null) {
@@ -67,13 +66,11 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
         }
         if (finishResponseOnWrite) {
           removeServerContext(ctx, serverContext);
-          writePromise.addListener(
-              future -> finishSpan(serverContext, storedContext, span, future));
+          writePromise.addListener(future -> finishSpan(serverContext, storedContext, span, future));
         }
         ctx.write(msg, writePromise);
         if (finishResponseOnWrite && (!writePromise.isDone() || writePromise.isSuccess())) {
-          final ServerRequestContext nextResponse =
-              ServerRequestContext.nextResponse(ctx.channel());
+          final ServerRequestContext nextResponse = ServerRequestContext.nextResponse(ctx.channel());
           BlockingResponseHandler.maybeWriteDeferredBlockResponse(ctx, nextResponse);
         }
       } catch (final Throwable throwable) {
@@ -97,9 +94,10 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       final HttpResponse response,
       final boolean websocketUpgrade) {
     if (websocketUpgrade) {
-      ctx.channel()
-          .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
-          .set(new HandlerContext.Sender(span, ctx.channel().id().asShortText()));
+      ctx
+        .channel()
+        .attr(WEBSOCKET_SENDER_HANDLER_CONTEXT)
+        .set(new HandlerContext.Sender(span, ctx.channel().id().asShortText()));
     }
     DECORATE.onResponse(span, response);
     if (serverContext != null) {
@@ -115,8 +113,8 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   private static boolean isWebsocketUpgrade(final HttpResponse response) {
     return response.status().code() == HttpResponseStatus.SWITCHING_PROTOCOLS.code()
         && response
-            .headers()
-            .containsValue(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET, true);
+          .headers()
+          .containsValue(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET, true);
   }
 
   private static void finishSpan(
@@ -131,15 +129,19 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   }
 
   private static void finishSpan(
-      final ServerRequestContext serverContext, final Context storedContext, final AgentSpan span) {
+      final ServerRequestContext serverContext,
+      final Context storedContext,
+      final AgentSpan span) {
     try (final ContextScope ignored = storedContext.attach()) {
       beforeFinish(serverContext, storedContext);
-      span.finish(); // Finish the span manually since finishSpanOnClose was false
+      // Finish the span manually since finishSpanOnClose was false
+      span.finish();
     }
   }
 
   private static void beforeFinish(
-      final ServerRequestContext serverContext, final Context storedContext) {
+      final ServerRequestContext serverContext,
+      final Context storedContext) {
     if (serverContext == null || !serverContext.isBeforeFinishCalled()) {
       if (serverContext != null) {
         serverContext.markBeforeFinishCalled();
@@ -149,7 +151,8 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
   }
 
   private static void removeServerContext(
-      final ChannelHandlerContext ctx, final ServerRequestContext serverContext) {
+      final ChannelHandlerContext ctx,
+      final ServerRequestContext serverContext) {
     if (serverContext == null) {
       ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).remove();
     } else {

@@ -1,14 +1,15 @@
 package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
 
-/** Check whether a {@linkplain Value} was resolved correctly or symbol exists.<br> */
+/**
+ * Check whether a {@linkplain Value} was resolved correctly or symbol exists.<br>
+ */
 public class IsDefinedExpression implements BooleanExpression {
   private final ValueExpression<?> valueExpression;
 

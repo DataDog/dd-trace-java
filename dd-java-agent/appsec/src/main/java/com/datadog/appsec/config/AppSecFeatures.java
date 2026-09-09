@@ -2,7 +2,6 @@ package com.datadog.appsec.config;
 
 public class AppSecFeatures {
   public Asm asm;
-
   @com.squareup.moshi.Json(name = "auto_user_instrum")
   public AutoUserInstrum autoUserInstrum;
 

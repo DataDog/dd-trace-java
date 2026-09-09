@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,8 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JUnit5Instrumentation() {
     super("ci-visibility", "junit-5");
   }
@@ -38,21 +37,21 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        // JUnit 4 has a dedicated instrumentation
-        .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
-        // suites are only used to organize other test engines
-        .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
+      // JUnit 4 has a dedicated instrumentation
+      .and(not(named("org.junit.vintage.engine.VintageTestEngine")))
+      // suites are only used to organize other test engines
+      .and(not(named("org.junit.platform.suite.engine.SuiteTestEngine")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils",
-      packageName + ".ExecutionRequestFactory",
-      packageName + ".TestDataFactory",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".TracingListener",
-      packageName + ".CompositeEngineListener",
+        packageName + ".JUnitPlatformUtils",
+        packageName + ".ExecutionRequestFactory",
+        packageName + ".TestDataFactory",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".TracingListener",
+        packageName + ".CompositeEngineListener"
     };
   }
 
@@ -65,9 +64,8 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("discover")
-            .and(
-                takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
-                    .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
+          .and(takesArgument(0, named("org.junit.platform.engine.EngineDiscoveryRequest"))
+            .and(takesArgument(1, named("org.junit.platform.engine.UniqueId")))),
         JUnit5Instrumentation.class.getName() + "$ContextStoreAdvice");
     transformer.applyAdvice(
         named("execute").and(takesArgument(0, named("org.junit.platform.engine.ExecutionRequest"))),
@@ -80,7 +78,9 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
       ContextStore<TestDescriptor, Object> contextStore =
           InstrumentationContext.get(TestDescriptor.class, Object.class);
       TestEventsHandlerHolder.start(
-          testEngine, (ContextStore) contextStore, (ContextStore) contextStore);
+          testEngine,
+          (ContextStore) contextStore,
+          (ContextStore) contextStore);
     }
   }
 
@@ -111,8 +111,9 @@ public class JUnit5Instrumentation extends InstrumenterModule.CiVisibility
       EngineExecutionListener originalListener = executionRequest.getEngineExecutionListener();
       EngineExecutionListener compositeListener =
           new CompositeEngineListener(tracingListener, originalListener);
-      executionRequest =
-          ExecutionRequestFactory.createExecutionRequest(executionRequest, compositeListener);
+      executionRequest = ExecutionRequestFactory.createExecutionRequest(
+          executionRequest,
+          compositeListener);
     }
 
     // JUnit 5.3.0 and above

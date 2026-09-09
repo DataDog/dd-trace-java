@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play26.server;
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import org.slf4j.Logger;
@@ -21,7 +20,9 @@ public class TestHttpErrorHandler implements HttpErrorHandler {
   }
 
   public CompletionStage<Result> onClientError(
-      RequestHeader request, int statusCode, String message) {
+      RequestHeader request,
+      int statusCode,
+      String message) {
     return CompletableFuture.completedFuture(Results.status(statusCode, message));
   }
 
@@ -33,8 +34,9 @@ public class TestHttpErrorHandler implements HttpErrorHandler {
       exception = cause;
     }
     if (exception instanceof CustomRuntimeException) {
-      return CompletableFuture.completedFuture(
-          Results.status(CUSTOM_EXCEPTION.getStatus(), exception.getMessage()));
+      return CompletableFuture.completedFuture(Results.status(
+          CUSTOM_EXCEPTION.getStatus(),
+          exception.getMessage()));
     }
 
     return CompletableFuture.completedFuture(Results.internalServerError(exception.getMessage()));

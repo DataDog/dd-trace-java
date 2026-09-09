@@ -23,16 +23,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RepoIndex {
-
-  static final RepoIndex EMPTY =
-      new RepoIndex(
-          ClassNameTrie.EMPTY_TRIE,
-          Collections.emptyMap(),
-          Collections.emptyList(),
-          Collections.emptyList());
-
+  static final RepoIndex EMPTY = new RepoIndex(
+      ClassNameTrie.EMPTY_TRIE,
+      Collections.emptyMap(),
+      Collections.emptyList(),
+      Collections.emptyList());
   private static final Logger log = LoggerFactory.getLogger(RepoIndex.class);
-
   private final ClassNameTrie trie;
   private final Map<String, List<String>> duplicateTrieKeys;
   private final List<SourceRoot> sourceRoots;
@@ -77,7 +73,6 @@ public class RepoIndex {
       String packageName = classPackage != null ? classPackage.getName() : "";
       String key = packageName + '.' + fileNameWithoutExtension;
       return doGetAllSourcePaths(key);
-
     } catch (IOException e) {
       log.error("Error while trying to retrieve file name for class {}", c.getName(), e);
       return Collections.emptyList();
@@ -98,7 +93,10 @@ public class RepoIndex {
         && duplicateTrieKeys.containsKey(key)) {
       List<String> paths = duplicateTrieKeys.get(key);
       log.debug(
-          "Duplicate trie key {} resolved to {} candidate paths: {}", key, paths.size(), paths);
+          "Duplicate trie key {} resolved to {} candidate paths: {}",
+          key,
+          paths.size(),
+          paths);
       return paths;
     }
 
@@ -136,7 +134,6 @@ public class RepoIndex {
     byte[] trieBytes = Serializer.readByteArray(buffer);
     if (trieBytes == null) {
       trie = null;
-
     } else {
       ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(trieBytes);
       try (DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream)) {
@@ -155,9 +152,10 @@ public class RepoIndex {
   }
 
   static final class SourceRoot {
-    /** Path relative to repository root. */
+    /**
+     * Path relative to repository root.
+     */
     final String relativePath;
-
     final Language language;
 
     SourceRoot(String relativePath, Language language) {
@@ -165,7 +163,9 @@ public class RepoIndex {
       this.language = language;
     }
 
-    /** Resolves a trie key (dot-separated) to a full source path relative to the source root. */
+    /**
+     * Resolves a trie key (dot-separated) to a full source path relative to the source root.
+     */
     String resolveSourcePath(String trieKey) {
       return relativePath
           + File.separatorChar

@@ -1,28 +1,23 @@
 package datadog.trace.api.config;
 
 public final class OtlpConfig {
-
   public static final String LOGS_OTEL_ENABLED = "logs.otel.enabled";
   public static final String LOGS_OTEL_EXPORTER = "logs.otel.exporter";
   public static final String LOGS_OTEL_INTERVAL = "logs.otel.interval";
   public static final String LOGS_OTEL_TIMEOUT = "logs.otel.timeout";
   public static final String LOGS_OTEL_QUEUE_SIZE = "logs.otel.queue.size";
   public static final String LOGS_OTEL_BATCH_SIZE = "logs.otel.batch.size";
-
   public static final String OTLP_LOGS_ENDPOINT = "otlp.logs.endpoint";
   public static final String OTLP_LOGS_HEADERS = "otlp.logs.headers";
   public static final String OTLP_LOGS_PROTOCOL = "otlp.logs.protocol";
   public static final String OTLP_LOGS_COMPRESSION = "otlp.logs.compression";
   public static final String OTLP_LOGS_TIMEOUT = "otlp.logs.timeout";
-
   public static final String METRICS_OTEL_ENABLED = "metrics.otel.enabled";
   public static final String METRICS_OTEL_EXPORTER = "metrics.otel.exporter";
   public static final String METRICS_OTEL_INTERVAL = "metrics.otel.interval";
   public static final String METRICS_OTEL_TIMEOUT = "metrics.otel.timeout";
   public static final String METRICS_OTEL_CARDINALITY_LIMIT = "metrics.otel.cardinality.limit";
-  public static final String METRICS_OTEL_EXPERIMENTAL_ENABLED =
-      "metrics.otel.experimental.enabled";
-
+  public static final String METRICS_OTEL_EXPERIMENTAL_ENABLED = "metrics.otel.experimental.enabled";
   public static final String OTLP_METRICS_ENDPOINT = "otlp.metrics.endpoint";
   public static final String OTLP_METRICS_HEADERS = "otlp.metrics.headers";
   public static final String OTLP_METRICS_PROTOCOL = "otlp.metrics.protocol";
@@ -30,12 +25,9 @@ public final class OtlpConfig {
   public static final String OTLP_METRICS_TIMEOUT = "otlp.metrics.timeout";
   public static final String OTLP_METRICS_TEMPORALITY_PREFERENCE =
       "otlp.metrics.temporality.preference";
-
   public static final String OTEL_TRACES_SPAN_METRICS_ENABLED = "otel.traces.span.metrics.enabled";
-
   public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String TRACE_OTEL_EXPORTER = "trace.otel.exporter";
-
   public static final String OTLP_TRACES_ENDPOINT = "otlp.traces.endpoint";
   public static final String OTLP_TRACES_HEADERS = "otlp.traces.headers";
   public static final String OTLP_TRACES_PROTOCOL = "otlp.traces.protocol";
@@ -59,5 +51,6 @@ public final class OtlpConfig {
     LOWMEMORY
   }
 
-  private OtlpConfig() {}
+  private OtlpConfig() {
+  }
 }

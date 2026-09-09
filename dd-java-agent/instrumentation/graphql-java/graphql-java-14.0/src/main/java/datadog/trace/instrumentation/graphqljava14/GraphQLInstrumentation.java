@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_PARSING;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_REQUEST;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_VALIDATION;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.graphqljava.ExecutionInstrumentationContext;
 import datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher;
@@ -31,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class GraphQLInstrumentation extends SimpleInstrumentation {
-
   public static Instrumentation install(Instrumentation instrumentation) {
     if (instrumentation == null) {
       return new GraphQLInstrumentation();
@@ -43,7 +41,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     if (instrumentation instanceof ChainedInstrumentation) {
       List<Instrumentation> instrumentations =
           ((ChainedInstrumentation) instrumentation).getInstrumentations();
-      if (instrumentations.stream().anyMatch(v -> v.getClass() == GraphQLInstrumentation.class)) {
+      if (instrumentations
+        .stream()
+        .anyMatch(v -> v.getClass() == GraphQLInstrumentation.class)) {
         return instrumentation;
       }
       instrumentationList.addAll(instrumentations);
@@ -68,7 +68,6 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     State state = parameters.getInstrumentationState();
     state.setRequestSpan(requestSpan);
     // parameters.getOperation() is null
-
     return new ExecutionInstrumentationContext(state);
   }
 
@@ -91,15 +90,15 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
 
   @Override
   public DataFetcher<?> instrumentDataFetcher(
-      final DataFetcher<?> dataFetcher, InstrumentationFieldFetchParameters parameters) {
+      final DataFetcher<?> dataFetcher,
+      InstrumentationFieldFetchParameters parameters) {
     State state = parameters.getInstrumentationState();
     final AgentSpan requestSpan = state.getRequestSpan();
     return new InstrumentedDataFetcher(dataFetcher, parameters, requestSpan);
   }
 
   @Override
-  public InstrumentationContext<Document> beginParse(
-      InstrumentationExecutionParameters parameters) {
+  public InstrumentationContext<Document> beginParse(InstrumentationExecutionParameters parameters) {
     State state = parameters.getInstrumentationState();
     final AgentSpan parsingSpan =
         startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_PARSING, state.getRequestSpan().spanContext());
@@ -113,8 +112,9 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     State state = parameters.getInstrumentationState();
 
     final AgentSpan validationSpan =
-        startSpan(
-            GRAPHQL_JAVA.toString(), GRAPHQL_VALIDATION, state.getRequestSpan().spanContext());
+        startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_VALIDATION, state
+      .getRequestSpan()
+      .spanContext());
     DECORATE.afterStart(validationSpan);
     return new ValidationInstrumentationContext(validationSpan);
   }

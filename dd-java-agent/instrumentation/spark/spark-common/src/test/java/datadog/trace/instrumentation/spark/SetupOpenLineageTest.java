@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import java.lang.reflect.Field;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 class SetupOpenLineageTest {
-
   private static TestListener newListenerWithOpenLineage() {
     TestListener listener = new TestListener(new SparkConf(), "some_app_id", "some_version");
     // The constructor registers a JVM shutdown hook that finishes the application trace. In a plain
@@ -50,8 +48,9 @@ class SetupOpenLineageTest {
   }
 
   private static List<String> runTags(TestListener listener) {
-    return Arrays.asList(
-        listener.openLineageSparkConf.get("spark.openlineage.run.tags").split(";"));
+    return Arrays.asList(listener.openLineageSparkConf
+      .get("spark.openlineage.run.tags")
+      .split(";"));
   }
 
   @Test
@@ -80,7 +79,9 @@ class SetupOpenLineageTest {
     }
 
     assertFalse(
-        runTags(listener).stream().anyMatch(tag -> tag.startsWith("_dd.ol_env:")),
+        runTags(listener)
+          .stream()
+          .anyMatch(tag -> tag.startsWith("_dd.ol_env:")),
         "No _dd.ol_env tag should be set when env is empty");
   }
 

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.micronaut;
 
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_ATTRIBUTE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpRequest;

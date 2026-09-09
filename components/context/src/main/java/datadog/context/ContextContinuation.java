@@ -48,7 +48,6 @@ package datadog.context;
  * }</pre>
  */
 public interface ContextContinuation {
-
   /**
    * Optional builder method to stop {@link #resume()} from implicitly releasing the captured
    * context. This is useful when multiple threads may concurrently resume the context. You must
@@ -74,6 +73,8 @@ public interface ContextContinuation {
    */
   ContextScope resume();
 
-  /** Explicitly releases the context captured by this continuation. */
+  /**
+   * Explicitly releases the context captured by this continuation.
+   */
   void release();
 }

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -33,8 +32,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class CallbackChainRetryingFutureInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public CallbackChainRetryingFutureInstrumentation() {
     super("gax", "gax-1.4");
   }
@@ -53,8 +52,8 @@ public class CallbackChainRetryingFutureInstrumentation extends InstrumenterModu
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("setAttemptFuture")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("com.google.api.core.ApiFuture"))),
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("com.google.api.core.ApiFuture"))),
         CallbackChainRetryingFutureInstrumentation.class.getName() + "$SetAttemptFutureAdvice");
   }
 

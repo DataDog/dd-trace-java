@@ -18,17 +18,14 @@ public class ContextPropagator {
   private static final ObjID ACTIVATOR_ID = new ObjID(ObjID.ACTIVATOR_ID);
   private static final ObjID DGC_ID = new ObjID(ObjID.DGC_ID);
   private static final ObjID REGISTRY_ID = new ObjID(ObjID.REGISTRY_ID);
-
   // RMI object id used to identify DataDog instrumentation
   public static final ObjID DD_CONTEXT_CALL_ID = new ObjID("Datadog.v2.context_call".hashCode());
-
   // Operation id used for checking context propagation is possible
   // RMI expects these operations to have negative identifier, as positive ones mean legacy
   // precompiled Stubs would be used instead
   private static final int CONTEXT_CHECK_CALL_OPERATION_ID = -1;
   // Seconds step of context propagation which contains actual payload
   private static final int CONTEXT_PAYLOAD_OPERATION_ID = -2;
-
   public static final ContextPropagator PROPAGATOR = new ContextPropagator();
 
   public boolean isRMIInternalObject(final ObjID id) {
@@ -51,7 +48,8 @@ public class ContextPropagator {
   }
 
   private boolean checkIfContextCanBePassed(
-      final ContextStore<Connection, Boolean> knownConnections, final Connection c) {
+      final ContextStore<Connection, Boolean> knownConnections,
+      final Connection c) {
     final Boolean storedResult = knownConnections.get(c);
     if (storedResult != null) {
       return storedResult;
@@ -66,7 +64,9 @@ public class ContextPropagator {
    * @return {@code true} when no error happened during call
    */
   private boolean syntheticCall(
-      final Connection c, final ContextPayload payload, final int operationId) {
+      final Connection c,
+      final ContextPayload payload,
+      final int operationId) {
     final StreamRemoteCall shareContextCall = new StreamRemoteCall(c);
     try {
       c.getOutputStream().write(TransportConstants.Call);
@@ -74,11 +74,11 @@ public class ContextPropagator {
       final ObjectOutput out = shareContextCall.getOutputStream();
 
       DD_CONTEXT_CALL_ID.write(out);
-
       // call header, part 2 (read by Dispatcher)
-      out.writeInt(operationId); // in normal call this is method number (operation index)
-      out.writeLong(operationId); // in normal RMI call this holds stub/skeleton hash
-
+      // in normal call this is method number (operation index)
+      out.writeInt(operationId);
+      // in normal RMI call this holds stub/skeleton hash
+      out.writeLong(operationId);
       // Payload should be sent only after we make sure we're connected to instrumented server
       //
       // if method is not found by un-instrumented code then writing payload will cause an exception
@@ -105,7 +105,6 @@ public class ContextPropagator {
       } finally {
         shareContextCall.done();
       }
-
     } catch (final IOException e) {
       log.debug("Communication error executing synthetic call", e);
       return false;

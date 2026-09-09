@@ -25,10 +25,10 @@ import java.util.regex.Pattern;
  * handles qualifiers such as {@code .RELEASE}, {@code .GA}, {@code .FINAL}, and 4-part versions.
  */
 public final class VersionRangeParser {
-
   private static final Pattern COMMA = Pattern.compile(",");
 
-  private VersionRangeParser() {}
+  private VersionRangeParser() {
+  }
 
   /**
    * Returns true if {@code version} matches at least one of the provided range strings.

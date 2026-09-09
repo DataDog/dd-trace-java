@@ -5,7 +5,6 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -61,44 +60,38 @@ import org.slf4j.LoggerFactory;
  * the associated Span instance
  */
 public class DDSpanContext
-    implements AgentSpanContext, RequestContext, TraceSegment, ProfilerContext {
+    implements AgentSpanContext,
+    RequestContext,
+    TraceSegment,
+    ProfilerContext {
   private static final Logger log = LoggerFactory.getLogger(DDSpanContext.class);
-
   public static final String PRIORITY_SAMPLING_KEY = "_sampling_priority_v1";
   public static final String SAMPLE_RATE_KEY = "_sample_rate";
-
   public static final String SPAN_SAMPLING_MECHANISM_TAG = "_dd.span_sampling.mechanism";
   public static final String SPAN_SAMPLING_RULE_RATE_TAG = "_dd.span_sampling.rule_rate";
   public static final String SPAN_SAMPLING_MAX_PER_SECOND_TAG = "_dd.span_sampling.max_per_second";
-
   private static final DDCache<String, UTF8BytesString> THREAD_NAMES =
       DDCaches.newFixedSizeCache(256);
-
   private static final Map<String, String> EMPTY_BAGGAGE = Collections.emptyMap();
   private static final Map<String, Object> EMPTY_META_STRUCT = Collections.emptyMap();
-
-  /** The collection of all span related to this one */
+  /**
+   * The collection of all span related to this one
+   */
   private final TraceCollector traceCollector;
-
   private final TagInterceptor tagInterceptor;
-
-  /** Baggage is associated with the whole trace and shared with other spans */
+  /**
+   * Baggage is associated with the whole trace and shared with other spans
+   */
   private volatile Map<String, String> baggageItems;
-
   private final Baggage w3cBaggage;
-
   // Not Shared with other span contexts
   private final DDTraceId traceId;
   private final long spanId;
   private final long parentId;
-
   private final String parentServiceName;
-
   private final long threadId;
   private final UTF8BytesString threadName;
-
   private volatile short httpStatusCode;
-
   // Cached span.kind ordinal for fast isOutbound() checks.
   // Ordinal constants -- keep in sync with SPAN_KIND_VALUES array.
   static final byte SPAN_KIND_UNSET = 0;
@@ -109,24 +102,24 @@ public class DDSpanContext
   static final byte SPAN_KIND_INTERNAL = 5;
   static final byte SPAN_KIND_BROKER = 6;
   static final byte SPAN_KIND_CUSTOM = 7;
-
-  /** Maps ordinal to canonical string constant. Index 0 (UNSET) and 7 (CUSTOM) are null. */
+  /**
+   * Maps ordinal to canonical string constant. Index 0 (UNSET) and 7 (CUSTOM) are null.
+   */
   static final String[] SPAN_KIND_VALUES = {
-    null, // UNSET
-    Tags.SPAN_KIND_SERVER,
-    Tags.SPAN_KIND_CLIENT,
-    Tags.SPAN_KIND_PRODUCER,
-    Tags.SPAN_KIND_CONSUMER,
-    Tags.SPAN_KIND_INTERNAL,
-    Tags.SPAN_KIND_BROKER,
-    null // CUSTOM
+      // UNSET
+      null,
+      Tags.SPAN_KIND_SERVER,
+      Tags.SPAN_KIND_CLIENT,
+      Tags.SPAN_KIND_PRODUCER,
+      Tags.SPAN_KIND_CONSUMER,
+      Tags.SPAN_KIND_INTERNAL,
+      Tags.SPAN_KIND_BROKER,
+      // CUSTOM
+      null
   };
-
   private volatile byte spanKindOrdinal = SPAN_KIND_UNSET;
-
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
-
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
    *
@@ -137,60 +130,53 @@ public class DDSpanContext
    * then be wrapped around bulk operations to minimize the costly atomic operations.
    */
   private final TagMap unsafeTags;
-
-  /** The service name is required, otherwise the span are dropped by the agent */
+  /**
+   * The service name is required, otherwise the span are dropped by the agent
+   */
   private volatile String serviceName;
-
-  /** The resource associated to the service (server_web, database, etc.) */
+  /**
+   * The resource associated to the service (server_web, database, etc.)
+   */
   private volatile CharSequence resourceName;
-
   private volatile byte resourceNamePriority = ResourceNamePriorities.DEFAULT;
-
-  /** Each span have an operation name describing the current span */
+  /**
+   * Each span have an operation name describing the current span
+   */
   private volatile CharSequence operationName;
-
-  /** The type of the span. If null, the Datadog Agent will report as a custom */
+  /**
+   * The type of the span. If null, the Datadog Agent will report as a custom
+   */
   private volatile CharSequence spanType;
-
-  /** True indicates that the span reports an error */
+  /**
+   * True indicates that the span reports an error
+   */
   private volatile boolean errorFlag;
-
   private volatile byte errorFlagPriority = UNSET;
-
   private volatile boolean measured;
-
   private volatile boolean topLevel;
-
   private static final AtomicIntegerFieldUpdater<DDSpanContext> SAMPLING_PRIORITY_UPDATER =
       AtomicIntegerFieldUpdater.newUpdater(DDSpanContext.class, "samplingPriority");
-
   private volatile int samplingPriority = PrioritySampling.UNSET;
-
-  /** The origin of the trace. (eg. Synthetics, CI App) */
+  /**
+   * The origin of the trace. (eg. Synthetics, CI App)
+   */
   private volatile CharSequence origin;
-
-  /** RequestContext data for the InstrumentationGateway */
+  /**
+   * RequestContext data for the InstrumentationGateway
+   */
   private final Object requestContextDataAppSec;
-
   private final Object requestContextDataIast;
   private final Object ciVisibilityContextData;
-
   private final boolean disableSamplingMechanismValidation;
-
   private final PropagationTags propagationTags;
-
   private volatile PathwayContext pathwayContext;
-
   private volatile BlockResponseFunction blockResponseFunction;
-
   private volatile ClientIpAddressData clientIpAddressData;
-
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
   private final boolean injectLinksAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
-
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
    * span. They are an efficient way to send binary data to the agent without relying on bulky json
@@ -298,7 +284,9 @@ public class DDSpanContext
         null);
   }
 
-  /** Back-compat ctor (no read-through parent); delegates with a null parent. */
+  /**
+   * Back-compat ctor (no read-through parent); delegates with a null parent.
+   */
   public DDSpanContext(
       final DDTraceId traceId,
       final long spanId,
@@ -381,7 +369,6 @@ public class DDSpanContext
       final boolean injectBaggageAsTags,
       final boolean injectLinksAsTags,
       final TagMap readThroughParent) {
-
     assert traceCollector != null;
     this.traceCollector = traceCollector;
     this.tagInterceptor = this.traceCollector.getTracer().getTagInterceptor();
@@ -405,15 +392,12 @@ public class DDSpanContext
 
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
-
     // The +1 is the magic number from the tags below that we set at the end,
     // and "* 4 / 3" is to make sure that we don't resize immediately
     final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags =
-        readThroughParent != null
-            ? TagMap.createFromParent(readThroughParent)
-            : TagMap.create(capacity);
-
+    this.unsafeTags = readThroughParent != null
+        ? TagMap.createFromParent(readThroughParent)
+        : TagMap.create(capacity);
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
     // as fast as we can try to make this operation, we still might need to activate/deactivate
@@ -427,17 +411,15 @@ public class DDSpanContext
     setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
     this.errorFlag = errorFlag;
     this.spanType = spanType;
-
     // Additional Metadata
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
-    this.propagationTags =
-        propagationTags != null
-            ? propagationTags
-            : traceCollector.getTracer().getPropagationTagsFactory().empty();
+    this.propagationTags = propagationTags != null
+        ? propagationTags
+        : traceCollector.getTracer().getPropagationTagsFactory().empty();
     this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
     this.injectBaggageAsTags = injectBaggageAsTags;
     this.injectLinksAsTags = injectLinksAsTags;
@@ -601,7 +583,9 @@ public class DDSpanContext
     this.spanType = spanType;
   }
 
-  /** Forces the local root span sampling decision to keep according manual mechanism. */
+  /**
+   * Forces the local root span sampling decision to keep according manual mechanism.
+   */
   public void forceKeep() {
     forceKeep(SamplingMechanism.MANUAL);
   }
@@ -684,8 +668,8 @@ public class DDSpanContext
       if (disableSamplingMechanismValidation) {
         log.debug(
             "{}: Bypassing setting setSamplingPriority check ("
-                + TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED
-                + ") for a non valid combination of samplingMechanism {} and samplingPriority {}.",
+            + TracerConfig.SAMPLING_MECHANISM_VALIDATION_DISABLED
+            + ") for a non valid combination of samplingMechanism {} and samplingPriority {}.",
             this,
             newMechanism,
             newPriority);
@@ -797,7 +781,6 @@ public class DDSpanContext
     if (pathwayContext == null) {
       return;
     }
-
     // This is purposely not thread safe
     // The code randomly chooses between the two PathwayContexts.
     // If there is a race, then that's okay
@@ -823,7 +806,9 @@ public class DDSpanContext
     return httpStatusCode;
   }
 
-  /** Identity-first string comparison: checks reference equality, then falls back to equals. */
+  /**
+   * Identity-first string comparison: checks reference equality, then falls back to equals.
+   */
   static boolean tagEquals(String tagValue, String tagLiteral) {
     return (tagValue == tagLiteral) || tagLiteral.equals(tagValue);
   }
@@ -860,7 +845,9 @@ public class DDSpanContext
     return spanKindOrdinal;
   }
 
-  /** Returns the span.kind string from the cached ordinal, or falls back to the tag map. */
+  /**
+   * Returns the span.kind string from the cached ordinal, or falls back to the tag map.
+   */
   public String getSpanKindString() {
     byte ordinal = spanKindOrdinal;
     if (ordinal > SPAN_KIND_UNSET && ordinal < SPAN_KIND_CUSTOM) {
@@ -967,11 +954,9 @@ public class DDSpanContext
     if (entry == null) {
       return;
     }
-
     // pre-check to avoid boxing
-    boolean intercepted =
-        precheckIntercept(entry.tag())
-            && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
+    boolean intercepted = precheckIntercept(entry.tag())
+        && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
     if (!intercepted) {
       synchronized (unsafeTags) {
         unsafeTags.set(entry);
@@ -1088,16 +1073,14 @@ public class DDSpanContext
         // forEach out-performs the iterator of TagMap
         // Taking advantage of ability to pass through other context arguments
         // to avoid using a capturing lambda
-        map.forEach(
-            this,
-            (ctx, tagEntry) -> {
-              String tag = tagEntry.tag();
-              Object value = tagEntry.objectValue();
+        map.forEach(this, (ctx, tagEntry) -> {
+          String tag = tagEntry.tag();
+          Object value = tagEntry.objectValue();
 
-              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
-                ctx.unsafeTags.set(tagEntry);
-              }
-            });
+          if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+            ctx.unsafeTags.set(tagEntry);
+          }
+        });
       } else {
         unsafeTags.putAll(map);
       }
@@ -1253,7 +1236,9 @@ public class DDSpanContext
   }
 
   void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      DDSpan restrictedSpan) {
     processTagsAndBaggage(
         consumer,
         longRunningVersion,
@@ -1282,12 +1267,15 @@ public class DDSpanContext
    * injection keeps following the tracer configuration.
    */
   void processTagsAndBaggageWithStructuredLinks(
-      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      DDSpan restrictedSpan) {
     processTagsAndBaggage(
         consumer,
         longRunningVersion,
         restrictedSpan,
-        false, // injectLinksAsTags
+        // injectLinksAsTags
+        false,
         injectBaggageAsTags,
         propagationTags);
   }
@@ -1301,7 +1289,8 @@ public class DDSpanContext
         consumer,
         longRunningVersion,
         restrictedSpan,
-        false, // injectLinksAsTags
+        // injectLinksAsTags
+        false,
         injectBaggageAsTags,
         firstInChunk ? getPropagationTags() : null);
   }
@@ -1321,7 +1310,6 @@ public class DDSpanContext
     synchronized (unsafeTags) {
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
-
       // Links
       if (injectLinksAsTags) {
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
@@ -1329,7 +1317,6 @@ public class DDSpanContext
           unsafeTags.set(SPAN_LINKS, linksTag);
         }
       }
-
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
       if (injectBaggageAsTags) {
@@ -1341,10 +1328,9 @@ public class DDSpanContext
           serializedPropagationTags.fillTagMap(baggageItemsWithPropagationTags);
         }
       } else {
-        baggageItemsWithPropagationTags =
-            serializedPropagationTags == null
-                ? EMPTY_BAGGAGE
-                : serializedPropagationTags.createTagMap();
+        baggageItemsWithPropagationTags = serializedPropagationTags == null
+            ? EMPTY_BAGGAGE
+            : serializedPropagationTags.createTagMap();
       }
 
       consumer.accept(
@@ -1397,20 +1383,19 @@ public class DDSpanContext
 
   @Override
   public String toString() {
-    final StringBuilder s =
-        new StringBuilder()
-            .append("DDSpan [ t_id=")
-            .append(traceId)
-            .append(", s_id=")
-            .append(DDSpanId.toString(spanId))
-            .append(", p_id=")
-            .append(DDSpanId.toString(parentId))
-            .append(" ] trace=")
-            .append(getServiceName())
-            .append('/')
-            .append(getOperationName())
-            .append('/')
-            .append(getResourceName());
+    final StringBuilder s = new StringBuilder()
+      .append("DDSpan [ t_id=")
+      .append(traceId)
+      .append(", s_id=")
+      .append(DDSpanId.toString(spanId))
+      .append(", p_id=")
+      .append(DDSpanId.toString(parentId))
+      .append(" ] trace=")
+      .append(getServiceName())
+      .append('/')
+      .append(getOperationName())
+      .append('/')
+      .append(getResourceName());
     if (errorFlag) {
       s.append(" *errored*");
     }
@@ -1424,7 +1409,9 @@ public class DDSpanContext
     return s.toString();
   }
 
-  /** RequestContext Implementation */
+  /**
+   * RequestContext Implementation
+   */
   @Override
   public Object getData(RequestContextSlot slot) {
     if (slot == RequestContextSlot.APPSEC) {
@@ -1492,7 +1479,9 @@ public class DDSpanContext
     return getRootSpanContextOrThis().propagationTags;
   }
 
-  /** TraceSegment Implementation */
+  /**
+   * TraceSegment Implementation
+   */
   @Override
   public void setTagTop(String key, Object value, boolean sanitize) {
     getRootSpanContextOrThis().setTagCurrent(key, value, sanitize);

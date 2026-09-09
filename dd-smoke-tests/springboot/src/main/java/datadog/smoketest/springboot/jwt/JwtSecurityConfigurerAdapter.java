@@ -16,40 +16,37 @@ import org.springframework.security.web.context.SecurityContextPersistenceFilter
 @Configuration
 @EnableWebSecurity
 public class JwtSecurityConfigurerAdapter extends WebSecurityConfigurerAdapter {
-
   protected void configure(HttpSecurity http) throws Exception {
-    http.addFilterAfter(new JwtAuthenticationFilter(), SecurityContextPersistenceFilter.class)
-        .sessionManagement()
-        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        .and()
-        .authorizeRequests()
-        .mvcMatchers("/jwt")
-        .authenticated()
-        .and()
-        .csrf()
-        .disable()
-        .httpBasic()
-        .disable()
-        .exceptionHandling()
-        .authenticationEntryPoint(
-            (request, response, authException) -> {
-              response.sendError(401, authException.getMessage());
-            })
-        .accessDeniedHandler(
-            (request, response, accessDeniedException) -> {
-              response.sendError(403, "Access Denied.");
-            })
-        .and()
-        .headers()
-        .disable();
+    http
+      .addFilterAfter(new JwtAuthenticationFilter(), SecurityContextPersistenceFilter.class)
+      .sessionManagement()
+      .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+      .and()
+      .authorizeRequests()
+      .mvcMatchers("/jwt")
+      .authenticated()
+      .and()
+      .csrf()
+      .disable()
+      .httpBasic()
+      .disable()
+      .exceptionHandling()
+      .authenticationEntryPoint((request, response, authException) -> {
+        response.sendError(401, authException.getMessage());
+      })
+      .accessDeniedHandler((request, response, accessDeniedException) -> {
+        response.sendError(403, "Access Denied.");
+      })
+      .and()
+      .headers()
+      .disable();
   }
 
   @Autowired
   public void configureGlobal(
       AuthenticationManagerBuilder auth,
       AuthenticationProvider authenticationProvider,
-      UserDetailsService userDetailsService)
-      throws Exception {
+      UserDetailsService userDetailsService) throws Exception {
     auth.authenticationProvider(authenticationProvider).userDetailsService(userDetailsService);
   }
 

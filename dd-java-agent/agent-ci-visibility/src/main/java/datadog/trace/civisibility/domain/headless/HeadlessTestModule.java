@@ -40,7 +40,6 @@ import javax.annotation.Nullable;
  * <p>This class manages the module span since there is no build system instrumentation to do it.
  */
 public class HeadlessTestModule extends AbstractTestModule implements TestFrameworkModule {
-
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionStrategy executionStrategy;
   private final ExecutionResults executionResults;
@@ -112,7 +111,9 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   @Override
   @Nonnull
   public TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData testSource, Collection<String> testTags) {
+      TestIdentifier test,
+      TestSourceData testSource,
+      Collection<String> testTags) {
     return executionStrategy.executionPolicy(test, testSource, testTags);
   }
 

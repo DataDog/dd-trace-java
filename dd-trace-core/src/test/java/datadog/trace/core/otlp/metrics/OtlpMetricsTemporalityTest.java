@@ -11,11 +11,9 @@ import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY_DELTA;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.temporality;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
 
 class OtlpMetricsTemporalityTest {
-
   @Test
   void deltaPreferenceMakesEligibleTypesDelta() {
     assertEquals(TEMPORALITY_DELTA, temporality(DELTA, HISTOGRAM));

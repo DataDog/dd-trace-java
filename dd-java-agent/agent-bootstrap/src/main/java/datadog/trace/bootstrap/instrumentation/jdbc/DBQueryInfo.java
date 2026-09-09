@@ -8,9 +8,8 @@ import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 public final class DBQueryInfo {
-
-  private static final int COMBINED_SQL_LIMIT = 2 * 1024 * 1024; // characters
-
+  // characters
+  private static final int COMBINED_SQL_LIMIT = 2 * 1024 * 1024;
   private static final ToIntFunction<DBQueryInfo> SQL_WEIGHER = DBQueryInfo::weight;
   private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
       DDCaches.newFixedSizeWeightedCache(512, SQL_WEIGHER, COMBINED_SQL_LIMIT);

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 import static datadog.context.Context.current;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;

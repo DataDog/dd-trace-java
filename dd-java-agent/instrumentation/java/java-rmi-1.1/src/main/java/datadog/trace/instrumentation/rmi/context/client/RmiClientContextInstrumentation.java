@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.PROP
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -46,9 +45,8 @@ import sun.rmi.transport.Connection;
 @AutoService(InstrumenterModule.class)
 public class RmiClientContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public RmiClientContextInstrumentation() {
     super("rmi", "rmi-context-propagator", "rmi-client-context-propagator");
   }
@@ -56,12 +54,14 @@ public class RmiClientContextInstrumentation extends InstrumenterModule.Tracing
   @Override
   protected boolean defaultEnabled() {
     return super.defaultEnabled()
-        && !Platform.isNativeImageBuilder(); // not applicable in native-image
+        && !Platform.isNativeImageBuilder() // not applicable in native-image
+    ;
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -79,8 +79,8 @@ public class RmiClientContextInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(0, named("sun.rmi.transport.Connection")))
-            .and(takesArgument(1, named("java.rmi.server.ObjID"))),
+          .and(takesArgument(0, named("sun.rmi.transport.Connection")))
+          .and(takesArgument(1, named("java.rmi.server.ObjID"))),
         getClass().getName() + "$StreamRemoteCallConstructorAdvice");
   }
 

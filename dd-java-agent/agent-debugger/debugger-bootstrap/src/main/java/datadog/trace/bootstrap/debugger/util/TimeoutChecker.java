@@ -4,7 +4,6 @@ import datadog.trace.api.Config;
 import java.time.Duration;
 
 public interface TimeoutChecker {
-
   String CPU = "CPU";
   String WALL = "WALL";
 

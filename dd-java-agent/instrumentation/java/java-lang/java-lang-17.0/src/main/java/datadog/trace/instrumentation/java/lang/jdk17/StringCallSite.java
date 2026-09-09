@@ -7,9 +7,11 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.StringModule;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isMajorJavaVersionAtLeast", "17"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isMajorJavaVersionAtLeast",
+    "17"
+})
 public class StringCallSite {
   @CallSite.After("java.lang.String java.lang.String.indent(int)")
   public static String afterIndent(

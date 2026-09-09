@@ -8,12 +8,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.GuardedBy;
 
 public abstract class CoveragePerTestBridge {
-
   private static final ThreadLocal<CoverageProbes> COVERAGE_PROBES = new ThreadLocal<>();
-
   private static volatile CoverageStore.Registry COVERAGE_STORE_REGISTRY;
   private static final Object COVERAGE_STORE_REGISTRY_LOCK = new Object();
-
   @GuardedBy("COVERAGE_STORE_REGISTRY_LOCK")
   private static final Queue<TotalProbeCount> DEFERRED_PROBE_COUNTS = new ArrayDeque<>();
 
@@ -89,7 +86,6 @@ public abstract class CoveragePerTestBridge {
     if (probes != null) {
       return probes;
     }
-
     /*
      * Get coverage probe store associated with the active span: a fallback method for cases
      * when the probe store could not be retrieved from the thread local. This can happen if the span

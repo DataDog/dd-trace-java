@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jms;
 
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import java.util.Map;

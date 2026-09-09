@@ -15,7 +15,6 @@ import org.springframework.util.MultiValueMap;
 
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintCookiesAdvice {
-
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void after(
       @Advice.Return MultiValueMap<String, HttpCookie> cookies,

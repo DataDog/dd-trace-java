@@ -10,7 +10,6 @@ import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGENT_WRITER_TYPE;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.squareup.moshi.Moshi;
 import datadog.json.JsonMapper;
 import datadog.trace.api.Config;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.Timeout;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
 public class StatusLoggerTest extends DDJavaSpecification {
-
   @Test
   void otlpExportDisabledByDefault() throws IOException {
     Map<String, Object> startupLog = startupLog();
@@ -120,10 +118,10 @@ public class StatusLoggerTest extends DDJavaSpecification {
   private static Map<String, Object> startupLog() throws IOException {
     String json =
         new Moshi.Builder()
-            .add(new StatusLogger())
-            .build()
-            .adapter(Config.class)
-            .toJson(Config.get());
+      .add(new StatusLogger())
+      .build()
+      .adapter(Config.class)
+      .toJson(Config.get());
     return JsonMapper.fromJsonToMap(json);
   }
 

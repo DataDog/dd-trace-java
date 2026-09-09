@@ -4,7 +4,6 @@ import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
@@ -35,18 +34,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedClientDecorator {
-
   private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
-
   private static final String DATADOG_META_LANG_HEADER_NAME = "Datadog-Meta-Lang";
   private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
-
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
-
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
-
   private static final boolean CLIENT_TAG_HEADERS = Config.get().isHttpClientTagHeaders();
-
   private static final boolean APPSEC_RASP_ENABLED = Config.get().isAppSecRaspEnabled();
 
   protected abstract String method(REQUEST request);
@@ -87,15 +80,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     return true;
   }
 
-  private final DataStreamsTransactionTracker.TransactionSourceReader
-      DSM_TRANSACTION_SOURCE_READER =
-          (source, headerName) -> {
-            try {
-              return getRequestHeader((REQUEST) source, headerName);
-            } catch (Throwable ignored) {
-              return null;
-            }
-          };
+  private final DataStreamsTransactionTracker.TransactionSourceReader DSM_TRANSACTION_SOURCE_READER =
+      (source, headerName) -> {
+    try {
+      return getRequestHeader((REQUEST) source, headerName);
+    } catch (Throwable ignored) {
+      return null;
+    }
+  };
 
   public final void onRequest(final AgentSpan span, final REQUEST request) {
     try {
@@ -109,27 +101,28 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   protected void doOnRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
-      AgentTracer.get()
-          .getDataStreamsMonitoring()
-          .trackTransaction(
-              span,
-              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
-              request,
-              DSM_TRANSACTION_SOURCE_READER);
+      AgentTracer
+        .get()
+        .getDataStreamsMonitoring()
+        .trackTransaction(
+            span,
+            DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
+            request,
+            DSM_TRANSACTION_SOURCE_READER);
 
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);
 
       if (CLIENT_TAG_HEADERS) {
-        for (Map.Entry<String, String> headerTag :
-            traceConfig(span).getRequestHeaderTags().entrySet()) {
+        for (Map.Entry<String, String> headerTag : traceConfig(span)
+          .getRequestHeaderTags()
+          .entrySet()) {
           String headerValue = getRequestHeader(request, headerTag.getKey());
           if (null != headerValue) {
             span.setTag(headerTag.getValue(), headerValue);
           }
         }
       }
-
       // Copy of HttpServerDecorator url handling
       try {
         final URI url = url(request);
@@ -181,8 +174,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
       }
 
       if (CLIENT_TAG_HEADERS) {
-        for (Map.Entry<String, String> headerTag :
-            traceConfig(span).getResponseHeaderTags().entrySet()) {
+        for (Map.Entry<String, String> headerTag : traceConfig(span)
+          .getResponseHeaderTags()
+          .entrySet()) {
           String headerValue = getResponseHeader(response, headerTag.getKey());
           if (null != headerValue) {
             span.setTag(headerTag.getValue(), headerValue);
@@ -193,10 +187,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   }
 
   public String operationName() {
-    return SpanNaming.instance()
-        .namingSchema()
-        .client()
-        .operationForComponent(component().toString());
+    return SpanNaming
+      .instance()
+      .namingSchema()
+      .client()
+      .operationForComponent(component().toString());
   }
 
   public String getSpanTagAsString(AgentSpan span, String tag) {
@@ -243,10 +238,10 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     if (url == null) {
       return;
     }
-    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb =
-        AgentTracer.get()
-            .getCallbackProvider(RequestContextSlot.APPSEC)
-            .getCallback(EVENTS.httpClientRequest());
+    final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> requestCb = AgentTracer
+      .get()
+      .getCallbackProvider(RequestContextSlot.APPSEC)
+      .getCallback(EVENTS.httpClientRequest());
 
     if (requestCb == null) {
       return;

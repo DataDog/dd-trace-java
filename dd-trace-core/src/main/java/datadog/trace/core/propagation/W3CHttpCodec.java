@@ -7,7 +7,6 @@ import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD128bTraceId;
@@ -28,10 +27,11 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A codec designed for HTTP transport via headers using W3C traceparent and tracestate headers */
+/**
+ * A codec designed for HTTP transport via headers using W3C traceparent and tracestate headers
+ */
 class W3CHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(W3CHttpCodec.class);
-
   private static final int TRACE_PARENT_TID_START = 2 + 1;
   private static final int TRACE_PARENT_TID_END = TRACE_PARENT_TID_START + 32;
   private static final int TRACE_PARENT_SID_START = TRACE_PARENT_TID_END + 1;
@@ -39,10 +39,12 @@ class W3CHttpCodec {
   private static final int TRACE_PARENT_FLAGS_START = TRACE_PARENT_SID_END + 1;
   private static final int TRACE_PARENT_FLAGS_SAMPLED = 1;
   private static final int TRACE_PARENT_LENGTH = TRACE_PARENT_FLAGS_START + 2;
-
-  @VisibleForTesting static final String TRACE_PARENT_KEY = "traceparent";
-  @VisibleForTesting static final String TRACE_STATE_KEY = "tracestate";
-  @VisibleForTesting static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
+  @VisibleForTesting
+  static final String TRACE_PARENT_KEY = "traceparent";
+  @VisibleForTesting
+  static final String TRACE_STATE_KEY = "tracestate";
+  @VisibleForTesting
+  static final String OT_BAGGAGE_PREFIX = "ot-baggage-";
   static final String E2E_START_KEY = OT_BAGGAGE_PREFIX + DDTags.TRACE_START_TIME;
 
   private W3CHttpCodec() {
@@ -54,7 +56,6 @@ class W3CHttpCodec {
   }
 
   private static class Injector implements HttpCodec.Injector {
-
     private final Map<String, String> invertedBaggageMapping;
 
     public Injector(Map<String, String> invertedBaggageMapping) {
@@ -64,16 +65,19 @@ class W3CHttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
+        final DDSpanContext context,
+        final C carrier,
+        final CarrierSetter<C> setter) {
       injectTraceParent(context, carrier, setter);
       injectTraceState(context, carrier, setter);
       injectBaggage(context, carrier, setter);
     }
 
     private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
-      String traceparent =
-          W3CTraceParent.from(
-              context.getTraceId(), context.getSpanId(), context.getSamplingPriority() > 0);
+      String traceparent = W3CTraceParent.from(
+          context.getTraceId(),
+          context.getSpanId(),
+          context.getSamplingPriority() > 0);
       setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 
@@ -104,18 +108,17 @@ class W3CHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier) {
     return new TagContextExtractor(traceConfigSupplier, () -> new W3CContextInterpreter(config));
   }
 
   private static class W3CContextInterpreter extends ContextInterpreter {
-
     private static final int TRACE_PARENT = 0;
     private static final int TRACE_STATE = 1;
     private static final int OT_BAGGAGE = 2;
     private static final int E2E_START = 3;
     private static final int IGNORE = -1;
-
     // We need to delay handling of the tracestate header until after traceparent
     private String tracestateHeader = null;
     private String traceparentHeader = null;
@@ -230,7 +233,9 @@ class W3CHttpCodec {
         // We should not accept multiple traceparent headers
         if (log.isDebugEnabled()) {
           log.debug(
-              "Multiple traceparent headers. Had '{}' and got '{}'", traceparentHeader, trimmed);
+              "Multiple traceparent headers. Had '{}' and got '{}'",
+              traceparentHeader,
+              trimmed);
         }
         onlyTagContext();
       } else {
@@ -289,15 +294,15 @@ class W3CHttpCodec {
       DDTraceId traceId = DD128bTraceId.fromHex(tp, TRACE_PARENT_TID_START, 32, true);
       if (traceId.toLong() == 0) {
         throw new IllegalStateException(
-            "Illegal all zero 64 bit trace id "
-                + tp.substring(TRACE_PARENT_TID_START, TRACE_PARENT_TID_END));
+            "Illegal all zero 64 bit trace id " + tp.substring(
+                TRACE_PARENT_TID_START,
+                TRACE_PARENT_TID_END));
       }
       this.traceId = traceId;
       this.spanId = DDSpanId.fromHex(tp, TRACE_PARENT_SID_START, 16, true);
       if (this.spanId == 0) {
         throw new IllegalStateException(
-            "Illegal all zero span id "
-                + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
+            "Illegal all zero span id " + tp.substring(TRACE_PARENT_SID_START, TRACE_PARENT_SID_END));
       }
       if (version != 0 && length > TRACE_PARENT_LENGTH && tp.charAt(TRACE_PARENT_LENGTH) != '-') {
         throw new IllegalStateException("Illegal character after flags in '" + tp + "'");
@@ -324,7 +329,8 @@ class W3CHttpCodec {
           || ptagsPriority == PrioritySampling.UNSET) {
         // Override Datadog sampling priority with W3C one
         this.propagationTags.updateTraceSamplingPriority(
-            contextPriority, SamplingMechanism.EXTERNAL_OVERRIDE);
+            contextPriority,
+            SamplingMechanism.EXTERNAL_OVERRIDE);
       } else {
         // Use more detailed Datadog sampling priority in context
         this.samplingPriority = ptagsPriority;

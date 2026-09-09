@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +15,6 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class PeerTagSchemaTest {
-
   @Test
   void ofBuildsSchemaFromSetWithState() {
     Set<String> tags = new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service"));
@@ -43,10 +41,9 @@ class PeerTagSchemaTest {
 
   @Test
   void hasSameTagsAsReturnsTrueForExactMatch() {
-    PeerTagSchema schema =
-        PeerTagSchema.of(
-            new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
-
+    PeerTagSchema schema = PeerTagSchema.of(
+        new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")),
+        "state-1");
     // Same content via a different Set reference -- this is the case the reconcile fast-path
     // depends on (Set returned from a fresh discovery cycle is content-equal to the prior one).
     Set<String> equivalentSet = new HashSet<>(Arrays.asList("peer.service", "peer.hostname"));
@@ -64,9 +61,9 @@ class PeerTagSchemaTest {
 
   @Test
   void hasSameTagsAsReturnsFalseWhenSetShrank() {
-    PeerTagSchema schema =
-        PeerTagSchema.of(
-            new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
+    PeerTagSchema schema = PeerTagSchema.of(
+        new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")),
+        "state-1");
 
     assertFalse(schema.hasSameTagsAs(Collections.<String>singleton("peer.hostname")));
   }
@@ -95,23 +92,23 @@ class PeerTagSchemaTest {
     PeerTagSchema schema =
         new PeerTagSchema(new String[] {"peer.hostname"}, PeerTagSchema.NO_STATE);
     schema.handlers[0] = new TagCardinalityHandler("peer.hostname", 1, true);
-
-    schema.register(0, "host-a"); // within limit
-    schema.register(0, "host-b"); // blocked
-    schema.register(0, "host-c"); // blocked
+    // within limit
+    schema.register(0, "host-a");
+    // blocked
+    schema.register(0, "host-b");
+    // blocked
+    schema.register(0, "host-c");
 
     long[] recorded = {0};
-    HealthMetrics hm =
-        new HealthMetrics() {
-          @Override
-          public void onTagCardinalityBlocked(String[] tag, long count) {
-            recorded[0] += count;
-          }
-        };
+    HealthMetrics hm = new HealthMetrics() {
+      @Override
+      public void onTagCardinalityBlocked(String[] tag, long count) {
+        recorded[0] += count;
+      }
+    };
 
     schema.resetHandlers(hm, new CardinalityLimitReporter());
     assertEquals(2, recorded[0]);
-
     // After the reset, no new values were registered so the next reset reports nothing.
     recorded[0] = 0;
     schema.resetHandlers(hm, new CardinalityLimitReporter());
@@ -126,26 +123,28 @@ class PeerTagSchemaTest {
         new PeerTagSchema(new String[] {"peer.hostname", "peer.service"}, PeerTagSchema.NO_STATE);
     schema.handlers[0] = new TagCardinalityHandler("peer.hostname", 1, true);
     schema.handlers[1] = new TagCardinalityHandler("peer.service", 1, true);
-
-    schema.register(0, "host-a"); // within limit
-    schema.register(0, "host-b"); // blocked
-    schema.register(1, "svc-a"); // within limit
-    schema.register(1, "svc-b"); // blocked
-    schema.register(1, "svc-c"); // blocked
+    // within limit
+    schema.register(0, "host-a");
+    // blocked
+    schema.register(0, "host-b");
+    // within limit
+    schema.register(1, "svc-a");
+    // blocked
+    schema.register(1, "svc-b");
+    // blocked
+    schema.register(1, "svc-c");
 
     List<String[]> tags = new ArrayList<>();
     long[] total = {0};
-    HealthMetrics hm =
-        new HealthMetrics() {
-          @Override
-          public void onTagCardinalityBlocked(String[] tag, long count) {
-            tags.add(tag);
-            total[0] += count;
-          }
-        };
+    HealthMetrics hm = new HealthMetrics() {
+      @Override
+      public void onTagCardinalityBlocked(String[] tag, long count) {
+        tags.add(tag);
+        total[0] += count;
+      }
+    };
 
     schema.resetHandlers(hm, new CardinalityLimitReporter());
-
     // One health-metric call, tagged at the field granularity, summing both handlers' blocks.
     assertEquals(1, tags.size());
     assertArrayEquals(new String[] {"collapsed:peer_tags"}, tags.get(0));

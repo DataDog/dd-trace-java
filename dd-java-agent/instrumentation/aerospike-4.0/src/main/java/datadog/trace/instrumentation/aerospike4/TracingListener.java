@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.aerospike4;
 
 import static datadog.trace.instrumentation.aerospike4.AerospikeClientDecorator.DECORATE;
-
 import com.aerospike.client.AerospikeException;
 import com.aerospike.client.BatchRead;
 import com.aerospike.client.Key;
@@ -24,23 +23,24 @@ import java.util.List;
 
 public final class TracingListener
     implements ExistsListener,
-        ExistsSequenceListener,
-        ExistsArrayListener,
-        RecordListener,
-        RecordSequenceListener,
-        RecordArrayListener,
-        BatchSequenceListener,
-        BatchListListener,
-        WriteListener,
-        ExecuteListener,
-        DeleteListener {
-
+    ExistsSequenceListener,
+    ExistsArrayListener,
+    RecordListener,
+    RecordSequenceListener,
+    RecordArrayListener,
+    BatchSequenceListener,
+    BatchListListener,
+    WriteListener,
+    ExecuteListener,
+    DeleteListener {
   protected final AgentSpan clientSpan;
   protected final ContextContinuation continuation;
   protected final Object listener;
 
   public TracingListener(
-      final AgentSpan clientSpan, final ContextContinuation continuation, final Object listener) {
+      final AgentSpan clientSpan,
+      final ContextContinuation continuation,
+      final Object listener) {
     this.clientSpan = clientSpan;
     this.continuation = continuation;
     this.listener = listener;

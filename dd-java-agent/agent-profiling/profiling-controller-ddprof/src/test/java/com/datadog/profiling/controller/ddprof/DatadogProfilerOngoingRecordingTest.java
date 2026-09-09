@@ -2,7 +2,6 @@ package com.datadog.profiling.controller.ddprof;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.datadog.profiling.ddprof.DatadogProfiler;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.profiling.RecordingData;
@@ -22,12 +21,11 @@ import org.mockito.quality.Strictness;
 // see https://github.com/mockito/mockito/issues/1540
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class DatadogProfilerOngoingRecordingTest {
-
   private static final String TEST_NAME = "recording name";
-
-  @Mock private Instant start;
-  @Mock private Instant end;
-
+  @Mock
+  private Instant start;
+  @Mock
+  private Instant end;
   private DatadogProfilerOngoingRecording ongoingRecording;
 
   @BeforeAll
@@ -35,13 +33,13 @@ public class DatadogProfilerOngoingRecordingTest {
     // If the profiler couldn't be loaded, the reason why is saved.
     // This test assumes the profiler could be loaded.
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
   }
 
   @BeforeEach
   public void setup() throws Exception {
-    ongoingRecording =
-        new DatadogProfilerOngoingRecording(DatadogProfiler.newInstance(), TEST_NAME);
+    ongoingRecording = new DatadogProfilerOngoingRecording(DatadogProfiler.newInstance(), TEST_NAME);
   }
 
   @AfterEach
@@ -58,7 +56,6 @@ public class DatadogProfilerOngoingRecordingTest {
   public void testSnapshot() {
     final RecordingData recordingData = ongoingRecording.snapshot(start);
     assertEquals(start, recordingData.getStart());
-
     // We got real recording so we should clean it up
     recordingData.release();
   }

@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static java.util.Collections.singleton;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -62,12 +61,14 @@ public class ExecutorModule extends InstrumenterModule.ContextTracking
   public List<Instrumenter> typeInstrumentations() {
     final List<Instrumenter> instrumenters = new ArrayList<>();
     instrumenters.add(new JavaExecutorInstrumentation());
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(singleton(EXECUTOR_INSTRUMENTATION_NAME + ".other"), true)) {
+    if (InstrumenterConfig
+      .get()
+      .isIntegrationEnabled(singleton(EXECUTOR_INSTRUMENTATION_NAME + ".other"), true)) {
       instrumenters.add(new NonStandardExecutorInstrumentation());
     }
-    if (InstrumenterConfig.get()
-        .isIntegrationEnabled(singleton("rejected-execution-handler"), true)) {
+    if (InstrumenterConfig
+      .get()
+      .isIntegrationEnabled(singleton("rejected-execution-handler"), true)) {
       instrumenters.add(new RejectedExecutionHandlerInstrumentation());
     }
     instrumenters.add(new ThreadPoolExecutorInstrumentation());

@@ -3,14 +3,12 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import java.util.concurrent.RunnableFuture;
 
 public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
-
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <T extends Runnable> Runnable wrap(T task) {
     if (task instanceof Wrapper

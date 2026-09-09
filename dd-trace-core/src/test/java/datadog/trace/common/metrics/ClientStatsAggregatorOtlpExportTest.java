@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreSpan;
@@ -25,7 +24,6 @@ import org.mockito.ArgumentCaptor;
  * single-key {@code rpc.grpc.status_code} lookup gated on {@code rpc}-typed spans.
  */
 class ClientStatsAggregatorOtlpExportTest {
-
   @Test
   void grpcStatusExtractedFromGrpcTypedSpanOnOtlpPath() throws Exception {
     OtlpStatsMetricWriter writer = mock(OtlpStatsMetricWriter.class);
@@ -33,18 +31,21 @@ class ClientStatsAggregatorOtlpExportTest {
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
     Sink sink = mock(Sink.class);
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            HealthMetrics.NO_OP,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 16,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        HealthMetrics.NO_OP,
+        sink,
+        writer,
+        /* maxAggregates */
+        16,
+        /* queueSize */
+        16,
+        /* reportingInterval */
+        10,
+        SECONDS,
+        /* includeEndpointInMetrics */
+        false);
     aggregator.start();
     try {
       // A span typed "grpc" (not "rpc") carrying grpc.status.code -- a key + type combo the native
@@ -60,7 +61,9 @@ class ClientStatsAggregatorOtlpExportTest {
     }
   }
 
-  /** A metrics-eligible, top-level span typed {@code grpc} carrying a single tag. */
+  /**
+   * A metrics-eligible, top-level span typed {@code grpc} carrying a single tag.
+   */
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static CoreSpan<?> grpcSpan(String tagKey, String tagValue) {
     CoreSpan span = mock(CoreSpan.class);

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -23,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 @WithConfig(key = "trace.scope.iteration.keep.alive", value = "1")
 class IterationSpansForkedTest extends DDJavaSpecification {
-
   ListWriter writer;
   DDTracer tracer;
   ScopeManager scopeManager;
@@ -76,7 +74,6 @@ class IterationSpansForkedTest extends DDJavaSpecification {
     assertSame(span3, scope3.span());
     assertSame(span3, ((OTSpan) tracer.activeSpan()).getDelegate());
     assertFalse(spanFinished(span3));
-
     // 'next3' should time out & finish after 1s
     writer.waitForTraces(3);
 
@@ -117,7 +114,6 @@ class IterationSpansForkedTest extends DDJavaSpecification {
     assertSame(span3, scope3.span());
     assertSame(span3, ((OTSpan) tracer.activeSpan()).getDelegate());
     assertFalse(spanFinished(span3));
-
     // close and finish the surrounding (non-iteration) span to complete the trace
     scope0.close();
     span0.finish();
@@ -167,7 +163,6 @@ class IterationSpansForkedTest extends DDJavaSpecification {
     assertSame(span1A2, scope1A2.span());
     assertSame(span1A2, ((OTSpan) tracer.activeSpan()).getDelegate());
     assertFalse(spanFinished(span1A2));
-
     // close and finish the intermediate (non-iteration) span
     scope1A.close();
     span1A.finish();

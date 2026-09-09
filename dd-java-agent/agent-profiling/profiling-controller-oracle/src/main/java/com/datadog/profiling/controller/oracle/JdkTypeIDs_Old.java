@@ -2,44 +2,53 @@ package com.datadog.profiling.controller.oracle;
 
 import com.datadog.profiling.controller.jfr.JdkTypeIDs;
 
-/** 'Old' (pre JDK-11) JFR event type IDs */
+/**
+ * 'Old' (pre JDK-11) JFR event type IDs
+ */
 final class JdkTypeIDs_Old {
-  /** The prefix used for JDK 11 and later */
+  /**
+   * The prefix used for JDK 11 and later
+   */
   private static final String PREFIX = "jdk.";
-
-  /** The prefix used for JDK 9 and 10. */
+  /**
+   * The prefix used for JDK 9 and 10.
+   */
   private static final String PREFIX_9_10 = "com.oracle.jdk.";
-
   /*
    * Package scope producer id constants
    */
-  private static final String EVENT_ID_ROOT = "http://www.oracle.com/hotspot/"; // $NON-NLS-1$
-  private static final String JVM_EVENT_ID_ROOT = EVENT_ID_ROOT + "jvm/"; // $NON-NLS-1$
-  private static final String JDK_EVENT_ID_ROOT = EVENT_ID_ROOT + "jdk/"; // $NON-NLS-1$
-  private static final String JFR_INFO_EVENT_ID_ROOT = EVENT_ID_ROOT + "jfr-info/"; // $NON-NLS-1$
-
+  // $NON-NLS-1$
+  private static final String EVENT_ID_ROOT = "http://www.oracle.com/hotspot/";
+  // $NON-NLS-1$
+  private static final String JVM_EVENT_ID_ROOT = EVENT_ID_ROOT + "jvm/";
+  // $NON-NLS-1$
+  private static final String JDK_EVENT_ID_ROOT = EVENT_ID_ROOT + "jdk/";
+  // $NON-NLS-1$
+  private static final String JFR_INFO_EVENT_ID_ROOT = EVENT_ID_ROOT + "jfr-info/";
   /*
    * Unused JDK9 constants
    */
-
   // Runtime
   /*
    * FIXME: VMError is commented out since the build cannot handle warnings on lines containing
    * the text 'error'. Restore when we are sure that the build works with it.
    */
   //	private final static String VMError = PREFIX_9_10 + "VMError"; // "vm.runtime.vm_error";
-  private static final String ClassLoaderStatistics =
-      PREFIX_9_10 + "ClassLoaderStatistics"; // "java.statistics.class_loaders";
-
+  private static final String // "java.statistics.class_loaders";
+  // "java.statistics.class_loaders";
+  ClassLoaderStatistics = PREFIX_9_10 + "ClassLoaderStatistics";
   // GC
-  private static final String G1HeapSummary =
-      PREFIX_9_10 + "G1HeapSummary"; // "vm.gc.heap.g1_summary";
-  private static final String GC_G1MMU = PREFIX_9_10 + "GCG1MMU"; // "vm.gc.detailed.g1_mmu_info";
-  private static final String PromoteObjectInNewPLAB =
-      PREFIX_9_10 + "PromoteObjectInNewPLAB"; // "vm.gc.detailed.object_promotion_in_new_PLAB";
-  private static final String PromoteObjectOutsidePLAB =
-      PREFIX_9_10 + "PromoteObjectOutsidePLAB"; // "vm.gc.detailed.object_promotion_outside_PLAB";
-
+  private static final String // "vm.gc.heap.g1_summary";
+  // "vm.gc.heap.g1_summary";
+  G1HeapSummary = PREFIX_9_10 + "G1HeapSummary";
+  // "vm.gc.detailed.g1_mmu_info";
+  private static final String GC_G1MMU = PREFIX_9_10 + "GCG1MMU";
+  private static final String // "vm.gc.detailed.object_promotion_in_new_PLAB";
+  // "vm.gc.detailed.object_promotion_in_new_PLAB";
+  PromoteObjectInNewPLAB = PREFIX_9_10 + "PromoteObjectInNewPLAB";
+  private static final String // "vm.gc.detailed.object_promotion_outside_PLAB";
+  // "vm.gc.detailed.object_promotion_outside_PLAB";
+  PromoteObjectOutsidePLAB = PREFIX_9_10 + "PromoteObjectOutsidePLAB";
   /*
    * JDK8 constants
    */
@@ -50,7 +59,8 @@ final class JdkTypeIDs_Old {
   private static final String PROCESSES = JVM_EVENT_ID_ROOT + "os/system_process";
   private static final String OS_MEMORY_SUMMARY = JVM_EVENT_ID_ROOT + "os/memory/physical_memory";
   private static final String OS_INFORMATION = JVM_EVENT_ID_ROOT + "os/information";
-  private static final String CPU_INFORMATION = JVM_EVENT_ID_ROOT + "os/processor/cpu_information";
+  private static final String CPU_INFORMATION = JVM_EVENT_ID_ROOT
+      + "os/processor/cpu_information";
   private static final String THREAD_ALLOCATION_STATISTICS =
       JVM_EVENT_ID_ROOT + "java/statistics/thread_allocation";
   private static final String HEAP_CONF = JVM_EVENT_ID_ROOT + "vm/gc/configuration/heap";
@@ -64,55 +74,44 @@ final class JdkTypeIDs_Old {
   private static final String CLASS_LOAD_STATISTICS =
       JVM_EVENT_ID_ROOT + "java/statistics/class_loading";
   static final String COMPILATION = JVM_EVENT_ID_ROOT + "vm/compiler/compilation";
-
   private static final String FILE_WRITE = JDK_EVENT_ID_ROOT + "java/file_write";
   private static final String FILE_READ = JDK_EVENT_ID_ROOT + "java/file_read";
   private static final String SOCKET_WRITE = JDK_EVENT_ID_ROOT + "java/socket_write";
   private static final String SOCKET_READ = JDK_EVENT_ID_ROOT + "java/socket_read";
-
   static final String THREAD_PARK = JVM_EVENT_ID_ROOT + "java/thread_park";
   private static final String THREAD_SLEEP = JVM_EVENT_ID_ROOT + "java/thread_sleep";
   static final String MONITOR_ENTER = JVM_EVENT_ID_ROOT + "java/monitor_enter";
   static final String MONITOR_WAIT = JVM_EVENT_ID_ROOT + "java/monitor_wait";
-
   private static final String METASPACE_OOM = JVM_EVENT_ID_ROOT + "vm/gc/metaspace/out_of_memory";
-
   private static final String CODE_CACHE_FULL = JVM_EVENT_ID_ROOT + "vm/code_cache/full";
   static final String CODE_CACHE_STATISTICS = JVM_EVENT_ID_ROOT + "vm/code_cache/stats";
-
-  private static final String CODE_SWEEPER_STATISTICS = JVM_EVENT_ID_ROOT + "vm/code_sweeper/stats";
+  private static final String CODE_SWEEPER_STATISTICS = JVM_EVENT_ID_ROOT
+      + "vm/code_sweeper/stats";
   static final String SWEEP_CODE_CACHE = JVM_EVENT_ID_ROOT + "vm/code_sweeper/sweep";
-
   private static final String ENVIRONMENT_VARIABLE =
       JVM_EVENT_ID_ROOT + "os/initial_environment_variable";
-  private static final String SYSTEM_PROPERTIES = JVM_EVENT_ID_ROOT + "vm/initial_system_property";
-
+  private static final String SYSTEM_PROPERTIES = JVM_EVENT_ID_ROOT
+      + "vm/initial_system_property";
   static final String OBJECT_COUNT = JVM_EVENT_ID_ROOT + "vm/gc/detailed/object_count";
   private static final String GC_REFERENCE_STATISTICS =
       JVM_EVENT_ID_ROOT + "vm/gc/reference/statistics";
-
   private static final String OLD_OBJECT_SAMPLE = JVM_EVENT_ID_ROOT + "java/old_object";
-
   private static final String GC_PAUSE_L3 = JVM_EVENT_ID_ROOT + "vm/gc/phases/pause_level_3";
   private static final String GC_PAUSE_L2 = JVM_EVENT_ID_ROOT + "vm/gc/phases/pause_level_2";
   private static final String GC_PAUSE_L1 = JVM_EVENT_ID_ROOT + "vm/gc/phases/pause_level_1";
   private static final String GC_PAUSE = JVM_EVENT_ID_ROOT + "vm/gc/phases/pause";
-
-  private static final String METASPACE_SUMMARY =
-      JVM_EVENT_ID_ROOT + "vm/gc/heap/metaspace_summary";
+  private static final String METASPACE_SUMMARY = JVM_EVENT_ID_ROOT
+      + "vm/gc/heap/metaspace_summary";
   private static final String GARBAGE_COLLECTION =
       JVM_EVENT_ID_ROOT + "vm/gc/collector/garbage_collection";
   private static final String CONCURRENT_MODE_FAILURE =
       JVM_EVENT_ID_ROOT + "vm/gc/detailed/concurrent_mode_failure";
-
   private static final String THROWABLES_STATISTICS =
       JDK_EVENT_ID_ROOT + "java/statistics/throwables";
   private static final String ERRORS_THROWN = JDK_EVENT_ID_ROOT + "java/error_throw";
   private static final String EXCEPTIONS_THROWN = JDK_EVENT_ID_ROOT + "java/exception_throw";
-
   private static final String COMPILER_STATS = JVM_EVENT_ID_ROOT + "vm/compiler/stats";
   static final String COMPILER_FAILURE = JVM_EVENT_ID_ROOT + "vm/compiler/failure";
-
   private static final String ULONG_FLAG = JVM_EVENT_ID_ROOT + "vm/flag/ulong";
   private static final String BOOLEAN_FLAG = JVM_EVENT_ID_ROOT + "vm/flag/boolean";
   private static final String STRING_FLAG = JVM_EVENT_ID_ROOT + "vm/flag/string";
@@ -120,7 +119,6 @@ final class JdkTypeIDs_Old {
   private static final String LONG_FLAG = JVM_EVENT_ID_ROOT + "vm/flag/long";
   private static final String INT_FLAG = JVM_EVENT_ID_ROOT + "vm/flag/int";
   private static final String UINT_FLAG = JVM_EVENT_ID_ROOT + "vm/flag/uint";
-
   static final String ULONG_FLAG_CHANGED = JVM_EVENT_ID_ROOT + "vm/flag/ulong_changed";
   static final String BOOLEAN_FLAG_CHANGED = JVM_EVENT_ID_ROOT + "vm/flag/boolean_changed";
   static final String STRING_FLAG_CHANGED = JVM_EVENT_ID_ROOT + "vm/flag/string_changed";
@@ -128,23 +126,20 @@ final class JdkTypeIDs_Old {
   static final String LONG_FLAG_CHANGED = JVM_EVENT_ID_ROOT + "vm/flag/long_changed";
   static final String INT_FLAG_CHANGED = JVM_EVENT_ID_ROOT + "vm/flag/int_changed";
   static final String UINT_FLAG_CHANGED = JVM_EVENT_ID_ROOT + "vm/flag/uint_changed";
-
   private static final String TIME_CONVERSION = JVM_EVENT_ID_ROOT + "os/processor/cpu_tsc";
   private static final String THREAD_DUMP = JVM_EVENT_ID_ROOT + "vm/runtime/thread_dump";
-
   private static final String GC_CONF_YOUNG_GENERATION =
       JVM_EVENT_ID_ROOT + "vm/gc/configuration/young_generation";
-  private static final String GC_CONF_SURVIVOR = JVM_EVENT_ID_ROOT + "vm/gc/configuration/survivor";
+  private static final String GC_CONF_SURVIVOR = JVM_EVENT_ID_ROOT
+      + "vm/gc/configuration/survivor";
   private static final String GC_CONF_TLAB = JVM_EVENT_ID_ROOT + "vm/gc/configuration/tlab";
-
   private static final String JAVA_THREAD_START = JVM_EVENT_ID_ROOT + "java/thread_start";
   private static final String JAVA_THREAD_END = JVM_EVENT_ID_ROOT + "java/thread_end";
-  private static final String VM_OPERATIONS = JVM_EVENT_ID_ROOT + "vm/runtime/execute_vm_operation";
-
+  private static final String VM_OPERATIONS = JVM_EVENT_ID_ROOT
+      + "vm/runtime/execute_vm_operation";
   private static final String THREAD_STATISTICS = JVM_EVENT_ID_ROOT + "java/statistics/threads";
   private static final String CONTEXT_SWITCH_RATE =
       JVM_EVENT_ID_ROOT + "os/processor/context_switch_rate";
-
   private static final String COMPILER_CONFIG = JVM_EVENT_ID_ROOT + "vm/compiler/config";
   private static final String CODE_CACHE_CONFIG = JVM_EVENT_ID_ROOT + "vm/code_cache/config";
   private static final String CODE_SWEEPER_CONFIG = JVM_EVENT_ID_ROOT + "vm/code_sweeper/config";
@@ -174,11 +169,9 @@ final class JdkTypeIDs_Old {
       JVM_EVENT_ID_ROOT + "vm/gc/metaspace/chunk_free_list_summary";
   private static final String GC_METASPACE_GC_THRESHOLD =
       JVM_EVENT_ID_ROOT + "vm/gc/metaspace/gc_threshold";
-
   static final String RECORDINGS = JFR_INFO_EVENT_ID_ROOT + "recordings/recording";
   static final String RECORDING_SETTING = JFR_INFO_EVENT_ID_ROOT + "recordings/recording_setting";
   static final String JDK9_RECORDING_SETTING = PREFIX_9_10 + "ActiveSetting";
-
   static final String BUFFER_LOST_TYPE_ID = "org.openjdk.jmc.flightrecorder.bufferlosttypeid";
 
   /**

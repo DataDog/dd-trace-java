@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -35,8 +34,8 @@ public class PathParameterPublishingHelper {
     }
 
     BlockingException be = null;
-
-    { // appsec
+    {
+      // appsec
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
       BiFunction<RequestContext, Map<String, ?>, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestPathParams());
@@ -56,8 +55,8 @@ public class PathParameterPublishingHelper {
         }
       }
     }
-
-    { // iast
+    {
+      // iast
       IastContext iastRequestContext = requestContext.getData(RequestContextSlot.IAST);
       if (iastRequestContext != null) {
         PropagationModule module = InstrumentationBridge.PROPAGATION;
@@ -66,10 +65,14 @@ public class PathParameterPublishingHelper {
             String parameterName = e.getKey();
             String value = e.getValue();
             if (parameterName == null || value == null) {
-              continue; // should not happen
+              // should not happen
+              continue;
             }
             module.taintString(
-                iastRequestContext, value, SourceTypes.REQUEST_PATH_PARAMETER, parameterName);
+                iastRequestContext,
+                value,
+                SourceTypes.REQUEST_PATH_PARAMETER,
+                parameterName);
           }
         }
       }

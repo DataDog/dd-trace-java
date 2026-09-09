@@ -22,10 +22,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Manages the probes used for instrumentation of exception stacktraces. */
+/**
+ * Manages the probes used for instrumentation of exception stacktraces.
+ */
 public class ExceptionProbeManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExceptionProbeManager.class);
-
   private final Map<String, Instant> fingerprints = new ConcurrentHashMap<>();
   private final Map<String, ExceptionProbe> probes = new ConcurrentHashMap<>();
   private final ClassNameFilter classNameFiltering;
@@ -84,7 +85,8 @@ public class ExceptionProbeManager {
   }
 
   public CreationResult createProbesForException(
-      StackTraceElement[] stackTraceElements, int chainedExceptionIdx) {
+      StackTraceElement[] stackTraceElements,
+      int chainedExceptionIdx) {
     int instrumentedFrames = 0;
     int nativeFrames = 0;
     int thirdPartyFrames = 0;
@@ -101,12 +103,11 @@ public class ExceptionProbeManager {
         thirdPartyFrames++;
         continue;
       }
-      Where where =
-          Where.of(
-              stackTraceElement.getClassName(),
-              stackTraceElement.getMethodName(),
-              null,
-              String.valueOf(stackTraceElement.getLineNumber()));
+      Where where = Where.of(
+          stackTraceElement.getClassName(),
+          stackTraceElement.getMethodName(),
+          null,
+          String.valueOf(stackTraceElement.getLineNumber()));
       ExceptionProbe probe = createMethodProbe(this, where, chainedExceptionIdx);
       probes.putIfAbsent(probe.getId(), probe);
       instrumentedFrames++;
@@ -119,10 +120,17 @@ public class ExceptionProbeManager {
   }
 
   private static ExceptionProbe createMethodProbe(
-      ExceptionProbeManager exceptionProbeManager, Where where, int chainedExceptionIdx) {
+      ExceptionProbeManager exceptionProbeManager,
+      Where where,
+      int chainedExceptionIdx) {
     String probeId = RandomUtils.randomUUID().toString();
     return new ExceptionProbe(
-        new ProbeId(probeId, 0), where, null, null, exceptionProbeManager, chainedExceptionIdx);
+        new ProbeId(probeId, 0),
+        where,
+        null,
+        null,
+        exceptionProbeManager,
+        chainedExceptionIdx);
   }
 
   public boolean isAlreadyInstrumented(String fingerprint) {
@@ -150,7 +158,11 @@ public class ExceptionProbeManager {
   }
 
   public void addSnapshot(Snapshot snapshot) {
-    Throwable throwable = snapshot.getCaptures().getReturn().getCapturedThrowable().getThrowable();
+    Throwable throwable = snapshot
+      .getCaptures()
+      .getReturn()
+      .getCapturedThrowable()
+      .getThrowable();
     if (throwable == null) {
       LOGGER.debug("Snapshot has no throwable: {}", snapshot.getId());
       return;
@@ -161,9 +173,9 @@ public class ExceptionProbeManager {
       LOGGER.debug("Unable to find root cause of exception: {}", String.valueOf(throwable));
       return;
     }
-    ThrowableState state =
-        snapshotsByThrowable.computeIfAbsent(
-            throwable, key -> new ThrowableState(RandomUtils.randomUUID().toString()));
+    ThrowableState state = snapshotsByThrowable.computeIfAbsent(throwable, key -> new ThrowableState(RandomUtils
+      .randomUUID()
+      .toString()));
     snapshot.setExceptionId(state.getExceptionId());
     state.addSnapshot(snapshot);
   }

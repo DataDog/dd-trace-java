@@ -14,9 +14,7 @@ package datadog.trace.api;
  * </ul>
  */
 public class ProductTraceSource {
-
   public static final int UNSET = 0;
-
   public static final int APM = 0x01;
   public static final int ASM = 0x02;
   public static final int DSM = 0x04;
@@ -24,17 +22,24 @@ public class ProductTraceSource {
   public static final int DBM = 0x10;
   public static final int AI_GUARD = 0x20;
 
-  /** Updates the bitfield by setting the bit corresponding to a specific product. */
+  /**
+   * Updates the bitfield by setting the bit corresponding to a specific product.
+   */
   public static int updateProduct(int bitfield, int product) {
-    return bitfield |= product; // Set the bit for the given product
+    // Set the bit for the given product
+    return bitfield |= product;
   }
 
-  /** Checks if the bitfield is marked for a specific product. */
+  /**
+   * Checks if the bitfield is marked for a specific product.
+   */
   public static boolean isProductMarked(final int bitfield, int product) {
     return (bitfield & product) != 0;
   }
 
-  /** Checks if the bitfield is marked for either of the two given products. */
+  /**
+   * Checks if the bitfield is marked for either of the two given products.
+   */
   public static boolean isProductMarked(final int bitfield, int productA, int productB) {
     return (bitfield & (productA | productB)) != 0;
   }
@@ -47,7 +52,8 @@ public class ProductTraceSource {
    */
   public static String getBitfieldHex(final int bitfield) {
     String hex = Integer.toHexString(bitfield & 0xFF);
-    return hex.length() == 1 ? "0" + hex : hex; // Ensure two characters
+    // Ensure two characters
+    return hex.length() == 1 ? "0" + hex : hex;
   }
 
   /**
@@ -58,9 +64,11 @@ public class ProductTraceSource {
    */
   public static int parseBitfieldHex(final String hexString) {
     if (hexString == null || hexString.isEmpty()) {
-      return 0; // Return 0 if the string is empty
+      // Return 0 if the string is empty
+      return 0;
     }
     // Need to support unsigned parsing
-    return (int) Long.parseUnsignedLong(hexString, 16); // Parse the string as a base-16 number
+    // Parse the string as a base-16 number
+    return (int) Long.parseUnsignedLong(hexString, 16);
   }
 }

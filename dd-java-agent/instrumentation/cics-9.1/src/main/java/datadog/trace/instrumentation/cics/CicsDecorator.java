@@ -13,7 +13,6 @@ public class CicsDecorator extends ClientDecorator {
   public static final CharSequence CICS_CLIENT = UTF8BytesString.create("cics-client");
   public static final CharSequence ECI_EXECUTE_OPERATION = UTF8BytesString.create("cics.execute");
   public static final CharSequence GATEWAY_FLOW_OPERATION = UTF8BytesString.create("gateway.flow");
-
   public static final CicsDecorator DECORATE = new CicsDecorator();
 
   @Override
@@ -23,7 +22,8 @@ public class CicsDecorator extends ClientDecorator {
 
   @Override
   protected String service() {
-    return null; // Use default service name
+    // Use default service name
+    return null;
   }
 
   @Override
@@ -52,7 +52,10 @@ public class CicsDecorator extends ClientDecorator {
    * @param ipGateway the resolved InetAddress (can be null)
    */
   public void onConnection(
-      final AgentSpan span, final String strAddress, final int port, final InetAddress ipGateway) {
+      final AgentSpan span,
+      final String strAddress,
+      final int port,
+      final InetAddress ipGateway) {
     if (strAddress != null) {
       span.setTag(Tags.PEER_HOSTNAME, strAddress);
     }

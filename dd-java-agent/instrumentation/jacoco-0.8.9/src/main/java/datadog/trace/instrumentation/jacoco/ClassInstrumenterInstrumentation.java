@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,7 +15,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public ClassInstrumenterInstrumentation() {
     super("jacoco");
   }
@@ -36,7 +36,7 @@ public class ClassInstrumenterInstrumentation extends InstrumenterModule.CiVisib
     // The jacoco javaagent jar that is published relocates internal classes to an "obfuscated"
     // package name ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ClassInstrumenter
     return nameStartsWith("org.jacoco.agent.rt.internal")
-        .and(nameEndsWith(".core.internal.instr.ClassInstrumenter"));
+      .and(nameEndsWith(".core.internal.instr.ClassInstrumenter"));
   }
 
   @Override

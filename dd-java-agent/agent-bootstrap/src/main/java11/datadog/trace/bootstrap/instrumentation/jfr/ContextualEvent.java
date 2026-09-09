@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 
 public interface ContextualEvent {
-
   void setContext(long localRootSpanId, long spanId);
 
   default void captureContext() {

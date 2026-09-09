@@ -6,7 +6,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 public class TextMapInjectAdapter implements CarrierSetter<PubsubMessage.Builder> {
-
   public static final TextMapInjectAdapter SETTER = new TextMapInjectAdapter();
 
   @Override

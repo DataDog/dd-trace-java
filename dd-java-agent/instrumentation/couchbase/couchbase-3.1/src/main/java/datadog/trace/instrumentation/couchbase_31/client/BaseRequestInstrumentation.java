@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.couchbase_31.client;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -10,8 +9,8 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class BaseRequestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public BaseRequestInstrumentation() {
     super("couchbase", "couchbase-3");
   }
@@ -19,9 +18,9 @@ public class BaseRequestInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CouchbaseClientDecorator",
-      packageName + ".DatadogRequestSpan",
-      packageName + ".DatadogRequestTracer",
+        packageName + ".CouchbaseClientDecorator",
+        packageName + ".DatadogRequestSpan",
+        packageName + ".DatadogRequestTracer"
     };
   }
 
@@ -32,11 +31,9 @@ public class BaseRequestInstrumentation extends InstrumenterModule.Tracing
 
   private static final Reference TRACING_IDENTIFIERS_REFERENCE =
       new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
-
-  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
-      new Reference.Builder(
-              "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
-          .build();
+  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE = new Reference.Builder(
+      "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -46,6 +43,7 @@ public class BaseRequestInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor().and(takesArguments(4)), packageName + ".BaseRequestAdvice");
+        isConstructor().and(takesArguments(4)),
+        packageName + ".BaseRequestAdvice");
   }
 }

@@ -1,7 +1,6 @@
 package com.datadog.iast.sink;
 
 import static com.datadog.iast.taint.Tainteds.canBeTainted;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.VulnerabilityType;
 import datadog.trace.api.iast.sink.CodeInjectionModule;
@@ -11,7 +10,6 @@ import java.io.StringReader;
 import javax.annotation.Nonnull;
 
 public class CodeInjectionModuleImpl extends SinkModuleBase implements CodeInjectionModule {
-
   public CodeInjectionModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }

@@ -1,12 +1,10 @@
 package runnable;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.api.Trace;
 import java.util.concurrent.CountDownLatch;
 
 public class CheckpointTask implements Runnable {
-
   private final boolean traceChild;
   private final CountDownLatch latch;
 

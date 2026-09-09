@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static net.bytebuddy.matcher.ElementMatchers.none;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -15,7 +14,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 
-/** Pluggable hierarchy matchers for use with instrumentation matching and muzzle checks. */
+/**
+ * Pluggable hierarchy matchers for use with instrumentation matching and muzzle checks.
+ */
 public final class HierarchyMatchers {
   private static volatile Supplier SUPPLIER;
 
@@ -65,44 +66,54 @@ public final class HierarchyMatchers {
     return SUPPLIER.hasInterface(matcher);
   }
 
-  /** Considers both interfaces and super-classes when matching the target type's hierarchy. */
+  /**
+   * Considers both interfaces and super-classes when matching the target type's hierarchy.
+   */
   public static ElementMatcher.Junction<TypeDescription> hasSuperType(
       ElementMatcher<? super TypeDescription> matcher) {
     return SUPPLIER.hasSuperType(matcher);
   }
 
-  /** Targets methods whose declaring class has a super-type that declares a matching method. */
+  /**
+   * Targets methods whose declaring class has a super-type that declares a matching method.
+   */
   public static ElementMatcher.Junction<MethodDescription> hasSuperMethod(
       ElementMatcher<? super MethodDescription> matcher) {
     return SUPPLIER.hasSuperMethod(matcher);
   }
 
-  /** Matches classes that should have a field injected for the specified context-store. */
+  /**
+   * Matches classes that should have a field injected for the specified context-store.
+   */
   public static ElementMatcher.Junction<TypeDescription> declaresContextField(
-      String keyClassName, String contextClassName) {
+      String keyClassName,
+      String contextClassName) {
     return SUPPLIER.declaresContextField(keyClassName, contextClassName);
   }
 
-  /** Use this to match annotated fields, methods, or method parameters. */
+  /**
+   * Use this to match annotated fields, methods, or method parameters.
+   */
   @SuppressForbidden
-  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
-      ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.Named<? super NamedElement> matcher) {
+  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>> ElementMatcher.Junction<T> isAnnotatedWith(
+      NameMatchers.Named<? super NamedElement> matcher) {
     SharedTypePools.annotationOfInterest(matcher.name);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
-  /** Use this to match annotated fields, methods, or method parameters. */
+  /**
+   * Use this to match annotated fields, methods, or method parameters.
+   */
   @SuppressForbidden
-  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>>
-      ElementMatcher.Junction<T> isAnnotatedWith(NameMatchers.OneOf<? super NamedElement> matcher) {
+  public static <T extends AnnotationSource & ByteCodeElement.TypeDependant<?, ?>> ElementMatcher.Junction<T> isAnnotatedWith(
+      NameMatchers.OneOf<? super NamedElement> matcher) {
     SharedTypePools.annotationsOfInterest(matcher.names);
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal holder; Class object does not escape to app code and lock only guards one-time supplier registration.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal holder; Class object does not escape to app code and lock only guards "
+      + "one-time supplier registration.")
   public static synchronized void registerIfAbsent(Supplier supplier) {
     if (null == SUPPLIER) {
       SUPPLIER = supplier;
@@ -137,10 +148,13 @@ public final class HierarchyMatchers {
         ElementMatcher<? super MethodDescription> matcher);
 
     ElementMatcher.Junction<TypeDescription> declaresContextField(
-        String keyClassName, String contextClassName);
+        String keyClassName,
+        String contextClassName);
   }
 
-  /** Simple hierarchy checks for use during the build when testing or validating muzzle ranges. */
+  /**
+   * Simple hierarchy checks for use during the build when testing or validating muzzle ranges.
+   */
   public static HierarchyMatchers.Supplier simpleChecks() {
     return new HierarchyMatchers.Supplier() {
       @Override
@@ -202,17 +216,20 @@ public final class HierarchyMatchers {
       @SuppressForbidden
       public ElementMatcher.Junction<MethodDescription> hasSuperMethod(
           ElementMatcher<? super MethodDescription> matcher) {
-        return ElementMatchers.isDeclaredBy(
-            ElementMatchers.hasSuperType(ElementMatchers.declaresMethod(matcher)));
+        return ElementMatchers.isDeclaredBy(ElementMatchers.hasSuperType(ElementMatchers.declaresMethod(
+            matcher)));
       }
 
       @Override
       public ElementMatcher.Junction<TypeDescription> declaresContextField(
-          String keyClassName, String contextClassName) {
-        return none(); // unused during build
+          String keyClassName,
+          String contextClassName) {
+        // unused during build
+        return none();
       }
     };
   }
 
-  private HierarchyMatchers() {}
+  private HierarchyMatchers() {
+  }
 }

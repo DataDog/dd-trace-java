@@ -8,16 +8,14 @@ public class DataStreamsTags {
   public enum Direction {
     UNKNOWN,
     INBOUND,
-    OUTBOUND,
+    OUTBOUND
   }
 
   public static DataStreamsTags EMPTY = DataStreamsTags.create(null, null);
-
   private long hash;
   private long aggregationHash;
   private long completeHash;
   private int nonNullSize;
-
   // hash tags
   protected final String bus;
   protected final String direction;
@@ -36,7 +34,6 @@ public class DataStreamsTags {
   protected final String hasRoutingKey;
   protected final String kafkaClusterId;
   protected final String partition;
-
   public static final String MANUAL_TAG = "manual_checkpoint";
   public static final String TYPE_TAG = "type";
   public static final String DIRECTION_TAG = "direction";
@@ -51,19 +48,18 @@ public class DataStreamsTags {
   public static final String DATASET_NAMESPACE_TAG = "ds.namespace";
   public static final String HAS_ROUTING_KEY_TAG = "has_routing_key";
   public static final String KAFKA_CLUSTER_ID_TAG = "kafka_cluster_id";
-
   private static volatile ThreadLocal<String> serviceNameOverride;
 
   public static byte[] longToBytes(long val) {
     return new byte[] {
-      (byte) (val >> 56),
-      (byte) (val >> 48),
-      (byte) (val >> 40),
-      (byte) (val >> 32),
-      (byte) (val >> 24),
-      (byte) (val >> 16),
-      (byte) (val >> 8),
-      (byte) val
+        (byte) (val >> 56),
+        (byte) (val >> 48),
+        (byte) (val >> 40),
+        (byte) (val >> 32),
+        (byte) (val >> 24),
+        (byte) (val >> 16),
+        (byte) (val >> 8),
+        (byte) val
     };
   }
 
@@ -76,7 +72,9 @@ public class DataStreamsTags {
   }
 
   public static DataStreamsTags createWithSubscription(
-      String type, Direction direction, String subscription) {
+      String type,
+      Direction direction,
+      String subscription) {
     return new DataStreamsTags(
         null,
         direction,
@@ -95,7 +93,11 @@ public class DataStreamsTags {
   }
 
   public static DataStreamsTags create(
-      String type, Direction direction, String topic, String group, String kafkaClusterId) {
+      String type,
+      Direction direction,
+      String topic,
+      String group,
+      String kafkaClusterId) {
     return new DataStreamsTags(
         null,
         direction,
@@ -115,16 +117,46 @@ public class DataStreamsTags {
 
   public static DataStreamsTags createManual(String type, Direction direction, String topic) {
     return new DataStreamsTags(
-        null, direction, null, topic, type, null, null, null, true, null, null, null, null, null);
+        null,
+        direction,
+        null,
+        topic,
+        type,
+        null,
+        null,
+        null,
+        true,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   public static DataStreamsTags createWithBus(Direction direction, String bus) {
     return new DataStreamsTags(
-        bus, direction, null, null, "bus", null, null, null, null, null, null, null, null, null);
+        bus,
+        direction,
+        null,
+        null,
+        "bus",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   public static DataStreamsTags createWithPartition(
-      String type, String topic, String partition, String kafkaClusterId, String consumerGroup) {
+      String type,
+      String topic,
+      String partition,
+      String kafkaClusterId,
+      String consumerGroup) {
     return new DataStreamsTags(
         null,
         null,
@@ -232,13 +264,33 @@ public class DataStreamsTags {
   }
 
   public static DataStreamsTags createWithGroup(
-      String type, Direction direction, String topic, String group) {
+      String type,
+      Direction direction,
+      String topic,
+      String group) {
     return new DataStreamsTags(
-        null, direction, null, topic, type, null, null, null, null, group, null, null, null, null);
+        null,
+        direction,
+        null,
+        topic,
+        type,
+        null,
+        null,
+        null,
+        null,
+        group,
+        null,
+        null,
+        null,
+        null);
   }
 
   public static DataStreamsTags createWithDataset(
-      String type, Direction direction, String topic, String datasetName, String datasetNamespace) {
+      String type,
+      Direction direction,
+      String topic,
+      String datasetName,
+      String datasetNamespace) {
     return new DataStreamsTags(
         null,
         direction,
@@ -261,14 +313,32 @@ public class DataStreamsTags {
   }
 
   public static DataStreamsTags createWithClusterId(
-      String type, Direction direction, String topic, String clusterId) {
+      String type,
+      Direction direction,
+      String topic,
+      String clusterId) {
     return new DataStreamsTags(
-        null, direction, null, topic, type, null, null, null, null, null, null, null, clusterId,
+        null,
+        direction,
+        null,
+        topic,
+        type,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        clusterId,
         null);
   }
 
   public static DataStreamsTags createWithExchange(
-      String type, Direction direction, String exchange, Boolean hasRoutingKey) {
+      String type,
+      Direction direction,
+      String exchange,
+      Boolean hasRoutingKey) {
     return new DataStreamsTags(
         null,
         direction,
@@ -315,14 +385,16 @@ public class DataStreamsTags {
     this.type = type != null ? TYPE_TAG + ":" + type : null;
     this.subscription = subscription != null ? SUBSCRIPTION_TAG + ":" + subscription : null;
     this.datasetName = datasetName != null ? DATASET_NAME_TAG + ":" + datasetName : null;
-    this.datasetNamespace =
-        datasetNamespace != null ? DATASET_NAMESPACE_TAG + ":" + datasetNamespace : null;
+    this.datasetNamespace = datasetNamespace != null
+        ? DATASET_NAMESPACE_TAG + ":" + datasetNamespace
+        : null;
     this.isManual = isManual != null ? MANUAL_TAG + ":" + isManual : null;
     this.group = group != null ? GROUP_TAG + ":" + group : null;
     this.consumerGroup = consumerGroup != null ? CONSUMER_GROUP_TAG + ":" + consumerGroup : null;
     this.hasRoutingKey = hasRoutingKey != null ? HAS_ROUTING_KEY_TAG + ":" + hasRoutingKey : null;
-    this.kafkaClusterId =
-        kafkaClusterId != null ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId : null;
+    this.kafkaClusterId = kafkaClusterId != null
+        ? KAFKA_CLUSTER_ID_TAG + ":" + kafkaClusterId
+        : null;
     this.partition = partition != null ? PARTITION_TAG + ":" + partition : null;
 
     this.hash = BaseHash.getBaseHash();
@@ -333,7 +405,6 @@ public class DataStreamsTags {
         this.hash = FNV64Hash.continueHash(this.hash, val, FNV64Hash.Version.v1);
       }
     }
-
     // hashable tags are 0-6: bus, direction, exchange, topic, type, subscription, kafkaClusterId
     for (int i = 0; i < 7; i++) {
       String tag = this.tagByIndex(i);
@@ -342,18 +413,18 @@ public class DataStreamsTags {
         this.hash = FNV64Hash.continueHash(this.hash, tag, FNV64Hash.Version.v1);
       }
     }
-
     // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     this.aggregationHash = this.hash;
     for (int i = 7; i < 12; i++) {
       String tag = this.tagByIndex(i);
       if (tag != null) {
         this.nonNullSize++;
-        this.aggregationHash =
-            FNV64Hash.continueHash(this.aggregationHash, tag, FNV64Hash.Version.v1);
+        this.aggregationHash = FNV64Hash.continueHash(
+            this.aggregationHash,
+            tag,
+            FNV64Hash.Version.v1);
       }
     }
-
     // values are 12-13: partition, hasRoutingKey
     this.completeHash = aggregationHash;
     for (int i = 12; i < this.size(); i++) {
@@ -481,8 +552,12 @@ public class DataStreamsTags {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     DataStreamsTags that = (DataStreamsTags) o;
     return this.completeHash == that.completeHash;

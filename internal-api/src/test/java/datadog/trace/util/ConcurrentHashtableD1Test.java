@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -17,7 +16,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class ConcurrentHashtableD1Test {
-
   @Test
   void getReturnsMappedEntry() {
     ConcurrentHashtable.D1<String, StringEntry> table =
@@ -32,13 +30,10 @@ class ConcurrentHashtableD1Test {
     ConcurrentHashtable.D1<String, StringEntry> table =
         ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     int[] createCount = {0};
-    StringEntry created =
-        table.tryGetOrCreateOrNull(
-            "a",
-            k -> {
-              createCount[0]++;
-              return new StringEntry(k, 1);
-            });
+    StringEntry created = table.tryGetOrCreateOrNull("a", k -> {
+      createCount[0]++;
+      return new StringEntry(k, 1);
+    });
     assertNotNull(created);
     assertEquals(1, table.size());
     assertEquals(1, createCount[0]);
@@ -51,13 +46,10 @@ class ConcurrentHashtableD1Test {
         ConcurrentHashtable.D1.createBounded(StringEntry.class, 8);
     StringEntry seeded = table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 100));
     int[] createCount = {0};
-    StringEntry got =
-        table.tryGetOrCreateOrNull(
-            "a",
-            k -> {
-              createCount[0]++;
-              return new StringEntry(k, 999);
-            });
+    StringEntry got = table.tryGetOrCreateOrNull("a", k -> {
+      createCount[0]++;
+      return new StringEntry(k, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
@@ -111,23 +103,19 @@ class ConcurrentHashtableD1Test {
 
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(
-                    "shared",
-                    k -> {
-                      createCount.incrementAndGet();
-                      return new StringEntry(k, 1);
-                    });
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull("shared", k -> {
+          createCount.incrementAndGet();
+          return new StringEntry(k, 1);
+        });
+      });
       workers[i].start();
     }
     ready.await();
@@ -146,8 +134,10 @@ class ConcurrentHashtableD1Test {
     ConcurrentHashtable.D1<CollidingKey, CollidingEntry> table =
         ConcurrentHashtable.D1.createBounded(CollidingEntry.class, 8);
     CollidingKey a = new CollidingKey("a", 0);
-    CollidingKey b = new CollidingKey("b", 0); // same bucket as a
-    CollidingKey c = new CollidingKey("c", 0); // same bucket
+    // same bucket as a
+    CollidingKey b = new CollidingKey("b", 0);
+    // same bucket
+    CollidingKey c = new CollidingKey("c", 0);
     CollidingEntry ea = table.tryGetOrCreateOrNull(a, CollidingEntry::new);
     CollidingEntry eb = table.tryGetOrCreateOrNull(b, CollidingEntry::new);
     CollidingEntry ec = table.tryGetOrCreateOrNull(c, CollidingEntry::new);
@@ -155,7 +145,8 @@ class ConcurrentHashtableD1Test {
     assertSame(ea, table.get(a));
     assertSame(eb, table.get(b));
     assertSame(ec, table.get(c));
-    assertNull(table.get(new CollidingKey("d", 0))); // same bucket, different label → miss
+    // same bucket, different label → miss
+    assertNull(table.get(new CollidingKey("d", 0)));
   }
 
   @Test
@@ -173,18 +164,16 @@ class ConcurrentHashtableD1Test {
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
       final String key = keys[i];
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.tryGetOrCreateOrNull(key, k -> new StringEntry(k, 1));
+      });
       workers[i].start();
     }
     ready.await();
@@ -231,14 +220,12 @@ class ConcurrentHashtableD1Test {
     table.tryGetOrCreateOrNull(a, CollidingEntry::new);
     table.tryGetOrCreateOrNull(b, CollidingEntry::new);
     table.tryGetOrCreateOrNull(c, CollidingEntry::new);
-
     // Remove a middle element; the other two stay reachable.
     assertNotNull(table.remove(b));
     assertNull(table.get(b));
     assertNotNull(table.get(a));
     assertNotNull(table.get(c));
     assertEquals(2, table.size());
-
     // Drain the rest.
     assertNotNull(table.remove(c));
     assertNotNull(table.remove(a));
@@ -254,7 +241,8 @@ class ConcurrentHashtableD1Test {
       final int v = i;
       table.tryGetOrCreateOrNull("k" + i, k -> new StringEntry(k, v));
     }
-    boolean removed = table.removeIf(e -> e.value % 2 == 0); // removes values 0,2,4,6,8
+    // removes values 0,2,4,6,8
+    boolean removed = table.removeIf(e -> e.value % 2 == 0);
     assertTrue(removed);
     assertEquals(5, table.size());
     Set<String> seen = new HashSet<>();
@@ -299,11 +287,10 @@ class ConcurrentHashtableD1Test {
 
     Set<String> drained = new HashSet<>();
     int[] sum = {0};
-    table.drain(
-        e -> {
-          drained.add(e.key);
-          sum[0] += e.value;
-        });
+    table.drain(e -> {
+      drained.add(e.key);
+      sum[0] += e.value;
+    });
 
     assertEquals(new HashSet<>(Arrays.asList("a", "b", "c")), drained);
     assertEquals(6, sum[0]);
@@ -356,21 +343,20 @@ class ConcurrentHashtableD1Test {
       keys[i] = new CollidingKey("k" + i, 0);
       table.tryGetOrCreateOrNull(keys[i], CollidingEntry::new);
     }
-    CollidingKey churn = keys[0]; // keys[1..] are stable and must never vanish
+    // keys[1..] are stable and must never vanish
+    CollidingKey churn = keys[0];
 
     AtomicBoolean stop = new AtomicBoolean(false);
     AtomicInteger missed = new AtomicInteger();
-    Thread reader =
-        new Thread(
-            () -> {
-              while (!stop.get()) {
-                for (int i = 1; i < n; i++) {
-                  if (table.get(keys[i]) == null) {
-                    missed.incrementAndGet();
-                  }
-                }
-              }
-            });
+    Thread reader = new Thread(() -> {
+      while (!stop.get()) {
+        for (int i = 1; i < n; i++) {
+          if (table.get(keys[i]) == null) {
+            missed.incrementAndGet();
+          }
+        }
+      }
+    });
     reader.start();
     for (int r = 0; r < 100_000; r++) {
       table.remove(churn);
@@ -398,15 +384,11 @@ class ConcurrentHashtableD1Test {
     ConcurrentHashtable.D1<String, StringEntry> table =
         ConcurrentHashtable.D1.createBounded(StringEntry.class, 1);
     StringEntry a = table.tryGetOrCreateOrNull("a", k -> new StringEntry(k, 1));
-    Maybe<StringEntry> got =
-        table.tryGetOrCreateOrEvict(
-            "a",
-            k -> {
-              throw new AssertionError("creator must not run on a hit");
-            },
-            e -> {
-              throw new AssertionError("evictable must not run on a hit");
-            });
+    Maybe<StringEntry> got = table.tryGetOrCreateOrEvict("a", k -> {
+      throw new AssertionError("creator must not run on a hit");
+    }, e -> {
+      throw new AssertionError("evictable must not run on a hit");
+    });
     assertSame(a, got.getOrNull());
     assertEquals(1, table.size());
   }
@@ -447,16 +429,12 @@ class ConcurrentHashtableD1Test {
         ConcurrentHashtable.D1.createBounded(StringEntry.class, 1);
     table.tryGetOrCreateOrNull("old", k -> new StringEntry(k, 1));
 
-    assertThrows(
-        RuntimeException.class,
-        () ->
-            table.tryGetOrCreateOrEvictOrNull(
-                "new",
-                k -> {
-                  throw new RuntimeException("boom");
-                },
-                e -> true));
-
+    assertThrows(RuntimeException.class, () -> table.tryGetOrCreateOrEvictOrNull(
+        "new",
+          k -> {
+            throw new RuntimeException("boom");
+          },
+        e -> true));
     // Eviction already happened before the creator threw: the table is left one entry smaller,
     // not corrupted or double-booked.
     assertEquals(0, table.size());
@@ -473,7 +451,9 @@ class ConcurrentHashtableD1Test {
     }
   }
 
-  /** Key with a fixed hashCode to force deterministic bucket placement. */
+  /**
+   * Key with a fixed hashCode to force deterministic bucket placement.
+   */
   private static final class CollidingKey {
     final String label;
     final int fixedHash;

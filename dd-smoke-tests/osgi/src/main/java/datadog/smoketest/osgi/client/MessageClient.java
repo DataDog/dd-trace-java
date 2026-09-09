@@ -56,15 +56,16 @@ public class MessageClient extends ServiceSupport implements HttpClient {
 
   @Override
   public HttpResponse execute(
-      final HttpHost target, final HttpRequest request, final HttpContext context)
-      throws IOException {
+      final HttpHost target,
+      final HttpRequest request,
+      final HttpContext context) throws IOException {
     return delegate.execute(target, request, context);
   }
 
   @Override
   public <T> T execute(
-      final HttpUriRequest request, final ResponseHandler<? extends T> responseHandler)
-      throws IOException {
+      final HttpUriRequest request,
+      final ResponseHandler<? extends T> responseHandler) throws IOException {
     return delegate.execute(request, responseHandler);
   }
 
@@ -72,8 +73,7 @@ public class MessageClient extends ServiceSupport implements HttpClient {
   public <T> T execute(
       final HttpUriRequest request,
       final ResponseHandler<? extends T> responseHandler,
-      final HttpContext context)
-      throws IOException {
+      final HttpContext context) throws IOException {
     return delegate.execute(request, responseHandler, context);
   }
 
@@ -81,8 +81,7 @@ public class MessageClient extends ServiceSupport implements HttpClient {
   public <T> T execute(
       final HttpHost target,
       final HttpRequest request,
-      final ResponseHandler<? extends T> responseHandler)
-      throws IOException {
+      final ResponseHandler<? extends T> responseHandler) throws IOException {
     return delegate.execute(target, request, responseHandler);
   }
 
@@ -91,8 +90,7 @@ public class MessageClient extends ServiceSupport implements HttpClient {
       final HttpHost target,
       final HttpRequest request,
       final ResponseHandler<? extends T> responseHandler,
-      final HttpContext context)
-      throws IOException {
+      final HttpContext context) throws IOException {
     return delegate.execute(target, request, responseHandler, context);
   }
 }

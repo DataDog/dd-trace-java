@@ -14,9 +14,10 @@ public class Activator implements BundleActivator {
     messageClient = new MessageClient();
     messageClient.start();
 
-    subscriberRegistration =
-        bundleContext.registerService(
-            MessageClient.class.getName(), messageClient, new Properties());
+    subscriberRegistration = bundleContext.registerService(
+        MessageClient.class.getName(),
+        messageClient,
+        new Properties());
   }
 
   @Override

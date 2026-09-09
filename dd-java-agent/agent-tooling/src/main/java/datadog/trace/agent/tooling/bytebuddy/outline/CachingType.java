@@ -8,17 +8,16 @@ import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
 
-/** Type description that lazily caches expensive results. */
+/**
+ * Type description that lazily caches expensive results.
+ */
 final class CachingType extends WithName {
-
   // non-null sentinels for fields that can legitimately be null
   private static final Generic UNSET_SUPER_CLASS =
       Generic.OfNonGenericType.ForLoadedType.of(void.class);
   private static final TypeDescription UNSET_DECLARING_TYPE =
       TypeDescription.ForLoadedType.of(void.class);
-
   private final TypeDescription delegate;
-
   private Generic superClass = UNSET_SUPER_CLASS;
   private TypeList.Generic interfaces;
   private TypeDescription declaringType = UNSET_DECLARING_TYPE;

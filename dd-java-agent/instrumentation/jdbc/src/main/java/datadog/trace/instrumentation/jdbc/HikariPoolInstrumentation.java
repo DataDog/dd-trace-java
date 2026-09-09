@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.jdbc;
 
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import com.zaxxer.hikari.util.ConcurrentBag;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -18,8 +17,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class HikariPoolInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public HikariPoolInstrumentation() {
     super("jdbc", "hikari");
   }
@@ -42,7 +41,8 @@ public final class HikariPoolInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), HikariPoolInstrumentation.class.getName() + "$ConstructorAdvice");
+        isConstructor(),
+        HikariPoolInstrumentation.class.getName() + "$ConstructorAdvice");
   }
 
   public static class ConstructorAdvice {

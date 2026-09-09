@@ -6,7 +6,6 @@ import io.vertx.redis.client.Request;
 
 // This is a stub implementation to add the clone method needed by the advice code
 public final class RequestImpl implements Request, Cloneable {
-
   @Override
   public Object clone() throws CloneNotSupportedException {
     return null;

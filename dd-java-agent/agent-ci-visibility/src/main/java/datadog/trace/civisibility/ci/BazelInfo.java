@@ -12,7 +12,6 @@ import javax.annotation.Nonnull;
  * mode; no environment or git data is read here.
  */
 class BazelInfo implements CIProviderInfo {
-
   @Override
   public GitInfo buildCIGitInfo() {
     return GitInfo.NOOP;

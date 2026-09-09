@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +33,8 @@ class SystemPropertiesTest {
     assertNotNull(SystemProperties.getOrDefault(EXISTING_SYSTEM_PROPERTY, null));
     // Missing system properties
     assertEquals(
-        DEFAULT_VALUE, SystemProperties.getOrDefault(MISSING_SYSTEM_PROPERTY, DEFAULT_VALUE));
+        DEFAULT_VALUE,
+        SystemProperties.getOrDefault(MISSING_SYSTEM_PROPERTY, DEFAULT_VALUE));
     assertNull(SystemProperties.getOrDefault(MISSING_SYSTEM_PROPERTY, null));
     // Null values
     assertDoesNotThrow(() -> SystemProperties.getOrDefault(null, DEFAULT_VALUE));
@@ -77,8 +77,8 @@ class SystemPropertiesTest {
     assertNotNull(stringMap);
     assertFalse(stringMap.isEmpty());
     // Unmodifiable collection
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> stringMap.put(MISSING_SYSTEM_PROPERTY, DEFAULT_VALUE));
+    assertThrows(UnsupportedOperationException.class, () -> stringMap.put(
+        MISSING_SYSTEM_PROPERTY,
+        DEFAULT_VALUE));
   }
 }

@@ -27,11 +27,9 @@ import org.slf4j.LoggerFactory;
  * map.
  */
 public final class ScaCveDatabase {
-
   private static final Logger log = LoggerFactory.getLogger(ScaCveDatabase.class);
   private static final String RESOURCE_PATH = "/sca_cves.json";
   private static final int READ_BUFFER_SIZE = 8192;
-
   private final Map<String, List<ScaEntry>> index;
 
   private ScaCveDatabase(Map<String, List<ScaEntry>> index) {
@@ -88,13 +86,17 @@ public final class ScaCveDatabase {
       Set<String> seen = new HashSet<>();
       for (ScaSymbol symbol : entry.symbols()) {
         if (seen.add(symbol.className())) {
-          index.computeIfAbsent(symbol.className(), k -> new ArrayList<>()).add(entry);
+          index
+            .computeIfAbsent(symbol.className(), k -> new ArrayList<>())
+            .add(entry);
         }
       }
     }
 
     log.debug(
-        "SCA Reachability: loaded {} entries, {} unique class symbols", entryCount, index.size());
+        "SCA Reachability: loaded {} entries, {} unique class symbols",
+        entryCount,
+        index.size());
     return new ScaCveDatabase(Collections.unmodifiableMap(index));
   }
 
@@ -115,7 +117,9 @@ public final class ScaCveDatabase {
       }
       symbols.add(new ScaSymbol(s.className, s.method));
     }
-    if (symbols.isEmpty()) return null;
+    if (symbols.isEmpty()) {
+      return null;
+    }
     return new ScaEntry(e.vulnId, e.artifact, e.versionRanges, symbols);
   }
 
@@ -156,31 +160,30 @@ public final class ScaCveDatabase {
   // ---------------------------------------------------------------------------
   // JSON DTOs - only used during parsing, never exposed outside this class
   // ---------------------------------------------------------------------------
-
   static final class DatabaseJson {
     int version;
-    @Nullable List<EntryJson> entries;
+    @Nullable
+    List<EntryJson> entries;
   }
 
   static final class EntryJson {
     @Json(name = "vuln_id")
     @Nullable
     String vulnId;
-
-    @Nullable String artifact;
-
+    @Nullable
+    String artifact;
     @Json(name = "version_ranges")
     @Nullable
     List<String> versionRanges;
-
-    @Nullable List<SymbolJson> symbols;
+    @Nullable
+    List<SymbolJson> symbols;
   }
 
   static final class SymbolJson {
     @Json(name = "class")
     @Nullable
     String className;
-
-    @Nullable String method;
+    @Nullable
+    String method;
   }
 }

@@ -18,7 +18,6 @@ import org.junit.platform.engine.reporting.ReportEntry;
 import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 
 public class CucumberTracingListener implements EngineExecutionListener {
-
   private final String testFramework;
   private final String testFrameworkVersion;
 
@@ -47,8 +46,7 @@ public class CucumberTracingListener implements EngineExecutionListener {
   }
 
   @Override
-  public void executionFinished(
-      TestDescriptor descriptor, TestExecutionResult testExecutionResult) {
+  public void executionFinished(TestDescriptor descriptor, TestExecutionResult testExecutionResult) {
     if (descriptor.isContainer()) {
       containerExecutionFinished(descriptor, testExecutionResult);
     } else if (descriptor.isTest()) {
@@ -66,21 +64,22 @@ public class CucumberTracingListener implements EngineExecutionListener {
     List<String> tags =
         suiteDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.HANDLERS
-        .get(TestFrameworkInstrumentation.CUCUMBER)
-        .onTestSuiteStart(
-            suiteDescriptor,
-            testSuiteName,
-            testFramework,
-            testFrameworkVersion,
-            null,
-            tags,
-            false,
-            TestFrameworkInstrumentation.CUCUMBER,
-            null);
+      .get(TestFrameworkInstrumentation.CUCUMBER)
+      .onTestSuiteStart(
+          suiteDescriptor,
+          testSuiteName,
+          testFramework,
+          testFrameworkVersion,
+          null,
+          tags,
+          false,
+          TestFrameworkInstrumentation.CUCUMBER,
+          null);
   }
 
   private void containerExecutionFinished(
-      final TestDescriptor suiteDescriptor, final TestExecutionResult testExecutionResult) {
+      final TestDescriptor suiteDescriptor,
+      final TestExecutionResult testExecutionResult) {
     if (!CucumberUtils.isFeature(suiteDescriptor.getUniqueId())) {
       return;
     }
@@ -90,21 +89,21 @@ public class CucumberTracingListener implements EngineExecutionListener {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
         String reason = throwable.getMessage();
         TestEventsHandlerHolder.HANDLERS
-            .get(TestFrameworkInstrumentation.CUCUMBER)
-            .onTestSuiteSkip(suiteDescriptor, reason);
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteSkip(suiteDescriptor, reason);
 
         for (TestDescriptor child : suiteDescriptor.getChildren()) {
           executionSkipped(child, reason);
         }
       } else {
         TestEventsHandlerHolder.HANDLERS
-            .get(TestFrameworkInstrumentation.CUCUMBER)
-            .onTestSuiteFailure(suiteDescriptor, throwable);
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSuiteFailure(suiteDescriptor, throwable);
       }
     }
     TestEventsHandlerHolder.HANDLERS
-        .get(TestFrameworkInstrumentation.CUCUMBER)
-        .onTestSuiteFinish(suiteDescriptor, null);
+      .get(TestFrameworkInstrumentation.CUCUMBER)
+      .onTestSuiteFinish(suiteDescriptor, null);
   }
 
   private void testCaseExecutionStarted(final TestDescriptor testDescriptor) {
@@ -115,7 +114,8 @@ public class CucumberTracingListener implements EngineExecutionListener {
   }
 
   private void testResourceExecutionStarted(
-      TestDescriptor testDescriptor, ClasspathResourceSource testSource) {
+      TestDescriptor testDescriptor,
+      ClasspathResourceSource testSource) {
     TestDescriptor suiteDescriptor = CucumberUtils.getFeatureDescriptor(testDescriptor);
     String classpathResourceName = testSource.getClasspathResourceName();
     Pair<String, String> names =
@@ -123,24 +123,25 @@ public class CucumberTracingListener implements EngineExecutionListener {
     String testName = names.getRight();
     List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestEventsHandlerHolder.HANDLERS
-        .get(TestFrameworkInstrumentation.CUCUMBER)
-        .onTestStart(
-            suiteDescriptor,
-            testDescriptor,
-            testName,
-            testFramework,
-            testFrameworkVersion,
-            null,
-            tags,
-            TestSourceData.UNKNOWN,
-            null,
-            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
+      .get(TestFrameworkInstrumentation.CUCUMBER)
+      .onTestStart(
+          suiteDescriptor,
+          testDescriptor,
+          testName,
+          testFramework,
+          testFrameworkVersion,
+          null,
+          tags,
+          TestSourceData.UNKNOWN,
+          null,
+          TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
 
     CoveragePerTestBridge.recordCoverage(classpathResourceName);
   }
 
   private void testCaseExecutionFinished(
-      final TestDescriptor testDescriptor, final TestExecutionResult testExecutionResult) {
+      final TestDescriptor testDescriptor,
+      final TestExecutionResult testExecutionResult) {
     TestSource testSource = testDescriptor.getSource().orElse(null);
     if (testSource instanceof ClasspathResourceSource) {
       testResourceExecutionFinished(testDescriptor, testExecutionResult);
@@ -148,24 +149,25 @@ public class CucumberTracingListener implements EngineExecutionListener {
   }
 
   private void testResourceExecutionFinished(
-      TestDescriptor testDescriptor, TestExecutionResult testExecutionResult) {
+      TestDescriptor testDescriptor,
+      TestExecutionResult testExecutionResult) {
     Throwable throwable = testExecutionResult.getThrowable().orElse(null);
     if (throwable != null) {
       if (JUnitPlatformUtils.isAssumptionFailure(throwable)) {
         TestEventsHandlerHolder.HANDLERS
-            .get(TestFrameworkInstrumentation.CUCUMBER)
-            .onTestSkip(testDescriptor, throwable.getMessage());
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestSkip(testDescriptor, throwable.getMessage());
       } else {
         TestEventsHandlerHolder.HANDLERS
-            .get(TestFrameworkInstrumentation.CUCUMBER)
-            .onTestFailure(testDescriptor, throwable);
+          .get(TestFrameworkInstrumentation.CUCUMBER)
+          .onTestFailure(testDescriptor, throwable);
       }
     }
     TestExecutionTracker executionTracker =
         TestEventsHandlerHolder.getExecutionTracker(testDescriptor);
     TestEventsHandlerHolder.HANDLERS
-        .get(TestFrameworkInstrumentation.CUCUMBER)
-        .onTestFinish(testDescriptor, null, executionTracker);
+      .get(TestFrameworkInstrumentation.CUCUMBER)
+      .onTestFinish(testDescriptor, null, executionTracker);
   }
 
   @Override
@@ -177,7 +179,9 @@ public class CucumberTracingListener implements EngineExecutionListener {
   }
 
   private void testResourceExecutionSkipped(
-      TestDescriptor testDescriptor, ClasspathResourceSource testSource, String reason) {
+      TestDescriptor testDescriptor,
+      ClasspathResourceSource testSource,
+      String reason) {
     TestDescriptor suiteDescriptor = CucumberUtils.getFeatureDescriptor(testDescriptor);
     String classpathResourceName = testSource.getClasspathResourceName();
     Pair<String, String> names =
@@ -186,17 +190,17 @@ public class CucumberTracingListener implements EngineExecutionListener {
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestEventsHandlerHolder.HANDLERS
-        .get(TestFrameworkInstrumentation.CUCUMBER)
-        .onTestIgnore(
-            suiteDescriptor,
-            testDescriptor,
-            testName,
-            testFramework,
-            testFrameworkVersion,
-            null,
-            tags,
-            TestSourceData.UNKNOWN,
-            reason,
-            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
+      .get(TestFrameworkInstrumentation.CUCUMBER)
+      .onTestIgnore(
+          suiteDescriptor,
+          testDescriptor,
+          testName,
+          testFramework,
+          testFrameworkVersion,
+          null,
+          tags,
+          TestSourceData.UNKNOWN,
+          reason,
+          TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
   }
 }

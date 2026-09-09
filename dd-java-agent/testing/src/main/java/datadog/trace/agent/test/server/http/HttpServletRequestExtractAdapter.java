@@ -12,13 +12,13 @@ import javax.servlet.http.HttpServletRequest;
 // FIXME:  This code is duplicated in several places.  Extract to a common dependency.
 public class HttpServletRequestExtractAdapter
     implements AgentPropagation.ContextVisitor<HttpServletRequest> {
-
   public static final HttpServletRequestExtractAdapter GETTER =
       new HttpServletRequestExtractAdapter();
 
   @Override
   public void forEachKey(
-      final HttpServletRequest carrier, final AgentPropagation.KeyClassifier classifier) {
+      final HttpServletRequest carrier,
+      final AgentPropagation.KeyClassifier classifier) {
     Enumeration<String> headerNames = carrier.getHeaderNames();
     if (headerNames == null) {
       return;

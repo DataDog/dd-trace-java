@@ -15,7 +15,9 @@ import org.junit.jupiter.api.Tag;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Tag("flaky")
 public @interface Flaky {
-  /** Reason why the test is flaky (optional). */
+  /**
+   * Reason why the test is flaky (optional).
+   */
   String value() default "";
 
   /**
@@ -31,7 +33,6 @@ public @interface Flaky {
   Class<? extends Predicate<String>> condition() default True.class;
 
   class True implements Predicate<String> {
-
     @Override
     public boolean test(final String spec) {
       return true;

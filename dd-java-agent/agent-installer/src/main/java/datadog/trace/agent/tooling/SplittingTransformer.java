@@ -7,7 +7,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.utility.JavaModule;
 
-/** Splits matches recorded by {@link CombiningMatcher} back into separate transformation steps. */
+/**
+ * Splits matches recorded by {@link CombiningMatcher} back into separate transformation steps.
+ */
 final class SplittingTransformer implements AgentBuilder.Transformer {
   private final AdviceStack[] transformers;
 
@@ -22,7 +24,6 @@ final class SplittingTransformer implements AgentBuilder.Transformer {
       ClassLoader classLoader,
       JavaModule module,
       ProtectionDomain pd) {
-
     BitSet ids = CombiningMatcher.recordedMatches.get();
     for (int id = ids.nextSetBit(0); id >= 0; id = ids.nextSetBit(id + 1)) {
       long fromTick = InstrumenterMetrics.tick();

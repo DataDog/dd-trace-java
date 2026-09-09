@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpoint
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -15,8 +14,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class PekkoMailboxInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public PekkoMailboxInstrumentation() {
     super("pekko_actor_mailbox", "pekko_actor", "pekko_concurrent", "java_concurrent");
   }
@@ -29,7 +28,8 @@ public class PekkoMailboxInstrumentation extends InstrumenterModule.ContextTrack
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("run")), getClass().getName() + "$SuppressMailboxRunAdvice");
+        isMethod().and(named("run")),
+        getClass().getName() + "$SuppressMailboxRunAdvice");
   }
 
   /**

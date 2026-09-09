@@ -15,7 +15,6 @@
 //  You may elect to redistribute this code under either of these licenses.
 //  ========================================================================
 //
-
 package com.datadog.appsec.gateway;
 
 import java.util.ArrayList;
@@ -26,7 +25,8 @@ import java.util.Map;
 
 /* From Jetty's CookieCutter */
 public class CookieCutter {
-  private CookieCutter() {}
+  private CookieCutter() {
+  }
 
   // should not throw
   public static Map<String, List<String>> parseCookieHeader(String f) {
@@ -54,7 +54,6 @@ public class CookieCutter {
     int tokenend = -1;
     for (int i = 0, length = hdr.length(), last = length - 1; i < length; i++) {
       char c = hdr.charAt(i);
-
       // Handle quoted values for name or value
       if (quoted) {
         if (escaped) {
@@ -66,17 +65,16 @@ public class CookieCutter {
           case '"':
             tokenend = i;
             quoted = false;
-
             // handle quote as last character specially
             if (i == last) {
-              if (invalue) value = hdr.substring(tokenstart, tokenend + 1);
-              else {
+              if (invalue) {
+                value = hdr.substring(tokenstart, tokenend + 1);
+              } else {
                 name = hdr.substring(tokenstart, tokenend + 1);
                 value = "";
               }
             }
             break;
-
           case '\\':
             escaped = true;
             continue;
@@ -91,7 +89,6 @@ public class CookieCutter {
             case ' ':
             case '\t':
               continue;
-
             case '"':
               if (tokenstart < 0) {
                 quoted = true;
@@ -103,16 +100,19 @@ public class CookieCutter {
                 break;
               }
               continue;
-
             case ';':
-              if (tokenstart >= 0) value = hdr.substring(tokenstart, tokenend + 1);
-              else value = "";
+              if (tokenstart >= 0) {
+                value = hdr.substring(tokenstart, tokenend + 1);
+              } else {
+                value = "";
+              }
               tokenstart = -1;
               invalue = false;
               break;
-
             default:
-              if (tokenstart < 0) tokenstart = i;
+              if (tokenstart < 0) {
+                tokenstart = i;
+              }
               tokenend = i;
               if (i == last) {
                 value = hdr.substring(tokenstart, tokenend + 1);
@@ -126,7 +126,6 @@ public class CookieCutter {
             case ' ':
             case '\t':
               continue;
-
             case '"':
               if (tokenstart < 0) {
                 quoted = true;
@@ -139,7 +138,6 @@ public class CookieCutter {
                 break;
               }
               continue;
-
             case ';':
               if (tokenstart >= 0) {
                 name = hdr.substring(tokenstart, tokenend + 1);
@@ -147,15 +145,17 @@ public class CookieCutter {
               }
               tokenstart = -1;
               break;
-
             case '=':
-              if (tokenstart >= 0) name = hdr.substring(tokenstart, tokenend + 1);
+              if (tokenstart >= 0) {
+                name = hdr.substring(tokenstart, tokenend + 1);
+              }
               tokenstart = -1;
               invalue = true;
               continue;
-
             default:
-              if (tokenstart < 0) tokenstart = i;
+              if (tokenstart < 0) {
+                tokenstart = i;
+              }
               tokenend = i;
               if (i == last) {
                 name = hdr.substring(tokenstart, tokenend + 1);
@@ -166,7 +166,6 @@ public class CookieCutter {
           }
         }
       }
-
       // If after processing the current character we have a value and a name, then it is a cookie
       if (value != null && name != null) {
         name = unquoteOnly(name);
@@ -195,7 +194,6 @@ public class CookieCutter {
   }
 
   /* ------------------------------------------------------------ */
-
   /**
    * Unquote a string, NOT converting unicode sequences
    *
@@ -203,12 +201,18 @@ public class CookieCutter {
    * @return quoted string
    */
   public static String unquoteOnly(String s) {
-    if (s == null) return null;
-    if (s.length() < 2) return s;
+    if (s == null) {
+      return null;
+    }
+    if (s.length() < 2) {
+      return s;
+    }
 
     char first = s.charAt(0);
     char last = s.charAt(s.length() - 1);
-    if (first != last || (first != '"' && first != '\'')) return s;
+    if (first != last || (first != '"' && first != '\'')) {
+      return s;
+    }
 
     StringBuilder b = new StringBuilder(s.length() - 2);
     boolean escape = false;

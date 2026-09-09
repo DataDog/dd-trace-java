@@ -22,12 +22,16 @@ public class JsonReader implements AutoCloseable {
   private int lineNumber = 1;
   private int linePosition = 0;
 
-  /** Creates a reader with structure check. */
+  /**
+   * Creates a reader with structure check.
+   */
   public JsonReader(String json) {
     this(new StringReader(json), true);
   }
 
-  /** Creates a reader with structure check. */
+  /**
+   * Creates a reader with structure check.
+   */
   public JsonReader(Reader reader) {
     this(reader, true);
   }
@@ -285,7 +289,8 @@ public class JsonReader implements AutoCloseable {
       case 'f':
         return nextBoolean();
       case 'n':
-        readLiteral(4); // Skip "null"
+        // Skip "null"
+        readLiteral(4);
         return null;
       case '-':
       case '0':
@@ -322,7 +327,8 @@ public class JsonReader implements AutoCloseable {
     char c = peek();
     // Handle comma between values
     if (c == ',') {
-      advance(); // Skip comma
+      // Skip comma
+      advance();
       consumeWhitespace();
       c = peek();
     }
@@ -371,7 +377,8 @@ public class JsonReader implements AutoCloseable {
 
   private String readString() throws IOException {
     StringBuilder sb = new StringBuilder();
-    advance(); // Skip opening quote
+    // Skip opening quote
+    advance();
     while (true) {
       char c = peek();
       if (c == '"') {
@@ -419,7 +426,8 @@ public class JsonReader implements AutoCloseable {
   }
 
   private char readUnicodeEscape() throws IOException {
-    advance(); // Skip 'u'
+    // Skip 'u'
+    advance();
     StringBuilder hex = new StringBuilder(4);
     for (int i = 0; i < 4; i++) {
       hex.append(peek());
@@ -488,24 +496,29 @@ public class JsonReader implements AutoCloseable {
   }
 
   private IOException unexpectedSyntaxError(String expected, String found) {
-    return new IOException(
-        String.format(
-            "Syntax error at line %d, position %d: expected %s but found '%s'",
-            this.lineNumber, this.linePosition, expected, found));
+    return new IOException(String.format(
+        "Syntax error at line %d, position %d: expected %s but found '%s'",
+        this.lineNumber,
+        this.linePosition,
+        expected,
+        found));
   }
 
   private IOException unexpectedSyntaxError(String expected, char found) {
-    return new IOException(
-        String.format(
-            "Syntax error at line %d, position %d: expected %s but found '%s'",
-            this.lineNumber, this.linePosition, expected, found));
+    return new IOException(String.format(
+        "Syntax error at line %d, position %d: expected %s but found '%s'",
+        this.lineNumber,
+        this.linePosition,
+        expected,
+        found));
   }
 
   private IOException syntaxError(String message) {
-    return new IOException(
-        String.format(
-            "Syntax error at line %d, position %d: %s",
-            this.lineNumber, this.linePosition, message));
+    return new IOException(String.format(
+        "Syntax error at line %d, position %d: %s",
+        this.lineNumber,
+        this.linePosition,
+        message));
   }
 
   @Override

@@ -7,7 +7,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface PathTraversalModule extends IastModule {
-
   void onPathTraversal(@Nonnull String path);
 
   void onPathTraversal(@Nullable String parent, @Nonnull String child);

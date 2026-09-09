@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.telemetry.OtelSpiCollector;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 public class ExtensionFinderTest {
-
   private static final String AUTOCONFIGURE_PROPAGATOR =
       "io.opentelemetry.sdk.autoconfigure.spi.ConfigurablePropagatorProvider";
   private static final String AUTOCONFIGURE_RESOURCE =
@@ -33,8 +31,8 @@ public class ExtensionFinderTest {
   private static final String JAVAAGENT_AGENT_LISTENER =
       "io.opentelemetry.javaagent.extension.AgentListener";
   private static final String SHADED_AUTOCONFIGURE_SAMPLER =
-      "io.opentelemetry.javaagent.shaded.io.opentelemetry.sdk.autoconfigure.spi.ConfigurableSamplerProvider";
-
+      "io.opentelemetry.javaagent.shaded.io.opentelemetry.sdk.autoconfigure.spi."
+      + "ConfigurableSamplerProvider";
   private final OtelSpiCollector collector = OtelSpiCollector.getInstance();
 
   @BeforeEach
@@ -60,26 +58,24 @@ public class ExtensionFinderTest {
 
   @Test
   public void allFourAutoconfigureSpisAreReported(@TempDir Path tempDir) throws IOException {
-    Path jarPath =
-        buildJar(
-            tempDir,
-            "ext.jar",
-            AUTOCONFIGURE_PROPAGATOR,
-            AUTOCONFIGURE_RESOURCE,
-            AUTOCONFIGURE_SAMPLER,
-            AUTOCONFIGURE_EXPORTER);
+    Path jarPath = buildJar(
+        tempDir,
+        "ext.jar",
+        AUTOCONFIGURE_PROPAGATOR,
+        AUTOCONFIGURE_RESOURCE,
+        AUTOCONFIGURE_SAMPLER,
+        AUTOCONFIGURE_EXPORTER);
 
     try (JarFile jar = new JarFile(jarPath.toFile(), false)) {
       ExtensionFinder.recordOtelSpiTelemetry(jar);
     }
 
     assertEquals(
-        new HashSet<>(
-            java.util.Arrays.asList(
-                AUTOCONFIGURE_PROPAGATOR,
-                AUTOCONFIGURE_RESOURCE,
-                AUTOCONFIGURE_SAMPLER,
-                AUTOCONFIGURE_EXPORTER)),
+        new HashSet<>(java.util.Arrays.asList(
+            AUTOCONFIGURE_PROPAGATOR,
+            AUTOCONFIGURE_RESOURCE,
+            AUTOCONFIGURE_SAMPLER,
+            AUTOCONFIGURE_EXPORTER)),
         reportedFqns(collector.drain()));
   }
 
@@ -93,20 +89,20 @@ public class ExtensionFinderTest {
     }
 
     assertEquals(
-        new HashSet<>(
-            java.util.Arrays.asList(JAVAAGENT_INSTRUMENTATION_MODULE, JAVAAGENT_AGENT_LISTENER)),
+        new HashSet<>(java.util.Arrays.asList(
+            JAVAAGENT_INSTRUMENTATION_MODULE,
+            JAVAAGENT_AGENT_LISTENER)),
         reportedFqns(collector.drain()));
   }
 
   @Test
   public void nonOtelSpiIsIgnored(@TempDir Path tempDir) throws IOException {
-    Path jarPath =
-        buildJar(
-            tempDir,
-            "ext.jar",
-            "com.example.MyService",
-            "org.springframework.context.ApplicationContextInitializer",
-            "java.sql.Driver");
+    Path jarPath = buildJar(
+        tempDir,
+        "ext.jar",
+        "com.example.MyService",
+        "org.springframework.context.ApplicationContextInitializer",
+        "java.sql.Driver");
 
     try (JarFile jar = new JarFile(jarPath.toFile(), false)) {
       ExtensionFinder.recordOtelSpiTelemetry(jar);
@@ -116,8 +112,7 @@ public class ExtensionFinderTest {
   }
 
   @Test
-  public void jarWithoutAnyServiceDescriptorsEmitsNothing(@TempDir Path tempDir)
-      throws IOException {
+  public void jarWithoutAnyServiceDescriptorsEmitsNothing(@TempDir Path tempDir) throws IOException {
     Path jarPath = tempDir.resolve("empty.jar");
     try (JarOutputStream jos = new JarOutputStream(Files.newOutputStream(jarPath))) {
       jos.putNextEntry(new JarEntry("README.txt"));
@@ -134,14 +129,13 @@ public class ExtensionFinderTest {
 
   @Test
   public void mixedOtelAndNonOtelReportsOnlyOtel(@TempDir Path tempDir) throws IOException {
-    Path jarPath =
-        buildJar(
-            tempDir,
-            "ext.jar",
-            AUTOCONFIGURE_PROPAGATOR,
-            "com.example.MyService",
-            JAVAAGENT_AGENT_LISTENER,
-            "java.sql.Driver");
+    Path jarPath = buildJar(
+        tempDir,
+        "ext.jar",
+        AUTOCONFIGURE_PROPAGATOR,
+        "com.example.MyService",
+        JAVAAGENT_AGENT_LISTENER,
+        "java.sql.Driver");
 
     try (JarFile jar = new JarFile(jarPath.toFile(), false)) {
       ExtensionFinder.recordOtelSpiTelemetry(jar);
@@ -164,7 +158,9 @@ public class ExtensionFinderTest {
     return fqns;
   }
 
-  /** Builds a jar with empty {@code META-INF/services/<fqn>} entries for each given FQN. */
+  /**
+   * Builds a jar with empty {@code META-INF/services/<fqn>} entries for each given FQN.
+   */
   private static Path buildJar(Path dir, String name, String... serviceFqns) throws IOException {
     Path jarPath = dir.resolve(name);
     try (OutputStream out = Files.newOutputStream(jarPath);

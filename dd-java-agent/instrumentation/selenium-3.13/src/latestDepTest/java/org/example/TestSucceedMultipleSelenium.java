@@ -10,7 +10,6 @@ import org.openqa.selenium.WindowType;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 
 public class TestSucceedMultipleSelenium {
-
   private static WebDriver driver;
 
   @BeforeAll

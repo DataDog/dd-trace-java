@@ -17,20 +17,22 @@ import org.slf4j.LoggerFactory;
 public final class OtelLoggerProvider implements LoggerProvider {
   private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(OtelLoggerProvider.class);
   private static final String DEFAULT_LOGGER_NAME = "unknown";
-
   public static final LoggerProvider INSTANCE = new OtelLoggerProvider();
-
-  /** Logger shims, indexed by instrumentation scope. */
+  /**
+   * Logger shims, indexed by instrumentation scope.
+   */
   private final Map<OtelInstrumentationScope, OtelLogger> loggers = new ConcurrentHashMap<>();
 
   @SuppressWarnings("unchecked")
   private OtelLoggerProvider() {
     // register attribute reader for class-loader where this provider is being used/injected
-    OtelLogRecordProcessor.registerAttributeReader(
-        AttributeKey.class.getClassLoader(),
-        (attributes, visitor) ->
-            ((Map<AttributeKey<?>, ?>) attributes)
-                .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
+    OtelLogRecordProcessor.registerAttributeReader(AttributeKey.class.getClassLoader(), (
+                                                                                            attributes,
+                                                                                            visitor
+                                                                                        ) -> ((Map<
+        AttributeKey<?>,
+        ?>) attributes)
+      .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
   }
 
   @Override
@@ -53,7 +55,9 @@ public final class OtelLoggerProvider implements LoggerProvider {
     }
     return loggers.computeIfAbsent(
         new OtelInstrumentationScope(
-            instrumentationScopeName, instrumentationScopeVersion, schemaUrl),
+            instrumentationScopeName,
+            instrumentationScopeVersion,
+            schemaUrl),
         OtelLogger::new);
   }
 }

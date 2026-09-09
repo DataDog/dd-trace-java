@@ -15,12 +15,11 @@ import org.glassfish.hk2.utilities.DuplicatePostProcessor;
 
 /* Auto scan the jax-rx @Contract and @Service  */
 public class AutoScanFeature implements Feature {
-
-  @Inject ServiceLocator serviceLocator;
+  @Inject
+  ServiceLocator serviceLocator;
 
   @Override
   public boolean configure(FeatureContext context) {
-
     DynamicConfigurationService dcs = serviceLocator.getService(DynamicConfigurationService.class);
     Populator populator = dcs.getPopulator();
     try {
@@ -29,7 +28,6 @@ public class AutoScanFeature implements Feature {
       populator.populate(
           new ClasspathDescriptorFileFinder(this.getClass().getClassLoader()),
           new DuplicatePostProcessor());
-
     } catch (IOException | MultiException ex) {
       Logger.getLogger(AutoScanFeature.class.getName()).log(Level.SEVERE, null, ex);
     }

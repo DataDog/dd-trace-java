@@ -5,7 +5,6 @@ import datadog.trace.api.telemetry.RuleType;
 public class GatewayContext {
   public final boolean isTransient;
   public final boolean isRasp;
-
   public final RuleType raspRuleType;
 
   public GatewayContext(final boolean isTransient) {

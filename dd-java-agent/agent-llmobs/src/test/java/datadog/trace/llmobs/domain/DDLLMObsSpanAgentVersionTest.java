@@ -3,7 +3,6 @@ package datadog.trace.llmobs.domain;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsTags;
@@ -25,10 +24,8 @@ import org.junit.jupiter.api.Test;
  */
 class DDLLMObsSpanAgentVersionTest {
   private static final String AGENT_VERSION_TAG = "_ml_obs_tag." + LLMObsTags.AGENT_VERSION;
-
   private static final Field SPAN_FIELD;
   private static final Field STANDALONE_APM_SCOPE_FIELD;
-
   private static CoreTracer tracer;
 
   static {

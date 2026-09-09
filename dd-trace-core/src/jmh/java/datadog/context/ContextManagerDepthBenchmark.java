@@ -1,7 +1,6 @@
 package datadog.context;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -39,7 +38,6 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
 public class ContextManagerDepthBenchmark {
-
   /**
    * Which {@link ContextManager} implementation to benchmark.
    *
@@ -47,10 +45,8 @@ public class ContextManagerDepthBenchmark {
    */
   @Param({"ThreadLocal", "Continuable"})
   public String managerType;
-
   @Param({"1", "4", "8", "100"})
   public int depth;
-
   ContextManager manager;
   Context[] contexts;
 
@@ -63,7 +59,6 @@ public class ContextManagerDepthBenchmark {
   @State(Scope.Thread)
   public static class ThreadState {
     final ContextScope[] scopes = new ContextScope[100];
-
     int nextContextIndex;
 
     Context nextContext(Context[] contexts) {
@@ -72,8 +67,9 @@ public class ContextManagerDepthBenchmark {
   }
 
   // ── Benchmark ─────────────────────────────────────────────────────────────
-
-  /** Attach the same context {@code depth} times then close all scopes in LIFO order. */
+  /**
+   * Attach the same context {@code depth} times then close all scopes in LIFO order.
+   */
   @Benchmark
   public void attachSameContextDepth(ThreadState thread) {
     Context ctx = thread.nextContext(contexts);

@@ -7,7 +7,6 @@ import javax.annotation.Nullable;
 
 public class UntrustedDeserializationModuleImpl extends SinkModuleBase
     implements UntrustedDeserializationModule {
-
   public UntrustedDeserializationModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }

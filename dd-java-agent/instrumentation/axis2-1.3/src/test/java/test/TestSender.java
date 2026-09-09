@@ -7,17 +7,17 @@ import java.util.Set;
 import org.apache.axis2.context.MessageContext;
 import org.apache.axis2.transport.local.LocalTransportSender;
 
-/** Test sender that checks the outgoing TRANSPORT_HEADERS have the expected propagation headers. */
+/**
+ * Test sender that checks the outgoing TRANSPORT_HEADERS have the expected propagation headers.
+ */
 public class TestSender extends LocalTransportSender {
-  private static final Set<String> EXPECTED_HEADERS =
-      new HashSet<>(
-          Arrays.asList(
-              "x-datadog-trace-id",
-              "x-datadog-parent-id",
-              "x-datadog-sampling-priority",
-              "x-datadog-tags",
-              "traceparent",
-              "tracestate"));
+  private static final Set<String> EXPECTED_HEADERS = new HashSet<>(Arrays.asList(
+      "x-datadog-trace-id",
+      "x-datadog-parent-id",
+      "x-datadog-sampling-priority",
+      "x-datadog-tags",
+      "traceparent",
+      "tracestate"));
 
   @Override
   public InvocationResponse invoke(MessageContext messageContext) {

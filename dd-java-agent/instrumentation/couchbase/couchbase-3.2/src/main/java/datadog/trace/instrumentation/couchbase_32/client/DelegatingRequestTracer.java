@@ -7,7 +7,6 @@ import java.time.Duration;
 import reactor.core.publisher.Mono;
 
 public class DelegatingRequestTracer implements RequestTracer {
-
   private final DatadogRequestTracer ddTracer;
   private final RequestTracer cncTracer;
 
@@ -23,12 +22,10 @@ public class DelegatingRequestTracer implements RequestTracer {
 
     RequestSpan ddSpan = ddTracer != null ? ddTracer.requestSpan(name, ddParentSpan) : null;
     RequestSpan cncSpan = cncTracer != null ? cncTracer.requestSpan(name, cncParentSpan) : null;
-
     // no tracers are present - return noop span
     if (ddSpan == null && cncSpan == null) {
       return NoopRequestSpan.INSTANCE;
     }
-
     // only one tracer is present - no need to delegate
     if (ddSpan == null) {
       return cncSpan;

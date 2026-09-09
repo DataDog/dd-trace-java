@@ -17,21 +17,20 @@ import java.util.jar.JarFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Provides access to Datadog internal classes. */
+/**
+ * Provides access to Datadog internal classes.
+ */
 public final class DatadogClassLoader extends SecureClassLoader {
   static {
     ClassLoader.registerAsParallelCapable();
   }
 
   private static final Logger log = LoggerFactory.getLogger(DatadogClassLoader.class);
-
   private final Set<String> definedPackages = new HashSet<>();
-
   private final JarFile agentJarFile;
   private final CodeSource agentCodeSource;
   private final String agentResourcePrefix;
   private final AgentJarIndex agentJarIndex;
-
   private final Object instrumentationClassLoaderLock = new Object();
   private volatile WeakReference<InstrumentationClassLoader> instrumentationClassLoader =
       new WeakReference<>(new InstrumentationClassLoader(this));
@@ -49,7 +48,9 @@ public final class DatadogClassLoader extends SecureClassLoader {
     agentJarIndex = AgentJarIndex.readIndex(agentJarFile);
   }
 
-  /** For testing purposes only. */
+  /**
+   * For testing purposes only.
+   */
   public DatadogClassLoader() {
     super(null);
 
@@ -98,8 +99,8 @@ public final class DatadogClassLoader extends SecureClassLoader {
   protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
     if (name.startsWith("datadog.trace.instrumentation.")
         && (name.endsWith("$Muzzle")
-            || name.endsWith("Instrumentation")
-            || name.endsWith("Module"))) {
+        || name.endsWith("Instrumentation")
+        || name.endsWith("Module"))) {
       InstrumentationClassLoader cl;
       if (null == (cl = instrumentationClassLoader.get())) {
         synchronized (instrumentationClassLoaderLock) {
@@ -119,7 +120,9 @@ public final class DatadogClassLoader extends SecureClassLoader {
     }
   }
 
-  /** Same as {@link #loadClass(String, boolean)} but it doesn't delegate to the parent. */
+  /**
+   * Same as {@link #loadClass(String, boolean)} but it doesn't delegate to the parent.
+   */
   private Class<?> loadLocalClass(String name, boolean resolve) throws ClassNotFoundException {
     synchronized (getClassLoadingLock(name)) {
       Class<?> c = findLoadedClass(name);

@@ -2,15 +2,18 @@ package datadog.trace.api;
 
 import datadog.trace.api.internal.util.LongStringUtils;
 
-/** Class with methods for working with the unsigned 64 bit id used for Span ids. */
+/**
+ * Class with methods for working with the unsigned 64 bit id used for Span ids.
+ */
 public final class DDSpanId {
-
   // Don't allow instances
-  private DDSpanId() {}
+  private DDSpanId() {
+  }
 
-  /** The ZERO span id is not allowed and means no span. */
+  /**
+   * The ZERO span id is not allowed and means no span.
+   */
   public static final long ZERO = 0;
-
   // All bits set, only used from tests
   public static final long MAX = -1;
 

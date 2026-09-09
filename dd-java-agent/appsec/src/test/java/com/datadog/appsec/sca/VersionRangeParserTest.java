@@ -3,16 +3,13 @@ package com.datadog.appsec.sca;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class VersionRangeParserTest {
-
   // --- matchesAny: null / empty guards ---
-
   @Test
   void nullVersionReturnsFalse() {
     assertFalse(VersionRangeParser.matchesAny(null, Arrays.asList("< 2.0.0")));
@@ -34,7 +31,6 @@ class VersionRangeParserTest {
   }
 
   // --- single-condition operators ---
-
   @Test
   void lessThan_belowBound() {
     assertTrue(VersionRangeParser.matchesAny("2.6.7.2", Arrays.asList("< 2.6.7.3")));
@@ -86,7 +82,6 @@ class VersionRangeParserTest {
   }
 
   // --- compound condition (AND within one string) ---
-
   @Test
   void compoundRange_withinBounds() {
     assertTrue(VersionRangeParser.matchesAny("2.7.5", Arrays.asList(">= 2.7.0, < 2.7.9.5")));
@@ -117,7 +112,6 @@ class VersionRangeParserTest {
   }
 
   // --- OR across multiple range strings ---
-
   @Test
   void multipleRanges_matchesFirstRange() {
     List<String> ranges = Arrays.asList("< 2.6.7.3", ">= 2.7.0, < 2.7.9.5");
@@ -137,7 +131,6 @@ class VersionRangeParserTest {
   }
 
   // --- Maven qualifier handling (Gap 10) ---
-
   @Test
   void releaseQualifier_belowBound() {
     assertTrue(VersionRangeParser.matchesAny("5.2.19.RELEASE", Arrays.asList("< 5.2.20.RELEASE")));
@@ -157,12 +150,10 @@ class VersionRangeParserTest {
   @Test
   void releaseQualifier_compoundRange() {
     assertTrue(VersionRangeParser.matchesAny("5.3.10", Arrays.asList(">= 5.3.0, < 5.3.18")));
-    assertFalse(
-        VersionRangeParser.matchesAny("5.2.20.RELEASE", Arrays.asList(">= 5.3.0, < 5.3.18")));
+    assertFalse(VersionRangeParser.matchesAny("5.2.20.RELEASE", Arrays.asList(">= 5.3.0, < 5.3.18")));
   }
 
   // --- 4-part versions ---
-
   @Test
   void fourPartVersion() {
     assertTrue(VersionRangeParser.matchesAny("2.6.7.2", Arrays.asList("< 2.6.7.3")));
@@ -171,11 +162,10 @@ class VersionRangeParserTest {
   }
 
   // --- error handling ---
-
   @Test
   void unknownOperatorThrows() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> VersionRangeParser.matchesAny("1.0.0", Arrays.asList("~ 2.0.0")));
+    assertThrows(IllegalArgumentException.class, () -> VersionRangeParser.matchesAny(
+        "1.0.0",
+        Arrays.asList("~ 2.0.0")));
   }
 }

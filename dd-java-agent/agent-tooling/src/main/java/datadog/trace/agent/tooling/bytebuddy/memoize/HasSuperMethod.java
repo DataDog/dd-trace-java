@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.memoize;
 
 import static net.bytebuddy.matcher.ElementMatchers.hasSignature;
-
 import java.util.HashSet;
 import java.util.Set;
 import net.bytebuddy.description.method.MethodDescription;
@@ -33,11 +32,12 @@ final class HasSuperMethod extends ElementMatcher.Junction.ForNonNullValues<Meth
 
     TypeDefinition type = target.getDeclaringType();
     if (!typeMatcher.matches(type.asErasure())) {
-      return false; // no further matches recorded in hierarchy
+      // no further matches recorded in hierarchy
+      return false;
     } else if (methodMatcher.matches(target)) {
-      return true; // direct match, no need to check hierarchy
+      // direct match, no need to check hierarchy
+      return true;
     }
-
     // need to search hierarchy; use expected signature to filter candidate methods
     ElementMatcher<MethodDescription> signatureMatcher = hasSignature(target.asSignatureToken());
     Set<String> visited = new HashSet<>();
@@ -67,7 +67,8 @@ final class HasSuperMethod extends ElementMatcher.Junction.ForNonNullValues<Meth
       Set<String> visited) {
     for (TypeDefinition type : interfaces) {
       if (!visited.add(type.getTypeName()) || !typeMatcher.matches(type.asErasure())) {
-        continue; // skip if already visited or that part of the hierarchy doesn't match
+        // skip if already visited or that part of the hierarchy doesn't match
+        continue;
       }
       for (MethodDescription method : type.getDeclaredMethods()) {
         if (signatureMatcher.matches(method) && methodMatcher.matches(method)) {

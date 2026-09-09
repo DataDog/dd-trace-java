@@ -6,7 +6,6 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 
 public class RequestHeaderHandler implements TriConsumer<RequestContext, String, String> {
-
   @Override
   public void accept(RequestContext requestContext, String key, String value) {
     final IastRequestContext ctx = requestContext.getData(RequestContextSlot.IAST);

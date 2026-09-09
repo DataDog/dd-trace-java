@@ -19,4 +19,5 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.METHOD)
-public @interface StrategyConsumer {}
+public @interface StrategyConsumer {
+}

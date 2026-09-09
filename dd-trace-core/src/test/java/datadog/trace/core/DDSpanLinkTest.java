@@ -13,7 +13,6 @@ import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.CollectionType;
 import datadog.trace.api.Config;
@@ -40,12 +39,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.tabletest.junit.TableTest;
 
 class DDSpanLinkTest extends DDCoreJavaSpecification {
-
   private static final int SPAN_LINK_TAG_MAX_LENGTH = 25_000;
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
   private static final CollectionType SPAN_LINK_LIST_TYPE =
       JSON_MAPPER.getTypeFactory().constructCollectionType(List.class, SpanLinkAsTag.class);
-
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -73,9 +70,10 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_PARENT_KEY.toUpperCase(), "00-" + traceId + "-" + spanId + "-" + traceFlags);
     headers.put(TRACE_STATE_KEY.toUpperCase(), traceState);
-    HttpCodec.Extractor extractor =
-        newW3cHttpCodecExtractor(
-            Config.get(), () -> DynamicConfig.create().apply().captureTraceConfig());
+    HttpCodec.Extractor extractor = newW3cHttpCodecExtractor(Config.get(), () -> DynamicConfig
+      .create()
+      .apply()
+      .captureTraceConfig());
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
     SpanLink link = DDSpanLink.from(context);
@@ -90,11 +88,11 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
   void testSpanLinkEncodingTagMaxSize() throws Exception {
     int tooManyLinkCount = 300;
     SpanBuilder builder = tracer.buildSpan("test", "operation");
-    List<SpanLink> links =
-        IntStream.range(0, tooManyLinkCount)
-            .mapToObj(this::createLink)
-            .peek(builder::withLink)
-            .collect(toList());
+    List<SpanLink> links = IntStream
+      .range(0, tooManyLinkCount)
+      .mapToObj(this::createLink)
+      .peek(builder::withLink)
+      .collect(toList());
     AgentSpan span = builder.start();
     span.finish();
     this.writer.waitForTraces(1);
@@ -106,8 +104,7 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     assertTrue(spanLinksTag.length() < SPAN_LINK_TAG_MAX_LENGTH);
     assertTrue(decodedSpanLinks.size() < tooManyLinkCount);
     assertTrue(
-        (double) spanLinksTag.length() / decodedSpanLinks.size() * (decodedSpanLinks.size() + 1)
-            > SPAN_LINK_TAG_MAX_LENGTH);
+        (double) spanLinksTag.length() / decodedSpanLinks.size() * (decodedSpanLinks.size() + 1) > SPAN_LINK_TAG_MAX_LENGTH);
     for (int i = 0; i < decodedSpanLinks.size(); i++) {
       assertLink(links.get(i), decodedSpanLinks.get(i));
     }
@@ -121,22 +118,8 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     String spanId = "0a2b3c4d5e6f7a8b";
     SpanLink link =
         new DDSpanLink(
-            DDTraceId.fromHex(traceId), DDSpanId.fromHex(spanId), DEFAULT_FLAGS, "", EMPTY);
-    this.tracer.buildSpan("test", "operation").withLink(link).start().finish();
-    this.writer.waitForTraces(1);
-
-    assertEquals(1, this.writer.get(0).size());
-    String spanLinksTag = (String) writer.get(0).get(0).getTag(SPAN_LINKS);
-    assertEquals(
-        "[{\"span_id\":\"" + spanId + "\",\"trace_id\":\"" + traceId + "\"}]", spanLinksTag);
-  }
-
-  @Test
-  void testSpanLinksEncodingOmittedEmptyKeys() throws Exception {
-    SpanLink link =
-        new DDSpanLink(
-            DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
-            DDSpanId.fromHex("123456789abcdef0"),
+            DDTraceId.fromHex(traceId),
+            DDSpanId.fromHex(spanId),
             DEFAULT_FLAGS,
             "",
             EMPTY);
@@ -146,7 +129,26 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     assertEquals(1, this.writer.get(0).size());
     String spanLinksTag = (String) writer.get(0).get(0).getTag(SPAN_LINKS);
     assertEquals(
-        "[{\"span_id\":\"123456789abcdef0\",\"trace_id\":\"11223344556677889900aabbccddeeff\"}]",
+        "[{\"span_id\":\"" + spanId + "\",\"trace_id\":\"" + traceId + "\"}]",
+        spanLinksTag);
+  }
+
+  @Test
+  void testSpanLinksEncodingOmittedEmptyKeys() throws Exception {
+    SpanLink link = new DDSpanLink(
+        DDTraceId.fromHex("11223344556677889900aabbccddeeff"),
+        DDSpanId.fromHex("123456789abcdef0"),
+        DEFAULT_FLAGS,
+        "",
+        EMPTY);
+    this.tracer.buildSpan("test", "operation").withLink(link).start().finish();
+    this.writer.waitForTraces(1);
+
+    assertEquals(1, this.writer.get(0).size());
+    String spanLinksTag = (String) writer.get(0).get(0).getTag(SPAN_LINKS);
+    assertEquals(
+        "[{\\\"span_id\\\":\\\"123456789abcdef0\\\",\\\"trace_id\\\":"
+        + "\\\"11223344556677889900aabbccddeeff\\\"}]",
         spanLinksTag);
   }
 

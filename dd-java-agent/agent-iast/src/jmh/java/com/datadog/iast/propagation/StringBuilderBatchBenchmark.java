@@ -2,7 +2,6 @@ package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.api.iast.IastContext;
@@ -19,10 +18,8 @@ import org.openjdk.jmh.annotations.Param;
 @OutputTimeUnit(MICROSECONDS)
 public class StringBuilderBatchBenchmark
     extends AbstractBenchmark<StringBuilderBatchBenchmark.Context> {
-
   @Param({"10", "100"})
   public int stringCount;
-
   @Param({"0", "50", "100"})
   public int taintedPct;
 
@@ -35,8 +32,10 @@ public class StringBuilderBatchBenchmark
       double current = i / (double) stringCount;
       final String value;
       if (current < limit) {
-        value =
-            tainted(context, UUID.randomUUID().toString(), new Range(3, 6, source(), NOT_MARKED));
+        value = tainted(
+            context,
+            UUID.randomUUID().toString(),
+            new Range(3, 6, source(), NOT_MARKED));
       } else {
         value = notTainted(UUID.randomUUID().toString());
       }
@@ -83,7 +82,6 @@ public class StringBuilderBatchBenchmark
   }
 
   protected static class Context extends AbstractBenchmark.BenchmarkContext {
-
     private final List<String> strings;
 
     protected Context(final IastContext context, final List<String> strings) {

@@ -6,12 +6,14 @@ import jdk.jfr.Event;
 import jdk.jfr.EventType;
 
 public class WindowSampler<E extends Event> {
-
   private final AdaptiveSampler sampler;
   private final EventType sampleType;
 
   protected WindowSampler(
-      Duration windowDuration, int samplesPerWindow, int lookback, Class<E> eventType) {
+      Duration windowDuration,
+      int samplesPerWindow,
+      int lookback,
+      Class<E> eventType) {
     sampler = new AdaptiveSampler(windowDuration, samplesPerWindow, lookback, 16, false);
     sampleType = EventType.getEventType(eventType);
   }

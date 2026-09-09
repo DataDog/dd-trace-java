@@ -8,7 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Stores status instrumentation results */
+/**
+ * Stores status instrumentation results
+ */
 public class InstrumentationResult {
   public enum Status {
     INSTALLED,
@@ -30,17 +32,21 @@ public class InstrumentationResult {
     }
 
     public static InstrumentationResult blocked(
-        String className, List<ProbeDefinition> definitions, DiagnosticMessage... messages) {
+        String className,
+        List<ProbeDefinition> definitions,
+        DiagnosticMessage... messages) {
       Map<ProbeId, List<DiagnosticMessage>> diagnostics = new HashMap<>();
-      definitions.forEach(
-          probeDefinition ->
-              diagnostics.put(probeDefinition.getProbeId(), Arrays.asList(messages)));
+      definitions.forEach(probeDefinition -> diagnostics.put(
+          probeDefinition.getProbeId(),
+          Arrays.asList(messages)));
       return new InstrumentationResult(Status.BLOCKED, diagnostics, null, className, null);
     }
   }
 
   public InstrumentationResult(
-      Status status, Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
+      Status status,
+      Map<ProbeId, List<DiagnosticMessage>> diagnostics,
+      MethodInfo methodInfo) {
     this.status = status;
     this.diagnostics = diagnostics;
     this.sourceFileName = methodInfo.getSourceFileName();
@@ -110,7 +116,13 @@ public class InstrumentationResult {
   public String toString() {
     return String.format(
         "InstrumentationResult{typeName='%s', methodName='%s', methodStart=%d, signature='%s',"
-            + " sourceFileName='%s', status=%s. diagnostics=%s}",
-        typeName, methodName, methodStart, signature, sourceFileName, status, diagnostics);
+        + " sourceFileName='%s', status=%s. diagnostics=%s}",
+        typeName,
+        methodName,
+        methodStart,
+        signature,
+        sourceFileName,
+        status,
+        diagnostics);
   }
 }

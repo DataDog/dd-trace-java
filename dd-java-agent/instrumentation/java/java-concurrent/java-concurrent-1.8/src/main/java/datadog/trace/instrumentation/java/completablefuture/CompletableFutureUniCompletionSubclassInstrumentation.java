@@ -7,20 +7,21 @@ import static datadog.trace.instrumentation.java.completablefuture.CompletableFu
 import static datadog.trace.instrumentation.java.completablefuture.CompletableFutureUniCompletionInstrumentation.COMPLETABLE_FUTURE;
 import static datadog.trace.instrumentation.java.completablefuture.CompletableFutureUniCompletionInstrumentation.UNI_COMPLETION;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Described in {@link CompletableFutureUniCompletionInstrumentation} */
+/**
+ * Described in {@link CompletableFutureUniCompletionInstrumentation}
+ */
 public class CompletableFutureUniCompletionSubclassInstrumentation
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -31,6 +32,7 @@ public class CompletableFutureUniCompletionSubclassInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("tryFire").and(takesArguments(int.class)), ADVICE_BASE + "UniSubTryFire");
+        named("tryFire").and(takesArguments(int.class)),
+        ADVICE_BASE + "UniSubTryFire");
   }
 }

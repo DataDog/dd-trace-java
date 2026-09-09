@@ -3,7 +3,6 @@ package datadog.crashtracking.buildid;
 import static datadog.crashtracking.buildid.BuildInfo.EMPTY;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.queue.Queues;
 import datadog.trace.util.AgentTaskScheduler;
 import java.nio.file.Path;
@@ -50,20 +49,25 @@ import org.slf4j.LoggerFactory;
  */
 public class BuildIdCollector {
   static final Logger LOGGER = LoggerFactory.getLogger(BuildIdCollector.class);
-
-  /** Thread-safe map: accessed by both producer and consumer threads. */
+  /**
+   * Thread-safe map: accessed by both producer and consumer threads.
+   */
   private final Map<String, BuildInfo> libraryBuildInfo = new ConcurrentHashMap<>();
-
-  /** Tracks processed filenames. Only accessed from producer thread - no synchronization needed. */
+  /**
+   * Tracks processed filenames. Only accessed from producer thread - no synchronization needed.
+   */
   private final Set<String> processed = new HashSet<>();
-
-  /** Ensures exactly one collector thread is started. */
+  /**
+   * Ensures exactly one collector thread is started.
+   */
   private final AtomicBoolean collecting = new AtomicBoolean(false);
-
-  /** SPSC queue: one producer (crash parsing), one consumer (collector thread). */
+  /**
+   * SPSC queue: one producer (crash parsing), one consumer (collector thread).
+   */
   private final MessagePassingQueue<Path> workQueue = Queues.spscArrayQueue(Short.MAX_VALUE);
-
-  /** Signals when collection is complete. */
+  /**
+   * Signals when collection is complete.
+   */
   private final CountDownLatch latch = new CountDownLatch(1);
 
   /**
@@ -106,7 +110,8 @@ public class BuildIdCollector {
         if (buildId != null) {
           LOGGER.debug("Found build id {} for library {}", buildId, fileName);
           libraryBuildInfo.put(
-              fileName, new BuildInfo(buildId, extractor.buildIdType(), extractor.fileType()));
+              fileName,
+              new BuildInfo(buildId, extractor.buildIdType(), extractor.fileType()));
         }
       }
       latch.countDown();
@@ -148,8 +153,8 @@ public class BuildIdCollector {
     if (libraryBuildInfo.remove(filename) == null) {
       // the library is not present in the collected ones part of the stackframe
       LOGGER.debug(
-          "Skipping build id resolution for {} as it was not added to unprocessed", filename);
-
+          "Skipping build id resolution for {} as it was not added to unprocessed",
+          filename);
     } else if (!workQueue.offer(path)) {
       LOGGER.warn(
           "Could not resolve the build id for library {} because the processing queue is full",

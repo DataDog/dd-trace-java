@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.ci;
 
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -16,7 +15,6 @@ public class TeamcityInfo implements CIProviderInfo {
   private static final String TEAMCITY_PULL_REQUEST_NUMBER = "TEAMCITY_PULLREQUEST_NUMBER";
   private static final String TEAMCITY_PULL_REQUEST_TARGET_BRANCH =
       "TEAMCITY_PULLREQUEST_TARGET_BRANCH";
-
   private final CiEnvironment environment;
 
   TeamcityInfo(CiEnvironment environment) {
@@ -30,11 +28,12 @@ public class TeamcityInfo implements CIProviderInfo {
 
   @Override
   public CIInfo buildCIInfo() {
-    return CIInfo.builder(environment)
-        .ciProviderName(TEAMCITY_PROVIDER_NAME)
-        .ciJobName(environment.get(TEAMCITY_BUILDCONF_NAME))
-        .ciJobUrl(environment.get(BUILD_URL))
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(TEAMCITY_PROVIDER_NAME)
+      .ciJobName(environment.get(TEAMCITY_BUILDCONF_NAME))
+      .ciJobUrl(environment.get(BUILD_URL))
+      .build();
   }
 
   @Nonnull

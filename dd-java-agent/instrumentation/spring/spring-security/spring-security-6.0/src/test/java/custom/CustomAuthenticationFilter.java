@@ -10,9 +10,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter;
 
 public class CustomAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
-
   private static final String HEADER_NAME = "X-Custom-User";
-
   private final AuthenticationManager authenticationManager;
 
   public CustomAuthenticationFilter(final AuthenticationManager authenticationManager) {
@@ -22,8 +20,8 @@ public class CustomAuthenticationFilter extends AbstractAuthenticationProcessing
 
   @Override
   public Authentication attemptAuthentication(
-      HttpServletRequest request, HttpServletResponse response)
-      throws AuthenticationException, IOException, ServletException {
+      HttpServletRequest request,
+      HttpServletResponse response) throws AuthenticationException, IOException, ServletException {
     final String user = request.getHeader(HEADER_NAME);
     if (user == null) {
       return null;

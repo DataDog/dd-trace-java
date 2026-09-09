@@ -7,39 +7,34 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 public class CiVisibilitySettings {
-
-  public static final CiVisibilitySettings DEFAULT =
-      new CiVisibilitySettings(
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT,
-          null,
-          false);
-
-  public static final CiVisibilitySettings SETTINGS_REQUEST_ERROR =
-      new CiVisibilitySettings(
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          false,
-          EarlyFlakeDetectionSettings.DEFAULT,
-          TestManagementSettings.DEFAULT,
-          null,
-          true);
-
+  public static final CiVisibilitySettings DEFAULT = new CiVisibilitySettings(
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
+      null,
+      false);
+  public static final CiVisibilitySettings SETTINGS_REQUEST_ERROR = new CiVisibilitySettings(
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      EarlyFlakeDetectionSettings.DEFAULT,
+      TestManagementSettings.DEFAULT,
+      null,
+      true);
   private final boolean itrEnabled;
   private final boolean codeCoverage;
   private final boolean testsSkipping;
@@ -51,7 +46,8 @@ public class CiVisibilitySettings {
   private final boolean failedTestReplayEnabled;
   private final EarlyFlakeDetectionSettings earlyFlakeDetectionSettings;
   private final TestManagementSettings testManagementSettings;
-  @Nullable private final String defaultBranch;
+  @Nullable
+  private final String defaultBranch;
   private final boolean settingsRequestError;
 
   CiVisibilitySettings(
@@ -183,7 +179,6 @@ public class CiVisibilitySettings {
   }
 
   public static final class JsonAdapter {
-
     public static final JsonAdapter INSTANCE = new JsonAdapter();
 
     @FromJson
@@ -207,17 +202,19 @@ public class CiVisibilitySettings {
           TestManagementSettings.JsonAdapter.INSTANCE.fromJson(
               (Map<String, Object>) json.get("test_management")),
           getString(json, "default_branch", null),
-          false); // Correctly deserialized settings response is never considered as "errored"
+          // Correctly deserialized settings response is never considered as "errored"
+          false);
     }
 
     private static boolean getBoolean(
-        Map<String, Object> json, String fieldName, boolean defaultValue) {
+        Map<String, Object> json,
+        String fieldName,
+        boolean defaultValue) {
       Object value = json.get(fieldName);
       return value instanceof Boolean ? (Boolean) value : defaultValue;
     }
 
-    private static String getString(
-        Map<String, Object> json, String fieldName, String defaultValue) {
+    private static String getString(Map<String, Object> json, String fieldName, String defaultValue) {
       Object value = json.get(fieldName);
       return value instanceof String ? (String) value : defaultValue;
     }

@@ -5,7 +5,6 @@ import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 
 public abstract class TestMetadataSerializer {
-
   public static void serialize(Serializer serializer, TestMetadata testMetadata) {
     serializer.write(testMetadata.isMissingLineCodeCoverage());
   }

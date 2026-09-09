@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.play25.appsec;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.instrumentation.play25.appsec.BodyParserHelpers.jsValueToJavaObject;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -18,11 +17,10 @@ import play.api.libs.json.JsValue;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class ResultsStatusApplyAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static void before(
-      @Advice.Argument(0) final Object content, @ActiveRequestContext final RequestContext reqCtx) {
-
+      @Advice.Argument(0) final Object content,
+      @ActiveRequestContext final RequestContext reqCtx) {
     if (!(content instanceof JsValue)) {
       return;
     }
@@ -31,8 +29,7 @@ public class ResultsStatusApplyAdvice {
     if (cbp == null) {
       return;
     }
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
-        cbp.getCallback(EVENTS.responseBody());
+    BiFunction<RequestContext, Object, Flow<Void>> callback = cbp.getCallback(EVENTS.responseBody());
     if (callback == null) {
       return;
     }

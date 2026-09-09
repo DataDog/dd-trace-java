@@ -12,7 +12,6 @@ import static net.bytebuddy.jar.asm.Opcodes.ICONST_0;
 import static net.bytebuddy.jar.asm.Opcodes.ICONST_1;
 import static net.bytebuddy.jar.asm.Opcodes.ICONST_M1;
 import static net.bytebuddy.jar.asm.Opcodes.INVOKESTATIC;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.Sink;
@@ -36,7 +35,6 @@ import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Type;
 
 public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
-
   public static final Advice.PostProcessor.Factory INSTANCE;
 
   static {
@@ -48,7 +46,6 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
   private static final String SINK_NAME = Sink.class.getSimpleName();
   private static final String PROPAGATION_NAME = Propagation.class.getSimpleName();
   private static final String SOURCE_NAME = Source.class.getSimpleName();
-
   private static final String COLLECTOR_INTERNAL_NAME =
       Type.getType(IastMetricCollector.class).getInternalName();
   private static final String METRIC_INTERNAL_NAME =
@@ -56,7 +53,6 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
   private static final String METRIC_DESCRIPTOR = "L" + METRIC_INTERNAL_NAME + ";";
   private static final String ADD_DESCRIPTOR = "(" + METRIC_DESCRIPTOR + "I)V";
   private static final String ADD_WITH_TAG_DESCRIPTOR = "(" + METRIC_DESCRIPTOR + "BI)V";
-
   private final Verbosity verbosity;
 
   public IastPostProcessorFactory(final Verbosity verbosity) {
@@ -65,7 +61,9 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
 
   @Override
   public @Nonnull Advice.PostProcessor make(
-      List<? extends AnnotationDescription> annotations, TypeDescription returnType, boolean exit) {
+      List<? extends AnnotationDescription> annotations,
+      TypeDescription returnType,
+      boolean exit) {
     for (final AnnotationDescription annotation : annotations) {
       final TypeDescription typeDescr = annotation.getAnnotationType();
       final PackageDescription pkgDescr = typeDescr.getPackage();
@@ -86,7 +84,9 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
   }
 
   private PostProcessor createPostProcessor(
-      final IastMetric instrumented, final IastMetric executed, final Byte tagValue) {
+      final IastMetric instrumented,
+      final IastMetric executed,
+      final Byte tagValue) {
     if (!executed.isEnabled(verbosity)) {
       return new PostProcessor(instrumented, null, tagValue);
     }
@@ -94,13 +94,14 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
   }
 
   private static class PostProcessor implements Advice.PostProcessor {
-
     private final IastMetric instrumentation;
     private final IastMetric runtime;
     private final Byte tagValue;
 
     private PostProcessor(
-        final IastMetric instrumentation, final IastMetric runtime, final Byte tagValue) {
+        final IastMetric instrumentation,
+        final IastMetric runtime,
+        final Byte tagValue) {
       this.instrumentation = instrumentation;
       this.runtime = runtime;
       this.tagValue = tagValue;
@@ -141,7 +142,8 @@ public class IastPostProcessorFactory implements Advice.PostProcessor.Factory {
 
     @Override
     public @Nonnull Size apply(
-        @Nonnull final MethodVisitor mv, @Nonnull final Implementation.Context ctx) {
+        @Nonnull final MethodVisitor mv,
+        @Nonnull final Implementation.Context ctx) {
       stackMapFrameHandler.injectIntermediateFrame(mv, Collections.emptyList());
       mv.visitFieldInsn(GETSTATIC, METRIC_INTERNAL_NAME, metricName, METRIC_DESCRIPTOR);
       final String descriptor;

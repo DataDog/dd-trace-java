@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.DD_CONTEXT_CALL_ID;
 import static datadog.trace.bootstrap.instrumentation.rmi.ContextPropagator.PROPAGATOR;
 import static datadog.trace.bootstrap.instrumentation.rmi.ThreadLocalContext.THREAD_LOCAL_CONTEXT;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors;
 import java.io.IOException;
@@ -37,26 +36,25 @@ public class ContextDispatcher implements Dispatcher {
   public void dispatch(final Remote obj, final RemoteCall call) throws IOException {
     final ObjectInput in = call.getInputStream();
     final int operationId = in.readInt();
-    in.readLong(); // skip 8 bytes
+    // skip 8 bytes
+    in.readLong();
 
     if (PROPAGATOR.isOperationWithPayload(operationId)) {
       final ContextPayload payload = ContextPayload.read(in);
       if (payload != null) {
         final AgentSpanContext context =
-            extractContextAndGetSpanContext(
-                payload.getContext(), ContextVisitors.stringValuesMap());
+            extractContextAndGetSpanContext(payload.getContext(), ContextVisitors.stringValuesMap());
         THREAD_LOCAL_CONTEXT.set(context);
       }
     }
-
     // send result stream the client is expecting
     call.getResultStream(true);
-
     // release held streams to allow next call to continue
     call.releaseInputStream();
     call.releaseOutputStream();
     call.done();
   }
 
-  public static class NoopRemote implements Remote {}
+  public static class NoopRemote implements Remote {
+  }
 }

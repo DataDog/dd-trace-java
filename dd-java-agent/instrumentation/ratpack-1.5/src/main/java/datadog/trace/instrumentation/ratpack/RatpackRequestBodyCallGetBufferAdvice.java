@@ -28,7 +28,8 @@ import ratpack.http.internal.ByteBufBackedTypedData;
 public class RatpackRequestBodyCallGetBufferAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static Throwable before(
-      @Advice.This ByteBufBackedTypedData thiz, @ActiveRequestContext RequestContext reqCtx) {
+      @Advice.This ByteBufBackedTypedData thiz,
+      @ActiveRequestContext RequestContext reqCtx) {
     Boolean bodyPublished =
         InstrumentationContext.get(ByteBufBackedTypedData.class, Boolean.class).get(thiz);
     if (bodyPublished == Boolean.TRUE) {
@@ -60,7 +61,6 @@ public class RatpackRequestBodyCallGetBufferAdvice {
     if (enterThr == null) {
       return;
     }
-
     // it's questionable, but we don't replace existing exceptions with our BlockingException
     if (t == null) {
       t = enterThr;
@@ -68,6 +68,7 @@ public class RatpackRequestBodyCallGetBufferAdvice {
   }
 
   public void muzzleCheck() {
-    FileIo.open(null); // added in 1.5
+    // added in 1.5
+    FileIo.open(null);
   }
 }

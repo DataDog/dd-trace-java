@@ -21,14 +21,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class Dependency {
-
   private static final Logger log = LoggerFactory.getLogger(Dependency.class);
-
   private static final Pattern FILE_REGEX =
       Pattern.compile("^(.+?)(?:-([0-9][^-]+(?:-\\w+)?))?\\.jar$");
-
   private static final byte[] buf = new byte[8192];
-
   private static final MessageDigest md;
 
   static {
@@ -46,7 +42,6 @@ public final class Dependency {
   public final String version;
   public final String source;
   public final String hash;
-
   /**
    * Optional SCA reachability metadata. Each entry is a stringified JSON object conforming to the
    * RFC reachability payload: {@code
@@ -55,7 +50,8 @@ public final class Dependency {
    * serialized by the telemetry pipeline unless explicitly written by {@link
    * datadog.telemetry.TelemetryRequestBody#writeDependency}.
    */
-  @Nullable public final List<String> reachabilityMetadata;
+  @Nullable
+  public final List<String> reachabilityMetadata;
 
   public Dependency(String name, String version, String source, @Nullable String hash) {
     this(name, version, source, hash, null);
@@ -71,8 +67,9 @@ public final class Dependency {
     this.version = version;
     this.source = source;
     this.hash = hash;
-    this.reachabilityMetadata =
-        reachabilityMetadata != null ? Collections.unmodifiableList(reachabilityMetadata) : null;
+    this.reachabilityMetadata = reachabilityMetadata != null
+        ? Collections.unmodifiableList(reachabilityMetadata)
+        : null;
   }
 
   @Override
@@ -94,7 +91,8 @@ public final class Dependency {
   }
 
   public static List<Dependency> fromMavenPom(
-      final String jar, Map<String, Properties> pomProperties) {
+      final String jar,
+      Map<String, Properties> pomProperties) {
     if (pomProperties == null) {
       return Collections.emptyList();
     }
@@ -109,7 +107,7 @@ public final class Dependency {
       if (groupId == null || artifactId == null || version == null) {
         log.debug(
             "pom.properties does not have all the required properties: "
-                + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+            + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
             jar,
             entry.getKey(),
             groupId,
@@ -118,7 +116,7 @@ public final class Dependency {
       } else {
         log.debug(
             "dependency found in pom.properties: "
-                + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
+            + "jar={}, entry={}, groupId={}, artifactId={}, version={}",
             jar,
             entry.getKey(),
             groupId,
@@ -130,13 +128,16 @@ public final class Dependency {
     return dependencies;
   }
 
-  @SuppressFBWarnings(
-      value = {"USO_UNSAFE_METHOD_SYNCHRONIZATION", "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"},
-      justification =
-          "Static synchronized method guards the shared static MessageDigest and byte[] buffer; the"
-              + " Dependency.class lock is internal and not exposed to application code.")
+  @SuppressFBWarnings(value = {
+      "USO_UNSAFE_METHOD_SYNCHRONIZATION",
+      "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION"
+  }, justification =
+      "Static synchronized method guards the shared static MessageDigest and byte[] buffer; the"
+      + " Dependency.class lock is internal and not exposed to application code.")
   public static synchronized Dependency guessFallbackNoPom(
-      Attributes manifest, String source, InputStream is) throws IOException {
+      Attributes manifest,
+      String source,
+      InputStream is) throws IOException {
     final int slashIndex = source.lastIndexOf('/');
     if (slashIndex >= 0) {
       source = source.substring(slashIndex + 1);
@@ -146,7 +147,6 @@ public final class Dependency {
     String groupId = null;
     String version;
     String hash = null;
-
     // Guess from manifest
     String bundleSymbolicName = null;
     String implementationTitle = null;
@@ -160,7 +160,6 @@ public final class Dependency {
       implementationTitle = manifest.getValue("implementation-title");
       implementationVersion = manifest.getValue("implementation-version");
     }
-
     // Guess from file name
     String fileNameArtifact = null;
     String fileNameVersion = null;
@@ -177,7 +176,6 @@ public final class Dependency {
       // name.
       fileNameArtifact = source;
     }
-
     // Find for the most suitable name (based on priority)
     if (isValidArtifactId(bundleName)) {
       artifactId = bundleName;
@@ -186,7 +184,6 @@ public final class Dependency {
     } else {
       artifactId = fileNameArtifact;
     }
-
     // Bundle-Version and Implementation-Version have precedence only if they are equal.
     if (equalsNonNull(bundleVersion, implementationVersion)) {
       version = bundleVersion;
@@ -199,7 +196,6 @@ public final class Dependency {
     } else {
       version = "";
     }
-
     // Try to get groupId from bundleSymbolicName and bundleName (or artifact id)
     if (hasText(bundleSymbolicName)) {
       groupId = parseGroupId(bundleSymbolicName, fileNameArtifact);
@@ -221,7 +217,8 @@ public final class Dependency {
       // No reliable version calculate hash and use any version
       md.reset();
       is = new DigestInputStream(is, md);
-      while (is.read(buf, 0, buf.length) > 0) {}
+      while (is.read(buf, 0, buf.length) > 0) {
+      }
       hash = String.format("%040X", new BigInteger(1, md.digest()));
     }
     log.debug("No maven dependency added {}.{} jar name {} hash {}", name, version, source, hash);
@@ -260,7 +257,6 @@ public final class Dependency {
 
     final int truncateLen = bundleSymbolicName.length() - bundleNameWithPrefix.length();
     final String groupId = bundleSymbolicName.substring(0, truncateLen);
-
     // Sometimes this will lead to an incorrect group id, in cases like com.opencsv / opencsv, which
     // are frequent.
     // This will trim both single word group ids, as well as prefixes suck as `uk.ac`.

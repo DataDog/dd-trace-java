@@ -5,7 +5,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,8 @@ import org.springframework.util.StreamUtils;
 
 @AutoService(InstrumenterModule.class)
 public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public StreamUtilsInstrumentation() {
     super("spring-core");
   }
@@ -31,10 +30,10 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("copyToString"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, InputStream.class))
-            .and(takesArgument(1, Charset.class)),
+          .and(named("copyToString"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, InputStream.class))
+          .and(takesArgument(1, Charset.class)),
         StreamUtilsInstrumentation.class.getName() + "$SpringAdvice");
   }
 
@@ -44,11 +43,11 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class SpringAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void checkReturnedObject(
-        @Advice.Return String string, @Advice.Argument(0) final InputStream in) {
+        @Advice.Return String string,
+        @Advice.Argument(0) final InputStream in) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (string != null && module != null) {
         module.taintStringIfTainted(string, in);
@@ -57,7 +56,8 @@ public final class StreamUtilsInstrumentation extends InstrumenterModule.Iast
 
     private static void muzzleCheck() throws IOException {
       StreamUtils.copyToString(
-          new ByteArrayInputStream("test".getBytes(UTF_8)), Charset.defaultCharset());
+          new ByteArrayInputStream("test".getBytes(UTF_8)),
+          Charset.defaultCharset());
     }
   }
 }

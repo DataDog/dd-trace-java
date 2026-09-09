@@ -9,7 +9,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.google.auto.service.AutoService;
@@ -26,8 +25,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JsonParserInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   static final String TARGET_TYPE = "com.fasterxml.jackson.core.JsonParser";
 
   public JsonParserInstrumentation() {
@@ -39,9 +38,9 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
     final String className = JsonParserInstrumentation.class.getName();
     transformer.applyAdvice(
         namedOneOf("getText", "getValueAsString")
-            .and(isPublic())
-            .and(takesNoArguments())
-            .and(returns(String.class)),
+          .and(isPublic())
+          .and(takesNoArguments())
+          .and(returns(String.class)),
         className + "$TextAdvice");
   }
 
@@ -53,9 +52,8 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return declaresMethod(namedOneOf("getText", "getValueAsString"))
-        .and(
-            extendsClass(named(hierarchyMarkerType()))
-                .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
+      .and(extendsClass(named(hierarchyMarkerType()))
+        .and(namedNoneOf("com.fasterxml.jackson.core.base.ParserMinimalBase")));
   }
 
   @Override
@@ -64,7 +62,6 @@ public class JsonParserInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class TextAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void onExit(@Advice.This JsonParser jsonParser, @Advice.Return String result) {

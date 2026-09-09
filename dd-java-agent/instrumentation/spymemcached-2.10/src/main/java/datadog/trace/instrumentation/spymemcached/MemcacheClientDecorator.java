@@ -10,9 +10,7 @@ import net.spy.memcached.MemcachedConnection;
 public class MemcacheClientDecorator
     extends DBTypeProcessingDatabaseClientDecorator<MemcachedConnection> {
   public static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-spymemcached");
-
   public static final String DB_TYPE = "memcached";
-
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().cache().service(DB_TYPE);
   public static final UTF8BytesString OPERATION_NAME =
@@ -60,11 +58,14 @@ public class MemcacheClientDecorator
   }
 
   public void onOperation(final AgentSpan span, final String methodName) {
-
     // optimization over string.replaceFirst()
     StringBuilder builder = new StringBuilder(methodName);
-    if (builder.indexOf("async") == 0) builder.delete(0, "async".length());
-    if (builder.indexOf("CAS") == 0) builder.replace(0, "CAS".length(), "cas");
+    if (builder.indexOf("async") == 0) {
+      builder.delete(0, "async".length());
+    }
+    if (builder.indexOf("CAS") == 0) {
+      builder.replace(0, "CAS".length(), "cas");
+    }
     builder.replace(0, 1, String.valueOf(Character.toLowerCase(builder.charAt(0))));
 
     span.setResourceName(builder.toString());

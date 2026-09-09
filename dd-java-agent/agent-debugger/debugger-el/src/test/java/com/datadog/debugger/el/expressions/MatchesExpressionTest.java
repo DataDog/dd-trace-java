@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
@@ -58,8 +57,9 @@ class MatchesExpressionTest {
 
   @Test
   void stringPrimitives() {
-    MatchesExpression expression =
-        new MatchesExpression(DSL.ref("uri"), new StringValue("^https?://w{3}\\.datadoghq\\.com$"));
+    MatchesExpression expression = new MatchesExpression(
+        DSL.ref("uri"),
+        new StringValue("^https?://w{3}\\\\.datadoghq\\\\." + "com$"));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("matches(uri, \"^https?://w{3}\\.datadoghq\\.com$\")", print(expression));
   }

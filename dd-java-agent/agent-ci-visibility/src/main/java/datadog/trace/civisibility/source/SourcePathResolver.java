@@ -5,7 +5,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface SourcePathResolver {
-
   /**
    * @return paths to the source files corresponding to the provided class, relative to repository
    *     root. Returns all candidate paths when multiple matches exist (e.g. duplicate trie keys in

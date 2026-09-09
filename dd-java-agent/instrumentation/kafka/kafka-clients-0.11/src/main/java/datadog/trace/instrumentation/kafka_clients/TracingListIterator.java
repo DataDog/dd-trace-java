@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
-
 import datadog.context.Context;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -10,7 +9,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 public class TracingListIterator extends TracingIterator
     implements ListIterator<ConsumerRecord<?, ?>> {
-
   private final ListIterator<ConsumerRecord<?, ?>> delegateIterator;
 
   public TracingListIterator(
@@ -62,7 +60,6 @@ public class TracingListIterator extends TracingIterator
    * org.apache.kafka.clients.consumer.ConsumerRecords::records(TopicPartition) always returns
    * UnmodifiableList. Modifiable operations will lead to exception
    */
-
   @Override
   public void set(ConsumerRecord<?, ?> consumerRecord) {
     delegateIterator.set(consumerRecord);

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -25,8 +24,8 @@ import org.jboss.resteasy.spi.HttpRequest;
 
 @AutoService(InstrumenterModule.class)
 public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public MethodExpressionInstrumentation() {
     super("resteasy");
   }
@@ -45,10 +44,10 @@ public class MethodExpressionInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("populatePathParams")
-            .and(takesArguments(3))
-            .and(takesArgument(0, named("org.jboss.resteasy.spi.HttpRequest")))
-            .and(takesArgument(1, named("java.util.regex.Matcher")))
-            .and(takesArgument(2, String.class)),
+          .and(takesArguments(3))
+          .and(takesArgument(0, named("org.jboss.resteasy.spi.HttpRequest")))
+          .and(takesArgument(1, named("java.util.regex.Matcher")))
+          .and(takesArgument(2, String.class)),
         MethodExpressionInstrumentation.class.getName() + "$PopulatePathParamsAdvice");
   }
 

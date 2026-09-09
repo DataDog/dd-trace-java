@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -26,7 +25,8 @@ import play.api.mvc.RequestHeader;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpErrorHandlerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public HttpErrorHandlerInstrumentation() {
     super("play");
   }
@@ -40,11 +40,11 @@ public class HttpErrorHandlerInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("onServerError"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("play.api.mvc.RequestHeader")))
-            .and(takesArgument(1, Throwable.class))
-            .and(returns(named("scala.concurrent.Future"))),
+          .and(named("onServerError"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("play.api.mvc.RequestHeader")))
+          .and(takesArgument(1, Throwable.class))
+          .and(returns(named("scala.concurrent.Future"))),
         HttpErrorHandlerInstrumentation.class.getName() + "$OnServerErrorAdvice");
   }
 

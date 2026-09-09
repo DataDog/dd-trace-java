@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doNothing;
-
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentTaskScheduler.Task;
 import java.time.Duration;
@@ -46,7 +45,9 @@ class AdaptiveSamplerTest {
   private static final Logger log = LoggerFactory.getLogger(AdaptiveSamplerTest.class);
   private static final Duration WINDOW_DURATION = Duration.ofSeconds(1);
 
-  /** Generates windows with numbers of events according to Poisson distribution */
+  /**
+   * Generates windows with numbers of events according to Poisson distribution
+   */
   private static final class PoissonWindowEventsSupplier implements IntSupplier {
     private final PoissonDistribution distribution;
 
@@ -80,7 +81,6 @@ class AdaptiveSamplerTest {
    */
   private static final class BurstingWindowsEventsSupplier implements IntSupplier {
     private final Random rnd = new Random(176431);
-
     private final double burstProbability;
     private final int minEvents;
     private final int maxEvents;
@@ -91,7 +91,9 @@ class AdaptiveSamplerTest {
      * @param burstEvents number of events in burst window
      */
     BurstingWindowsEventsSupplier(
-        final double burstProbability, final int nonBurstEvents, final int burstEvents) {
+        final double burstProbability,
+        final int nonBurstEvents,
+        final int burstEvents) {
       this.burstProbability = burstProbability;
       this.minEvents = nonBurstEvents;
       this.maxEvents = burstEvents;
@@ -119,7 +121,9 @@ class AdaptiveSamplerTest {
     }
   }
 
-  /** Generates windows with constant number of events. */
+  /**
+   * Generates windows with constant number of events.
+   */
   private static final class ConstantWindowsEventsSupplier implements IntSupplier {
     private final int events;
 
@@ -141,7 +145,9 @@ class AdaptiveSamplerTest {
     }
   }
 
-  /** Generates a pre-configured repeating sequence of window events */
+  /**
+   * Generates a pre-configured repeating sequence of window events
+   */
   private static final class RepeatingWindowsEventsSupplier implements IntSupplier {
     private final int[] eventsCounts;
     private int pointer = 0;
@@ -185,21 +191,23 @@ class AdaptiveSamplerTest {
   private static final int SAMPLES_PER_WINDOW = 100;
   private static final int AVERAGE_LOOKBACK = 30;
   private static final int BUDGET_LOOKBACK = 16;
-
-  @Mock AgentTaskScheduler taskScheduler;
-  @Captor ArgumentCaptor<Task<AdaptiveSampler>> rollWindowTaskCaptor;
-  @Captor ArgumentCaptor<AdaptiveSampler> rollWindowTargetCaptor;
+  @Mock
+  AgentTaskScheduler taskScheduler;
+  @Captor
+  ArgumentCaptor<Task<AdaptiveSampler>> rollWindowTaskCaptor;
+  @Captor
+  ArgumentCaptor<AdaptiveSampler> rollWindowTargetCaptor;
 
   @BeforeEach
   public void setup() {
     doNothing()
-        .when(taskScheduler)
-        .weakScheduleAtFixedRate(
-            rollWindowTaskCaptor.capture(),
-            rollWindowTargetCaptor.capture(),
-            eq(WINDOW_DURATION.toNanos()),
-            eq(WINDOW_DURATION.toNanos()),
-            same(TimeUnit.NANOSECONDS));
+      .when(taskScheduler)
+      .weakScheduleAtFixedRate(
+          rollWindowTaskCaptor.capture(),
+          rollWindowTargetCaptor.capture(),
+          eq(WINDOW_DURATION.toNanos()),
+          eq(WINDOW_DURATION.toNanos()),
+          same(TimeUnit.NANOSECONDS));
   }
 
   @Test
@@ -289,69 +297,68 @@ class AdaptiveSamplerTest {
   @Test
   void testConfigListener() throws Exception {
     AtomicInteger counter = new AtomicInteger(0);
-    final AdaptiveSampler sampler =
-        new AdaptiveSampler(
-            WINDOW_DURATION,
-            2,
-            1,
-            1,
-            (totalCount, sampledCount, budget, totalAverage, probability) -> {
-              switch (counter.getAndIncrement()) {
-                case 0:
-                  {
-                    // initial config at the sampler instantiation
-                    assertEquals(0, totalCount);
-                    assertEquals(0, sampledCount);
-                    assertEquals(4, budget);
-                    assertEquals(0.0d, totalAverage);
-                    assertEquals(1.0d, probability);
-                    break;
-                  }
-                case 1:
-                  {
-                    // after first roll window
-                    assertEquals(2, totalCount);
-                    assertEquals(1, sampledCount);
-                    assertEquals(1, budget);
-                    assertEquals(2.0d, totalAverage);
-                    assertEquals(0.5d, probability);
-                    break;
-                  }
-                case 2:
-                  {
-                    // after second roll window
-                    assertEquals(3, totalCount);
-                    assertEquals(2, sampledCount);
-                    assertEquals(0, budget);
-                    assertEquals(3.0d, totalAverage);
-                    assertEquals(0.0d, probability);
-                    break;
-                  }
-                case 3:
-                  {
-                    // after third roll window
-                    assertEquals(3, totalCount);
-                    assertEquals(0, sampledCount);
-                    assertEquals(2, budget);
-                    assertEquals(3.0d, totalAverage);
-                    assertEquals(0.6666d, probability, 0.00007d);
-                    System.err.println(
-                        "==> "
-                            + totalCount
-                            + ", "
-                            + sampledCount
-                            + ", "
-                            + budget
-                            + ", "
-                            + totalAverage
-                            + ", "
-                            + probability);
-                    break;
-                  }
-              }
-            },
-            taskScheduler,
-            true);
+    final AdaptiveSampler sampler = new AdaptiveSampler(
+        WINDOW_DURATION,
+        2,
+        1,
+        1,
+          (totalCount, sampledCount, budget, totalAverage, probability) -> {
+            switch (counter.getAndIncrement()) {
+              case 0:
+                {
+                  // initial config at the sampler instantiation
+                  assertEquals(0, totalCount);
+                  assertEquals(0, sampledCount);
+                  assertEquals(4, budget);
+                  assertEquals(0.0d, totalAverage);
+                  assertEquals(1.0d, probability);
+                  break;
+                }
+              case 1:
+                {
+                  // after first roll window
+                  assertEquals(2, totalCount);
+                  assertEquals(1, sampledCount);
+                  assertEquals(1, budget);
+                  assertEquals(2.0d, totalAverage);
+                  assertEquals(0.5d, probability);
+                  break;
+                }
+              case 2:
+                {
+                  // after second roll window
+                  assertEquals(3, totalCount);
+                  assertEquals(2, sampledCount);
+                  assertEquals(0, budget);
+                  assertEquals(3.0d, totalAverage);
+                  assertEquals(0.0d, probability);
+                  break;
+                }
+              case 3:
+                {
+                  // after third roll window
+                  assertEquals(3, totalCount);
+                  assertEquals(0, sampledCount);
+                  assertEquals(2, budget);
+                  assertEquals(3.0d, totalAverage);
+                  assertEquals(0.6666d, probability, 0.00007d);
+                  System.err.println(
+                      "==> "
+                      + totalCount
+                      + ", "
+                      + sampledCount
+                      + ", "
+                      + budget
+                      + ", "
+                      + totalAverage
+                      + ", "
+                      + probability);
+                  break;
+                }
+            }
+          },
+        taskScheduler,
+        true);
     sampler.keep();
     sampler.drop();
     rollWindow();
@@ -368,8 +375,7 @@ class AdaptiveSamplerTest {
   private void testSampler(final IntSupplier windowEventsSupplier, final int maxErrorPercent)
       throws Exception {
     int iterations =
-        Integer.parseInt(
-            System.getProperty("com.datadog.profiling.exceptions.test-iterations", "1"));
+        Integer.parseInt(System.getProperty("com.datadog.profiling.exceptions.test-iterations", "1"));
     for (int i = 0; i < iterations; i++) {
       testSamplerInline(windowEventsSupplier, maxErrorPercent);
       for (int numOfThreads = 1; numOfThreads <= 64; numOfThreads *= 2) {
@@ -378,21 +384,22 @@ class AdaptiveSamplerTest {
     }
   }
 
-  private void testSamplerInline(
-      final IntSupplier windowEventsSupplier, final int maxErrorPercent) {
+  private void testSamplerInline(final IntSupplier windowEventsSupplier, final int maxErrorPercent) {
     log.info(
         "> mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}%",
-        windowEventsSupplier, WINDOWS, SAMPLES_PER_WINDOW, AVERAGE_LOOKBACK, maxErrorPercent);
-    final AdaptiveSampler sampler =
-        new AdaptiveSampler(
-            WINDOW_DURATION,
-            SAMPLES_PER_WINDOW,
-            AVERAGE_LOOKBACK,
-            BUDGET_LOOKBACK,
-            null,
-            taskScheduler,
-            true);
-
+        windowEventsSupplier,
+        WINDOWS,
+        SAMPLES_PER_WINDOW,
+        AVERAGE_LOOKBACK,
+        maxErrorPercent);
+    final AdaptiveSampler sampler = new AdaptiveSampler(
+        WINDOW_DURATION,
+        SAMPLES_PER_WINDOW,
+        AVERAGE_LOOKBACK,
+        BUDGET_LOOKBACK,
+        null,
+        taskScheduler,
+        true);
     // simulate event generation and sampling for the given number of sampling windows
     final long expectedSamples = WINDOWS * SAMPLES_PER_WINDOW;
 
@@ -406,20 +413,18 @@ class AdaptiveSamplerTest {
       final long samplesBase = 0L;
       WindowSamplingResult result =
           generateWindowEventsAndSample(windowEventsSupplier, sampler, mean);
-      samplesPerWindow[w] =
-          (1 - abs((result.samples - samplesBase - expectedSamples) / (double) expectedSamples));
+      samplesPerWindow[w] = (1 - abs(
+          (result.samples - samplesBase - expectedSamples) / (double) expectedSamples));
       sampleIndexSkewPerWindow[w] = result.sampleIndexSkew;
       allSamples += result.samples;
       allEvents += result.events;
 
       rollWindow();
     }
-
     /*
      * Turn all events into samples if their number is <= than the expected number of samples.
      */
     final double targetSamples = Math.min(allEvents, expectedSamples);
-
     /*
      * Calculate the percentual error based on the expected and the observed number of samples.
      */
@@ -431,18 +436,20 @@ class AdaptiveSamplerTest {
     assertTrue(
         abs(percentualError) <= maxErrorPercent,
         "abs(("
-            + targetSamples
-            + " - "
-            + allSamples
-            + ") / "
-            + targetSamples
-            + ")% > "
-            + maxErrorPercent
-            + "%");
+        + targetSamples
+        + " - "
+        + allSamples
+        + ") / "
+        + targetSamples
+        + ")% > "
+        + maxErrorPercent
+        + "%");
   }
 
   private void reportSampleStatistics(
-      double[] samplesPerWindow, double targetSamples, double percentualError) {
+      double[] samplesPerWindow,
+      double targetSamples,
+      double percentualError) {
     final double samplesPerWindowMean = new Mean().evaluate(samplesPerWindow);
     final double samplesPerWindowStdev =
         STANDARD_DEVIATION.evaluate(samplesPerWindow, samplesPerWindowMean);
@@ -460,7 +467,8 @@ class AdaptiveSamplerTest {
     Pair<Double, Double> skewIndicators = calculateSkewIndicators(sampleIndexSkewPerWindow);
     log.info(
         "\t avg window skew interval = <-{}%, {}%>",
-        round(skewIndicators.getFirst() * 100), round(skewIndicators.getSecond() * 100));
+        round(skewIndicators.getFirst() * 100),
+        round(skewIndicators.getSecond() * 100));
   }
 
   /**
@@ -474,7 +482,9 @@ class AdaptiveSamplerTest {
    *     samples and the sample index skew
    */
   private WindowSamplingResult generateWindowEventsAndSample(
-      IntSupplier windowEventsSupplier, AdaptiveSampler sampler, Mean mean) {
+      IntSupplier windowEventsSupplier,
+      AdaptiveSampler sampler,
+      Mean mean) {
     int samples = 0;
     int events = windowEventsSupplier.getAsInt();
     mean.clear();
@@ -526,8 +536,9 @@ class AdaptiveSamplerTest {
   }
 
   private void testSamplerConcurrently(
-      final int threadCount, final IntSupplier windowEventsSupplier, final int maxErrorPercent)
-      throws Exception {
+      final int threadCount,
+      final IntSupplier windowEventsSupplier,
+      final int maxErrorPercent) throws Exception {
     log.info(
         "> threads: {}, mode: {}, windows: {}, SAMPLES_PER_WINDOW: {}, LOOKBACK: {}, max error: {}",
         threadCount,
@@ -536,7 +547,6 @@ class AdaptiveSamplerTest {
         SAMPLES_PER_WINDOW,
         AVERAGE_LOOKBACK,
         maxErrorPercent);
-
     /*
      * This test attempts to simulate concurrent computations by making sure that sampling requests and the window maintenance routine are run in parallel.
      * It does not provide coverage of all possible execution sequences but should be good enough for getting the 'ballpark' numbers.
@@ -545,15 +555,14 @@ class AdaptiveSamplerTest {
     final AtomicLong allSamples = new AtomicLong(0);
     final AtomicLong receivedEvents = new AtomicLong(0);
 
-    final AdaptiveSampler sampler =
-        new AdaptiveSampler(
-            WINDOW_DURATION,
-            SAMPLES_PER_WINDOW,
-            AVERAGE_LOOKBACK,
-            BUDGET_LOOKBACK,
-            null,
-            taskScheduler,
-            true);
+    final AdaptiveSampler sampler = new AdaptiveSampler(
+        WINDOW_DURATION,
+        SAMPLES_PER_WINDOW,
+        AVERAGE_LOOKBACK,
+        BUDGET_LOOKBACK,
+        null,
+        taskScheduler,
+        true);
     final CyclicBarrier startBarrier = new CyclicBarrier(threadCount);
     final CyclicBarrier endBarrier = new CyclicBarrier(threadCount, this::rollWindow);
     final Mean[] means = new Mean[threadCount];
@@ -561,21 +570,19 @@ class AdaptiveSamplerTest {
     for (int i = 0; i < threadCount; i++) {
       means[i] = new Mean();
       final Mean mean = means[i];
-      threads[i] =
-          new Thread(
-              () -> {
-                try {
-                  for (int w = 0; w < WINDOWS; w++) {
-                    startBarrier.await(10, TimeUnit.SECONDS);
-                    WindowSamplingResult samplingResult =
-                        generateWindowEventsAndSample(windowEventsSupplier, sampler, mean);
-                    allSamples.addAndGet(samplingResult.samples);
-                    receivedEvents.addAndGet(samplingResult.events);
-                    endBarrier.await(10, TimeUnit.SECONDS);
-                  }
-                } catch (Throwable ignored) {
-                }
-              });
+      threads[i] = new Thread(() -> {
+        try {
+          for (int w = 0; w < WINDOWS; w++) {
+            startBarrier.await(10, TimeUnit.SECONDS);
+            WindowSamplingResult samplingResult =
+                generateWindowEventsAndSample(windowEventsSupplier, sampler, mean);
+            allSamples.addAndGet(samplingResult.samples);
+            receivedEvents.addAndGet(samplingResult.events);
+            endBarrier.await(10, TimeUnit.SECONDS);
+          }
+        } catch (Throwable ignored) {
+        }
+      });
       threads[i].start();
     }
     for (final Thread t : threads) {
@@ -596,14 +603,14 @@ class AdaptiveSamplerTest {
     assertTrue(
         abs(percentualError) <= maxErrorPercent,
         "abs(("
-            + expectedSamples
-            + " - "
-            + samples
-            + ") / "
-            + expectedSamples
-            + ")% > "
-            + maxErrorPercent
-            + "%");
+        + expectedSamples
+        + " - "
+        + samples
+        + ") / "
+        + expectedSamples
+        + ")% > "
+        + maxErrorPercent
+        + "%");
   }
 
   private void rollWindow() {

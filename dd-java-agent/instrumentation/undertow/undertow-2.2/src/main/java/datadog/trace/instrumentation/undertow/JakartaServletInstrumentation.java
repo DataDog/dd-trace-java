@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.DATADOG_UNDERTOW_CONTINUATION;
 import static datadog.trace.instrumentation.undertow.UndertowDecorator.SERVLET_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -21,8 +20,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public JakartaServletInstrumentation() {
     super("undertow", "undertow-2.2");
   }
@@ -35,20 +34,21 @@ public final class JakartaServletInstrumentation extends InstrumenterModule.Trac
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("dispatchRequest")), getClass().getName() + "$DispatchAdvice");
+        isMethod().and(named("dispatchRequest")),
+        getClass().getName() + "$DispatchAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HttpServerExchangeURIDataAdapter",
-      packageName + ".UndertowDecorator",
-      packageName + ".UndertowBlockingHandler",
-      packageName + ".UndertowBlockResponseFunction",
-      packageName + ".UndertowExtractAdapter",
-      packageName + ".UndertowExtractAdapter$Request",
-      packageName + ".UndertowExtractAdapter$Response",
-      packageName + ".IgnoreSendAttribute",
+        packageName + ".HttpServerExchangeURIDataAdapter",
+        packageName + ".UndertowDecorator",
+        packageName + ".UndertowBlockingHandler",
+        packageName + ".UndertowBlockResponseFunction",
+        packageName + ".UndertowExtractAdapter",
+        packageName + ".UndertowExtractAdapter$Request",
+        packageName + ".UndertowExtractAdapter$Response",
+        packageName + ".IgnoreSendAttribute"
     };
   }
 

@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.writer.ListWriter;
@@ -18,7 +17,6 @@ import java.lang.reflect.Field;
 import org.junit.jupiter.api.Test;
 
 class DDTracerAPITest extends DDJavaSpecification {
-
   @Test
   void verifySamplerWriterConstructor() throws Exception {
     ListWriter writer = new ListWriter();
@@ -38,7 +36,8 @@ class DDTracerAPITest extends DDJavaSpecification {
       assertTrue(
           ((java.util.Map<?, ?>) localRootSpanTags).get(RUNTIME_ID_TAG).toString().length() > 0);
       assertEquals(
-          LANGUAGE_TAG_VALUE, ((java.util.Map<?, ?>) localRootSpanTags).get(LANGUAGE_TAG_KEY));
+          LANGUAGE_TAG_VALUE,
+          ((java.util.Map<?, ?>) localRootSpanTags).get(LANGUAGE_TAG_KEY));
     } finally {
       tracerOT.close();
     }

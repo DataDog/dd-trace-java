@@ -13,14 +13,13 @@ public class MySQLConnectionFactoryConstructorAdvice {
       @Advice.This final MySQLConnectionFactory zis,
       @Advice.Argument(1) final MySQLConnectOptions options) {
     DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
-    DBInfo info =
-        builder
-            .host(options.getHost())
-            .port(options.getPort())
-            .db(options.getDatabase())
-            .user(options.getUser())
-            .type("mysql")
-            .build();
+    DBInfo info = builder
+      .host(options.getHost())
+      .port(options.getPort())
+      .db(options.getDatabase())
+      .user(options.getUser())
+      .type("mysql")
+      .build();
     InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class).put(zis, info);
   }
 

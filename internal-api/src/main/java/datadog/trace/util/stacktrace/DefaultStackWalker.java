@@ -5,8 +5,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class DefaultStackWalker extends AbstractStackWalker {
-
-  DefaultStackWalker() {}
+  DefaultStackWalker() {
+  }
 
   @Override
   public boolean isEnabled() {

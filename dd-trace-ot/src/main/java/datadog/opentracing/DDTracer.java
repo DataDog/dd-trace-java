@@ -3,7 +3,6 @@ package datadog.opentracing;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.Config;
@@ -77,14 +76,12 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
   private final TypeConverter converter;
   private final AgentTracer.TracerAPI tracer;
-
   // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
   // each depend on each other so scopeManager can't be final
   // Perhaps the api can change so that CoreTracer doesn't need to implement scope methods directly
   private ScopeManager scopeManager;
 
   public static class DDTracerBuilder {
-
     private Config config;
     private String serviceName;
     private Writer writer;
@@ -224,13 +221,13 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Writer writer,
       final Sampler sampler,
       final Map<String, String> runtimeTags) {
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(runtimeTags)
-            .build());
+    this(CoreTracer
+      .builder()
+      .serviceName(serviceName)
+      .writer(writer)
+      .sampler(sampler)
+      .localRootSpanTags(runtimeTags)
+      .build());
   }
 
   @Deprecated
@@ -253,16 +250,16 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(customRuntimeTags(runtimeId, localRootSpanTags))
-            .defaultSpanTags(defaultSpanTags)
-            .serviceNameMappings(serviceNameMappings)
-            .taggedHeaders(taggedHeaders)
-            .build());
+    this(CoreTracer
+      .builder()
+      .serviceName(serviceName)
+      .writer(writer)
+      .sampler(sampler)
+      .localRootSpanTags(customRuntimeTags(runtimeId, localRootSpanTags))
+      .defaultSpanTags(defaultSpanTags)
+      .serviceNameMappings(serviceNameMappings)
+      .taggedHeaders(taggedHeaders)
+      .build());
   }
 
   @Deprecated
@@ -274,17 +271,16 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Map<String, String> defaultSpanTags,
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders) {
-
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(localRootSpanTags)
-            .defaultSpanTags(defaultSpanTags)
-            .serviceNameMappings(serviceNameMappings)
-            .taggedHeaders(taggedHeaders)
-            .build());
+    this(CoreTracer
+      .builder()
+      .serviceName(serviceName)
+      .writer(writer)
+      .sampler(sampler)
+      .localRootSpanTags(localRootSpanTags)
+      .defaultSpanTags(defaultSpanTags)
+      .serviceNameMappings(serviceNameMappings)
+      .taggedHeaders(taggedHeaders)
+      .build());
   }
 
   @Deprecated
@@ -297,18 +293,17 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final Map<String, String> serviceNameMappings,
       final Map<String, String> taggedHeaders,
       final int partialFlushMinSpans) {
-
-    this(
-        CoreTracer.builder()
-            .serviceName(serviceName)
-            .writer(writer)
-            .sampler(sampler)
-            .localRootSpanTags(localRootSpanTags)
-            .defaultSpanTags(defaultSpanTags)
-            .serviceNameMappings(serviceNameMappings)
-            .taggedHeaders(taggedHeaders)
-            .partialFlushMinSpans(partialFlushMinSpans)
-            .build());
+    this(CoreTracer
+      .builder()
+      .serviceName(serviceName)
+      .writer(writer)
+      .sampler(sampler)
+      .localRootSpanTags(localRootSpanTags)
+      .defaultSpanTags(defaultSpanTags)
+      .serviceNameMappings(serviceNameMappings)
+      .taggedHeaders(taggedHeaders)
+      .partialFlushMinSpans(partialFlushMinSpans)
+      .build());
   }
 
   // Should only be used internally by TracerInstaller
@@ -333,14 +328,14 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
       final int partialFlushMinSpans,
       final LogHandler logHandler,
       final StatsDClient statsDClient) {
-
     // Check if the tracer is already installed by the agent
     // Unable to use "instanceof" because of class renaming
     String expectedName =
         "avoid_rewrite.datadog.trace.agent.core.CoreTracer".substring("avoid_rewrite.".length());
     if (GlobalTracer.get().getClass().getName().equals(expectedName)) {
       log.error(
-          "Datadog Tracer already installed by `dd-java-agent`. NOTE: Manually creating the tracer while using `dd-java-agent` is not supported");
+          "Datadog Tracer already installed by `dd-java-agent`. NOTE: Manually creating the "
+          + "tracer while using `dd-java-agent` is not supported");
       throw new IllegalStateException("Datadog Tracer already installed");
     }
 
@@ -349,7 +344,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     } else {
       converter = new TypeConverter(new DefaultLogHandler());
     }
-
     // Each of these are only overridden if set
     // Otherwise, the values retrieved from config will be overridden with null
     CoreTracer.CoreTracerBuilder builder = CoreTracer.builder();
@@ -403,7 +397,6 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
     }
 
     tracer = builder.build();
-
     // FIXME [API] There's an unfortunate cycle between OTScopeManager and CoreTracer where they
     // depend on each other so CoreTracer
     // Perhaps api can change so that CoreTracer doesn't need to implement scope methods directly
@@ -416,7 +409,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   private static Map<String, String> customRuntimeTags(
-      final String runtimeId, final Map<String, String> applicationRootSpanTags) {
+      final String runtimeId,
+      final Map<String, String> applicationRootSpanTags) {
     final Map<String, String> runtimeTags = new HashMap<>(applicationRootSpanTags);
     runtimeTags.put(DDTags.RUNTIME_ID_TAG, runtimeId);
     return Collections.unmodifiableMap(runtimeTags);
@@ -508,7 +502,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
   @Override
   public void addScopeListener(
-      Runnable afterScopeActivatedCallback, Runnable afterScopeClosedCallback) {
+      Runnable afterScopeActivatedCallback,
+      Runnable afterScopeClosedCallback) {
     tracer.addScopeListener(afterScopeActivatedCallback, afterScopeClosedCallback);
   }
 
@@ -600,7 +595,8 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
 
     @Override
     public DDSpanBuilder addReference(
-        final String referenceType, final SpanContext referencedSpanContext) {
+        final String referenceType,
+        final SpanContext referencedSpanContext) {
       if (referencedSpanContext == null) {
         return this;
       }

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -23,8 +22,8 @@ import org.glassfish.grizzly.http.io.NIOInputStream;
 import org.glassfish.grizzly.utils.Charsets;
 
 public class GrizzlyByteBodyInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "org.glassfish.grizzly.http.server.NIOInputStreamImpl";
@@ -34,12 +33,13 @@ public class GrizzlyByteBodyInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("setInputBuffer")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.glassfish.grizzly.http.io.InputBuffer"))),
         getClass().getName() + "$NIOInputStreamSetInputBufferAdvice");
     /* we're assuming here none of these methods call the other instrumented methods */
     transformer.applyAdvice(
-        named("read").and(takesArguments(0)), getClass().getName() + "$NIOInputStreamReadAdvice");
+        named("read").and(takesArguments(0)),
+        getClass().getName() + "$NIOInputStreamReadAdvice");
     transformer.applyAdvice(
         named("read").and(takesArguments(1)).and(takesArgument(0, byte[].class)),
         getClass().getName() + "$NIOInputStreamReadByteArrayAdvice");
@@ -64,7 +64,8 @@ public class GrizzlyByteBodyInstrumentation
   static class NIOInputStreamSetInputBufferAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
-        @Advice.This final NIOInputStream thiz, @Advice.Argument(0) final InputBuffer inputBuffer) {
+        @Advice.This final NIOInputStream thiz,
+        @Advice.Argument(0) final InputBuffer inputBuffer) {
       // this is what grizzly defaults to
       Charset charset = StandardCharsets.ISO_8859_1;
       HttpHeader header = HttpHeaderFetchingHelper.fetchHttpHeader(inputBuffer);
@@ -87,8 +88,9 @@ public class GrizzlyByteBodyInstrumentation
 
       StoredByteBody storedByteBody = StoredBodyFactories.maybeCreateForByte(charset, lengthHeader);
 
-      InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class)
-          .put(thiz, storedByteBody);
+      InstrumentationContext.get(NIOInputStream.class, StoredByteBody.class).put(
+          thiz,
+          storedByteBody);
     }
   }
 

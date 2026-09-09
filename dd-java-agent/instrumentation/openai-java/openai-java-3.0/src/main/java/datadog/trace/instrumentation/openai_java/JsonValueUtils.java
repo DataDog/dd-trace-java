@@ -8,7 +8,8 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class JsonValueUtils {
-  private JsonValueUtils() {}
+  private JsonValueUtils() {
+  }
 
   public static Map<String, Object> jsonValueMapToObject(Map<String, JsonValue> map) {
     Map<String, Object> result = new HashMap<>();

@@ -11,7 +11,6 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.core.DDSpanContext;
@@ -31,11 +30,16 @@ class HaystackHttpInjectorTest extends AbstractHttpInjectorTest {
   }
 
   @TableTest({
-    "scenario            | traceId | spanId  | traceUuid                              | spanUuid                              ",
-    "small ids           | '1'     | '2'     | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "small ids duplicate | '1'     | '2'     | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "uint64 max trace    | 'MAX'   | 'MAX-1' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
-    "uint64 max-1 trace  | 'MAX-1' | 'MAX'   | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
+    "scenario            | traceId | spanId  | traceUuid                              ",
+    "| spanUuid                                                                       ",
+    "small ids           | '1'     | '2'     | '44617461-646f-6721-0000-000000000001' ",
+    "| '44617461-646f-6721-0000-000000000002'                                         ",
+    "small ids duplicate | '1'     | '2'     | '44617461-646f-6721-0000-000000000001' ",
+    "| '44617461-646f-6721-0000-000000000002'                                         ",
+    "uint64 max trace    | 'MAX'   | 'MAX-1' | '44617461-646f-6721-ffff-ffffffffffff' ",
+    "| '44617461-646f-6721-ffff-fffffffffffe'                                         ",
+    "uint64 max-1 trace  | 'MAX-1' | 'MAX'   | '44617461-646f-6721-ffff-fffffffffffe' ",
+    "| '44617461-646f-6721-ffff-ffffffffffff'                                         "
   })
   void injectHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -65,11 +69,16 @@ class HaystackHttpInjectorTest extends AbstractHttpInjectorTest {
   }
 
   @TableTest({
-    "scenario            | traceId | spanId  | traceUuid                              | spanUuid                              ",
-    "small ids           | '1'     | '2'     | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "small ids duplicate | '1'     | '2'     | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "uint64 max trace    | 'MAX'   | 'MAX-1' | '54617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
-    "uint64 max-1 trace  | 'MAX-1' | 'MAX'   | '54617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
+    "scenario            | traceId | spanId  | traceUuid                              ",
+    "| spanUuid                                                                       ",
+    "small ids           | '1'     | '2'     | '54617461-646f-6721-0000-000000000001' ",
+    "| '44617461-646f-6721-0000-000000000002'                                         ",
+    "small ids duplicate | '1'     | '2'     | '54617461-646f-6721-0000-000000000001' ",
+    "| '44617461-646f-6721-0000-000000000002'                                         ",
+    "uint64 max trace    | 'MAX'   | 'MAX-1' | '54617461-646f-6721-ffff-ffffffffffff' ",
+    "| '44617461-646f-6721-ffff-fffffffffffe'                                         ",
+    "uint64 max-1 trace  | 'MAX-1' | 'MAX'   | '54617461-646f-6721-ffff-fffffffffffe' ",
+    "| '44617461-646f-6721-ffff-ffffffffffff'                                         "
   })
   void injectHttpHeadersWithHaystackTraceIdInBaggage(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -98,9 +107,13 @@ class HaystackHttpInjectorTest extends AbstractHttpInjectorTest {
     assertEquals(9, carrier.size());
   }
 
-  private DDSpanContext mockSpanContext(
-      String traceId, String spanId, Map<String, String> baggage) {
+  private DDSpanContext mockSpanContext(String traceId, String spanId, Map<String, String> baggage) {
     return mockSpanContext(
-        DDTraceId.from(traceId), DDSpanId.from(spanId), SAMPLER_KEEP, null, baggage, null);
+        DDTraceId.from(traceId),
+        DDSpanId.from(spanId),
+        SAMPLER_KEEP,
+        null,
+        baggage,
+        null);
   }
 }

@@ -7,10 +7,8 @@ import javax.annotation.Nullable;
 public final class KnownTestsRequest {
   @Json(name = "repository_url")
   public final String repositoryUrl;
-
   public final String service;
   public final String env;
-
   @Json(name = "page_info")
   public final PageInfo.Request pageInfo;
 

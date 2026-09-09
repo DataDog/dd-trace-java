@@ -5,7 +5,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class Sender {
-
   private final RabbitTemplate template;
 
   public Sender(RabbitTemplate template) {
@@ -14,6 +13,8 @@ public class Sender {
 
   public void send(String route, String message) {
     template.convertAndSend(
-        MessagingRabbitMQApplication.topicExchangeName, "foo.bar." + route, message);
+        MessagingRabbitMQApplication.topicExchangeName,
+        "foo.bar." + route,
+        message);
   }
 }

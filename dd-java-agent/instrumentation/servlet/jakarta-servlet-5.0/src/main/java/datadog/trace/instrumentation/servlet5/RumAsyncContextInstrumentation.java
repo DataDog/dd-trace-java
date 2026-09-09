@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_RUM_INJECTED;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public RumAsyncContextInstrumentation() {
     super("servlet", "servlet-5", "servlet-5-async-context");
   }
@@ -32,7 +31,8 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RumHttpServletResponseWrapper", packageName + ".WrappedServletOutputStream",
+        packageName + ".RumHttpServletResponseWrapper",
+        packageName + ".WrappedServletOutputStream"
     };
   }
 
@@ -49,14 +49,16 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("complete", "dispatch")), getClass().getName() + "$CommitAdvice");
+        isMethod().and(namedOneOf("complete", "dispatch")),
+        getClass().getName() + "$CommitAdvice");
   }
 
   public static class CommitAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void commitRumBuffer(@Advice.This final AsyncContext asyncContext) {
-      final Object maybeRumWrappedResponse =
-          asyncContext.getRequest().getAttribute(DD_RUM_INJECTED);
+      final Object maybeRumWrappedResponse = asyncContext
+        .getRequest()
+        .getAttribute(DD_RUM_INJECTED);
       if (maybeRumWrappedResponse instanceof RumControllableResponse) {
         ((RumControllableResponse) maybeRumWrappedResponse).commit();
       }

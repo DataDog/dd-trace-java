@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.aerospike4.AerospikeClientDecorator.
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.aerospike.client.cluster.Cluster;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.cluster.Partition;
@@ -17,8 +16,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 public final class PartitionInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.aerospike.client.cluster.Partition";
@@ -28,9 +27,9 @@ public final class PartitionInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("getNodeRead", "getNodeWrite"))
-            .and(takesArgument(0, named("com.aerospike.client.cluster.Cluster")))
-            .and(returns(named("com.aerospike.client.cluster.Node"))),
+          .and(namedOneOf("getNodeRead", "getNodeWrite"))
+          .and(takesArgument(0, named("com.aerospike.client.cluster.Cluster")))
+          .and(returns(named("com.aerospike.client.cluster.Node"))),
         getClass().getName() + "$GetNodeAdvice");
   }
 

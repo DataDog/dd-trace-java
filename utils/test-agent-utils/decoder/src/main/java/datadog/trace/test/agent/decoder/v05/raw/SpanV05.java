@@ -1,7 +1,6 @@
 package datadog.trace.test.agent.decoder.v05.raw;
 
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
@@ -42,9 +41,12 @@ public class SpanV05 implements DecodedSpan {
         throw new IllegalArgumentException(
             "Wrong span element array size " + size + ". Expected 12.");
       }
-      String service = unpackString(unpacker, dictionary); // index into dictionary
-      String name = unpackString(unpacker, dictionary); // index into dictionary
-      String resource = unpackString(unpacker, dictionary); // index into dictionary
+      // index into dictionary
+      String service = unpackString(unpacker, dictionary);
+      // index into dictionary
+      String name = unpackString(unpacker, dictionary);
+      // index into dictionary
+      String resource = unpackString(unpacker, dictionary);
       long traceId = unpacker.unpackLong();
       long spanId = unpacker.unpackLong();
       long parentId = unpacker.unpackLong();
@@ -69,13 +71,25 @@ public class SpanV05 implements DecodedSpan {
       for (int i = 0; i < metricsSize; i++) {
         metrics.put(unpackString(unpacker, dictionary), unpackNumber(unpacker));
       }
-      String type = unpackString(unpacker, dictionary); // index into dictionary
+      // index into dictionary
+      String type = unpackString(unpacker, dictionary);
 
       List<DecodedSpanLink> links = DecodedSpanLinks.fromMeta(meta);
 
       return new SpanV05(
-          service, name, resource, traceId, spanId, parentId, start, duration, error, meta, metrics,
-          type, links);
+          service,
+          name,
+          resource,
+          traceId,
+          spanId,
+          parentId,
+          start,
+          duration,
+          error,
+          meta,
+          metrics,
+          type,
+          links);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -85,8 +99,7 @@ public class SpanV05 implements DecodedSpan {
     }
   }
 
-  static String unpackString(MessageUnpacker unpacker, DictionaryV05 dictionary)
-      throws IOException {
+  static String unpackString(MessageUnpacker unpacker, DictionaryV05 dictionary) throws IOException {
     return dictionary.at(unpacker.unpackInt());
   }
 
@@ -115,18 +128,24 @@ public class SpanV05 implements DecodedSpan {
     return result;
   }
 
-  private final String service; // index into dictionary
-  private final String name; // index into dictionary
-  private final String resource; // index into dictionary
+  // index into dictionary
+  private final String service;
+  // index into dictionary
+  private final String name;
+  // index into dictionary
+  private final String resource;
   private final long traceId;
   private final long spanId;
   private final long parentId;
   private final long start;
   private final long duration;
   private final int error;
-  private final Map<String, String> meta; // index -> index
-  private final Map<String, Number> metrics; // index -> metric
-  private final String type; // index into dictionary
+  // index -> index
+  private final Map<String, String> meta;
+  // index -> metric
+  private final Map<String, Number> metrics;
+  // index into dictionary
+  private final String type;
   private final List<DecodedSpanLink> links;
 
   public SpanV05(

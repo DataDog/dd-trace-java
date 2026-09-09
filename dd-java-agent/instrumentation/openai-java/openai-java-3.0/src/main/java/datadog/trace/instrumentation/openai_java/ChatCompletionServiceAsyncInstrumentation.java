@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.openai.core.ClientOptions;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
@@ -24,8 +23,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public class ChatCompletionServiceAsyncInstrumentation
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithTypeStructure {
   @Override
   public String instrumentedType() {
     return "com.openai.services.async.chat.ChatCompletionServiceAsyncImpl$WithRawResponseImpl";
@@ -35,20 +34,22 @@ public class ChatCompletionServiceAsyncInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("create"))
-            .and(
-                takesArgument(
-                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
-            .and(returns(named(CompletableFuture.class.getName()))),
+          .and(named("create"))
+          .and(
+              takesArgument(
+                  0,
+                  named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+          .and(returns(named(CompletableFuture.class.getName()))),
         getClass().getName() + "$CreateAdvice");
 
     transformer.applyAdvice(
         isMethod()
-            .and(named("createStreaming"))
-            .and(
-                takesArgument(
-                    0, named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
-            .and(returns(named(CompletableFuture.class.getName()))),
+          .and(named("createStreaming"))
+          .and(
+              takesArgument(
+                  0,
+                  named("com.openai.models.chat.completions.ChatCompletionCreateParams")))
+          .and(returns(named(CompletableFuture.class.getName()))),
         getClass().getName() + "$CreateStreamingAdvice");
   }
 
@@ -76,9 +77,10 @@ public class ChatCompletionServiceAsyncInstrumentation
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        future =
-            HttpResponseWrapper.wrapFuture(
-                future, span, ChatCompletionDecorator.DECORATE::withChatCompletion);
+        future = HttpResponseWrapper.wrapFuture(
+            future,
+            span,
+            ChatCompletionDecorator.DECORATE::withChatCompletion);
       }
       scope.close();
     }
@@ -97,16 +99,16 @@ public class ChatCompletionServiceAsyncInstrumentation
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
         @Advice.Enter final AgentScope scope,
-        @Advice.Return(readOnly = false)
-            CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future,
+        @Advice.Return(readOnly = false) CompletableFuture<HttpResponseFor<StreamResponse<ChatCompletionChunk>>> future,
         @Advice.Thrown final Throwable err) {
       AgentSpan span = scope.span();
       if (err != null || future == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        future =
-            HttpStreamResponseWrapper.wrapFuture(
-                future, span, ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
+        future = HttpStreamResponseWrapper.wrapFuture(
+            future,
+            span,
+            ChatCompletionDecorator.DECORATE::withChatCompletionChunks);
       }
       scope.close();
     }

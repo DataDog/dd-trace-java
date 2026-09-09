@@ -22,7 +22,6 @@ public class LatencyTraceInterceptor extends AbstractTraceInterceptor {
   private static final Logger log = LoggerFactory.getLogger(LatencyTraceInterceptor.class);
   // duration configured in ms, need to be converted in nano seconds
   private static final long LATENCY = Config.get().getTraceKeepLatencyThreshold() * 1000000L;
-
   public static final TraceInterceptor INSTANCE =
       new LatencyTraceInterceptor(Priority.ROOT_SPAN_LATENCY);
 

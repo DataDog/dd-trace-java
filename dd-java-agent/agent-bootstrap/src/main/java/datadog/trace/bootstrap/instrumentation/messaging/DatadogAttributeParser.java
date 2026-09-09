@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.messaging;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.nio.ByteBuffer;
@@ -9,13 +8,16 @@ import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Parses trace context from an embedded '_datadog' message attribute. */
+/**
+ * Parses trace context from an embedded '_datadog' message attribute.
+ */
 public final class DatadogAttributeParser {
   private static final Logger log = LoggerFactory.getLogger(DatadogAttributeParser.class);
-
   private static final Base64.Decoder BASE_64 = Base64.getDecoder();
 
-  /** Parses trace context properties from the given JSON and passes them to the classifier. */
+  /**
+   * Parses trace context properties from the given JSON and passes them to the classifier.
+   */
   public static void forEachProperty(AgentPropagation.KeyClassifier classifier, String json) {
     if (null == json) {
       return;
@@ -33,7 +35,9 @@ public final class DatadogAttributeParser {
     }
   }
 
-  /** Parses trace context properties from the given JSON and passes them to the classifier. */
+  /**
+   * Parses trace context properties from the given JSON and passes them to the classifier.
+   */
   public static void forEachProperty(AgentPropagation.KeyClassifier classifier, ByteBuffer json) {
     if (null == json) {
       return;
@@ -58,7 +62,9 @@ public final class DatadogAttributeParser {
 
   // Simple parser that assumes values are JSON strings that don't contain escaped quotes
   private static boolean acceptJsonProperty(
-      AgentPropagation.KeyClassifier classifier, String json, String key) {
+      AgentPropagation.KeyClassifier classifier,
+      String json,
+      String key) {
     int keyStart = json.indexOf(key);
     if (keyStart > 0) {
       int separator = json.indexOf(':', keyStart + key.length());

@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -30,7 +29,8 @@ import org.apache.pekko.http.scaladsl.server.util.Tupler$;
  */
 @AutoService(InstrumenterModule.class)
 public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   private static final String TRAIT_NAME =
       "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives";
 
@@ -40,19 +40,17 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      TRAIT_NAME + "$class", TRAIT_NAME,
-    };
+    return new String[] {TRAIT_NAME + "$class", TRAIT_NAME};
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".helpers.ScalaToJava",
-      packageName + ".helpers.TaintMultiMapFunction",
-      packageName + ".helpers.TaintMapFunction",
-      packageName + ".helpers.TaintSeqFunction",
-      packageName + ".helpers.TaintSingleParameterFunction",
+        packageName + ".helpers.ScalaToJava",
+        packageName + ".helpers.TaintMultiMapFunction",
+        packageName + ".helpers.TaintMapFunction",
+        packageName + ".helpers.TaintSeqFunction",
+        packageName + ".helpers.TaintSingleParameterFunction"
     };
   }
 
@@ -65,41 +63,42 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
 
     transformer.applyAdvice(
         isMethod()
-            .and(isStatic())
-            .and(named("parameter").or(named("parameters")))
-            .and(returns(Object.class))
-            .and(takesArguments(2))
-            .and(
-                takesArgument(
-                    0,
-                    named("org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives")))
-            .and(
-                takesArgument(
-                    1,
-                    named(
-                        "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
-        ParameterDirectivesInstrumentation.class.getName()
-            + "$TaintSingleParameterDirectiveOldScalaAdvice");
+          .and(isStatic())
+          .and(named("parameter").or(named("parameters")))
+          .and(returns(Object.class))
+          .and(takesArguments(2))
+          .and(
+              takesArgument(
+                  0,
+                  named("org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives")))
+          .and(
+              takesArgument(
+                  1,
+                  named(
+                      "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
+            ParameterDirectivesInstrumentation.class.getName()
+        + "$TaintSingleParameterDirectiveOldScalaAdvice");
 
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("parameter").or(named("parameters")))
-            .and(
-                returns(Object.class)
-                    .or(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))))
-            .and(takesArguments(1))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
-        ParameterDirectivesInstrumentation.class.getName()
-            + "$TaintSingleParameterDirectiveNewScalaAdvice");
+          .and(not(isStatic()))
+          .and(named("parameter").or(named("parameters")))
+          .and(returns(Object.class)
+            .or(returns(named("org.apache.pekko.http.scaladsl.server.Directive"))))
+          .and(takesArguments(1))
+          .and(
+              takesArgument(
+                  0,
+                  named(
+                      "org.apache.pekko.http.scaladsl.server.directives.ParameterDirectives$ParamMagnet"))),
+            ParameterDirectivesInstrumentation.class.getName()
+        + "$TaintSingleParameterDirectiveNewScalaAdvice");
   }
 
   private void transformDirective(
-      MethodTransformer transformation, String methodName, String adviceClass) {
+      MethodTransformer transformation,
+      String methodName,
+      String adviceClass) {
     transformation.applyAdvice(
         TraitMethodMatchers.isTraitDirectiveMethod(TRAIT_NAME, methodName),
         ParameterDirectivesInstrumentation.class.getName() + "$" + adviceClass);
@@ -140,11 +139,11 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
       }
 
       try {
-        retval =
-            ((Directive) retval)
-                .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
+        retval = ((Directive) retval)
+          .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
       } catch (Exception e) {
-        throw new RuntimeException(e); // propagate so it's logged
+        // propagate so it's logged
+        throw new RuntimeException(e);
       }
     }
   }
@@ -160,11 +159,11 @@ public class ParameterDirectivesInstrumentation extends InstrumenterModule.Iast
       }
 
       try {
-        retval =
-            ((Directive) retval)
-                .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
+        retval = ((Directive) retval)
+          .tmap(new TaintSingleParameterFunction<>(pmag), Tupler$.MODULE$.forTuple(null));
       } catch (Exception e) {
-        throw new RuntimeException(e); // propagate so it's logged
+        // propagate so it's logged
+        throw new RuntimeException(e);
       }
     }
   }

@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -14,8 +13,8 @@ import io.grpc.internal.ClientStreamListener;
 import net.bytebuddy.asm.Advice;
 
 public final class AbstractClientStreamInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "io.grpc.internal.AbstractClientStream";
@@ -25,11 +24,9 @@ public final class AbstractClientStreamInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("start")
-            .and(
-                isMethod()
-                    .and(
-                        takesArgument(0, named("io.grpc.internal.ClientStreamListener"))
-                            .and(takesArguments(1)))),
+          .and(isMethod()
+            .and(takesArgument(0, named("io.grpc.internal.ClientStreamListener"))
+              .and(takesArguments(1)))),
         getClass().getName() + "$ActivateSpan");
   }
 

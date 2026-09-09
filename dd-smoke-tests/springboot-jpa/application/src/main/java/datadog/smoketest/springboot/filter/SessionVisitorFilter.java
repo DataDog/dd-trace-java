@@ -19,11 +19,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * {@code X-Session-Visitor}
  */
 public class SessionVisitorFilter extends OncePerRequestFilter {
-
   @Override
   protected void doFilterInternal(
-      HttpServletRequest request, final HttpServletResponse response, final FilterChain filterChain)
-      throws ServletException, IOException {
+      HttpServletRequest request,
+      final HttpServletResponse response,
+      final FilterChain filterChain) throws ServletException, IOException {
     request = hasSessionHeader(request) ? new RequestWrapper(request) : request;
     filterChain.doFilter(request, response);
   }
@@ -56,8 +56,8 @@ public class SessionVisitorFilter extends OncePerRequestFilter {
   }
 
   private static class SessionWrapper implements HttpSession {
-
-    @Delegate private final HttpSession delegate;
+    @Delegate
+    private final HttpSession delegate;
 
     private SessionWrapper(final HttpSession delegate) {
       this.delegate = delegate;

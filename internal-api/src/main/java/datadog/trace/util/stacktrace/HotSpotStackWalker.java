@@ -7,7 +7,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class HotSpotStackWalker extends AbstractStackWalker {
-  @SuppressForbidden sun.misc.JavaLangAccess access;
+  @SuppressForbidden
+  sun.misc.JavaLangAccess access;
 
   @SuppressForbidden
   HotSpotStackWalker() {
@@ -31,7 +32,6 @@ public class HotSpotStackWalker extends AbstractStackWalker {
 
   @Override
   <T> T doGetStack(Function<Stream<StackTraceElement>, T> consumer) {
-
     Throwable throwable = new Throwable();
     Iterable<StackTraceElement> iterable = () -> new HotSpotStackTraceIterator(throwable, access);
     return consumer.apply(StreamSupport.stream(iterable.spliterator(), false));

@@ -43,7 +43,8 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
     StringBuilder envCheck = new StringBuilder();
     String tempDir = ConfigProvider.getInstance().getString(ProfilingConfig.PROFILING_TEMP_DIR);
     EnvironmentChecker.checkEnvironment(
-        tempDir != null ? tempDir : System.getProperty("java.io.tmpdir"), envCheck);
+        tempDir != null ? tempDir : System.getProperty("java.io.tmpdir"),
+        envCheck);
     TracerFlare.addText(zip, "profiler_env.txt", envCheck.toString());
   }
 
@@ -132,17 +133,19 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         ProfilingConfig.PROFILING_PROXY_PORT_DEFAULT);
     appendConfig(sb, "Proxy Username", config.getProfilingProxyUsername(), null);
     String proxyPassword = config.getProfilingProxyPassword();
-    sb.append("Proxy Password: ")
-        .append(proxyPassword != null ? "[REDACTED]" : null)
-        .append(" (default: null)\n");
+    sb
+      .append("Proxy Password: ")
+      .append(proxyPassword != null ? "[REDACTED]" : null)
+      .append(" (default: null)\n");
 
     sb.append("\n=== Allocation Profiling ===\n");
     boolean allocDefault = ProfilingSupport.isObjectAllocationSampleAvailable();
     boolean allocEnabled =
         configProvider.getBoolean(ProfilingConfig.PROFILING_ALLOCATION_ENABLED, allocDefault);
-    sb.append("Allocation Profiling Enabled: ")
-        .append(allocEnabled)
-        .append(" (default: dynamic based on JVM)\n");
+    sb
+      .append("Allocation Profiling Enabled: ")
+      .append(allocEnabled)
+      .append(" (default: dynamic based on JVM)\n");
     appendConfig(
         sb,
         "Direct Allocation Enabled",
@@ -169,7 +172,10 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED),
         null);
     appendConfig(
-        sb, "JFR OldObjectSample Available", ProfilingSupport.isOldObjectSampleAvailable(), false);
+        sb,
+        "JFR OldObjectSample Available",
+        ProfilingSupport.isOldObjectSampleAvailable(),
+        false);
     appendConfig(
         sb,
         "Heap Histogram Enabled",
@@ -437,8 +443,7 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
     appendConfig(
         sb,
         "Context Attributes Resource Name Enabled",
-        configProvider.getString(
-            ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED),
+        configProvider.getString(ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED),
         null);
     appendConfig(
         sb,
@@ -484,7 +489,8 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         sb,
         "Stack Depth",
         configProvider.getInteger(
-            ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT),
+            ProfilingConfig.PROFILING_STACKDEPTH,
+            ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT),
         ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
     appendConfig(
         sb,
@@ -510,7 +516,8 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         sb,
         "Temp Directory",
         configProvider.getString(
-            ProfilingConfig.PROFILING_TEMP_DIR, ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT),
+            ProfilingConfig.PROFILING_TEMP_DIR,
+            ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT),
         ProfilingConfig.PROFILING_TEMP_DIR_DEFAULT);
     appendConfig(
         sb,
@@ -527,9 +534,10 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
     }
     sb.append(" (default: null)\n");
 
-    sb.append("Final Profiling URL: ")
-        .append(config.getFinalProfilingUrl())
-        .append(" (default: varies)\n");
+    sb
+      .append("Final Profiling URL: ")
+      .append(config.getFinalProfilingUrl())
+      .append(" (default: varies)\n");
 
     return sb.toString();
   }
@@ -542,7 +550,11 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
   }
 
   private void appendConfig(
-      StringBuilder sb, String name, Object value, Object defaultValue, String suffix) {
+      StringBuilder sb,
+      String name,
+      Object value,
+      Object defaultValue,
+      String suffix) {
     sb.append(name).append(": ");
 
     if (value != null) {

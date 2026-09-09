@@ -50,15 +50,15 @@ public class StringSplitBenchmark {
     SMALL("app_key=1111&foo=bar&baz=quux"),
     MEDIUM(repeat("app_key=1111", '&', 100)),
     LARGE(repeat("app_key=1111&application_key=2222&token=0894-4832", '&', 4096));
-
     final String str;
 
     TestString(String str) {
       this.str = str;
     }
-  };
+  }
 
-  @Param TestString testStr;
+  @Param
+  TestString testStr;
 
   static final String repeat(String repeat, char separator, int length) {
     StringBuilder builder = new StringBuilder(length);

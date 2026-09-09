@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.micronaut;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.PARENT_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_ATTRIBUTE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.server.netty.NettyHttpRequest;
 import io.micronaut.web.router.RouteMatch;

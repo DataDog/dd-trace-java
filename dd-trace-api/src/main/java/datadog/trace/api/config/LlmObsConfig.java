@@ -5,14 +5,11 @@ package datadog.trace.api.config;
  * CHANGE)
  */
 public final class LlmObsConfig {
-
   public static final String LLMOBS_ENABLED = "llmobs.enabled";
-
   public static final String LLMOBS_ML_APP = "llmobs.ml.app";
-
   public static final String LLMOBS_AGENTLESS_ENABLED = "llmobs.agentless.enabled";
-
   public static final String LLMOBS_SAMPLE_RATE = "llmobs.sample.rate";
 
-  private LlmObsConfig() {}
+  private LlmObsConfig() {
+  }
 }

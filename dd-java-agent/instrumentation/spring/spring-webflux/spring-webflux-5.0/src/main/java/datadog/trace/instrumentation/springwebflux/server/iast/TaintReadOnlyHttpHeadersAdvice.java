@@ -22,7 +22,6 @@ class TaintReadOnlyHttpHeadersAdvice {
       @Advice.Argument(0) Object headers,
       @Advice.Return Object retValue,
       @ActiveRequestContext RequestContext reqCtx) {
-
     PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module == null || retValue == null) {
       return;

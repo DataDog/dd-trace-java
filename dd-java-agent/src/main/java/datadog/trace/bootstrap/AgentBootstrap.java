@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import datadog.trace.bootstrap.environment.JavaVirtualMachine;
 import datadog.trace.bootstrap.environment.SystemProperties;
@@ -48,11 +47,9 @@ public final class AgentBootstrap {
   static final String LIB_INJECTION_ENABLED_ENV_VAR = "DD_INJECTION_ENABLED";
   static final String LIB_INJECTION_FORCE_SYS_PROP = "dd.inject.force";
   static final String LIB_INSTRUMENTATION_SOURCE_SYS_PROP = "dd.instrumentation.source";
-
   private static final Class<?> thisClass = AgentBootstrap.class;
   private static final int MAX_EXCEPTION_CHAIN_LENGTH = 99;
   private static final String JAVA_AGENT_ARGUMENT = "-javaagent:";
-
   private static boolean initialized = false;
   private static List<File> agentFiles = null;
 
@@ -75,7 +72,8 @@ public final class AgentBootstrap {
       initTelemetry.onFatalError(ex);
 
       if (exceptionCauseChainContains(
-          ex, "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
+          ex,
+          "datadog.trace.util.throwable.FatalAgentMisconfigurationError")) {
         throw new Error(ex);
       }
       // Don't rethrow.  We don't have a log manager here, so just print.
@@ -106,7 +104,6 @@ public final class AgentBootstrap {
       initTelemetry.initMetaInfo("runtime_version", javaVersion);
       initTelemetry.initMetaInfo("language_version", javaVersion);
     }
-
     // If version was compiled into a class, then we wouldn't have the potential to be missing
     // version info
     String agentVersion = AgentJar.tryGetAgentVersion();
@@ -121,7 +118,9 @@ public final class AgentBootstrap {
       final BootstrapInitializationTelemetry initTelemetry,
       final String agentArgs,
       final Instrumentation inst)
-      throws IOException, URISyntaxException, ReflectiveOperationException {
+      throws IOException,
+      URISyntaxException,
+      ReflectiveOperationException {
     if (alreadyInitialized()) {
       initTelemetry.onError("already_initialized");
       // since tracer is presumably initialized elsewhere, still considering this complete
@@ -162,7 +161,11 @@ public final class AgentBootstrap {
     try {
       final Method startMethod =
           agentClass.getMethod(
-              "start", Object.class, Instrumentation.class, URL.class, String.class);
+              "start",
+              Object.class,
+              Instrumentation.class,
+              URL.class,
+              String.class);
       startMethod.invoke(null, initTelemetry, inst, agentJarURL, agentArgs);
     } catch (Throwable e) {
       throw new IllegalStateException("Unable to start DD Java Agent.", e);
@@ -209,7 +212,8 @@ public final class AgentBootstrap {
   private static boolean alreadyInitialized() {
     if (initialized) {
       System.err.println(
-          "Warning: dd-java-agent is being initialized more than once. Please check that you are defining -javaagent:dd-java-agent.jar only once.");
+          "Warning: dd-java-agent is being initialized more than once. Please check that you "
+          + "are defining -javaagent:dd-java-agent.jar only once.");
       return true;
     }
     initialized = true;
@@ -244,7 +248,8 @@ public final class AgentBootstrap {
       if (firstChar == 'j') {
         // Standard JDK 9+ module-based tools (module names start with 'java.' or 'jdk.')
         switch (moduleMain) {
-          case "java.base": // keytool
+          // keytool
+          case "java.base":
           case "java.corba":
           case "java.desktop":
           case "java.rmi":
@@ -279,9 +284,13 @@ public final class AgentBootstrap {
       } else if (firstChar == 'o') {
         // OpenJ9 / Semeru 11+ module-based tools (module names start with 'openj9.')
         switch (moduleMain) {
-          case "openj9.dtfj": // jextract, jpackcore
-          case "openj9.dtfjview": // jdmpview
-          case "openj9.traceformat": // traceformat
+          // jextract, jpackcore
+          case "openj9.dtfj":
+          // jdmpview
+          case "openj9.dtfjview":
+          case
+              // traceformat
+          "openj9.traceformat":
             return true;
         }
       }
@@ -295,66 +304,123 @@ public final class AgentBootstrap {
       String mainClass = firstSpace > 0 ? command.substring(0, firstSpace) : command;
       switch (mainClass) {
         // IBM J9 JDK 8 specific tool main classes
-        case "com.ibm.crypto.tools.KeyTool": // keytool
-        case "com.ibm.security.krb5.internal.tools.Kinit": // kinit
-        case "com.ibm.security.krb5.internal.tools.Klist": // klist
-        case "com.ibm.security.krb5.internal.tools.Ktab": // ktab
-        case "com.ibm.jvm.dtfjview.DTFJView": // jdmpview
-        case "com.ibm.jvm.j9.dump.extract.Main": // jextract
-        case "com.ibm.gsk.ikeyman.Ikeyman": // ikeyman
-        case "com.ibm.gsk.ikeyman.ikeycmd": // ikeycmd
-        case "com.ibm.CosNaming.TransientNameServer": // tnameserv
-        case "com.ibm.idl.toJavaPortable.Compile": // idlj
+        // keytool
+        case "com.ibm.crypto.tools.KeyTool":
+        // kinit
+        case "com.ibm.security.krb5.internal.tools.Kinit":
+        // klist
+        case "com.ibm.security.krb5.internal.tools.Klist":
+        // ktab
+        case "com.ibm.security.krb5.internal.tools.Ktab":
+        // jdmpview
+        case "com.ibm.jvm.dtfjview.DTFJView":
+        // jextract
+        case "com.ibm.jvm.j9.dump.extract.Main":
+        // ikeyman
+        case "com.ibm.gsk.ikeyman.Ikeyman":
+        // ikeycmd
+        case "com.ibm.gsk.ikeyman.ikeycmd":
+        // tnameserv
+        case "com.ibm.CosNaming.TransientNameServer":
+        // idlj
+        case "com.ibm.idl.toJavaPortable.Compile":
         // OpenJ9 / Semeru 8 specific tool main classes (OpenJ9 reimplementation of HotSpot tools)
-        case "openj9.tools.attach.diagnostics.tools.Jcmd": // jcmd
-        case "openj9.tools.attach.diagnostics.tools.Jps": // jps
-        case "openj9.tools.attach.diagnostics.tools.Jstat": // jstat
-        case "openj9.tools.attach.diagnostics.tools.Jmap": // jmap
-        case "openj9.tools.attach.diagnostics.tools.Jstack": // jstack
-        case "com.ibm.jvm.TraceFormat": // traceformat
+        // jcmd
+        case "openj9.tools.attach.diagnostics.tools.Jcmd":
+        // jps
+        case "openj9.tools.attach.diagnostics.tools.Jps":
+        // jstat
+        case "openj9.tools.attach.diagnostics.tools.Jstat":
+        // jmap
+        case "openj9.tools.attach.diagnostics.tools.Jmap":
+        // jstack
+        case "openj9.tools.attach.diagnostics.tools.Jstack":
+        // traceformat
+        case "com.ibm.jvm.TraceFormat":
         // Standard JDK 8 tool main classes (shared by IBM J9 and Oracle/OpenJDK 8)
-        case "sun.tools.jar.Main": // jar
-        case "com.sun.tools.javac.Main": // javac
-        case "com.sun.tools.javadoc.Main": // javadoc
-        case "com.sun.tools.javap.Main": // javap
-        case "com.sun.tools.javah.Main": // javah
-        case "sun.security.tools.keytool.Main": // keytool (Oracle/OpenJDK 8)
-        case "sun.security.tools.jarsigner.Main": // jarsigner
-        case "sun.security.tools.policytool.PolicyTool": // policytool
-        case "com.sun.tools.example.debug.tty.TTY": // jdb
-        case "com.sun.tools.jdeps.Main": // jdeps
-        case "sun.rmi.rmic.Main": // rmic
-        case "sun.rmi.registry.RegistryImpl": // rmiregistry
-        case "sun.rmi.server.Activation": // rmid
-        case "com.sun.tools.extcheck.Main": // extcheck
-        case "sun.tools.serialver.SerialVer": // serialver
-        case "sun.tools.native2ascii.Main": // native2ascii
-        case "com.sun.tools.internal.ws.WsGen": // wsgen
-        case "com.sun.tools.internal.ws.WsImport": // wsimport
-        case "com.sun.tools.internal.xjc.Driver": // xjc
-        case "com.sun.tools.internal.jxc.SchemaGenerator": // schemagen
-        case "com.sun.tools.script.shell.Main": // jrunscript
-        case "jdk.nashorn.tools.Shell": // jjs (Nashorn JS shell, JDK 8)
-        case "sun.tools.jconsole.JConsole": // jconsole
-        case "sun.applet.Main": // appletviewer
-        case "com.sun.corba.se.impl.naming.cosnaming.TransientNameServer": // tnameserv
+        // jar
+        case "sun.tools.jar.Main":
+        // javac
+        case "com.sun.tools.javac.Main":
+        // javadoc
+        case "com.sun.tools.javadoc.Main":
+        // javap
+        case "com.sun.tools.javap.Main":
+        // javah
+        case "com.sun.tools.javah.Main":
+        // keytool (Oracle/OpenJDK 8)
+        case "sun.security.tools.keytool.Main":
+        // jarsigner
+        case "sun.security.tools.jarsigner.Main":
+        // policytool
+        case "sun.security.tools.policytool.PolicyTool":
+        // jdb
+        case "com.sun.tools.example.debug.tty.TTY":
+        // jdeps
+        case "com.sun.tools.jdeps.Main":
+        // rmic
+        case "sun.rmi.rmic.Main":
+        // rmiregistry
+        case "sun.rmi.registry.RegistryImpl":
+        // rmid
+        case "sun.rmi.server.Activation":
+        // extcheck
+        case "com.sun.tools.extcheck.Main":
+        // serialver
+        case "sun.tools.serialver.SerialVer":
+        // native2ascii
+        case "sun.tools.native2ascii.Main":
+        // wsgen
+        case "com.sun.tools.internal.ws.WsGen":
+        // wsimport
+        case "com.sun.tools.internal.ws.WsImport":
+        // xjc
+        case "com.sun.tools.internal.xjc.Driver":
+        // schemagen
+        case "com.sun.tools.internal.jxc.SchemaGenerator":
+        // jrunscript
+        case "com.sun.tools.script.shell.Main":
+        // jjs (Nashorn JS shell, JDK 8)
+        case "jdk.nashorn.tools.Shell":
+        // jconsole
+        case "sun.tools.jconsole.JConsole":
+        // appletviewer
+        case "sun.applet.Main":
+        // tnameserv
+        case "com.sun.corba.se.impl.naming.cosnaming.TransientNameServer":
         // (Oracle/OpenJDK 8)
-        case "com.sun.tools.corba.se.idl.toJavaPortable.Compile": // idlj (Oracle/OpenJDK 8)
-        case "com.sun.corba.se.impl.activation.ORBD": // orbd
-        case "com.sun.corba.se.impl.activation.ServerTool": // servertool
-        case "sun.tools.jps.Jps": // jps
-        case "sun.tools.jstack.JStack": // jstack
-        case "sun.tools.jmap.JMap": // jmap
-        case "sun.tools.jinfo.JInfo": // jinfo
-        case "com.sun.tools.hat.Main": // jhat
-        case "sun.tools.jstat.Jstat": // jstat
-        case "sun.tools.jstatd.Jstatd": // jstatd
-        case "sun.tools.jcmd.JCmd": // jcmd
-        case "jdk.jfr.internal.tool.Main": // jfr, backported to OpenJDK 8 in 8u262 (JEP 328
+        // idlj (Oracle/OpenJDK 8)
+        case "com.sun.tools.corba.se.idl.toJavaPortable.Compile":
+        // orbd
+        case "com.sun.corba.se.impl.activation.ORBD":
+        // servertool
+        case "com.sun.corba.se.impl.activation.ServerTool":
+        // jps
+        case "sun.tools.jps.Jps":
+        // jstack
+        case "sun.tools.jstack.JStack":
+        // jmap
+        case "sun.tools.jmap.JMap":
+        // jinfo
+        case "sun.tools.jinfo.JInfo":
+        // jhat
+        case "com.sun.tools.hat.Main":
+        // jstat
+        case "sun.tools.jstat.Jstat":
+        // jstatd
+        case "sun.tools.jstatd.Jstatd":
+        // jcmd
+        case "sun.tools.jcmd.JCmd":
+        // jfr, backported to OpenJDK 8 in 8u262 (JEP 328
+        case "jdk.jfr.internal.tool.Main":
         // backport, July 2020)
-        case "sun.jvm.hotspot.jdi.SADebugServer": // jsadebugd
-        case "sun.jvm.hotspot.HSDB": // hsdb (HotSpot SA GUI debugger, JDK 8)
-        case "sun.jvm.hotspot.CLHSDB": // clhsdb (HotSpot SA command-line debugger, JDK 8)
+        // jsadebugd
+        case "sun.jvm.hotspot.jdi.SADebugServer":
+        // hsdb (HotSpot SA GUI debugger, JDK 8)
+        case "sun.jvm.hotspot.HSDB":
+        case
+            // clhsdb (HotSpot SA command-line debugger, JDK 8)
+        "sun.jvm.hotspot.CLHSDB":
           return true;
       }
     }
@@ -372,7 +438,6 @@ public final class AgentBootstrap {
         || getAgentFilesFromVMArguments().size() <= 1) {
       return false;
     }
-
     // If there are 2 agents and one of them is for patching log4j, it's fine
     if (getAgentFilesFromVMArguments().size() == 2) {
       for (File agentFile : getAgentFilesFromVMArguments()) {
@@ -381,7 +446,6 @@ public final class AgentBootstrap {
         }
       }
     }
-
     // Simply considering having multiple agents
     // Formatting agent file list, Java 7 style
     StringBuilder agentFiles = new StringBuilder();
@@ -398,9 +462,9 @@ public final class AgentBootstrap {
     }
     System.err.println(
         "Info: multiple JVM agents detected, found "
-            + agentFiles
-            + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
-            + "Please set the environment variable DD_INJECT_FORCE or the system property dd.inject.force to TRUE to load Datadog APM/Tracing agent.");
+        + agentFiles
+        + ". Loading multiple APM/Tracing agent is not a recommended or supported configuration."
+        + "Please set the environment variable DD_INJECT_FORCE or the system property dd.inject.force to TRUE to load Datadog APM/Tracing agent.");
     return true;
   }
 
@@ -410,7 +474,8 @@ public final class AgentBootstrap {
 
   @SuppressForbidden
   private static synchronized URL installAgentJar(final Instrumentation inst)
-      throws IOException, URISyntaxException {
+      throws IOException,
+      URISyntaxException {
     // First try Code Source
     final CodeSource codeSource = thisClass.getProtectionDomain().getCodeSource();
     if (codeSource != null) {
@@ -420,7 +485,9 @@ public final class AgentBootstrap {
 
         if (!ddJavaAgentJarPath.isDirectory()) {
           return appendAgentToBootstrapClassLoaderSearch(
-              inst, ddJavaAgentJarURL, ddJavaAgentJarPath);
+              inst,
+              ddJavaAgentJarURL,
+              ddJavaAgentJarPath);
         }
       }
     }
@@ -432,8 +499,7 @@ public final class AgentBootstrap {
       return appendAgentToBootstrapClassLoaderSearch(inst, ddJavaAgentJarURL, javaagentFile);
     }
 
-    System.err.println(
-        "Could not get agent jar from -javaagent arg, using ClassLoader#getResource");
+    System.err.println("Could not get agent jar from -javaagent arg, using ClassLoader#getResource");
     javaagentFile = getAgentFileUsingClassLoaderLookup();
     if (!javaagentFile.isDirectory()) {
       URL ddJavaAgentJarURL = javaagentFile.toURI().toURL();
@@ -445,7 +511,9 @@ public final class AgentBootstrap {
   }
 
   private static URL appendAgentToBootstrapClassLoaderSearch(
-      Instrumentation inst, URL ddJavaAgentJarURL, File javaagentFile) throws IOException {
+      Instrumentation inst,
+      URL ddJavaAgentJarURL,
+      File javaagentFile) throws IOException {
     checkJarManifestMainClassIsThis(ddJavaAgentJarURL);
     inst.appendToBootstrapClassLoaderSearch(new JarFile(javaagentFile));
     return ddJavaAgentJarURL;
@@ -479,14 +547,14 @@ public final class AgentBootstrap {
           int index = argument.indexOf('=', JAVA_AGENT_ARGUMENT.length());
           String agentPathname =
               argument.substring(
-                  JAVA_AGENT_ARGUMENT.length(), index == -1 ? argument.length() : index);
+                  JAVA_AGENT_ARGUMENT.length(),
+                  index == -1 ? argument.length() : index);
           File agentFile = new File(agentPathname);
           if (agentFile.exists() && agentFile.isFile()) {
             agentFiles.add(agentFile);
           } else {
             System.err.println(
-                "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: "
-                    + agentFile);
+                "Could not get bootstrap jar from -javaagent arg: unable to find javaagent file: " + agentFile);
           }
         }
       }
@@ -529,22 +597,28 @@ public final class AgentBootstrap {
     }
     throw new IllegalStateException(
         "dd-java-agent is not installed, because class '"
-            + thisClass.getCanonicalName()
-            + "' is located in '"
-            + jarUrl
-            + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
+        + thisClass.getCanonicalName()
+        + "' is located in '"
+        + jarUrl
+        + "'. Make sure you don't have this .class-file anywhere, besides dd-java-agent.jar");
   }
 
-  /** Returns {@code true} if the JVM is training, i.e. writing to a CDS/AOT archive. */
+  /**
+   * Returns {@code true} if the JVM is training, i.e. writing to a CDS/AOT archive.
+   */
   private static boolean isAotTraining(String agentArgs, Instrumentation inst) {
     if (!JavaVirtualMachine.isJavaVersionAtLeast(25)) {
-      return false; // agent doesn't support training mode before Java 25
+      // agent doesn't support training mode before Java 25
+      return false;
     } else if ("aot_training".equalsIgnoreCase(agentArgs)) {
-      return true; // training mode explicitly enabled via -javaagent
+      // training mode explicitly enabled via -javaagent
+      return true;
     } else if ("false".equalsIgnoreCase(EnvironmentVariables.get("DD_DETECT_AOT_TRAINING_MODE"))) {
-      return false; // detection of training mode disabled via DD_DETECT_AOT_TRAINING_MODE=false
+      // detection of training mode disabled via DD_DETECT_AOT_TRAINING_MODE=false
+      return false;
     } else {
-      return AdvancedAgentChecks.isAotTraining(inst); // check JVM status
+      // check JVM status
+      return AdvancedAgentChecks.isAotTraining(inst);
     }
   }
 }

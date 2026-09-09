@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import com.datadog.debugger.agent.ConfigurationUpdater;
 import com.datadog.debugger.agent.DebuggerAgentHelper;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class FailedTestReplayExceptionDebuggerTest {
-
   private ClassNameFiltering classNameFiltering;
   private ConfigurationUpdater configurationUpdater;
   private FailedTestReplayExceptionDebugger exceptionDebugger;
@@ -28,12 +26,13 @@ public class FailedTestReplayExceptionDebuggerTest {
   @BeforeEach
   public void setUp() {
     configurationUpdater = mock(ConfigurationUpdater.class);
-    classNameFiltering =
-        new ClassNameFiltering(
-            new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
+    classNameFiltering = new ClassNameFiltering(
+        new HashSet<>(singletonList("com.datadog.debugger.exception.ThirdPartyCode")));
     Config config = createConfig();
-    exceptionDebugger =
-        new FailedTestReplayExceptionDebugger(configurationUpdater, classNameFiltering, config);
+    exceptionDebugger = new FailedTestReplayExceptionDebugger(
+        configurationUpdater,
+        classNameFiltering,
+        config);
     listener = new TestSnapshotListener(createConfig(), mock(ProbeStatusSink.class));
     DebuggerAgentHelper.injectSink(listener);
   }
@@ -48,8 +47,7 @@ public class FailedTestReplayExceptionDebuggerTest {
 
   public static Config createConfig() {
     Config config = mock(Config.class);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDebuggerExceptionCaptureInterval()).thenReturn(3600);
     when(config.getDebuggerMaxExceptionPerSecond()).thenReturn(1);

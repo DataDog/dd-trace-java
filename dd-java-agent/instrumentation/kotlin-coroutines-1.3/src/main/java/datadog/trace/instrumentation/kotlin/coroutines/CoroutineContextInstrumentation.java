@@ -2,15 +2,16 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import kotlin.coroutines.CoroutineContext;
 import net.bytebuddy.asm.Advice;
 
-/** Adds {@link DatadogThreadContextElement} to every coroutine context. */
+/**
+ * Adds {@link DatadogThreadContextElement} to every coroutine context.
+ */
 public class CoroutineContextInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "kotlinx.coroutines.CoroutineContextKt";
@@ -20,8 +21,8 @@ public class CoroutineContextInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("newCoroutineContext")
-            .and(takesArgument(0, named("kotlinx.coroutines.CoroutineScope")))
-            .and(takesArgument(1, named("kotlin.coroutines.CoroutineContext"))),
+          .and(takesArgument(0, named("kotlinx.coroutines.CoroutineScope")))
+          .and(takesArgument(1, named("kotlin.coroutines.CoroutineContext"))),
         this.getClass().getName() + "$ContextAdvice");
   }
 

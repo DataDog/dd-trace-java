@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty38.server;
 
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -15,7 +14,6 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHandler {
-
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
   private static final String UPGRADE_HEADER = "upgrade";
 
@@ -43,22 +41,23 @@ public class HttpServerResponseTracingHandler extends SimpleChannelDownstreamHan
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
         span.setHttpStatusCode(500);
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        // Finish the span manually since finishSpanOnClose was false
+        span.finish();
         throw throwable;
       }
-      final boolean isWebsocketUpgrade =
-          response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
-              && "websocket".equals(response.headers().get(UPGRADE_HEADER));
+      final boolean isWebsocketUpgrade = response.getStatus() == HttpResponseStatus.SWITCHING_PROTOCOLS
+          && "websocket".equals(response.headers().get(UPGRADE_HEADER));
       if (isWebsocketUpgrade) {
         String channelId = ctx.getChannel().getId().toString();
         channelTraceContext.setSenderHandlerContext(new HandlerContext.Sender(span, channelId));
       }
       if (response.getStatus() != HttpResponseStatus.CONTINUE
           && (response.getStatus() != HttpResponseStatus.SWITCHING_PROTOCOLS
-              || isWebsocketUpgrade)) {
+          || isWebsocketUpgrade)) {
         DECORATE.onResponse(span, response);
         DECORATE.beforeFinish(scope.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        // Finish the span manually since finishSpanOnClose was false
+        span.finish();
       }
     }
   }

@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,8 +25,8 @@ import org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTest
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JUnit5SkipInstrumentation() {
     super("ci-visibility", "junit-5");
   }
@@ -36,7 +35,7 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
   public boolean isEnabled() {
     return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -47,17 +46,18 @@ public class JUnit5SkipInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(implementsInterface(named("org.junit.platform.engine.TestDescriptor")))
-        // Cucumber has a dedicated instrumentation
-        .and(not(nameStartsWith("io.cucumber")))
-        // Spock has a dedicated instrumentation
-        .and(not(nameStartsWith("org.spockframework")));
+      .and(implementsInterface(named("org.junit.platform.engine.TestDescriptor")))
+      // Cucumber has a dedicated instrumentation
+      .and(not(nameStartsWith("io.cucumber")))
+      // Spock has a dedicated instrumentation
+      .and(not(nameStartsWith("org.spockframework")));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils", packageName + ".TestEventsHandlerHolder",
+        packageName + ".JUnitPlatformUtils",
+        packageName + ".TestEventsHandlerHolder"
     };
   }
 

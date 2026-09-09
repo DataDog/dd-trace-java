@@ -7,19 +7,18 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class ScalaTraitMatchers {
   public static ElementMatcher.Junction<MethodDescription> isTraitMethod(
-      String traitName, String name, Object... argumentTypes) {
-
-    ElementMatcher.Junction<MethodDescription> scalaOldArgs =
-        isStatic()
-            .and(takesArguments(argumentTypes.length + 1))
-            .and(takesArgument(0, named(traitName)));
+      String traitName,
+      String name,
+      Object... argumentTypes) {
+    ElementMatcher.Junction<MethodDescription> scalaOldArgs = isStatic()
+      .and(takesArguments(argumentTypes.length + 1))
+      .and(takesArgument(0, named(traitName)));
     ElementMatcher.Junction<MethodDescription> scalaNewArgs =
         not(isStatic()).and(takesArguments(argumentTypes.length));
 

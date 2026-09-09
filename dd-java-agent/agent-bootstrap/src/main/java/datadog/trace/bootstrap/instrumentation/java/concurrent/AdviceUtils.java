@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -10,9 +9,10 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 
-/** Helper utils for Runnable/Callable instrumentation */
+/**
+ * Helper utils for Runnable/Callable instrumentation
+ */
 public class AdviceUtils {
-
   /**
    * Start scope for a given task
    *
@@ -22,7 +22,8 @@ public class AdviceUtils {
    * @return scope if scope was started, or null
    */
   public static <T> ContextScope startTaskScope(
-      final ContextStore<T, State> contextStore, final T task) {
+      final ContextStore<T, State> contextStore,
+      final T task) {
     return startTaskScope(contextStore.get(task));
   }
 

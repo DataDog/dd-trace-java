@@ -36,15 +36,13 @@ import org.gradle.process.CommandLineArgumentProvider;
 
 @ListenerService
 public class CiVisibilityGradleListener extends BuildAdapter
-    implements InternalBuildListener, TaskListenerInternal {
-
+    implements InternalBuildListener,
+    TaskListenerInternal {
   private static final String TRACER_VERSION;
 
   static {
-    try (BufferedReader reader =
-        new BufferedReader(
-            new InputStreamReader(
-                ClassLoader.getSystemResourceAsStream("dd-java-agent.version")))) {
+    try (BufferedReader reader = new BufferedReader(
+        new InputStreamReader(ClassLoader.getSystemResourceAsStream("dd-java-agent.version")))) {
       TRACER_VERSION = reader.lines().collect(Collectors.joining());
     } catch (IOException e) {
       throw new RuntimeException("Could not read tracer version from dd-java-agent.version", e);
@@ -85,8 +83,7 @@ public class CiVisibilityGradleListener extends BuildAdapter
 
     BuildServiceRegistry sharedServices = gradle.getSharedServices();
     Provider<CiVisibilityService> ciVisibilityServiceProvider =
-        sharedServices.registerIfAbsent(
-            "ciVisibilityService", CiVisibilityService.class, spec -> {});
+        sharedServices.registerIfAbsent("ciVisibilityService", CiVisibilityService.class, spec -> {});
     // registration is needed to keep the service alive until the end of the build
     buildEventsListenerRegistry.onTaskCompletion(ciVisibilityServiceProvider);
     ciVisibilityService = ciVisibilityServiceProvider.get();
@@ -108,7 +105,11 @@ public class CiVisibilityGradleListener extends BuildAdapter
     String startCommand = recreateStartCommand(startParameter, nestedBuildPath);
     String gradleVersion = gradle.getGradleVersion();
     ciVisibilityService.onBuildStart(
-        buildPath, projectRoot, startCommand, gradleVersion, nestedBuild);
+        buildPath,
+        projectRoot,
+        startCommand,
+        gradleVersion,
+        nestedBuild);
   }
 
   private static StartParameterInternal getStartParameter(BuildState buildState) {
@@ -182,14 +183,12 @@ public class CiVisibilityGradleListener extends BuildAdapter
     String projectPath = taskIdentity.getProjectPath();
     Project project = gradle.getRootProject().project(projectPath);
     Test task = (Test) project.getTasks().getByName(taskIdentity.name);
-
     // "com.android.base" is applied transitively by the application/library/dynamic-feature/test
     // Android Gradle Plugins. The Android KMP library plugin (AGP 8.8+) is a separate entry point
     // that does NOT apply com.android.base, so it must be checked explicitly.
     PluginManager pluginManager = project.getPluginManager();
-    boolean isAndroid =
-        pluginManager.hasPlugin("com.android.base")
-            || pluginManager.hasPlugin("com.android.kotlin.multiplatform.library");
+    boolean isAndroid = pluginManager.hasPlugin("com.android.base")
+        || pluginManager.hasPlugin("com.android.kotlin.multiplatform.library");
 
     Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =
@@ -205,7 +204,12 @@ public class CiVisibilityGradleListener extends BuildAdapter
     List<Path> taskClasspath = CiVisibilityPluginExtension.getClasspath(task);
 
     ciVisibilityService.onModuleStart(
-        taskPath, isAndroid, moduleLayout, jvmExecutable, taskClasspath, jacocoAgent);
+        taskPath,
+        isAndroid,
+        moduleLayout,
+        jvmExecutable,
+        taskClasspath,
+        jacocoAgent);
   }
 
   private JavaAgent getJacocoAgent(Test task) {

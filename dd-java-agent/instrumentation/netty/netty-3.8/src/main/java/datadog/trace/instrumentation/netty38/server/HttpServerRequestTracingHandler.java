@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty38.server;
 
 import static datadog.trace.instrumentation.netty38.server.NettyHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
@@ -16,7 +15,6 @@ import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandler {
-
   private final ContextStore<Channel, ChannelTraceContext> contextStore;
 
   public HttpServerRequestTracingHandler(
@@ -32,10 +30,12 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
     if (!(msg.getMessage() instanceof HttpRequest)) {
       final Context storedContext = channelTraceContext.getServerContext();
       if (storedContext == null) {
-        ctx.sendUpstream(msg); // superclass does not throw
+        // superclass does not throw
+        ctx.sendUpstream(msg);
       } else {
         try (final ContextScope scope = storedContext.attach()) {
-          ctx.sendUpstream(msg); // superclass does not throw
+          // superclass does not throw
+          ctx.sendUpstream(msg);
         }
       }
       return;
@@ -58,11 +58,12 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
-        ctx.getPipeline()
-            .addAfter(
-                ctx.getName(),
-                "blocking_handler",
-                new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
+        ctx
+          .getPipeline()
+          .addAfter(
+              ctx.getName(),
+              "blocking_handler",
+              new BlockingResponseHandler(span.getRequestContext().getTraceSegment(), rba));
       }
 
       try {
@@ -70,7 +71,8 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
       } catch (final Throwable throwable) {
         DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(scope.context());
-        span.finish(); // Finish the span manually since finishSpanOnClose was false
+        // Finish the span manually since finishSpanOnClose was false
+        span.finish();
         throw throwable;
       }
     }

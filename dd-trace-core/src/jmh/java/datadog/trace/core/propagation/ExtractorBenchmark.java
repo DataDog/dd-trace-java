@@ -2,7 +2,6 @@ package datadog.trace.core.propagation;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -39,7 +38,6 @@ import org.openjdk.jmh.infra.Blackhole;
 public class ExtractorBenchmark {
   @Param({"datadog", "b3", "datadog,b3", "datadog:x-dth"})
   String extractPropagationStyles;
-
   List<Pair<String, String>> headers;
   HttpCodec.Extractor extractor;
   DDTraceId traceId;
@@ -52,12 +50,16 @@ public class ExtractorBenchmark {
     // benchmark as a baseline to compare against
     headers.add(Pair.of(DatadogHttpCodec.TRACE_ID_KEY, "12345"));
     headers.add(Pair.of(DatadogHttpCodec.SPAN_ID_KEY, "23456"));
-    headers.add(Pair.of(B3HttpCodec.TRACE_ID_KEY, "12345")); // HEX
-    headers.add(Pair.of(B3HttpCodec.SPAN_ID_KEY, "23456")); // HEX
+    // HEX
+    headers.add(Pair.of(B3HttpCodec.TRACE_ID_KEY, "12345"));
+    // HEX
+    headers.add(Pair.of(B3HttpCodec.SPAN_ID_KEY, "23456"));
     headers.add(Pair.of("some-header-1", "ignored"));
     headers.add(Pair.of("some-header-2", "ignored"));
-    headers.add(Pair.of("x-data-header-1", "ignored")); // starts like datadog headers
-    headers.add(Pair.of("x-bware-header-1", "ignored")); // starts like b3 headers
+    // starts like datadog headers
+    headers.add(Pair.of("x-data-header-1", "ignored"));
+    // starts like b3 headers
+    headers.add(Pair.of("x-bware-header-1", "ignored"));
 
     String[] propagationsAndFeatures = extractPropagationStyles.split(",");
     StringBuilder propagations = new StringBuilder();
@@ -74,9 +76,9 @@ public class ExtractorBenchmark {
         String feature = propagationAndFeatures[i];
         switch (feature) {
           case "x-dth":
-            headers.add(
-                Pair.of(
-                    DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.anytag=value,_dd.p.dm=934086a686-4"));
+            headers.add(Pair.of(
+                DatadogHttpCodec.DATADOG_TAGS_KEY,
+                "_dd.p.anytag=value,_dd.p.dm=934086a686-4"));
             break;
           default:
             System.out.println("Unknown benchmark feature " + feature + ". Will be ignored!");
@@ -85,11 +87,11 @@ public class ExtractorBenchmark {
     }
 
     System.setProperty("dd.propagation.style.extract", propagations.toString());
-    DynamicConfig dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(Collections.emptyMap())
-            .setBaggageMapping(Collections.emptyMap())
-            .apply();
+    DynamicConfig dynamicConfig = DynamicConfig
+      .create()
+      .setHeaderTags(Collections.emptyMap())
+      .setBaggageMapping(Collections.emptyMap())
+      .apply();
     extractor = HttpCodec.createExtractor(Config.get(), dynamicConfig::captureTraceConfig);
 
     if (extractPropagationStyles.startsWith("datadog")) {
@@ -135,7 +137,6 @@ public class ExtractorBenchmark {
 
   private static final class ListContextVisitor<T extends List<Pair<String, String>>>
       implements AgentPropagation.ContextVisitor<T> {
-
     @Override
     public void forEachKey(T carrier, AgentPropagation.KeyClassifier classifier) {
       for (Pair<String, ?> entry : carrier) {

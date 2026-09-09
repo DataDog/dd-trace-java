@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PA
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
 import datadog.trace.api.cache.DDCache;
@@ -30,14 +29,17 @@ import org.apache.kafka.common.record.TimestampType;
 public class KafkaDecorator extends MessagingClientDecorator {
   private static final String KAFKA = "kafka";
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
-  public static final CharSequence KAFKA_CONSUME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation(KAFKA));
-
+  public static final CharSequence KAFKA_CONSUME = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .messaging()
+    .inboundOperation(KAFKA));
   public static final CharSequence KAFKA_POLL = UTF8BytesString.create("kafka.poll");
-  public static final CharSequence KAFKA_PRODUCE =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().outboundOperation(KAFKA));
+  public static final CharSequence KAFKA_PRODUCE = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .messaging()
+    .outboundOperation(KAFKA));
   public static final CharSequence KAFKA_DELIVER = UTF8BytesString.create("kafka.deliver");
   public static final boolean KAFKA_LEGACY_TRACING = Config.get().isKafkaLegacyTracingEnabled();
   public static final boolean TIME_IN_QUEUE_ENABLED =
@@ -46,7 +48,6 @@ public class KafkaDecorator extends MessagingClientDecorator {
   private final String spanKind;
   private final CharSequence spanType;
   private final Supplier<String> serviceNameSupplier;
-
   private static final DDCache<CharSequence, CharSequence> PRODUCER_RESOURCE_NAME_CACHE =
       DDCaches.newFixedSizeCache(32);
   private static final Functions.Prefix PRODUCER_PREFIX = new Functions.Prefix("Produce Topic ");
@@ -57,33 +58,23 @@ public class KafkaDecorator extends MessagingClientDecorator {
   private static final Function<ProducerConfig, CharSequence> BOOTSTRAP_SERVERS_JOINER =
       pc -> String.join(",", pc.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG));
   private static final Functions.Prefix CONSUMER_PREFIX = new Functions.Prefix("Consume Topic ");
-
-  public static final KafkaDecorator PRODUCER_DECORATE =
-      new KafkaDecorator(
-          Tags.SPAN_KIND_PRODUCER,
-          InternalSpanTypes.MESSAGE_PRODUCER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .outboundService(KAFKA, KAFKA_LEGACY_TRACING));
-
-  public static final KafkaDecorator CONSUMER_DECORATE =
-      new KafkaDecorator(
-          Tags.SPAN_KIND_CONSUMER,
-          InternalSpanTypes.MESSAGE_CONSUMER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .inboundService(KAFKA, KAFKA_LEGACY_TRACING));
-
-  public static final KafkaDecorator BROKER_DECORATE =
-      new KafkaDecorator(
-          Tags.SPAN_KIND_BROKER,
-          InternalSpanTypes.MESSAGE_BROKER,
-          SpanNaming.instance().namingSchema().messaging().timeInQueueService(KAFKA));
+  public static final KafkaDecorator PRODUCER_DECORATE = new KafkaDecorator(
+      Tags.SPAN_KIND_PRODUCER,
+      InternalSpanTypes.MESSAGE_PRODUCER,
+      SpanNaming.instance().namingSchema().messaging().outboundService(KAFKA, KAFKA_LEGACY_TRACING));
+  public static final KafkaDecorator CONSUMER_DECORATE = new KafkaDecorator(
+      Tags.SPAN_KIND_CONSUMER,
+      InternalSpanTypes.MESSAGE_CONSUMER,
+      SpanNaming.instance().namingSchema().messaging().inboundService(KAFKA, KAFKA_LEGACY_TRACING));
+  public static final KafkaDecorator BROKER_DECORATE = new KafkaDecorator(
+      Tags.SPAN_KIND_BROKER,
+      InternalSpanTypes.MESSAGE_BROKER,
+      SpanNaming.instance().namingSchema().messaging().timeInQueueService(KAFKA));
 
   protected KafkaDecorator(
-      String spanKind, CharSequence spanType, Supplier<String> serviceNameSupplier) {
+      String spanKind,
+      CharSequence spanType,
+      Supplier<String> serviceNameSupplier) {
     this.spanKind = spanKind;
     this.spanType = spanType;
     this.serviceNameSupplier = serviceNameSupplier;
@@ -168,7 +159,8 @@ public class KafkaDecorator extends MessagingClientDecorator {
         span.setTag(
             KAFKA_BOOTSTRAP_SERVERS,
             PRODUCER_BOOSTRAP_SERVERS_CACHE.computeIfAbsent(
-                producerConfig, BOOTSTRAP_SERVERS_JOINER));
+                producerConfig,
+                BOOTSTRAP_SERVERS_JOINER));
       }
       if (clusterId != null) {
         span.setTag(KAFKA_CLUSTER_ID, clusterId);

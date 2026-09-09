@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.play27.appsec;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -58,9 +57,10 @@ public class ArgumentCaptureAdvice {
 
       Map<String, Object> conv = Collections.singletonMap("0", o1);
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routingTo");
+      BlockingException t = PathExtractionHelpers.callRequestPathParamsCallback(
+          requestContext,
+          conv,
+          "RoutingDsl#routingTo");
       if (t != null) {
         throw t;
       }
@@ -97,9 +97,10 @@ public class ArgumentCaptureAdvice {
       conv.put("0", o1);
       conv.put("1", o2);
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routingTo");
+      BlockingException t = PathExtractionHelpers.callRequestPathParamsCallback(
+          requestContext,
+          conv,
+          "RoutingDsl#routingTo");
       if (t != null) {
         throw t;
       }
@@ -138,9 +139,10 @@ public class ArgumentCaptureAdvice {
       conv.put("1", o2);
       conv.put("2", o3);
 
-      BlockingException t =
-          PathExtractionHelpers.callRequestPathParamsCallback(
-              requestContext, conv, "RoutingDsl#routingTo");
+      BlockingException t = PathExtractionHelpers.callRequestPathParamsCallback(
+          requestContext,
+          conv,
+          "RoutingDsl#routingTo");
       if (t != null) {
         throw t;
       }

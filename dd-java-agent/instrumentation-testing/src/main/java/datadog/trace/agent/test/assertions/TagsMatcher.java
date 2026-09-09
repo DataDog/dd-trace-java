@@ -25,7 +25,6 @@ import static datadog.trace.core.DDSpanContext.SAMPLE_RATE_KEY;
 import static datadog.trace.test.junit.utils.assertions.Matchers.any;
 import static datadog.trace.test.junit.utils.assertions.Matchers.is;
 import static datadog.trace.test.junit.utils.assertions.Matchers.isNonNull;
-
 import datadog.trace.test.junit.utils.assertions.Matcher;
 import datadog.trace.test.junit.utils.assertions.Matchers;
 import java.util.HashMap;
@@ -55,7 +54,8 @@ public final class TagsMatcher {
     tagMatchers.put(DSM_ENABLED, any());
     tagMatchers.put(DJM_ENABLED, any());
     tagMatchers.put(PARENT_ID, any());
-    tagMatchers.put(SPAN_LINKS, any()); // this is checked by LinksAsserter
+    // this is checked by LinksAsserter
+    tagMatchers.put(SPAN_LINKS, any());
     tagMatchers.put(DD_INTEGRATION, any());
     tagMatchers.put(TRACER_HOST, any());
 
@@ -66,7 +66,6 @@ public final class TagsMatcher {
     // TODO Dev notes:
     // - it seems there is way too many logic there
     // - need to check if its related to tracing only
-
     return new TagsMatcher(tagMatchers);
   }
 
@@ -140,8 +139,10 @@ public final class TagsMatcher {
     }
     try {
       // also accept type names which are subclasses of the given error type
-      return errorType.isAssignableFrom(
-          Class.forName(actual, false, TagsMatcher.class.getClassLoader()));
+      return errorType.isAssignableFrom(Class.forName(
+          actual,
+          false,
+          TagsMatcher.class.getClassLoader()));
     } catch (Throwable ignore) {
       return false;
     }

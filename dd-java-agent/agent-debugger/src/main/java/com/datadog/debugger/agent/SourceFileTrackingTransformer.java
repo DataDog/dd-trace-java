@@ -2,7 +2,6 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.util.ClassFileHelper.removeExtension;
 import static com.datadog.debugger.util.ClassFileHelper.stripPackagePath;
-
 import com.datadog.debugger.util.ClassFileHelper;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
@@ -26,7 +25,6 @@ import org.slf4j.LoggerFactory;
 public class SourceFileTrackingTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(SourceFileTrackingTransformer.class);
   static final int MAX_QUEUE_SIZE = 16 * 1024;
-
   private final ClassesToRetransformFinder finder;
   private final Queue<SourceFileItem> queue = new ConcurrentLinkedQueue<>();
   private final AgentTaskScheduler scheduler = AgentTaskScheduler.get();
@@ -83,8 +81,7 @@ public class SourceFileTrackingTransformer implements ClassFileTransformer {
       String className,
       Class<?> classBeingRedefined,
       ProtectionDomain protectionDomain,
-      byte[] classfileBuffer)
-      throws IllegalClassFormatException {
+      byte[] classfileBuffer) throws IllegalClassFormatException {
     if (className == null) {
       return null;
     }

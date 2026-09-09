@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.opentracing32;
 import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromSpanContext;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -25,7 +24,6 @@ import org.slf4j.LoggerFactory;
 public class OTTracer implements Tracer {
   private static final String INSTRUMENTATION_NAME = "opentracing";
   private static final Logger log = LoggerFactory.getLogger(OTTracer.class);
-
   private final TypeConverter converter = new TypeConverter(new DefaultLogHandler());
   private final AgentTracer.TracerAPI tracer;
   private final ScopeManager scopeManager;
@@ -73,9 +71,9 @@ public class OTTracer implements Tracer {
   @Override
   public <C> SpanContext extract(final Format<C> format, final C carrier) {
     if (carrier instanceof TextMapExtract) {
-      final AgentSpanContext tagContext =
-          extractContextAndGetSpanContext(
-              (TextMapExtract) carrier, ContextVisitors.stringValuesEntrySet());
+      final AgentSpanContext tagContext = extractContextAndGetSpanContext(
+          (TextMapExtract) carrier,
+          ContextVisitors.stringValuesEntrySet());
 
       return converter.toSpanContext(tagContext);
     } else {
@@ -86,7 +84,8 @@ public class OTTracer implements Tracer {
 
   @Override
   public void close() {
-    tracer.flush(); // keep wrapped tracer open
+    // keep wrapped tracer open
+    tracer.flush();
   }
 
   public class OTSpanBuilder implements Tracer.SpanBuilder {
@@ -112,7 +111,8 @@ public class OTTracer implements Tracer {
 
     @Override
     public Tracer.SpanBuilder addReference(
-        final String referenceType, final SpanContext referencedContext) {
+        final String referenceType,
+        final SpanContext referencedContext) {
       if (referencedContext == null) {
         return this;
       }

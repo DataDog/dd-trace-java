@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch2;
 
 import static datadog.trace.instrumentation.elasticsearch.ElasticsearchTransportClientDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.elasticsearch.action.ActionListener;
@@ -16,12 +15,13 @@ import org.elasticsearch.action.support.broadcast.BroadcastResponse;
 import org.elasticsearch.action.support.nodes.BaseNodesResponse;
 
 public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
-
   private final ActionListener<T> listener;
   private final AgentSpan span;
 
   public TransportActionListener(
-      final ActionRequest actionRequest, final ActionListener<T> listener, final AgentSpan span) {
+      final ActionRequest actionRequest,
+      final ActionListener<T> listener,
+      final AgentSpan span) {
     this.listener = listener;
     this.span = span;
     onRequest(actionRequest);

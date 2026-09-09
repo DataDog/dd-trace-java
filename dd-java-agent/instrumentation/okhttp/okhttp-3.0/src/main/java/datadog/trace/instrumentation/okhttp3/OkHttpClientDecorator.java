@@ -11,9 +11,7 @@ import okhttp3.Response;
 public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response> {
   public static final CharSequence OKHTTP = UTF8BytesString.create("okhttp");
   public static final OkHttpClientDecorator DECORATE = new OkHttpClientDecorator();
-
-  public static final CharSequence OKHTTP_REQUEST =
-      UTF8BytesString.create(DECORATE.operationName());
+  public static final CharSequence OKHTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -60,7 +58,9 @@ public class OkHttpClientDecorator extends HttpClientDecorator<Request, Response
     return response.header(headerName);
   }
 
-  /** Overridden by {@link AppSecInterceptor} */
+  /**
+   * Overridden by {@link AppSecInterceptor}
+   */
   @Override
   protected void onHttpClientRequest(AgentSpan span, String url) {
     // do nothing

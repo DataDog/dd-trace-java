@@ -1,7 +1,6 @@
 package com.datadog.debugger.exception;
 
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
-
 import datadog.trace.bootstrap.debugger.DebuggerContext.ClassNameFilter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -9,7 +8,9 @@ import java.security.NoSuchAlgorithmException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Computes a fingerprint of an exception based on its stacktrace and exception type. */
+/**
+ * Computes a fingerprint of an exception based on its stacktrace and exception type.
+ */
 public class Fingerprinter {
   private static final Logger LOGGER = LoggerFactory.getLogger(Fingerprinter.class);
 
@@ -65,7 +66,6 @@ public class Fingerprinter {
     return result.toString();
   }
 }
-
 /*
  Micro benchmark results:
   jdk8 arm64:

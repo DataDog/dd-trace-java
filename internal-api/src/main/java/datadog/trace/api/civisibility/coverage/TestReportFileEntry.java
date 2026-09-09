@@ -5,7 +5,8 @@ import javax.annotation.Nullable;
 
 public class TestReportFileEntry {
   private final String sourceFileName;
-  private final @Nullable BitSet coveredLines;
+  @Nullable
+  private final BitSet coveredLines;
 
   public TestReportFileEntry(String sourceFileName, @Nullable BitSet coveredLines) {
     this.sourceFileName = sourceFileName;

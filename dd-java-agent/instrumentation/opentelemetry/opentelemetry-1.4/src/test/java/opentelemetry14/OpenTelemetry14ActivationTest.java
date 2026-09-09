@@ -1,7 +1,6 @@
 package opentelemetry14;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.test.junit.utils.config.WithConfig;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -13,7 +12,6 @@ import org.junit.jupiter.api.Test;
 // Explicitly clear the instrumentation activation from AbstractOpenTelemetry14Test
 @WithConfig(key = "integration.opentelemetry.experimental.enabled", value = "")
 abstract class OpenTelemetry14ActivationTest extends AbstractOpenTelemetry14Test {
-
   abstract boolean shouldBeInjected();
 
   @Test
@@ -43,7 +41,6 @@ abstract class OpenTelemetry14ActivationTest extends AbstractOpenTelemetry14Test
 }
 
 // Forked test variants: each runs in its own JVM to allow GlobalOpenTelemetry static state to reset
-
 @WithConfig(key = "integration.opentelemetry.experimental.enabled", value = "true")
 class OpenTelemetry14ActivationByInstrumentationNameForkedTest
     extends OpenTelemetry14ActivationTest {

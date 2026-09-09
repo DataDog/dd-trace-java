@@ -12,7 +12,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -62,15 +61,15 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 @AutoService(InstrumenterModule.class)
 public final class VirtualThreadInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
-
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   // Preload classes used by Context.swap() to avoid class loading on the virtual thread mount path.
   // DatadogClassLoader loads these from a JarFile using synchronized I/O, which pins
   // virtual thread carrier threads and can deadlock the application.
   private static final String[] PRELOAD_CLASS_NAMES = {
-    "datadog.trace.core.scopemanager.ScopeContext", "datadog.trace.core.scopemanager.ScopeStack"
+      "datadog.trace.core.scopemanager.ScopeContext",
+      "datadog.trace.core.scopemanager.ScopeStack"
   };
 
   public VirtualThreadInstrumentation() {
@@ -121,7 +120,8 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     public static void afterInit(@Advice.This Object virtualThread) {
       Context context = current();
       if (context == root()) {
-        return; // No active context to propagate, avoid creating state
+        // No active context to propagate, avoid creating state
+        return;
       }
       VirtualThreadState state = new VirtualThreadState(context, captureActiveSpan());
       ContextStore<Object, Object> store =

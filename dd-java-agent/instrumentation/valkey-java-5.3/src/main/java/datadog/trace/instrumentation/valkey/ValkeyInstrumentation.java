@@ -7,7 +7,6 @@ import static io.valkey.ValkeyClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,8 +21,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class ValkeyInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ValkeyInstrumentation() {
     super("valkey");
   }
@@ -35,23 +34,20 @@ public final class ValkeyInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      "io.valkey.ValkeyClientDecorator",
-    };
+    return new String[] {"io.valkey.ValkeyClientDecorator"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("executeCommand"))
-            .and(takesArgument(0, named("io.valkey.CommandObject"))),
+          .and(isPublic())
+          .and(named("executeCommand"))
+          .and(takesArgument(0, named("io.valkey.CommandObject"))),
         ValkeyInstrumentation.class.getName() + "$ValkeyAdvice");
   }
 
   public static class ValkeyAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
         @Advice.Argument(0) final CommandObject<?> commandObject,
@@ -72,7 +68,8 @@ public final class ValkeyInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       DECORATE.onError(scope.span(), throwable);
       DECORATE.beforeFinish(scope.span());
       scope.close();

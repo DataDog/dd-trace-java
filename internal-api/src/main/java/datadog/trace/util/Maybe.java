@@ -35,7 +35,8 @@ import javax.annotation.Nullable;
  * stronger failure mode than the one demonstrated here.
  */
 public final class Maybe<T> {
-  @Nullable private final T value;
+  @Nullable
+  private final T value;
 
   private Maybe(@Nullable T value) {
     this.value = value;

@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.aws.v2.AwsSdkClientDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.context.propagation.Propagators;
@@ -34,15 +33,14 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.http.SdkHttpRequest;
 
-/** AWS request execution interceptor */
+/**
+ * AWS request execution interceptor
+ */
 public class TracingExecutionInterceptor implements ExecutionInterceptor {
-
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
-
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore
+    .of(ExecutionAttribute.class)
+    .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
   private static final Logger log = LoggerFactory.getLogger(TracingExecutionInterceptor.class);
-
   private final ContextStore<Object, String> responseQueueStore;
 
   public TracingExecutionInterceptor(ContextStore<Object, String> responseQueueStore) {
@@ -51,9 +49,11 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   @Override
   public void beforeExecution(
-      final BeforeExecution context, final ExecutionAttributes executionAttributes) {
+      final BeforeExecution context,
+      final ExecutionAttributes executionAttributes) {
     if (!AWS_LEGACY_TRACING && isPollingRequest(context.request())) {
-      return; // SQS messages spans are created by aws-java-sqs-2.0
+      // SQS messages spans are created by aws-java-sqs-2.0
+      return;
     }
 
     final AgentSpan span =
@@ -65,21 +65,26 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   @Override
   public void afterMarshalling(
-      final AfterMarshalling context, final ExecutionAttributes executionAttributes) {
+      final AfterMarshalling context,
+      final ExecutionAttributes executionAttributes) {
     final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     final AgentSpan span = fromContext(ddContext);
     if (context != null && span != null) {
       try (ContextScope ignored = activateSpan(span)) {
         DECORATE.onRequest(span, context.httpRequest());
         DECORATE.onSdkRequest(
-            ddContext, context.request(), context.httpRequest(), executionAttributes);
+            ddContext,
+            context.request(),
+            context.httpRequest(),
+            executionAttributes);
       }
     }
   }
 
   @Override
   public SdkHttpRequest modifyHttpRequest(
-      ModifyHttpRequest context, ExecutionAttributes executionAttributes) {
+      ModifyHttpRequest context,
+      ExecutionAttributes executionAttributes) {
     if (Config.get().isAwsPropagationEnabled()) {
       try {
         final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
@@ -97,7 +102,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   @Override
   public void beforeTransmission(
-      final BeforeTransmission context, final ExecutionAttributes executionAttributes) {
+      final BeforeTransmission context,
+      final ExecutionAttributes executionAttributes) {
     final AgentSpan span;
     if (!AWS_LEGACY_TRACING) {
       span = blackholeSpan();
@@ -114,23 +120,27 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   @Override
   public SdkResponse modifyResponse(
-      final ModifyResponse context, final ExecutionAttributes executionAttributes) {
+      final ModifyResponse context,
+      final ExecutionAttributes executionAttributes) {
     final SdkResponse response = context.response();
-    if (!AWS_LEGACY_TRACING && isPollingRequest(context.request()) && isPollingResponse(response)) {
+    if (!AWS_LEGACY_TRACING
+        && isPollingRequest(context.request())
+        && isPollingResponse(response)) {
       // Attach queueUrl before AWS SDK core rebuilds the response with
       // toBuilder().sdkHttpResponse(...).build(). afterExecution sees this pre-rebuild response,
       // not the final response returned to user code, so capturing queueUrl there is too late.
       context
-          .request()
-          .getValueForField("QueueUrl", String.class)
-          .ifPresent(queueUrl -> responseQueueStore.put(response, queueUrl));
+        .request()
+        .getValueForField("QueueUrl", String.class)
+        .ifPresent(queueUrl -> responseQueueStore.put(response, queueUrl));
     }
     return response;
   }
 
   @Override
   public void afterExecution(
-      final AfterExecution context, final ExecutionAttributes executionAttributes) {
+      final AfterExecution context,
+      final ExecutionAttributes executionAttributes) {
     final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     final AgentSpan span = fromContext(ddContext);
     if (span != null) {
@@ -145,7 +155,8 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
 
   @Override
   public void onExecutionFailure(
-      final FailedExecution context, final ExecutionAttributes executionAttributes) {
+      final FailedExecution context,
+      final ExecutionAttributes executionAttributes) {
     final Context ddContext = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
     final AgentSpan span = fromContext(ddContext);
     if (ddContext != null && span != null) {
@@ -153,8 +164,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       Optional<SdkResponse> responseOpt = context.response();
       if (responseOpt.isPresent()) {
         SdkResponse response = responseOpt.get();
-        DECORATE.onSdkResponse(
-            ddContext, response, response.sdkHttpResponse(), executionAttributes);
+        DECORATE.onSdkResponse(ddContext, response, response.sdkHttpResponse(), executionAttributes);
         DECORATE.onResponse(span, response.sdkHttpResponse());
         if (span.isError()) {
           DECORATE.onError(span, context.exception());
@@ -170,13 +180,13 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
   private static boolean isPollingRequest(SdkRequest request) {
     return null != request
         && "software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest"
-            .equals(request.getClass().getName());
+          .equals(request.getClass().getName());
   }
 
   private static boolean isPollingResponse(SdkResponse response) {
     return null != response
         && "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse"
-            .equals(response.getClass().getName());
+          .equals(response.getClass().getName());
   }
 
   public static void muzzleCheck() {

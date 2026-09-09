@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,8 +19,8 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit4SuiteEventsInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JUnit4SuiteEventsInstrumentation() {
     super("ci-visibility", "junit-4");
   }
@@ -39,11 +38,11 @@ public class JUnit4SuiteEventsInstrumentation extends InstrumenterModule.CiVisib
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".SkippedByDatadog",
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".JUnit4TracingListener",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".SkippedByDatadog",
+        packageName + ".JUnit4Utils",
+        packageName + ".TracingListener",
+        packageName + ".JUnit4TracingListener"
     };
   }
 
@@ -51,11 +50,11 @@ public class JUnit4SuiteEventsInstrumentation extends InstrumenterModule.CiVisib
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("run")
-            .and(
-                takesArgument(
-                    0,
-                    named("org.junit.runner.notification.RunNotifier")
-                        .and(not(declaresMethod(named("fireTestSuiteStarted")))))),
+          .and(
+              takesArgument(
+                  0,
+                  named("org.junit.runner.notification.RunNotifier")
+                    .and(not(declaresMethod(named("fireTestSuiteStarted")))))),
         JUnit4SuiteEventsInstrumentation.class.getName() + "$JUnit4SuiteEventsAdvice");
   }
 

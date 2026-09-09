@@ -12,7 +12,6 @@ import static datadog.trace.instrumentation.servlet.http.HttpServletDecorator.DE
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -25,7 +24,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class HttpServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public HttpServletInstrumentation() {
     super("servlet-service");
   }
@@ -48,7 +48,8 @@ public final class HttpServletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet.SpanNameCache", packageName + ".HttpServletDecorator",
+        "datadog.trace.instrumentation.servlet.SpanNameCache",
+        packageName + ".HttpServletDecorator"
     };
   }
 
@@ -60,29 +61,26 @@ public final class HttpServletInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("service")
-            .or(nameStartsWith("do")) // doGet, doPost, etc
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
-            .and(isProtected().or(isPublic())),
+          // doGet, doPost, etc
+          .or(nameStartsWith("do"))
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.http.HttpServletResponse")))
+          .and(isProtected().or(isPublic())),
         getClass().getName() + "$HttpServletAdvice");
   }
 
   public static class HttpServletAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(@Advice.Origin final Method method) {
-
       if (activeSpan() == null) {
         // Don't want to generate a new top-level span
         return null;
       }
 
-      final AgentSpan span =
-          startSpan(
-              HttpServletDecorator.JAVA_WEB_SERVLET_SERVICE.toString(),
-              SPAN_NAME_CACHE.computeIfAbsent(method.getName(), SERVLET_PREFIX));
+      final AgentSpan span = startSpan(
+          HttpServletDecorator.JAVA_WEB_SERVLET_SERVICE.toString(),
+          SPAN_NAME_CACHE.computeIfAbsent(method.getName(), SERVLET_PREFIX));
       DECORATE.afterStart(span);
-
       // Here we use the Method instead of "this.class.name" to distinguish calls to "super".
       span.setResourceName(DECORATE.spanNameForMethod(method));
 
@@ -91,7 +89,8 @@ public final class HttpServletInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }

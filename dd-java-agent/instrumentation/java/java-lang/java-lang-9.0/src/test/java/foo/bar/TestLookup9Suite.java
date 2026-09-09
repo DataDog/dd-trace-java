@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestLookup9Suite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestLookup9Suite.class);
   private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
@@ -22,7 +21,9 @@ public class TestLookup9Suite {
   }
 
   public static void findStaticVarHandle(
-      final Class<?> clazz, final String field, final Class<?> fieldType) {
+      final Class<?> clazz,
+      final String field,
+      final Class<?> fieldType) {
     LOGGER.debug("Before findStaticVarHandle");
     final VarHandle result;
     try {
@@ -34,7 +35,9 @@ public class TestLookup9Suite {
   }
 
   public static void findVarHandle(
-      final Class<?> clazz, final String field, final Class<?> fieldType) {
+      final Class<?> clazz,
+      final String field,
+      final Class<?> fieldType) {
     LOGGER.debug("Before findVarHandle");
     final VarHandle result;
     try {

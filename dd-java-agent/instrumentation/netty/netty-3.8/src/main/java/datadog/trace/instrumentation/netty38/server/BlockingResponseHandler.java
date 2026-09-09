@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty38.server;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.setContentLength;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.internal.TraceSegment;
@@ -28,10 +27,8 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
   private final BlockingContentType bct;
   private final Map<String, String> extraHeaders;
   private final String securityResponseId;
-
   private static final Logger log = LoggerFactory.getLogger(BlockingResponseHandler.class);
   private static volatile boolean HAS_WARNED;
-
   private boolean hasBlockedAlready;
 
   public BlockingResponseHandler(
@@ -67,7 +64,6 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
       ctx.sendUpstream(e);
       return;
     }
-
     // the usual disposition of the pipeline is:
     // ...
     // (1) BlockingResponseHandler (upstream, this handler)
@@ -81,17 +77,17 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
     // tries to write after we've written the blocking response
     ChannelHandlerContext ctxForDownstream = null;
     try {
-      ctx.getPipeline()
-          .addAfter(
-              MaybeBlockResponseHandler.class.getName(),
-              "block_all_writes",
-              BlockAllWritesHandler.INSTANCE);
+      ctx
+        .getPipeline()
+        .addAfter(
+            MaybeBlockResponseHandler.class.getName(),
+            "block_all_writes",
+            BlockAllWritesHandler.INSTANCE);
       // write will start AFTER the referenced handler. It will start in (2)
       ctxForDownstream = ctx.getPipeline().getContext(MaybeBlockResponseHandler.class.getName());
     } catch (NoSuchElementException nse) {
       if (HAS_WARNED) {
-        log.debug(
-            "Unable to block because MaybeBlockResponseHandler was not found on the pipeline");
+        log.debug("Unable to block because MaybeBlockResponseHandler was not found on the pipeline");
       } else {
         log.warn("Unable to block because MaybeBlockResponseHandler was not found on the pipeline");
         HAS_WARNED = true;
@@ -135,16 +131,15 @@ public class BlockingResponseHandler extends SimpleChannelUpstreamHandler {
     segment.effectivelyBlocked();
 
     ChannelFuture future = Channels.future(ctx.getChannel());
-    future.addListener(
-        fut -> {
-          if (!fut.isSuccess()) {
-            log.warn("Write of blocking response failed", fut.getCause());
-          }
-          // close the connection because it can be in an invalid state at this point
-          // For instance, in a POST request we will still be receiving data from the
-          // client
-          fut.getChannel().close();
-        });
+    future.addListener(fut -> {
+      if (!fut.isSuccess()) {
+        log.warn("Write of blocking response failed", fut.getCause());
+      }
+      // close the connection because it can be in an invalid state at this point
+      // For instance, in a POST request we will still be receiving data from the
+      // client
+      fut.getChannel().close();
+    });
     Channels.write(ctxForDownstream, future, response);
   }
 }

@@ -3,12 +3,12 @@ package datadog.trace.util;
 import static datadog.trace.util.Strings.regionContains;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
-/** Boundary semantics of {@link Strings#regionContains(String, int, int, String)}. */
+/**
+ * Boundary semantics of {@link Strings#regionContains(String, int, int, String)}.
+ */
 class StringsRegionContainsTest {
-
   // "abXYZcd": a0 b1 X2 Y3 Z4 c5 d6  -> "XYZ" spans [2,5).
   private static final String S = "abXYZcd";
 

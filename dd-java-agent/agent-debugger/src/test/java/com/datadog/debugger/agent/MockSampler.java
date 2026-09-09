@@ -3,7 +3,6 @@ package com.datadog.debugger.agent;
 import datadog.trace.api.sampling.Sampler;
 
 public class MockSampler implements Sampler {
-
   private int callCount;
 
   @Override

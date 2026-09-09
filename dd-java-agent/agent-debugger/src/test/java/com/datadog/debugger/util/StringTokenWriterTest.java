@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_LENGTH;
 import static datadog.trace.bootstrap.debugger.Limits.DEFAULT_REFERENCE_DEPTH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
@@ -22,7 +21,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
 class StringTokenWriterTest {
-
   private static final Limits DEPTH_0 =
       new Limits(0, DEFAULT_COLLECTION_SIZE, DEFAULT_LENGTH, DEFAULT_FIELD_COUNT);
   private static final Limits DEPTH_1 =
@@ -33,7 +31,9 @@ class StringTokenWriterTest {
     assertEquals("null", serializeValue(null, DEPTH_0));
     assertEquals("...", serializeValue(new Object(), DEPTH_0));
     assertEquals(
-        "foo", serializeValue("foo", DEPTH_0)); // String treated as primitive, no field extraction
+        // String treated as primitive, no field extraction
+        "foo",
+        serializeValue("foo", DEPTH_0));
   }
 
   @Test
@@ -106,7 +106,8 @@ class StringTokenWriterTest {
 
   @Test
   public void collectionUnknown() throws Exception {
-    class MyArrayList<T> extends ArrayList<T> {}
+    class MyArrayList<T> extends ArrayList<T> {
+    }
     String str = serializeValue(new MyArrayList<>(), DEPTH_1);
     assertTrue(str.contains("elementData="));
     assertTrue(str.contains("size="));
@@ -172,12 +173,13 @@ class StringTokenWriterTest {
 
   private String serializeValue(Object value, Limits limits) throws Exception {
     StringBuilder sb = new StringBuilder();
-    SerializerWithLimits serializer =
-        new SerializerWithLimits(
-            new StringTokenWriter(sb, new ArrayList<>()),
-            TimeoutChecker.create(Config.get(), Duration.ofSeconds(300)));
+    SerializerWithLimits serializer = new SerializerWithLimits(
+        new StringTokenWriter(sb, new ArrayList<>()),
+        TimeoutChecker.create(Config.get(), Duration.ofSeconds(300)));
     serializer.serialize(
-        value, value != null ? value.getClass().getTypeName() : Object.class.getTypeName(), limits);
+        value,
+        value != null ? value.getClass().getTypeName() : Object.class.getTypeName(),
+        limits);
     return sb.toString();
   }
 }

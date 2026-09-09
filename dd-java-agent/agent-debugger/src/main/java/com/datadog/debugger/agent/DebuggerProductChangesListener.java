@@ -6,7 +6,6 @@ import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserialize
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanDecorationProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeTriggerProbe;
-
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
@@ -31,14 +30,10 @@ public class DebuggerProductChangesListener implements ProductListener {
   public static final String SPAN_PROBE_PREFIX = "spanProbe_";
   public static final String TRIGGER_PROBE_PREFIX = "triggerProbe_";
   public static final String SPAN_DECORATION_PROBE_PREFIX = "spanDecorationProbe_";
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(DebuggerProductChangesListener.class);
-
-  private static final Predicate<String> IS_UUID =
-      Pattern.compile(
-              "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
-          .asPredicate();
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerProductChangesListener.class);
+  private static final Predicate<String> IS_UUID = Pattern
+    .compile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+    .asPredicate();
   private final ConfigurationAcceptor configurationAcceptor;
   private final Map<String, ProbeDefinition> probeByConfigId = new HashMap<>();
 

@@ -62,9 +62,11 @@ public class AkkaBlockResponseFunction implements BlockResponseFunction {
       return false;
     }
     if (rba == null) {
-      rba =
-          new Flow.Action.RequestBlockingAction(
-              statusCode, templateType, extraHeaders, securityResponseId);
+      rba = new Flow.Action.RequestBlockingAction(
+          statusCode,
+          templateType,
+          extraHeaders,
+          securityResponseId);
       this.traceSegment = segment;
     }
     return true;

@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.function.BiFunction;
 
 public class FileUploadHelper {
-
   public static BlockingException commitBlockingResponse(
       BiFunction<RequestContext, List<String>, Flow<Void>> cb,
       RequestContext reqCtx,
@@ -23,7 +22,8 @@ public class FileUploadHelper {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
         brf.tryCommitBlockingResponse(
-            reqCtx.getTraceSegment(), (Flow.Action.RequestBlockingAction) action);
+            reqCtx.getTraceSegment(),
+            (Flow.Action.RequestBlockingAction) action);
         return new BlockingException(reason);
       }
     }
@@ -37,10 +37,9 @@ public class FileUploadHelper {
         return "";
       }
       String charSet = upload.charSet();
-      String contentType =
-          charSet != null && !charSet.isEmpty()
-              ? upload.contentType() + "; charset=" + charSet
-              : upload.contentType();
+      String contentType = charSet != null && !charSet.isEmpty()
+          ? upload.contentType() + "; charset=" + charSet
+          : upload.contentType();
       try (FileInputStream fis = new FileInputStream(path)) {
         return MultipartContentDecoder.readInputStream(fis, maxBytes, contentType);
       }

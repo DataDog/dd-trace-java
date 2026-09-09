@@ -9,7 +9,9 @@ import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Collects telemetry about OpenTelemetry SPIs detected in the customer environment. */
+/**
+ * Collects telemetry about OpenTelemetry SPIs detected in the customer environment.
+ */
 public class OtelSpiCollector implements MetricCollector<OtelSpiCollector.OtelSpiMetric> {
   private static final Logger log = LoggerFactory.getLogger(OtelSpiCollector.class);
   private static final String OTEL_SPI_DETECTED_METRIC_NAME = "otel.spi.detected";
@@ -17,7 +19,6 @@ public class OtelSpiCollector implements MetricCollector<OtelSpiCollector.OtelSp
   private static final String SOURCE_TAG = "source:";
   private static final String NAMESPACE = "tracers";
   private static final OtelSpiCollector INSTANCE = new OtelSpiCollector();
-
   private final BlockingQueue<OtelSpiMetric> metricsQueue;
 
   private OtelSpiCollector() {

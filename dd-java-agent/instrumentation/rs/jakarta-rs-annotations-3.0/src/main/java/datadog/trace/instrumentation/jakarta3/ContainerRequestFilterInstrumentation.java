@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,8 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public ContainerRequestFilterInstrumentation() {
     super("jakarta-rs", "jakartars", "jakarta-rs-filter");
   }
@@ -41,9 +40,9 @@ public class ContainerRequestFilterInstrumentation extends InstrumenterModule.Tr
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("filter"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("jakarta.ws.rs.container.ContainerRequestContext"))),
+          .and(named("filter"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("jakarta.ws.rs.container.ContainerRequestContext"))),
         ContainerRequestFilterInstrumentation.class.getName() + "$RequestFilterAdvice");
   }
 

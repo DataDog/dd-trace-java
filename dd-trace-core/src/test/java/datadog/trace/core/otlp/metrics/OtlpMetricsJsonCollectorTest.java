@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_AT
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.json.JsonMapper;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -34,7 +33,6 @@ import org.junit.jupiter.api.Test;
  * temporality, decimal-string timestamps/counts, and the overflow-bucket handling for histograms.
  */
 class OtlpMetricsJsonCollectorTest {
-
   private static final long START_EPOCH_NS = TimeUnit.SECONDS.toNanos(1330837567);
   private static final long END_EPOCH_NS = START_EPOCH_NS + TimeUnit.MINUTES.toNanos(30);
 
@@ -50,13 +48,12 @@ class OtlpMetricsJsonCollectorTest {
     OtelInstrumentDescriptor descriptor =
         new OtelInstrumentDescriptor("unused", COUNTER, true, null, null);
 
-    OtlpPayload payload =
-        collect(
-            visitor -> {
-              OtlpScopedMetricsVisitor scoped =
-                  visitor.visitScopedMetrics(new OtelInstrumentationScope("io.test", null, null));
-              scoped.visitMetric(descriptor); // never visited with an attribute or data point
-            });
+    OtlpPayload payload = collect(visitor -> {
+      OtlpScopedMetricsVisitor scoped =
+          visitor.visitScopedMetrics(new OtelInstrumentationScope("io.test", null, null));
+      // never visited with an attribute or data point
+      scoped.visitMetric(descriptor);
+    });
 
     assertEquals(OtlpPayload.EMPTY, payload);
   }
@@ -66,20 +63,18 @@ class OtlpMetricsJsonCollectorTest {
     OtelInstrumentDescriptor emptyDescriptor =
         new OtelInstrumentDescriptor("unused", COUNTER, true, null, null);
 
-    OtlpPayload payload =
-        collect(
-            visitor -> {
-              OtlpScopedMetricsVisitor emptyScope =
-                  visitor.visitScopedMetrics(new OtelInstrumentationScope("io.empty", null, null));
-              emptyScope.visitMetric(emptyDescriptor); // never visited with a data point
+    OtlpPayload payload = collect(visitor -> {
+      OtlpScopedMetricsVisitor emptyScope =
+          visitor.visitScopedMetrics(new OtelInstrumentationScope("io.empty", null, null));
+      // never visited with a data point
+      emptyScope.visitMetric(emptyDescriptor);
 
-              OtlpScopedMetricsVisitor dataScope =
-                  visitor.visitScopedMetrics(new OtelInstrumentationScope("io.data", null, null));
-              OtlpMetricVisitor mv =
-                  dataScope.visitMetric(
-                      new OtelInstrumentDescriptor("requests", COUNTER, true, null, null));
-              mv.visitDataPoint(new OtlpLongPoint(1L));
-            });
+      OtlpScopedMetricsVisitor dataScope =
+          visitor.visitScopedMetrics(new OtelInstrumentationScope("io.data", null, null));
+      OtlpMetricVisitor mv =
+          dataScope.visitMetric(new OtelInstrumentDescriptor("requests", COUNTER, true, null, null));
+      mv.visitDataPoint(new OtlpLongPoint(1L));
+    });
 
     List<Object> scopeMetrics = onlyScopeMetrics(payload);
     assertEquals(1, scopeMetrics.size(), "the empty scope must not appear in the payload");
@@ -91,18 +86,13 @@ class OtlpMetricsJsonCollectorTest {
 
   @Test
   void gaugeHasNoStartTimeOrTemporality() throws IOException {
-    Map<String, Object> metric =
-        onlyMetric(
-            collect(
-                visitor -> {
-                  OtlpScopedMetricsVisitor scoped =
-                      visitor.visitScopedMetrics(
-                          new OtelInstrumentationScope("io.gauge", null, null));
-                  OtlpMetricVisitor mv =
-                      scoped.visitMetric(
-                          new OtelInstrumentDescriptor("connections", GAUGE, false, null, null));
-                  mv.visitDataPoint(new OtlpDoublePoint(5.0));
-                }));
+    Map<String, Object> metric = onlyMetric(collect(visitor -> {
+      OtlpScopedMetricsVisitor scoped =
+          visitor.visitScopedMetrics(new OtelInstrumentationScope("io.gauge", null, null));
+      OtlpMetricVisitor mv =
+          scoped.visitMetric(new OtelInstrumentDescriptor("connections", GAUGE, false, null, null));
+      mv.visitDataPoint(new OtlpDoublePoint(5.0));
+    }));
 
     assertEquals("connections", metric.get("name"));
     Map<String, Object> gauge = (Map<String, Object>) metric.get("gauge");
@@ -116,19 +106,14 @@ class OtlpMetricsJsonCollectorTest {
 
   @Test
   void counterIsMonotonicSumWithIntegerTemporalityAndDecimalStringValue() throws IOException {
-    Map<String, Object> metric =
-        onlyMetric(
-            collect(
-                visitor -> {
-                  OtlpScopedMetricsVisitor scoped =
-                      visitor.visitScopedMetrics(
-                          new OtelInstrumentationScope("io.test", null, null));
-                  OtlpMetricVisitor mv =
-                      scoped.visitMetric(
-                          new OtelInstrumentDescriptor("requests", COUNTER, true, null, null));
-                  mv.visitAttribute(STRING_ATTRIBUTE, "method", "GET");
-                  mv.visitDataPoint(new OtlpLongPoint(42L));
-                }));
+    Map<String, Object> metric = onlyMetric(collect(visitor -> {
+      OtlpScopedMetricsVisitor scoped =
+          visitor.visitScopedMetrics(new OtelInstrumentationScope("io.test", null, null));
+      OtlpMetricVisitor mv =
+          scoped.visitMetric(new OtelInstrumentDescriptor("requests", COUNTER, true, null, null));
+      mv.visitAttribute(STRING_ATTRIBUTE, "method", "GET");
+      mv.visitDataPoint(new OtlpLongPoint(42L));
+    }));
 
     Map<String, Object> sum = (Map<String, Object>) metric.get("sum");
     assertTrue(((Number) sum.get("aggregationTemporality")).intValue() >= 1);
@@ -147,26 +132,21 @@ class OtlpMetricsJsonCollectorTest {
 
   @Test
   void histogramWithOverflowBoundaryOmitsInfinityAndAppendsNoExtraZero() throws IOException {
-    Map<String, Object> metric =
-        onlyMetric(
-            collect(
-                visitor -> {
-                  OtlpScopedMetricsVisitor scoped =
-                      visitor.visitScopedMetrics(
-                          new OtelInstrumentationScope("io.hist", null, null));
-                  OtlpMetricVisitor mv =
-                      scoped.visitMetric(
-                          new OtelInstrumentDescriptor(
-                              "request.size", HISTOGRAM, false, null, null));
-                  mv.visitDataPoint(
-                      new OtlpHistogramPoint(
-                          5.0,
-                          Arrays.asList(100.0, Double.POSITIVE_INFINITY),
-                          Arrays.asList(4.0, 1.0),
-                          280.0,
-                          20.0,
-                          200.0));
-                }));
+    Map<String, Object> metric = onlyMetric(collect(visitor -> {
+      OtlpScopedMetricsVisitor scoped =
+          visitor.visitScopedMetrics(new OtelInstrumentationScope("io.hist", null, null));
+      OtlpMetricVisitor mv =
+          scoped.visitMetric(
+              new OtelInstrumentDescriptor("request.size", HISTOGRAM, false, null, null));
+      mv.visitDataPoint(
+          new OtlpHistogramPoint(
+              5.0,
+              Arrays.asList(100.0, Double.POSITIVE_INFINITY),
+              Arrays.asList(4.0, 1.0),
+              280.0,
+              20.0,
+              200.0));
+    }));
 
     Map<String, Object> histogram = (Map<String, Object>) metric.get("histogram");
     List<Object> dataPoints = (List<Object>) histogram.get("dataPoints");
@@ -186,25 +166,21 @@ class OtlpMetricsJsonCollectorTest {
 
   @Test
   void histogramWithoutOverflowBoundaryAppendsExtraZeroCount() throws IOException {
-    Map<String, Object> metric =
-        onlyMetric(
-            collect(
-                visitor -> {
-                  OtlpScopedMetricsVisitor scoped =
-                      visitor.visitScopedMetrics(
-                          new OtelInstrumentationScope("io.hist", null, null));
-                  OtlpMetricVisitor mv =
-                      scoped.visitMetric(
-                          new OtelInstrumentDescriptor("queue.size", HISTOGRAM, false, null, null));
-                  mv.visitDataPoint(
-                      new OtlpHistogramPoint(
-                          8.0,
-                          Arrays.asList(50.0, 100.0),
-                          Arrays.asList(3.0, 5.0),
-                          750.0,
-                          10.0,
-                          95.0));
-                }));
+    Map<String, Object> metric = onlyMetric(collect(visitor -> {
+      OtlpScopedMetricsVisitor scoped =
+          visitor.visitScopedMetrics(new OtelInstrumentationScope("io.hist", null, null));
+      OtlpMetricVisitor mv =
+          scoped.visitMetric(
+              new OtelInstrumentDescriptor("queue.size", HISTOGRAM, false, null, null));
+      mv.visitDataPoint(
+          new OtlpHistogramPoint(
+              8.0,
+              Arrays.asList(50.0, 100.0),
+              Arrays.asList(3.0, 5.0),
+              750.0,
+              10.0,
+              95.0));
+    }));
 
     Map<String, Object> histogram = (Map<String, Object>) metric.get("histogram");
     Map<String, Object> point =
@@ -218,12 +194,13 @@ class OtlpMetricsJsonCollectorTest {
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
-
   private static OtlpPayload collect(Consumer<OtlpMetricsVisitor> body) {
     ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(START_EPOCH_NS); // captured in constructor
+    // captured in constructor
+    timeSource.set(START_EPOCH_NS);
     OtlpMetricsJsonCollector collector = new OtlpMetricsJsonCollector(timeSource);
-    timeSource.set(END_EPOCH_NS); // captured during collection
+    // captured during collection
+    timeSource.set(END_EPOCH_NS);
     return collector.collectMetrics(body::accept);
   }
 

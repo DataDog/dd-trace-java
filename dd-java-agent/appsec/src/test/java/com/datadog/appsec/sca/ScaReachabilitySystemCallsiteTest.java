@@ -2,19 +2,17 @@ package com.datadog.appsec.sca;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import org.junit.jupiter.api.Test;
 
-/** Unit tests for {@link ScaReachabilitySystem#findCallsite(String, StackTraceElement[])}. */
+/**
+ * Unit tests for {@link ScaReachabilitySystem#findCallsite(String, StackTraceElement[])}.
+ */
 class ScaReachabilitySystemCallsiteTest {
-
   private static final String VULNERABLE_CLASS = "org.yaml.snakeyaml.Yaml";
 
   @Test
   void findCallsite_returnsNullWhenVulnerableClassIsNotInStack() {
-    StackTraceElement[] stack = {
-      frame("sca.test.TestController", "doSomething"),
-    };
+    StackTraceElement[] stack = {frame("sca.test.TestController", "doSomething")};
 
     assertNull(
         ScaReachabilitySystem.findCallsite("com.example.ClassNotOnStack", stack),
@@ -23,9 +21,8 @@ class ScaReachabilitySystemCallsiteTest {
 
   @Test
   void findCallsite_returnsDirectCallerWhenNoIntermediateLibrary() {
-    StackTraceElement[] stack = {
-      frame(VULNERABLE_CLASS, "load"), frame("sca.test.TestController", "yamlHitDirect"),
-    };
+    StackTraceElement[] stack =
+        {frame(VULNERABLE_CLASS, "load"), frame("sca.test.TestController", "yamlHitDirect")};
 
     StackTraceElement result = ScaReachabilitySystem.findCallsite(VULNERABLE_CLASS, stack);
 
@@ -36,9 +33,9 @@ class ScaReachabilitySystemCallsiteTest {
   @Test
   void findCallsite_skipsRepeatedVulnerableFrames() {
     StackTraceElement[] stack = {
-      frame(VULNERABLE_CLASS, "load"),
-      frame(VULNERABLE_CLASS, "loadAll"),
-      frame("sca.test.TestController", "yamlHitRecursive"),
+        frame(VULNERABLE_CLASS, "load"),
+        frame(VULNERABLE_CLASS, "loadAll"),
+        frame("sca.test.TestController", "yamlHitRecursive")
     };
 
     StackTraceElement result = ScaReachabilitySystem.findCallsite(VULNERABLE_CLASS, stack);
@@ -51,9 +48,9 @@ class ScaReachabilitySystemCallsiteTest {
   void findCallsite_skipsIntermediateLibraryFrameAndReturnsClientCode() {
     // com.google.* is excluded by the SCA trie (value >= 1)
     StackTraceElement[] stack = {
-      frame(VULNERABLE_CLASS, "load"),
-      frame("com.google.yaml.YamlWrapper", "load"),
-      frame("sca.test.TestController", "yamlHitTransitive"),
+        frame(VULNERABLE_CLASS, "load"),
+        frame("com.google.yaml.YamlWrapper", "load"),
+        frame("sca.test.TestController", "yamlHitTransitive")
     };
 
     StackTraceElement result = ScaReachabilitySystem.findCallsite(VULNERABLE_CLASS, stack);
@@ -68,10 +65,10 @@ class ScaReachabilitySystemCallsiteTest {
   @Test
   void findCallsite_skipsMultipleIntermediateLibraryFrames() {
     StackTraceElement[] stack = {
-      frame(VULNERABLE_CLASS, "load"),
-      frame("com.google.yaml.YamlWrapper", "load"),
-      frame("org.springframework.beans.factory.xml.XmlBeanFactory", "init"),
-      frame("sca.test.TestController", "yamlHitDeep"),
+        frame(VULNERABLE_CLASS, "load"),
+        frame("com.google.yaml.YamlWrapper", "load"),
+        frame("org.springframework.beans.factory.xml.XmlBeanFactory", "init"),
+        frame("sca.test.TestController", "yamlHitDeep")
     };
 
     StackTraceElement result = ScaReachabilitySystem.findCallsite(VULNERABLE_CLASS, stack);
@@ -83,9 +80,9 @@ class ScaReachabilitySystemCallsiteTest {
   @Test
   void findCallsite_returnsNullWhenOnlyLibraryFramesFollowVulnerableClass() {
     StackTraceElement[] stack = {
-      frame(VULNERABLE_CLASS, "load"),
-      frame("com.google.yaml.YamlWrapper", "load"),
-      frame("org.springframework.beans.factory.BeanFactory", "getBean"),
+        frame(VULNERABLE_CLASS, "load"),
+        frame("com.google.yaml.YamlWrapper", "load"),
+        frame("org.springframework.beans.factory.BeanFactory", "getBean")
     };
 
     assertNull(

@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin
 import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
@@ -13,7 +12,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class MethodHandlersInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private static final ElementMatcher<TypeDescription> METHOD_HANDLERS =
       nameEndsWith("$MethodHandlers");
 
@@ -35,7 +35,6 @@ public class MethodHandlersInstrumentation
   }
 
   public static class BuildAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(@Advice.Argument(0) Object serviceImpl) {
       try {

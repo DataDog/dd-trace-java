@@ -4,7 +4,6 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_M
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_ENCODED_BOTH;
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SESSION_ID;
-
 import datadog.trace.agent.test.base.HttpServerTest;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.AsyncEvent;
@@ -29,46 +28,41 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Enumeration;
 
-@WebServlet(
-    urlPatterns = {
-      "/async/success",
-      "/async/created",
-      "/async/created_input_stream",
-      "/async/body-urlencoded",
-      "/async/body-multipart",
-      "/async/body-json",
-      "/async/redirect",
-      "/async/forwarded",
-      "/async/error-status",
-      "/async/exception",
-      "/async/custom-exception",
-      "/async/not-here",
-      "/async/timeout",
-      "/async/timeout_error",
-      "/async/query",
-      "/async/encoded path query",
-      "/async/encoded_query",
-      "/async/user-block",
-      "/async/session",
-    },
-    asyncSupported = true)
-@MultipartConfig(
-    maxFileSize = 10 * 1024 * 1024,
-    maxRequestSize = 20 * 1024 * 1024,
-    fileSizeThreshold = 5 * 1024 * 1024)
+@WebServlet(urlPatterns = {
+    "/async/success",
+    "/async/created",
+    "/async/created_input_stream",
+    "/async/body-urlencoded",
+    "/async/body-multipart",
+    "/async/body-json",
+    "/async/redirect",
+    "/async/forwarded",
+    "/async/error-status",
+    "/async/exception",
+    "/async/custom-exception",
+    "/async/not-here",
+    "/async/timeout",
+    "/async/timeout_error",
+    "/async/query",
+    "/async/encoded path query",
+    "/async/encoded_query",
+    "/async/user-block",
+    "/async/session"
+}, asyncSupported = true)
+@MultipartConfig(maxFileSize = 10 * 1024 * 1024, maxRequestSize = 20 * 1024 * 1024, fileSizeThreshold = 5 * 1024 * 1024)
 public class AsyncServlet5 extends HttpServlet {
   datadog.trace.instrumentation.servlet5.TestServlet5 delegate;
 
   {
     try {
-      delegate =
-          new datadog.trace.instrumentation.servlet5.TestServlet5() {
-            @Override
-            public HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
-              return HttpServerTest.ServerEndpoint.forPath(
-                  req.getRequestURI().substring(req.getRequestURI().lastIndexOf('/')));
-            }
-          };
+      delegate = new datadog.trace.instrumentation.servlet5.TestServlet5() {
+        @Override
+        public HttpServerTest.ServerEndpoint determineEndpoint(HttpServletRequest req) {
+          return HttpServerTest.ServerEndpoint.forPath(req
+            .getRequestURI()
+            .substring(req.getRequestURI().lastIndexOf('/')));
+        }
+      };
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -76,7 +70,8 @@ public class AsyncServlet5 extends HttpServlet {
 
   @Override
   public void service(ServletRequest req, final ServletResponse res)
-      throws ServletException, IOException {
+      throws ServletException,
+      IOException {
     Object attribute = req.getAttribute("ddog.dispatched");
 
     if (attribute == null) {
@@ -100,39 +95,38 @@ public class AsyncServlet5 extends HttpServlet {
       PrintWriter writer = new PrintWriter(baos);
       HttpServletResponseWrapper wrappedRes =
           new HttpServletResponseWrapper((HttpServletResponse) res) {
-            @Override
-            public PrintWriter getWriter() throws IOException {
-              return writer;
-            }
-          };
+        @Override
+        public PrintWriter getWriter() throws IOException {
+          return writer;
+        }
+      };
 
       delegate.service(req, wrappedRes);
       writer.flush();
 
       AsyncContext asyncContext = req.startAsync();
       asyncContext.setTimeout(1000);
-      asyncContext.addListener(
-          new AsyncListener() {
-            @Override
-            public void onComplete(AsyncEvent event) throws IOException {
-              log("onComplete");
-            }
+      asyncContext.addListener(new AsyncListener() {
+        @Override
+        public void onComplete(AsyncEvent event) throws IOException {
+          log("onComplete");
+        }
 
-            @Override
-            public void onTimeout(AsyncEvent event) throws IOException {
-              log("onTimeout");
-            }
+        @Override
+        public void onTimeout(AsyncEvent event) throws IOException {
+          log("onTimeout");
+        }
 
-            @Override
-            public void onError(AsyncEvent event) throws IOException {
-              log("onError", event.getThrowable());
-            }
+        @Override
+        public void onError(AsyncEvent event) throws IOException {
+          log("onError", event.getThrowable());
+        }
 
-            @Override
-            public void onStartAsync(AsyncEvent event) throws IOException {
-              event.getAsyncContext().addListener(this);
-            }
-          });
+        @Override
+        public void onStartAsync(AsyncEvent event) throws IOException {
+          event.getAsyncContext().addListener(this);
+        }
+      });
 
       ServletOutputStream outputStream;
       try {
@@ -141,20 +135,19 @@ public class AsyncServlet5 extends HttpServlet {
         throw new RuntimeException(e);
       }
 
-      WriteListener listener =
-          new WriteListener() {
-            @Override
-            public void onWritePossible() throws IOException {
-              outputStream.write(baos.toByteArray());
-              asyncContext.complete();
-            }
+      WriteListener listener = new WriteListener() {
+        @Override
+        public void onWritePossible() throws IOException {
+          outputStream.write(baos.toByteArray());
+          asyncContext.complete();
+        }
 
-            @Override
-            public void onError(Throwable e) {
-              log("onError", e);
-              asyncContext.complete();
-            }
-          };
+        @Override
+        public void onError(Throwable e) {
+          log("onError", e);
+          asyncContext.complete();
+        }
+      };
 
       try {
         Method setWriteListener =

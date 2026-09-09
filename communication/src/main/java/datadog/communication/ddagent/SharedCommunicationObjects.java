@@ -2,7 +2,6 @@ package datadog.communication.ddagent;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import datadog.common.container.ContainerInfo;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.http.SocketUtils;
@@ -25,37 +24,28 @@ import org.slf4j.LoggerFactory;
 
 public class SharedCommunicationObjects {
   private static final Logger log = LoggerFactory.getLogger(SharedCommunicationObjects.class);
-
   private static final String X_DATADOG_TEST_SESSION_TOKEN = "X-Datadog-Test-Session-Token";
-
   private final List<Runnable> pausedComponents = new ArrayList<>();
   private volatile boolean paused;
-
   /**
    * HTTP client for making requests to Datadog agent. Depending on configuration, this client may
    * use regular HTTP, UDS or named pipe.
    */
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public OkHttpClient agentHttpClient;
-
   /**
    * HTTP client for making requests directly to Datadog backend. Unlike {@link #agentHttpClient},
    * this client is not configured to use UDS or named pipe.
    */
   private volatile OkHttpClient intakeHttpClient;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public long httpClientTimeout;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public boolean forceClearTextHttpForIntakeClient;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public HttpUrl agentUrl;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public Monitoring monitoring;
-
   private volatile DDAgentFeaturesDiscovery featuresDiscovery;
   private ConfigurationPoller configurationPoller;
 
@@ -72,10 +62,9 @@ public class SharedCommunicationObjects {
       monitoring = Monitoring.DISABLED;
     }
 
-    httpClientTimeout =
-        config.isCiVisibilityEnabled()
-            ? config.getCiVisibilityBackendApiTimeoutMillis()
-            : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
+    httpClientTimeout = config.isCiVisibilityEnabled()
+        ? config.getCiVisibilityBackendApiTimeoutMillis()
+        : TimeUnit.SECONDS.toMillis(config.getAgentTimeout());
 
     forceClearTextHttpForIntakeClient = config.isForceClearTextHttpForIntakeClient();
 
@@ -89,9 +78,11 @@ public class SharedCommunicationObjects {
     if (agentHttpClient == null) {
       String unixDomainSocket = SocketUtils.discoverApmSocket(config);
       String namedPipe = config.getAgentNamedPipe();
-      agentHttpClient =
-          OkHttpUtils.buildHttpClient(
-              OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
+      agentHttpClient = OkHttpUtils.buildHttpClient(
+          OkHttpUtils.isPlainHttp(agentUrl),
+          unixDomainSocket,
+          namedPipe,
+          httpClientTimeout);
       String testSessionToken = config.getTestAgentSessionToken();
       if (testSessionToken != null) {
         agentHttpClient = injectTestAgentSessionHeaderInterceptor(testSessionToken);
@@ -101,19 +92,18 @@ public class SharedCommunicationObjects {
 
   private OkHttpClient injectTestAgentSessionHeaderInterceptor(String testSessionToken) {
     return agentHttpClient
+      .newBuilder()
+      .addInterceptor(chain -> chain.proceed(chain
+        .request()
         .newBuilder()
-        .addInterceptor(
-            chain ->
-                chain.proceed(
-                    chain
-                        .request()
-                        .newBuilder()
-                        .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
-                        .build()))
-        .build();
+        .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
+        .build()))
+      .build();
   }
 
-  /** Registers a callback to be called when remote communications resume. */
+  /**
+   * Registers a callback to be called when remote communications resume.
+   */
   public void whenReady(Runnable callback) {
     if (paused) {
       synchronized (pausedComponents) {
@@ -123,17 +113,21 @@ public class SharedCommunicationObjects {
         }
       }
     }
-    callback.run(); // not paused, run immediately
+    // not paused, run immediately
+    callback.run();
   }
 
-  /** Resumes remote communications including any paused callbacks. */
+  /**
+   * Resumes remote communications including any paused callbacks.
+   */
   public void resume() {
     paused = false;
     // attempt discovery first to avoid potential race condition on IBM Java8
     if (null != featuresDiscovery) {
       featuresDiscovery.discoverIfOutdated();
     } else {
-      Security.getProviders(); // fallback to preloading provider extensions
+      // fallback to preloading provider extensions
+      Security.getProviders();
     }
     synchronized (pausedComponents) {
       for (Runnable callback : pausedComponents) {
@@ -175,7 +169,12 @@ public class SharedCommunicationObjects {
       configUrlSupplier = new RetryConfigUrlSupplier(this, config);
     }
     return new DefaultConfigurationPoller(
-        config, TRACER_VERSION, containerId, entityId, configUrlSupplier, agentHttpClient);
+        config,
+        TRACER_VERSION,
+        containerId,
+        entityId,
+        configUrlSupplier,
+        agentHttpClient);
   }
 
   // for testing
@@ -193,20 +192,20 @@ public class SharedCommunicationObjects {
             ret = NoopFeaturesDiscovery.INSTANCE;
           } else {
             createRemaining(config);
-            ret =
-                new DDAgentFeaturesDiscovery(
-                    agentHttpClient,
-                    monitoring,
-                    agentUrl,
-                    config.getProtocolVersion(),
-                    config.isTracerMetricsEnabled(),
-                    config.isTracerMetricsIgnoreAgentVersion());
+            ret = new DDAgentFeaturesDiscovery(
+                agentHttpClient,
+                monitoring,
+                agentUrl,
+                config.getProtocolVersion(),
+                config.isTracerMetricsEnabled(),
+                config.isTracerMetricsIgnoreAgentVersion());
 
             if (paused) {
               // defer remote discovery until remote I/O is allowed
             } else {
               if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-                ret.discover(); // safe to run on same thread
+                // safe to run on same thread
+                ret.discover();
               } else {
                 // avoid performing blocking I/O operation on application thread
                 AgentTaskScheduler.get().execute(ret::discoverIfOutdated);
@@ -269,9 +268,11 @@ public class SharedCommunicationObjects {
 
     synchronized (this) {
       if (this.intakeHttpClient == null) {
-        this.intakeHttpClient =
-            OkHttpUtils.buildHttpClient(
-                forceClearTextHttpForIntakeClient, null, null, httpClientTimeout);
+        this.intakeHttpClient = OkHttpUtils.buildHttpClient(
+            forceClearTextHttpForIntakeClient,
+            null,
+            null,
+            httpClientTimeout);
       }
       return this.intakeHttpClient;
     }

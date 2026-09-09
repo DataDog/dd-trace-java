@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.profiling.controller.jfr.JfpUtils;
 import java.io.IOException;
 import java.time.Duration;
@@ -252,8 +251,8 @@ class JfrMBeanHelperTest {
       assertEquals(
           Duration.of(val, entry.getValue()),
           JfrMBeanHelper.parseDuration(val + "\t     " + entry.getKey(), ChronoUnit.HOURS));
-      assertThrows(
-          NumberFormatException.class, () -> JfrMBeanHelper.parseDuration(val + entry.getKey()));
+      assertThrows(NumberFormatException.class, () -> JfrMBeanHelper.parseDuration(
+          val + entry.getKey()));
     }
   }
 }

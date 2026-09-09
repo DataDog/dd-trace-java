@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.tomcat;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,8 @@ import org.apache.catalina.core.StandardEngine;
 
 @AutoService(InstrumenterModule.class)
 public class ContainerBaseInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ContainerBaseInstrumentation() {
     super("tomcat");
   }
@@ -26,7 +26,8 @@ public class ContainerBaseInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("setName")), getClass().getName() + "$SetNameAdvice");
+        isMethod().and(named("setName")),
+        getClass().getName() + "$SetNameAdvice");
   }
 
   @Override

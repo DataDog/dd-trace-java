@@ -2,7 +2,6 @@ package datadog.trace.api.writer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.Test;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class PrintingWriterTest extends DDCoreJavaSpecification {
-
   private CoreTracer tracer;
   private List<DDSpan> sampleTrace;
   private List<DDSpan> secondTrace;
@@ -33,22 +31,18 @@ public class PrintingWriterTest extends DDCoreJavaSpecification {
   @BeforeEach
   void setup() {
     tracer = tracerBuilder().writer(new ListWriter()).build();
-    adapter =
-        new Moshi.Builder()
-            .build()
-            .adapter(
-                Types.newParameterizedType(
-                    Map.class,
-                    String.class,
-                    Types.newParameterizedType(
-                        List.class, Types.newParameterizedType(List.class, Map.class))));
+    adapter = new Moshi.Builder()
+      .build()
+      .adapter(Types.newParameterizedType(
+          Map.class,
+          String.class,
+          Types.newParameterizedType(List.class, Types.newParameterizedType(List.class, Map.class))));
 
-    AgentTracer.SpanBuilder builder =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .withSpanType("fakeType");
+    AgentTracer.SpanBuilder builder = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType");
 
     sampleTrace = Arrays.asList((DDSpan) builder.start(), (DDSpan) builder.start());
     secondTrace = Collections.singletonList((DDSpan) builder.start());
@@ -76,8 +70,8 @@ public class PrintingWriterTest extends DDCoreJavaSpecification {
     }
 
     writer.write(secondTrace);
-    result =
-        (Map<String, List<List<Map>>>) adapter.fromJson(buffer.readString(StandardCharsets.UTF_8));
+    result = (Map<String, List<List<Map>>>) adapter.fromJson(buffer.readString(
+        StandardCharsets.UTF_8));
 
     assertEquals(secondTrace.size(), result.get("traces").get(0).size());
     for (Map span : result.get("traces").get(0)) {

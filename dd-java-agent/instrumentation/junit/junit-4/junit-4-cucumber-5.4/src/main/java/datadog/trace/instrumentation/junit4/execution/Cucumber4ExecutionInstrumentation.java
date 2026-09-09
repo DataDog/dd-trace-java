@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -30,8 +29,8 @@ import org.junit.runners.ParentRunner;
 
 @AutoService(InstrumenterModule.class)
 public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private final String parentPackageName = Strings.getPackageName(JUnit4Utils.class.getName());
 
   public Cucumber4ExecutionInstrumentation() {
@@ -51,19 +50,20 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".SkippedByDatadog",
-      parentPackageName + ".CucumberUtils",
-      parentPackageName + ".JUnit4Utils",
-      parentPackageName + ".TracingListener",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailureSuppressingNotifier",
+        parentPackageName + ".SkippedByDatadog",
+        parentPackageName + ".CucumberUtils",
+        parentPackageName + ".JUnit4Utils",
+        parentPackageName + ".TracingListener",
+        parentPackageName + ".TestEventsHandlerHolder",
+        packageName + ".FailureSuppressingNotifier"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.junit.runner.Description", TestExecutionTracker.class.getName());
+        "org.junit.runner.Description",
+        TestExecutionTracker.class.getName());
   }
 
   @Override
@@ -75,8 +75,8 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("runChild")
-            .and(takesArgument(0, named("io.cucumber.junit.PickleRunners$PickleRunner")))
-            .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
+          .and(takesArgument(0, named("io.cucumber.junit.PickleRunners$PickleRunner")))
+          .and(takesArgument(1, named("org.junit.runner.notification.RunNotifier"))),
         Cucumber4ExecutionInstrumentation.class.getName() + "$ExecutionAdvice");
   }
 
@@ -86,8 +86,10 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
     @Advice.OnMethodEnter(skipOn = Boolean.class)
     public static Boolean execute(
         @Advice.SelfCallHandle(bound = false) MethodHandle runPickle,
-        @Advice.This ParentRunner<?> /* io.cucumber.junit.FeatureRunner */ featureRunner,
-        @Advice.Argument(0) Object /* io.cucumber.junit.PickleRunners.PickleRunner */ pickleRunner,
+        @Advice.This ParentRunner<?> /* io.cucumber.junit.FeatureRunner */
+        featureRunner,
+        @Advice.Argument(0) Object /* io.cucumber.junit.PickleRunners.PickleRunner */
+        pickleRunner,
         @Advice.Argument(1) RunNotifier notifier) {
       if (notifier instanceof FailureSuppressingNotifier) {
         // notifier already wrapped, run original method
@@ -97,17 +99,17 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
       Description description = CucumberUtils.getPickleRunnerDescription(pickleRunner);
       TestIdentifier testIdentifier = CucumberUtils.toTestIdentifier(description);
       Collection<String> testTags = CucumberUtils.getPickleRunnerTags(pickleRunner);
-      TestExecutionPolicy executionPolicy =
-          TestEventsHandlerHolder.HANDLERS
-              .get(TestFrameworkInstrumentation.CUCUMBER)
-              .executionPolicy(testIdentifier, TestSourceData.UNKNOWN, testTags);
+      TestExecutionPolicy executionPolicy = TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.CUCUMBER)
+        .executionPolicy(testIdentifier, TestSourceData.UNKNOWN, testTags);
       if (!executionPolicy.applicable()) {
         // retries not applicable, run original method
         return null;
       }
 
-      InstrumentationContext.get(Description.class, TestExecutionTracker.class)
-          .put(description, executionPolicy);
+      InstrumentationContext
+        .get(Description.class, TestExecutionTracker.class)
+        .put(description, executionPolicy);
 
       FailureSuppressingNotifier failureSuppressingNotifier =
           new FailureSuppressingNotifier(executionPolicy, notifier);
@@ -117,7 +119,6 @@ public class Cucumber4ExecutionInstrumentation extends InstrumenterModule.CiVisi
         } catch (Throwable ignored) {
         }
       } while (executionPolicy.applicable());
-
       // skip original method
       return Boolean.TRUE;
     }

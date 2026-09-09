@@ -6,7 +6,8 @@ public class NoopTraceScope implements TraceScope {
   public static class NoopContinuation implements Continuation {
     public static final NoopContinuation INSTANCE = new NoopContinuation();
 
-    private NoopContinuation() {}
+    private NoopContinuation() {
+    }
 
     @Override
     public Continuation hold() {
@@ -22,7 +23,8 @@ public class NoopTraceScope implements TraceScope {
     public void cancel() {}
   }
 
-  private NoopTraceScope() {}
+  private NoopTraceScope() {
+  }
 
   @Override
   public void close() {}

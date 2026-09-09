@@ -8,7 +8,6 @@ import datadog.trace.api.cache.DDCaches;
 import java.util.regex.Pattern;
 
 public class ActivityHelper {
-
   private static final Pattern SPLITTER = Pattern.compile("/");
 
   public static class ActivityInfo {

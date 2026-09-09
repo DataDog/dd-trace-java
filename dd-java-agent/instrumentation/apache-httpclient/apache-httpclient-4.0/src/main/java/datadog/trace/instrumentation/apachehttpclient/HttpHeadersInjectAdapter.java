@@ -6,7 +6,6 @@ import org.apache.http.client.methods.HttpUriRequest;
 
 @ParametersAreNonnullByDefault
 public class HttpHeadersInjectAdapter implements CarrierSetter<HttpUriRequest> {
-
   public static final HttpHeadersInjectAdapter SETTER = new HttpHeadersInjectAdapter();
 
   @Override

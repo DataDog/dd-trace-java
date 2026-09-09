@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -16,11 +15,9 @@ import java.util.zip.GZIPInputStream;
 import org.junit.jupiter.api.Test;
 
 public class HttpRequestBodyTest {
-
   // TODO Test empty string
   // TODO Test empty byte array
   // TODO Test empty ByteBuffer list
-
   @Test
   void testNullString() {
     assertThrows(NullPointerException.class, () -> HttpRequestBody.of((String) null));
@@ -110,11 +107,12 @@ public class HttpRequestBodyTest {
     assertThrows(NullPointerException.class, () -> builder.addFormDataPart("name", null));
 
     HttpRequestBody fileBody = HttpRequestBody.of("content");
-    assertThrows(
-        NullPointerException.class, () -> builder.addFormDataPart(null, "file.txt", fileBody));
+    assertThrows(NullPointerException.class, () -> builder.addFormDataPart(
+        null,
+        "file.txt",
+        fileBody));
     assertThrows(NullPointerException.class, () -> builder.addFormDataPart("name", null, fileBody));
-    assertThrows(
-        NullPointerException.class, () -> builder.addFormDataPart("name", "file.txt", null));
+    assertThrows(NullPointerException.class, () -> builder.addFormDataPart("name", "file.txt", null));
 
     HttpRequestBody partBody = HttpRequestBody.of("content");
     Map<String, String> headers = new HashMap<>();

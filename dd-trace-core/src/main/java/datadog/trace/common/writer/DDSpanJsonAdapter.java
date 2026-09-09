@@ -24,7 +24,9 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     return new Factory() {
       @Override
       public JsonAdapter<?> create(
-          final Type type, final Set<? extends Annotation> annotations, final Moshi moshi) {
+          final Type type,
+          final Set<? extends Annotation> annotations,
+          final Moshi moshi) {
         final Class<?> rawType = Types.getRawType(type);
         if (rawType.isAssignableFrom(DDSpan.class)) {
           return new DDSpanJsonAdapter(hexIds);

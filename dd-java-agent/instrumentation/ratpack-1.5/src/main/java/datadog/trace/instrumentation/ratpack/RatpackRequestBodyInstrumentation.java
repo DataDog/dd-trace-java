@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,8 @@ import ratpack.server.internal.RequestBody;
  */
 @AutoService(InstrumenterModule.class)
 public class RatpackRequestBodyInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public RatpackRequestBodyInstrumentation() {
     super("ratpack-request-body");
   }
@@ -26,15 +26,16 @@ public class RatpackRequestBodyInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RequestBodyCollectionPublisher$ByteBufIntoByteBufferCallback",
-      packageName + ".RequestBodyCollectionPublisher",
-      packageName + ".RequestBodyCollectionPublisher$1",
+        packageName + ".RequestBodyCollectionPublisher$ByteBufIntoByteBufferCallback",
+        packageName + ".RequestBodyCollectionPublisher",
+        packageName + ".RequestBodyCollectionPublisher$1"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("readStream").and(takesArguments(0)), packageName + ".RatpackBodyReadStreamAdvice");
+        named("readStream").and(takesArguments(0)),
+        packageName + ".RatpackBodyReadStreamAdvice");
   }
 }

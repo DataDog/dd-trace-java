@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.FieldBackedContextStore;
 import datadog.trace.bootstrap.FieldBackedContextStores;
@@ -28,38 +27,32 @@ import org.slf4j.LoggerFactory;
  * transformation and using them to retrieve {@link ContextStore} instances at execution time.
  */
 public final class FieldBackedContextRequestRewriter implements AsmVisitorWrapper {
-
-  private static final Logger log =
-      LoggerFactory.getLogger(FieldBackedContextRequestRewriter.class);
-
+  private static final Logger log = LoggerFactory.getLogger(FieldBackedContextRequestRewriter.class);
   static final String INSTRUMENTATION_CONTEXT_CLASS =
       getInternalName(InstrumentationContext.class.getName());
-
   static final String FIELD_BACKED_CONTEXT_STORES_CLASS =
       getInternalName(FieldBackedContextStores.class.getName());
-
   static final String GET_METHOD = "get";
-  static final String GET_METHOD_DESCRIPTOR =
-      Type.getMethodDescriptor(
-          Type.getType(ContextStore.class), Type.getType(Class.class), Type.getType(Class.class));
-  static final String GET_METHOD_DESCRIPTOR_2 =
-      Type.getMethodDescriptor(
-          Type.getType(ContextStore.class), Type.getType(String.class), Type.getType(String.class));
-
+  static final String GET_METHOD_DESCRIPTOR = Type.getMethodDescriptor(
+      Type.getType(ContextStore.class),
+      Type.getType(Class.class),
+      Type.getType(Class.class));
+  static final String GET_METHOD_DESCRIPTOR_2 = Type.getMethodDescriptor(
+      Type.getType(ContextStore.class),
+      Type.getType(String.class),
+      Type.getType(String.class));
   static final String GET_CONTENT_STORE_METHOD = "getContextStore";
   static final String GET_CONTENT_STORE_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.getType(FieldBackedContextStore.class), Type.INT_TYPE);
-
   static final String FIELD_BACKED_CONTENT_STORE_DESCRIPTOR =
       Type.getDescriptor(FieldBackedContextStore.class);
-
   static final String FAST_CONTENT_STORE_PREFIX = "contextStore";
-
   final Map<String, String> contextStore;
   final String instrumenterClassName;
 
   public FieldBackedContextRequestRewriter(
-      final Map<String, String> contextStore, final String instrumenterClassName) {
+      final Map<String, String> contextStore,
+      final String instrumenterClassName) {
     this.contextStore = contextStore;
     this.instrumenterClassName = instrumenterClassName;
   }
@@ -94,7 +87,9 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
           final String[] exceptions) {
         final MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
         return new MethodVisitor(api, mv) {
-          /** The last two constants pushed onto the stack. */
+          /**
+           * The last two constants pushed onto the stack.
+           */
           private Object constant1, constant2;
 
           @Override
@@ -117,9 +112,10 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
                 && INSTRUMENTATION_CONTEXT_CLASS.equals(owner)
                 && GET_METHOD.equals(name)
                 && (GET_METHOD_DESCRIPTOR.equals(descriptor)
-                    || GET_METHOD_DESCRIPTOR_2.equals(descriptor))) {
+                || GET_METHOD_DESCRIPTOR_2.equals(descriptor))) {
               log.debug(
-                  "Found context-store access - instrumentation.class={}", instrumenterClassName);
+                  "Found context-store access - instrumentation.class={}",
+                  instrumenterClassName);
               // We track the last two constants pushed onto the stack to make sure they match
               // the expected key and context types. Matching calls are rewritten to call the
               // dynamically injected context store implementation instead.
@@ -141,10 +137,12 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
                       contextClassName);
                 }
                 if (!contextClassName.equals(contextStore.get(keyClassName))) {
-                  throw new IllegalStateException(
-                      String.format(
-                          "Incorrect Context Api Usage detected. Incorrect context class %s, expected %s for instrumentation %s",
-                          contextClassName, contextStore.get(keyClassName), instrumenterClassName));
+                  throw new IllegalStateException(String.format(
+                      "Incorrect Context Api Usage detected. Incorrect context class %s, expected %s for "
+                      + "instrumentation %s",
+                      contextClassName,
+                      contextStore.get(keyClassName),
+                      instrumenterClassName));
                 }
                 // discard original parameters so we can use numeric id instead
                 mv.visitInsn(Opcodes.POP2);
@@ -169,12 +167,11 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
               } else {
                 throw new IllegalStateException(
                     "Incorrect Context Api Usage detected. Key and context class must be class-literals. "
-                        + "Example of correct usage: InstrumentationContext.get(Runnable.class, RunnableContext.class)");
+                    + "Example of correct usage: InstrumentationContext.get(Runnable.class, RunnableContext.class)");
               }
             } else {
               super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
             }
-
             // reset constants for next method check
             constant1 = null;
             constant2 = null;

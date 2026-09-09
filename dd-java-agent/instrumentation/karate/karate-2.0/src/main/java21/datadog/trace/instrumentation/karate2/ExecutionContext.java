@@ -7,7 +7,6 @@ import io.karatelabs.gherkin.Scenario;
 import java.util.Collection;
 
 public class ExecutionContext {
-
   private final TestExecutionPolicy executionPolicy;
   private boolean suppressFailures;
   private Throwable suppressedError;
@@ -58,8 +57,9 @@ public class ExecutionContext {
   public static ExecutionContext create(Scenario scenario) {
     TestIdentifier testIdentifier = KarateUtils.toTestIdentifier(scenario);
     Collection<String> testTags = KarateUtils.getCategories(scenario.getTagsEffective());
-    return new ExecutionContext(
-        TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-            testIdentifier, TestSourceData.UNKNOWN, testTags));
+    return new ExecutionContext(TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+        testIdentifier,
+        TestSourceData.UNKNOWN,
+        testTags));
   }
 }

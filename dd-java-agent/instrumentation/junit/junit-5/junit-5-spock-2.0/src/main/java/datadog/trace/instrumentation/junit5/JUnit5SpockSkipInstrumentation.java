@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,8 +25,8 @@ import org.spockframework.runtime.SpockNode;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JUnit5SpockSkipInstrumentation() {
     super("ci-visibility", "junit-5", "junit-5-spock");
   }
@@ -41,7 +40,7 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
   public boolean isEnabled() {
     return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
-            || Config.get().isCiVisibilityTestManagementEnabled());
+        || Config.get().isCiVisibilityTestManagementEnabled());
   }
 
   @Override
@@ -57,13 +56,13 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnitPlatformUtils",
-      packageName + ".TestDataFactory",
-      packageName + ".execution.RetryDescriptorFactory",
-      packageName + ".execution.RetryDescriptorFactories",
-      packageName + ".SpockRetryDescriptorFactory",
-      packageName + ".SpockUtils",
-      packageName + ".TestEventsHandlerHolder",
+        packageName + ".JUnitPlatformUtils",
+        packageName + ".TestDataFactory",
+        packageName + ".execution.RetryDescriptorFactory",
+        packageName + ".execution.RetryDescriptorFactories",
+        packageName + ".SpockRetryDescriptorFactory",
+        packageName + ".SpockUtils",
+        packageName + ".TestEventsHandlerHolder"
     };
   }
 
@@ -80,7 +79,6 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
    * available in CL where this instrumentation is injected
    */
   public static class JUnit5SkipAdvice {
-
     @Advice.OnMethodEnter
     public static void beforeSkipCheck() {
       CallDepthThreadLocalMap.incrementCallDepth(SpockNode.class);
@@ -116,7 +114,8 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
 
         SkipReason suiteSkipReason = null;
         for (TestDescriptor feature : features) {
-          if (feature instanceof SpockNode && SpockUtils.isItrUnskippable((SpockNode<?>) feature)) {
+          if (feature instanceof SpockNode
+              && SpockUtils.isItrUnskippable((SpockNode<?>) feature)) {
             return;
           }
 
@@ -142,7 +141,6 @@ public class JUnit5SpockSkipInstrumentation extends InstrumenterModule.CiVisibil
           return;
         }
         skipResult = Node.SkipResult.skip(suiteSkipReason.getDescription());
-
       } else {
         // individual test case
         TestIdentifier test = SpockUtils.toTestIdentifier(spockNode);

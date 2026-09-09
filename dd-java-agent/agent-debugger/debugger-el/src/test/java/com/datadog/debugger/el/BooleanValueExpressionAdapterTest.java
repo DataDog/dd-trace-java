@@ -5,13 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.values.BooleanValue;
 import org.junit.jupiter.api.Test;
 
 class BooleanValueExpressionAdapterTest {
-
   @Test
   public void testLiteral() {
     {

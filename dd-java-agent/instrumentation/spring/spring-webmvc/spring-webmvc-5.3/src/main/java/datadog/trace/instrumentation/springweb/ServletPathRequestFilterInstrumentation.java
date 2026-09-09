@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,7 +21,8 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
  */
 @AutoService(InstrumenterModule.class)
 public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public ServletPathRequestFilterInstrumentation() {
     super("spring-web", "spring-path-filter");
   }
@@ -30,7 +30,7 @@ public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
     return hasClassNamed("org.springframework.web.filter.ServletRequestPathFilter")
-        .and(hasClassNamed("javax.servlet.Filter"));
+      .and(hasClassNamed("javax.servlet.Filter"));
   }
 
   @Override
@@ -41,14 +41,14 @@ public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("org.springframework.context.support.AbstractApplicationContext"))
-        .and(implementsInterface(named(hierarchyMarkerType())));
+      .and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".OrderedServletPathRequestFilter",
-      packageName + ".OrderedServletPathRequestFilter$BeanDefinition",
+        packageName + ".OrderedServletPathRequestFilter",
+        packageName + ".OrderedServletPathRequestFilter$BeanDefinition"
     };
   }
 
@@ -56,12 +56,11 @@ public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("postProcessBeanFactory"))
-            .and(
-                takesArgument(
-                    0,
-                    named(
-                        "org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
+          .and(named("postProcessBeanFactory"))
+          .and(
+              takesArgument(
+                  0,
+                  named("org.springframework.beans.factory.config.ConfigurableListableBeanFactory"))),
         ServletPathRequestFilterInstrumentation.class.getName() + "$FilterInjectingAdvice");
   }
 
@@ -71,10 +70,10 @@ public class ServletPathRequestFilterInstrumentation extends InstrumenterModule.
         @Advice.Argument(0) final ConfigurableListableBeanFactory beanFactory) {
       if (beanFactory instanceof BeanDefinitionRegistry
           && !beanFactory.containsBean("servletPathRequestFilter")) {
-
         ((BeanDefinitionRegistry) beanFactory)
-            .registerBeanDefinition(
-                "servletPathRequestFilter", new OrderedServletPathRequestFilter.BeanDefinition());
+          .registerBeanDefinition(
+              "servletPathRequestFilter",
+              new OrderedServletPathRequestFilter.BeanDefinition());
       }
     }
   }

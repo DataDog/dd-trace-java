@@ -11,7 +11,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
@@ -33,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 
 class HttpServerDecoratorSecurityTestingHeadersTest {
-
   private AgentSpan span;
   private Map<String, Object> tags;
   private HttpServerDecorator<Map<String, String>, ?, ?, Map<String, String>> decorator;
@@ -110,7 +108,7 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
     TraceConfig traceConfig = mock(TraceConfig.class);
     when(span.traceConfig()).thenReturn(traceConfig);
     when(traceConfig.getRequestHeaderTags())
-        .thenReturn(Collections.singletonMap("x-other", "http.request.headers.x-other"));
+      .thenReturn(Collections.singletonMap("x-other", "http.request.headers.x-other"));
 
     Map<String, String> headers = new LinkedHashMap<>();
     headers.put("x-datadog-endpoint-scan", "scan-uuid");
@@ -129,13 +127,13 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
     List<String> visitedKeys = new ArrayList<>();
     AgentPropagation.ContextVisitor<Map<String, String>> trackingVisitor =
         (carrier, classifier) -> {
-          for (Map.Entry<String, String> e : carrier.entrySet()) {
-            visitedKeys.add(e.getKey());
-            if (!classifier.accept(e.getKey(), e.getValue())) {
-              return;
-            }
-          }
-        };
+      for (Map.Entry<String, String> e : carrier.entrySet()) {
+        visitedKeys.add(e.getKey());
+        if (!classifier.accept(e.getKey(), e.getValue())) {
+          return;
+        }
+      }
+    };
     decorator = newDecorator(trackingVisitor);
 
     Map<String, String> headers = new LinkedHashMap<>();
@@ -160,17 +158,16 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
 
     AgentPropagation.ContextVisitor<Map<String, String>> visitorWithNullValue =
         (carrier, classifier) -> {
-          classifier.accept("x-datadog-endpoint-scan", null);
-          for (Map.Entry<String, String> e : carrier.entrySet()) {
-            if (!classifier.accept(e.getKey(), e.getValue())) {
-              return;
-            }
-          }
-        };
+      classifier.accept("x-datadog-endpoint-scan", null);
+      for (Map.Entry<String, String> e : carrier.entrySet()) {
+        if (!classifier.accept(e.getKey(), e.getValue())) {
+          return;
+        }
+      }
+    };
     decorator = newDecorator(visitorWithNullValue);
 
     decorator.startSpan(headers, root());
-
     // Null value is skipped; carrier still surfaces the marker with its real value next.
     assertEquals("scan-uuid", tags.get(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN));
     assertEquals("test-uuid", tags.get(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST));
@@ -184,13 +181,13 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
 
     AgentPropagation.ContextVisitor<Map<String, String>> visitorWithNullKey =
         (carrier, classifier) -> {
-          classifier.accept(null, "should-be-ignored");
-          for (Map.Entry<String, String> e : carrier.entrySet()) {
-            if (!classifier.accept(e.getKey(), e.getValue())) {
-              return;
-            }
-          }
-        };
+      classifier.accept(null, "should-be-ignored");
+      for (Map.Entry<String, String> e : carrier.entrySet()) {
+        if (!classifier.accept(e.getKey(), e.getValue())) {
+          return;
+        }
+      }
+    };
     decorator = newDecorator(visitorWithNullKey);
 
     decorator.startSpan(headers, root());
@@ -205,9 +202,9 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
     when(tracer.startSpan(any(), any(), any())).thenReturn(span);
     when(tracer.getDataStreamsMonitoring()).thenReturn(mock(DataStreamsMonitoring.class));
     when(tracer.getUniversalCallbackProvider())
-        .thenReturn(AgentTracer.NOOP_TRACER.getUniversalCallbackProvider());
+      .thenReturn(AgentTracer.NOOP_TRACER.getUniversalCallbackProvider());
     when(tracer.getCallbackProvider(any()))
-        .thenReturn(AgentTracer.NOOP_TRACER.getUniversalCallbackProvider());
+      .thenReturn(AgentTracer.NOOP_TRACER.getUniversalCallbackProvider());
     return new HttpServerDecorator<Map<String, String>, Object, Object, Map<String, String>>() {
       @Override
       protected TracerAPI tracer() {

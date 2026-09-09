@@ -9,13 +9,12 @@ import freemarker.core.Environment;
 import net.bytebuddy.asm.Advice;
 
 public final class DollarVariableDatadogAdvice {
-
   public static class DollarVariableAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.XSS)
     public static void onEnter(
-        @Advice.Argument(0) final Environment environment, @Advice.This final Object self) {
+        @Advice.Argument(0) final Environment environment,
+        @Advice.This final Object self) {
       if (environment == null || self == null) {
         return;
       }

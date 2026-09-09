@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,9 +25,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class SslSocketInstrumentation extends InstrumenterModule.Usm
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public SslSocketInstrumentation() {
     super("sslsocket");
   }
@@ -60,13 +58,12 @@ public final class SslSocketInstrumentation extends InstrumenterModule.Usm
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void close(@Advice.This final SSLSocket socket) {
       boolean isIPv6 = socket.getLocalAddress() instanceof Inet6Address;
-      UsmConnection connection =
-          new UsmConnection(
-              socket.getLocalAddress(),
-              socket.getLocalPort(),
-              socket.getInetAddress(),
-              socket.getPort(),
-              isIPv6);
+      UsmConnection connection = new UsmConnection(
+          socket.getLocalAddress(),
+          socket.getLocalPort(),
+          socket.getInetAddress(),
+          socket.getPort(),
+          isIPv6);
       UsmMessage message = UsmMessageFactory.Supplier.getCloseMessage(connection);
       UsmExtractor.Supplier.send(message);
     }

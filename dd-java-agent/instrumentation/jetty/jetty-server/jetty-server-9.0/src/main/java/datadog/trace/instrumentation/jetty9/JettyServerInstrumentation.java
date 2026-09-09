@@ -15,7 +15,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
@@ -52,10 +51,9 @@ import org.eclipse.jetty.server.Request;
 @AutoService(InstrumenterModule.class)
 public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice,
-        ExcludeFilterProvider {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   public JettyServerInstrumentation() {
     super("jetty");
   }
@@ -73,13 +71,13 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ExtractAdapter",
-      packageName + ".ExtractAdapter$Request",
-      packageName + ".ExtractAdapter$Response",
-      packageName + ".JettyDecorator",
-      packageName + ".RequestURIDataAdapter",
-      "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
-      "datadog.trace.instrumentation.jetty.JettyBlockingHelper",
+        packageName + ".ExtractAdapter",
+        packageName + ".ExtractAdapter$Request",
+        packageName + ".ExtractAdapter$Response",
+        packageName + ".JettyDecorator",
+        packageName + ".RequestURIDataAdapter",
+        "datadog.trace.instrumentation.jetty.JettyBlockResponseFunction",
+        "datadog.trace.instrumentation.jetty.JettyBlockingHelper"
     };
   }
 
@@ -92,18 +90,15 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         takesNoArguments()
-            .and(
-                named("handle")
-                    .or(
-                        // In 9.0.3 the handle logic was extracted out to "handle"
-                        // but we still want to instrument run in case handle is missing
-                        // (without the risk of double instrumenting).
-                        named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
+          .and(named("handle")
+            // (without the risk of double instrumenting).
+            .or(named("run").and(isDeclaredBy(not(declaresMethod(named("handle"))))))),
         JettyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         JettyServerInstrumentation.class.getName() + "$HandleAdvice");
     transformer.applyAdvice(
-        // name changed to recycle in 9.3.0
-        namedOneOf("reset", "recycle").and(takesNoArguments()),
+        namedOneOf("reset", "recycle")
+          // name changed to recycle in 9.3.0
+          .and(takesNoArguments()),
         JettyServerInstrumentation.class.getName() + "$ResetAdvice");
 
     if (InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED) {
@@ -126,7 +121,6 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class HttpChannelHandleVisitorWrapper implements AsmVisitorWrapper {
-
     @Override
     public int mergeWriter(int flags) {
       return flags | ClassWriter.COMPUTE_MAXS;
@@ -157,14 +151,14 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void extractParent(
         @Advice.This final HttpChannel<?> channel,
         @Advice.Local("parentScope") ContextScope parentScope) {
       Request req = channel.getRequest();
       if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
-        return; // skip re-entry: span already created for this request
+        // skip re-entry: span already created for this request
+        return;
       }
       final Context parentContext = DECORATE.extract(req);
       req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
@@ -173,15 +167,17 @@ public final class JettyServerInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
-      if (parentScope != null) parentScope.close();
+      if (parentScope != null) {
+        parentScope.close();
+      }
     }
   }
 
   public static class HandleAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(
-        @Advice.This final HttpChannel<?> channel, @Advice.Local("agentSpan") AgentSpan span) {
+        @Advice.This final HttpChannel<?> channel,
+        @Advice.Local("agentSpan") AgentSpan span) {
       Request req = channel.getRequest();
 
       Object existingContext = req.getAttribute(DD_CONTEXT_ATTRIBUTE);

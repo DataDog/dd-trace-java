@@ -29,20 +29,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class MavenProjectConfigurator {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenProjectConfigurator.class);
-
   static final MavenProjectConfigurator INSTANCE = new MavenProjectConfigurator();
-
   private static final String MAVEN_COMPILER_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-compiler-plugin";
-
   private static final String DATADOG_GROUP_ID = "com.datadoghq";
   private static final String DATADOG_JAVAC_PLUGIN_ARTIFACT_ID = "dd-javac-plugin";
   private static final String DATADOG_JAVAC_PLUGIN_CLIENT_ARTIFACT_ID = "dd-javac-plugin-client";
   private static final String JAVAC_COMPILER_ID = "javac";
   private static final String DATADOG_COMPILER_PLUGIN_ID = "DatadogCompilerPlugin";
-
   private static final String JACOCO_EXCL_CLASS_LOADERS_PROPERTY = "jacoco.exclClassLoaders";
 
   public void configureTracer(
@@ -58,19 +53,19 @@ class MavenProjectConfigurator {
     StringBuilder addedArgLine = new StringBuilder();
     for (Map.Entry<String, String> e : systemProperties.entrySet()) {
       addedArgLine
-          .append("-D")
-          .append(e.getKey())
-          .append('=')
-          .append(escapeForCommandLine(e.getValue()))
-          .append(' ');
+        .append("-D")
+        .append(e.getKey())
+        .append('=')
+        .append(escapeForCommandLine(e.getValue()))
+        .append(' ');
     }
 
     Integer ciVisibilityDebugPort = config.getCiVisibilityDebugPort();
     if (ciVisibilityDebugPort != null) {
       addedArgLine
-          .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
-          .append(ciVisibilityDebugPort)
-          .append(' ');
+        .append("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=")
+        .append(ciVisibilityDebugPort)
+        .append(' ');
     }
 
     String additionalArgs = config.getCiVisibilityAdditionalChildProcessJvmArgs();
@@ -79,24 +74,23 @@ class MavenProjectConfigurator {
     }
 
     File agentJar = config.getCiVisibilityAgentJarFile();
-    addedArgLine
-        .append("-javaagent:")
-        .append(escapeForCommandLine(String.valueOf(agentJar.toPath())));
+    addedArgLine.append("-javaagent:").append(
+        escapeForCommandLine(String.valueOf(agentJar.toPath())));
 
     String existingArgLine = MavenUtils.getArgLine(session, project, mojoExecution);
-    String updatedArgLine =
-        (existingArgLine != null ? existingArgLine + " " : "")
-            +
-            // -javaagent that injects the tracer
-            // has to be the last one,
-            // since if there are other agents
-            // we want to be able to instrument their code
-            // (namely Jacoco's)
-            addedArgLine;
+    String updatedArgLine = (existingArgLine != null ? existingArgLine + " " : "")
+        // -javaagent that injects the tracer
+    // has to be the last one,
+    // since if there are other agents
+    // we want to be able to instrument their code
+    // (namely Jacoco's)
+    + addedArgLine;
 
     Xpp3Dom configuration = mojoExecution.getConfiguration();
-    mojoExecution.setConfiguration(
-        MavenUtils.setXmlConfigurationValue(updatedArgLine, configuration, "argLine"));
+    mojoExecution.setConfiguration(MavenUtils.setXmlConfigurationValue(
+        updatedArgLine,
+        configuration,
+        "argLine"));
   }
 
   private String escapeForCommandLine(String value) {
@@ -120,8 +114,7 @@ class MavenProjectConfigurator {
     }
 
     Xpp3Dom pluginConfiguration = (Xpp3Dom) compilerPlugin.getConfiguration();
-    String pluginCompilerId =
-        MavenUtils.getXmlConfigurationValue(pluginConfiguration, "compilerId");
+    String pluginCompilerId = MavenUtils.getXmlConfigurationValue(pluginConfiguration, "compilerId");
     if (pluginCompilerId != null && !JAVAC_COMPILER_ID.equals(pluginCompilerId)) {
       return;
     }
@@ -142,18 +135,15 @@ class MavenProjectConfigurator {
 
       List<Dependency> projectDependencies = project.getDependencies();
       addOrUpdate(projectDependencies, javacPluginClientDependency);
-
       // if <annotationProcessorPaths> section is present,
       // we have to add the plugin in there,
       // otherwise it's best to add it as a regular dependency
       if (configuration != null && configuration.getChild("annotationProcessorPaths") != null) {
-        configuration =
-            addAnnotationProcessorPath(
-                configuration,
-                DATADOG_GROUP_ID,
-                DATADOG_JAVAC_PLUGIN_ARTIFACT_ID,
-                compilerPluginVersion);
-
+        configuration = addAnnotationProcessorPath(
+            configuration,
+            DATADOG_GROUP_ID,
+            DATADOG_JAVAC_PLUGIN_ARTIFACT_ID,
+            compilerPluginVersion);
       } else {
         Dependency javacPluginDependency = new Dependency();
         javacPluginDependency.setGroupId(DATADOG_GROUP_ID);
@@ -164,7 +154,6 @@ class MavenProjectConfigurator {
       }
 
       configuration = addCompilerArg(configuration, "-Xplugin:" + DATADOG_COMPILER_PLUGIN_ID);
-
       // disable compiler warnings related to annotation processing,
       // since "fail-on-warning" linters might complain about the annotation that the compiler
       // plugin injects
@@ -180,7 +169,6 @@ class MavenProjectConfigurator {
     for (Dependency projectDependency : projectDependencies) {
       if (projectDependency.getGroupId().equals(dependency.getGroupId())
           && projectDependency.getArtifactId().equals(dependency.getArtifactId())) {
-
         ComparableVersion projectDependencyVersion =
             new ComparableVersion(projectDependency.getVersion());
         if (dependencyVersion.compareTo(projectDependencyVersion) > 0) {
@@ -212,7 +200,10 @@ class MavenProjectConfigurator {
   }
 
   private static Xpp3Dom addAnnotationProcessorPath(
-      Xpp3Dom configuration, String groupId, String artifactId, String version) {
+      Xpp3Dom configuration,
+      String groupId,
+      String artifactId,
+      String version) {
     if (configuration == null) {
       configuration = new Xpp3Dom("configuration");
     }
@@ -243,7 +234,9 @@ class MavenProjectConfigurator {
   }
 
   void configureJacoco(
-      MavenSession session, MavenProject project, BuildSessionSettings sessionSettings) {
+      MavenSession session,
+      MavenProject project,
+      BuildSessionSettings sessionSettings) {
     excludeDatadogClassLoaderFromJacocoInstrumentation(project);
     if (!Config.get().isCiVisibilityJacocoPluginVersionProvided()
         && !sessionSettings.isCoverageReportUploadEnabled()) {
@@ -282,7 +275,6 @@ class MavenProjectConfigurator {
         }
       }
       return false;
-
     } catch (Exception e) {
       LOGGER.warn("Error while calculation execution plan for project {}", project.getName(), e);
       return false;
@@ -297,7 +289,8 @@ class MavenProjectConfigurator {
     if (Strings.isNotBlank(currentValue)) {
       if (!currentValue.contains(datadogClassLoaderName)) {
         projectProperties.setProperty(
-            JACOCO_EXCL_CLASS_LOADERS_PROPERTY, currentValue + ":" + datadogClassLoaderName);
+            JACOCO_EXCL_CLASS_LOADERS_PROPERTY,
+            currentValue + ":" + datadogClassLoaderName);
       }
     } else {
       projectProperties.setProperty(JACOCO_EXCL_CLASS_LOADERS_PROPERTY, datadogClassLoaderName);
@@ -305,7 +298,8 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoPlugin(
-      MavenProject project, BuildSessionSettings sessionSettings) {
+      MavenProject project,
+      BuildSessionSettings sessionSettings) {
     Plugin jacocoPlugin = getJacocoPlugin(project);
     for (PluginExecution execution : jacocoPlugin.getExecutions()) {
       if (execution.getGoals().contains("prepare-agent")) {
@@ -336,7 +330,6 @@ class MavenProjectConfigurator {
     jacocoPlugin.setGroupId("org.jacoco");
     jacocoPlugin.setArtifactId("jacoco-maven-plugin");
     jacocoPlugin.setVersion(config.getCiVisibilityJacocoPluginVersion());
-
     // a little trick to avoid triggering
     // Maven Enforcer Plugin's "Require Plugin Versions" rule:
     // we're making it look like version was specified explicitly
@@ -354,7 +347,9 @@ class MavenProjectConfigurator {
   }
 
   private static void configureJacocoInstrumentedPackages(
-      PluginExecution execution, List<String> includedPackages, List<String> excludedPackages) {
+      PluginExecution execution,
+      List<String> includedPackages,
+      List<String> excludedPackages) {
     Xpp3Dom configuration = new Xpp3Dom("configuration");
     execution.setConfiguration(configuration);
 

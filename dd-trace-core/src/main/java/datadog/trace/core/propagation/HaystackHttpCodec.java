@@ -2,7 +2,6 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.api.TracePropagationStyle.HAYSTACK;
 import static datadog.trace.core.propagation.HttpCodec.firstHeaderValue;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
@@ -25,23 +24,18 @@ import org.slf4j.LoggerFactory;
  * @author Alex Antonov
  */
 class HaystackHttpCodec {
-
   private static final Logger log = LoggerFactory.getLogger(HaystackHttpCodec.class);
-
   // https://github.com/ExpediaDotCom/haystack-client-java/blob/master/core/src/main/java/com/expedia/www/haystack/client/propagation/DefaultKeyConvention.java
   static final String OT_BAGGAGE_PREFIX = "Baggage-";
   static final String TRACE_ID_KEY = "Trace-ID";
   static final String SPAN_ID_KEY = "Span-ID";
   static final String PARENT_ID_KEY = "Parent-ID";
-
   static final String DD_TRACE_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Trace-Id";
   static final String DD_SPAN_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Span-Id";
   static final String DD_PARENT_ID_BAGGAGE_KEY = OT_BAGGAGE_PREFIX + "Datadog-Parent-Id";
-
   static final String HAYSTACK_TRACE_ID_BAGGAGE_KEY = "Haystack-Trace-ID";
   static final String HAYSTACK_SPAN_ID_BAGGAGE_KEY = "Haystack-Span-ID";
   static final String HAYSTACK_PARENT_ID_BAGGAGE_KEY = "Haystack-Parent-ID";
-
   // public static final long DATADOG = new BigInteger("Datadog!".getBytes()).longValue();
   public static final String DATADOG = "44617461-646f-6721";
 
@@ -54,7 +48,6 @@ class HaystackHttpCodec {
   }
 
   private static class Injector implements HttpCodec.Injector {
-
     private final Map<String, String> invertedBaggageMapping;
 
     public Injector(Map<String, String> invertedBaggageMapping) {
@@ -63,7 +56,9 @@ class HaystackHttpCodec {
 
     @Override
     public <C> void inject(
-        final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
+        final DDSpanContext context,
+        final C carrier,
+        final CarrierSetter<C> setter) {
       try {
         // Given that Haystack uses a 128-bit UUID/GUID for all ID representations, need to convert
         // from 64-bit BigInteger
@@ -77,8 +72,9 @@ class HaystackHttpCodec {
             getBaggageItemIgnoreCase(context.getBaggageItems(), HAYSTACK_TRACE_ID_BAGGAGE_KEY);
         String injectedTraceId;
         if (originalHaystackTraceId != null
-            && DDTraceId.fromHex(convertUUIDToHexString(originalHaystackTraceId))
-                .equals(context.getTraceId())) {
+            && DDTraceId
+              .fromHex(convertUUIDToHexString(originalHaystackTraceId))
+              .equals(context.getTraceId())) {
           injectedTraceId = originalHaystackTraceId;
         } else {
           injectedTraceId = convertLongToUUID(context.getTraceId().toLong());
@@ -86,7 +82,9 @@ class HaystackHttpCodec {
         setter.set(carrier, TRACE_ID_KEY, injectedTraceId);
         context.setTag(HAYSTACK_TRACE_ID_BAGGAGE_KEY, injectedTraceId);
         setter.set(
-            carrier, DD_TRACE_ID_BAGGAGE_KEY, HttpCodec.encode(context.getTraceId().toString()));
+            carrier,
+            DD_TRACE_ID_BAGGAGE_KEY,
+            HttpCodec.encode(context.getTraceId().toString()));
         setter.set(carrier, SPAN_ID_KEY, convertLongToUUID(context.getSpanId()));
         setter.set(
             carrier,
@@ -104,10 +102,11 @@ class HaystackHttpCodec {
           setter.set(carrier, header, HttpCodec.encodeBaggage(entry.getValue()));
         }
         log.debug(
-            "{} - Haystack parent context injected - {}", context.getTraceId(), injectedTraceId);
+            "{} - Haystack parent context injected - {}",
+            context.getTraceId(),
+            injectedTraceId);
       } catch (final NumberFormatException e) {
-        log.debug(
-            "Cannot parse context id(s): {} {}", context.getTraceId(), context.getSpanId(), e);
+        log.debug("Cannot parse context id(s): {} {}", context.getTraceId(), context.getSpanId(), e);
       }
     }
 
@@ -122,18 +121,15 @@ class HaystackHttpCodec {
   }
 
   public static HttpCodec.Extractor newExtractor(
-      Config config, Supplier<TraceConfig> traceConfigSupplier) {
-    return new TagContextExtractor(
-        traceConfigSupplier, () -> new HaystackContextInterpreter(config));
+      Config config,
+      Supplier<TraceConfig> traceConfigSupplier) {
+    return new TagContextExtractor(traceConfigSupplier, () -> new HaystackContextInterpreter(config));
   }
 
   private static class HaystackContextInterpreter extends ContextInterpreter {
-
     private static final String BAGGAGE_PREFIX_LC = "baggage-";
-
     // Largest reserved value we accept. Only relevant for traceID/spanID
     private static final int MAX_RESERVED_ID_LENGTH = 64;
-
     private static final int TRACE_ID = 0;
     private static final int SPAN_ID = 1;
     private static final int PARENT_ID = 2;
@@ -298,7 +294,8 @@ class HaystackHttpCodec {
       }
     } catch (final Exception e) {
       throw new IllegalArgumentException(
-          "Exception when converting UUID to BigInteger: " + value, e);
+          "Exception when converting UUID to BigInteger: " + value,
+          e);
     }
   }
 }

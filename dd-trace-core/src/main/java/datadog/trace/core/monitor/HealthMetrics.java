@@ -18,7 +18,8 @@ import java.util.List;
  * </ul>
  */
 public abstract class HealthMetrics implements AutoCloseable {
-  public static HealthMetrics NO_OP = new HealthMetrics() {};
+  public static HealthMetrics NO_OP = new HealthMetrics() {
+  };
 
   public void start() {}
 
@@ -72,11 +73,12 @@ public abstract class HealthMetrics implements AutoCloseable {
    */
   public void onOrgGuardEnforce(OrgGuard.Reason reason) {}
 
-  public void onSend(
-      final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
+  public void onSend(final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
 
   public void onFailedSend(
-      final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
+      final int traceCount,
+      final int sizeInBytes,
+      final RemoteApi.Response response) {}
 
   public void onLongRunningUpdate(final int dropped, final int write, final int expired) {}
 
@@ -89,8 +91,7 @@ public abstract class HealthMetrics implements AutoCloseable {
    *     However, this counter will report how many p0 dropped we could achieve before that the span
    *     got sampled.
    */
-  public void onClientStatTraceComputed(
-      final int countedSpan, final int totalSpan, boolean dropped) {}
+  public void onClientStatTraceComputed(final int countedSpan, final int totalSpan, boolean dropped) {}
 
   public void onClientStatPayloadSent() {}
 

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.junit5.execution;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,8 @@ import org.junit.platform.engine.TestDescriptor;
 @AutoService(InstrumenterModule.class)
 public class JUnit5SpockParameterizedExecutionInstrumentation
     extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
@@ -43,8 +42,8 @@ public class JUnit5SpockParameterizedExecutionInstrumentation
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".JUnitPlatformUtils",
-      packageName + ".SpockParameterizedExecutionListener",
+        parentPackageName + ".JUnitPlatformUtils",
+        packageName + ".SpockParameterizedExecutionListener"
     };
   }
 
@@ -52,17 +51,15 @@ public class JUnit5SpockParameterizedExecutionInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor(),
-        JUnit5SpockParameterizedExecutionInstrumentation.class.getName()
-            + "$SpockParameterizedExecutionAdvice");
+            JUnit5SpockParameterizedExecutionInstrumentation.class.getName()
+        + "$SpockParameterizedExecutionAdvice");
   }
 
   public static class SpockParameterizedExecutionAdvice {
-
     @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodExit
     public static void afterConstructor(
-        @Advice.FieldValue(value = "executionListener", readOnly = false)
-            EngineExecutionListener executionListener,
+        @Advice.FieldValue(value = "executionListener", readOnly = false) EngineExecutionListener executionListener,
         @Advice.FieldValue("pending") Map<TestDescriptor, CompletableFuture<?>> pending) {
       executionListener = new SpockParameterizedExecutionListener(executionListener, pending);
     }

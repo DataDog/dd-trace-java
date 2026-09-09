@@ -6,13 +6,16 @@ import javax.annotation.Nonnull;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-/** Wrapper that makes sure spans from subscriber events treat the captured span as their parent. */
+/**
+ * Wrapper that makes sure spans from subscriber events treat the captured span as their parent.
+ */
 public final class TracingSubscriber<T> implements Subscriber<T> {
   private final Subscriber<T> subscriber;
   private final Context parentContext;
 
   public TracingSubscriber(
-      @Nonnull final Subscriber<T> subscriber, @Nonnull final Context parentContext) {
+      @Nonnull final Subscriber<T> subscriber,
+      @Nonnull final Context parentContext) {
     this.subscriber = subscriber;
     this.parentContext = parentContext;
   }

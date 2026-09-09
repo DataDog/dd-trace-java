@@ -19,7 +19,6 @@ import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAM
 import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
@@ -38,9 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
-
   private static final Logger log = LoggerFactory.getLogger(TracingIterator.class);
-
   private final Iterator<ConsumerRecord<?, ?>> delegateIterator;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
@@ -91,7 +88,8 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     try {
       if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
         closePrevious(true);
-      } else if (val == null) { // previous message span was the last
+      } else if (val == null) {
+        // previous message span was the last
         final AgentSpan previousSpan = AgentSpan.fromContext(Context.root().swap());
         if (previousSpan != null) {
           previousSpan.finishWithEndToEnd();
@@ -106,12 +104,11 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
             span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
           } else {
-            queueSpan =
-                startSpan(
-                    JAVA_KAFKA.toString(),
-                    KAFKA_DELIVER,
-                    spanContext,
-                    MILLISECONDS.toMicros(timeInQueueStart));
+            queueSpan = startSpan(
+                JAVA_KAFKA.toString(),
+                KAFKA_DELIVER,
+                spanContext,
+                MILLISECONDS.toMicros(timeInQueueStart));
             BROKER_DECORATE.afterStart(queueSpan);
             BROKER_DECORATE.onTimeInQueue(queueSpan, val);
             span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.spanContext());
@@ -124,9 +121,10 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           final long payloadSize =
               traceConfig().isDataStreamsEnabled() ? computePayloadSizeBytes(val) : 0;
           if (STREAMING_CONTEXT.isDisabledForTopic(val.topic())) {
-            AgentTracer.get()
-                .getDataStreamsMonitoring()
-                .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
+            AgentTracer
+              .get()
+              .getDataStreamsMonitoring()
+              .setCheckpoint(span, create(tags, val.timestamp(), payloadSize));
           } else {
             // when we're in a streaming context we want to consume only from source topics
             if (STREAMING_CONTEXT.isSourceTopic(val.topic())) {
@@ -159,13 +157,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           queueSpan.finish();
         }
 
-        AgentTracer.get()
-            .getDataStreamsMonitoring()
-            .trackTransaction(
-                span,
-                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
-                val.headers(),
-                DSM_TRANSACTION_SOURCE_READER);
+        AgentTracer
+          .get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
+              val.headers(),
+              DSM_TRANSACTION_SOURCE_READER);
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);

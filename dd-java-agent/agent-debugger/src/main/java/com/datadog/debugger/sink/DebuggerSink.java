@@ -1,7 +1,6 @@
 package com.datadog.debugger.sink;
 
 import static datadog.trace.api.debugger.DebuggerMetricCollector.DroppedReason.QUEUE_FULL;
-
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -15,7 +14,9 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Collects data that needs to be sent to the backend: Snapshots, metrics and statuses */
+/**
+ * Collects data that needs to be sent to the backend: Snapshots, metrics and statuses
+ */
 public class DebuggerSink {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerSink.class);
   private static final double FREE_CAPACITY_LOWER_THRESHOLD = 0.25;
@@ -25,7 +26,6 @@ public class DebuggerSink {
   private static final long LOW_RATE_INITIAL_FLUSH_INTERVAL = 1000;
   static final long LOW_RATE_STEP_SIZE = 200;
   private static final String PREFIX = "debugger.sink.";
-
   private final ProbeStatusSink probeStatusSink;
   private final SnapshotSink snapshotSink;
   private final SymbolSink symbolSink;
@@ -52,7 +52,10 @@ public class DebuggerSink {
                 config.getFinalDebuggerSnapshotUrl(),
                 SnapshotSink.RETRY_POLICY),
             new BatchUploader(
-                "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY)),
+                "Logs",
+                config,
+                config.getFinalDebuggerSnapshotUrl(),
+                SnapshotSink.RETRY_POLICY)),
         new SymbolSink(config));
   }
 
@@ -73,16 +76,22 @@ public class DebuggerSink {
 
   public void start() {
     if (uploadFlushInterval == 0) {
-      flushIntervalScheduled =
-          lowRateScheduler.scheduleAtFixedRate(
-              this::reconsiderLowRateFlushInterval, this, 0, 200, TimeUnit.MILLISECONDS);
+      flushIntervalScheduled = lowRateScheduler.scheduleAtFixedRate(
+          this::reconsiderLowRateFlushInterval,
+          this,
+          0,
+          200,
+          TimeUnit.MILLISECONDS);
     } else {
       currentLowRateFlushInterval = uploadFlushInterval;
     }
     LOGGER.debug("Scheduling low rate debugger sink flush to {}ms", currentLowRateFlushInterval);
-    lowRateScheduled =
-        lowRateScheduler.scheduleAtFixedRate(
-            this::lowRateFlush, this, 0, currentLowRateFlushInterval, TimeUnit.MILLISECONDS);
+    lowRateScheduled = lowRateScheduler.scheduleAtFixedRate(
+        this::lowRateFlush,
+        this,
+        0,
+        currentLowRateFlushInterval,
+        TimeUnit.MILLISECONDS);
     snapshotSink.start();
   }
 
@@ -142,13 +151,12 @@ public class DebuggerSink {
   private void lowRateReschedule() {
     cancelSchedule(this.lowRateScheduled);
     LOGGER.debug("Rescheduling low rate debugger sink flush to {}ms", currentLowRateFlushInterval);
-    this.lowRateScheduled =
-        lowRateScheduler.scheduleAtFixedRate(
-            this::lowRateFlush,
-            this,
-            currentLowRateFlushInterval,
-            currentLowRateFlushInterval,
-            TimeUnit.MILLISECONDS);
+    this.lowRateScheduled = lowRateScheduler.scheduleAtFixedRate(
+        this::lowRateFlush,
+        this,
+        currentLowRateFlushInterval,
+        currentLowRateFlushInterval,
+        TimeUnit.MILLISECONDS);
   }
 
   @VisibleForTesting
@@ -181,7 +189,8 @@ public class DebuggerSink {
       currentLowRateFlushInterval = newInterval;
       LOGGER.debug(
           "Changing flush interval. Remaining available capacity in upload queue {}%, new flush interval {}ms",
-          remainingCapacityPercent * 100, newInterval);
+          remainingCapacityPercent * 100,
+          newInterval);
       lowRateReschedule();
     }
   }
@@ -230,7 +239,9 @@ public class DebuggerSink {
     }
   }
 
-  /** Notifies the snapshot was skipped for one of the SkipCause reason */
+  /**
+   * Notifies the snapshot was skipped for one of the SkipCause reason
+   */
   public void skipSnapshot(String probeId, DebuggerMetricCollector.SkippedReason reason) {
     metricCollector.recordEventSkipped(reason);
   }

@@ -18,10 +18,9 @@ class CouchbaseClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
       UTF8BytesString.create(SpanNaming.instance().namingSchema().database().operation(DB_TYPE));
   public static final CharSequence COUCHBASE_CLIENT = UTF8BytesString.create("couchbase-client");
   public static final CouchbaseClientDecorator DECORATE = new CouchbaseClientDecorator();
-
   private static final Function<String, UTF8BytesString> NORMALIZE = SQLNormalizer::normalize;
-  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024; // characters
-
+  // characters
+  private static final int COMBINED_STATEMENT_LIMIT = 2 * 1024 * 1024;
   private static final ToIntFunction<UTF8BytesString> STATEMENT_WEIGHER = UTF8BytesString::length;
   private static final DDCache<String, UTF8BytesString> CACHED_STATEMENTS =
       DDCaches.newFixedSizeWeightedCache(512, STATEMENT_WEIGHER, COMBINED_STATEMENT_LIMIT);

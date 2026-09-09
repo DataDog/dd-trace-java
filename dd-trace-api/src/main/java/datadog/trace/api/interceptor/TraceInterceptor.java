@@ -3,7 +3,6 @@ package datadog.trace.api.interceptor;
 import java.util.Collection;
 
 public interface TraceInterceptor {
-
   /**
    * After a trace is "complete" but before it is written, it is provided to the interceptors to
    * modify. The result following all interceptors is sampled then sent to the trace writer.

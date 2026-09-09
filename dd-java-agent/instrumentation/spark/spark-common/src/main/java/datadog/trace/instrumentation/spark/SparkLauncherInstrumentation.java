@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.spark;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,8 +12,8 @@ import org.apache.spark.launcher.SparkAppHandle;
 
 @AutoService(InstrumenterModule.class)
 public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SparkLauncherInstrumentation() {
     super("spark-launcher");
   }
@@ -32,9 +31,9 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".EmrUtils",
-      packageName + ".SparkConfAllowList",
-      packageName + ".SparkLauncherListener",
+        packageName + ".EmrUtils",
+        packageName + ".SparkConfAllowList",
+        packageName + ".SparkLauncherListener"
     };
   }
 
@@ -42,8 +41,8 @@ public class SparkLauncherInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("startApplication"))
-            .and(isDeclaredBy(named("org.apache.spark.launcher.SparkLauncher"))),
+          .and(named("startApplication"))
+          .and(isDeclaredBy(named("org.apache.spark.launcher.SparkLauncher"))),
         SparkLauncherInstrumentation.class.getName() + "$StartApplicationAdvice");
   }
 

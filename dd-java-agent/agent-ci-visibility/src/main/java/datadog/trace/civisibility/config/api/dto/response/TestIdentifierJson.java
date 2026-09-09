@@ -13,12 +13,10 @@ import java.util.HashSet;
 import java.util.Map;
 
 public final class TestIdentifierJson {
-
   private final String suite;
   private final String name;
   private final String parameters;
   private final Configurations configurations;
-
   @Json(name = "_missing_line_code_coverage")
   private final boolean missingLineCodeCoverage;
 
@@ -70,14 +68,17 @@ public final class TestIdentifierJson {
   public String resolveModuleName(TracerEnvironment tracerEnvironment) {
     Configurations requestConf = tracerEnvironment.getConfigurations();
     return (configurations != null && configurations.getTestBundle() != null
-            ? configurations
-            : requestConf)
-        .getTestBundle();
+        ? configurations
+        : requestConf)
+      .getTestBundle();
   }
 
-  /** Groups the given test identifiers into a {@code module -> Set<TestFQN>} map. */
+  /**
+   * Groups the given test identifiers into a {@code module -> Set<TestFQN>} map.
+   */
   public static Map<String, Collection<TestFQN>> toTestFQNsByModule(
-      Collection<Data<TestIdentifierJson>> data, TracerEnvironment tracerEnvironment) {
+      Collection<Data<TestIdentifierJson>> data,
+      TracerEnvironment tracerEnvironment) {
     Map<String, Collection<TestFQN>> testsByModule = new HashMap<>();
     for (Data<TestIdentifierJson> entry : data) {
       TestIdentifierJson identifier = entry.attributes;
@@ -85,8 +86,8 @@ public final class TestIdentifierJson {
         continue;
       }
       testsByModule
-          .computeIfAbsent(identifier.resolveModuleName(tracerEnvironment), k -> new HashSet<>())
-          .add(identifier.toTestIdentifier().toFQN());
+        .computeIfAbsent(identifier.resolveModuleName(tracerEnvironment), k -> new HashSet<>())
+        .add(identifier.toTestIdentifier().toFQN());
     }
     return testsByModule;
   }

@@ -12,14 +12,12 @@ import java.util.List;
  * Metrics Export RFC.
  */
 final class OtlpStatsHistogramBuckets {
-  private OtlpStatsHistogramBuckets() {}
+  private OtlpStatsHistogramBuckets() {
+  }
 
   private static final double NANOS_PER_SECOND = 1_000_000_000d;
-
-  static final double[] BOUNDS_SECONDS = {
-    0.002, 0.004, 0.006, 0.008, 0.01, 0.05, 0.1, 0.2, 0.4, 0.8, 1, 1.4, 2, 5, 10, 15
-  };
-
+  static final double[] BOUNDS_SECONDS =
+      {0.002, 0.004, 0.006, 0.008, 0.01, 0.05, 0.1, 0.2, 0.4, 0.8, 1, 1.4, 2, 5, 10, 15};
   static final List<Double> EXPLICIT_BOUNDS;
 
   static {
@@ -37,7 +35,8 @@ final class OtlpStatsHistogramBuckets {
         return i;
       }
     }
-    return BOUNDS_SECONDS.length; // overflow
+    // overflow
+    return BOUNDS_SECONDS.length;
   }
 
   /**
@@ -65,6 +64,11 @@ final class OtlpStatsHistogramBuckets {
     double maxSeconds = histogram.isEmpty() ? 0d : histogram.getMaxValue() / NANOS_PER_SECOND;
 
     return new OtlpHistogramPoint(
-        histogram.getCount(), EXPLICIT_BOUNDS, counts, sumSeconds, minSeconds, maxSeconds);
+        histogram.getCount(),
+        EXPLICIT_BOUNDS,
+        counts,
+        sumSeconds,
+        minSeconds,
+        maxSeconds);
   }
 }

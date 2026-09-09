@@ -11,12 +11,13 @@ import org.apache.kafka.common.Cluster;
 public class MetadataUpdateBefore22Advice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(
-      @Advice.This final Metadata metadata, @Advice.Argument(0) final Cluster newCluster) {
+      @Advice.This final Metadata metadata,
+      @Advice.Argument(0) final Cluster newCluster) {
     if (newCluster != null && !newCluster.isBootstrapConfigured()) {
       String clusterId = newCluster.clusterResource().clusterId();
-      MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .getOrCreate(metadata, MetadataState::new);
+      MetadataState state = InstrumentationContext
+        .get(Metadata.class, MetadataState.class)
+        .getOrCreate(metadata, MetadataState::new);
       state.clusterId = clusterId;
       KafkaConfigHelper.reportPendingConfig(state, clusterId);
     }

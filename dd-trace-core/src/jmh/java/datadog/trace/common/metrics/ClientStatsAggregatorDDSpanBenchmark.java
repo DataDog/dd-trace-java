@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.writer.Writer;
@@ -51,24 +50,21 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(1)
 public class ClientStatsAggregatorDDSpanBenchmark {
-
   private static final CoreTracer TRACER =
       CoreTracer.builder().writer(new NoopWriter()).strictTraceWrites(false).build();
-
-  private final DDAgentFeaturesDiscovery featuresDiscovery =
-      new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-          Collections.singleton("peer.hostname"), Collections.emptySet());
-  private final ClientStatsAggregator aggregator =
-      new ClientStatsAggregator(
-          new WellKnownTags("", "", "", "", "", ""),
-          Collections.emptySet(),
-          AdditionalTagsSchema.EMPTY,
-          featuresDiscovery,
-          HealthMetrics.NO_OP,
-          new ClientStatsAggregatorBenchmark.NullSink(),
-          2048,
-          2048,
-          false);
+  private final DDAgentFeaturesDiscovery featuresDiscovery = new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+      Collections.singleton("peer.hostname"),
+      Collections.emptySet());
+  private final ClientStatsAggregator aggregator = new ClientStatsAggregator(
+      new WellKnownTags("", "", "", "", "", ""),
+      Collections.emptySet(),
+      AdditionalTagsSchema.EMPTY,
+      featuresDiscovery,
+      HealthMetrics.NO_OP,
+      new ClientStatsAggregatorBenchmark.NullSink(),
+      2048,
+      2048,
+      false);
   private final List<CoreSpan<?>> spans = generateTrace(64);
 
   static List<CoreSpan<?>> generateTrace(int len) {

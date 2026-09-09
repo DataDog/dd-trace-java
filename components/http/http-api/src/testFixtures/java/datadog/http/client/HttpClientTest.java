@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
-
 import java.io.IOException;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -36,8 +35,9 @@ public class HttpClientTest {
 
   @Test
   void testGetRequest() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
     this.server.when(expectedRequest).respond(response());
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
@@ -55,22 +55,21 @@ public class HttpClientTest {
   @Test
   void testPostRequest() throws IOException {
     String payload = "{\"key\":\"value\"}";
-    org.mockserver.model.HttpRequest expectedRequest =
-        request()
-            .withMethod("POST")
-            .withPath("/test")
-            .withHeader("Content-Type", "application/json")
-            .withBody(payload);
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("POST")
+      .withPath("/test")
+      .withHeader("Content-Type", "application/json")
+      .withBody(payload);
     this.server.when(expectedRequest).respond(response().withStatusCode(201));
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
     HttpRequestBody body = HttpRequestBody.of(payload);
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .url(url)
-            .header("Content-Type", "application/json")
-            .post(body)
-            .build();
+    HttpRequest request = HttpRequest
+      .newBuilder()
+      .url(url)
+      .header("Content-Type", "application/json")
+      .post(body)
+      .build();
 
     HttpResponse response = this.client.execute(request);
 
@@ -84,22 +83,22 @@ public class HttpClientTest {
   @Test
   void testPutRequest() throws IOException {
     String payload = "{\"key\":\"value\"}";
-    org.mockserver.model.HttpRequest expectedRequest =
-        request()
-            .withMethod("PUT")
-            .withPath("/test")
-            .withHeader("Content-Type", "application/json")
-            .withBody(payload);
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("PUT")
+      .withPath("/test")
+      .withHeader("Content-Type", "application/json")
+      .withBody(payload);
     this.server.when(expectedRequest).respond(response().withStatusCode(200));
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
     HttpRequestBody body = HttpRequestBody.of(payload);
     HttpRequest request =
-        HttpRequest.newBuilder()
-            .url(url)
-            .header("Content-Type", "application/json")
-            .put(body)
-            .build();
+        HttpRequest
+      .newBuilder()
+      .url(url)
+      .header("Content-Type", "application/json")
+      .put(body)
+      .build();
 
     HttpResponse response = this.client.execute(request);
 
@@ -130,24 +129,23 @@ public class HttpClientTest {
 
   @Test
   void testRequestHeaders() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request()
-            .withMethod("GET")
-            .withPath("/test")
-            .withHeader("Accept", "text/plain")
-            .withHeader("X-Custom-Header", "custom-value1", "custom-value2", "custom-value3");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test")
+      .withHeader("Accept", "text/plain")
+      .withHeader("X-Custom-Header", "custom-value1", "custom-value2", "custom-value3");
     this.server.when(expectedRequest).respond(response().withStatusCode(200));
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
-    HttpRequest request =
-        HttpRequest.newBuilder()
-            .url(url)
-            .get()
-            .header("Accept", "text/plain")
-            .addHeader("X-Custom-Header", "custom-value1")
-            .addHeader("X-Custom-Header", "custom-value2")
-            .addHeader("X-Custom-Header", "custom-value3")
-            .build();
+    HttpRequest request = HttpRequest
+      .newBuilder()
+      .url(url)
+      .get()
+      .header("Accept", "text/plain")
+      .addHeader("X-Custom-Header", "custom-value1")
+      .addHeader("X-Custom-Header", "custom-value2")
+      .addHeader("X-Custom-Header", "custom-value3")
+      .build();
 
     HttpResponse response = this.client.execute(request);
 
@@ -160,14 +158,14 @@ public class HttpClientTest {
 
   @Test
   void testResponseHeaders() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
-    org.mockserver.model.HttpResponse resultResponse =
-        response()
-            .withStatusCode(200)
-            .withHeader("Content-Type", "text/plain")
-            .withHeader("X-Custom-Header", "value1", "value2", "value3")
-            .withBody("test-response");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
+    org.mockserver.model.HttpResponse resultResponse = response()
+      .withStatusCode(200)
+      .withHeader("Content-Type", "text/plain")
+      .withHeader("X-Custom-Header", "value1", "value2", "value3")
+      .withBody("test-response");
     this.server.when(expectedRequest).respond(resultResponse);
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");

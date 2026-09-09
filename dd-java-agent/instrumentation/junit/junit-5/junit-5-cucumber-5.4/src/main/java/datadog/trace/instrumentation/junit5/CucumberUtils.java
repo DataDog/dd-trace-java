@@ -19,7 +19,6 @@ import org.junit.platform.engine.UniqueId;
 import org.junit.platform.engine.support.descriptor.ClasspathResourceSource;
 
 public abstract class CucumberUtils {
-
   static {
     TestDataFactory.register(
         JUnitPlatformUtils.ENGINE_ID_CUCUMBER,
@@ -27,16 +26,16 @@ public abstract class CucumberUtils {
         d -> TestSourceData.UNKNOWN,
         null);
     RetryDescriptorFactories.register(
-        JUnitPlatformUtils.ENGINE_ID_CUCUMBER, new CucumberRetryDescriptorFactory());
+        JUnitPlatformUtils.ENGINE_ID_CUCUMBER,
+        new CucumberRetryDescriptorFactory());
   }
 
   public static @Nullable String getCucumberVersion(TestEngine cucumberEngine) {
-    try (InputStream cucumberPropsStream =
-        cucumberEngine
-            .getClass()
-            .getClassLoader()
-            .getResourceAsStream(
-                "META-INF/maven/io.cucumber/cucumber-junit-platform-engine/pom.properties")) {
+    try (InputStream cucumberPropsStream = cucumberEngine
+      .getClass()
+      .getClassLoader()
+      .getResourceAsStream(
+          "META-INF/maven/io.cucumber/cucumber-junit-platform-engine/pom.properties")) {
       Properties cucumberProps = new Properties();
       cucumberProps.load(cucumberPropsStream);
       String version = cucumberProps.getProperty("version");
@@ -50,7 +49,8 @@ public abstract class CucumberUtils {
   }
 
   public static Pair<String, String> getFeatureAndScenarioNames(
-      TestDescriptor testDescriptor, String fallbackFeatureName) {
+      TestDescriptor testDescriptor,
+      String fallbackFeatureName) {
     String featureName = fallbackFeatureName;
 
     Deque<TestDescriptor> scenarioDescriptors = new ArrayDeque<>();
@@ -68,7 +68,6 @@ public abstract class CucumberUtils {
       if (isFeature(currentId)) {
         featureName = currentId.getLastSegment().getValue() + ":" + current.getDisplayName();
         break;
-
       } else {
         scenarioDescriptors.push(current);
       }
@@ -117,12 +116,10 @@ public abstract class CucumberUtils {
       ClasspathResourceSource classpathResourceSource = (ClasspathResourceSource) testSource;
       String classpathResourceName = classpathResourceSource.getClasspathResourceName();
 
-      Pair<String, String> names =
-          getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
+      Pair<String, String> names = getFeatureAndScenarioNames(testDescriptor, classpathResourceName);
       String testSuiteName = names.getLeft();
       String testName = names.getRight();
       return new TestIdentifier(testSuiteName, testName, null);
-
     } else {
       return null;
     }

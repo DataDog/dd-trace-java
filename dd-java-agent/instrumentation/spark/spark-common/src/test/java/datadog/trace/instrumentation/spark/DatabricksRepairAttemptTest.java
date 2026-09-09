@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.spark;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import java.io.ByteArrayOutputStream;
@@ -14,7 +13,6 @@ import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 class DatabricksRepairAttemptTest {
-
   private static String loadResource(String path) {
     try (InputStream stream = DatabricksRepairAttemptTest.class.getResourceAsStream(path)) {
       if (stream == null) {
@@ -36,7 +34,8 @@ class DatabricksRepairAttemptTest {
   void extractsAttemptZeroFromOriginalRunPayload() {
     Properties properties = new Properties();
     properties.setProperty(
-        "unity.scope.data", loadResource("/databricks/unity-scope-data-original.txt"));
+        "unity.scope.data",
+        loadResource("/databricks/unity-scope-data-original.txt"));
 
     assertEquals(0, AbstractDatadogSparkListener.getDatabricksJobRunAttempt(properties));
   }
@@ -45,7 +44,8 @@ class DatabricksRepairAttemptTest {
   void extractsAttemptOneFromRepairedRunPayload() {
     Properties properties = new Properties();
     properties.setProperty(
-        "unity.scope.data", loadResource("/databricks/unity-scope-data-repaired.txt"));
+        "unity.scope.data",
+        loadResource("/databricks/unity-scope-data-repaired.txt"));
 
     assertEquals(1, AbstractDatadogSparkListener.getDatabricksJobRunAttempt(properties));
   }
@@ -71,8 +71,9 @@ class DatabricksRepairAttemptTest {
     Properties properties = new Properties();
     properties.setProperty(
         "unity.scope.data",
-        java.util.Base64.getEncoder()
-            .encodeToString("no attempt info in here".getBytes(StandardCharsets.UTF_8)));
+        java.util.Base64
+          .getEncoder()
+          .encodeToString("no attempt info in here".getBytes(StandardCharsets.UTF_8)));
 
     assertEquals(0, AbstractDatadogSparkListener.getDatabricksJobRunAttempt(properties));
   }
@@ -86,7 +87,8 @@ class DatabricksRepairAttemptTest {
     byte[] key = "jobRunAttemptNum".getBytes(StandardCharsets.UTF_8);
     byte[] payload = new byte[key.length + 5];
     System.arraycopy(key, 0, payload, 0, key.length);
-    payload[key.length] = 0x71; // TC_REFERENCE
+    // TC_REFERENCE
+    payload[key.length] = 0x71;
     payload[key.length + 1] = 0x00;
     payload[key.length + 2] = 0x00;
     payload[key.length + 3] = 0x00;
@@ -94,7 +96,8 @@ class DatabricksRepairAttemptTest {
 
     Properties properties = new Properties();
     properties.setProperty(
-        "unity.scope.data", java.util.Base64.getEncoder().encodeToString(payload));
+        "unity.scope.data",
+        java.util.Base64.getEncoder().encodeToString(payload));
 
     assertEquals(0, AbstractDatadogSparkListener.getDatabricksJobRunAttempt(properties));
   }

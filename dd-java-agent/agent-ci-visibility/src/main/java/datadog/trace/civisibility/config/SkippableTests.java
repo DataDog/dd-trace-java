@@ -14,10 +14,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class SkippableTests {
-
   public static final SkippableTests EMPTY =
       new SkippableTests(null, Collections.emptyMap(), Collections.emptyMap());
-
   private final String correlationId;
   private final Map<String, Map<TestIdentifier, TestMetadata>> identifiersByModule;
   private final Map<String, BitSet> coveredLinesByRelativeSourcePath;
@@ -52,7 +50,8 @@ public class SkippableTests {
    * envelope meta.
    */
   public static SkippableTests from(
-      MultiEnvelope<TestIdentifierJson> envelope, TracerEnvironment tracerEnvironment) {
+      MultiEnvelope<TestIdentifierJson> envelope,
+      TracerEnvironment tracerEnvironment) {
     Map<String, Map<TestIdentifier, TestMetadata>> identifiersByModule = new HashMap<>();
     for (Data<TestIdentifierJson> entry : envelope.data) {
       TestIdentifierJson identifier = entry.attributes;
@@ -60,15 +59,14 @@ public class SkippableTests {
         continue;
       }
       identifiersByModule
-          .computeIfAbsent(identifier.resolveModuleName(tracerEnvironment), k -> new HashMap<>())
-          .put(identifier.toTestIdentifier(), identifier.toTestMetadata());
+        .computeIfAbsent(identifier.resolveModuleName(tracerEnvironment), k -> new HashMap<>())
+        .put(identifier.toTestIdentifier(), identifier.toTestMetadata());
     }
 
     String correlationId = envelope.meta != null ? envelope.meta.correlationId : null;
-    Map<String, BitSet> coverage =
-        envelope.meta != null && envelope.meta.coverage != null
-            ? envelope.meta.coverage
-            : Collections.emptyMap();
+    Map<String, BitSet> coverage = envelope.meta != null && envelope.meta.coverage != null
+        ? envelope.meta.coverage
+        : Collections.emptyMap();
     return new SkippableTests(correlationId, identifiersByModule, coverage);
   }
 }

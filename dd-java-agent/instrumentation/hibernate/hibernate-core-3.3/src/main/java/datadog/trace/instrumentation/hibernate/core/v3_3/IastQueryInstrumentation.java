@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.hibernate.core.v3_3;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,8 @@ import org.hibernate.transaction.JBossTransactionManagerLookup;
 
 @AutoService(InstrumenterModule.class)
 public class IastQueryInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public IastQueryInstrumentation() {
     super("hibernate", "hibernate-core");
   }
@@ -37,7 +36,6 @@ public class IastQueryInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class QueryMethodAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.SQL_INJECTION)
     public static void beforeMethod(@Advice.This final Query query) {

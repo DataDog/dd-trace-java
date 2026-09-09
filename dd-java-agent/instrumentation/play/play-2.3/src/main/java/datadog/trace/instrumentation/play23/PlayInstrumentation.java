@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,8 +12,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class PlayInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public PlayInstrumentation() {
     super("play", "play-action");
   }
@@ -32,13 +31,13 @@ public final class PlayInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PlayHeaders",
-      packageName + ".PlayHeaders$Request",
-      packageName + ".PlayHeaders$Result",
-      packageName + ".PlayHttpServerDecorator",
-      packageName + ".RequestCompleteCallback",
-      packageName + ".RequestURIDataAdapter",
-      packageName + ".RequestWithCapturedPeer"
+        packageName + ".PlayHeaders",
+        packageName + ".PlayHeaders$Request",
+        packageName + ".PlayHeaders$Result",
+        packageName + ".PlayHttpServerDecorator",
+        packageName + ".RequestCompleteCallback",
+        packageName + ".RequestURIDataAdapter",
+        packageName + ".RequestWithCapturedPeer"
     };
   }
 
@@ -46,8 +45,8 @@ public final class PlayInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("apply")
-            .and(takesArgument(0, named("play.api.mvc.Request")))
-            .and(returns(named("scala.concurrent.Future"))),
+          .and(takesArgument(0, named("play.api.mvc.Request")))
+          .and(returns(named("scala.concurrent.Future"))),
         packageName + ".PlayAdvice");
   }
 }

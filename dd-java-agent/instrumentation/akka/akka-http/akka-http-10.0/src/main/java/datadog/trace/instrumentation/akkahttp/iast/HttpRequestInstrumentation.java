@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.scaladsl.model.HttpHeader;
 import akka.http.scaladsl.model.HttpRequest;
 import com.google.auto.service.AutoService;
@@ -35,7 +34,8 @@ import scala.collection.immutable.Seq;
  */
 @AutoService(InstrumenterModule.class)
 public class HttpRequestInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public HttpRequestInstrumentation() {
     super("akka-http");
   }
@@ -49,10 +49,10 @@ public class HttpRequestInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("headers"))
-            .and(returns(named("scala.collection.immutable.Seq")))
-            .and(takesArguments(0)),
+          .and(not(isStatic()))
+          .and(named("headers"))
+          .and(returns(named("scala.collection.immutable.Seq")))
+          .and(takesArguments(0)),
         HttpRequestInstrumentation.class.getName() + "$RequestHeadersAdvice");
 
     transformer.applyAdvice(
@@ -99,7 +99,6 @@ public class HttpRequestInstrumentation extends InstrumenterModule.Iast
         @Advice.This HttpRequest thiz,
         @Advice.Return(readOnly = false, typing = DYNAMIC) Object entity,
         @ActiveRequestContext RequestContext reqCtx) {
-
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null || entity == null) {
         return;

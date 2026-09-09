@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.commons.fileupload;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -21,8 +20,8 @@ import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileItemIterator;
 
 public class ServletFileUploadInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "org.apache.commons.fileupload.servlet.ServletFileUpload";
@@ -32,18 +31,18 @@ public class ServletFileUploadInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseRequest")
-            .and(isPublic())
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+          .and(isPublic())
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$ParseRequestAdvice");
     transformer.applyAdvice(
         named("parseParameterMap")
-            .and(isPublic())
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+          .and(isPublic())
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$ParseParameterMapAdvice");
     transformer.applyAdvice(
         named("getItemIterator")
-            .and(isPublic())
-            .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
+          .and(isPublic())
+          .and(takesArgument(0, named("javax.servlet.http.HttpServletRequest"))),
         getClass().getName() + "$GetItemIteratorAdvice");
   }
 

@@ -9,17 +9,22 @@ import net.bytebuddy.utility.JavaModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** {@link AgentBuilder.RawMatcher} that logs and swallows exceptions while matching. */
+/**
+ * {@link AgentBuilder.RawMatcher} that logs and swallows exceptions while matching.
+ */
 public class FailSafeRawMatcher implements AgentBuilder.RawMatcher {
   private static final Logger log = LoggerFactory.getLogger(FailSafeRawMatcher.class);
-
-  /** The type matcher that might throw an exception. */
+  /**
+   * The type matcher that might throw an exception.
+   */
   private final ElementMatcher<? super TypeDescription> typeMatcher;
-
-  /** The classloader matcher that might throw an exception. */
+  /**
+   * The classloader matcher that might throw an exception.
+   */
   private final ElementMatcher<? super ClassLoader> classLoaderMatcher;
-
-  /** The text description to log if exception happens. */
+  /**
+   * The text description to log if exception happens.
+   */
   private final String description;
 
   /**

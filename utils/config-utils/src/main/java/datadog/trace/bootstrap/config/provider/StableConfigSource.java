@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
-
 import datadog.common.filesystem.Files;
 import datadog.trace.api.ConfigOrigin;
 import datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException;
@@ -14,17 +13,15 @@ import org.slf4j.LoggerFactory;
 
 public final class StableConfigSource extends ConfigProvider.Source {
   private static final Logger log = LoggerFactory.getLogger(StableConfigSource.class);
-
   public static final String LOCAL_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/application_monitoring.yaml";
   public static final String FLEET_STABLE_CONFIG_PATH =
       "/etc/datadog-agent/managed/datadog-agent/stable/application_monitoring.yaml";
   public static final StableConfigSource LOCAL =
       new StableConfigSource(LOCAL_STABLE_CONFIG_PATH, ConfigOrigin.LOCAL_STABLE_CONFIG);
-  public static final StableConfigSource FLEET =
-      new StableConfigSource(
-          StableConfigSource.FLEET_STABLE_CONFIG_PATH, ConfigOrigin.FLEET_STABLE_CONFIG);
-
+  public static final StableConfigSource FLEET = new StableConfigSource(
+      StableConfigSource.FLEET_STABLE_CONFIG_PATH,
+      ConfigOrigin.FLEET_STABLE_CONFIG);
   private final ConfigOrigin fileOrigin;
   private final StableConfig config;
 

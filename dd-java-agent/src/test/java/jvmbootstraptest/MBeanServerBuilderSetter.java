@@ -12,7 +12,8 @@ public class MBeanServerBuilderSetter {
 
       if (Boolean.parseBoolean(System.getProperty("dd.app.customjmxbuilder"))) {
         System.setProperty(
-            "javax.management.builder.initial", "jvmbootstraptest.CustomMBeanServerBuilder");
+            "javax.management.builder.initial",
+            "jvmbootstraptest.CustomMBeanServerBuilder");
         customAssert(
             isCustomMBeanRegistered(),
             true,
@@ -32,13 +33,16 @@ public class MBeanServerBuilderSetter {
           "jmxfetch startup must be delayed when management builder system property is present.");
       // Change back to a valid MBeanServerBuilder.
       System.setProperty(
-          "javax.management.builder.initial", "jvmbootstraptest.CustomMBeanServerBuilder");
+          "javax.management.builder.initial",
+          "jvmbootstraptest.CustomMBeanServerBuilder");
       customAssert(
           isCustomMBeanRegistered(),
           true,
           "Javaagent should not prevent setting a custom MBeanServerBuilder");
       customAssert(
-          isJmxfetchStarted(true), true, "jmxfetch should start after loading MBeanServerBuilder.");
+          isJmxfetchStarted(true),
+          true,
+          "jmxfetch should start after loading MBeanServerBuilder.");
     } else {
       System.out.println("No custom MBeanServerBuilder");
 
@@ -50,12 +54,15 @@ public class MBeanServerBuilderSetter {
   }
 
   private static boolean isCustomMBeanRegistered() throws MalformedObjectNameException {
-    return ManagementFactory.getPlatformMBeanServer()
-        .isRegistered(new ObjectName("test:name=custom"));
+    return ManagementFactory
+      .getPlatformMBeanServer()
+      .isRegistered(new ObjectName("test:name=custom"));
   }
 
   private static void customAssert(
-      final Object got, final Object expected, final String assertionMessage) {
+      final Object got,
+      final Object expected,
+      final String assertionMessage) {
     if (!Objects.equals(got, expected)) {
       throw new RuntimeException(
           "Assertion failed. Expected <" + expected + "> got <" + got + "> " + assertionMessage);
@@ -64,7 +71,6 @@ public class MBeanServerBuilderSetter {
 
   private static boolean isThreadStarted(final String name, final boolean wait) {
     System.out.println("Checking for thread " + name + "...");
-
     // Wait up to 10 seconds for thread to appear
     for (int i = 0; i < 20; i++) {
       for (final Thread thread : Thread.getAllStackTraces().keySet()) {

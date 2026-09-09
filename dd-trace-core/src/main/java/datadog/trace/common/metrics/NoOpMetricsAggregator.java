@@ -1,14 +1,12 @@
 package datadog.trace.common.metrics;
 
 import static java.lang.Boolean.FALSE;
-
 import datadog.trace.core.CoreSpan;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 public final class NoOpMetricsAggregator implements MetricsAggregator {
-
   public static final NoOpMetricsAggregator INSTANCE = new NoOpMetricsAggregator();
 
   @Override

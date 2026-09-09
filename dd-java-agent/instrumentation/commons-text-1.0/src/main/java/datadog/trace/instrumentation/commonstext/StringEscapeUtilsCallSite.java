@@ -11,21 +11,21 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringEscapeUtilsCallSite {
-
-  @CallSite.After(
-      "java.lang.String org.apache.commons.text.StringEscapeUtils.escapeEcmaScript(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.text.StringEscapeUtils.escapeHtml3(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.text.StringEscapeUtils.escapeHtml4(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.text.StringEscapeUtils.escapeJava(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.text.StringEscapeUtils.escapeXml10(java.lang.String)")
-  @CallSite.After(
-      "java.lang.String org.apache.commons.text.StringEscapeUtils.escapeXml11(java.lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.text.StringEscapeUtils."
+      + "escapeEcmaScript(java.lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.text.StringEscapeUtils.escapeHtml3(java."
+      + "lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.text.StringEscapeUtils.escapeHtml4(java."
+      + "lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.text.StringEscapeUtils.escapeJava(java."
+      + "lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.text.StringEscapeUtils.escapeXml10(java."
+      + "lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.text.StringEscapeUtils.escapeXml11(java."
+      + "lang.String)")
   public static String afterEscape(
-      @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
+      @CallSite.Argument(0) @Nullable final String input,
+      @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {
@@ -37,10 +37,11 @@ public class StringEscapeUtilsCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String org.apache.commons.text.StringEscapeUtils.escapeJson(java.lang.String)")
+  @CallSite.After("java.lang.String org.apache.commons.text.StringEscapeUtils.escapeJson(java."
+      + "lang.String)")
   public static String afterEscapeJson(
-      @CallSite.Argument(0) @Nullable final String input, @CallSite.Return final String result) {
+      @CallSite.Argument(0) @Nullable final String input,
+      @CallSite.Return final String result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

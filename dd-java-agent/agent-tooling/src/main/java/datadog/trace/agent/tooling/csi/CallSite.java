@@ -9,14 +9,19 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
 public @interface CallSite {
-
-  /** Interfaces to be used for SPI injection */
+  /**
+   * Interfaces to be used for SPI injection
+   */
   Class<?>[] spi();
 
-  /** Enable or disable the call site: (fully qualified name, method name and arguments) */
+  /**
+   * Enable or disable the call site: (fully qualified name, method name and arguments)
+   */
   String[] enabled() default {};
 
-  /** Helper classes for the advice */
+  /**
+   * Helper classes for the advice
+   */
   Class<?>[] helpers() default {};
 
   @Target(ElementType.METHOD)
@@ -78,7 +83,8 @@ public @interface CallSite {
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)
-  @interface This {}
+  @interface This {
+  }
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)
@@ -94,9 +100,11 @@ public @interface CallSite {
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)
-  @interface InvokeDynamicConstants {}
+  @interface InvokeDynamicConstants {
+  }
 
   @Target(ElementType.PARAMETER)
   @Retention(RetentionPolicy.CLASS)
-  @interface Return {}
+  @interface Return {
+  }
 }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mule4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -30,7 +29,6 @@ public class EventContextCreationAdvice {
     final ContextStore<EventContext, SpanState> contextStore =
         InstrumentationContext.get(EventContext.class, SpanState.class);
     SpanState spanState = null;
-
     // This is a roundabout way to know if we are in the constructor for DefaultEventContext or
     // ChildContext. Since ChildContext is is a private inner class, we can't access it from here.
     if (zis instanceof DefaultEventContext) {

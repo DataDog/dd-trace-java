@@ -31,7 +31,6 @@ import static datadog.trace.core.otlp.common.OtlpTraceFlags.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
@@ -48,23 +47,26 @@ import datadog.trace.core.PendingTrace;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
 
-/** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
+/**
+ * Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol.
+ */
 public final class OtlpTraceProto {
-
   private static final UTF8BytesString SERVICE_NAME = UTF8BytesString.create("service.name");
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
-  private OtlpTraceProto() {}
+  private OtlpTraceProto() {
+  }
 
-  /** Records a scoped spans message after its nested span messages have been recorded. */
+  /**
+   * Records a scoped spans message after its nested span messages have been recorded.
+   */
   public static int recordScopedSpansMessage(
       GrowableBuffer buf,
       OtelInstrumentationScope scope,
       int nestedSpanBytes,
       OtlpProtoBuffer protobuf) {
-
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
     if (scope.getSchemaUrl() != null) {
@@ -75,7 +77,9 @@ public final class OtlpTraceProto {
     return protobuf.recordMessage(buf, 2, nestedSpanBytes);
   }
 
-  /** Records a span message after its nested span-link messages have been recorded. */
+  /**
+   * Records a span message after its nested span-link messages have been recorded.
+   */
   public static int recordSpanMessage(
       GrowableBuffer buf,
       DDSpan span,
@@ -162,10 +166,13 @@ public final class OtlpTraceProto {
     return protobuf.recordMessage(buf, 2, nestedSpanLinkBytes);
   }
 
-  /** Records a span-link message. */
+  /**
+   * Records a span-link message.
+   */
   public static int recordSpanLinkMessage(
-      GrowableBuffer buf, AgentSpanLink spanLink, OtlpProtoBuffer protobuf) {
-
+      GrowableBuffer buf,
+      AgentSpanLink spanLink,
+      OtlpProtoBuffer protobuf) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, spanLink.traceId());
 
@@ -178,13 +185,12 @@ public final class OtlpTraceProto {
     }
 
     spanLink
-        .attributes()
-        .asMap()
-        .forEach(
-            (key, value) -> {
-              writeTag(buf, 4, LEN_WIRE_TYPE);
-              writeAttribute(buf, STRING_ATTRIBUTE, key, value);
-            });
+      .attributes()
+      .asMap()
+      .forEach((key, value) -> {
+        writeTag(buf, 4, LEN_WIRE_TYPE);
+        writeAttribute(buf, STRING_ATTRIBUTE, key, value);
+      });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
     writeI32(buf, spanLink.traceFlags() & 0xff);
@@ -222,8 +228,7 @@ public final class OtlpTraceProto {
     }
   }
 
-  private static void writeSpanTag(
-      StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
+  private static void writeSpanTag(StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     writeAttribute(buf, key, value);
   }
@@ -244,7 +249,6 @@ public final class OtlpTraceProto {
 
   public static class MetaWriter implements MetadataConsumer {
     private final StreamingBuffer buf;
-
     private boolean includeProcessTags;
     private boolean includeSamplingTags;
 
@@ -252,12 +256,16 @@ public final class OtlpTraceProto {
       this.buf = buf;
     }
 
-    /** Call this to ensure process tags are written out for the next span. */
+    /**
+     * Call this to ensure process tags are written out for the next span.
+     */
     public void includeProcessTags() {
       includeProcessTags = true;
     }
 
-    /** Call this to ensure sampling tags are written out for the next span. */
+    /**
+     * Call this to ensure sampling tags are written out for the next span.
+     */
     public void includeSamplingTags() {
       includeSamplingTags = true;
     }
@@ -295,7 +303,6 @@ public final class OtlpTraceProto {
       }
 
       metadata.getTags().forEach(buf, OtlpTraceProto::writeSpanTag);
-
       // reset for next span
       includeProcessTags = false;
       includeSamplingTags = false;

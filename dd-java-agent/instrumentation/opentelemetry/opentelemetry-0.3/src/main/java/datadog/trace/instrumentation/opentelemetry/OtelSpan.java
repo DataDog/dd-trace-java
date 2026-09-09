@@ -60,8 +60,8 @@ public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
         delegate.setTag(key, value.getBooleanValue());
         break;
       default:
-        // Unsupported.... Ignoring.
     }
+    // Unsupported.... Ignoring.
   }
 
   @Override
@@ -75,7 +75,9 @@ public class OtelSpan implements Span, MutableSpan, WithAgentSpan, SpanWrapper {
 
   @Override
   public void addEvent(
-      final String name, final Map<String, AttributeValue> attributes, final long timestamp) {}
+      final String name,
+      final Map<String, AttributeValue> attributes,
+      final long timestamp) {}
 
   @Override
   public void addEvent(final Event event) {}

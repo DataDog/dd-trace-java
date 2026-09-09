@@ -8,7 +8,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedNo
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -31,8 +30,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public IastOptOutHttpServletRequest3Instrumentation() {
     super("servlet", "servlet-3");
   }
@@ -56,9 +55,9 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        // ignore wrappers that ship with servlet-api
-        .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
-        .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
+      // ignore wrappers that ship with servlet-api
+      .and(namedNoneOf("javax.servlet.http.HttpServletRequestWrapper"))
+      .and(not(extendsClass(named("javax.servlet.http.HttpServletRequestWrapper"))));
   }
 
   @Override
@@ -71,7 +70,8 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "javax.servlet.ServletContext", "javax.servlet.SessionTrackingMode");
+        "javax.servlet.ServletContext",
+        "javax.servlet.SessionTrackingMode");
   }
 
   @Override
@@ -83,7 +83,8 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.SESSION_REWRITING)
     public static void onExit(
-        @Advice.This final HttpServletRequest request, @Advice.Return final HttpSession session) {
+        @Advice.This final HttpServletRequest request,
+        @Advice.Return final HttpSession session) {
       if (session == null) {
         return;
       }
@@ -92,13 +93,13 @@ public class IastOptOutHttpServletRequest3Instrumentation extends InstrumenterMo
         return;
       }
       final ServletContext context = request.getServletContext();
-      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context)
-          != null) {
+      if (InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class).get(context) != null) {
         return;
       }
       // We only want to report it once per application
-      InstrumentationContext.get(ServletContext.class, SessionTrackingMode.class)
-          .put(context, SessionTrackingMode.URL);
+      InstrumentationContext
+        .get(ServletContext.class, SessionTrackingMode.class)
+        .put(context, SessionTrackingMode.URL);
       if (context.getEffectiveSessionTrackingModes() != null
           && !context.getEffectiveSessionTrackingModes().isEmpty()) {
         Set<String> sessionTrackingModes = new HashSet<>();

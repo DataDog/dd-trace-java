@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.sofarpc;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -9,7 +8,6 @@ import java.util.List;
 
 @AutoService(InstrumenterModule.class)
 public class SofaRpcModule extends InstrumenterModule.Tracing {
-
   public SofaRpcModule() {
     super("sofarpc");
   }
@@ -17,11 +15,11 @@ public class SofaRpcModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SofaRpcClientDecorator",
-      packageName + ".SofaRpcServerDecorator",
-      packageName + ".SofaRpcInjectAdapter",
-      packageName + ".SofaRpcExtractAdapter",
-      packageName + ".SofaRpcProtocolContext",
+        packageName + ".SofaRpcClientDecorator",
+        packageName + ".SofaRpcServerDecorator",
+        packageName + ".SofaRpcInjectAdapter",
+        packageName + ".SofaRpcExtractAdapter",
+        packageName + ".SofaRpcProtocolContext"
     };
   }
 

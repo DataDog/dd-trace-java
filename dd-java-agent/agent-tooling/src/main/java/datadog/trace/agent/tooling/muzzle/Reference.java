@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.muzzle;
 
 import static java.util.Arrays.asList;
-
 import datadog.trace.util.Strings;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -14,7 +13,9 @@ import java.util.Set;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 
-/** An immutable reference to a jvm class. */
+/**
+ * An immutable reference to a jvm class.
+ */
 public class Reference {
   public final String[] sources;
   public final int flags;
@@ -103,8 +104,7 @@ public class Reference {
     public final String name;
     public final String fieldType;
 
-    public Field(
-        final String[] sources, final int flags, final String name, final String fieldType) {
+    public Field(final String[] sources, final int flags, final String name, final String fieldType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -150,7 +150,10 @@ public class Reference {
     public final String methodType;
 
     public Method(
-        final String[] sources, final int flags, final String name, final String methodType) {
+        final String[] sources,
+        final int flags,
+        final String name,
+        final String methodType) {
       this.sources = sources;
       this.flags = flags;
       this.name = name;
@@ -195,7 +198,9 @@ public class Reference {
    * source-code locations of the instrumentation which caused the mismatch.
    */
   public abstract static class Mismatch {
-    /** Instrumentation sources which caused the mismatch. */
+    /**
+     * Instrumentation sources which caused the mismatch.
+     */
     private final String[] mismatchSources;
 
     Mismatch(final String[] mismatchSources) {
@@ -211,7 +216,9 @@ public class Reference {
       }
     }
 
-    /** Human-readable string describing the mismatch. */
+    /**
+     * Human-readable string describing the mismatch.
+     */
     abstract String getMismatchDetails();
 
     public static class MissingClass extends Mismatch {
@@ -298,7 +305,9 @@ public class Reference {
       }
     }
 
-    /** Fallback mismatch in case an unexpected exception occurs during reference checking. */
+    /**
+     * Fallback mismatch in case an unexpected exception occurs during reference checking.
+     */
     public static class ReferenceCheckError extends Mismatch {
       private final Exception referenceCheckException;
       private final Reference referenceBeingChecked;
@@ -432,7 +441,9 @@ public class Reference {
           methods.toArray(new Method[methods.size()]));
     }
 
-    /** Builds a reference that checks the next spec if the current spec doesn't match. */
+    /**
+     * Builds a reference that checks the next spec if the current spec doesn't match.
+     */
     public Builder or() {
       return new OrBuilder(build());
     }

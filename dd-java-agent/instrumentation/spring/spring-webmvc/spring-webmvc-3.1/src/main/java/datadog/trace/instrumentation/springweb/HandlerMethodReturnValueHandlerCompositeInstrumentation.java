@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.springweb;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,8 +20,8 @@ import org.springframework.web.servlet.view.AbstractUrlBasedView;
 @AutoService(InstrumenterModule.class)
 public final class HandlerMethodReturnValueHandlerCompositeInstrumentation
     extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public HandlerMethodReturnValueHandlerCompositeInstrumentation() {
     super("spring-web");
   }
@@ -40,7 +39,6 @@ public final class HandlerMethodReturnValueHandlerCompositeInstrumentation
   }
 
   public static class SpringAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.SPRING_RESPONSE)
     public static void checkReturnedObject(
@@ -55,7 +53,9 @@ public final class HandlerMethodReturnValueHandlerCompositeInstrumentation
         String method = returnType.getMethod().getName();
         if (unvalidatedRedirectModule != null && value instanceof AbstractUrlBasedView) {
           unvalidatedRedirectModule.onRedirect(
-              ((AbstractUrlBasedView) value).getUrl(), clazz, method);
+              ((AbstractUrlBasedView) value).getUrl(),
+              clazz,
+              method);
         } else if (unvalidatedRedirectModule != null && value instanceof ModelAndView) {
           unvalidatedRedirectModule.onRedirect(((ModelAndView) value).getViewName(), clazz, method);
         } else if (value instanceof String) {

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Arrays;
@@ -16,7 +15,6 @@ import java.util.LinkedHashSet;
 import org.junit.jupiter.api.Test;
 
 class AdditionalTagsSchemaTest {
-
   @Test
   void emptyConfigReturnsSharedEmptySchema() {
     assertSame(AdditionalTagsSchema.EMPTY, AdditionalTagsSchema.from(null));
@@ -44,9 +42,8 @@ class AdditionalTagsSchemaTest {
 
   @Test
   void rejectsEmptyAndColonContainingKeys() {
-    AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "", "bad:key", "tenant_id")));
+    AdditionalTagsSchema schema = AdditionalTagsSchema.from(
+        new LinkedHashSet<>(Arrays.asList("region", "", "bad:key", "tenant_id")));
     // Empty key and "bad:key" are dropped; only the two valid keys remain.
     assertArrayEquals(new String[] {"region", "tenant_id"}, schema.names);
   }
@@ -71,14 +68,14 @@ class AdditionalTagsSchemaTest {
     // consume nor block the other's -- each key gets its own TagCardinalityHandler.
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 1, true);
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")),
+            1,
+            true);
     int region = indexOf(schema, "region");
     int tenant = indexOf(schema, "tenant_id");
-
     // region: first value fits, second collapses to the blocked sentinel.
     assertEquals("region:us-east-1", schema.register(region, "us-east-1").toString());
     assertEquals("region:tracer_blocked_value", schema.register(region, "eu-west-1").toString());
-
     // tenant_id is untouched by region's exhaustion: its first value still flows through, and its
     // own budget collapses only its own second value.
     assertEquals("tenant_id:acme-corp", schema.register(tenant, "acme-corp").toString());
@@ -94,9 +91,12 @@ class AdditionalTagsSchemaTest {
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(Collections.singleton("region"), 1, true);
     int region = indexOf(schema, "region");
-    schema.register(region, "us-east-1"); // within budget
-    schema.register(region, "eu-west-1"); // collapsed (cardinality)
-    schema.register(region, "ap-south-1"); // collapsed (cardinality)
+    // within budget
+    schema.register(region, "us-east-1");
+    // collapsed (cardinality)
+    schema.register(region, "eu-west-1");
+    // collapsed (cardinality)
+    schema.register(region, "ap-south-1");
 
     HealthMetrics metrics = mock(HealthMetrics.class);
     schema.resetHandlers(metrics, new CardinalityLimitReporter());
@@ -112,10 +112,12 @@ class AdditionalTagsSchemaTest {
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(Collections.singleton("region"), 1, true);
     int region = indexOf(schema, "region");
-    schema.register(region, "us-east-1"); // within budget
-    schema.register(region, "eu-west-1"); // collapsed (cardinality)
-    schema.register(region, "ap-south-1"); // collapsed (cardinality)
-
+    // within budget
+    schema.register(region, "us-east-1");
+    // collapsed (cardinality)
+    schema.register(region, "eu-west-1");
+    // collapsed (cardinality)
+    schema.register(region, "ap-south-1");
     // Drain any pre-existing delta so the assertion measures only this reset's contribution.
     drainTelemetryDelta("collapsed:additional_metric_tags");
     schema.resetHandlers(mock(HealthMetrics.class), new CardinalityLimitReporter());
@@ -123,7 +125,9 @@ class AdditionalTagsSchemaTest {
     assertEquals(2L, drainTelemetryDelta("collapsed:additional_metric_tags"));
   }
 
-  /** Reads and resets the telemetry delta for {@code reason}; 0 if no counter exists yet. */
+  /**
+   * Reads and resets the telemetry delta for {@code reason}; 0 if no counter exists yet.
+   */
   private static long drainTelemetryDelta(String reason) {
     for (StatsMetrics.TaggedCounter counter : StatsMetrics.getInstance().getTaggedCounters()) {
       if (reason.equals(counter.getTag())) {
@@ -139,13 +143,19 @@ class AdditionalTagsSchemaTest {
     // "collapsed:additional_metric_tags" tag rather than emitting per key name.
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 1, true);
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")),
+            1,
+            true);
     int region = indexOf(schema, "region");
     int tenant = indexOf(schema, "tenant_id");
-    schema.register(region, "us-east-1"); // within budget
-    schema.register(region, "eu-west-1"); // collapsed
-    schema.register(tenant, "acme-corp"); // within budget
-    schema.register(tenant, "globex"); // collapsed
+    // within budget
+    schema.register(region, "us-east-1");
+    // collapsed
+    schema.register(region, "eu-west-1");
+    // within budget
+    schema.register(tenant, "acme-corp");
+    // collapsed
+    schema.register(tenant, "globex");
 
     HealthMetrics metrics = mock(HealthMetrics.class);
     schema.resetHandlers(metrics, new CardinalityLimitReporter());
@@ -162,9 +172,12 @@ class AdditionalTagsSchemaTest {
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(Collections.singleton("region"), 1, true);
     int region = indexOf(schema, "region");
-    schema.register(region, "us-east-1"); // within budget
-    schema.register(region, "eu-west-1"); // collapsed (cardinality)
-    schema.register(region, stringOfLength(201)); // oversized (length)
+    // within budget
+    schema.register(region, "us-east-1");
+    // collapsed (cardinality)
+    schema.register(region, "eu-west-1");
+    // oversized (length)
+    schema.register(region, stringOfLength(201));
 
     HealthMetrics metrics = mock(HealthMetrics.class);
     schema.resetHandlers(metrics, new CardinalityLimitReporter());
@@ -204,7 +217,6 @@ class AdditionalTagsSchemaTest {
 
     assertEquals("region:" + atCap, schema.register(region, atCap).toString());
     assertEquals("region:tracer_blocked_value", schema.register(region, overCap).toString());
-
     // The over-cap value is a length collapse: it surfaces as oversized:additional_metric_tags,
     // not the cardinality collapsed: tag.
     HealthMetrics metrics = mock(HealthMetrics.class);

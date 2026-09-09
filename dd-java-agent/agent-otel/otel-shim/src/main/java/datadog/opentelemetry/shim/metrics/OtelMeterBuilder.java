@@ -8,10 +8,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 final class OtelMeterBuilder implements MeterBuilder {
   private final OtelMeterProvider meterProvider;
-
   private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+  @Nullable
+  private String instrumentationScopeVersion;
+  @Nullable
+  private String schemaUrl;
 
   OtelMeterBuilder(OtelMeterProvider meterProvider, String instrumentationScopeName) {
     this.meterProvider = meterProvider;
@@ -33,6 +34,8 @@ final class OtelMeterBuilder implements MeterBuilder {
   @Override
   public Meter build() {
     return meterProvider.getMeterShim(
-        instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
+        instrumentationScopeName,
+        instrumentationScopeVersion,
+        schemaUrl);
   }
 }

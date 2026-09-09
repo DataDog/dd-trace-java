@@ -37,9 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class JfrMBeanHelper {
-
   private static final Logger log = LoggerFactory.getLogger(JfrMBeanHelper.class);
-
   private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s+");
   private static final Pattern HASHTAG_SPLITTER = Pattern.compile("#", Pattern.LITERAL);
   private static final String MC_BEAN_CLASS = "com.sun.management.MissionControl";
@@ -47,7 +45,6 @@ final class JfrMBeanHelper {
       getObjectName("com.sun.management:type=MissionControl");
   private static final ObjectName JFR_MBEAN_OBJECT_NAME =
       getObjectName("com.oracle.jrockit:type=FlightRecorder");
-
   // various MBean operations
   private static final String OPERATION_REGISTER_MBEANS = "registerMBeans";
   private static final String OPEN_STREAM = "openStream";
@@ -56,17 +53,14 @@ final class JfrMBeanHelper {
   public static final String CLOSE = "close";
   public static final String STOP = "stop";
   public static final String CLONE_RECORDING = "cloneRecording";
-
   // various MBean attributes
   private static final String DATA_END_TIME = "DataEndTime";
-
   // event settings attribute names
   private static final String KEY_ID = "id";
   private static final String KEY_THRESHOLD = "threshold";
   private static final String KEY_STACKTRACE_SERVER = "stacktrace";
   private static final String KEY_PERIOD_SERVER = "requestPeriod";
   private static final String KEY_ENABLED = "enabled";
-
   // recording settings attribute names
   private static final String KEY_NAME = "name";
   private static final String KEY_DURATION = "duration";
@@ -76,42 +70,40 @@ final class JfrMBeanHelper {
   private static final String KEY_MAX_SIZE = "maxSize";
   private static final String KEY_MAX_AGE = "maxAge";
   private static final String KEY_TO_DISK = "toDisk";
-
-  private static final String[] SETTING_NAMES =
-      new String[] {
-        KEY_NAME,
-        KEY_TO_DISK,
-        KEY_DURATION,
-        KEY_MAX_SIZE,
-        KEY_MAX_AGE,
-        KEY_DESTINATION_FILE,
-        KEY_START_TIME,
-        KEY_DESTINATION_COMPRESSED
-      };
-  private static final OpenType<?>[] SETTING_TYPES =
-      new OpenType[] {
-        SimpleType.STRING,
-        SimpleType.BOOLEAN,
-        SimpleType.LONG,
-        SimpleType.LONG,
-        SimpleType.LONG,
-        SimpleType.STRING,
-        SimpleType.DATE,
-        SimpleType.BOOLEAN
-      };
-
+  private static final String[] SETTING_NAMES = new String[] {
+      KEY_NAME,
+      KEY_TO_DISK,
+      KEY_DURATION,
+      KEY_MAX_SIZE,
+      KEY_MAX_AGE,
+      KEY_DESTINATION_FILE,
+      KEY_START_TIME,
+      KEY_DESTINATION_COMPRESSED
+  };
+  private static final OpenType<?>[] SETTING_TYPES = new OpenType[] {
+      SimpleType.STRING,
+      SimpleType.BOOLEAN,
+      SimpleType.LONG,
+      SimpleType.LONG,
+      SimpleType.LONG,
+      SimpleType.STRING,
+      SimpleType.DATE,
+      SimpleType.BOOLEAN
+  };
   private static final String[] OPTION_NAMES =
       new String[] {KEY_ID, KEY_THRESHOLD, KEY_STACKTRACE_SERVER, KEY_PERIOD_SERVER, KEY_ENABLED};
-  private static final OpenType<?>[] OPTION_TYPES =
-      new OpenType[] {
-        SimpleType.INTEGER, SimpleType.LONG, SimpleType.BOOLEAN, SimpleType.LONG, SimpleType.BOOLEAN
-      };
+  private static final OpenType<?>[] OPTION_TYPES = new OpenType[] {
+      SimpleType.INTEGER,
+      SimpleType.LONG,
+      SimpleType.BOOLEAN,
+      SimpleType.LONG,
+      SimpleType.BOOLEAN
+  };
   private static final CompositeType OPTIONS_COMPOSITE_TYPE = generateOptionsType();
   private static final CompositeType SETTINGS_COMPOSITE_TYPE = generateSettingsType();
-
-  private static final AtomicInteger initPhase =
-      new AtomicInteger(0); // 0 - not initialized, 1 - initializing, 2 - initialized
-
+  private static final AtomicInteger // 0 - not initialized, 1 - initializing, 2 - initialized
+  // 0 - not initialized, 1 - initializing, 2 - initialized
+  initPhase = new AtomicInteger(0);
   private final MBeanServer server;
 
   private static void initialize() throws IOException {
@@ -184,19 +176,23 @@ final class JfrMBeanHelper {
   }
 
   public ObjectName newRecording(
-      String name, long maxSize, Duration maxAge, Map<String, String> eventSettings)
-      throws IOException {
+      String name,
+      long maxSize,
+      Duration maxAge,
+      Map<String, String> eventSettings) throws IOException {
     log.debug("Creating a new recording {} with maxSize={} and maxAge={}", name, maxSize, maxAge);
     ObjectName recordingId = (ObjectName) invokeJfrOperation("createRecording", name);
     invokeJfrOperation(
-        "setRecordingOptions", recordingId, encodeRecordingSettings(name, maxSize, maxAge));
+        "setRecordingOptions",
+        recordingId,
+        encodeRecordingSettings(name, maxSize, maxAge));
     invokeJfrOperation("updateEventSettings", recordingId, encodeEventSettings(eventSettings));
 
     invokeJfrOperation("start", recordingId);
-
     // make sure the recording has started
     while (!(boolean) getRecordingAttribute(recordingId, "Running")) {
-      LockSupport.parkNanos(100L); // 100ns step
+      // 100ns step
+      LockSupport.parkNanos(100L);
     }
     log.debug("Recording {} has been created", name);
     return recordingId;
@@ -247,13 +243,11 @@ final class JfrMBeanHelper {
 
   public ObjectName cloneRecording(ObjectName recordingId) throws IOException {
     log.debug("Cloning recording {}", recordingId.getKeyProperty("name"));
-    ObjectName cloned =
-        (ObjectName)
-            invokeJfrOperation(
-                CLONE_RECORDING,
-                recordingId,
-                "Clone of " + recordingId.getKeyProperty("name"),
-                Boolean.TRUE);
+    ObjectName cloned = (ObjectName) invokeJfrOperation(
+        CLONE_RECORDING,
+        recordingId,
+        "Clone of " + recordingId.getKeyProperty("name"),
+        Boolean.TRUE);
     log.debug(
         "Recording {} has been cloned to {}",
         recordingId.getKeyProperty("name"),
@@ -263,7 +257,8 @@ final class JfrMBeanHelper {
 
   public Instant getDataEndTime(ObjectName recordingId) throws IOException {
     log.debug(
-        "Retrieving DataEndTime attribute from recording {}", recordingId.getKeyProperty("name"));
+        "Retrieving DataEndTime attribute from recording {}",
+        recordingId.getKeyProperty("name"));
     try {
       Date endTime = (Date) server.getAttribute(recordingId, DATA_END_TIME);
       return Instant.ofEpochMilli(endTime.getTime());
@@ -296,8 +291,8 @@ final class JfrMBeanHelper {
         Integer typeId = typeIdMap.get(eventTypeName);
         if (typeId != null) {
           eventSettingsMap
-              .computeIfAbsent(typeId, k -> new HashMap<>())
-              .put(nameAttr[1], entry.getValue());
+            .computeIfAbsent(typeId, k -> new HashMap<>())
+            .put(nameAttr[1], entry.getValue());
         }
       }
       for (Map.Entry<Integer, Map<String, String>> entry : eventSettingsMap.entrySet()) {
@@ -318,7 +313,8 @@ final class JfrMBeanHelper {
               {
                 String valueStr = valueEntry.getValue();
                 if (valueStr.contains("Chunk")) {
-                  values[3] = 0L; // magic number for 'everyChunk'
+                  // magic number for 'everyChunk'
+                  values[3] = 0L;
                 } else {
                   values[3] = parseDuration(valueEntry.getValue(), ChronoUnit.MILLIS).toMillis();
                 }
@@ -403,7 +399,9 @@ final class JfrMBeanHelper {
       default:
         {
           log.debug(
-              "Unsupported time unit: {}. Assuming {}", valueUnit[1], defaultTimeUnit.toString());
+              "Unsupported time unit: {}. Assuming {}",
+              valueUnit[1],
+              defaultTimeUnit.toString());
           return Duration.of(value, defaultTimeUnit);
         }
     }
@@ -412,7 +410,11 @@ final class JfrMBeanHelper {
   private static CompositeType generateOptionsType() {
     try {
       return new CompositeType(
-          "EventOptions", "Event Options", OPTION_NAMES, OPTION_NAMES, OPTION_TYPES);
+          "EventOptions",
+          "Event Options",
+          OPTION_NAMES,
+          OPTION_NAMES,
+          OPTION_TYPES);
     } catch (Exception e) {
       // Will not ever happen!
     }
@@ -422,7 +424,11 @@ final class JfrMBeanHelper {
   private static CompositeType generateSettingsType() {
     try {
       return new CompositeType(
-          "RecordingOptions", "RecordingOptions", SETTING_NAMES, SETTING_NAMES, SETTING_TYPES);
+          "RecordingOptions",
+          "RecordingOptions",
+          SETTING_NAMES,
+          SETTING_NAMES,
+          SETTING_TYPES);
     } catch (Exception e) {
       // Will not ever happen!
     }

@@ -4,14 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
 import org.apache.kafka.clients.Metadata;
 import org.junit.jupiter.api.Test;
 
 class KafkaConsumerInstrumentationHelperTest {
-
   @SuppressWarnings("unchecked")
   private final ContextStore<Metadata, MetadataState> metadataContextStore =
       mock(ContextStore.class);
@@ -62,9 +60,9 @@ class KafkaConsumerInstrumentationHelperTest {
   @Test
   void extractClusterIdReturnsNullWhenMetadataIsNull() {
     KafkaConsumerInfo kafkaConsumerInfo = new KafkaConsumerInfo("test-group", "localhost:9092");
-    assertNull(
-        KafkaConsumerInstrumentationHelper.extractClusterId(
-            kafkaConsumerInfo, metadataContextStore));
+    assertNull(KafkaConsumerInstrumentationHelper.extractClusterId(
+        kafkaConsumerInfo,
+        metadataContextStore));
   }
 
   @Test
@@ -73,9 +71,9 @@ class KafkaConsumerInstrumentationHelperTest {
     KafkaConsumerInfo kafkaConsumerInfo =
         new KafkaConsumerInfo("test-group", metadata, "localhost:9092");
     when(metadataContextStore.get(metadata)).thenReturn(null);
-    assertNull(
-        KafkaConsumerInstrumentationHelper.extractClusterId(
-            kafkaConsumerInfo, metadataContextStore));
+    assertNull(KafkaConsumerInstrumentationHelper.extractClusterId(
+        kafkaConsumerInfo,
+        metadataContextStore));
   }
 
   @Test
@@ -88,7 +86,6 @@ class KafkaConsumerInstrumentationHelperTest {
     when(metadataContextStore.get(metadata)).thenReturn(state);
     assertEquals(
         "cluster-1",
-        KafkaConsumerInstrumentationHelper.extractClusterId(
-            kafkaConsumerInfo, metadataContextStore));
+        KafkaConsumerInstrumentationHelper.extractClusterId(kafkaConsumerInfo, metadataContextStore));
   }
 }

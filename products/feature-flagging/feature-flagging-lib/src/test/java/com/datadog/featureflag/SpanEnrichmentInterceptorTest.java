@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -25,15 +24,18 @@ import org.junit.jupiter.api.Test;
  * when the local root is present in the fragment.
  */
 class SpanEnrichmentInterceptorTest {
-
-  /** A mock local-root span reporting itself as its own local root. */
+  /**
+   * A mock local-root span reporting itself as its own local root.
+   */
   private static AgentSpan rootSpan() {
     final AgentSpan root = mock(AgentSpan.class);
     when(root.getLocalRootSpan()).thenReturn(root);
     return root;
   }
 
-  /** A mock child span whose local root is {@code root} but which is itself NOT the root. */
+  /**
+   * A mock child span whose local root is {@code root} but which is itself NOT the root.
+   */
   private static AgentSpan childOf(final AgentSpan root) {
     final AgentSpan child = mock(AgentSpan.class);
     when(child.getLocalRootSpan()).thenReturn(root);
@@ -65,8 +67,8 @@ class SpanEnrichmentInterceptorTest {
     states.getOrCreate(root).addSerialId(5);
 
     interceptor.onTraceComplete(Collections.singletonList(root));
-
-    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ=="); // {5} -> 0x05
+    // {5} -> 0x05
+    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ==");
     assertTrue(states.isEmpty(), "state must be removed on the final flush");
   }
 
@@ -77,7 +79,6 @@ class SpanEnrichmentInterceptorTest {
     final AgentSpan root = rootSpan();
     states.getOrCreate(root).addSerialId(100);
     states.getOrCreate(root).addSerialId(108);
-
     // PARTIAL flush: a fragment of children only — the open root is NOT in the collection.
     final AgentSpan child1 = childOf(root);
     final AgentSpan child2 = childOf(root);
@@ -88,15 +89,15 @@ class SpanEnrichmentInterceptorTest {
     verify(root, never()).setTag(anyString(), anyString());
     final SpanEnrichmentAccumulator surviving = states.peek(root);
     assertNotNull(surviving, "partial flush must NOT remove the accumulator");
-    assertTrue(surviving.serialIdsView().contains(100) && surviving.serialIdsView().contains(108));
-
+    assertTrue(surviving.serialIdsView().contains(100)
+        && surviving.serialIdsView().contains(108));
     // more evaluations, then the FINAL flush with the root present
     states.getOrCreate(root).addSerialId(128);
     states.getOrCreate(root).addSerialId(130);
     final AgentSpan lateChild = childOf(root);
     interceptor.onTraceComplete(Arrays.asList(lateChild, root));
-
-    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ZAgUAg=="); // {100,108,128,130}
+    // {100,108,128,130}
+    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ZAgUAg==");
     assertTrue(states.isEmpty(), "state removed only on the final flush");
   }
 
@@ -126,9 +127,11 @@ class SpanEnrichmentInterceptorTest {
     assertEquals(2, states.size(), "distinct root spans must not share an accumulator");
 
     interceptor.onTraceComplete(Collections.singletonList(rootA));
-    verify(rootA).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ZA=="); // {100} -> 0x64
+    // {100} -> 0x64
+    verify(rootA).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ZA==");
     interceptor.onTraceComplete(Collections.singletonList(rootB));
-    verify(rootB).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ggE="); // {130} -> 0x82 0x01
+    // {130} -> 0x82 0x01
+    verify(rootB).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "ggE=");
   }
 
   @Test
@@ -136,7 +139,8 @@ class SpanEnrichmentInterceptorTest {
     // No cap / eviction: while their local-root spans are reachable, every never-completing trace
     // keeps its accumulator. Weak-key reclamation (not a fixed count) bounds memory.
     final SpanEnrichmentStates states = new SpanEnrichmentStates();
-    final int churn = 20_000; // well beyond the old 4096 cap
+    // well beyond the old 4096 cap
+    final int churn = 20_000;
     final List<AgentSpan> liveRoots = new ArrayList<>(churn);
     for (int i = 0; i < churn; i++) {
       final AgentSpan root = rootSpan();
@@ -170,7 +174,8 @@ class SpanEnrichmentInterceptorTest {
     final SpanEnrichmentStates states = new SpanEnrichmentStates();
     final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
     final AgentSpan root = rootSpan();
-    states.getOrCreate(root); // entry exists but has no data
+    // entry exists but has no data
+    states.getOrCreate(root);
     interceptor.onTraceComplete(Collections.singletonList(root));
     verify(root, never()).setTag(anyString(), anyString());
     assertTrue(states.isEmpty(), "empty accumulator is still removed on the final flush");
@@ -206,12 +211,12 @@ class SpanEnrichmentInterceptorTest {
     final SpanEnrichmentInterceptor interceptor = new SpanEnrichmentInterceptor(states);
     final AgentSpan root = rootSpan();
     states.getOrCreate(root).addSerialId(5);
-
     // The interceptor resolves the root from the fragment (root + a late child); it must be the
     // same object so the remove hits the captured accumulator.
     final AgentSpan child = childOf(root);
     interceptor.onTraceComplete(Arrays.<MutableSpan>asList(child, root));
-    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ=="); // {5} -> 0x05
+    // {5} -> 0x05
+    verify(root).setTag(SpanEnrichmentAccumulator.TAG_FLAGS_ENC, "BQ==");
     assertTrue(states.isEmpty());
   }
 }

@@ -7,11 +7,12 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Handles scheduling scheme for polling configuration */
+/**
+ * Handles scheduling scheme for polling configuration
+ */
 @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
 class PollerScheduler {
   private static final Logger LOGGER = LoggerFactory.getLogger(PollerScheduler.class);
-
   private final long initialPollInterval;
   private long currentPollInterval;
   private final DefaultConfigurationPoller poller;
@@ -19,7 +20,9 @@ class PollerScheduler {
   private volatile AgentTaskScheduler.Scheduled<ConfigurationPoller> scheduled;
 
   public PollerScheduler(
-      Config config, DefaultConfigurationPoller poller, AgentTaskScheduler taskScheduler) {
+      Config config,
+      DefaultConfigurationPoller poller,
+      AgentTaskScheduler taskScheduler) {
     // TODO add a jitter to avoid herd issue
     this.initialPollInterval = (long) (config.getRemoteConfigPollIntervalSeconds() * 1000);
     this.poller = poller;
@@ -58,8 +61,11 @@ class PollerScheduler {
     } else {
       initialDelay = 0;
     }
-    this.scheduled =
-        taskScheduler.scheduleAtFixedRate(
-            poller::poll, poller, initialDelay, currentPollInterval, TimeUnit.MILLISECONDS);
+    this.scheduled = taskScheduler.scheduleAtFixedRate(
+        poller::poll,
+        poller,
+        initialDelay,
+        currentPollInterval,
+        TimeUnit.MILLISECONDS);
   }
 }

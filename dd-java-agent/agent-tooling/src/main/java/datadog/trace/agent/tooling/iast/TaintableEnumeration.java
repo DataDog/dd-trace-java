@@ -8,19 +8,12 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TaintableEnumeration implements Enumeration<String> {
-
   private static final String CLASS_NAME = TaintableEnumeration.class.getName();
-
   private final IastContext context;
-
   private final PropagationModule module;
-
   private final byte origin;
-
   private final CharSequence name;
-
   private final boolean useValueAsName;
-
   private final Enumeration<String> delegate;
 
   private TaintableEnumeration(

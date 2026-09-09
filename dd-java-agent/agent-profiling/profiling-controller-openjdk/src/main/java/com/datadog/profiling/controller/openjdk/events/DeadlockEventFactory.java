@@ -20,10 +20,8 @@ import jdk.jfr.Event;
 
 public class DeadlockEventFactory {
   private static final AtomicBoolean EVENTS_REGISTERED_FLAG = new AtomicBoolean();
-
   private static final DeadlockEvent DEADLOCK_EVENT = new DeadlockEvent();
   private static final DeadlockedThreadEvent DEADLOCKED_THREAD_EVENT = new DeadlockedThreadEvent();
-
   private final ThreadMXBean threadMXBean;
   private final AtomicLong deadlockCounter = new AtomicLong();
 
@@ -64,8 +62,8 @@ public class DeadlockEventFactory {
           new TreeMap<>(Comparator.comparingLong(LockInfo::getIdentityHashCode));
       for (ThreadInfo ti : lockedThreads) {
         waitingFrames
-            .computeIfAbsent(ti.getLockInfo(), k -> new HashSet<>())
-            .add(ti.getStackTrace()[0]);
+          .computeIfAbsent(ti.getLockInfo(), k -> new HashSet<>())
+          .add(ti.getStackTrace()[0]);
       }
 
       for (ThreadInfo ti : lockedThreads) {

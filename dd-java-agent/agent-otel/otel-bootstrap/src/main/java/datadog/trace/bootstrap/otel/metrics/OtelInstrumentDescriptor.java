@@ -5,13 +5,17 @@ import java.util.Locale;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
-/** Uniquely describes an instrument for the Meter that created it. */
+/**
+ * Uniquely describes an instrument for the Meter that created it.
+ */
 public final class OtelInstrumentDescriptor {
   private final UTF8BytesString instrumentName;
   private final OtelInstrumentType instrumentType;
   private final boolean longValues;
-  @Nullable private final UTF8BytesString description;
-  @Nullable private final UTF8BytesString unit;
+  @Nullable
+  private final UTF8BytesString description;
+  @Nullable
+  private final UTF8BytesString unit;
   private int hash;
 
   public OtelInstrumentDescriptor(

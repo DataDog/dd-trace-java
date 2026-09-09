@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.axway;
 
 import static java.lang.invoke.MethodType.methodType;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -22,29 +21,22 @@ import org.slf4j.LoggerFactory;
 // request = is com.vordel.circuit.net.State,  connection = com.vordel.dwe.http.ServerTransaction
 public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object, Object, Void> {
   private static final Logger log = LoggerFactory.getLogger(AxwayHTTPPluginDecorator.class);
-
   public static final CharSequence AXWAY_TRY_TRANSACTION =
       UTF8BytesString.create("axway.trytransaction");
-
   public static final AxwayHTTPPluginDecorator DECORATE = new AxwayHTTPPluginDecorator();
-
   public static final CharSequence AXWAY_REQUEST = UTF8BytesString.create(DECORATE.operationName());
-
   private static final MethodHandles.Lookup lookup = MethodHandles.lookup();
-
   private static final String SERVERTRANSACTION_CLASSNAME = "com.vordel.dwe.http.ServerTransaction";
   private static final Class<?> classServerTransaction;
   private static final MethodHandle getRemoteAddr_mh;
   private static final MethodHandle getMethod_mh;
   private static final MethodHandle getURI_mh;
-
   private static final String STATE_CLASSNAME = "com.vordel.circuit.net.State";
   private static final Class<?> classState;
   private static final MethodHandle hostField_mh;
   private static final MethodHandle portField_mh;
   private static final MethodHandle methodField_mh;
   private static final MethodHandle uriField_mh;
-
   static final String SERVER_TRANSACTION_CLASSNAME = "com.vordel.dwe.http.ServerTransaction";
   static final Class<Object> SERVER_TRANSACTION_CLASS = getServerTransactionClass();
 
@@ -60,8 +52,9 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
 
   static {
     classServerTransaction = initClass(SERVERTRANSACTION_CLASSNAME);
-    getRemoteAddr_mh =
-        initNoArgServerTransactionMethodHandle("getRemoteAddr", InetSocketAddress.class);
+    getRemoteAddr_mh = initNoArgServerTransactionMethodHandle(
+        "getRemoteAddr",
+        InetSocketAddress.class);
     getMethod_mh = initNoArgServerTransactionMethodHandle("getMethod", String.class);
     getURI_mh = initGetURI();
 
@@ -77,7 +70,9 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
       return Class.forName(name, false, AxwayHTTPPluginDecorator.class.getClassLoader());
     } catch (ClassNotFoundException e) {
       log.debug(
-          "Can't find class '{}': Axaway integration failed. ", SERVERTRANSACTION_CLASSNAME, e);
+          "Can't find class '{}': Axaway integration failed. ",
+          SERVERTRANSACTION_CLASSNAME,
+          e);
     }
     return null;
   }
@@ -94,7 +89,8 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   private static MethodHandle initGetURI() {
     Method m = null;
     try {
-      m = classServerTransaction.getDeclaredMethod("getURI"); // private method
+      // private method
+      m = classServerTransaction.getDeclaredMethod("getURI");
       m.setAccessible(true);
       return lookup.unreflect(m);
     } catch (Throwable e) {
@@ -110,8 +106,7 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
       field = classState.getDeclaredField(fieldName);
       field.setAccessible(true);
       mh = lookup.unreflectGetter(field);
-      log.debug(
-          "Initialized field '{}' of class '{}' unreflected to {}", fieldName, classState, mh);
+      log.debug("Initialized field '{}' of class '{}' unreflected to {}", fieldName, classState, mh);
     } catch (NoSuchFieldException | IllegalAccessException e) {
       log.debug(
           "Can't find and unreflect declared field '{}' with name '{}' for class '{}' to mh: '{}'",
@@ -234,13 +229,20 @@ public class AxwayHTTPPluginDecorator extends HttpServerDecorator<Object, Object
   }
 
   private static void setStringTagFromStateField(
-      AgentSpan span, String tag, Object stateInstance, MethodHandle mh) {
+      AgentSpan span,
+      String tag,
+      Object stateInstance,
+      MethodHandle mh) {
     String v = "";
     try {
       v = (String) mh.invoke(stateInstance);
     } catch (Throwable e) {
       log.debug(
-          "Can't invoke '{}' on instance '{}'; ; Tag '{}' not set.", mh, stateInstance, tag, e);
+          "Can't invoke '{}' on instance '{}'; ; Tag '{}' not set.",
+          mh,
+          stateInstance,
+          tag,
+          e);
     }
     span.setTag(tag, v);
   }

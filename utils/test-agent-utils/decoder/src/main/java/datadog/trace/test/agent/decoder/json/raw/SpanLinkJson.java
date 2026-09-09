@@ -20,19 +20,14 @@ final class SpanLinkJson {
   // above Long.MAX_VALUE.
   @Json(name = "trace_id")
   String traceId;
-
   // The high-order half of a 128-bit trace identifier. Not modeled by DecodedSpanLink, which
   // narrows a trace identifier to its low-order half like the rest of the decoder.
   @Json(name = "trace_id_high")
   String traceIdHigh;
-
   @Json(name = "span_id")
   String spanId;
-
   Integer flags;
-
   String tracestate;
-
   Map<String, String> attributes;
 
   DecodedSpanLink toDecodedSpanLink() {

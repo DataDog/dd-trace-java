@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class Slf4jCorrelationIdInjectorTest extends CorrelationIdInjectorTest {
-
   ch.qos.logback.classic.Logger logger;
 
   @Override

@@ -13,7 +13,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import akka.dispatch.forkjoin.ForkJoinTask;
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
@@ -40,8 +39,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  */
 @AutoService(InstrumenterModule.class)
 public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   public AkkaForkJoinTaskInstrumentation() {
     super("java_concurrent", "akka_concurrent");
   }
@@ -55,15 +55,16 @@ public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Co
   public String hierarchyMarkerType() {
     String akkaForkJoinTaskName = InstrumenterConfig.get().getAkkaForkJoinTaskName();
     return akkaForkJoinTaskName != null && !akkaForkJoinTaskName.isEmpty()
-        ? null // bypass the hint if custom class is configured
+        ? // bypass the hint if custom class is configured
+    null
         : "akka.dispatch.forkjoin.ForkJoinTask";
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return notExcludedByName(FORK_JOIN_TASK)
-        .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
-        .and(isForkJoinTaskSubclass());
+      .and(declaresMethod(namedOneOf("exec", "fork", "cancel")))
+      .and(isForkJoinTaskSubclass());
   }
 
   private ElementMatcher<TypeDescription> isForkJoinTaskSubclass() {
@@ -96,7 +97,8 @@ public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Co
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("doExec", "exec")), getClass().getName() + "$Exec");
+        isMethod().and(namedOneOf("doExec", "exec")),
+        getClass().getName() + "$Exec");
     transformer.applyAdvice(isMethod().and(named("fork")), getClass().getName() + "$Fork");
     transformer.applyAdvice(isMethod().and(named("cancel")), getClass().getName() + "$Cancel");
   }

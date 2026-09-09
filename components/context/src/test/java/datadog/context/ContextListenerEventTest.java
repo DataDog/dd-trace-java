@@ -4,7 +4,6 @@ import static datadog.context.Context.current;
 import static datadog.context.Context.root;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
-
 import org.junit.jupiter.api.Test;
 
 class ContextListenerEventTest extends ContextTestBase {
@@ -23,9 +22,11 @@ class ContextListenerEventTest extends ContextTestBase {
   void testListenersNotNotifiedForSameContextAttachOrSwap() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    root().attach(); // current is already root, no events
+    // current is already root, no events
+    root().attach();
     listener.assertNoEvents();
-    root().swap(); // current is already root, no events
+    // current is already root, no events
+    root().swap();
     listener.assertNoEvents();
     Context context = root().with(TEST_KEY, "value");
     try (ContextScope scope = context.attach()) {
@@ -43,9 +44,11 @@ class ContextListenerEventTest extends ContextTestBase {
       listener.assertNewEvents("update:{root}->same");
       try (ContextScope noop = context.attach()) {
         assertEquals(context, current());
-        listener.assertNoNewEvents(); // no new events on same-context attach
+        // no new events on same-context attach
+        listener.assertNoNewEvents();
       }
-      listener.assertNoNewEvents(); // noop close fires no events either
+      // noop close fires no events either
+      listener.assertNoNewEvents();
     }
     listener.assertNewEvents("update:same->{root}");
   }
@@ -57,7 +60,8 @@ class ContextListenerEventTest extends ContextTestBase {
     Context context = root().with(TEST_KEY, "same");
     context.swap();
     listener.assertNewEvents("update:{root}->same");
-    context.swap(); // same context again, no events
+    // same context again, no events
+    context.swap();
     listener.assertNoNewEvents();
     root().swap();
     listener.assertNewEvents("update:same->{root}");
@@ -67,8 +71,10 @@ class ContextListenerEventTest extends ContextTestBase {
   void testDuplicateListenerIgnored() {
     TrackingListener listener = trackingListener();
     ContextManager.register(listener);
-    ContextManager.register(listener); // should be ignored
-    try (ContextScope scope = root().with(TEST_KEY, "value").attach()) {}
+    // should be ignored
+    ContextManager.register(listener);
+    try (ContextScope scope = root().with(TEST_KEY, "value").attach()) {
+    }
     listener.assertEvents("update:{root}->value", "update:value->{root}");
   }
 
@@ -78,7 +84,8 @@ class ContextListenerEventTest extends ContextTestBase {
     TrackingListener listener2 = trackingListener();
     ContextManager.register(listener1);
     ContextManager.register(listener2);
-    try (ContextScope scope = root().with(TEST_KEY, "value").attach()) {}
+    try (ContextScope scope = root().with(TEST_KEY, "value").attach()) {
+    }
     listener1.assertEvents("update:{root}->value", "update:value->{root}");
     listener2.assertEvents("update:{root}->value", "update:value->{root}");
   }

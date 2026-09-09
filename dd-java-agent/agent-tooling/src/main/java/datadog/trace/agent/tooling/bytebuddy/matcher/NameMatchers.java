@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.matcher;
 
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
-
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -13,7 +12,6 @@ import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class NameMatchers {
-
   /**
    * Matches a {@link NamedElement} for its exact name.
    *
@@ -95,7 +93,6 @@ public final class NameMatchers {
 
   @SuppressWarnings("rawtypes")
   private static final DDCache<String, Named> namedCache = DDCaches.newFixedSizeCache(256);
-
   @SuppressWarnings("rawtypes")
   private static final Function<String, Named> newNamedMatcher = Named::new;
 

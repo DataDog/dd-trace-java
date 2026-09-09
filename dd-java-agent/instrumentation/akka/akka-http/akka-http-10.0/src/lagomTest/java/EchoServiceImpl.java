@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class EchoServiceImpl implements EchoService {
-
   @Override
   public ServiceCall<Source<String, NotUsed>, Source<String, NotUsed>> echo() {
     final CompletableFuture<Source<String, NotUsed>> fut = new CompletableFuture<>();

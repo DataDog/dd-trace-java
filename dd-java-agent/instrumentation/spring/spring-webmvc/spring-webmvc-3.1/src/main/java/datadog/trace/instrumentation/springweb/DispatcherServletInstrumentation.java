@@ -12,7 +12,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isProtected;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -27,8 +26,8 @@ import org.springframework.web.servlet.ModelAndView;
 
 @AutoService(InstrumenterModule.class)
 public final class DispatcherServletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public DispatcherServletInstrumentation() {
     super("spring-web");
   }
@@ -41,10 +40,10 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".SpringWebHttpServerDecorator",
-      packageName + ".ServletRequestURIAdapter",
-      packageName + ".HandlerMappingResourceNameFilter",
-      packageName + ".PathMatchingHttpServletRequestWrapper",
+        packageName + ".SpringWebHttpServerDecorator",
+        packageName + ".ServletRequestURIAdapter",
+        packageName + ".HandlerMappingResourceNameFilter",
+        packageName + ".PathMatchingHttpServletRequestWrapper"
     };
   }
 
@@ -52,22 +51,22 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isProtected())
-            .and(named("onRefresh"))
-            .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
-            .and(takesArguments(1)),
+          .and(isProtected())
+          .and(named("onRefresh"))
+          .and(takesArgument(0, named("org.springframework.context.ApplicationContext")))
+          .and(takesArguments(1)),
         DispatcherServletInstrumentation.class.getName() + "$HandlerMappingAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isProtected())
-            .and(named("render"))
-            .and(takesArgument(0, named("org.springframework.web.servlet.ModelAndView"))),
+          .and(isProtected())
+          .and(named("render"))
+          .and(takesArgument(0, named("org.springframework.web.servlet.ModelAndView"))),
         DispatcherServletInstrumentation.class.getName() + "$RenderAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isProtected())
-            .and(nameStartsWith("processHandlerException"))
-            .and(takesArgument(3, Exception.class)),
+          .and(isProtected())
+          .and(nameStartsWith("processHandlerException"))
+          .and(takesArgument(3, Exception.class)),
         DispatcherServletInstrumentation.class.getName() + "$ErrorHandlerAdvice");
   }
 
@@ -77,7 +76,6 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
    * is done inside the Servlet3Decorator.onContext method.
    */
   public static class HandlerMappingAdvice {
-
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterRefresh(
         @Advice.Argument(0) final ApplicationContext springCtx,
@@ -93,7 +91,6 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
   }
 
   public static class RenderAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
       final AgentSpan span = startSpan("spring-webmvc", RESPONSE_RENDER);
@@ -104,7 +101,8 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final ContextScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final ContextScope scope,
+        @Advice.Thrown final Throwable throwable) {
       final AgentSpan span = spanFromContext(scope.context());
       DECORATE_RENDER.onError(scope, throwable);
       DECORATE_RENDER.beforeFinish(scope.context());

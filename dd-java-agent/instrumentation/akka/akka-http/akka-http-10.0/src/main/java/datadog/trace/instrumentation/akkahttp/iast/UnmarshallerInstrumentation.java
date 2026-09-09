@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.javadsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -34,7 +33,8 @@ import scala.concurrent.Future;
  */
 @AutoService(InstrumenterModule.class)
 public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public UnmarshallerInstrumentation() {
     super("akka-http");
   }
@@ -46,28 +46,26 @@ public class UnmarshallerInstrumentation extends InstrumenterModule.Iast
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".helpers.TaintFutureHelper",
-    };
+    return new String[] {packageName + ".helpers.TaintFutureHelper"};
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("akka.http.scaladsl.unmarshalling.")
-        .and(implementsInterface(named(hierarchyMarkerType())));
+      .and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("apply"))
-            .and(returns(named("scala.concurrent.Future")))
-            .and(takesArguments(3))
-            .and(takesArgument(0, Object.class))
-            .and(takesArgument(1, named("scala.concurrent.ExecutionContext")))
-            .and(takesArgument(2, named("akka.stream.Materializer"))),
+          .and(not(isStatic()))
+          .and(named("apply"))
+          .and(returns(named("scala.concurrent.Future")))
+          .and(takesArguments(3))
+          .and(takesArgument(0, Object.class))
+          .and(takesArgument(1, named("scala.concurrent.ExecutionContext")))
+          .and(takesArgument(2, named("akka.stream.Materializer"))),
         UnmarshallerInstrumentation.class.getName() + "$PropagateTaintOnApplyAdvice");
   }
 

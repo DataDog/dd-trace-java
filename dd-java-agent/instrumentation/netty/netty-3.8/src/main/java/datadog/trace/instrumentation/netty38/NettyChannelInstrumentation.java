@@ -8,7 +8,6 @@ import static datadog.trace.instrumentation.netty38.NettyChannelPipelineInstrume
 import static datadog.trace.instrumentation.netty38.NettyChannelPipelineInstrumentation.INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -24,7 +23,8 @@ import org.jboss.netty.channel.Channel;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public NettyChannelInstrumentation() {
     super(INSTRUMENTATION_NAME, ADDITIONAL_INSTRUMENTATION_NAMES);
   }
@@ -42,25 +42,25 @@ public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AbstractNettyAdvice",
-      packageName + ".ChannelTraceContext",
-      packageName + ".ChannelTraceContext$Factory"
+        packageName + ".AbstractNettyAdvice",
+        packageName + ".ChannelTraceContext",
+        packageName + ".ChannelTraceContext$Factory"
     };
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(named("connect"))
-            .and(returns(named("org.jboss.netty.channel.ChannelFuture"))),
+        isMethod().and(named("connect")).and(
+            returns(named("org.jboss.netty.channel.ChannelFuture"))),
         NettyChannelInstrumentation.class.getName() + "$ChannelConnectAdvice");
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
+        "org.jboss.netty.channel.Channel",
+        packageName + ".ChannelTraceContext");
   }
 
   public static class ChannelConnectAdvice extends AbstractNettyAdvice {
@@ -72,9 +72,8 @@ public class NettyChannelInstrumentation extends InstrumenterModule.Tracing
             InstrumentationContext.get(Channel.class, ChannelTraceContext.class);
 
         if (contextStore
-                .getOrCreate(channel, ChannelTraceContext.Factory.INSTANCE)
-                .getConnectionContinuation()
-            != null) {
+          .getOrCreate(channel, ChannelTraceContext.Factory.INSTANCE)
+          .getConnectionContinuation() != null) {
           continuation.release();
         } else {
           contextStore.get(channel).setConnectionContinuation(continuation);

@@ -11,7 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.nameEndsWith;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -27,8 +26,8 @@ import org.objectweb.asm.Opcodes;
 @AutoService(InstrumenterModule.class)
 public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibility
     implements Instrumenter.ForTypeHierarchy,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice {
   public ProbeInserterInstrumentation() {
     super("jacoco");
   }
@@ -48,52 +47,47 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
   public ElementMatcher<TypeDescription> structureMatcher() {
     ElementMatcher<FieldDescription> methodVisitor = methodVisitor();
     return declaresField(arrayStrategy())
-        .and(declaresField(methodVisitor).or(hasSuperClass(declaresField(methodVisitor))));
+      .and(declaresField(methodVisitor).or(hasSuperClass(declaresField(methodVisitor))));
   }
 
   private ElementMatcher<FieldDescription> arrayStrategy() {
     ElementMatcher.Junction<TypeDescription> arrayStrategyType = arrayStrategyType();
     return named("arrayStrategy")
-        .and(fieldType(arrayStrategyType.or(implementsInterface(arrayStrategyType))));
+      .and(fieldType(arrayStrategyType.or(implementsInterface(arrayStrategyType))));
   }
 
   private static ElementMatcher.Junction<TypeDescription> arrayStrategyType() {
     return nameStartsWith("org.jacoco.agent.rt.internal")
-        .and(nameEndsWith(".core.internal.instr.IProbeArrayStrategy"));
+      .and(nameEndsWith(".core.internal.instr.IProbeArrayStrategy"));
   }
 
   @SuppressForbidden
   private ElementMatcher<FieldDescription> methodVisitor() {
     return named("mv")
-        .and(
-            fieldType(
-                nameStartsWith("org.jacoco.agent.rt.internal")
-                    .and(nameEndsWith(".asm.MethodVisitor"))
-                    .and(
-                        declaresMethod(
-                            named("visitMethodInsn")
-                                .and(takesArguments(5))
-                                .and(takesArgument(0, int.class))
-                                .and(takesArgument(1, String.class))
-                                .and(takesArgument(2, String.class))
-                                .and(takesArgument(3, String.class))
-                                .and(takesArgument(4, boolean.class))))
-                    .and(
-                        declaresMethod(
-                            named("visitInsn")
-                                .and(takesArguments(1))
-                                .and(takesArgument(0, int.class))))
-                    .and(
-                        declaresMethod(
-                            named("visitIntInsn")
-                                .and(takesArguments(2))
-                                .and(takesArgument(0, int.class))
-                                .and(takesArgument(1, int.class))))
-                    .and(
-                        declaresMethod(
-                            named("visitLdcInsn")
-                                .and(takesArguments(1))
-                                .and(takesArgument(0, Object.class))))));
+      .and(
+          fieldType(nameStartsWith("org.jacoco.agent.rt.internal")
+            .and(nameEndsWith(".asm.MethodVisitor"))
+            .and(
+                declaresMethod(named("visitMethodInsn")
+                  .and(takesArguments(5))
+                  .and(takesArgument(0, int.class))
+                  .and(takesArgument(1, String.class))
+                  .and(takesArgument(2, String.class))
+                  .and(takesArgument(3, String.class))
+                  .and(takesArgument(4, boolean.class))))
+            .and(
+                declaresMethod(named("visitInsn")
+                  .and(takesArguments(1))
+                  .and(takesArgument(0, int.class))))
+            .and(
+                declaresMethod(named("visitIntInsn")
+                  .and(takesArguments(2))
+                  .and(takesArgument(0, int.class))
+                  .and(takesArgument(1, int.class))))
+            .and(
+                declaresMethod(named("visitLdcInsn")
+                  .and(takesArguments(1))
+                  .and(takesArgument(0, Object.class))))));
   }
 
   @Override
@@ -106,7 +100,7 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
     // The jacoco javaagent jar that is published relocates internal classes to an "obfuscated"
     // package name ex. org.jacoco.agent.rt.internal_72ddf3b.core.internal.instr.ProbeInserter
     return nameStartsWith("org.jacoco.agent.rt.internal")
-        .and(nameEndsWith(".core.internal.instr.ProbeInserter"));
+      .and(nameEndsWith(".core.internal.instr.ProbeInserter"));
   }
 
   @Override
@@ -115,10 +109,7 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
         isMethod().and(named("visitMaxs")).and(takesArguments(2)).and(takesArgument(0, int.class)),
         getClass().getName() + "$VisitMaxsAdvice");
     transformer.applyAdvice(
-        isMethod()
-            .and(named("insertProbe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, int.class)),
+        isMethod().and(named("insertProbe")).and(takesArguments(1)).and(takesArgument(0, int.class)),
         getClass().getName() + "$InsertProbeAdvice");
   }
 
@@ -134,8 +125,7 @@ public class ProbeInserterInstrumentation extends InstrumenterModule.CiVisibilit
     static void exit(
         @Advice.FieldValue(value = "mv") final Object mv,
         @Advice.FieldValue(value = "arrayStrategy") final Object arrayStrategy,
-        @Advice.Argument(0) final int id)
-        throws Throwable {
+        @Advice.Argument(0) final int id) throws Throwable {
       Field classNameField = arrayStrategy.getClass().getDeclaredField("className");
       classNameField.setAccessible(true);
       String className = (String) classNameField.get(arrayStrategy);

@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
-
 import datadog.trace.api.iast.util.PropagationUtils;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -13,11 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class URIUtils {
-  private URIUtils() {}
+  private URIUtils() {
+  }
 
   // This is the � character, which is also the default replacement for the UTF_8 charset
   private static final byte[] REPLACEMENT = {(byte) 0xEF, (byte) 0xBF, (byte) 0xBD};
-
   private static final Logger LOGGER = LoggerFactory.getLogger(URIUtils.class);
 
   /**
@@ -38,13 +37,20 @@ public class URIUtils {
    * characters.
    */
   public static String decode(String encoded, boolean plusToSpace) {
-    if (encoded == null) return null;
+    if (encoded == null) {
+      return null;
+    }
     int len = encoded.length();
-    if (len == 0) return encoded;
-    if (encoded.indexOf('%') < 0 && (!plusToSpace || encoded.indexOf('+') < 0)) return encoded;
+    if (len == 0) {
+      return encoded;
+    }
+    if (encoded.indexOf('%') < 0 && (!plusToSpace || encoded.indexOf('+') < 0)) {
+      return encoded;
+    }
 
-    ByteBuffer bb =
-        ByteBuffer.allocate(len + 2); // The extra 2 is if we have a % last and need to replace it
+    ByteBuffer bb = ByteBuffer
+      // The extra 2 is if we have a % last and need to replace it
+      .allocate(len + 2);
     for (int i = 0; i < len; i++) {
       int c = encoded.charAt(i);
       if (c == '%') {
@@ -291,8 +297,9 @@ public class URIUtils {
       return safeParse(part2);
     }
     final boolean addSlash = !(part2.startsWith("/") || part1.endsWith("/"));
-    final StringBuilder sb =
-        new StringBuilder(part1.length() + part2.length() + (addSlash ? 1 : 0));
+    final StringBuilder sb = new StringBuilder(part1.length()
+        + part2.length()
+        + (addSlash ? 1 : 0));
     PropagationUtils.onStringBuilderAppend(part1, sb.append(part1));
     if (addSlash) {
       // it happens for http async client 4 with relative URI

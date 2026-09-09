@@ -9,12 +9,10 @@ import com.google.re2j.Pattern;
  *     (LDAP): String Representation of Search Filters</a>
  */
 public class LdapRegexTokenizer extends AbstractRegexTokenizer {
-
   private static final String LITERAL_GROUP = "LITERAL";
-
-  private static final Pattern LDAP_PATTERN =
-      Pattern.compile(
-          String.format("\\(.*?(?:~=|=|<=|>=)(?P<%s>[^)]+)\\)", LITERAL_GROUP), Pattern.MULTILINE);
+  private static final Pattern LDAP_PATTERN = Pattern.compile(
+      String.format("\\(.*?(?:~=|=|<=|>=)(?P<%s>[^)]+)\\)", LITERAL_GROUP),
+      Pattern.MULTILINE);
 
   public LdapRegexTokenizer(final Evidence evidence) {
     super(LDAP_PATTERN, evidence.getValue());

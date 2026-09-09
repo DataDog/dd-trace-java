@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.hibernate.SessionMethodUtils;
@@ -21,7 +20,8 @@ public final class CriteriaInstrumentation extends AbstractHibernateInstrumentat
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.hibernate.impl.CriteriaImpl", "org.hibernate.impl.CriteriaImpl$Subcriteria"
+        "org.hibernate.impl.CriteriaImpl",
+        "org.hibernate.impl.CriteriaImpl$Subcriteria"
     };
   }
 
@@ -43,12 +43,10 @@ public final class CriteriaInstrumentation extends AbstractHibernateInstrumentat
   }
 
   public static class CriteriaMethodAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SessionState startMethod(
         @Advice.This final Criteria criteria,
         @Advice.Origin("hibernate.criteria.#m") final String operationName) {
-
       final ContextStore<Criteria, SessionState> contextStore =
           InstrumentationContext.get(Criteria.class, SessionState.class);
 
@@ -60,7 +58,6 @@ public final class CriteriaInstrumentation extends AbstractHibernateInstrumentat
         @Advice.Enter final SessionState state,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return(typing = Assigner.Typing.DYNAMIC) final Object entity) {
-
       SessionMethodUtils.closeScope(state, throwable, entity, true);
     }
 

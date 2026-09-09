@@ -4,7 +4,6 @@ abstract class TagElement implements CharSequence {
   public enum Encoding {
     DATADOG("_dd.p."),
     W3C("t.");
-
     private final String prefix;
 
     Encoding(String prefix) {

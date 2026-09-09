@@ -25,38 +25,39 @@ public final class InstrumenterState {
   private static final int ADDRESS_BITS_PER_WORD = 6;
   private static final int BITS_PER_WORD = 1 << ADDRESS_BITS_PER_WORD;
   private static final int BIT_INDEX_MASK = BITS_PER_WORD - 1;
-
   // represent each status as 2 adjacent bits
   private static final int BLOCKED = 0b01;
   private static final int APPLIED = 0b10;
-
   private static final int STATUS_BITS = 0b11;
-
   private static Iterable<String>[] instrumentationNames = new Iterable[0];
   private static String[] instrumentationClasses = new String[0];
-
   private static long[] defaultState = {};
-
-  /** Tracks which instrumentations were applied (per-class-loader) and which were blocked. */
+  /**
+   * Tracks which instrumentations were applied (per-class-loader) and which were blocked.
+   */
   private static final ClassLoaderValue<AtomicLongArray> classLoaderStates =
       new ClassLoaderValue<AtomicLongArray>() {
-        @Override
-        protected AtomicLongArray computeValue(ClassLoader cl) {
-          return new AtomicLongArray(defaultState);
-        }
-      };
-
+    @Override
+    protected AtomicLongArray computeValue(ClassLoader cl) {
+      return new AtomicLongArray(defaultState);
+    }
+  };
   private static Observer observer;
 
-  private InstrumenterState() {}
+  private InstrumenterState() {
+  }
 
-  /** Pre-sizes internal structures to accommodate the highest expected id. */
+  /**
+   * Pre-sizes internal structures to accommodate the highest expected id.
+   */
   public static void initialize(int instrumentationCount) {
     instrumentationNames = Arrays.copyOf(instrumentationNames, instrumentationCount);
     instrumentationClasses = Arrays.copyOf(instrumentationClasses, instrumentationNames.length);
   }
 
-  /** Registers an instrumentation's details. */
+  /**
+   * Registers an instrumentation's details.
+   */
   public static void registerInstrumentation(InstrumenterModule module, int instrumentationId) {
     if (instrumentationId >= instrumentationNames.length) {
       // note: the 'initialize' method pre-sizes these arrays to avoid repeated allocations here
@@ -67,19 +68,23 @@ public final class InstrumenterState {
     instrumentationClasses[instrumentationId] = module.getClass().getName();
   }
 
-  /** Registers an observer to be notified whenever an instrumentation is applied. */
+  /**
+   * Registers an observer to be notified whenever an instrumentation is applied.
+   */
   public static void setObserver(Observer observer) {
     InstrumenterState.observer = observer;
   }
 
-  /** Resets the default instrumentation state so nothing is blocked or applied. */
+  /**
+   * Resets the default instrumentation state so nothing is blocked or applied.
+   */
   public static void resetDefaultState() {
     int instrumentationCount = instrumentationNames.length;
 
     int wordsPerClassLoaderState =
         ((instrumentationCount << 1) + BITS_PER_WORD - 1) >> ADDRESS_BITS_PER_WORD;
-
-    if (defaultState.length > 0) { // optimization: skip clear if there's no old state
+    if (defaultState.length > 0) {
+      // optimization: skip clear if there's no old state
       classLoaderStates.clear();
     }
 
@@ -96,7 +101,9 @@ public final class InstrumenterState {
     return status == 0 ? null : status == APPLIED;
   }
 
-  /** Records that the instrumentation was applied to the given class-loader. */
+  /**
+   * Records that the instrumentation was applied to the given class-loader.
+   */
   public static void applyInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, APPLIED);
     if (log.isDebugEnabled()) {
@@ -110,7 +117,9 @@ public final class InstrumenterState {
     }
   }
 
-  /** Records that the instrumentation is blocked for the given class-loader. */
+  /**
+   * Records that the instrumentation is blocked for the given class-loader.
+   */
   public static void blockInstrumentation(ClassLoader classLoader, int instrumentationId) {
     updateState(classLoader, instrumentationId, BLOCKED);
     if (log.isDebugEnabled()) {
@@ -121,11 +130,12 @@ public final class InstrumenterState {
     }
   }
 
-  /** Records that the instrumentation is blocked by default. */
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION",
-      justification =
-          "resetDefaultState() runs before installing Byte Buddy, so defaultState is never reassigned while this method can run.")
+  /**
+   * Records that the instrumentation is blocked by default.
+   */
+  @SuppressFBWarnings(value = "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION", justification = "re"
+      + "setDefaultState() runs before installing Byte Buddy, so defaultState is never "
+      + "reassigned while this method can run.")
   public static void blockInstrumentation(int instrumentationId) {
     int bitIndex = instrumentationId << 1;
     int wordIndex = bitIndex >> ADDRESS_BITS_PER_WORD;
@@ -174,18 +184,18 @@ public final class InstrumenterState {
 
   public static String summary() {
     StringBuilder summary = new StringBuilder();
-    classLoaderStates.visit(
-        (loader, state) -> {
-          summary.append(loader != null ? loader.getClass().getName() : "<bootstrap>");
-          summarizeState(summary, state);
-          summary.append("\n\n");
-        });
+    classLoaderStates.visit((loader, state) -> {
+      summary.append(loader != null ? loader.getClass().getName() : "<bootstrap>");
+      summarizeState(summary, state);
+      summary.append("\n\n");
+    });
     return summary.toString();
   }
 
   private static void summarizeState(StringBuilder summary, AtomicLongArray state) {
     for (int wordIndex = 0; wordIndex < state.length(); wordIndex++) {
-      int instrumentationId = wordIndex * (BITS_PER_WORD >> 1); // 2 bits per status
+      // 2 bits per status
+      int instrumentationId = wordIndex * (BITS_PER_WORD >> 1);
       long wordState = state.get(wordIndex);
       while (wordState != 0) {
         if ((wordState & STATUS_BITS) != 0) {
@@ -195,12 +205,13 @@ public final class InstrumenterState {
             summary.append("\n    BLOCKED  ");
           }
           summary
-              .append(instrumentationClasses[instrumentationId])
-              .append("  ")
-              .append(instrumentationNames[instrumentationId]);
+            .append(instrumentationClasses[instrumentationId])
+            .append("  ")
+            .append(instrumentationNames[instrumentationId]);
         }
         instrumentationId++;
-        wordState >>>= 2; // move onto next 2 status bits
+        // move onto next 2 status bits
+        wordState >>>= 2;
       }
     }
   }

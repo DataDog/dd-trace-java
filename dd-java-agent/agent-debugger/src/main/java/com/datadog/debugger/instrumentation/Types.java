@@ -16,7 +16,6 @@ import static org.objectweb.asm.Opcodes.LALOAD;
 import static org.objectweb.asm.Opcodes.LASTORE;
 import static org.objectweb.asm.Opcodes.SALOAD;
 import static org.objectweb.asm.Opcodes.SASTORE;
-
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.DebuggerSpan;
@@ -38,11 +37,12 @@ import java.util.stream.Collectors;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
-/** ASM type constants used by code generating instrumentation */
+/**
+ * ASM type constants used by code generating instrumentation
+ */
 public final class Types {
   private static final Map<String, String> PRIMITIVE_TYPES = new HashMap<>();
   private static final Map<Type, Type> BOXING_TARGET_TYPES = new HashMap<>();
-
   // common Type constants
   public static final Type STRING_TYPE = Type.getType(String.class);
   public static final Type OBJECT_ARRAY_TYPE = Type.getType(Object[].class);
@@ -71,7 +71,6 @@ public final class Types {
       Type.getType(ReflectiveFieldValueResolver.class);
   public static final Type METRICKIND_TYPE = Type.getType(DebuggerContext.MetricKind.class);
   public static final Type PROBE_ID_TYPE = Type.getType(ProbeId.class);
-
   // special initialization methods
   public static final String CONSTRUCTOR = "<init>";
   public static final String CLASS_INIT = "<clinit>";
@@ -161,35 +160,27 @@ public final class Types {
       case IALOAD:
       case IASTORE:
         return Type.getType("[I");
-
       case BALOAD:
       case BASTORE:
         return Type.getType("[B");
-
       case AALOAD:
       case AASTORE:
         return OBJECT_ARRAY_TYPE;
-
       case CALOAD:
       case CASTORE:
         return Type.getType("[C");
-
       case FALOAD:
       case FASTORE:
         return Type.getType("[F");
-
       case SALOAD:
       case SASTORE:
         return Type.getType("[S");
-
       case LALOAD:
       case LASTORE:
         return Type.getType("[J");
-
       case DALOAD:
       case DASTORE:
         return Type.getType("[D");
-
       default:
         throw new RuntimeException("invalid array opcode");
     }
@@ -200,35 +191,27 @@ public final class Types {
       case IALOAD:
       case IASTORE:
         return Type.INT_TYPE;
-
       case BALOAD:
       case BASTORE:
         return Type.BYTE_TYPE;
-
       case AALOAD:
       case AASTORE:
         return OBJECT_TYPE;
-
       case CALOAD:
       case CASTORE:
         return Type.CHAR_TYPE;
-
       case FALOAD:
       case FASTORE:
         return Type.FLOAT_TYPE;
-
       case SALOAD:
       case SASTORE:
         return Type.SHORT_TYPE;
-
       case LALOAD:
       case LASTORE:
         return Type.LONG_TYPE;
-
       case DALOAD:
       case DASTORE:
         return Type.DOUBLE_TYPE;
-
       default:
         throw new RuntimeException("invalid array opcode");
     }
@@ -291,10 +274,10 @@ public final class Types {
     int leftParen = javaSignature.indexOf('(');
     int rightParen = javaSignature.indexOf(')');
     if (leftParen == -1 || rightParen == -1) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Illegal java signature, missing matching parenthesis: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-              javaSignature));
+      throw new IllegalArgumentException(String.format(
+          "Illegal java signature, missing matching parenthesis: '%s'. Must be of form "
+          + "'<return type> (<arg_type_1>, ..., <arg_type_n>)'",
+          javaSignature));
     }
 
     StringBuilder buf = new StringBuilder();
@@ -304,18 +287,18 @@ public final class Types {
     String args = javaSignature.substring(leftParen + 1, rightParen).trim();
     StringTokenizer st = new StringTokenizer(args, ",");
     if (!st.hasMoreTokens() && !args.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Illegal java signature, invalid argument format: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-              javaSignature));
+      throw new IllegalArgumentException(String.format(
+          "Illegal java signature, invalid argument format: '%s'. Must be of form '<return "
+          + "type> (<arg_type_1>, ..., <arg_type_n>)'",
+          javaSignature));
     }
     while (st.hasMoreTokens()) {
       String arg = st.nextToken().trim();
       if (arg.length() == 0) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Illegal java signature, empty argument: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-                javaSignature));
+        throw new IllegalArgumentException(String.format(
+            "Illegal java signature, empty argument: '%s'. Must be of form '<return type> "
+            + "(<arg_type_1>, ..., <arg_type_n>)'",
+            javaSignature));
       }
       descriptor = PRIMITIVE_TYPES.get(arg);
       if (descriptor == null) {
@@ -327,10 +310,9 @@ public final class Types {
 
     String returnType = javaSignature.substring(0, leftParen).trim();
     if (returnType.length() == 0) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Illegal java signature: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
-              javaSignature));
+      throw new IllegalArgumentException(String.format(
+          "Illegal java signature: '%s'. Must be of form '<return type> (<arg_type_1>, ..., <arg_type_n>)'",
+          javaSignature));
     }
     descriptor = PRIMITIVE_TYPES.get(returnType);
     if (descriptor == null) {
@@ -342,9 +324,10 @@ public final class Types {
 
   public static String descriptorToSignature(String desc) {
     Type[] argumentTypes = Type.getArgumentTypes(desc);
-    return Arrays.stream(argumentTypes)
-        .map(Type::getClassName)
-        .collect(Collectors.joining(", ", "(", ")"));
+    return Arrays
+      .stream(argumentTypes)
+      .map(Type::getClassName)
+      .collect(Collectors.joining(", ", "(", ")"));
   }
 
   /**

@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DY
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DYNAMO_PRIMARY_KEY_2_VALUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3_ETAG;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -28,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 public class SpanPointersProcessor extends TagsPostProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(SpanPointersProcessor.class);
-
   // The pointer direction will always be down. The serverless agent handles cases where the
   // direction is up.
   public static final String DOWN_DIRECTION = "d";
@@ -38,7 +36,9 @@ public class SpanPointersProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagMap unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks) {
     // DQH - TODO - There's a lot room to optimize this using TagMap's capabilities
     AgentSpanLink s3Link = handleS3SpanPointer(unsafeTags);
     if (s3Link != null) {
@@ -63,7 +63,6 @@ public class SpanPointersProcessor extends TagsPostProcessor {
       // logging anything.
       return null;
     }
-
     // Hash calculation rules:
     // https://github.com/DataDog/dd-span-pointer-rules/blob/main/AWS/S3/Object/README.md
     if (!eTag.isEmpty() && eTag.charAt(0) == '"' && eTag.charAt(eTag.length() - 1) == '"') {
@@ -93,7 +92,6 @@ public class SpanPointersProcessor extends TagsPostProcessor {
       // logging anything.
       return null;
     }
-
     // If these don't exist, the user has a table with only partition key but no sort key.
     // Then, we set them to empty strings when calculating the hash.
     String primaryKey2Name = asString(unsafeTags.remove(DYNAMO_PRIMARY_KEY_2));
@@ -105,10 +103,13 @@ public class SpanPointersProcessor extends TagsPostProcessor {
       primaryKey2Value = "";
     }
 
-    String[] components =
-        new String[] {
-          tableName, primaryKey1Name, primaryKey1Value, primaryKey2Name, primaryKey2Value
-        };
+    String[] components = new String[] {
+        tableName,
+        primaryKey1Name,
+        primaryKey1Value,
+        primaryKey2Name,
+        primaryKey2Value
+    };
     try {
       String hash = generatePointerHash(components);
       return buildSpanPointer(hash, DYNAMODB_PTR_KIND);
@@ -132,7 +133,6 @@ public class SpanPointersProcessor extends TagsPostProcessor {
    */
   private static String generatePointerHash(String[] components) throws NoSuchAlgorithmException {
     MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-
     // Update the digest incrementally for each component.
     boolean first = true;
     for (String component : components) {
@@ -151,13 +151,13 @@ public class SpanPointersProcessor extends TagsPostProcessor {
   }
 
   private static AgentSpanLink buildSpanPointer(String hash, String ptrKind) {
-    SpanAttributes attributes =
-        SpanAttributes.builder()
-            .put("ptr.kind", ptrKind)
-            .put("ptr.dir", DOWN_DIRECTION)
-            .put("ptr.hash", hash)
-            .put("link.kind", LINK_KIND)
-            .build();
+    SpanAttributes attributes = SpanAttributes
+      .builder()
+      .put("ptr.kind", ptrKind)
+      .put("ptr.dir", DOWN_DIRECTION)
+      .put("ptr.hash", hash)
+      .put("link.kind", LINK_KIND)
+      .build();
 
     return SpanLink.from(noopSpanContext(), DEFAULT_FLAGS, "", attributes);
   }

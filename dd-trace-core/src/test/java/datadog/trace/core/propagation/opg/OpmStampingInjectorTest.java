@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.HttpCodec;

@@ -2,7 +2,9 @@ package datadog.context;
 
 import static datadog.context.ContextProviders.manager;
 
-/** Manages context across execution units. */
+/**
+ * Manages context across execution units.
+ */
 public interface ContextManager {
   /**
    * Returns the context attached to the current execution unit.

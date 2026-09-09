@@ -12,7 +12,9 @@ import java.lang.invoke.MethodType;
  * BootstrapInitializationTelemetry, then we could remove this proxy.
  */
 public abstract class InitializationTelemetry {
-  /** Returns a proxy around a BoostrapInitializationTelemetry object */
+  /**
+   * Returns a proxy around a BoostrapInitializationTelemetry object
+   */
   public static final InitializationTelemetry proxy(Object bootstrapInitTelemetry) {
     if (bootstrapInitTelemetry == null) {
       return InitializationTelemetry.noOpInstance();
@@ -21,7 +23,9 @@ public abstract class InitializationTelemetry {
     }
   }
 
-  /** Returns a singleton of the no op InitializationTelemetry */
+  /**
+   * Returns a singleton of the no op InitializationTelemetry
+   */
   public static final InitializationTelemetry noOpInstance() {
     return NoOp.INSTANCE;
   }
@@ -63,11 +67,14 @@ public abstract class InitializationTelemetry {
    */
   public abstract void markIncomplete();
 
-  /** No telemetry - used for delayed initialization outside bootstrap invocation */
+  /**
+   * No telemetry - used for delayed initialization outside bootstrap invocation
+   */
   static final class NoOp extends InitializationTelemetry {
     static final NoOp INSTANCE = new NoOp();
 
-    NoOp() {}
+    NoOp() {
+    }
 
     @Override
     public void onAbort(String reasonCode) {}
@@ -85,7 +92,9 @@ public abstract class InitializationTelemetry {
     public void markIncomplete() {}
   }
 
-  /** Reflective proxy to BootstrapInitializationTelemetry */
+  /**
+   * Reflective proxy to BootstrapInitializationTelemetry
+   */
   static final class BootstrapProxy extends InitializationTelemetry {
     private final Object bootstrapInitTelemetry;
     private volatile MethodHandle bmh_onAbortString;
@@ -96,7 +105,6 @@ public abstract class InitializationTelemetry {
 
     // DQH - Decided not to eager access MethodHandles, since exceptions are uncommon
     // However, MethodHandles are cached on lookup
-
     /**
      * @param bootstrapInitTelemetry - non-null BootstrapInitializationTelemetry
      */
@@ -186,12 +194,12 @@ public abstract class InitializationTelemetry {
 
     private final MethodHandle findBoundHandle(String name, Class<?> paramType) {
       try {
-        MethodHandle virtualHandle =
-            MethodHandles.publicLookup()
-                .findVirtual(
-                    bootstrapInitTelemetry.getClass(),
-                    name,
-                    MethodType.methodType(void.class, paramType));
+        MethodHandle virtualHandle = MethodHandles
+          .publicLookup()
+          .findVirtual(
+              bootstrapInitTelemetry.getClass(),
+              name,
+              MethodType.methodType(void.class, paramType));
 
         return virtualHandle.bindTo(bootstrapInitTelemetry);
       } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -201,10 +209,9 @@ public abstract class InitializationTelemetry {
 
     private final MethodHandle findBoundHandle(String name) {
       try {
-        MethodHandle virtualHandle =
-            MethodHandles.publicLookup()
-                .findVirtual(
-                    bootstrapInitTelemetry.getClass(), name, MethodType.methodType(void.class));
+        MethodHandle virtualHandle = MethodHandles
+          .publicLookup()
+          .findVirtual(bootstrapInitTelemetry.getClass(), name, MethodType.methodType(void.class));
 
         return virtualHandle.bindTo(bootstrapInitTelemetry);
       } catch (NoSuchMethodException | IllegalAccessException e) {

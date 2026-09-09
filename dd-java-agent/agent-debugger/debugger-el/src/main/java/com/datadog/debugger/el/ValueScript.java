@@ -43,7 +43,9 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Implements expression language for capturing values for metric probes */
+/**
+ * Implements expression language for capturing values for metric probes
+ */
 public class ValueScript implements DebuggerScript<Value<?>> {
   private static final Pattern PERIOD_PATTERN = Pattern.compile("\\.");
   private static final Pattern INDEX_PATTERN = Pattern.compile("(.+)\\[([^]]+)]");
@@ -70,8 +72,12 @@ public class ValueScript implements DebuggerScript<Value<?>> {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ValueScript that = (ValueScript) o;
     return Objects.equals(expr, that.expr) && Objects.equals(dsl, that.dsl);
   }

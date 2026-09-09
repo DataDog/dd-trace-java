@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestStringSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestStringSuite.class);
 
   public static String concat(final String left, final String right) {
@@ -129,8 +128,10 @@ public class TestStringSuite {
   }
 
   public static String stringConstructor(
-      final byte[] value, final int offset, final int length, final String charset)
-      throws UnsupportedEncodingException {
+      final byte[] value,
+      final int offset,
+      final int length,
+      final String charset) throws UnsupportedEncodingException {
     LOGGER.debug("Before string stringConstructor {} {} {} {}", value, offset, length, charset);
     final String result = new String(value, offset, length, charset);
     LOGGER.debug("After string stringConstructor {}", result);
@@ -145,7 +146,10 @@ public class TestStringSuite {
   }
 
   public static String stringConstructor(
-      final byte[] value, final int offset, final int length, final Charset charset) {
+      final byte[] value,
+      final int offset,
+      final int length,
+      final Charset charset) {
     LOGGER.debug("Before string stringConstructor {} {} {} {}", value, offset, length, charset);
     final String result = new String(value, offset, length, charset);
     LOGGER.debug("After string stringConstructor {}", result);
@@ -217,15 +221,16 @@ public class TestStringSuite {
   }
 
   public static String replace(
-      final String string, final CharSequence oldCharSeq, final CharSequence newCharSeq) {
+      final String string,
+      final CharSequence oldCharSeq,
+      final CharSequence newCharSeq) {
     LOGGER.debug("Before replace {} {} {}", string, oldCharSeq, newCharSeq);
     String result = string.replace(oldCharSeq, newCharSeq);
     LOGGER.debug("After replace {}", result);
     return result;
   }
 
-  public static String replaceAll(
-      final String string, final String regex, final String replacement) {
+  public static String replaceAll(final String string, final String regex, final String replacement) {
     LOGGER.debug("Before replace all {} {} {}", string, regex, replacement);
     String result = string.replaceAll(regex, replacement);
     LOGGER.debug("After replace all {}", result);
@@ -233,7 +238,9 @@ public class TestStringSuite {
   }
 
   public static String replaceFirst(
-      final String string, final String regex, final String replacement) {
+      final String string,
+      final String regex,
+      final String replacement) {
     LOGGER.debug("Before replace first {} {} {}", string, regex, replacement);
     String result = string.replaceFirst(regex, replacement);
     LOGGER.debug("After replace first {}", result);

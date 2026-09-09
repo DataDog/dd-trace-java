@@ -20,10 +20,8 @@ import org.slf4j.LoggerFactory;
  */
 public class ConfigurationComparer {
   private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationComparer.class);
-
   private final Configuration originalConfiguration;
   private final Configuration incomingConfiguration;
-
   private final List<ProbeDefinition> addedDefinitions;
   private final List<ProbeDefinition> removedDefinitions;
   private final boolean filteredListChanged;
@@ -38,30 +36,28 @@ public class ConfigurationComparer {
     this.incomingConfiguration = incomingConfiguration;
     this.instrumentationResults = instrumentationResults;
 
-    Set<ProbeDefinition> originalDefinitions =
-        this.originalConfiguration != null
-            ? new HashSet<>(this.originalConfiguration.getDefinitions())
-            : new HashSet<>();
+    Set<ProbeDefinition> originalDefinitions = this.originalConfiguration != null
+        ? new HashSet<>(this.originalConfiguration.getDefinitions())
+        : new HashSet<>();
     Set<ProbeDefinition> incomingDefinitions =
         new HashSet<>(this.incomingConfiguration.getDefinitions());
 
-    addedDefinitions =
-        incomingDefinitions.stream()
-            .filter(it -> !originalDefinitions.contains(it))
-            .collect(Collectors.toList());
+    addedDefinitions = incomingDefinitions
+      .stream()
+      .filter(it -> !originalDefinitions.contains(it))
+      .collect(Collectors.toList());
 
-    removedDefinitions =
-        originalDefinitions.stream()
-            .filter(it -> !incomingDefinitions.contains(it))
-            .collect(Collectors.toList());
+    removedDefinitions = originalDefinitions
+      .stream()
+      .filter(it -> !incomingDefinitions.contains(it))
+      .collect(Collectors.toList());
 
-    filteredListChanged =
-        !Objects.equals(
-                originalConfiguration != null ? originalConfiguration.getAllowList() : null,
-                incomingConfiguration.getAllowList())
-            || !Objects.equals(
-                originalConfiguration != null ? originalConfiguration.getDenyList() : null,
-                incomingConfiguration.getDenyList());
+    filteredListChanged = !Objects.equals(
+        originalConfiguration != null ? originalConfiguration.getAllowList() : null,
+        incomingConfiguration.getAllowList())
+        || !Objects.equals(
+            originalConfiguration != null ? originalConfiguration.getDenyList() : null,
+            incomingConfiguration.getDenyList());
 
     if (filteredListChanged) {
       changedBlockedTypes = findChangesInBlockedTypes();

@@ -8,7 +8,6 @@ import org.testng.ISuiteListener;
  * ISuiteListener and ITestListener, it is registered twice (probably a bug in TestNG)
  */
 public class TestNGSuiteListener implements ISuiteListener {
-
   private final TestNGClassListener delegate;
 
   public TestNGSuiteListener(TestNGClassListener delegate) {

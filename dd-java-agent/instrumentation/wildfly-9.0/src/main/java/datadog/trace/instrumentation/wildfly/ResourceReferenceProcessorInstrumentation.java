@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.wildfly;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,8 @@ import org.jboss.as.ee.component.EnvEntryInjectionSource;
 
 @AutoService(InstrumenterModule.class)
 public class ResourceReferenceProcessorInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ResourceReferenceProcessorInstrumentation() {
     super("wildfly", "jee-env-entry");
   }
@@ -31,7 +31,8 @@ public class ResourceReferenceProcessorInstrumentation extends InstrumenterModul
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.jboss.as.ee.component.EnvEntryInjectionSource", Object.class.getName());
+        "org.jboss.as.ee.component.EnvEntryInjectionSource",
+        Object.class.getName());
   }
 
   @Override
@@ -55,15 +56,15 @@ public class ResourceReferenceProcessorInstrumentation extends InstrumenterModul
               contextStore.get((EnvEntryInjectionSource) bindingConfiguration.getSource());
           if (value != null
               && bindingConfiguration
-                  .getName()
-                  .startsWith(ClassloaderConfigurationOverrides.DATADOG_TAGS_JNDI_PREFIX)) {
+                .getName()
+                .startsWith(ClassloaderConfigurationOverrides.DATADOG_TAGS_JNDI_PREFIX)) {
             if (info == null) {
               info = ClassloaderConfigurationOverrides.maybeCreateContextualInfo(classLoader);
             }
             info.addTag(
                 bindingConfiguration
-                    .getName()
-                    .substring(ClassloaderConfigurationOverrides.DATADOG_TAGS_JNDI_PREFIX.length()),
+                  .getName()
+                  .substring(ClassloaderConfigurationOverrides.DATADOG_TAGS_JNDI_PREFIX.length()),
                 value);
           }
         }

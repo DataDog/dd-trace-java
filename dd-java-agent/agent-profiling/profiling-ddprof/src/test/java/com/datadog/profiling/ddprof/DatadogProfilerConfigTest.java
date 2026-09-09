@@ -4,7 +4,6 @@ import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampl
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -49,10 +48,10 @@ class DatadogProfilerConfigTest {
         expectedStackwalker,
         result,
         "J9 JVM with configured stackwalker '"
-            + configuredStackwalker
-            + "' should return '"
-            + expectedStackwalker
-            + "'");
+        + configuredStackwalker
+        + "' should return '"
+        + expectedStackwalker
+        + "'");
   }
 
   @ParameterizedTest
@@ -70,10 +69,10 @@ class DatadogProfilerConfigTest {
         expectedStackwalker,
         result,
         "Zing JVM with configured stackwalker '"
-            + configuredStackwalker
-            + "' should return '"
-            + expectedStackwalker
-            + "'");
+        + configuredStackwalker
+        + "' should return '"
+        + expectedStackwalker
+        + "'");
   }
 
   @ParameterizedTest
@@ -91,19 +90,21 @@ class DatadogProfilerConfigTest {
         expectedStackwalker,
         result,
         "HotSpot JVM with configured stackwalker '"
-            + configuredStackwalker
-            + "' should return '"
-            + expectedStackwalker
-            + "'");
+        + configuredStackwalker
+        + "' should return '"
+        + expectedStackwalker
+        + "'");
   }
 
   private static Stream<Arguments> j9StackwalkerTestCases() {
     return Stream.of(
-        // Unsupported stackwalkers - should fall back to dwarf
-        Arguments.of("vm", "dwarf"),
+        Arguments
+          // Unsupported stackwalkers - should fall back to dwarf
+          .of("vm", "dwarf"),
         Arguments.of("vmx", "dwarf"),
-        // Supported stackwalkers - should pass through
-        Arguments.of("dwarf", "dwarf"),
+        Arguments
+          // Supported stackwalkers - should pass through
+          .of("dwarf", "dwarf"),
         Arguments.of("fp", "fp"),
         Arguments.of("lbr", "lbr"),
         Arguments.of("no", "no"));
@@ -111,11 +112,13 @@ class DatadogProfilerConfigTest {
 
   private static Stream<Arguments> zingStackwalkerTestCases() {
     return Stream.of(
-        // Unsupported stackwalkers - should fall back to dwarf
-        Arguments.of("vm", "dwarf"),
+        Arguments
+          // Unsupported stackwalkers - should fall back to dwarf
+          .of("vm", "dwarf"),
         Arguments.of("vmx", "dwarf"),
-        // Supported stackwalkers - should pass through
-        Arguments.of("dwarf", "dwarf"),
+        Arguments
+          // Supported stackwalkers - should pass through
+          .of("dwarf", "dwarf"),
         Arguments.of("fp", "fp"),
         Arguments.of("lbr", "lbr"),
         Arguments.of("no", "no"));
@@ -123,8 +126,9 @@ class DatadogProfilerConfigTest {
 
   private static Stream<Arguments> hotspotStackwalkerTestCases() {
     return Stream.of(
-        // All stackwalkers should pass through unchanged
-        Arguments.of("vm", "vm"),
+        Arguments
+          // All stackwalkers should pass through unchanged
+          .of("vm", "vm"),
         Arguments.of("vmx", "vmx"),
         Arguments.of("dwarf", "dwarf"),
         Arguments.of("fp", "fp"),

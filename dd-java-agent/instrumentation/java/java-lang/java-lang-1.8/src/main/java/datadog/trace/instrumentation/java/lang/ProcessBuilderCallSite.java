@@ -13,7 +13,6 @@ import javax.annotation.Nullable;
 @Sink(VulnerabilityTypes.COMMAND_INJECTION)
 @CallSite(spi = IastCallSites.class)
 public class ProcessBuilderCallSite {
-
   @CallSite.Before("java.lang.Process java.lang.ProcessBuilder.start()")
   public static void beforeStart(@CallSite.This @Nullable final ProcessBuilder self) {
     if (self == null) {

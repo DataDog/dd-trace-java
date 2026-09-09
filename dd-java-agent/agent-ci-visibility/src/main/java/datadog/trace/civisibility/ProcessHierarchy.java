@@ -4,7 +4,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_SIGNAL_SERVER_PORT;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -13,13 +12,13 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 public class ProcessHierarchy {
-
   private static final class SystemPropertiesPropagationGetter
       implements AgentPropagation.ContextVisitor<Map<String, String>> {
     static final AgentPropagation.ContextVisitor<Map<String, String>> INSTANCE =
         new SystemPropertiesPropagationGetter();
 
-    private SystemPropertiesPropagationGetter() {}
+    private SystemPropertiesPropagationGetter() {
+    }
 
     @Override
     public void forEachKey(Map<String, String> carrier, AgentPropagation.KeyClassifier classifier) {
@@ -31,12 +30,13 @@ public class ProcessHierarchy {
     }
   }
 
-  @Nullable public final AgentSpanContext.Extracted parentProcessModuleContext;
+  @Nullable
+  public final AgentSpanContext.Extracted parentProcessModuleContext;
 
   ProcessHierarchy() {
-    parentProcessModuleContext =
-        extractContextAndGetSpanContext(
-            SystemProperties.asStringMap(), SystemPropertiesPropagationGetter.INSTANCE);
+    parentProcessModuleContext = extractContextAndGetSpanContext(
+        SystemProperties.asStringMap(),
+        SystemPropertiesPropagationGetter.INSTANCE);
   }
 
   /**
@@ -72,19 +72,19 @@ public class ProcessHierarchy {
 
   private boolean isMavenParent() {
     return SystemProperties.get("maven.home") != null
-            && SystemProperties.get("classworlds.conf") != null
+        && SystemProperties.get("classworlds.conf") != null
         // when using Maven Wrapper
-        || ClassLoader.getSystemClassLoader()
-                .getResource("org/apache/maven/wrapper/WrapperExecutor.class")
-            != null;
+    || ClassLoader
+      .getSystemClassLoader()
+      .getResource("org/apache/maven/wrapper/WrapperExecutor.class") != null;
   }
 
   private boolean isGradleDaemon() {
-    return ClassLoader.getSystemClassLoader()
-                .getResource("org/gradle/launcher/daemon/bootstrap/GradleDaemon.class")
-            != null
+    return ClassLoader
+      .getSystemClassLoader()
+      .getResource("org/gradle/launcher/daemon/bootstrap/GradleDaemon.class") != null
         // double-check this is not a Gradle Worker
-        && SystemProperties.get("org.gradle.internal.worker.tmpdir") == null;
+    && SystemProperties.get("org.gradle.internal.worker.tmpdir") == null;
   }
 
   private boolean isGradleLauncher() {
@@ -96,10 +96,10 @@ public class ProcessHierarchy {
   private boolean isGradleWrapper() {
     // The Gradle Wrapper bootstraps before the launcher classes are on the classpath,
     // so at premain only the wrapper's own class is visible.
-    return Thread.currentThread()
-            .getContextClassLoader()
-            .getResource("org/gradle/wrapper/GradleWrapperMain.class")
-        != null;
+    return Thread
+      .currentThread()
+      .getContextClassLoader()
+      .getResource("org/gradle/wrapper/GradleWrapperMain.class") != null;
   }
 
   @Nullable

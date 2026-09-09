@@ -18,9 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsMissingHeaderModule {
-  private static final Pattern MAX_AGE =
-      Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
-
+  private static final Pattern MAX_AGE = Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
   private static final Logger LOGGER = LoggerFactory.getLogger(HstsMissingHeaderModuleImpl.class);
 
   public HstsMissingHeaderModuleImpl(final Dependencies dependencies) {
@@ -50,7 +48,8 @@ public class HstsMissingHeaderModuleImpl extends SinkModuleBase implements HstsM
         }
         final AgentSpan span = (AgentSpan) igSpanInfo;
         report(
-            span, new Vulnerability(VulnerabilityType.HSTS_HEADER_MISSING, Location.forSpan(span)));
+            span,
+            new Vulnerability(VulnerabilityType.HSTS_HEADER_MISSING, Location.forSpan(span)));
       } catch (Throwable e) {
         LOGGER.debug("Exception while checking for missing HSTS headers vulnerability", e);
       }

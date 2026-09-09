@@ -16,7 +16,6 @@ import org.springframework.util.MultiValueMap;
 
 @RequiresRequestContext(RequestContextSlot.IAST)
 class TaintQueryParamsAdvice {
-
   @SuppressWarnings("Duplicates")
   @Advice.OnMethodExit(suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_PARAMETER_VALUE)

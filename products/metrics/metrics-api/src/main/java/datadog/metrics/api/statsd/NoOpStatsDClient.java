@@ -1,7 +1,6 @@
 package datadog.metrics.api.statsd;
 
 final class NoOpStatsDClient implements StatsDClient {
-
   @Override
   public void incrementCounter(final String metricName, final String... tags) {}
 

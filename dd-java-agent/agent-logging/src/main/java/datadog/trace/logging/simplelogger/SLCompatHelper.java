@@ -142,7 +142,6 @@ class SLCompatHelper extends LoggerHelper {
       String threadName,
       String message,
       Throwable t) {
-
     JsonWriter writer = new JsonWriter();
     writer.beginObject();
     writer.name("origin").value("dd.trace");

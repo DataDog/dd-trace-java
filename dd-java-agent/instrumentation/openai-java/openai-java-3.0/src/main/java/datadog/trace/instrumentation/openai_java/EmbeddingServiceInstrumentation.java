@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.openai.core.ClientOptions;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.models.embeddings.CreateEmbeddingResponse;
@@ -21,8 +20,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public class EmbeddingServiceInstrumentation
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithTypeStructure {
   @Override
   public String instrumentedType() {
     return "com.openai.services.blocking.EmbeddingServiceImpl$WithRawResponseImpl";
@@ -32,9 +31,9 @@ public class EmbeddingServiceInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("create"))
-            .and(takesArgument(0, named("com.openai.models.embeddings.EmbeddingCreateParams")))
-            .and(returns(named("com.openai.core.http.HttpResponseFor"))),
+          .and(named("create"))
+          .and(takesArgument(0, named("com.openai.models.embeddings.EmbeddingCreateParams")))
+          .and(returns(named("com.openai.core.http.HttpResponseFor"))),
         getClass().getName() + "$CreateAdvice");
   }
 
@@ -62,9 +61,10 @@ public class EmbeddingServiceInstrumentation
       if (err != null || response == null) {
         DECORATE.finishSpan(span, err);
       } else {
-        response =
-            HttpResponseWrapper.wrap(
-                response, span, EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
+        response = HttpResponseWrapper.wrap(
+            response,
+            span,
+            EmbeddingDecorator.DECORATE::withCreateEmbeddingResponse);
       }
       scope.close();
     }

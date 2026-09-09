@@ -15,27 +15,27 @@ import io.undertow.util.AttachmentKey;
 
 public class UndertowDecorator
     extends HttpServerDecorator<
-        HttpServerExchange, HttpServerExchange, HttpServerExchange, HttpServerExchange> {
-  public static final CharSequence SERVLET_REQUEST =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().server().operationForComponent("java-web-servlet"));
+    HttpServerExchange,
+    HttpServerExchange,
+    HttpServerExchange,
+    HttpServerExchange> {
+  public static final CharSequence SERVLET_REQUEST = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .server()
+    .operationForComponent("java-web-servlet"));
   public static final CharSequence UNDERTOW_HTTP_SERVER =
       UTF8BytesString.create("undertow-http-server");
-
   @SuppressWarnings("rawtypes")
   private static final InstanceStore<AttachmentKey> attachmentStore =
       InstanceStore.of(AttachmentKey.class);
-
   @SuppressWarnings("unchecked")
-  public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION =
-      attachmentStore.getOrCreate(
-          "DD_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
-
+  public static final AttachmentKey<ContextContinuation> DATADOG_UNDERTOW_CONTINUATION = attachmentStore.getOrCreate(
+      "D"
+      + "D_UNDERTOW_CONTINUATION", () -> AttachmentKey.create(ContextContinuation.class));
   @SuppressWarnings("unchecked")
-  public static final AttachmentKey<Context> PARENT_CONTEXT_KEY =
-      attachmentStore.getOrCreate(
-          "DD_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
-
+  public static final AttachmentKey<Context> PARENT_CONTEXT_KEY = attachmentStore.getOrCreate("DD"
+      + "_UNDERTOW_PARENT_CONTEXT", () -> AttachmentKey.create(Context.class));
   public static final UndertowDecorator DECORATE = new UndertowDecorator();
   public static final CharSequence UNDERTOW_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());
@@ -99,7 +99,8 @@ public class UndertowDecorator
 
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
-      HttpServerExchange httpServerExchange, HttpServerExchange httpServerExchange1) {
+      HttpServerExchange httpServerExchange,
+      HttpServerExchange httpServerExchange1) {
     return new UndertowBlockResponseFunction(httpServerExchange);
   }
 }

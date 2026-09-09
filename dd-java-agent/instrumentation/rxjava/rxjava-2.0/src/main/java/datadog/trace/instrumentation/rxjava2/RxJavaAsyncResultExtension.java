@@ -37,26 +37,26 @@ public class RxJavaAsyncResultExtension implements AsyncResultExtension, EagerHe
   public Object apply(Object result, AgentSpan span) {
     if (result instanceof Completable) {
       return ((Completable) result)
-          .doOnEvent(throwable -> onError(span, throwable))
-          .doOnDispose(span::finish);
+        .doOnEvent(throwable -> onError(span, throwable))
+        .doOnDispose(span::finish);
     } else if (result instanceof Maybe) {
       return ((Maybe<?>) result)
-          .doOnEvent((o, throwable) -> onError(span, throwable))
-          .doOnDispose(span::finish);
+        .doOnEvent((o, throwable) -> onError(span, throwable))
+        .doOnDispose(span::finish);
     } else if (result instanceof Single) {
       return ((Single<?>) result)
-          .doOnEvent((o, throwable) -> onError(span, throwable))
-          .doOnDispose(span::finish);
+        .doOnEvent((o, throwable) -> onError(span, throwable))
+        .doOnDispose(span::finish);
     } else if (result instanceof Observable) {
       return ((Observable<?>) result)
-          .doOnComplete(span::finish)
-          .doOnError(throwable -> onError(span, throwable))
-          .doOnDispose(span::finish);
+        .doOnComplete(span::finish)
+        .doOnError(throwable -> onError(span, throwable))
+        .doOnDispose(span::finish);
     } else if (result instanceof Flowable) {
       return ((Flowable<?>) result)
-          .doOnComplete(span::finish)
-          .doOnError(throwable -> onError(span, throwable))
-          .doOnCancel(span::finish);
+        .doOnComplete(span::finish)
+        .doOnError(throwable -> onError(span, throwable))
+        .doOnCancel(span::finish);
     }
     return null;
   }

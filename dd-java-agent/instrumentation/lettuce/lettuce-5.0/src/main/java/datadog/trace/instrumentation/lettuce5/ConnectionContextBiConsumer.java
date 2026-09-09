@@ -6,12 +6,12 @@ import io.lettuce.core.api.StatefulConnection;
 import java.util.function.BiConsumer;
 
 public class ConnectionContextBiConsumer implements BiConsumer<StatefulConnection, Throwable> {
-
   private final RedisURI redisURI;
   private final ContextStore<StatefulConnection, RedisURI> contextStore;
 
   public ConnectionContextBiConsumer(
-      RedisURI redisURI, ContextStore<StatefulConnection, RedisURI> contextStore) {
+      RedisURI redisURI,
+      ContextStore<StatefulConnection, RedisURI> contextStore) {
     this.redisURI = redisURI;
     this.contextStore = contextStore;
   }

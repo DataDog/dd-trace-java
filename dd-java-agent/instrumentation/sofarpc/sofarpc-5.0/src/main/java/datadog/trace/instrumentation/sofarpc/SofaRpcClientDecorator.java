@@ -10,13 +10,12 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 
 public class SofaRpcClientDecorator extends ClientDecorator {
-
-  public static final CharSequence SOFA_RPC_CLIENT =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().client().operationForProtocol("sofarpc"));
-
+  public static final CharSequence SOFA_RPC_CLIENT = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .client()
+    .operationForProtocol("sofarpc"));
   private static final CharSequence COMPONENT_NAME = UTF8BytesString.create("sofarpc-client");
-
   public static final SofaRpcClientDecorator DECORATE = new SofaRpcClientDecorator();
 
   @Override

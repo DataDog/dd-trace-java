@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling.bytebuddy.csi;
 
 import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_INTERFACE_METHODREF_TAG;
 import static datadog.trace.agent.tooling.bytebuddy.csi.ConstantPool.CONSTANT_METHODREF_TAG;
-
 import datadog.trace.agent.tooling.bytebuddy.ClassFileLocators;
 import datadog.trace.agent.tooling.csi.CallSiteAdvice;
 import datadog.trace.agent.tooling.csi.CallSites;
@@ -29,28 +28,20 @@ import org.slf4j.LoggerFactory;
  * and method description, it stores the collection of helper classes required by the advices.
  */
 public class Advices {
-
   private static final Logger LOG = LoggerFactory.getLogger(Advices.class);
-
-  public static final Advices EMPTY =
-      new Advices(
-          Collections.emptyMap(),
-          new String[0],
-          AdviceIntrospector.NoOpAdviceInstrospector.INSTANCE) {
-        @Override
-        public boolean isEmpty() {
-          return true;
-        }
-      };
-
+  public static final Advices EMPTY = new Advices(
+      Collections.emptyMap(),
+      new String[0],
+      AdviceIntrospector.NoOpAdviceInstrospector.INSTANCE) {
+    @Override
+    public boolean isEmpty() {
+      return true;
+    }
+  };
   private static final Field BUILDER_CLASS_LOCATOR_FIELD = resolveClassFileLocatorField();
-
   private final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices;
-
   private final String[] helpers;
-
   private final AdviceIntrospector introspector;
-
   private final Listener[] listeners;
 
   private Advices(
@@ -69,9 +60,12 @@ public class Advices {
   }
 
   public static Advices fromCallSites(
-      @Nonnull final Iterable<CallSites> callSites, final Listener... listeners) {
+      @Nonnull final Iterable<CallSites> callSites,
+      final Listener... listeners) {
     return fromCallSites(
-        callSites, AdviceIntrospector.ConstantPoolInstrospector.INSTANCE, listeners);
+        callSites,
+        AdviceIntrospector.ConstantPoolInstrospector.INSTANCE,
+        listeners);
   }
 
   public static Advices fromCallSites(
@@ -87,7 +81,10 @@ public class Advices {
     return container.advices.isEmpty()
         ? EMPTY
         : new Advices(
-            container.advices, container.helpers.toArray(new String[0]), introspector, listeners);
+            container.advices,
+            container.helpers.toArray(new String[0]),
+            introspector,
+            listeners);
   }
 
   /**
@@ -143,7 +140,9 @@ public class Advices {
     return methodAdvices.get(descriptor);
   }
 
-  /** Gets the type of advice we are dealing with */
+  /**
+   * Gets the type of advice we are dealing with
+   */
   public byte typeOf(final CallSiteAdvice advice) {
     return ((TypedAdvice) advice).getType();
   }
@@ -173,7 +172,6 @@ public class Advices {
 
   private static class AdviceContainer implements CallSites.Container {
     private final Map<String, Map<String, Map<String, CallSiteAdvice>>> advices = new HashMap<>();
-
     private final Set<String> helpers = new HashSet<>();
 
     @Override
@@ -195,10 +193,10 @@ public class Advices {
       final CallSiteAdvice oldAdvice =
           methodAdvices.put(descriptor, TypedAdvice.withType(advice, type));
       if (oldAdvice != null) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "Advice %s and %s match the same pointcut, this is not yet supported",
-                oldAdvice, advice));
+        throw new UnsupportedOperationException(String.format(
+            "Advice %s and %s match the same pointcut, this is not yet supported",
+            oldAdvice,
+            advice));
       }
     }
   }
@@ -208,7 +206,6 @@ public class Advices {
    * visiting it
    */
   public interface AdviceIntrospector {
-
     @Nonnull
     Advices findAdvices(
         @Nonnull Advices advices,
@@ -218,13 +215,12 @@ public class Advices {
         Listener... listeners);
 
     class NoOpAdviceInstrospector implements AdviceIntrospector {
-
       public static final AdviceIntrospector INSTANCE = new NoOpAdviceInstrospector();
 
       @Override
       public @Nonnull Advices findAdvices(
-          final @Nonnull Advices advices,
-          final @Nonnull DynamicType.Builder<?> builder,
+          @Nonnull final Advices advices,
+          @Nonnull final DynamicType.Builder<?> builder,
           @Nonnull final TypeDescription type,
           final ClassLoader loader,
           final Listener... listeners) {
@@ -237,9 +233,7 @@ public class Advices {
      * configured advices should be applied.
      */
     class ConstantPoolInstrospector implements AdviceIntrospector {
-
       public static final AdviceIntrospector INSTANCE = new ConstantPoolInstrospector();
-
       private static final Map<Integer, ConstantPoolHandler> CP_HANDLERS;
 
       static {
@@ -252,8 +246,8 @@ public class Advices {
 
       @Override
       public @Nonnull Advices findAdvices(
-          final @Nonnull Advices advices,
-          final @Nonnull DynamicType.Builder<?> builder,
+          @Nonnull final Advices advices,
+          @Nonnull final DynamicType.Builder<?> builder,
           @Nonnull final TypeDescription type,
           final ClassLoader loader,
           final Listener... listeners) {
@@ -262,7 +256,8 @@ public class Advices {
           classFile = resolveFromLoader(type, loader);
         }
         if (classFile == null) {
-          return advices; // do not do any filtering if we don't have access to the class file
+          // do not do any filtering if we don't have access to the class file
+          return advices;
           // buffer
         }
         final ConstantPool cp = new ConstantPool(classFile);
@@ -284,7 +279,9 @@ public class Advices {
         return EMPTY;
       }
 
-      /** Handler for a particular type of constant pool type (MethodRef, InvokeDynamic, ...) */
+      /**
+       * Handler for a particular type of constant pool type (MethodRef, InvokeDynamic, ...)
+       */
       private interface ConstantPoolHandler {
         CallSiteAdvice findAdvice(@Nonnull Advices advices, @Nonnull ConstantPool cp, int index);
       }
@@ -294,7 +291,8 @@ public class Advices {
        * + * performance +
        */
       private byte[] resolveFromBuilder(
-          @Nonnull final TypeDescription type, @Nonnull final DynamicType.Builder<?> builder) {
+          @Nonnull final TypeDescription type,
+          @Nonnull final DynamicType.Builder<?> builder) {
         if (builder instanceof AbstractInliningDynamicTypeBuilder
             && BUILDER_CLASS_LOCATOR_FIELD != null) {
           try {
@@ -311,9 +309,12 @@ public class Advices {
         return null;
       }
 
-      /** Use the default class loader strategy to resolve the class file buffer */
+      /**
+       * Use the default class loader strategy to resolve the class file buffer
+       */
       private byte[] resolveFromLoader(
-          @Nonnull final TypeDescription type, final ClassLoader loader) {
+          @Nonnull final TypeDescription type,
+          final ClassLoader loader) {
         try (final ClassFileLocator locator = ClassFileLocators.classFileLocator(loader)) {
           final ClassFileLocator.Resolution resolution = locator.locate(type.getName());
           return resolution.isResolved() ? resolution.resolve() : null;
@@ -332,12 +333,12 @@ public class Advices {
        *     href="https://docs.oracle.com/javase/specs/jvms/se15/html/jvms-4.html#jvms-4.4.2">Methodref_info</a>
        */
       private static class MethodRefHandler implements ConstantPoolHandler {
-
         @Override
         public CallSiteAdvice findAdvice(
-            @Nonnull final Advices advices, @Nonnull final ConstantPool cp, final int index) {
+            @Nonnull final Advices advices,
+            @Nonnull final ConstantPool cp,
+            final int index) {
           final int offset = cp.getOffset(index);
-
           // u2 class_index;
           final int classIndex = cp.readUnsignedShort(offset);
           final int classNameIndex = cp.readUnsignedShort(cp.getOffset(classIndex));
@@ -347,7 +348,6 @@ public class Advices {
           if (calleeAdvices == null) {
             return null;
           }
-
           // u2 name_and_type_index;
           final int nameAndTypeIndex = cp.readUnsignedShort(offset + 2);
           final int nameAndTypeOffset = cp.getOffset(nameAndTypeIndex);
@@ -367,7 +367,9 @@ public class Advices {
 
   public interface Listener {
     void onConstantPool(
-        @Nonnull TypeDescription type, @Nonnull ConstantPool pool, final byte[] classFile);
+        @Nonnull TypeDescription type,
+        @Nonnull ConstantPool pool,
+        final byte[] classFile);
   }
 
   // Kept public only for testing

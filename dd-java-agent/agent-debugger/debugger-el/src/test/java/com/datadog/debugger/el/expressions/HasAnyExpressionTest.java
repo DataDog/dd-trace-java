@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.values.ListValue;
@@ -45,8 +44,8 @@ class HasAnyExpressionTest {
     assertEquals("any(null, {true})", print(nullExpression));
     HasAnyExpression undefinedExpression =
         new HasAnyExpression(value(Values.UNDEFINED_OBJECT), null);
-    exception =
-        assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(evalContext));
+    exception = assertThrows(EvaluationException.class, () -> undefinedExpression.evaluate(
+        evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("any(UNDEFINED, {true})", print(undefinedExpression));
     HasAnyExpression expression = new HasAnyExpression(value(new Object[] {this}), null);
@@ -69,14 +68,12 @@ class HasAnyExpressionTest {
     assertEquals("any(null, {true})", print(nullExpression1));
 
     HasAnyExpression nullExpression2 = any(null, BooleanExpression.FALSE);
-    exception =
-        assertThrows(EvaluationException.class, () -> nullExpression2.evaluate(evalContext));
+    exception = assertThrows(EvaluationException.class, () -> nullExpression2.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("any(null, {false})", print(nullExpression2));
 
     HasAnyExpression nullExpression3 = any(null, eq(ref("testField"), value(10)));
-    exception =
-        assertThrows(EvaluationException.class, () -> nullExpression3.evaluate(evalContext));
+    exception = assertThrows(EvaluationException.class, () -> nullExpression3.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("any(null, {testField == 10})", print(nullExpression3));
   }
@@ -96,8 +93,8 @@ class HasAnyExpressionTest {
 
     HasAnyExpression undefinedExpression2 =
         any(value(Values.UNDEFINED_OBJECT), eq(ref("testField"), value(10)));
-    exception =
-        assertThrows(EvaluationException.class, () -> undefinedExpression2.evaluate(evalContext));
+    exception = assertThrows(EvaluationException.class, () -> undefinedExpression2.evaluate(
+        evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("any(UNDEFINED, {testField == 10})", print(undefinedExpression2));
   }
@@ -114,10 +111,9 @@ class HasAnyExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(java.lang.Object[], {false})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
+    expression = any(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(java.lang.Object[], {@it.testField == 10})", print(expression));
 
@@ -138,10 +134,9 @@ class HasAnyExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(List, {false})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
+    expression = any(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "testField"), value(10)));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(List, {@it.testField == 10})", print(expression));
 
@@ -182,27 +177,27 @@ class HasAnyExpressionTest {
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(Map, {false})", print(expression));
 
-    expression =
-        any(targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
+    expression = any(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("b")));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.key == \"b\"})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
+    expression = any(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("a")));
     assertTrue(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.value == \"a\"})", print(expression));
 
-    expression =
-        any(targetExpression, eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("c")));
+    expression = any(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "key"), value("c")));
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.key == \"c\"})", print(expression));
 
-    expression =
-        any(
-            targetExpression,
-            eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("c")));
+    expression = any(
+        targetExpression,
+        eq(getMember(ref(ValueReferences.ITERATOR_REF), "value"), value("c")));
     assertFalse(expression.evaluate(evalContext));
     assertEquals("any(Map, {@it.value == \"c\"})", print(expression));
   }
@@ -334,9 +329,12 @@ class HasAnyExpressionTest {
     assertEquals("any(Set, {@it == \"foo\"})", print(expression));
   }
 
-  static class CustomList extends java.util.ArrayList<String> {}
+  static class CustomList extends java.util.ArrayList<String> {
+  }
 
-  static class CustomMap extends HashMap<String, Integer> {}
+  static class CustomMap extends HashMap<String, Integer> {
+  }
 
-  static class CustomSet extends java.util.HashSet<String> {}
+  static class CustomSet extends java.util.HashSet<String> {
+  }
 }

@@ -34,17 +34,15 @@ public final class EnvironmentChecker {
       appendLine("Profiler requires Java 8 or newer", sb);
       return false;
     }
-    appendLine(
-        () ->
-            sb.append("Using Java version: ")
-                .append(JavaVirtualMachine.getRuntimeVersion())
-                .append(" (")
-                .append(SystemProperties.getOrDefault("java.home", "unknown"))
-                .append(")"));
-    appendLine(
-        () ->
-            sb.append("Running as user: ")
-                .append(SystemProperties.getOrDefault("user.name", "unknown")));
+    appendLine(() -> sb
+      .append("Using Java version: ")
+      .append(JavaVirtualMachine.getRuntimeVersion())
+      .append(" (")
+      .append(SystemProperties.getOrDefault("java.home", "unknown"))
+      .append(")"));
+    appendLine(() -> sb
+      .append("Running as user: ")
+      .append(SystemProperties.getOrDefault("user.name", "unknown")));
     boolean result = false;
     result |= checkJFR(sb);
     result |= checkDdprof(sb);
@@ -60,11 +58,10 @@ public final class EnvironmentChecker {
       return false;
     } else {
       if (!temp.equals(SystemProperties.get("java.io.tmpdir"))) {
-        appendLine(
-            () ->
-                sb.append("! Make sure to add '-Ddd.profiling.tempdir=")
-                    .append(temp)
-                    .append("' to your JVM command line !"));
+        appendLine(() -> sb
+          .append("! Make sure to add '-Ddd.profiling.tempdir=")
+          .append(temp)
+          .append("' to your JVM command line !"));
       }
     }
     appendLine("Profiler is ready to be used.", sb);
@@ -75,14 +72,16 @@ public final class EnvironmentChecker {
   private static boolean checkJFR(StringBuilder sb) {
     if (JavaVirtualMachine.isOracleJDK8()) {
       appendLine(
-          "JFR is commercial feature in Oracle JDK 8. Make sure you have the right license.", sb);
+          "JFR is commercial feature in Oracle JDK 8. Make sure you have the right license.",
+          sb);
       return true;
     } else if (JavaVirtualMachine.isJ9()) {
       appendLine("JFR is not supported on J9 JVM.", sb);
       return false;
     } else {
-      appendLine(
-          () -> sb.append("JFR is supported on ").append(JavaVirtualMachine.getRuntimeVersion()));
+      appendLine(() -> sb
+        .append("JFR is supported on ")
+        .append(JavaVirtualMachine.getRuntimeVersion()));
       return true;
     }
   }
@@ -93,10 +92,9 @@ public final class EnvironmentChecker {
       appendLine("Datadog profiler is only supported on Linux.", sb);
       return false;
     } else {
-      appendLine(
-          () ->
-              sb.append("Datadog profiler is supported on ")
-                  .append(JavaVirtualMachine.getRuntimeVersion()));
+      appendLine(() -> sb
+        .append("Datadog profiler is supported on ")
+        .append(JavaVirtualMachine.getRuntimeVersion()));
       return true;
     }
   }
@@ -135,47 +133,42 @@ public final class EnvironmentChecker {
     } catch (Exception e) {
       appendLine(() -> sb.append("Unable to create temp directory in location ").append(temp));
       if (isPosix) {
-        appendLine(
-            () ->
-                sb.append("Base dir: ")
-                    .append(base)
-                    .append(" [")
-                    .append(getPermissionsStringSafe(base))
-                    .append("]"));
+        appendLine(() -> sb
+          .append("Base dir: ")
+          .append(base)
+          .append(" [")
+          .append(getPermissionsStringSafe(base))
+          .append("]"));
       }
       appendLine(() -> sb.append("Error: ").append(e));
     } finally {
       if (Files.exists(target)) {
         try {
-          Files.walkFileTree(
-              target,
-              new FileVisitor<Path>() {
-                @Override
-                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-                    throws IOException {
-                  return FileVisitResult.CONTINUE;
-                }
+          Files.walkFileTree(target, new FileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+                throws IOException {
+              return FileVisitResult.CONTINUE;
+            }
 
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                    throws IOException {
-                  Files.delete(file);
-                  return FileVisitResult.CONTINUE;
-                }
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+                throws IOException {
+              Files.delete(file);
+              return FileVisitResult.CONTINUE;
+            }
 
-                @Override
-                public FileVisitResult visitFileFailed(Path file, IOException exc)
-                    throws IOException {
-                  return FileVisitResult.CONTINUE;
-                }
+            @Override
+            public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+              return FileVisitResult.CONTINUE;
+            }
 
-                @Override
-                public FileVisitResult postVisitDirectory(Path dir, IOException exc)
-                    throws IOException {
-                  Files.delete(dir);
-                  return FileVisitResult.CONTINUE;
-                }
-              });
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+              Files.delete(dir);
+              return FileVisitResult.CONTINUE;
+            }
+          });
         } catch (IOException ignored) {
           // should never happen
         }
@@ -226,8 +219,9 @@ public final class EnvironmentChecker {
       }
       return true;
     } catch (Throwable t) {
-      appendLine(
-          () -> sb.append("Unable to load native library in temp directory ").append(target));
+      appendLine(() -> sb
+        .append("Unable to load native library in temp directory ")
+        .append(target));
       appendLine(() -> sb.append("Error: ").append(t));
       return false;
     }
@@ -239,28 +233,26 @@ public final class EnvironmentChecker {
     String linuxArchFolder =
         OperatingSystem.architecture().isArm64() ? "/linux-arm64/" : "/linux-x64/";
     try (JarFile jarFile = new JarFile(new File(jarUrl.toURI()))) {
-      return jarFile.stream()
-          .filter(e -> e.getName().contains("libjavaProfiler.so"))
-          .filter(
-              e ->
-                  e.getName().contains(linuxArchFolder)
-                      && (!OperatingSystem.isMusl() || e.getName().contains("-musl")))
-          .findFirst()
-          .map(
-              e -> {
-                try {
-                  Path soFile = target.resolve("libjavaProfiler.so");
-                  Files.createDirectories(soFile.getParent());
-                  Files.copy(jarFile.getInputStream(e), soFile);
-                  appendLine(() -> sb.append("Native library extracted to: ").append(soFile));
-                  return true;
-                } catch (Throwable t) {
-                  appendLine("Failed to extract or load native library", sb);
-                  appendLine(() -> sb.append("Error: ").append(t));
-                }
-                return false;
-              })
-          .orElse(Boolean.FALSE);
+      return jarFile
+        .stream()
+        .filter(e -> e.getName().contains("libjavaProfiler.so"))
+        .filter(e -> e.getName().contains(linuxArchFolder)
+            && (!OperatingSystem.isMusl() || e.getName().contains("-musl")))
+        .findFirst()
+        .map(e -> {
+          try {
+            Path soFile = target.resolve("libjavaProfiler.so");
+            Files.createDirectories(soFile.getParent());
+            Files.copy(jarFile.getInputStream(e), soFile);
+            appendLine(() -> sb.append("Native library extracted to: ").append(soFile));
+            return true;
+          } catch (Throwable t) {
+            appendLine("Failed to extract or load native library", sb);
+            appendLine(() -> sb.append("Error: ").append(t));
+          }
+          return false;
+        })
+        .orElse(Boolean.FALSE);
     }
   }
 }

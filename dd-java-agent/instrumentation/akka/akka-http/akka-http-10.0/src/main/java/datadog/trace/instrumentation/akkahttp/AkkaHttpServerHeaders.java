@@ -12,7 +12,8 @@ import akka.http.scaladsl.model.HttpResponse;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 
 public class AkkaHttpServerHeaders {
-  private AkkaHttpServerHeaders() {}
+  private AkkaHttpServerHeaders() {
+  }
 
   private static final AgentPropagation.ContextVisitor<HttpRequest> GETTER_REQUEST =
       AkkaHttpServerHeaders::forEachKeyRequest;
@@ -62,13 +63,13 @@ public class AkkaHttpServerHeaders {
     }
   }
 
-  private static void forEachKeyRequest(
-      HttpRequest req, AgentPropagation.KeyClassifier classifier) {
+  private static void forEachKeyRequest(HttpRequest req, AgentPropagation.KeyClassifier classifier) {
     doForEachKey(req, req.entity(), classifier);
   }
 
   private static void forEachKeyResponse(
-      final HttpResponse resp, final AgentPropagation.KeyClassifier classifier) {
+      final HttpResponse resp,
+      final AgentPropagation.KeyClassifier classifier) {
     doForEachKey(resp, resp.entity(), classifier);
   }
 }

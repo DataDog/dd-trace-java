@@ -1,6 +1,8 @@
 package datadog.trace.api.metrics;
 
-/** This interface describes a core counter metric. */
+/**
+ * This interface describes a core counter metric.
+ */
 public interface CoreCounter {
   /**
    * Get the counter name.

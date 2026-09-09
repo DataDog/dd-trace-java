@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
 import datadog.appsec.api.blocking.BlockingException;
@@ -20,7 +19,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class WebAppHandleExceptionInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public WebAppHandleExceptionInstrumentation() {
     super("liberty");
   }
@@ -34,16 +34,17 @@ public class WebAppHandleExceptionInstrumentation extends InstrumenterModule.App
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("handleException"))
-            .and(takesArguments(4))
-            .and(takesArgument(0, Throwable.class))
-            .and(returns(void.class)),
+          .and(named("handleException"))
+          .and(takesArguments(4))
+          .and(takesArgument(0, Throwable.class))
+          .and(returns(void.class)),
         WebAppHandleExceptionInstrumentation.class.getName() + "$HandleExceptionAdvice");
   }
 
   static class HandleExceptionAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-    static boolean /* skip */ before(@Advice.Argument(0) Throwable throwable_) {
+    static boolean /* skip */
+    before(@Advice.Argument(0) Throwable throwable_) {
       Throwable throwable = throwable_;
       if (throwable instanceof WebAppErrorReport) {
         throwable = throwable.getCause();

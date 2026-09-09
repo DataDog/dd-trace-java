@@ -10,7 +10,6 @@ import javax.annotation.Nonnull;
 
 public class TrustBoundaryViolationModuleImpl extends SinkModuleBase
     implements TrustBoundaryViolationModule {
-
   private static final ClassNameTrie ALLOWED_COLLECTION_PKGS;
 
   static {

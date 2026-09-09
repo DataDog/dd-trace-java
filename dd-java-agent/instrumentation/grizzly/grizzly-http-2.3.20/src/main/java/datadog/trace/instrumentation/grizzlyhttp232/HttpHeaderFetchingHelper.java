@@ -10,7 +10,8 @@ import org.glassfish.grizzly.http.io.InputBuffer;
  * https://github.com/raphw/byte-buddy/issues/1009
  */
 public final class HttpHeaderFetchingHelper {
-  private HttpHeaderFetchingHelper() {}
+  private HttpHeaderFetchingHelper() {
+  }
 
   private static final Field HTTP_HEADER_FIELD = prepareField();
 

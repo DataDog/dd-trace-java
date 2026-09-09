@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.lang;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;
 import datadog.trace.api.iast.InstrumentationBridge;
@@ -13,11 +12,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 @Propagation
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isFullDetection"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isFullDetection"
+})
 public class StringFullDetectionCallSite {
-
   @CallSite.After("void java.lang.String.<init>(byte[])")
   public static String afterByteArrayCtor(
       @CallSite.AllArguments @Nonnull final Object[] params,
@@ -98,7 +97,8 @@ public class StringFullDetectionCallSite {
 
   @CallSite.After("byte[] java.lang.String.getBytes()")
   public static byte[] afterGetBytes(
-      @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final byte[] result) {
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Return @Nonnull final byte[] result) {
     final CodecModule module = InstrumentationBridge.CODEC;
     try {
       if (module != null) {
@@ -144,7 +144,8 @@ public class StringFullDetectionCallSite {
 
   @CallSite.After("char[] java.lang.String.toCharArray()")
   public static char[] afterToCharArray(
-      @CallSite.This @Nonnull final String self, @CallSite.Return @Nonnull final char[] result) {
+      @CallSite.This @Nonnull final String self,
+      @CallSite.Return @Nonnull final char[] result) {
     final PropagationModule module = InstrumentationBridge.PROPAGATION;
     if (module != null) {
       try {

@@ -25,7 +25,6 @@ import javax.annotation.Nullable;
  * this class does not do it.
  */
 public class ProxyTestSession implements TestFrameworkSession {
-
   private final AgentSpanContext parentProcessModuleContext;
   private final Config config;
   private final CiVisibilityMetricCollector metricCollector;

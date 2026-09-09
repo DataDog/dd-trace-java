@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class ProcessBuilderHelper {
-
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBuilderHelper.class);
 
   public static ProcessBuilder createProcessBuilder(
@@ -19,7 +18,11 @@ class ProcessBuilderHelper {
       String mainClassName,
       String... params) {
     return createProcessBuilder(
-        appTestShadowJar(), additionalCommandParams, logFilePath, mainClassName, params);
+        appTestShadowJar(),
+        additionalCommandParams,
+        logFilePath,
+        mainClassName,
+        params);
   }
 
   public static ProcessBuilder createProcessBuilder(
@@ -28,32 +31,29 @@ class ProcessBuilderHelper {
       Path logFilePath,
       String mainClassName,
       String... params) {
-
     // Trick to prevent jul preferences file lock issue on forked processes, in particular in CI
     // which runs on Linux and have competing processes trying to write to it, including the
     // Gradle daemon.
     //
     //   Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock.
-    String prefsDir =
-        System.getProperty("java.io.tmpdir")
-            + File.separator
-            + "userPrefs"
-            + File.separator
-            + mainClassName
-            + "_"
-            + System.nanoTime();
+    String prefsDir = System.getProperty("java.io.tmpdir")
+        + File.separator
+        + "userPrefs"
+        + File.separator
+        + mainClassName
+        + "_"
+        + System.nanoTime();
 
-    List<String> baseCommand =
-        Arrays.asList(
-            javaPath(),
-            // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
-            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
-            "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
-            "-javaagent:" + agentShadowJar(),
-            "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-            "-Ddd.env=smoketest",
-            "-Ddd.version=99",
-            "-Djava.util.prefs.userRoot=" + prefsDir);
+    List<String> baseCommand = Arrays.asList(
+        javaPath(),
+        // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
+        "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
+        "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
+        "-javaagent:" + agentShadowJar(),
+        "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+        "-Ddd.env=smoketest",
+        "-Ddd.version=99",
+        "-Djava.util.prefs.userRoot=" + prefsDir);
 
     List<String> command = new ArrayList<>();
     command.addAll(baseCommand);

@@ -8,9 +8,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 public class Main {
-
   private static final int DEFAULT_PORT = 8066;
-
   private int serverPort;
 
   public Main(int serverPort) throws Exception {
@@ -36,7 +34,6 @@ public class Main {
   }
 
   public static void main(String[] args) throws Exception {
-
     int serverPort = DEFAULT_PORT;
 
     if (args.length >= 1) {

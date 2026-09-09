@@ -3,7 +3,6 @@ package datadog.trace.core.tagprocessor;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -32,10 +31,11 @@ import org.slf4j.LoggerFactory;
  */
 public class HttpEndpointPostProcessor extends TagsPostProcessor {
   private static final Logger log = LoggerFactory.getLogger(HttpEndpointPostProcessor.class);
-
   private final EndpointResolver endpointResolver;
 
-  /** Creates a new HttpEndpointPostProcessor using the global config. */
+  /**
+   * Creates a new HttpEndpointPostProcessor using the global config.
+   */
   public HttpEndpointPostProcessor() {
     this(
         new EndpointResolver(
@@ -55,7 +55,9 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
+      TagMap unsafeTags,
+      DDSpanContext spanContext,
+      AppendableSpanLinks spanLinks) {
     if (!endpointResolver.isEnabled()) {
       log.debug("EndpointResolver is not enabled, skipping HTTP endpoint post processing");
       return;

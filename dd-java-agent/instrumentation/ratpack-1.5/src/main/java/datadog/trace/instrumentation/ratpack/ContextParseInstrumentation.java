@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.ratpack;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -11,8 +10,8 @@ import datadog.trace.agent.tooling.muzzle.Reference;
 
 @AutoService(InstrumenterModule.class)
 public class ContextParseInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ContextParseInstrumentation() {
     super("ratpack");
   }
@@ -34,9 +33,9 @@ public class ContextParseInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parse")
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("ratpack.http.TypedData")))
-            .and(takesArgument(1, named("ratpack.parse.Parse"))),
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("ratpack.http.TypedData")))
+          .and(takesArgument(1, named("ratpack.parse.Parse"))),
         packageName + ".ContextParseAdvice");
   }
 }

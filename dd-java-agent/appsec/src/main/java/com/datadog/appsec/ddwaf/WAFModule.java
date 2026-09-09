@@ -3,7 +3,6 @@ package com.datadog.appsec.ddwaf;
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-
 import com.datadog.appsec.AppSecModule;
 import com.datadog.appsec.config.AppSecModuleConfigurer;
 import com.datadog.appsec.event.ChangeableFlow;
@@ -67,7 +66,6 @@ import org.slf4j.LoggerFactory;
 
 public class WAFModule implements AppSecModule {
   private static final Logger log = LoggerFactory.getLogger(WAFModule.class);
-
   public static final int MAX_DEPTH = 20;
   public static final int MAX_ELEMENTS = 256;
   public static final int MAX_STRING_SIZE = 4096;
@@ -75,9 +73,7 @@ public class WAFModule implements AppSecModule {
   private static final Class<?> PROXY_CLASS =
       Proxy.getProxyClass(WAFModule.class.getClassLoader(), Set.class);
   private static final Constructor<?> PROXY_CLASS_CONSTRUCTOR;
-
   private static final JsonAdapter<List<WAFResultData>> RES_JSON_ADAPTER;
-
   private static final String EXPLOIT_DETECTED_MSG = "Exploit detected";
   private boolean init = true;
   private String rulesetVersion;
@@ -118,19 +114,20 @@ public class WAFModule implements AppSecModule {
 
   // used in testing
   static void createLimitsObject() {
-    LIMITS =
-        new Waf.Limits(
-            MAX_DEPTH,
-            MAX_ELEMENTS,
-            MAX_STRING_SIZE,
-            /* set effectively infinite budgets. Don't use Long.MAX_VALUE, because
+    LIMITS = new Waf.Limits(
+        MAX_DEPTH,
+        MAX_ELEMENTS,
+        MAX_STRING_SIZE,
+        /* set effectively infinite budgets. Don't use Long.MAX_VALUE, because
              * traditionally ddwaf has had problems with too large budgets */
-            ((long) Integer.MAX_VALUE) * 1000,
-            Config.get().getAppSecWafTimeout());
+        ((long) Integer.MAX_VALUE) * 1000,
+        Config.get().getAppSecWafTimeout());
   }
 
-  private final boolean wafMetricsEnabled =
-      Config.get().isAppSecWafMetrics(); // could be static if not for tests
+  private final boolean wafMetricsEnabled = Config
+    .get()
+    // could be static if not for tests
+    .isAppSecWafMetrics();
   private final AtomicReference<CtxAndAddresses> ctxAndAddresses = new AtomicReference<>();
   private final RateLimiter rateLimiter;
 
@@ -167,7 +164,8 @@ public class WAFModule implements AppSecModule {
   // this function is called from one thread in the beginning that's different
   // from the RC thread that calls it later on
   private void applyConfig(AppSecModuleConfigurer.Reconfiguration reconf)
-      throws AppSecModuleActivationException, AbstractWafException {
+      throws AppSecModuleActivationException,
+      AbstractWafException {
     boolean success = false;
     if (init) {
       log.debug("Initializing WAF");
@@ -197,7 +195,8 @@ public class WAFModule implements AppSecModule {
       newHandle = wafBuilder.buildWafHandleInstance();
     } catch (AbstractWafException e) {
       throw new AppSecModuleActivationException(
-          "Could not initialize waf handle, no rules were added!", e);
+          "Could not initialize waf handle, no rules were added!",
+          e);
     }
 
     Collection<Address<?>> addresses = getUsedAddresses(newHandle);
@@ -222,9 +221,8 @@ public class WAFModule implements AppSecModule {
     int appSecTraceRateLimit = Config.get().getAppSecTraceRateLimit();
     if (appSecTraceRateLimit > 0) {
       Counter counter = monitoring.newCounter("_dd.java.appsec.rate_limit.dropped_traces");
-      rateLimiter =
-          new RateLimiter(
-              appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(1));
+      rateLimiter = new RateLimiter(appSecTraceRateLimit, SystemTimeSource.INSTANCE, () -> counter.increment(
+          1));
     }
     return rateLimiter;
   }
@@ -357,8 +355,9 @@ public class WAFModule implements AppSecModule {
 
             if (stringTooLong > 0 || listMapTooLarge > 0 || objectTooDeep > 0) {
               reqCtx.setWafTruncated();
-              WafMetricCollector.get()
-                  .wafInputTruncated(stringTooLong > 0, listMapTooLarge > 0, objectTooDeep > 0);
+              WafMetricCollector
+                .get()
+                .wafInputTruncated(stringTooLong > 0, listMapTooLarge > 0, objectTooDeep > 0);
             }
           }
         }
@@ -412,10 +411,9 @@ public class WAFModule implements AppSecModule {
             // Handle max_collected_headers parameter which can come as Number or String
             // representation of a number
             int maxHeaders = AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS;
-            Object maxHeadersParam =
-                actionInfo.parameters.getOrDefault(
-                    "max_collected_headers",
-                    AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS);
+            Object maxHeadersParam = actionInfo.parameters.getOrDefault(
+                "max_collected_headers",
+                AppSecRequestContext.DEFAULT_EXTENDED_DATA_COLLECTION_MAX_HEADERS);
             if (maxHeadersParam instanceof Number) {
               maxHeaders = ((Number) maxHeadersParam).intValue();
             } else if (maxHeadersParam instanceof String) {
@@ -451,9 +449,9 @@ public class WAFModule implements AppSecModule {
               // If APM is disabled, inform downstream services that the current
               // distributed trace contains at least one ASM event and must inherit
               // the given force-keep priority
-              activeSpan
-                  .getLocalRootSpan()
-                  .setTag(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.ASM);
+              activeSpan.getLocalRootSpan().setTag(
+                  Tags.PROPAGATED_TRACE_SOURCE,
+                  ProductTraceSource.ASM);
             }
           } else {
             // If active span is not available then we need to set manual keep in GatewayBridge
@@ -505,7 +503,10 @@ public class WAFModule implements AppSecModule {
           log.warn("Unknown content type: {}; using auto", contentType);
         }
         return new Flow.Action.RequestBlockingAction(
-            statusCode, blockingContentType, Collections.emptyMap(), securityResponseId);
+            statusCode,
+            blockingContentType,
+            Collections.emptyMap(),
+            securityResponseId);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
         if (!isRasp) {
@@ -547,7 +548,9 @@ public class WAFModule implements AppSecModule {
           }
         }
         return Flow.Action.RequestBlockingAction.forRedirect(
-            statusCode, location, securityResponseId);
+            statusCode,
+            location,
+            securityResponseId);
       } catch (RuntimeException cce) {
         log.warn("Invalid blocking action data", cce);
         if (!isRasp) {
@@ -569,8 +572,7 @@ public class WAFModule implements AppSecModule {
         AppSecRequestContext reqCtx,
         DataBundle newData,
         CtxAndAddresses ctxAndAddr,
-        GatewayContext gwCtx)
-        throws AbstractWafException {
+        GatewayContext gwCtx) throws AbstractWafException {
       WafContext wafContext =
           reqCtx.getOrCreateWafContext(ctxAndAddr.ctx, wafMetricsEnabled, gwCtx.isRasp);
       if (wafContext == null) {
@@ -594,15 +596,21 @@ public class WAFModule implements AppSecModule {
     }
 
     private Waf.ResultWithData runWafContext(
-        WafContext wafContext, WafMetrics metrics, DataBundle newData, CtxAndAddresses ctxAndAddr)
-        throws AbstractWafException {
+        WafContext wafContext,
+        WafMetrics metrics,
+        DataBundle newData,
+        CtxAndAddresses ctxAndAddr) throws AbstractWafException {
       return wafContext.run(
-          new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
+          new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData),
+          LIMITS,
+          metrics);
     }
   }
 
   private static void incrementErrorCodeMetric(
-      AppSecRequestContext reqCtx, GatewayContext gwCtx, int code) {
+      AppSecRequestContext reqCtx,
+      GatewayContext gwCtx,
+      int code) {
     if (gwCtx.isRasp) {
       WafMetricCollector.get().raspErrorCode(gwCtx.raspRuleType, code);
     } else {
@@ -612,14 +620,19 @@ public class WAFModule implements AppSecModule {
   }
 
   private Waf.ResultWithData runWafTransient(
-      WafContext wafContext, WafMetrics metrics, DataBundle newData, CtxAndAddresses ctxAndAddr)
-      throws AbstractWafException {
+      WafContext wafContext,
+      WafMetrics metrics,
+      DataBundle newData,
+      CtxAndAddresses ctxAndAddr) throws AbstractWafException {
     return wafContext.runEphemeral(
-        new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData), LIMITS, metrics);
+        new DataBundleMapWrapper(ctxAndAddr.addressesOfInterest, newData),
+        LIMITS,
+        metrics);
   }
 
   private Collection<AppSecEvent> buildEvents(
-      Waf.ResultWithData actionWithData, String securityResponseId) {
+      Waf.ResultWithData actionWithData,
+      String securityResponseId) {
     if (actionWithData.data == null) {
       // Since ruleset 1.14.1, fingerprint processors evaluate unconditionally, so the WAF
       // returns MATCH with no data (no real rule/event) on every ordinary request, not just on
@@ -639,16 +652,16 @@ public class WAFModule implements AppSecModule {
     }
 
     if (listResults != null && !listResults.isEmpty()) {
-      return listResults.stream()
-          .map(wafResult -> buildEvent(wafResult, securityResponseId))
-          .filter(Objects::nonNull)
-          .collect(Collectors.toList());
+      return listResults
+        .stream()
+        .map(wafResult -> buildEvent(wafResult, securityResponseId))
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
     }
     return emptyList();
   }
 
   private AppSecEvent buildEvent(WAFResultData wafResult, String securityResponseId) {
-
     if (wafResult == null || wafResult.rule == null || wafResult.rule_matches == null) {
       log.warn("WAF result is empty: {}", wafResult);
       return null;
@@ -661,20 +674,19 @@ public class WAFModule implements AppSecModule {
     }
 
     return new AppSecEvent.Builder()
-        .withRule(wafResult.rule)
-        .withRuleMatches(wafResult.rule_matches)
-        .withSpanId(spanId)
-        .withStackId(wafResult.stack_id)
-        .withSecurityResponseId(securityResponseId)
-        .build();
+      .withRule(wafResult.rule)
+      .withRuleMatches(wafResult.rule_matches)
+      .withSpanId(spanId)
+      .withStackId(wafResult.stack_id)
+      .withSecurityResponseId(securityResponseId)
+      .build();
   }
 
   private static final class DataBundleMapWrapper implements Map<String, Object> {
     private final Collection<Address<?>> addressesOfInterest;
     private final DataBundle dataBundle;
 
-    private DataBundleMapWrapper(
-        Collection<Address<?>> addressesOfInterest, DataBundle dataBundle) {
+    private DataBundleMapWrapper(Collection<Address<?>> addressesOfInterest, DataBundle dataBundle) {
       this.addressesOfInterest = addressesOfInterest;
       this.dataBundle = dataBundle;
     }
@@ -684,8 +696,8 @@ public class WAFModule implements AppSecModule {
     @Override
     public Set<Entry<String, Object>> entrySet() {
       try {
-        return (Set<Entry<String, Object>>)
-            PROXY_CLASS_CONSTRUCTOR.newInstance(new SetIteratorInvocationHandler());
+        return (Set<Entry<String, Object>>) PROXY_CLASS_CONSTRUCTOR.newInstance(
+            new SetIteratorInvocationHandler());
       } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
         throw new UndeclaredThrowableException(e);
       }
@@ -721,8 +733,9 @@ public class WAFModule implements AppSecModule {
             }
             // the usage pattern in ddwaf allows object recycling here
             entry.key = next.getKey();
-            entry.value =
-                addressesOfInterest.contains(next) ? dataBundle.get(next) : Collections.emptyMap();
+            entry.value = addressesOfInterest.contains(next)
+                ? dataBundle.get(next)
+                : Collections.emptyMap();
             next = computeNextAddress();
             return entry;
           }

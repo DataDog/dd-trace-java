@@ -12,13 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DependencyResolverQueue {
-
   private static final Logger log = LoggerFactory.getLogger(DependencyResolverQueue.class);
-
   private final Queue<URI> newUrlsQueue;
-  private final Set<URI> processedUrlsSet; // guarded by this
+  // guarded by this
+  private final Set<URI> processedUrlsSet;
   private static int MAX_QUEUE_SIZE = Config.get().getTelemetryDependencyResolutionQueueSize();
-
   private boolean resolverQueueDisabled = false;
 
   public DependencyResolverQueue() {
@@ -37,7 +35,6 @@ public class DependencyResolverQueue {
     if (resolverQueueDisabled || uri == null) {
       return;
     }
-
     // once the queue reaches MAX_QUEUE_SIZE, we have reached the user-defined limit of
     // unique dependencies to queue and we will disable the resolver queue from adding any more
     // URI's.
@@ -46,7 +43,6 @@ public class DependencyResolverQueue {
 
       log.warn(
           "DependencyResolverQueue limit has been reached, additional dependencies will not be queued");
-
       // this resolver will be disabled so we can clear the stored URIs from processedUrlsSet
       // since they will no longer be checked against for duplicates
       synchronized (this) {
@@ -54,13 +50,11 @@ public class DependencyResolverQueue {
       }
       return;
     }
-
     // we ignore .class files directly within webapp folder (they aren't part of dependencies)
     String path = uri.getPath();
     if (path != null && path.endsWith(".class")) {
       return;
     }
-
     // ignore already processed url
     synchronized (this) {
       if (!processedUrlsSet.add(uri)) {
@@ -73,7 +67,6 @@ public class DependencyResolverQueue {
 
   public List<Dependency> pollDependency() {
     URI uri = newUrlsQueue.poll();
-
     // no new deps
     if (uri == null) {
       return Collections.emptyList();

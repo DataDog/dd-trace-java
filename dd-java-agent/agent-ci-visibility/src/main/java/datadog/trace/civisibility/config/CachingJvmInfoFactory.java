@@ -8,7 +8,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CachingJvmInfoFactory implements JvmInfoFactory {
-
   private final DDCache<Path, JvmInfo> cache;
   private final JvmInfoFactoryImpl delegate;
 

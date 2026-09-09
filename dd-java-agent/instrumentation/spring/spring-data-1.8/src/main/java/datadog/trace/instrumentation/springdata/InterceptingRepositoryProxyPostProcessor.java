@@ -15,10 +15,10 @@ public final class InterceptingRepositoryProxyPostProcessor
   // public void postProcess(final ProxyFactory factory) {
   //   factory.addAdvice(0, RepositoryInterceptor.INSTANCE);
   // }
-
   @Override
   public void postProcess(
-      final ProxyFactory factory, final RepositoryInformation repositoryInformation) {
+      final ProxyFactory factory,
+      final RepositoryInformation repositoryInformation) {
     factory.addAdvice(0, new RepositoryInterceptor(repositoryInformation.getRepositoryInterface()));
   }
 }

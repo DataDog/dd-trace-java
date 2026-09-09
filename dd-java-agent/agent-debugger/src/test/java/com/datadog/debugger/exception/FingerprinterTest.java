@@ -2,38 +2,36 @@ package com.datadog.debugger.exception;
 
 import static java.util.Collections.emptySet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.datadog.debugger.util.ClassNameFiltering;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class FingerprinterTest {
-
   final Throwable TEST_THROWABLE = new RuntimeException("test");
 
   {
     TEST_THROWABLE.setStackTrace(
         new StackTraceElement[] {
-          new StackTraceElement(
-              "com.datadog.debugger.exception.FingerprinterTest",
-              "<init>",
-              "FingerprinterTest.java",
-              10),
-          new StackTraceElement(
-              "org.junit.platform.commons.util.ReflectionUtils",
-              "newInstance",
-              "ReflectionUtils.java",
-              552),
-          new StackTraceElement(
-              "org.junit.jupiter.engine.execution.ConstructorInvocation",
-              "proceed",
-              "ConstructorInvocation.java",
-              56),
-          new StackTraceElement(
-              "org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation",
-              "proceed",
-              "InvocationInterceptorChain.java",
-              131),
+        new StackTraceElement(
+            "com.datadog.debugger.exception.FingerprinterTest",
+            "<init>",
+            "FingerprinterTest.java",
+            10),
+        new StackTraceElement(
+            "org.junit.platform.commons.util.ReflectionUtils",
+            "newInstance",
+            "ReflectionUtils.java",
+            552),
+        new StackTraceElement(
+            "org.junit.jupiter.engine.execution.ConstructorInvocation",
+            "proceed",
+            "ConstructorInvocation.java",
+            56),
+        new StackTraceElement(
+            "org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation",
+            "proceed",
+            "InvocationInterceptorChain.java",
+            131)
         });
   }
 
@@ -73,14 +71,12 @@ class FingerprinterTest {
   void nullStacktrace() {
     assertEquals(
         "35ae5d9aa4d7179a7d36838ca6266ea459a7cbb6ebc92afc24098bc85cad586",
-        Fingerprinter.fingerprint(
-            new RuntimeException("test") {
-              @Override
-              public StackTraceElement[] getStackTrace() {
-                return null;
-              }
-            },
-            classNameFiltering));
+        Fingerprinter.fingerprint(new RuntimeException("test") {
+          @Override
+          public StackTraceElement[] getStackTrace() {
+            return null;
+          }
+        }, classNameFiltering));
   }
 
   static class EmptyException extends Exception {

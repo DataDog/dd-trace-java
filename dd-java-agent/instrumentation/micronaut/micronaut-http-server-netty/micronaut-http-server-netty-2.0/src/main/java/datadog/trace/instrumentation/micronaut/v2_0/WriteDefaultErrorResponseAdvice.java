@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.micronaut.v2_0;
 
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.DECORATE;
 import static datadog.trace.instrumentation.micronaut.MicronautDecorator.SPAN_ATTRIBUTE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.micronaut.http.HttpVersion;
 import io.micronaut.http.MediaTypeConverter;

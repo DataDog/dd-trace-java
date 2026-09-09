@@ -27,7 +27,8 @@ public class KafkaProducerWithSchemaRegistry {
     Properties properties = new Properties();
     properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     properties.setProperty(
-        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+        StringSerializer.class.getName());
     properties.setProperty(
         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
         "io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer");
@@ -35,10 +36,10 @@ public class KafkaProducerWithSchemaRegistry {
     properties.setProperty(
         "sasl.jaas.config",
         "org.apache.kafka.common.security.plain.PlainLoginModule required username=\""
-            + apiKey
-            + "\" password=\""
-            + apiSecret
-            + "\";");
+        + apiKey
+        + "\" password=\""
+        + apiSecret
+        + "\";");
     properties.setProperty("sasl.mechanism", "PLAIN");
     properties.setProperty("security.protocol", "SASL_SSL");
     properties.setProperty("basic.auth.credentials.source", "USER_INFO");
@@ -52,7 +53,6 @@ public class KafkaProducerWithSchemaRegistry {
 
     try {
       for (int i = 1; i <= 20; i++) {
-
         MyMessage message =
             MyMessage.newBuilder().setId("1").setValue("Hello from Protobuf!").build();
 

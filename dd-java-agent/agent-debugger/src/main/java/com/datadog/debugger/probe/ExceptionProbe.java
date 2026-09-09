@@ -2,7 +2,6 @@ package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.util.ExceptionHelper.getInnerMostThrowable;
 import static java.util.Collections.emptyList;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.exception.ExceptionProbeManager;
@@ -58,7 +57,9 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices) {
     return new ExceptionInstrumenter(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
@@ -180,7 +181,8 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
   }
 
   public static class ExceptionProbeStatus extends LogStatus {
-    private boolean capture = true; // default to true for status entry when mixed with log probe
+    // default to true for status entry when mixed with log probe
+    private boolean capture = true;
 
     public ExceptionProbeStatus(ProbeImplementation probeImplementation) {
       super(probeImplementation);

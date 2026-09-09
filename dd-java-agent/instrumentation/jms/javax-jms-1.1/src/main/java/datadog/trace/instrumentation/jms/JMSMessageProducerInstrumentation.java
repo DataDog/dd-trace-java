@@ -17,7 +17,6 @@ import static datadog.trace.instrumentation.jms.JMSDecorator.messageTechnology;
 import static datadog.trace.instrumentation.jms.MessageInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
@@ -37,7 +36,8 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public final class JMSMessageProducerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private final String namespace;
 
   public JMSMessageProducerInstrumentation(String namespace) {
@@ -62,27 +62,28 @@ public final class JMSMessageProducerInstrumentation
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerContextPropagationAdvice");
     transformer.applyAdvices(
         named("send")
-            .and(takesArgument(0, hasInterface(named(namespace + ".jms.Destination"))))
-            .and(takesArgument(1, named(namespace + ".jms.Message")))
-            .and(isPublic()),
+          .and(takesArgument(0, hasInterface(named(namespace + ".jms.Destination"))))
+          .and(takesArgument(1, named(namespace + ".jms.Message")))
+          .and(isPublic()),
         JMSMessageProducerInstrumentation.class.getName() + "$ProducerWithDestinationAdvice",
-        JMSMessageProducerInstrumentation.class.getName()
-            + "$ProducerWithDestinationContextPropagationAdvice");
+            JMSMessageProducerInstrumentation.class.getName()
+        + "$ProducerWithDestinationContextPropagationAdvice");
   }
 
   public static class ProducerAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
-        @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
+        @Advice.Argument(0) final Message message,
+        @Advice.This final MessageProducer producer) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(MessageProducer.class);
       if (callDepth > 0) {
         return null;
       }
 
       MessageProducerState producerState =
-          InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-              .get(producer);
+          InstrumentationContext
+        .get(MessageProducer.class, MessageProducerState.class)
+        .get(producer);
 
       CharSequence resourceName;
       String destinationName;
@@ -111,7 +112,8 @@ public final class JMSMessageProducerInstrumentation
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) {
+          // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
@@ -126,7 +128,8 @@ public final class JMSMessageProducerInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterSend(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
@@ -140,16 +143,19 @@ public final class JMSMessageProducerInstrumentation
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ProducerContextPropagationAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
-        @Advice.Argument(0) final Message message, @Advice.This final MessageProducer producer) {
+        @Advice.Argument(0) final Message message,
+        @Advice.This final MessageProducer producer) {
       AgentSpan span = activeSpan();
-      if (span == null) return;
+      if (span == null) {
+        return;
+      }
       if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
         MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
+            InstrumentationContext
+          .get(MessageProducer.class, MessageProducerState.class)
+          .get(producer);
         if (null == producerState || !producerState.isPropagationDisabled()) {
           defaultPropagator().inject(span, message, SETTER);
         }
@@ -158,7 +164,6 @@ public final class JMSMessageProducerInstrumentation
   }
 
   public static class ProducerWithDestinationAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope beforeSend(
         @Advice.Argument(0) final Destination destination,
@@ -181,7 +186,8 @@ public final class JMSMessageProducerInstrumentation
           && !destinationName.isEmpty()
           && Config.get().isDataStreamsEnabled()) {
         final String tech = messageTechnology(message);
-        if ("ibmmq".equals(tech)) { // Initial release only supports DSM in JMS for IBM MQ
+        if ("ibmmq".equals(tech)) {
+          // Initial release only supports DSM in JMS for IBM MQ
           DataStreamsTags tags = create(tech, OUTBOUND, destinationName);
           DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
           AgentTracer.get().getDataStreamsMonitoring().setCheckpoint(span, dsmContext);
@@ -190,8 +196,9 @@ public final class JMSMessageProducerInstrumentation
 
       if (JMSDecorator.canInject(message) && TIME_IN_QUEUE_ENABLED) {
         MessageProducerState producerState =
-            InstrumentationContext.get(MessageProducer.class, MessageProducerState.class)
-                .get(producer);
+            InstrumentationContext
+          .get(MessageProducer.class, MessageProducerState.class)
+          .get(producer);
         if (null != producerState) {
           SETTER.injectTimeInQueue(message, producerState);
         }
@@ -201,7 +208,8 @@ public final class JMSMessageProducerInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterSend(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }
@@ -215,13 +223,14 @@ public final class JMSMessageProducerInstrumentation
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ProducerWithDestinationContextPropagationAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) final Destination destination,
         @Advice.Argument(1) final Message message) {
       AgentSpan span = activeSpan();
-      if (span == null) return;
+      if (span == null) {
+        return;
+      }
       if (JMSDecorator.canInject(message) && Config.get().isJmsPropagationEnabled()) {
         String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
         if (!Config.get().isJmsPropagationDisabledForDestination(destinationName)) {

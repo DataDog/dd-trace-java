@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.junit4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -31,8 +30,8 @@ import org.junit.runner.notification.RunNotifier;
  */
 @AutoService(InstrumenterModule.class)
 public class BazelRunNotifierWrapperInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public BazelRunNotifierWrapperInstrumentation() {
     super("ci-visibility", "junit-4");
   }
@@ -45,9 +44,9 @@ public class BazelRunNotifierWrapperInstrumentation extends InstrumenterModule.C
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JUnit4Utils",
-      packageName + ".TracingListener",
-      packageName + ".SkippedByDatadog",
+        packageName + ".JUnit4Utils",
+        packageName + ".TracingListener",
+        packageName + ".SkippedByDatadog"
     };
   }
 
@@ -64,7 +63,8 @@ public class BazelRunNotifierWrapperInstrumentation extends InstrumenterModule.C
   public static class FireSuiteStartedAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void fireOnTracingListener(
-        @Advice.This final RunNotifier self, @Advice.Argument(0) final Description description) {
+        @Advice.This final RunNotifier self,
+        @Advice.Argument(0) final Description description) {
       RunNotifier inner = JUnit4Utils.unwrapRunNotifier(self);
       if (inner == null || inner == self) {
         return;
@@ -90,7 +90,8 @@ public class BazelRunNotifierWrapperInstrumentation extends InstrumenterModule.C
   public static class FireSuiteFinishedAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void fireOnTracingListener(
-        @Advice.This final RunNotifier self, @Advice.Argument(0) final Description description) {
+        @Advice.This final RunNotifier self,
+        @Advice.Argument(0) final Description description) {
       RunNotifier inner = JUnit4Utils.unwrapRunNotifier(self);
       if (inner == null || inner == self) {
         return;

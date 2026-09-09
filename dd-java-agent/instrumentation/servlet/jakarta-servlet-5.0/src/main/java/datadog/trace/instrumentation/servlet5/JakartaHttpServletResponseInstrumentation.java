@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -26,7 +25,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class JakartaHttpServletResponseInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JakartaHttpServletResponseInstrumentation() {
     super("servlet", "servlet-5", "servlet-response");
   }
@@ -39,7 +39,7 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()))
-        .and(not(extendsClass(named("jakarta.servlet.http.HttpServletResponseWrapper"))));
+      .and(not(extendsClass(named("jakarta.servlet.http.HttpServletResponseWrapper"))));
   }
 
   @Override
@@ -51,16 +51,16 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("addCookie")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("jakarta.servlet.http.Cookie"))),
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("jakarta.servlet.http.Cookie"))),
         getClass().getName() + "$AddCookieAdvice");
     transformer.applyAdvice(
         namedOneOf("setHeader", "addHeader").and(takesArguments(String.class, String.class)),
         getClass().getName() + "$AddHeaderAdvice");
     transformer.applyAdvice(
         namedOneOf("encodeRedirectURL", "encodeURL")
-            .and(takesArgument(0, String.class))
-            .and(returns(String.class)),
+          .and(takesArgument(0, String.class))
+          .and(returns(String.class)),
         getClass().getName() + "$EncodeURLAdvice");
     transformer.applyAdvice(
         named("sendRedirect").and(takesArgument(0, String.class)),
@@ -74,13 +74,13 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
       if (cookie != null) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
-          mod.onCookie(
-              Cookie.named(cookie.getName())
-                  .value(cookie.getValue())
-                  .secure(cookie.getSecure())
-                  .httpOnly(cookie.isHttpOnly())
-                  .maxAge(cookie.getMaxAge())
-                  .build());
+          mod.onCookie(Cookie
+            .named(cookie.getName())
+            .value(cookie.getValue())
+            .secure(cookie.getSecure())
+            .httpOnly(cookie.isHttpOnly())
+            .maxAge(cookie.getMaxAge())
+            .build());
         }
       }
     }
@@ -90,7 +90,8 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onEnter(
-        @Advice.Argument(0) final String name, @Advice.Argument(1) String value) {
+        @Advice.Argument(0) final String name,
+        @Advice.Argument(1) String value) {
       if (null != value && !value.isEmpty()) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {

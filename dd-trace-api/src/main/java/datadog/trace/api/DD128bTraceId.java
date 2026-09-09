@@ -18,20 +18,22 @@ import java.util.Locale;
 public class DD128bTraceId extends DDTraceId {
   public static final DD128bTraceId ZERO =
       new DD128bTraceId(0, 0, "00000000000000000000000000000000");
-
-  /** Represents the high-order 64 bits of the 128-bit trace id. */
+  /**
+   * Represents the high-order 64 bits of the 128-bit trace id.
+   */
   private final long highOrderBits;
-
-  /** Represents the low-order 64 bits of the 128-bit trace id. */
+  /**
+   * Represents the low-order 64 bits of the 128-bit trace id.
+   */
   private final long lowOrderBits;
-
   /**
    * The lower-case, zero-padded, 32 hexadecimal characters {@link String} representation of the
    * {@link DDTraceId} instance.
    */
   private String hexStr;
-
-  /** The 64-bit only decimal {@link String} representation of the {@link DDTraceId} instance. */
+  /**
+   * The 64-bit only decimal {@link String} representation of the {@link DDTraceId} instance.
+   */
   private String str;
 
   private DD128bTraceId(long highOrderBits, long leastSigBits, String hexStr) {
@@ -91,10 +93,12 @@ public class DD128bTraceId extends DDTraceId {
     long highOrderBits, lowOrderBits;
     if (length > 16) {
       int highOrderLength = length - 16;
-      highOrderBits =
-          LongStringUtils.parseUnsignedLongHex(s, start, highOrderLength, lowerCaseOnly);
-      lowOrderBits =
-          LongStringUtils.parseUnsignedLongHex(s, start + highOrderLength, 16, lowerCaseOnly);
+      highOrderBits = LongStringUtils.parseUnsignedLongHex(s, start, highOrderLength, lowerCaseOnly);
+      lowOrderBits = LongStringUtils.parseUnsignedLongHex(
+          s,
+          start + highOrderLength,
+          16,
+          lowerCaseOnly);
     } else {
       highOrderBits = 0;
       lowOrderBits = LongStringUtils.parseUnsignedLongHex(s, start, length, lowerCaseOnly);
@@ -127,8 +131,10 @@ public class DD128bTraceId extends DDTraceId {
     // This race condition is intentional and benign.
     // The worst that can happen is that an identical value is produced and written into the field.
     if (hexString == null) {
-      this.hexStr =
-          hexString = LongStringUtils.toHexStringPadded(this.highOrderBits, this.lowOrderBits, 32);
+      this.hexStr = hexString = LongStringUtils.toHexStringPadded(
+          this.highOrderBits,
+          this.lowOrderBits,
+          32);
     }
     return hexString;
   }
@@ -153,19 +159,22 @@ public class DD128bTraceId extends DDTraceId {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof DD128bTraceId)) return false;
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof DD128bTraceId)) {
+      return false;
+    }
     DD128bTraceId ddId = (DD128bTraceId) o;
     return this.highOrderBits == ddId.highOrderBits && this.lowOrderBits == ddId.lowOrderBits;
   }
 
   @Override
   public int hashCode() {
-    return (int)
-        (this.highOrderBits
-            ^ (this.highOrderBits >>> 32)
-            ^ this.lowOrderBits
-            ^ (this.lowOrderBits >>> 32));
+    return (int) (this.highOrderBits
+        ^ (this.highOrderBits >>> 32)
+        ^ this.lowOrderBits
+        ^ (this.lowOrderBits >>> 32));
   }
 
   @Override

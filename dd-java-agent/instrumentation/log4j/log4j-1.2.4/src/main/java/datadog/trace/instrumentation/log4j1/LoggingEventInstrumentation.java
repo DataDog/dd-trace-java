@@ -5,7 +5,6 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,7 +23,8 @@ import org.apache.log4j.spi.LoggingEvent;
 
 @AutoService(InstrumenterModule.class)
 public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public LoggingEventInstrumentation() {
     super("log4j", "log4j-1");
   }
@@ -56,7 +56,6 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
         @Advice.This LoggingEvent event,
         @Advice.Argument(0) String key,
         @Advice.Return(readOnly = false) Object value) {
-
       // The mdc has priority over our tags
       // if the mdc had a value for the key, or the key is null (invalid for a switch)
       // just return
@@ -66,7 +65,6 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
 
       AgentSpanContext context =
           InstrumentationContext.get(LoggingEvent.class, AgentSpanContext.class).get(event);
-
       // Nothing to add so return early
       if (context == null && !AgentTracer.traceConfig().isLogsInjectionEnabled()) {
         return;
@@ -115,8 +113,7 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean onEnter(
         @Advice.This LoggingEvent event,
-        @Advice.FieldValue(value = "mdcCopyLookupRequired", readOnly = false)
-            boolean copyRequired) {
+        @Advice.FieldValue(value = "mdcCopyLookupRequired", readOnly = false) boolean copyRequired) {
       if (!copyRequired) {
         return false;
       }
@@ -129,7 +126,7 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
         @Advice.This LoggingEvent event,
-        @Advice.Enter() boolean injectionRequired,
+        @Advice.Enter boolean injectionRequired,
         @Advice.FieldValue(value = "mdcCopy") Hashtable mdc) {
       if (!injectionRequired) {
         return;
@@ -158,10 +155,10 @@ public class LoggingEventInstrumentation extends InstrumenterModule.Tracing
 
       if (context != null) {
         DDTraceId traceId = context.getTraceId();
-        String traceIdValue =
-            Config.get().isLogs128bitTraceIdEnabled() && traceId.toHighOrderLong() != 0
-                ? traceId.toHexString()
-                : traceId.toString();
+        String traceIdValue = Config.get().isLogs128bitTraceIdEnabled()
+            && traceId.toHighOrderLong() != 0
+            ? traceId.toHexString()
+            : traceId.toString();
         mdc.put(CorrelationIdentifier.getTraceIdKey(), traceIdValue);
         mdc.put(CorrelationIdentifier.getSpanIdKey(), DDSpanId.toString(context.getSpanId()));
       }

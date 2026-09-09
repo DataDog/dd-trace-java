@@ -50,8 +50,9 @@ public enum HttpHeader {
   VARY("Vary"),
   PRAGMA("Pragma"),
   CACHE_CONTROL("Cache-Control");
-
-  /** Faster lookup for headers */
+  /**
+   * Faster lookup for headers
+   */
   private static final HttpHeaderMap<HttpHeader> HEADERS;
 
   static {

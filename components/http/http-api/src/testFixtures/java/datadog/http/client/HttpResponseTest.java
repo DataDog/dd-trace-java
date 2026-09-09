@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,8 +39,9 @@ public class HttpResponseTest {
 
   @Test
   void testBody() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
     String responseBody = "content";
     this.server.when(expectedRequest).respond(response().withBody(responseBody));
 
@@ -60,8 +60,9 @@ public class HttpResponseTest {
 
   @Test
   void testEmptyBody() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
     this.server.when(expectedRequest).respond(response());
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");
@@ -79,8 +80,9 @@ public class HttpResponseTest {
 
   @Test
   void testHeader() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
     org.mockserver.model.HttpResponse resultResponse =
         response().withHeader("Content-Type", "text/plain");
     this.server.when(expectedRequest).respond(resultResponse);
@@ -89,7 +91,6 @@ public class HttpResponseTest {
     HttpRequest request = HttpRequest.newBuilder().url(url).get().build();
 
     HttpResponse response = this.client.execute(request);
-
     // case-insensitive
     assertEquals("text/plain", response.header("Content-Type"));
     assertEquals("text/plain", response.header("content-type"));
@@ -101,13 +102,13 @@ public class HttpResponseTest {
 
   @Test
   void testHeaderNames() throws IOException {
-    org.mockserver.model.HttpRequest expectedRequest =
-        request().withMethod("GET").withPath("/test");
-    org.mockserver.model.HttpResponse resultResponse =
-        response()
-            .withHeader("Content-Type", "application/json")
-            .withHeader("X-Custom-Header", "custom-value")
-            .withHeader("X-Another-Header", "another-value");
+    org.mockserver.model.HttpRequest expectedRequest = request()
+      .withMethod("GET")
+      .withPath("/test");
+    org.mockserver.model.HttpResponse resultResponse = response()
+      .withHeader("Content-Type", "application/json")
+      .withHeader("X-Custom-Header", "custom-value")
+      .withHeader("X-Another-Header", "another-value");
     this.server.when(expectedRequest).respond(resultResponse);
 
     HttpUrl url = HttpUrl.parse(this.baseUrl + "/test");

@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -23,8 +22,8 @@ import org.reactivestreams.Subscriber;
  * loop call instead of recursion.
  */
 public class OptimizableOperatorInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String hierarchyMarkerType() {
     return "reactor.core.publisher.OptimizableOperator";
@@ -39,9 +38,9 @@ public class OptimizableOperatorInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("subscribeOrReturn"))
-            .and(takesArguments(1))
-            .and(returns(hasInterface(named("org.reactivestreams.Subscriber")))),
+          .and(named("subscribeOrReturn"))
+          .and(takesArguments(1))
+          .and(returns(hasInterface(named("org.reactivestreams.Subscriber")))),
         getClass().getName() + "$PublisherSubscribeAdvice");
   }
 

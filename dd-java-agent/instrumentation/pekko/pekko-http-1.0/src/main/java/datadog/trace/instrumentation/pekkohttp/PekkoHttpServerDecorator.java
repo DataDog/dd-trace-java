@@ -10,7 +10,6 @@ import org.apache.pekko.http.scaladsl.model.HttpResponse;
 public class PekkoHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, HttpRequest, HttpResponse, HttpRequest> {
   private static final CharSequence PEKKO_HTTP_SERVER = UTF8BytesString.create("pekko-http-server");
-
   public static final PekkoHttpServerDecorator DECORATE = new PekkoHttpServerDecorator();
   public static final CharSequence PEKKO_SERVER_REQUEST =
       UTF8BytesString.create(DECORATE.operationName());

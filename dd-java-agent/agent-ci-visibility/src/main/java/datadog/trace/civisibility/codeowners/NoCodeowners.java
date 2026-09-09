@@ -5,10 +5,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class NoCodeowners implements Codeowners {
-
   public static final Codeowners INSTANCE = new NoCodeowners();
 
-  private NoCodeowners() {}
+  private NoCodeowners() {
+  }
 
   @Nullable
   @Override

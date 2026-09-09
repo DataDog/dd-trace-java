@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class SignalServerRunnable implements Runnable {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(SignalServerRunnable.class);
   private static final long SELECT_TIMEOUT = TimeUnit.SECONDS.toMillis(5);
   private static final Map<SignalType, Function<ByteBuffer, Signal>> DESERIALIZERS =
@@ -23,8 +22,7 @@ class SignalServerRunnable implements Runnable {
 
   static {
     DESERIALIZERS.put(SignalType.MODULE_EXECUTION_RESULT, ModuleExecutionResult::deserialize);
-    DESERIALIZERS.put(
-        SignalType.MODULE_COVERAGE_DATA_JACOCO, ModuleCoverageDataJacoco::deserialize);
+    DESERIALIZERS.put(SignalType.MODULE_COVERAGE_DATA_JACOCO, ModuleCoverageDataJacoco::deserialize);
     DESERIALIZERS.put(SignalType.REPO_INDEX_REQUEST, b -> RepoIndexRequest.INSTANCE);
     DESERIALIZERS.put(SignalType.EXECUTION_SETTINGS_REQUEST, ExecutionSettingsRequest::deserialize);
   }
@@ -60,7 +58,6 @@ class SignalServerRunnable implements Runnable {
     while (keyIterator.hasNext()) {
       SelectionKey key = keyIterator.next();
       keyIterator.remove();
-
       // validity of the key is rechecked multiple times
       // since any of the handlers below might cancel the key
       if (key.isValid() && key.isAcceptable()) {
@@ -113,7 +110,9 @@ class SignalServerRunnable implements Runnable {
     Function<Signal, SignalResponse> handler = signalHandlers.get(signalType);
     if (handler == null) {
       LOGGER.warn(
-          "No handler registered for signal type {}, skipping signal {}", signalType, signal);
+          "No handler registered for signal type {}, skipping signal {}",
+          signalType,
+          signal);
       return serialize(new ErrorResponse("No handler registered for " + signalType));
     }
 

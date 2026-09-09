@@ -22,16 +22,13 @@ public class ProductState {
   private static final Logger log = LoggerFactory.getLogger(ProductState.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
   private final RatelimitedLogger ratelimitedLogger;
-
   final Product product;
-
   private final Map<ParsedConfigKey, RemoteConfigRequest.CachedTargetFile> cachedTargetFiles =
       new HashMap<>();
-  private final Map<ParsedConfigKey, RemoteConfigRequest.ClientInfo.ClientState.ConfigState>
-      configStates = new HashMap<>();
+  private final Map<ParsedConfigKey, RemoteConfigRequest.ClientInfo.ClientState.ConfigState> configStates =
+      new HashMap<>();
   private final List<ProductListener> productListeners;
   private final Map<String, ProductListener> configListeners;
-
   List<ReportableException> errors = null;
 
   public ProductState(Product product) {
@@ -39,8 +36,7 @@ public class ProductState {
     this.productListeners = new ArrayList<>();
     this.configListeners = new HashMap<>();
 
-    this.ratelimitedLogger =
-        new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
+    this.ratelimitedLogger = new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
   }
 
   public void addProductListener(ProductListener listener) {
@@ -60,7 +56,6 @@ public class ProductState {
     List<ParsedConfigKey> configBeenUsedByProduct = new ArrayList<>();
     List<ParsedConfigKey> changedKeys = new ArrayList<>();
     boolean changesDetected = false;
-
     // Step 1: Detect all changes
     for (ParsedConfigKey configKey : relevantKeys) {
       try {
@@ -76,7 +71,6 @@ public class ProductState {
         recordError(e);
       }
     }
-
     // Step 2: For products other than ASM_DD, apply changes immediately
     if (product != Product.ASM_DD) {
       for (ParsedConfigKey configKey : changedKeys) {
@@ -88,20 +82,19 @@ public class ProductState {
         }
       }
     }
-
     // Step 3: Remove obsolete configurations (for all products)
     // For ASM_DD, this is critical: removes MUST happen before applies to prevent
     // duplicate rule warnings from the ddwaf rule parser and causing memory spikes.
-    List<ParsedConfigKey> keysToRemove =
-        cachedTargetFiles.keySet().stream()
-            .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
-            .collect(Collectors.toList());
+    List<ParsedConfigKey> keysToRemove = cachedTargetFiles
+      .keySet()
+      .stream()
+      .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
+      .collect(Collectors.toList());
 
     for (ParsedConfigKey configKey : keysToRemove) {
       changesDetected = true;
       callListenerRemoveTarget(hinter, configKey);
     }
-
     // Step 4: For ASM_DD, apply changes AFTER removes
     // TODO: This is a temporary solution. The proper fix requires better synchronization
     // between remove and add/update operations. This should be discussed
@@ -116,7 +109,6 @@ public class ProductState {
         }
       }
     }
-
     // Step 5: Commit if there were changes
     if (changesDetected) {
       try {
@@ -134,7 +126,6 @@ public class ProductState {
       PollingRateHinter hinter,
       ParsedConfigKey configKey,
       byte[] content) {
-
     try {
       for (ProductListener listener : productListeners) {
         listener.accept(configKey, content, hinter);
@@ -150,8 +141,7 @@ public class ProductState {
     } catch (Exception ex) {
       updateConfigState(fleetResponse, configKey, ex);
       if (!(ex instanceof InterruptedIOException)) {
-        ratelimitedLogger.warn(
-            "Error processing config key {}: {}", configKey, ex.getMessage(), ex);
+        ratelimitedLogger.warn("Error processing config key {}: {}", configKey, ex.getMessage(), ex);
       }
     }
   }
@@ -184,25 +174,29 @@ public class ProductState {
       recordError(e);
     } catch (Exception ex) {
       ratelimitedLogger.warn(
-          "Error committing changes for product {}: {}", product, ex.getMessage(), ex);
+          "Error committing changes for product {}: {}",
+          product,
+          ex.getMessage(),
+          ex);
     }
   }
 
   RemoteConfigResponse.Targets.ConfigTarget getTargetOrThrow(
-      RemoteConfigResponse fleetResponse, ParsedConfigKey configKey) {
-    RemoteConfigResponse.Targets.ConfigTarget target =
-        fleetResponse.getTarget(configKey.toString());
+      RemoteConfigResponse fleetResponse,
+      ParsedConfigKey configKey) {
+    RemoteConfigResponse.Targets.ConfigTarget target = fleetResponse.getTarget(configKey.toString());
     if (target == null) {
       throw new ReportableException(
           "Told to apply config for "
-              + configKey
-              + " but no corresponding entry exists in targets.targets_signed.targets");
+          + configKey
+          + " but no corresponding entry exists in targets.targets_signed.targets");
     }
     return target;
   }
 
   boolean isTargetChanged(
-      ParsedConfigKey parsedConfigKey, RemoteConfigResponse.Targets.ConfigTarget target) {
+      ParsedConfigKey parsedConfigKey,
+      RemoteConfigResponse.Targets.ConfigTarget target) {
     RemoteConfigRequest.CachedTargetFile cachedTargetFile = cachedTargetFiles.get(parsedConfigKey);
     if (cachedTargetFile != null && cachedTargetFile.hashesMatch(target.hashes)) {
       log.debug("No change in configuration for key {}", parsedConfigKey);
@@ -220,8 +214,8 @@ public class ProductState {
       if (cachedTargetFiles.containsKey(configKey)) {
         throw new ReportableException(
             "Told to apply config "
-                + configKey
-                + " but content not present even though hash differs from that of 'cached file'");
+            + configKey
+            + " but content not present even though hash differs from that of 'cached file'");
       }
       throw new ReportableException(e.getMessage());
     } catch (Exception e) {
@@ -232,7 +226,9 @@ public class ProductState {
   }
 
   private void updateConfigState(
-      RemoteConfigResponse fleetResponse, ParsedConfigKey parsedConfigKey, Exception error) {
+      RemoteConfigResponse fleetResponse,
+      ParsedConfigKey parsedConfigKey,
+      Exception error) {
     String configKey = parsedConfigKey.toString();
     RemoteConfigResponse.Targets.ConfigTarget target = fleetResponse.getTarget(configKey);
     RemoteConfigRequest.ClientInfo.ClientState.ConfigState newState =

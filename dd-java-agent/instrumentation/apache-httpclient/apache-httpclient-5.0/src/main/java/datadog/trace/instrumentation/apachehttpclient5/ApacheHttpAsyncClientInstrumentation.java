@@ -12,7 +12,6 @@ import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDe
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -31,11 +30,14 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 
 @AutoService(InstrumenterModule.class)
 public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice {
   public ApacheHttpAsyncClientInstrumentation() {
     super(
-        "httpasyncclient5", "apache-httpasyncclient5", "httpasyncclient", "apache-httpasyncclient");
+        "httpasyncclient5",
+        "apache-httpasyncclient5",
+        "httpasyncclient",
+        "apache-httpasyncclient");
   }
 
   @Override
@@ -46,14 +48,14 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient",
-      "org.apache.hc.client5.http.impl.async.AbstractHttpAsyncClientBase",
-      "org.apache.hc.client5.http.impl.async.AbstractMinimalHttpAsyncClientBase",
-      "org.apache.hc.client5.http.impl.async.MinimalHttpAsyncClient",
-      "org.apache.hc.client5.http.impl.async.MinimalH2AsyncClient",
-      "org.apache.hc.client5.http.impl.async.InternalAbstractHttpAsyncClient",
-      "org.apache.hc.client5.http.impl.async.InternalHttpAsyncClient",
-      "org.apache.hc.client5.http.impl.async.InternalH2AsyncClient"
+        "org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient",
+        "org.apache.hc.client5.http.impl.async.AbstractHttpAsyncClientBase",
+        "org.apache.hc.client5.http.impl.async.AbstractMinimalHttpAsyncClientBase",
+        "org.apache.hc.client5.http.impl.async.MinimalHttpAsyncClient",
+        "org.apache.hc.client5.http.impl.async.MinimalH2AsyncClient",
+        "org.apache.hc.client5.http.impl.async.InternalAbstractHttpAsyncClient",
+        "org.apache.hc.client5.http.impl.async.InternalHttpAsyncClient",
+        "org.apache.hc.client5.http.impl.async.InternalH2AsyncClient"
     };
   }
 
@@ -70,11 +72,11 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ApacheHttpClientDecorator",
-      packageName + ".HttpHeadersInjectAdapter",
-      packageName + ".DelegatingRequestChannel",
-      packageName + ".DelegatingRequestProducer",
-      packageName + ".TraceContinuedFutureCallback"
+        packageName + ".ApacheHttpClientDecorator",
+        packageName + ".HttpHeadersInjectAdapter",
+        packageName + ".DelegatingRequestChannel",
+        packageName + ".DelegatingRequestProducer",
+        packageName + ".TraceContinuedFutureCallback"
     };
   }
 
@@ -82,13 +84,13 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("execute"))
-            .and(takesArguments(5))
-            .and(takesArgument(0, named("org.apache.hc.core5.http.nio.AsyncRequestProducer")))
-            .and(takesArgument(1, named("org.apache.hc.core5.http.nio.AsyncResponseConsumer")))
-            .and(takesArgument(2, named("org.apache.hc.core5.http.nio.HandlerFactory")))
-            .and(takesArgument(3, named("org.apache.hc.core5.http.protocol.HttpContext")))
-            .and(takesArgument(4, named("org.apache.hc.core5.concurrent.FutureCallback"))),
+          .and(named("execute"))
+          .and(takesArguments(5))
+          .and(takesArgument(0, named("org.apache.hc.core5.http.nio.AsyncRequestProducer")))
+          .and(takesArgument(1, named("org.apache.hc.core5.http.nio.AsyncResponseConsumer")))
+          .and(takesArgument(2, named("org.apache.hc.core5.http.nio.HandlerFactory")))
+          .and(takesArgument(3, named("org.apache.hc.core5.http.protocol.HttpContext")))
+          .and(takesArgument(4, named("org.apache.hc.core5.concurrent.FutureCallback"))),
         this.getClass().getName() + "$ClientContextPropagationAdvice",
         this.getClass().getName() + "$ClientAdvice");
   }
@@ -113,7 +115,6 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(value = 0, readOnly = false) AsyncRequestProducer requestProducer,
         @Advice.Argument(value = 3, readOnly = false) HttpContext context,
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
-
       final ContextContinuation parentContinuation = captureActiveSpan();
       final AgentSpan clientSpan = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
       final AgentScope clientScope = activateSpan(clientSpan);
@@ -128,9 +129,11 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
       }
 
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
-      futureCallback =
-          new TraceContinuedFutureCallback<>(
-              parentContinuation, clientSpan, context, futureCallback);
+      futureCallback = new TraceContinuedFutureCallback<>(
+          parentContinuation,
+          clientSpan,
+          context,
+          futureCallback);
 
       return clientScope;
     }

@@ -4,7 +4,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.CODE_COVERAGE_FLAGS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -20,7 +19,6 @@ import org.slf4j.LoggerFactory;
 
 @ExtendWith(WithConfigExtension.class)
 class ConfigCodeCoverageFlagsTest {
-
   @Test
   void defaultsToNoFlags() {
     assertEquals(Collections.emptyList(), Config.get().getCodeCoverageFlags());
@@ -53,8 +51,9 @@ class ConfigCodeCoverageFlagsTest {
     Config config = configWithFlags(String.join(",", expectedFlags));
 
     assertEquals(expectedFlags, config.getCodeCoverageFlags());
-    assertThrows(
-        UnsupportedOperationException.class, () -> config.getCodeCoverageFlags().add("extra"));
+    assertThrows(UnsupportedOperationException.class, () -> config
+      .getCodeCoverageFlags()
+      .add("extra"));
   }
 
   @Test

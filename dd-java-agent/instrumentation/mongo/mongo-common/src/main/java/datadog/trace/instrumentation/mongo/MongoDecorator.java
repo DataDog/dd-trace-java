@@ -68,7 +68,8 @@ public abstract class MongoDecorator
   }
 
   public final void onStatement(
-      @Nonnull final AgentSpan span, @Nonnull final BsonDocument statement) {
+      @Nonnull final AgentSpan span,
+      @Nonnull final BsonDocument statement) {
     onStatement(span, statement, null);
   }
 

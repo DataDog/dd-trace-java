@@ -1,7 +1,6 @@
 package datadog.exceptions.instrumentation;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,8 +12,9 @@ import datadog.trace.api.Platform;
  */
 @AutoService(InstrumenterModule.class)
 public final class KnownExcludesInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public KnownExcludesInstrumentation() {
     // this instrumentation is controlled together with 'throwables' instrumentation
     super("throwables");

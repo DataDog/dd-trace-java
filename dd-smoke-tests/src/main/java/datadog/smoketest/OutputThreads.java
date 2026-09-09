@@ -22,7 +22,6 @@ public class OutputThreads implements Closeable {
   private static final long THREAD_JOIN_TIMEOUT_MILLIS = 10 * 1000;
   private static final int MAX_LINE_SIZE = 1024 * 1024;
   private static final int DEFAULT_TIMEOUT_MILLIS = 10_000;
-
   final ThreadGroup tg = new ThreadGroup("smoke-output");
   final List<String> testLogMessages = new ArrayList<>();
 
@@ -75,7 +74,6 @@ public class OutputThreads implements Closeable {
           e.printStackTrace();
           return;
         }
-
         // subBuff will always start at the beginning of the next (potential) line
         ByteBuffer subBuff = buffer.duplicate();
         int consumed = 0;
@@ -91,9 +89,9 @@ public class OutputThreads implements Closeable {
             break;
             // did not find line end, but we already consumed a line
             // save the data for the next read iteration
-          } // else we did not consume any line, or there will be no further reads.
+          }
+          // else we did not consume any line, or there will be no further reads.
           // Treat the buffer as single line despite lack of terminator
-
           consumed += subBuff.position();
           String line = null;
           try {

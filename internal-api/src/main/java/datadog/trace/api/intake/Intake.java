@@ -17,7 +17,6 @@ public enum Intake {
       Config::isCiVisibilityAgentlessEnabled,
       Config::getCiVisibilityIntakeAgentlessUrl),
   EVENT_PLATFORM("event-platform-intake", "v2");
-
   public final String urlPrefix;
   public final String version;
   public final Function<Config, Boolean> agentlessModeEnabled;

@@ -3,13 +3,11 @@ package datadog.trace.instrumentation.jetty12;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 
 public class JettyRunnableWrapper implements Runnable {
-
   private Runnable runnable;
   private ContextContinuation continuation;
 
@@ -33,6 +31,7 @@ public class JettyRunnableWrapper implements Runnable {
     if (continuation.context() != Context.root()) {
       return new JettyRunnableWrapper(task, continuation);
     }
-    return task; // don't wrap unless there is a scope to propagate
+    // don't wrap unless there is a scope to propagate
+    return task;
   }
 }

@@ -7,7 +7,6 @@ import spray.http.HttpRequest;
 import spray.http.HttpResponse;
 
 public abstract class SprayHeaders<T> implements AgentPropagation.ContextVisitor<T> {
-
   protected abstract Iterable<HttpHeader> getHeaders(T carrier);
 
   @Override

@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TestProcessBuilderSuite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(TestProcessBuilderSuite.class);
 
   public static Process start(final List<String> command) throws IOException {

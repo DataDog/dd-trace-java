@@ -3,7 +3,6 @@ package datadog.json;
 import static java.lang.Math.PI;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import org.junit.jupiter.api.Test;
 
 class JsonWriterTest {
@@ -11,27 +10,29 @@ class JsonWriterTest {
   void testObject() {
     try (JsonWriter writer = new JsonWriter()) {
       writer
-          .beginObject()
-          .name("string")
-          .value("bar")
-          .name("int")
-          .value(3)
-          .name("long")
-          .value(3456789123L)
-          .name("float")
-          .value(3.142)
-          .name("double")
-          .value(PI)
-          .name("true")
-          .value(true)
-          .name("false")
-          .value(false)
-          .name("null")
-          .nullValue()
-          .endObject();
+        .beginObject()
+        .name("string")
+        .value("bar")
+        .name("int")
+        .value(3)
+        .name("long")
+        .value(3456789123L)
+        .name("float")
+        .value(3.142)
+        .name("double")
+        .value(PI)
+        .name("true")
+        .value(true)
+        .name("false")
+        .value(false)
+        .name("null")
+        .nullValue()
+        .endObject();
 
       assertEquals(
-          "{\"string\":\"bar\",\"int\":3,\"long\":3456789123,\"float\":3.142,\"double\":3.141592653589793,\"true\":true,\"false\":false,\"null\":null}",
+          "{\\\"string\\\":\\\"bar\\\",\\\"int\\\":3,\\\"long\\\":3456789123,\\\"float\\\":3."
+          + "142,\\\"double\\\":3.141592653589793,\\\"true\\\":true,\\\"false\\\":false,"
+          + "\\\"null\\\":null}",
           writer.toString(),
           "Check object writer");
     }
@@ -39,15 +40,12 @@ class JsonWriterTest {
 
   @Test
   void testNullName() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          try (JsonWriter writer = new JsonWriter()) {
-            writer.beginObject();
-            writer.name(null);
-          }
-        },
-        "Check null name");
+    assertThrows(IllegalArgumentException.class, () -> {
+      try (JsonWriter writer = new JsonWriter()) {
+        writer.beginObject();
+        writer.name(null);
+      }
+    }, "Check null name");
   }
 
   @Test
@@ -83,19 +81,20 @@ class JsonWriterTest {
   void testStringEscaping() {
     try (JsonWriter writer = new JsonWriter()) {
       writer
-          .beginArray()
-          .value("\"")
-          .value("\\")
-          .value("/")
-          .value("\b")
-          .value("\f")
-          .value("\n")
-          .value("\r")
-          .value("\t")
-          .endArray();
+        .beginArray()
+        .value("\"")
+        .value("\\")
+        .value("/")
+        .value("\b")
+        .value("\f")
+        .value("\n")
+        .value("\r")
+        .value("\t")
+        .endArray();
 
       assertEquals(
-          "[\"\\\"\",\"\\\\\",\"\\/\",\"\\b\",\"\\f\",\"\\n\",\"\\r\",\"\\t\"]",
+          "[\\\"\\\\\\\"\\\",\\\"\\\\\\\\\\\",\\\"\\\\/\\\",\\\"\\\\b\\\",\\\"\\\\f\\\","
+          + "\\\"\\\\n\\\",\\\"\\\\r\\\",\\\"\\\\t\\\"]",
           writer.toString(),
           "Check string escaping");
     }
@@ -107,7 +106,9 @@ class JsonWriterTest {
       writer.beginArray().value("\u0001").value("\u001F").endArray();
 
       assertEquals(
-          "[\"\\u0001\",\"\\u001F\"]", writer.toString(), "Check control character escaping");
+          "[\"\\u0001\",\"\\u001F\"]",
+          writer.toString(),
+          "Check control character escaping");
     }
   }
 
@@ -115,16 +116,18 @@ class JsonWriterTest {
   void testArrayObjectNesting() {
     try (JsonWriter writer = new JsonWriter()) {
       writer
-          .beginObject()
-          .name("array")
-          .beginArray()
-          .value("true")
-          .value("false")
-          .endArray()
-          .endObject();
+        .beginObject()
+        .name("array")
+        .beginArray()
+        .value("true")
+        .value("false")
+        .endArray()
+        .endObject();
 
       assertEquals(
-          "{\"array\":[\"true\",\"false\"]}", writer.toString(), "Check array / object nesting");
+          "{\"array\":[\"true\",\"false\"]}",
+          writer.toString(),
+          "Check array / object nesting");
     }
   }
 
@@ -132,19 +135,21 @@ class JsonWriterTest {
   void testObjectArrayNesting() {
     try (JsonWriter writer = new JsonWriter()) {
       writer
-          .beginArray()
-          .beginObject()
-          .name("true")
-          .value(true)
-          .endObject()
-          .beginObject()
-          .name("false")
-          .value(false)
-          .endObject()
-          .endArray();
+        .beginArray()
+        .beginObject()
+        .name("true")
+        .value(true)
+        .endObject()
+        .beginObject()
+        .name("false")
+        .value(false)
+        .endObject()
+        .endArray();
 
       assertEquals(
-          "[{\"true\":true},{\"false\":false}]", writer.toString(), "Check object / array nesting");
+          "[{\"true\":true},{\"false\":false}]",
+          writer.toString(),
+          "Check object / array nesting");
     }
   }
 
@@ -152,7 +157,9 @@ class JsonWriterTest {
   void testNameOnlyInObject() {
     try (JsonWriter writer = new JsonWriter()) {
       assertThrows(
-          IllegalStateException.class, () -> writer.name("key"), "Check name only in object");
+          IllegalStateException.class,
+          () -> writer.name("key"),
+          "Check name only in object");
     }
   }
 

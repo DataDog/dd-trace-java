@@ -7,7 +7,6 @@ import org.apache.commons.fileupload.FileItemStream;
 
 public class MockFileItemStream implements FileItemStream {
   private final String name;
-
   private final InputStream inputStream;
 
   public MockFileItemStream(final String name, final InputStream inputStream) {

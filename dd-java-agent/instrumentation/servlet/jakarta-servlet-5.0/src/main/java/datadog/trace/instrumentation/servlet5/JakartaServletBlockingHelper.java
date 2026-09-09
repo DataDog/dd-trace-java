@@ -62,7 +62,6 @@ public class JakartaServletBlockingHelper {
       HttpServletRequest httpServletRequest,
       HttpServletResponse resp,
       Flow.Action.RequestBlockingAction rba) {
-
     commitBlockingResponse(
         segment,
         httpServletRequest,

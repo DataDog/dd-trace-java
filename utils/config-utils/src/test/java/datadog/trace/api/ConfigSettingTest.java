@@ -2,14 +2,12 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import datadog.trace.test.junit.utils.tabletest.BoxedValueConverter;
 import datadog.trace.test.junit.utils.tabletest.ConfigValueConverter;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 public class ConfigSettingTest {
-
   @TableTest({
     "scenario         | key1 | value1 | origin1  | key2 | value2 | origin2  | expectedEqual",
     "equal            | key  | value  | DEFAULT  | key  | value  | DEFAULT  | true         ",
@@ -96,7 +94,8 @@ public class ConfigSettingTest {
     "bitset ranges | bits(33, 200-300, 303, 400-500) | 33,200-300,303,400-500"
   })
   void convertIterableMapAndBitSetToString(
-      @ConvertWith(ConfigValueConverter.class) Object value, String rendered) {
+      @ConvertWith(ConfigValueConverter.class) Object value,
+      String rendered) {
     assertEquals(rendered, ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).stringValue());
   }
 }

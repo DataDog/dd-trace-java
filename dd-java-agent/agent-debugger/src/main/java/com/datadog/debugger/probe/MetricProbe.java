@@ -15,9 +15,10 @@ import java.util.List;
 import java.util.Objects;
 import org.objectweb.asm.Type;
 
-/** Stores definition of a metric probe */
+/**
+ * Stores definition of a metric probe
+ */
 public class MetricProbe extends ProbeDefinition {
-
   public enum MetricKind {
     COUNT {
       @Override
@@ -63,7 +64,6 @@ public class MetricProbe extends ProbeDefinition {
         return Arrays.asList(Type.LONG_TYPE, Type.DOUBLE_TYPE);
       }
     };
-
     public abstract boolean isCompatible(Type type);
 
     public abstract Collection<Type> getSupportedTypes();
@@ -136,7 +136,9 @@ public class MetricProbe extends ProbeDefinition {
 
   @Override
   public InstrumentationResult.Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices) {
     return new MetricInstrumenter(this, methodInfo, diagnostics, probeIndices).instrument();
   }
 
@@ -166,15 +168,26 @@ public class MetricProbe extends ProbeDefinition {
 
     public MetricProbe build() {
       return new MetricProbe(
-          language, probeId, tagStrs, where, evaluateAt, kind, metricName, valueScript);
+          language,
+          probeId,
+          tagStrs,
+          where,
+          evaluateAt,
+          kind,
+          metricName,
+          valueScript);
     }
   }
 
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     MetricProbe that = (MetricProbe) o;
     return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)

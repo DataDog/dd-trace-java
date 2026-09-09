@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.restlet.RestletDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.sun.net.httpserver.HttpExchange;
 import datadog.context.Context;
@@ -20,8 +19,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class RestletInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public RestletInstrumentation() {
     super("restlet-http", "restlet-http-server");
   }
@@ -29,8 +28,8 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.restlet.engine.connector.HttpServerHelper$1",
-      "org.restlet.engine.connector.HttpsServerHelper$2"
+        "org.restlet.engine.connector.HttpServerHelper$1",
+        "org.restlet.engine.connector.HttpsServerHelper$2"
     };
   }
 
@@ -38,8 +37,8 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("handle"))
-            .and(takesArgument(0, named("com.sun.net.httpserver.HttpExchange"))),
+          .and(named("handle"))
+          .and(takesArgument(0, named("com.sun.net.httpserver.HttpExchange"))),
         getClass().getName() + "$ContextTrackingAdvice",
         getClass().getName() + "$RestletHandleAdvice");
   }
@@ -47,11 +46,11 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RestletExtractAdapter",
-      packageName + ".RestletExtractAdapter$Request",
-      packageName + ".RestletExtractAdapter$Response",
-      packageName + ".RestletDecorator",
-      packageName + ".HttpExchangeURIDataAdapter"
+        packageName + ".RestletExtractAdapter",
+        packageName + ".RestletExtractAdapter$Request",
+        packageName + ".RestletExtractAdapter$Response",
+        packageName + ".RestletDecorator",
+        packageName + ".HttpExchangeURIDataAdapter"
     };
   }
 
@@ -72,7 +71,8 @@ public final class RestletInstrumentation extends InstrumenterModule.Tracing
   public static class RestletHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope beginRequest(@Advice.Argument(0) final HttpExchange exchange) {
-      Context parentContext = currentContext(); // parent context attached by ContextTrackingAdvice
+      // parent context attached by ContextTrackingAdvice
+      Context parentContext = currentContext();
       Context context = DECORATE.startSpan(exchange, parentContext);
       AgentSpan span = spanFromContext(context);
       ContextScope scope = context.attach();

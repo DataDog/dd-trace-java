@@ -8,7 +8,6 @@ import static datadog.trace.common.metrics.EventListener.EventType.DOWNGRADED;
 import static datadog.trace.common.metrics.EventListener.EventType.ERROR;
 import static datadog.trace.common.metrics.EventListener.EventType.OK;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.queue.Queues;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -29,11 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class OkHttpSink implements Sink, EventListener {
-
   private static final Logger log = LoggerFactory.getLogger(OkHttpSink.class);
-
   private static final long ASYNC_THRESHOLD_LATENCY = SECONDS.toNanos(1);
-
   private final OkHttpClient client;
   private final HttpUrl metricsUrl;
   private final List<EventListener> listeners;
@@ -43,7 +39,6 @@ public final class OkHttpSink implements Sink, EventListener {
   private final boolean bufferingEnabled;
   private final boolean compressionEnabled;
   private final Map<String, String> headers;
-
   private final AtomicBoolean asyncTaskStarted = new AtomicBoolean(false);
   private volatile AgentTaskScheduler.Scheduled<OkHttpSink> future;
 
@@ -83,9 +78,9 @@ public final class OkHttpSink implements Sink, EventListener {
       }
     } else {
       if (asyncTaskStarted.compareAndSet(false, true)) {
-        this.future =
-            AgentTaskScheduler.get()
-                .scheduleAtFixedRate(new Sender(enqueuedRequests), this, 1, 1, SECONDS);
+        this.future = AgentTaskScheduler
+          .get()
+          .scheduleAtFixedRate(new Sender(enqueuedRequests), this, 1, 1, SECONDS);
       }
       sendAsync(messageCount, buffer);
     }
@@ -101,8 +96,9 @@ public final class OkHttpSink implements Sink, EventListener {
 
   private void sendAsync(int messageCount, ByteBuffer buffer) {
     asyncRequestCounter.getAndIncrement();
-    if (!enqueuedRequests.offer(
-        prepareRequest(metricsUrl, headers).post(makeRequestBody(buffer.duplicate())).build())) {
+    if (!enqueuedRequests.offer(prepareRequest(metricsUrl, headers)
+      .post(makeRequestBody(buffer.duplicate()))
+      .build())) {
       log.debug(
           "dropping payload of {} and {}B because sending queue was full",
           messageCount,
@@ -157,7 +153,6 @@ public final class OkHttpSink implements Sink, EventListener {
   }
 
   private static final class Sender implements AgentTaskScheduler.Task<OkHttpSink> {
-
     private final MessagePassingQueue<Request> inbox;
 
     private Sender(MessagePassingQueue<Request> inbox) {

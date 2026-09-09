@@ -1,7 +1,6 @@
 package datadog.communication.serialization;
 
 import static datadog.trace.util.BitUtils.nextPowerOfTwo;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -9,7 +8,6 @@ import java.nio.ByteBuffer;
  * serialising the contents of a bounded data structure.
  */
 public final class GrowableBuffer implements StreamingBuffer {
-
   private final int initialCapacity;
   private ByteBuffer buffer;
   private int messageCount;
@@ -19,13 +17,17 @@ public final class GrowableBuffer implements StreamingBuffer {
     this.buffer = ByteBuffer.allocate(initialCapacity);
   }
 
-  /** Flips the buffer and returns a new slice which shares the buffered content. */
+  /**
+   * Flips the buffer and returns a new slice which shares the buffered content.
+   */
   public ByteBuffer slice() {
     buffer.flip();
     return buffer.slice();
   }
 
-  /** Flips the buffer and returns the buffered content. */
+  /**
+   * Flips the buffer and returns the buffered content.
+   */
   public ByteBuffer flip() {
     buffer.flip();
     return buffer;

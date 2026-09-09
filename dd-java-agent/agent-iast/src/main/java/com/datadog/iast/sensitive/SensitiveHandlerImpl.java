@@ -7,7 +7,6 @@ import static com.google.re2j.Pattern.CASE_INSENSITIVE;
 import static com.google.re2j.Pattern.MULTILINE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
-
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.VulnerabilityType;
@@ -22,11 +21,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SensitiveHandlerImpl implements SensitiveHandler {
-
   private static final Logger LOG = LoggerFactory.getLogger(SensitiveHandlerImpl.class);
-
   static final SensitiveHandler INSTANCE = new SensitiveHandlerImpl();
-
   private static final char[] REDACTED_SENSITIVE_BUFFER = newCharArray(16, '*');
   private static final char[] REDACTED_SOURCE_BUFFER = new char[62];
 
@@ -46,13 +42,14 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
   }
 
   SensitiveHandlerImpl(final String configuredNamePattern, final String configuredValuePattern) {
-    namePattern =
-        safeCompile(configuredNamePattern, DEFAULT_IAST_REDACTION_NAME_PATTERN, CASE_INSENSITIVE);
-    valuePattern =
-        safeCompile(
-            configuredValuePattern,
-            DEFAULT_IAST_REDACTION_VALUE_PATTERN,
-            CASE_INSENSITIVE | MULTILINE);
+    namePattern = safeCompile(
+        configuredNamePattern,
+        DEFAULT_IAST_REDACTION_NAME_PATTERN,
+        CASE_INSENSITIVE);
+    valuePattern = safeCompile(
+        configuredValuePattern,
+        DEFAULT_IAST_REDACTION_VALUE_PATTERN,
+        CASE_INSENSITIVE | MULTILINE);
     tokenizers = new HashMap<>();
     tokenizers.put(VulnerabilityType.SQL_INJECTION, SqlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.LDAP_INJECTION, LdapRegexTokenizer::new);
@@ -60,9 +57,10 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
     tokenizers.put(VulnerabilityType.SSRF, UrlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.UNVALIDATED_REDIRECT, UrlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.XSS, TaintedRangeBasedTokenizer::new);
-    tokenizers.put(
-        VulnerabilityType.HEADER_INJECTION,
-        evidence -> new HeaderRegexpTokenizer(evidence, namePattern, valuePattern));
+    tokenizers.put(VulnerabilityType.HEADER_INJECTION, evidence -> new HeaderRegexpTokenizer(
+        evidence,
+        namePattern,
+        valuePattern));
   }
 
   @Override
@@ -88,7 +86,8 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
 
   @Override
   public Tokenizer tokenizeEvidence(
-      @Nonnull final VulnerabilityType type, @Nonnull final Evidence evidence) {
+      @Nonnull final VulnerabilityType type,
+      @Nonnull final Evidence evidence) {
     final TokenizerSupplier supplier = tokenizers.get(type);
     return supplier == null ? Tokenizer.EMPTY : supplier.tokenizerFor(evidence);
   }
@@ -108,12 +107,15 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
   }
 
   private static Pattern safeCompile(
-      final String configured, final String fallback, final int flags) {
+      final String configured,
+      final String fallback,
+      final int flags) {
     try {
       return Pattern.compile(configured, flags);
     } catch (final PatternSyntaxException e) {
       LOG.error(
-          "Could not compile IAST redaction pattern with RE2J, falling back to the default: {} (configured: {})",
+          "Could not compile IAST redaction pattern with RE2J, falling back to the default: "
+          + "{} (configured: {})",
           fallback,
           configured,
           e);

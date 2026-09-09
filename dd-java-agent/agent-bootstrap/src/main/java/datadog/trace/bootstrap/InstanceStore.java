@@ -15,7 +15,6 @@ import javax.annotation.Nullable;
  * <p>Instance keys are expected to be string literals, defined as constants in the helper classes.
  */
 public final class InstanceStore<T> {
-
   @SuppressWarnings("rawtypes")
   private static final ClassValue<InstanceStore> classInstanceStore =
       GenericClassValue.of(type -> new InstanceStore<>());
@@ -31,7 +30,8 @@ public final class InstanceStore<T> {
   // simple approach; instance stores don't need highly concurrent access or weak keys
   private final Map<String, T> store = Collections.synchronizedMap(new HashMap<>());
 
-  private InstanceStore() {}
+  private InstanceStore() {
+  }
 
   /**
    * Gets the instance of {@code T} currently associated with the given key.

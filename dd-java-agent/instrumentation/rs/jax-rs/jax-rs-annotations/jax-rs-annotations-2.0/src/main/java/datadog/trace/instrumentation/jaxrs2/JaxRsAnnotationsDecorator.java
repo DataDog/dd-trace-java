@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.jaxrs2;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.ClassHierarchyIterable;
@@ -19,11 +18,9 @@ import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 
 public class JaxRsAnnotationsDecorator extends BaseDecorator {
-
   public static final CharSequence JAX_RS_REQUEST_ABORT =
       UTF8BytesString.create("jax-rs.request.abort");
   public static final CharSequence JAX_RS_CONTROLLER = UTF8BytesString.create("jax-rs-controller");
-
   public static final String ABORT_FILTER_CLASS =
       "datadog.trace.instrumentation.jaxrs2.filter.abort.class";
   public static final String ABORT_HANDLED =
@@ -31,11 +28,9 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   public static final String ABORT_PARENT =
       "datadog.trace.instrumentation.jaxrs2.filter.abort.parent";
   public static final String ABORT_SPAN = "datadog.trace.instrumentation.jaxrs2.filter.abort.span";
-
   public static JaxRsAnnotationsDecorator DECORATE = new JaxRsAnnotationsDecorator();
-
-  private static final ClassValue<ConcurrentHashMap<Method, Pair<CharSequence, CharSequence>>>
-      RESOURCE_NAMES = GenericClassValue.constructing(ConcurrentHashMap.class);
+  private static final ClassValue<ConcurrentHashMap<Method, Pair<CharSequence, CharSequence>>> RESOURCE_NAMES =
+      GenericClassValue.constructing(ConcurrentHashMap.class);
 
   @Override
   protected String[] instrumentationNames() {
@@ -53,24 +48,25 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   }
 
   public void onJaxRsSpan(
-      final AgentSpan span, final AgentSpan parent, final Class<?> target, final Method method) {
-
+      final AgentSpan span,
+      final AgentSpan parent,
+      final Class<?> target,
+      final Method method) {
     final Pair<CharSequence, CharSequence> httpMethodAndRoute =
         getHttpMethodAndRoute(target, method);
     span.setSpanType(InternalSpanTypes.HTTP_SERVER);
-
     // When jax-rs is the root, we want to name using the path, otherwise use the class/method.
     final boolean isRootScope = parent == null;
     if (isRootScope) {
       HTTP_RESOURCE_DECORATOR.withRoute(
-          span, httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+          span,
+          httpMethodAndRoute.getLeft(),
+          httpMethodAndRoute.getRight());
     } else {
       span.setResourceName(DECORATE.spanNameForMethod(target, method));
 
-      if (parent.getLocalRootSpan().getResourceNamePriority()
-          < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
+      if (parent.getLocalRootSpan().getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
         parent.setTag(Tags.COMPONENT, "jax-rs");
-
         // current handler is a filter
         if (!httpMethodAndRoute.hasLeft()
             && (!httpMethodAndRoute.hasRight() || httpMethodAndRoute.getRight().length() == 0)) {
@@ -78,7 +74,9 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
         }
 
         HTTP_RESOURCE_DECORATOR.withRoute(
-            parent.getLocalRootSpan(), httpMethodAndRoute.getLeft(), httpMethodAndRoute.getRight());
+            parent.getLocalRootSpan(),
+            httpMethodAndRoute.getLeft(),
+            httpMethodAndRoute.getRight());
       }
     }
   }
@@ -90,7 +88,8 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
    * @return The result can be an empty string but will never be {@code null}.
    */
   private Pair<CharSequence, CharSequence> getHttpMethodAndRoute(
-      final Class<?> target, final Method method) {
+      final Class<?> target,
+      final Method method) {
     Map<Method, Pair<CharSequence, CharSequence>> classMap = RESOURCE_NAMES.get(target);
     Pair<CharSequence, CharSequence> httpMethodAndRoute = classMap.get(method);
     if (httpMethodAndRoute == null) {
@@ -118,8 +117,9 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
           }
         }
       }
-      httpMethodAndRoute =
-          Pair.<CharSequence, CharSequence>of(httpMethod, buildRoutePath(classPath, methodPath));
+      httpMethodAndRoute = Pair.<CharSequence, CharSequence>of(
+          httpMethod,
+          buildRoutePath(classPath, methodPath));
       classMap.put(method, httpMethodAndRoute);
     }
 
@@ -155,8 +155,7 @@ public class JaxRsAnnotationsDecorator extends BaseDecorator {
   }
 
   private Method findMatchingMethod(final Method baseMethod, final Method[] methods) {
-    nextMethod:
-    for (final Method method : methods) {
+    nextMethod: for (final Method method : methods) {
       if (!baseMethod.getReturnType().equals(method.getReturnType())) {
         continue;
       }

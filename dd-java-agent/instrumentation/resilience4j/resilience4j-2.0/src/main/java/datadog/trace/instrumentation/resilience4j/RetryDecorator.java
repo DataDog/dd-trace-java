@@ -23,7 +23,8 @@ public final class RetryDecorator extends Resilience4jSpanDecorator<Retry> {
     span.setTag(TAG_PREFIX + "name", data.getName());
     span.setTag(TAG_PREFIX + "max_attempts", data.getRetryConfig().getMaxAttempts());
     span.setTag(
-        TAG_PREFIX + "fail_after_max_attempts", data.getRetryConfig().isFailAfterMaxAttempts());
+        TAG_PREFIX + "fail_after_max_attempts",
+        data.getRetryConfig().isFailAfterMaxAttempts());
     if (Config.get().isResilience4jTagMetricsEnabled()) {
       Retry.Metrics ms = data.getMetrics();
       span.setTag(
@@ -36,7 +37,8 @@ public final class RetryDecorator extends Resilience4jSpanDecorator<Retry> {
           TAG_METRICS_PREFIX + "success_with_retry",
           ms.getNumberOfSuccessfulCallsWithRetryAttempt());
       span.setTag(
-          TAG_METRICS_PREFIX + "failed_with_retry", ms.getNumberOfFailedCallsWithRetryAttempt());
+          TAG_METRICS_PREFIX + "failed_with_retry",
+          ms.getNumberOfFailedCallsWithRetryAttempt());
     }
   }
 }

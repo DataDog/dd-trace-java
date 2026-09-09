@@ -4,18 +4,18 @@ import datadog.trace.api.Functions;
 import java.util.function.Function;
 
 public final class QualifiedClassNameCache extends ClassValue<QualifiedClassNameCache.Leaf> {
-
   private final Function<Class<?>, CharSequence> formatter;
   private final Functions.Join joiner;
   private final int leafSize;
 
-  public QualifiedClassNameCache(
-      Function<Class<?>, CharSequence> formatter, Functions.Join joiner) {
+  public QualifiedClassNameCache(Function<Class<?>, CharSequence> formatter, Functions.Join joiner) {
     this(formatter, joiner, 16);
   }
 
   public QualifiedClassNameCache(
-      Function<Class<?>, CharSequence> formatter, Functions.Join joiner, int leafSize) {
+      Function<Class<?>, CharSequence> formatter,
+      Functions.Join joiner,
+      int leafSize) {
     this.formatter = formatter;
     this.joiner = joiner;
     this.leafSize = leafSize;
@@ -27,9 +27,7 @@ public final class QualifiedClassNameCache extends ClassValue<QualifiedClassName
   }
 
   static final class Leaf {
-
     private final CharSequence name;
-
     private final DDCache<CharSequence, CharSequence> cache;
     private final Function<CharSequence, CharSequence> joiner;
 

@@ -54,11 +54,8 @@ import org.slf4j.LoggerFactory;
  * multiple sessions.
  */
 public class CiVisibilityServices {
-
   private static final Logger logger = LoggerFactory.getLogger(CiVisibilityServices.class);
-
   private static final String GIT_FOLDER_NAME = ".git";
-
   final ProcessHierarchy processHierarchy;
   final Config config;
   final CiVisibilityMetricCollector metricCollector;
@@ -71,7 +68,8 @@ public class CiVisibilityServices {
   final GitInfoProvider gitInfoProvider;
   final LinesResolver linesResolver;
   final RepoIndexProvider.Factory repoIndexProviderFactory;
-  @Nullable final SignalClient.Factory signalClientFactory;
+  @Nullable
+  final SignalClient.Factory signalClientFactory;
 
   CiVisibilityServices(
       Config config,
@@ -95,8 +93,9 @@ public class CiVisibilityServices {
 
     this.environment = buildCiEnvironment();
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
-    this.linesResolver =
-        new BestEffortLinesResolver(new CompilerAidedLinesResolver(), new ByteCodeLinesResolver());
+    this.linesResolver = new BestEffortLinesResolver(
+        new CompilerAidedLinesResolver(),
+        new ByteCodeLinesResolver());
 
     this.gitInfoProvider = gitInfoProvider;
     gitInfoProvider.registerGitInfoBuilder(new CIProviderGitInfoBuilder(config, environment));
@@ -110,7 +109,6 @@ public class CiVisibilityServices {
 
       RepoIndexProvider indexFetcher = new RepoIndexFetcher(signalClientFactory);
       this.repoIndexProviderFactory = (repoRoot) -> indexFetcher;
-
     } else {
       this.signalClientFactory = null;
 
@@ -118,14 +116,19 @@ public class CiVisibilityServices {
       PackageResolver packageResolver = new PackageResolverImpl(fileSystem);
       ResourceResolver resourceResolver =
           new ConventionBasedResourceResolver(
-              fileSystem, config.getCiVisibilityResourceFolderNames());
-      this.repoIndexProviderFactory =
-          new CachingRepoIndexBuilderFactory(config, packageResolver, resourceResolver, fileSystem);
+              fileSystem,
+              config.getCiVisibilityResourceFolderNames());
+      this.repoIndexProviderFactory = new CachingRepoIndexBuilderFactory(
+          config,
+          packageResolver,
+          resourceResolver,
+          fileSystem);
     }
   }
 
   private static GitClient.Factory buildGitClientFactory(
-      Config config, CiVisibilityMetricCollector metricCollector) {
+      Config config,
+      CiVisibilityMetricCollector metricCollector) {
     if (!config.isCiVisibilityGitClientEnabled()) {
       return r -> NoOpGitClient.INSTANCE;
     }
@@ -135,7 +138,6 @@ public class CiVisibilityServices {
       String gitVersion = shellCommandExecutor.executeCommand(IOUtils::readFully, "git", "version");
       logger.debug("Detected git executable version {}", gitVersion);
       return new ShellGitClient.Factory(config, metricCollector);
-
     } catch (Exception e) {
       metricCollector.add(
           CiVisibilityCountMetric.GIT_COMMAND_ERRORS,
@@ -152,7 +154,8 @@ public class CiVisibilityServices {
     Map<String, String> remoteEnvironment = CiEnvironmentVariables.getAll();
     if (remoteEnvironment != null) {
       return new CompositeCiEnvironment(
-          new CiEnvironmentImpl(remoteEnvironment), CiEnvironmentImpl.local());
+          new CiEnvironmentImpl(remoteEnvironment),
+          CiEnvironmentImpl.local());
     } else {
       return CiEnvironmentImpl.local();
     }

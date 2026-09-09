@@ -6,7 +6,6 @@ import datadog.communication.serialization.Writable;
 import datadog.trace.api.aiguard.AIGuard;
 
 public class FunctionWriter implements ValueWriter<AIGuard.ToolCall.Function> {
-
   @Override
   public void write(
       final AIGuard.ToolCall.Function function,

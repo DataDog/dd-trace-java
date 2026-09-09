@@ -2,7 +2,6 @@ package datadog.trace.common.metrics;
 
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.function.Function;
 
 public final class SerializingMetricWriter implements MetricWriter {
-
   private static final byte[] SEQUENCE = "Sequence".getBytes(ISO_8859_1);
   private static final byte[] RUNTIME_ID = "RuntimeID".getBytes(ISO_8859_1);
   private static final byte[] HOSTNAME = "Hostname".getBytes(ISO_8859_1);
@@ -49,21 +47,16 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
   private static final byte[] SERVICE_SOURCE = "srv_src".getBytes(ISO_8859_1);
   private static final byte[] GIT_COMMIT_SHA = "GitCommitSha".getBytes(ISO_8859_1);
-
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
   public static final int TRISTATE_FALSE = TriState.FALSE.serialValue;
-
   private static final Function<GitInfo, UTF8BytesString> SHA_COMMIT_GETTER =
-      gitInfo ->
-          gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null
-              ? UTF8BytesString.create(gitInfo.getCommit().getSha())
-              : EMPTY;
-
+      gitInfo -> gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null
+      ? UTF8BytesString.create(gitInfo.getCommit().getSha())
+      : EMPTY;
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
   private final Sink sink;
-
   /**
    * Whether the span-derived additional-tags feature is configured (at least one key). When {@code
    * true}, the {@code AdditionalMetricTags} field is always emitted -- as an empty array for
@@ -72,7 +65,6 @@ public final class SerializingMetricWriter implements MetricWriter {
    * field is omitted entirely, so non-users pay zero payload overhead.
    */
   private final boolean additionalTagsConfigured;
-
   private final GrowableBuffer buffer;
   private final DDCache<GitInfo, UTF8BytesString> gitInfoCache =
       DDCaches.newFixedSizeWeakKeyCache(4);
@@ -90,7 +82,9 @@ public final class SerializingMetricWriter implements MetricWriter {
   }
 
   public SerializingMetricWriter(
-      WellKnownTags wellKnownTags, Sink sink, boolean additionalTagsConfigured) {
+      WellKnownTags wellKnownTags,
+      Sink sink,
+      boolean additionalTagsConfigured) {
     this(wellKnownTags, sink, 512 * 1024, GitInfoProvider.INSTANCE, additionalTagsConfigured);
   }
 
@@ -186,13 +180,12 @@ public final class SerializingMetricWriter implements MetricWriter {
     final UTF8BytesString[] additionalTags = entry.getAdditionalTags();
     // When the feature is configured the field is always emitted (empty array for entries that
     // matched no key); when it is off the field is omitted entirely so non-users pay nothing.
-    final int mapSize =
-        15
-            + (hasServiceSource ? 1 : 0)
-            + (hasHttpMethod ? 1 : 0)
-            + (hasHttpEndpoint ? 1 : 0)
-            + (hasGrpcStatusCode ? 1 : 0)
-            + (additionalTagsConfigured ? 1 : 0);
+    final int mapSize = 15
+        + (hasServiceSource ? 1 : 0)
+        + (hasHttpMethod ? 1 : 0)
+        + (hasHttpEndpoint ? 1 : 0)
+        + (hasGrpcStatusCode ? 1 : 0)
+        + (additionalTagsConfigured ? 1 : 0);
 
     writer.startMap(mapSize);
 
@@ -227,7 +220,6 @@ public final class SerializingMetricWriter implements MetricWriter {
     for (UTF8BytesString peerTag : peerTags) {
       writer.writeUTF8(peerTag);
     }
-
     // Emit AdditionalMetricTags as a packed array of pre-built "key:value" UTF8BytesStrings, in
     // schema (alphabetical-by-key) order. Present whenever the feature is configured -- an empty
     // array for entries that matched no key -- and omitted entirely when the feature is off, so
@@ -249,13 +241,11 @@ public final class SerializingMetricWriter implements MetricWriter {
       writer.writeUTF8(HTTP_METHOD);
       writer.writeUTF8(entry.getHttpMethod());
     }
-
     // Only include HTTPEndpoint if present
     if (hasHttpEndpoint) {
       writer.writeUTF8(HTTP_ENDPOINT);
       writer.writeUTF8(entry.getHttpEndpoint());
     }
-
     // Only include GRPCStatusCode if present (rpc-type spans)
     if (hasGrpcStatusCode) {
       writer.writeUTF8(GRPC_STATUS_CODE);

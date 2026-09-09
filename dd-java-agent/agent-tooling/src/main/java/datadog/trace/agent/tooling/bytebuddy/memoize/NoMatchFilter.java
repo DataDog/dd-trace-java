@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.bytebuddy.memoize;
 
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import datadog.instrument.utils.ClassNameFilter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceApiInfo;
@@ -19,14 +18,16 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Builds a persistable compact filter that records uninteresting types. */
+/**
+ * Builds a persistable compact filter that records uninteresting types.
+ */
 final class NoMatchFilter {
   private static final Logger log = LoggerFactory.getLogger(NoMatchFilter.class);
-
   private static final String TRACER_VERSION_HEADER = "dd-java-agent";
   private static final String NO_MATCH_FILTER_HEADER = "NoMatchFilter";
 
-  private NoMatchFilter() {}
+  private NoMatchFilter() {
+  }
 
   public static ClassNameFilter build() {
     Path noMatchFile = discoverNoMatchFile();
@@ -54,14 +55,13 @@ final class NoMatchFilter {
     if (null == cacheDir) {
       return null;
     }
-
     // use different file for each tracer + service combination
     String filterKey =
         DDTraceApiInfo.VERSION
-            + "/"
-            + Config.get().getServiceName()
-            + "/"
-            + Config.get().getVersion();
+        + "/"
+        + Config.get().getServiceName()
+        + "/"
+        + Config.get().getVersion();
 
     String noMatchFilterName =
         UUID.nameUUIDFromBytes(filterKey.getBytes(StandardCharsets.UTF_8)) + "-nomatch.filter";

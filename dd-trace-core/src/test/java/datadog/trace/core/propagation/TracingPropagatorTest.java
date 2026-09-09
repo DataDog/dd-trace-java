@@ -17,7 +17,6 @@ import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
 import datadog.context.Context;
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
@@ -36,7 +35,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class TracingPropagatorTest extends DDCoreJavaSpecification {
-
   private HttpCodec.Injector injector;
   private HttpCodec.Extractor extractor;
   private TracingPropagator propagator;
@@ -149,7 +147,8 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
     "false          | ProductTraceSource.UNSET"
   })
   void testPropagationWhenTracingIsDisabled(
-      boolean tracingEnabled, @ConvertWith(ProductTraceSourceConverter.class) int product) {
+      boolean tracingEnabled,
+      @ConvertWith(ProductTraceSourceConverter.class) int product) {
     // Recreating propagator to apply tracing test flag
     this.propagator = new TracingPropagator(tracingEnabled, this.injector, this.extractor);
 
@@ -162,7 +161,7 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
 
     int injected = (tracingEnabled || product != UNSET) ? 1 : 0;
     verify(this.injector, times(injected))
-        .inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
+      .inject(same((DDSpanContext) span.spanContext()), same(carrier), any());
 
     span.finish();
     tracer.close();

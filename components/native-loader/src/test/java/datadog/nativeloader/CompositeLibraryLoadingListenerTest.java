@@ -2,7 +2,6 @@ package datadog.nativeloader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -22,8 +21,12 @@ public final class CompositeLibraryLoadingListenerTest {
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onResolveDynamic(
-            PlatformSpec.defaultPlatformSpec(), null, "foo", false, new URL("http://localhost"));
+      .onResolveDynamic(
+          PlatformSpec.defaultPlatformSpec(),
+          null,
+          "foo",
+          false,
+          new URL("http://localhost"));
 
     listener1.assertDone();
     listener2.assertDone();
@@ -37,8 +40,11 @@ public final class CompositeLibraryLoadingListenerTest {
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onResolveDynamicFailure(
-            PlatformSpec.defaultPlatformSpec(), null, "foo", new Exception("foo"));
+      .onResolveDynamicFailure(
+          PlatformSpec.defaultPlatformSpec(),
+          null,
+          "foo",
+          new Exception("foo"));
 
     listener1.assertDone();
     listener2.assertDone();
@@ -51,7 +57,7 @@ public final class CompositeLibraryLoadingListenerTest {
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onLoad(PlatformSpec.defaultPlatformSpec(), null, "foo", false, null);
+      .onLoad(PlatformSpec.defaultPlatformSpec(), null, "foo", false, null);
 
     listener1.assertDone();
     listener2.assertDone();
@@ -59,13 +65,13 @@ public final class CompositeLibraryLoadingListenerTest {
 
   @Test
   public void onLoadFailure() {
-    TestLibraryLoadingListener listener1 =
-        new TestLibraryLoadingListener().expectLoadFailure("foo");
+    TestLibraryLoadingListener listener1 = new TestLibraryLoadingListener()
+      .expectLoadFailure("foo");
 
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onLoadFailure(PlatformSpec.defaultPlatformSpec(), null, "foo", null);
+      .onLoadFailure(PlatformSpec.defaultPlatformSpec(), null, "foo", null);
 
     listener1.assertDone();
     listener2.assertDone();
@@ -79,8 +85,7 @@ public final class CompositeLibraryLoadingListenerTest {
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onTempFileCreated(
-            PlatformSpec.defaultPlatformSpec(), null, "foo", Paths.get("/tmp/foo.dll"));
+      .onTempFileCreated(PlatformSpec.defaultPlatformSpec(), null, "foo", Paths.get("/tmp/foo.dll"));
 
     listener1.assertDone();
     listener2.assertDone();
@@ -94,13 +99,13 @@ public final class CompositeLibraryLoadingListenerTest {
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onTempFileCreationFailure(
-            PlatformSpec.defaultPlatformSpec(),
-            null,
-            "foo",
-            Paths.get("/tmp"),
-            "dylib",
-            new IOException("perm"));
+      .onTempFileCreationFailure(
+          PlatformSpec.defaultPlatformSpec(),
+          null,
+          "foo",
+          Paths.get("/tmp"),
+          "dylib",
+          new IOException("perm"));
 
     listener1.assertDone();
     listener2.assertDone();
@@ -114,8 +119,7 @@ public final class CompositeLibraryLoadingListenerTest {
     TestLibraryLoadingListener listener2 = listener1.copy();
 
     listeners(listener1, listener2)
-        .onTempFileCleanup(
-            PlatformSpec.defaultPlatformSpec(), null, "foo", Paths.get("/tmp/foo.dll"));
+      .onTempFileCleanup(PlatformSpec.defaultPlatformSpec(), null, "foo", Paths.get("/tmp/foo.dll"));
 
     listener1.assertDone();
     listener2.assertDone();
@@ -140,7 +144,11 @@ public final class CompositeLibraryLoadingListenerTest {
     assertEquals(4, finalComposite.size());
 
     finalComposite.onLoad(
-        PlatformSpec.defaultPlatformSpec(), null, "foo", false, Paths.get("/tmp/foo.dll"));
+        PlatformSpec.defaultPlatformSpec(),
+        null,
+        "foo",
+        false,
+        Paths.get("/tmp/foo.dll"));
 
     listener1.assertDone();
     listener2.assertDone();
@@ -166,7 +174,8 @@ public final class CompositeLibraryLoadingListenerTest {
     shuffledListeners.addAll(Arrays.asList(listeners));
 
     for (int i = 0; i < listeners.length; ++i) {
-      shuffledListeners.add(new LibraryLoadingListener() {});
+      shuffledListeners.add(new LibraryLoadingListener() {
+      });
       shuffledListeners.add(new ThrowingLibraryLoadingListener());
     }
 

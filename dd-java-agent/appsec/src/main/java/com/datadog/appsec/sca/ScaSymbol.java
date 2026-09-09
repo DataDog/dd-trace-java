@@ -1,9 +1,11 @@
 package com.datadog.appsec.sca;
 
-/** A single method-level symbol from sca_cves.json: a class and method to watch for. */
+/**
+ * A single method-level symbol from sca_cves.json: a class and method to watch for.
+ */
 public final class ScaSymbol {
-
-  private final String className; // JVM internal format: "com/foo/Bar"
+  // JVM internal format: "com/foo/Bar"
+  private final String className;
   private final String method;
 
   public ScaSymbol(String className, String method) {
@@ -11,12 +13,16 @@ public final class ScaSymbol {
     this.method = method;
   }
 
-  /** JVM internal class name with slashes, e.g. {@code "com/foo/Bar"}. */
+  /**
+   * JVM internal class name with slashes, e.g. {@code "com/foo/Bar"}.
+   */
   public String className() {
     return className;
   }
 
-  /** Method name for method-level tracking, e.g. {@code "readValue"}. */
+  /**
+   * Method name for method-level tracking, e.g. {@code "readValue"}.
+   */
   public String method() {
     return method;
   }

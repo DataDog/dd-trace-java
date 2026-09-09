@@ -5,7 +5,6 @@ import static datadog.smoketest.trace.TraceMatcher.SORT_BY_ANCESTRY;
 import static datadog.smoketest.trace.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import datadog.smoketest.backend.AgentBackend;
 import datadog.smoketest.backend.TestAgentBackend;
 import datadog.smoketest.backend.Traces;
@@ -79,29 +78,27 @@ class SpringBootRabbitSmokeTest {
   private static final int RABBIT_AMQP_PORT = 5672;
   private static final OkHttpClient CLIENT = new OkHttpClient();
   // AMQP connection-setup / ack commands each app emits as its own (single-span) trace.
-  private static final String[] ADMIN_COMMANDS = {
-    "basic.qos", "basic.consume", "basic.ack", "queue.declare"
-  };
-
+  private static final String[] ADMIN_COMMANDS =
+      {"basic.qos", "basic.consume", "basic.ack", "queue.declare"};
   @Container
   private static final RabbitMQContainer RABBIT =
       new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.9.20-alpine"));
-
   @Order(1)
   @RegisterExtension
-  static final TestAgentBackend agent = AgentBackend.testAgentBuilder().retainAcrossTests().build();
-
+  static final TestAgentBackend agent = AgentBackend
+    .testAgentBuilder()
+    .retainAcrossTests()
+    .build();
   @Order(2)
   @RegisterExtension
-  static final SmokeServerApp sender =
-      rabbitApp(0).args("--rabbit.sender.queue=otherqueue").build();
-
+  static final SmokeServerApp sender = rabbitApp(0)
+    .args("--rabbit.sender.queue=otherqueue")
+    .build();
   @Order(3)
   @RegisterExtension
-  static final SmokeServerApp receiver =
-      rabbitApp(1)
-          .args("--rabbit.receiver.queue=otherqueue", "--rabbit.receiver.forward=true")
-          .build();
+  static final SmokeServerApp receiver = rabbitApp(1)
+    .args("--rabbit.receiver.queue=otherqueue", "--rabbit.receiver.forward=true")
+    .build();
 
   @Test
   void roundTripsProduceFullAmqpTraceStructure() throws IOException {
@@ -118,7 +115,6 @@ class SpringBootRabbitSmokeTest {
         assertEquals("Got: >" + message, body.string(), "round-trip " + message);
       }
     }
-
     // One full round-trip trace per message, plus each service's connection-setup/ack commands.
     List<TraceMatcher> expected = new ArrayList<>();
     for (int i = 0; i < messages.length; i++) {
@@ -130,11 +126,11 @@ class SpringBootRabbitSmokeTest {
       }
     }
     agent
-        .traces()
-        .waitForTraces(
-            TIMEOUT_SECONDS,
-            o -> o.unorder().ignoreAdditionalTraces(),
-            expected.toArray(new TraceMatcher[0]));
+      .traces()
+      .waitForTraces(
+          TIMEOUT_SECONDS,
+          o -> o.unorder().ignoreAdditionalTraces(),
+          expected.toArray(new TraceMatcher[0]));
   }
 
   // The full distributed round-trip: HTTP entrypoint -> publish -> receiver consumes and forwards
@@ -145,8 +141,7 @@ class SpringBootRabbitSmokeTest {
         SORT_BY_ANCESTRY,
         sp("spring-rabbit-0", "servlet.request", "GET /roundtrip/{message}").root(),
         sp("spring-rabbit-0", "spring.handler", "WebController.roundtrip").childOfPrevious(),
-        sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue")
-            .childOfPrevious(),
+        sp("spring-rabbit-0", "amqp.command", "basic.publish <default> -> otherqueue").childOfPrevious(),
         sp("rabbitmq", "amqp.deliver", "amqp.deliver otherqueue").childOfPrevious(),
         sp("spring-rabbit-1", "amqp.command", "basic.deliver otherqueue").childOfPrevious(),
         sp("spring-rabbit-1", "amqp.consume", "amqp.consume otherqueue").childOfPrevious(),
@@ -188,21 +183,23 @@ class SpringBootRabbitSmokeTest {
   }
 
   private static SmokeServerApp.Builder rabbitApp(int index) {
-    return SmokeServerApp.named("spring-rabbit-" + index)
-        .jar(APPLICATION_JAR)
-        .backend(agent)
-        .jvmArgs(
-            "-Ddd.service.name=spring-rabbit-" + index, "-Ddd.rabbit.legacy.tracing.enabled=false")
-        // Resolved at launch, after @Testcontainers has started RABBIT — not at build time.
-        .placeholder("rabbit.host", RABBIT::getHost)
-        .placeholder("rabbit.port", () -> String.valueOf(RABBIT.getMappedPort(RABBIT_AMQP_PORT)))
-        .args(
-            "--server.port=${app.httpPort}",
-            "--spring.rabbitmq.host=${rabbit.host}",
-            "--spring.rabbitmq.port=${rabbit.port}")
-        // The broker connection is torn down noisily when the app is killed at teardown.
-        .allowedErrorLogs(
-            "Failed to check/redeclare auto-delete queue(s)",
-            "An unexpected connection driver error occured");
+    return SmokeServerApp
+      .named("spring-rabbit-" + index)
+      .jar(APPLICATION_JAR)
+      .backend(agent)
+      .jvmArgs(
+          "-Ddd.service.name=spring-rabbit-" + index,
+          "-Ddd.rabbit.legacy.tracing.enabled=false")
+      // Resolved at launch, after @Testcontainers has started RABBIT — not at build time.
+      .placeholder("rabbit.host", RABBIT::getHost)
+      .placeholder("rabbit.port", () -> String.valueOf(RABBIT.getMappedPort(RABBIT_AMQP_PORT)))
+      .args(
+          "--server.port=${app.httpPort}",
+          "--spring.rabbitmq.host=${rabbit.host}",
+          "--spring.rabbitmq.port=${rabbit.port}")
+      // The broker connection is torn down noisily when the app is killed at teardown.
+      .allowedErrorLogs(
+          "Failed to check/redeclare auto-delete queue(s)",
+          "An unexpected connection driver error occured");
   }
 }

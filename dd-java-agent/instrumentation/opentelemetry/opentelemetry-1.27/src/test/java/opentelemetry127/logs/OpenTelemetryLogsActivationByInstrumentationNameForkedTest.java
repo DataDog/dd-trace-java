@@ -7,7 +7,6 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 @WithConfig(key = "integration.opentelemetry-logs.enabled", value = "true")
 class OpenTelemetryLogsActivationByInstrumentationNameForkedTest
     extends OpenTelemetryLogsActivationTest {
-
   @Override
   boolean shouldBeInjected() {
     return true;

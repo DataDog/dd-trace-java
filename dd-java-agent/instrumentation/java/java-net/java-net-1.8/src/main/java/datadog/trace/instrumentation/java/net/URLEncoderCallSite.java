@@ -10,7 +10,6 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class URLEncoderCallSite {
-
   @CallSite.After("java.lang.String java.net.URLEncoder.encode(java.lang.String)")
   public static String afterEncode(
       @CallSite.Argument @Nullable final String value,

@@ -1,7 +1,6 @@
 package com.datadog.debugger.symbol;
 
 import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
-
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -38,7 +37,6 @@ public class SymbolAggregator {
   private static final String CLASS_SUFFIX = ".class";
   private static final int READ_BUFFER_SIZE = 4096;
   private static final int CLASSFILE_BUFFER_SIZE = 8192;
-
   private final DebuggerContext.ClassNameFilter classNameFilter;
   private final List<ScopeFilter> scopeFilters;
   private final SymbolSink sink;
@@ -65,12 +63,12 @@ public class SymbolAggregator {
   }
 
   public void start() {
-    flushRemainingScopeScheduled =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(this::flushRemainingScopes, this, 0, 1, TimeUnit.SECONDS);
-    scanJarsScheduled =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(this::scanQueuedJars, this, 0, 1, TimeUnit.SECONDS);
+    flushRemainingScopeScheduled = AgentTaskScheduler
+      .get()
+      .scheduleAtFixedRate(this::flushRemainingScopes, this, 0, 1, TimeUnit.SECONDS);
+    scanJarsScheduled = AgentTaskScheduler
+      .get()
+      .scheduleAtFixedRate(this::scanQueuedJars, this, 0, 1, TimeUnit.SECONDS);
   }
 
   public void stop() {
@@ -85,15 +83,19 @@ public class SymbolAggregator {
   }
 
   public void parseClass(
-      String className, byte[] classfileBuffer, ProtectionDomain protectionDomain) {
+      String className,
+      byte[] classfileBuffer,
+      ProtectionDomain protectionDomain) {
     try {
       String jarName = "DEFAULT";
       Path jarPath = JarScanner.extractJarPath(protectionDomain, SymDBReport.NO_OP);
       if (jarPath != null && Files.exists(jarPath)) {
         LOGGER.debug("jarpath: {}", jarPath);
         jarName = jarPath.toString();
-        if (!alreadyScannedJars.contains(jarName)) { // filter out already scanned jars
-          if (!jarsToScanQueue.contains(jarName)) { // filter out already queued jars
+        if (!alreadyScannedJars.contains(jarName)) {
+          // filter out already scanned jars
+          if (!jarsToScanQueue.contains(jarName)) {
+            // filter out already queued jars
             LOGGER.debug("Queuing jar to scan: {}", jarPath);
             if (!jarsToScanQueue.offer(jarName)) {
               LOGGER.debug("jarToScan queue is full, skipping jar: {}", jarName);
@@ -108,7 +110,10 @@ public class SymbolAggregator {
   }
 
   public void parseClass(
-      SymDBReport symDBReport, String className, byte[] classfileBuffer, String jarName) {
+      SymDBReport symDBReport,
+      String className,
+      byte[] classfileBuffer,
+      String jarName) {
     if (className == null) {
       return;
     }
@@ -117,7 +122,8 @@ public class SymbolAggregator {
       className = className.substring(0, className.length() - CLASS_SUFFIX.length());
     }
     synchronized (loadedClasses) {
-      String fqn = Strings.getClassName(className); // ClassNameTrie expects Java class names ('.')
+      // ClassNameTrie expects Java class names ('.')
+      String fqn = Strings.getClassName(className);
       if (loadedClasses.apply(fqn) > 0) {
         // class already loaded and symbol extracted
         return;
@@ -147,7 +153,8 @@ public class SymbolAggregator {
         return;
       }
       LOGGER.debug("Flush remaining scopes");
-      addJarScope(null, true); // force flush remaining scopes
+      // force flush remaining scopes
+      addJarScope(null, true);
     }
   }
 
@@ -199,7 +206,10 @@ public class SymbolAggregator {
   }
 
   public void scanJar(
-      SymDBReport symDBReport, Path jarPath, ByteArrayOutputStream baos, byte[] buffer) {
+      SymDBReport symDBReport,
+      Path jarPath,
+      ByteArrayOutputStream baos,
+      byte[] buffer) {
     if (alreadyScannedJars.contains(jarPath.toString())) {
       return;
     }
@@ -209,14 +219,18 @@ public class SymbolAggregator {
     } else {
       try {
         try (JarFile jarFile = openJarFile(jarPathFile)) {
-          jarFile.stream()
-              .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
-              .filter(
-                  jarEntry ->
-                      !classNameFilter.isExcluded(
-                          Strings.getClassName(trimPrefixes(jarEntry.getName()))))
-              .forEach(
-                  jarEntry -> parseJarEntry(symDBReport, jarEntry, jarFile, jarPath, baos, buffer));
+          jarFile
+            .stream()
+            .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
+            .filter(jarEntry -> !classNameFilter.isExcluded(Strings.getClassName(
+                trimPrefixes(jarEntry.getName()))))
+            .forEach(jarEntry -> parseJarEntry(
+                symDBReport,
+                jarEntry,
+                jarFile,
+                jarPath,
+                baos,
+                buffer));
         }
       } catch (IOException e) {
         symDBReport.addIOException(jarPath.toString(), e);
@@ -240,14 +254,12 @@ public class SymbolAggregator {
       SymDBReport symDBReport) {
     try (Stream<Path> paths = Files.walk(jarPath)) {
       paths
-          // explicitly no follow links walking the directory to avoid cycles
-          .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
-          .filter(path -> path.toString().endsWith(".class"))
-          .filter(
-              path ->
-                  !classNameFilter.isExcluded(
-                      Strings.getClassName(trimPrefixes(jarPath.relativize(path).toString()))))
-          .forEach(path -> parseFileEntry(symDBReport, path, jarPath, baos, buffer));
+        // explicitly no follow links walking the directory to avoid cycles
+        .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
+        .filter(path -> path.toString().endsWith(".class"))
+        .filter(path -> !classNameFilter.isExcluded(Strings.getClassName(
+            trimPrefixes(jarPath.relativize(path).toString()))))
+        .forEach(path -> parseFileEntry(symDBReport, path, jarPath, baos, buffer));
       alreadyScannedJars.add(jarPath.toString());
     } catch (IOException e) {
       symDBReport.addIOException(jarPath.toString(), e);
@@ -256,7 +268,11 @@ public class SymbolAggregator {
   }
 
   private void parseFileEntry(
-      SymDBReport symDBReport, Path path, Path jarPath, ByteArrayOutputStream baos, byte[] buffer) {
+      SymDBReport symDBReport,
+      Path path,
+      Path jarPath,
+      ByteArrayOutputStream baos,
+      byte[] buffer) {
     LOGGER.debug("parsing file class: {}", path.toString());
     try {
       try (InputStream inputStream = Files.newInputStream(path)) {
@@ -266,7 +282,10 @@ public class SymbolAggregator {
           baos.write(buffer, 0, readBytes);
         }
         parseClass(
-            symDBReport, path.getFileName().toString(), baos.toByteArray(), jarPath.toString());
+            symDBReport,
+            path.getFileName().toString(),
+            baos.toByteArray(),
+            jarPath.toString());
       }
     } catch (IOException ex) {
       symDBReport.addIOException(jarPath.toString(), ex);

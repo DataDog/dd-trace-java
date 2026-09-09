@@ -7,7 +7,6 @@ import static datadog.nativeloader.TestPlatformSpec.MAC;
 import static datadog.nativeloader.TestPlatformSpec.MUSL;
 import static datadog.nativeloader.TestPlatformSpec.WINDOWS;
 import static datadog.nativeloader.TestPlatformSpec.X86_64;
-
 import org.junit.jupiter.api.Test;
 
 public class FlatDirLibraryResolverTest {

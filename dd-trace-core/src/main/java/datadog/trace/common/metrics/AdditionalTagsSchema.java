@@ -15,25 +15,23 @@ import org.slf4j.LoggerFactory;
  * construction.
  */
 final class AdditionalTagsSchema {
-
   private static final Logger log = LoggerFactory.getLogger(AdditionalTagsSchema.class);
-
   // Backend stats pipeline only supports a few primary tag dimensions; drop overflow at startup.
   static final int MAX_ADDITIONAL_TAG_KEYS = 4;
-
   // Health-metric statsD tags per the approved Cardinality Limits RFC (section 5): collapses are
   // reported under the lowercased protobuf field name additional_metric_tags, with cardinality-
   // collapses (collapsed:) and per-value length-collapses (oversized:) tagged distinctly.
   private static final String[] COLLAPSED_STATSD_TAG = {"collapsed:additional_metric_tags"};
   private static final String[] OVERSIZED_STATSD_TAG = {"oversized:additional_metric_tags"};
-
-  /** Singleton empty schema returned when no additional tags are configured. */
+  /**
+   * Singleton empty schema returned when no additional tags are configured.
+   */
   static final AdditionalTagsSchema EMPTY =
       new AdditionalTagsSchema(new String[0], new TagCardinalityHandler[0]);
-
   final String[] names;
-
-  /** Per-key handlers providing UTF8 caching and per-cycle cardinality limiting. */
+  /**
+   * Per-key handlers providing UTF8 caching and per-cycle cardinality limiting.
+   */
   private final TagCardinalityHandler[] handlers;
 
   private AdditionalTagsSchema(String[] names, TagCardinalityHandler[] handlers) {
@@ -41,7 +39,9 @@ final class AdditionalTagsSchema {
     this.handlers = handlers;
   }
 
-  /** Test convenience: limits enabled. */
+  /**
+   * Test convenience: limits enabled.
+   */
   static AdditionalTagsSchema from(Set<String> configured) {
     return from(
         configured,
@@ -73,7 +73,7 @@ final class AdditionalTagsSchema {
     if (valid.size() > MAX_ADDITIONAL_TAG_KEYS) {
       log.warn(
           "Configured additional metric tag keys ({}) exceeds the supported limit of {}; "
-              + "dropping extra keys: {}",
+          + "dropping extra keys: {}",
           valid.size(),
           MAX_ADDITIONAL_TAG_KEYS,
           valid.subList(MAX_ADDITIONAL_TAG_KEYS, valid.size()));
@@ -82,12 +82,11 @@ final class AdditionalTagsSchema {
     String[] namesArr = valid.toArray(new String[0]);
     TagCardinalityHandler[] handlersArr = new TagCardinalityHandler[namesArr.length];
     for (int i = 0; i < namesArr.length; i++) {
-      handlersArr[i] =
-          new TagCardinalityHandler(
-              namesArr[i],
-              limit,
-              useBlockedSentinel,
-              MetricCardinalityLimits.ADDITIONAL_TAG_MAX_VALUE_LENGTH);
+      handlersArr[i] = new TagCardinalityHandler(
+          namesArr[i],
+          limit,
+          useBlockedSentinel,
+          MetricCardinalityLimits.ADDITIONAL_TAG_MAX_VALUE_LENGTH);
     }
     return new AdditionalTagsSchema(namesArr, handlersArr);
   }

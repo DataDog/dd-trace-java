@@ -9,5 +9,6 @@ public final class WriterConstants {
   public static final String MULTI_WRITER_TYPE = "MultiWriter";
   public static final String OTLP_WRITER_TYPE = "OtlpWriter";
 
-  private WriterConstants() {}
+  private WriterConstants() {
+  }
 }

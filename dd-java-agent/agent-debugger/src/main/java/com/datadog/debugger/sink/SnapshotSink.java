@@ -35,7 +35,6 @@ public class SnapshotSink {
   private static final int HIGH_RATE_75_PERCENT_CAPACITY = HIGH_RATE_CAPACITY * 3 / 4;
   static final long HIGH_RATE_STEP_SIZE = 10;
   public static final BatchUploader.RetryPolicy RETRY_POLICY = new BatchUploader.RetryPolicy(0);
-
   // low rate queue (aka snapshots)
   private final BlockingQueue<Snapshot> lowRateSnapshots =
       new ArrayBlockingQueue<>(LOW_RATE_CAPACITY);
@@ -56,7 +55,10 @@ public class SnapshotSink {
   private volatile long currentHighRateFlushInterval = HIGH_RATE_MAX_FLUSH_INTERVAL_MS;
 
   public SnapshotSink(
-      Config config, String tags, BatchUploader lowRateUploader, BatchUploader highRateUploader) {
+      Config config,
+      String tags,
+      BatchUploader lowRateUploader,
+      BatchUploader highRateUploader) {
     this.serviceName = TagsHelper.sanitize(config.getServiceName());
     this.batchSize = config.getDynamicInstrumentationUploadBatchSize();
     this.tags = tags;
@@ -66,9 +68,12 @@ public class SnapshotSink {
 
   public void start() {
     if (started.compareAndSet(false, true)) {
-      highRateScheduled =
-          highRateScheduler.scheduleAtFixedRate(
-              this::highRateFlush, this, 0, currentHighRateFlushInterval, TimeUnit.MILLISECONDS);
+      highRateScheduled = highRateScheduler.scheduleAtFixedRate(
+          this::highRateFlush,
+          this,
+          0,
+          currentHighRateFlushInterval,
+          TimeUnit.MILLISECONDS);
     }
   }
 
@@ -125,8 +130,9 @@ public class SnapshotSink {
 
   private void backOffHighRateFlush() {
     long interval = currentHighRateFlushInterval;
-    currentHighRateFlushInterval =
-        Math.min(interval + HIGH_RATE_STEP_SIZE, HIGH_RATE_MAX_FLUSH_INTERVAL_MS);
+    currentHighRateFlushInterval = Math.min(
+        interval + HIGH_RATE_STEP_SIZE,
+        HIGH_RATE_MAX_FLUSH_INTERVAL_MS);
     if (interval != currentHighRateFlushInterval) {
       highRateReschedule();
     }
@@ -141,8 +147,9 @@ public class SnapshotSink {
     } else if (snapshotCount > HIGH_RATE_25_PERCENT_CAPACITY) {
       currentHighRateFlushInterval = Math.max(interval / 2, HIGH_RATE_MIN_FLUSH_INTERVAL_MS);
     } else if (snapshotCount > HIGH_RATE_10_PERCENT_CAPACITY) {
-      currentHighRateFlushInterval =
-          Math.max(interval - HIGH_RATE_STEP_SIZE, HIGH_RATE_MIN_FLUSH_INTERVAL_MS);
+      currentHighRateFlushInterval = Math.max(
+          interval - HIGH_RATE_STEP_SIZE,
+          HIGH_RATE_MIN_FLUSH_INTERVAL_MS);
     }
     if (interval != currentHighRateFlushInterval) {
       highRateReschedule();
@@ -157,15 +164,13 @@ public class SnapshotSink {
     if (localScheduled != null) {
       localScheduled.cancel();
     }
-    LOGGER.debug(
-        "Rescheduling high rate debugger sink flush to {}ms", currentHighRateFlushInterval);
-    this.highRateScheduled =
-        highRateScheduler.scheduleAtFixedRate(
-            this::highRateFlush,
-            this,
-            currentHighRateFlushInterval,
-            currentHighRateFlushInterval,
-            TimeUnit.MILLISECONDS);
+    LOGGER.debug("Rescheduling high rate debugger sink flush to {}ms", currentHighRateFlushInterval);
+    this.highRateScheduled = highRateScheduler.scheduleAtFixedRate(
+        this::highRateFlush,
+        this,
+        currentHighRateFlushInterval,
+        currentHighRateFlushInterval,
+        TimeUnit.MILLISECONDS);
   }
 
   private List<String> getSerializedSnapshots(BlockingQueue<Snapshot> queue, int localBatchSize) {
@@ -199,7 +204,8 @@ public class SnapshotSink {
   }
 
   private String serializeSnapshot(String serviceName, Snapshot snapshot) {
-    snapshot.getId(); // Ensure id is generated
+    // Ensure id is generated
+    snapshot.getId();
     String str = DebuggerAgent.getSnapshotSerializer().serializeSnapshot(serviceName, snapshot);
     String prunedStr = SnapshotPruner.prune(str, MAX_SNAPSHOT_SIZE, 4);
     if (prunedStr.length() != str.length()) {

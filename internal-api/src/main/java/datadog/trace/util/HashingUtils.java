@@ -9,7 +9,8 @@ import javax.annotation.Nullable;
  * <code>hash</code> that take many argument lengths to avoid var-args allocation.
  */
 public final class HashingUtils {
-  private HashingUtils() {}
+  private HashingUtils() {
+  }
 
   public static final int hashCode(@Nullable Object obj) {
     return obj != null ? obj.hashCode() : 0;
@@ -89,7 +90,11 @@ public final class HashingUtils {
     // DQH - Micro-optimizing, 31 * 31 will constant fold
     // Since there are multiple execution ports for load & store,
     // this will make good use of the core.
-    return 31 * 31 * 31 * 31 * hash0 + 31 * 31 * 31 * hash1 + 31 * 31 * hash2 + 31 * hash3 + hash4;
+    return 31 * 31 * 31 * 31 * hash0
+        + 31 * 31 * 31 * hash1
+        + 31 * 31 * hash2
+        + 31 * hash3
+        + hash4;
   }
 
   @Deprecated
@@ -137,7 +142,9 @@ public final class HashingUtils {
     return addToHash(hash, Double.hashCode(value));
   }
 
-  /** Folds {@code arr[0..len)}; the array must be non-null, but its elements may be null. */
+  /**
+   * Folds {@code arr[0..len)}; the array must be non-null, but its elements may be null.
+   */
   public static final int addToHash(int hash, @Nonnull Object[] arr, int len) {
     for (int i = 0; i < len; i++) {
       hash = addToHash(hash, arr[i]);

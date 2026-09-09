@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpServerDecorator.DECORATE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

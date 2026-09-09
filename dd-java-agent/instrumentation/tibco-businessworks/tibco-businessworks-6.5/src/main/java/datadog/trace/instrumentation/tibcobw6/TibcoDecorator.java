@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.tibcobw6;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIBCO_NODE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIBCO_VERSION;
-
 import datadog.environment.SystemProperties;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -20,19 +19,17 @@ public class TibcoDecorator extends BaseDecorator {
   private static final CharSequence APPNODE_NAME =
       UTF8BytesString.create(SystemProperties.get("bw.appnode"));
   private static final CharSequence BW_VERSION = bwVersion();
-  public static final CharSequence TIBCO_PROCESS_OPERATION =
-      UTF8BytesString.create("tibco.process");
+  public static final CharSequence TIBCO_PROCESS_OPERATION = UTF8BytesString.create("tibco.process");
   public static final CharSequence TIBCO_ACTIVITY_OPERATION =
       UTF8BytesString.create("tibco.activity");
   public static final TibcoDecorator DECORATE = new TibcoDecorator();
 
   private static CharSequence bwVersion() {
     try {
-      Class cls =
-          Class.forName(
-              "com.tibco.bw.thor.management.common.SetupUtils",
-              false,
-              ClassLoader.getSystemClassLoader());
+      Class cls = Class.forName(
+          "com.tibco.bw.thor.management.common.SetupUtils",
+          false,
+          ClassLoader.getSystemClassLoader());
       Map<String, String> map =
           (Map<String, String>) cls.getMethod("loadProductConfiguration").invoke(null);
       if (map != null) {
@@ -66,10 +63,11 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   public void onProcessStart(AgentSpan span, String processName) {
-    span.setResourceName(processName)
-        .setTag(TIBCO_NODE, APPNODE_NAME)
-        .setTag(TIBCO_VERSION, BW_VERSION)
-        .setMeasured(true);
+    span
+      .setResourceName(processName)
+      .setTag(TIBCO_NODE, APPNODE_NAME)
+      .setTag(TIBCO_VERSION, BW_VERSION)
+      .setMeasured(true);
   }
 
   public void onActivityStart(final AgentSpan span, String activityName) {

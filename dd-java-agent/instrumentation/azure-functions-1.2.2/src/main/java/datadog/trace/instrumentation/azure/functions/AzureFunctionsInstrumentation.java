@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.azure.functions.AzureFunctionsDecora
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.HttpRequestMessage;
@@ -28,7 +27,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public AzureFunctionsInstrumentation() {
     super("azure-functions");
   }
@@ -52,16 +52,17 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AzureFunctionsDecorator", packageName + ".HttpRequestMessageExtractAdapter"
+        packageName + ".AzureFunctionsDecorator",
+        packageName + ".HttpRequestMessageExtractAdapter"
     };
   }
 
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(isPublic())
-            .and(takesArgument(0, named("com.microsoft.azure.functions.HttpRequestMessage")))
-            .and(takesArgument(1, named("com.microsoft.azure.functions.ExecutionContext"))),
+          .and(isPublic())
+          .and(takesArgument(0, named("com.microsoft.azure.functions.HttpRequestMessage")))
+          .and(takesArgument(1, named("com.microsoft.azure.functions.ExecutionContext"))),
         AzureFunctionsInstrumentation.class.getName() + "$ContextTrackingAdvice",
         AzureFunctionsInstrumentation.class.getName() + "$AzureFunctionsAdvice");
   }
@@ -85,14 +86,17 @@ public class AzureFunctionsInstrumentation extends InstrumenterModule.Tracing
     public static ContextScope methodEnter(
         @Advice.Argument(0) final HttpRequestMessage<?> request,
         @Advice.Argument(1) final ExecutionContext executionContext) {
-      final Context parentContext =
-          currentContext(); // parent context attached by ContextTrackingAdvice
+      final Context // parent context attached by ContextTrackingAdvice
+      // parent context attached by ContextTrackingAdvice
+      parentContext = currentContext();
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = fromContext(context);
       DECORATE.afterStart(span, executionContext.getFunctionName());
       DECORATE.onRequest(span, request, request, parentContext);
       HTTP_RESOURCE_DECORATOR.withRoute(
-          span, request.getHttpMethod().name(), request.getUri().getPath());
+          span,
+          request.getHttpMethod().name(),
+          request.getUri().getPath());
       return context.attach();
     }
 

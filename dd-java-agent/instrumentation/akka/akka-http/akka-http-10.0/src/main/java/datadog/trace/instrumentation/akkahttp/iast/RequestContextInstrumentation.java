@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.server.RequestContext;
 import com.google.auto.service.AutoService;
@@ -21,10 +20,13 @@ import datadog.trace.api.iast.Propagation;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import net.bytebuddy.asm.Advice;
 
-/** Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}. */
+/**
+ * Propagates taint when fetching the {@link HttpRequest} from the {@link RequestContext}.
+ */
 @AutoService(InstrumenterModule.class)
 public class RequestContextInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public RequestContextInstrumentation() {
     super("akka-http");
   }
@@ -38,10 +40,10 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(not(isStatic()))
-            .and(named("request"))
-            .and(returns(named("akka.http.scaladsl.model.HttpRequest")))
-            .and(takesArguments(0)),
+          .and(not(isStatic()))
+          .and(named("request"))
+          .and(returns(named("akka.http.scaladsl.model.HttpRequest")))
+          .and(takesArguments(0)),
         RequestContextInstrumentation.class.getName() + "$GetRequestAdvice");
   }
 
@@ -53,7 +55,6 @@ public class RequestContextInstrumentation extends InstrumenterModule.Iast
         @Advice.This RequestContext requestContext,
         @Advice.Return HttpRequest request,
         @ActiveRequestContext datadog.trace.api.gateway.RequestContext reqCtx) {
-
       PropagationModule propagation = InstrumentationBridge.PROPAGATION;
       if (propagation == null) {
         return;

@@ -3,7 +3,6 @@ package com.datadog.debugger.symbol;
 import static com.datadog.debugger.instrumentation.ASMHelper.adjustLocalVarsBasedOnArgs;
 import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes;
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
-
 import com.datadog.debugger.instrumentation.ASMHelper;
 import datadog.trace.agent.tooling.stratum.SourceMap;
 import datadog.trace.agent.tooling.stratum.parser.Parser;
@@ -65,27 +64,30 @@ public class SymbolExtractor {
         }
       }
       List<Symbol> fields = extractFields(classNode);
-      LanguageSpecifics classSpecifics =
-          new LanguageSpecifics.Builder()
-              .addModifiers(extractClassModifiers(classNode.access))
-              .addInterfaces(extractInterfaces(classNode))
-              .addAnnotations(extractAnnotations(classNode.visibleAnnotations))
-              .superClass(ASMHelper.extractSuperClass(classNode))
-              .build();
-      Scope classScope =
-          Scope.builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)
-              .name(Strings.getClassName(classNode.name))
-              .scopes(methodScopes)
-              .symbols(fields)
-              .languageSpecifics(classSpecifics)
-              .build();
-      return Scope.builder(ScopeType.JAR, jarName, 0, 0)
-          .name(jarName)
-          .scopes(new ArrayList<>(Collections.singletonList(classScope)))
-          .build();
+      LanguageSpecifics classSpecifics = new LanguageSpecifics.Builder()
+        .addModifiers(extractClassModifiers(classNode.access))
+        .addInterfaces(extractInterfaces(classNode))
+        .addAnnotations(extractAnnotations(classNode.visibleAnnotations))
+        .superClass(ASMHelper.extractSuperClass(classNode))
+        .build();
+      Scope classScope = Scope
+        .builder(ScopeType.CLASS, sourceFile, classStartLine, classEndLine)
+        .name(Strings.getClassName(classNode.name))
+        .scopes(methodScopes)
+        .symbols(fields)
+        .languageSpecifics(classSpecifics)
+        .build();
+      return Scope
+        .builder(ScopeType.JAR, jarName, 0, 0)
+        .name(jarName)
+        .scopes(new ArrayList<>(Collections.singletonList(classScope)))
+        .build();
     } catch (Exception ex) {
       LOGGER.debug(
-          "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
+          "Extracting scopes for class[{}] in jar[{}] failed: ",
+          classNode.name,
+          jarName,
+          ex);
       return null;
     }
   }
@@ -102,11 +104,10 @@ public class SymbolExtractor {
     for (FieldNode fieldNode : classNode.fields) {
       SymbolType symbolType =
           ASMHelper.isStaticField(fieldNode) ? SymbolType.STATIC_FIELD : SymbolType.FIELD;
-      LanguageSpecifics fieldSpecifics =
-          new LanguageSpecifics.Builder()
-              .addModifiers(extractFieldModifiers(fieldNode.access))
-              .addAnnotations(extractAnnotations(fieldNode.visibleAnnotations))
-              .build();
+      LanguageSpecifics fieldSpecifics = new LanguageSpecifics.Builder()
+        .addModifiers(extractFieldModifiers(fieldNode.access))
+        .addAnnotations(extractAnnotations(fieldNode.visibleAnnotations))
+        .build();
       fields.add(
           new Symbol(
               symbolType,
@@ -119,7 +120,9 @@ public class SymbolExtractor {
   }
 
   private static List<Scope> extractMethods(
-      ClassNode classNode, String sourceFile, SourceRemapper sourceRemapper) {
+      ClassNode classNode,
+      String sourceFile,
+      SourceRemapper sourceRemapper) {
     List<Scope> methodScopes = new ArrayList<>();
     for (MethodNode method : classNode.methods) {
       MethodLineInfo methodLineInfo = extractMethodLineInfo(method, sourceRemapper);
@@ -127,26 +130,29 @@ public class SymbolExtractor {
       List<Symbol> methodSymbols = new ArrayList<>();
       int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
       extractScopesFromVariables(
-          sourceFile, method, methodLineInfo.lineMap, varScopes, localVarBaseSlot);
+          sourceFile,
+          method,
+          methodLineInfo.lineMap,
+          varScopes,
+          localVarBaseSlot);
       ScopeType methodScopeType = ScopeType.METHOD;
       if (method.name.startsWith("lambda$")) {
         methodScopeType = ScopeType.CLOSURE;
       }
-      LanguageSpecifics methodSpecifics =
-          new LanguageSpecifics.Builder()
-              .addModifiers(extractMethodModifiers(classNode, method, method.access))
-              .addAnnotations(extractAnnotations(method.visibleAnnotations))
-              .returnType(Type.getType(method.desc).getReturnType().getClassName())
-              .build();
-      Scope methodScope =
-          Scope.builder(methodScopeType, sourceFile, methodLineInfo.start, methodLineInfo.end)
-              .name(method.name)
-              .scopes(varScopes)
-              .symbols(methodSymbols)
-              .hasInjectibleLines(!methodLineInfo.ranges.isEmpty())
-              .injectibleLines(methodLineInfo.ranges)
-              .languageSpecifics(methodSpecifics)
-              .build();
+      LanguageSpecifics methodSpecifics = new LanguageSpecifics.Builder()
+        .addModifiers(extractMethodModifiers(classNode, method, method.access))
+        .addAnnotations(extractAnnotations(method.visibleAnnotations))
+        .returnType(Type.getType(method.desc).getReturnType().getClassName())
+        .build();
+      Scope methodScope = Scope
+        .builder(methodScopeType, sourceFile, methodLineInfo.start, methodLineInfo.end)
+        .name(method.name)
+        .scopes(varScopes)
+        .symbols(methodSymbols)
+        .hasInjectibleLines(!methodLineInfo.ranges.isEmpty())
+        .injectibleLines(methodLineInfo.ranges)
+        .languageSpecifics(methodSpecifics)
+        .build();
       methodScopes.add(methodScope);
     }
     return methodScopes;
@@ -173,7 +179,8 @@ public class SymbolExtractor {
           results.add("final");
           break;
         case Opcodes.ACC_SUPER:
-          break; // not interesting
+          // not interesting
+          break;
         case Opcodes.ACC_INTERFACE:
           results.add("interface");
           break;
@@ -206,7 +213,9 @@ public class SymbolExtractor {
   }
 
   private static Collection<String> extractMethodModifiers(
-      ClassNode classNode, MethodNode methodNode, int access) {
+      ClassNode classNode,
+      MethodNode methodNode,
+      int access) {
     List<String> results = new ArrayList<>();
     for (int remaining = access, bit; remaining != 0; remaining -= bit) {
       bit = Integer.lowestOneBit(remaining);
@@ -335,8 +344,7 @@ public class SymbolExtractor {
     return packageName + classNode.sourceFile;
   }
 
-  private static int extractArgs(
-      MethodNode method, List<Symbol> methodSymbols, int methodStartLine) {
+  private static int extractArgs(MethodNode method, List<Symbol> methodSymbols, int methodStartLine) {
     boolean isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
     int slot = isStatic ? 0 : 1;
     if (method.localVariables == null || method.localVariables.size() == 0) {
@@ -377,13 +385,11 @@ public class SymbolExtractor {
       if (localVariable.index < localVarBaseSlot) {
         continue;
       }
-      varsByEndLabel.merge(
-          localVariable.end,
-          new ArrayList<>(Collections.singletonList(localVariable)),
-          (curr, next) -> {
-            curr.addAll(next);
-            return curr;
-          });
+      varsByEndLabel.merge(localVariable.end, new ArrayList<>(Collections.singletonList(
+          localVariable)), (curr, next) -> {
+        curr.addAll(next);
+        return curr;
+      });
     }
     List<Scope> tmpScopes = new ArrayList<>();
     for (Map.Entry<LabelNode, List<LocalVariableNode>> entry : varsByEndLabel.entrySet()) {
@@ -401,18 +407,22 @@ public class SymbolExtractor {
         minLine = Math.min(line, minLine);
         varSymbols.add(
             new Symbol(
-                SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName(), null));
+                SymbolType.LOCAL,
+                var.name,
+                line,
+                Type.getType(var.desc).getClassName(),
+                null));
       }
       Integer endLine = monotonicLineMap.get(entry.getKey().getLabel());
       if (endLine == null) {
         LOGGER.debug("Cannot find the line from end label");
         continue;
       }
-      Scope varScope =
-          Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
-              .symbols(varSymbols)
-              .scopes(new ArrayList<>())
-              .build();
+      Scope varScope = Scope
+        .builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
+        .symbols(varSymbols)
+        .scopes(new ArrayList<>())
+        .build();
       tmpScopes.add(varScope);
     }
     nestScopes(varScopes, tmpScopes);
@@ -461,7 +471,7 @@ public class SymbolExtractor {
 
   private static Scope maxScope(Scope scope1, Scope scope2) {
     return scope1.getStartLine() > scope2.getStartLine()
-            || scope1.getEndLine() < scope2.getEndLine()
+        || scope1.getEndLine() < scope2.getEndLine()
         ? scope2
         : scope1;
   }
@@ -474,8 +484,7 @@ public class SymbolExtractor {
     int start = sortedLineNo.get(0);
     int previous = start;
     int i = 1;
-    outer:
-    while (i < sortedLineNo.size()) {
+    outer: while (i < sortedLineNo.size()) {
       int currentLineNo = sortedLineNo.get(i);
       while (currentLineNo == previous + 1) {
         i++;
@@ -496,7 +505,8 @@ public class SymbolExtractor {
   }
 
   private static MethodLineInfo extractMethodLineInfo(
-      MethodNode methodNode, SourceRemapper sourceRemapper) {
+      MethodNode methodNode,
+      SourceRemapper sourceRemapper) {
     Map<Label, Integer> map = new HashMap<>();
     List<Integer> lineNo = new ArrayList<>();
     Set<Integer> dedupSet = new HashSet<>();
@@ -550,7 +560,10 @@ public class SymbolExtractor {
     final List<Scope.LineRange> ranges;
 
     public MethodLineInfo(
-        int start, int end, Map<Label, Integer> lineMap, List<Scope.LineRange> ranges) {
+        int start,
+        int end,
+        Map<Label, Integer> lineMap,
+        List<Scope.LineRange> ranges) {
       this.start = start;
       this.end = end;
       this.lineMap = lineMap;

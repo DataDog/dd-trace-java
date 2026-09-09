@@ -10,11 +10,9 @@ import org.slf4j.LoggerFactory;
 
 public class MuzzleCheck implements ElementMatcher<ClassLoader> {
   private static final Logger log = LoggerFactory.getLogger(MuzzleCheck.class);
-
   private final int instrumentationId;
   private final String instrumentationClass;
   private final ReferenceProvider runtimeMuzzleReferences;
-
   private ReferenceMatcher muzzle;
 
   public MuzzleCheck(InstrumenterModule module, int instrumentationId) {
@@ -54,10 +52,9 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
 
   private ReferenceMatcher muzzle() {
     if (null == muzzle) {
-      muzzle =
-          InstrumenterModule.loadStaticMuzzleReferences(
-                  Utils.getExtendedClassLoader(), instrumentationClass)
-              .withReferenceProvider(runtimeMuzzleReferences);
+      muzzle = InstrumenterModule
+        .loadStaticMuzzleReferences(Utils.getExtendedClassLoader(), instrumentationClass)
+        .withReferenceProvider(runtimeMuzzleReferences);
     }
     return muzzle;
   }

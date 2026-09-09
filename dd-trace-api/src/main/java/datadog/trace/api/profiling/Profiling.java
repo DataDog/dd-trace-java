@@ -5,7 +5,6 @@ import datadog.trace.api.Tracer;
 import datadog.trace.api.internal.InternalTracer;
 
 public interface Profiling {
-
   static Profiling get() {
     Tracer tracer = GlobalTracer.get();
     if (tracer instanceof InternalTracer) {

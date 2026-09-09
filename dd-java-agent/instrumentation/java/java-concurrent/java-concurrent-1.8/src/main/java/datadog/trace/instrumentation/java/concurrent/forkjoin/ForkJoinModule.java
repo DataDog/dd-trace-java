@@ -5,7 +5,6 @@ import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrument
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.FORK_JOIN_POOL_INSTRUMENTATION_NAME;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,7 +18,6 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public class ForkJoinModule extends InstrumenterModule.ContextTracking
     implements ExcludeFilterProvider {
-
   public ForkJoinModule() {
     super(EXECUTOR_INSTRUMENTATION_NAME, FORK_JOIN_POOL_INSTRUMENTATION_NAME);
   }

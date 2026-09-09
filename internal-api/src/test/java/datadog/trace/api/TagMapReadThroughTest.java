@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -19,7 +18,6 @@ import org.junit.jupiter.api.Test;
  * Removal/tombstones and bulk (iteration/serialize) union come in later slices.
  */
 class TagMapReadThroughTest {
-
   private static TagMap frozenParent() {
     TagMap parent = TagMap.create();
     parent.set("a", "parent-a");
@@ -32,10 +30,11 @@ class TagMapReadThroughTest {
   void readsThroughToParentOnMiss() {
     TagMap child = TagMap.createFromParent(frozenParent());
     child.set("c", "child-c");
-
-    assertEquals("parent-a", child.getString("a")); // miss locally -> read through
+    // miss locally -> read through
+    assertEquals("parent-a", child.getString("a"));
     assertEquals("parent-b", child.getString("b"));
-    assertEquals("child-c", child.getString("c")); // local
+    // local
+    assertEquals("child-c", child.getString("c"));
     assertNull(child.getString("missing"));
     assertTrue(child.containsKey("a"));
     assertFalse(child.containsKey("missing"));
@@ -44,18 +43,20 @@ class TagMapReadThroughTest {
   @Test
   void localEntryShadowsParent() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("b", "child-b"); // same key as parent
-
-    assertEquals("child-b", child.getString("b")); // local wins
-    assertEquals("parent-a", child.getString("a")); // parent still visible
+    // same key as parent
+    child.set("b", "child-b");
+    // local wins
+    assertEquals("child-b", child.getString("b"));
+    // parent still visible
+    assertEquals("parent-a", child.getString("a"));
   }
 
   @Test
   void estimateSizeIsUpperBound() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("b", "child-b"); // shadows parent "b"
+    // shadows parent "b"
+    child.set("b", "child-b");
     child.set("c", "child-c");
-
     // true union = {a, b, c} = 3; estimate over-counts the shadowed "b": local 2 + parent 2 = 4
     assertEquals(4, child.estimateSize());
     assertTrue(child.estimateSize() >= 3, "estimateSize must be an upper bound on the true size");
@@ -89,9 +90,9 @@ class TagMapReadThroughTest {
     // an empty frozen parent contributes nothing and never will -> dropped, no read-through cost
     assertNull(overEmpty.parent, "empty parent should be dropped");
     assertTrue(overEmpty.isDefinitelyEmpty());
-    overEmpty.set("x", "x-val"); // still a normal mutable map
+    // still a normal mutable map
+    overEmpty.set("x", "x-val");
     assertEquals("x-val", overEmpty.getString("x"));
-
     // a non-empty parent is still attached
     TagMap overNonEmpty = TagMap.createFromParent(frozenParent());
     assertNotNull(overNonEmpty.parent, "non-empty parent must be attached");
@@ -99,25 +100,25 @@ class TagMapReadThroughTest {
   }
 
   // --- slice 2: removal / tombstones ---
-
   @Test
   void removingParentKeyHidesItFromChildButNotFromParent() {
     TagMap parent = frozenParent();
     TagMap child = TagMap.createFromParent(parent);
-
-    assertEquals("parent-a", child.getString("a")); // visible before removal
+    // visible before removal
+    assertEquals("parent-a", child.getString("a"));
     child.remove("a");
-
-    assertNull(child.getString("a")); // tombstoned: no longer reads through
+    // tombstoned: no longer reads through
+    assertNull(child.getString("a"));
     assertFalse(child.containsKey("a"));
-    assertEquals("parent-b", child.getString("b")); // other parent keys unaffected
-    assertEquals("parent-a", parent.getString("a")); // frozen parent untouched
+    // other parent keys unaffected
+    assertEquals("parent-b", child.getString("b"));
+    // frozen parent untouched
+    assertEquals("parent-a", parent.getString("a"));
   }
 
   @Test
   void removeReturnsPriorVisibleValueViaParent() {
     TagMap child = TagMap.createFromParent(frozenParent());
-
     // Map.remove contract: the key was present (via read-through), so removal reports it.
     assertTrue(child.remove("a"), "removing a parent-exposed key should report it was present");
     assertNull(child.getString("a"));
@@ -129,25 +130,26 @@ class TagMapReadThroughTest {
 
     child.remove("a");
     assertNull(child.getString("a"));
-
-    child.set("a", "child-a"); // re-set clears the tombstone
+    // re-set clears the tombstone
+    child.set("a", "child-a");
     assertEquals("child-a", child.getString("a"));
   }
 
   @Test
   void removingAKeyThatIsBothLocalAndParentHidesBoth() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("b", "child-b"); // shadows parent "b"
+    // shadows parent "b"
+    child.set("b", "child-b");
 
     assertEquals("child-b", child.getString("b"));
     child.remove("b");
 
     assertNull(child.getString("b"), "removal must hide both the local entry and the parent's");
-    assertEquals("parent-b", frozenParent().getString("b")); // parent still has it
+    // parent still has it
+    assertEquals("parent-b", frozenParent().getString("b"));
   }
 
   // --- slice 3a: bulk forEach union + exact size/isEmpty ---
-
   private static Map<String, Object> collect(TagMap map) {
     Map<String, Object> out = new HashMap<>();
     map.forEach(e -> out.put(e.tag(), e.objectValue()));
@@ -156,14 +158,18 @@ class TagMapReadThroughTest {
 
   @Test
   void forEachEmitsDedupedUnionLocalWins() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
-    child.set("b", "child-b"); // shadows parent "b"
+    // parent {a, b}
+    TagMap child = TagMap.createFromParent(frozenParent());
+    // shadows parent "b"
+    child.set("b", "child-b");
     child.set("c", "child-c");
 
     Map<String, Object> u = collect(child);
     assertEquals(3, u.size(), "union {a, b, c} with b deduped");
-    assertEquals("parent-a", u.get("a")); // read-through
-    assertEquals("child-b", u.get("b")); // local wins (no duplicate emit)
+    // read-through
+    assertEquals("parent-a", u.get("a"));
+    // local wins (no duplicate emit)
+    assertEquals("child-b", u.get("b"));
     assertEquals("child-c", u.get("c"));
   }
 
@@ -171,7 +177,8 @@ class TagMapReadThroughTest {
   void forEachSkipsTombstonedParentKeys() {
     TagMap child = TagMap.createFromParent(frozenParent());
     child.set("c", "child-c");
-    child.remove("a"); // tombstone parent's "a"
+    // tombstone parent's "a"
+    child.remove("a");
 
     Map<String, Object> u = collect(child);
     assertEquals(2, u.size());
@@ -186,7 +193,8 @@ class TagMapReadThroughTest {
     child.set("c", "child-c");
 
     Map<String, Object> out = new HashMap<>();
-    child.forEach(out, (m, e) -> m.put(e.tag(), e.objectValue())); // non-capturing: alloc-free path
+    // non-capturing: alloc-free path
+    child.forEach(out, (m, e) -> m.put(e.tag(), e.objectValue()));
     assertEquals(3, out.size());
     assertEquals("parent-a", out.get("a"));
     assertEquals("child-c", out.get("c"));
@@ -195,17 +203,21 @@ class TagMapReadThroughTest {
   @Test
   void sizeIsExactUnion() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("b", "child-b"); // shadows
+    // shadows
+    child.set("b", "child-b");
     child.set("c", "child-c");
-    assertEquals(3, child.size()); // {a, b, c} — b deduped, not 4
+    // {a, b, c} — b deduped, not 4
+    assertEquals(3, child.size());
 
     child.remove("a");
-    assertEquals(2, child.size()); // {b, c}
+    // {b, c}
+    assertEquals(2, child.size());
   }
 
   @Test
   void isEmptyExactWhenAllParentKeysTombstonedAndNoLocal() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
+    // parent {a, b}
+    TagMap child = TagMap.createFromParent(frozenParent());
     assertFalse(child.isEmpty());
 
     child.remove("a");
@@ -215,11 +227,11 @@ class TagMapReadThroughTest {
   }
 
   // --- slice 3b: pull-based iterators / collection views ---
-
   @Test
   void iteratorEmitsDedupedUnion() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("b", "child-b"); // shadows parent "b"
+    // shadows parent "b"
+    child.set("b", "child-b");
     child.set("c", "child-c");
 
     Map<String, Object> u = new HashMap<>();
@@ -230,7 +242,8 @@ class TagMapReadThroughTest {
     }
     assertEquals(3, u.size());
     assertEquals("parent-a", u.get("a"));
-    assertEquals("child-b", u.get("b")); // local wins, emitted once
+    // local wins, emitted once
+    assertEquals("child-b", u.get("b"));
     assertEquals("child-c", u.get("c"));
   }
 
@@ -240,7 +253,8 @@ class TagMapReadThroughTest {
     child.set("c", "child-c");
 
     Set<String> keys = child.keySet();
-    assertEquals(3, keys.size()); // a, b, c
+    // a, b, c
+    assertEquals(3, keys.size());
     assertTrue(keys.contains("a"));
     assertTrue(keys.contains("c"));
 
@@ -252,41 +266,47 @@ class TagMapReadThroughTest {
   @Test
   void valuesAndEntrySetReflectUnion() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("b", "child-b"); // shadows parent "b"
-
-    assertEquals(2, child.entrySet().size()); // {a, b} — b deduped
-    assertTrue(child.values().contains("child-b")); // local-won value
+    // shadows parent "b"
+    child.set("b", "child-b");
+    // {a, b} — b deduped
+    assertEquals(2, child.entrySet().size());
+    // local-won value
+    assertTrue(child.values().contains("child-b"));
     assertTrue(child.values().contains("parent-a"));
     assertFalse(child.values().contains("parent-b"), "shadowed parent value must not appear");
   }
 
   // --- slice 3c: putAll from a read-through source copies the visible union, not just locals ---
-
   @Test
   void putAllFromReadThroughSourceCopiesFullVisibleUnion() {
-    TagMap source = TagMap.createFromParent(frozenParent()); // parent {a, b}
-    source.set("b", "child-b"); // shadows parent b
+    // parent {a, b}
+    TagMap source = TagMap.createFromParent(frozenParent());
+    // shadows parent b
+    source.set("b", "child-b");
     source.set("c", "child-c");
-
-    TagMap dest = TagMap.create(); // empty -> putAllIntoEmptyMap path
+    // empty -> putAllIntoEmptyMap path
+    TagMap dest = TagMap.create();
     dest.putAll(source);
-
     // the parent-visible "a" must land too, not just source's local entries
     assertEquals(3, dest.size());
     assertEquals("parent-a", dest.getString("a"));
-    assertEquals("child-b", dest.getString("b")); // local-won value, deduped
+    // local-won value, deduped
+    assertEquals("child-b", dest.getString("b"));
     assertEquals("child-c", dest.getString("c"));
   }
 
   @Test
   void putAllMergeFromReadThroughSourceCopiesVisibleUnion() {
-    TagMap source = TagMap.createFromParent(frozenParent()); // {a, b}
+    // {a, b}
+    TagMap source = TagMap.createFromParent(frozenParent());
 
     TagMap dest = TagMap.create();
-    dest.set("z", "dest-z"); // dest non-empty -> putAllMerge path
+    // dest non-empty -> putAllMerge path
+    dest.set("z", "dest-z");
 
     dest.putAll(source);
-    assertEquals(3, dest.size()); // {a, b, z}
+    // {a, b, z}
+    assertEquals(3, dest.size());
     assertEquals("parent-a", dest.getString("a"));
     assertEquals("parent-b", dest.getString("b"));
     assertEquals("dest-z", dest.getString("z"));
@@ -295,7 +315,8 @@ class TagMapReadThroughTest {
   @Test
   void putAllFromReadThroughSourceHonorsTombstones() {
     TagMap source = TagMap.createFromParent(frozenParent());
-    source.remove("a"); // tombstone parent's "a"
+    // tombstone parent's "a"
+    source.remove("a");
 
     TagMap dest = TagMap.create();
     dest.putAll(source);
@@ -306,19 +327,22 @@ class TagMapReadThroughTest {
   }
 
   // --- slice 4: behavior-identical to a copy-down / flat map ---
-
   @Test
   void copyIsObservationallyIdentical() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // {a, b}
-    child.set("b", "child-b"); // shadows parent "b"
+    // {a, b}
+    TagMap child = TagMap.createFromParent(frozenParent());
+    // shadows parent "b"
+    child.set("b", "child-b");
     child.set("c", "child-c");
 
     TagMap copy = child.copy();
     assertEquals(child.size(), copy.size());
-    assertEquals("parent-a", copy.getString("a")); // copy still reads through
+    // copy still reads through
+    assertEquals("parent-a", copy.getString("a"));
     assertEquals("child-b", copy.getString("b"));
     assertEquals("child-c", copy.getString("c"));
-    assertEquals(collect(child), collect(copy)); // same union
+    // same union
+    assertEquals(collect(child), collect(copy));
   }
 
   @Test
@@ -327,8 +351,10 @@ class TagMapReadThroughTest {
     child.set("c", "child-c");
 
     TagMap copy = child.copy();
-    copy.set("c", "copy-c"); // mutate copy's local
-    copy.remove("a"); // tombstone on copy only
+    // mutate copy's local
+    copy.set("c", "copy-c");
+    // tombstone on copy only
+    copy.remove("a");
 
     assertEquals("child-c", child.getString("c"), "original unaffected by copy mutation");
     assertEquals("parent-a", child.getString("a"), "original still reads through a");
@@ -339,14 +365,17 @@ class TagMapReadThroughTest {
   @Test
   void copyPreservesTombstones() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.remove("a"); // tombstone "a"
+    // tombstone "a"
+    child.remove("a");
 
     TagMap copy = child.copy();
     assertNull(copy.getString("a"), "tombstone must carry into the copy");
     assertEquals("parent-b", copy.getString("b"));
   }
 
-  /** The contract that lets the consumer flip mergedTracerTags to a parent. */
+  /**
+   * The contract that lets the consumer flip mergedTracerTags to a parent.
+   */
   @Test
   void readThroughMatchesAnEquivalentFlatMap() {
     TagMap child = TagMap.createFromParent(frozenParent());
@@ -373,13 +402,14 @@ class TagMapReadThroughTest {
 
     TagMap frozen = child.immutableCopy();
     assertTrue(frozen.isFrozen());
-    assertEquals("parent-a", frozen.getString("a")); // union preserved
+    // union preserved
+    assertEquals("parent-a", frozen.getString("a"));
     assertEquals("child-c", frozen.getString("c"));
-    assertThrows(IllegalStateException.class, () -> frozen.set("x", "y")); // frozen blocks writes
+    // frozen blocks writes
+    assertThrows(IllegalStateException.class, () -> frozen.set("x", "y"));
   }
 
   // --- slice 5: multi-level chains (baggage-style layering over more than one frozen parent) ---
-
   /**
    * Builds a 3-level chain leaf -&gt; mid -&gt; grandparent (both ancestors frozen) and returns the
    * leaf. Visible union, nearest-level-wins: {a=gp-a, b=mid-b, c=leaf-c, d=mid-d, e=leaf-e}.
@@ -392,12 +422,14 @@ class TagMapReadThroughTest {
     grandparent.freeze();
 
     TagMap mid = TagMap.createFromParent(grandparent);
-    mid.set("b", "mid-b"); // shadows grandparent b
+    // shadows grandparent b
+    mid.set("b", "mid-b");
     mid.set("d", "mid-d");
     mid.freeze();
 
     TagMap leaf = TagMap.createFromParent(mid);
-    leaf.set("c", "leaf-c"); // shadows grandparent c (mid doesn't define c)
+    // shadows grandparent c (mid doesn't define c)
+    leaf.set("c", "leaf-c");
     leaf.set("e", "leaf-e");
     return leaf;
   }
@@ -405,9 +437,12 @@ class TagMapReadThroughTest {
   @Test
   void getWalksTheWholeChainNearestWins() {
     TagMap leaf = threeLevelLeaf();
-    assertEquals("gp-a", leaf.getString("a")); // only in grandparent (two levels up)
-    assertEquals("mid-b", leaf.getString("b")); // mid shadows grandparent
-    assertEquals("leaf-c", leaf.getString("c")); // leaf shadows grandparent
+    // only in grandparent (two levels up)
+    assertEquals("gp-a", leaf.getString("a"));
+    // mid shadows grandparent
+    assertEquals("mid-b", leaf.getString("b"));
+    // leaf shadows grandparent
+    assertEquals("leaf-c", leaf.getString("c"));
     assertEquals("mid-d", leaf.getString("d"));
     assertEquals("leaf-e", leaf.getString("e"));
     assertNull(leaf.getString("missing"));
@@ -415,7 +450,8 @@ class TagMapReadThroughTest {
 
   @Test
   void sizeIsExactUnionAcrossChain() {
-    assertEquals(5, threeLevelLeaf().size()); // {a, b, c, d, e}, shadowed duplicates deduped
+    // {a, b, c, d, e}, shadowed duplicates deduped
+    assertEquals(5, threeLevelLeaf().size());
   }
 
   @Test
@@ -423,8 +459,10 @@ class TagMapReadThroughTest {
     Map<String, Object> u = collect(threeLevelLeaf());
     assertEquals(5, u.size());
     assertEquals("gp-a", u.get("a"));
-    assertEquals("mid-b", u.get("b")); // nearest ancestor wins over grandparent
-    assertEquals("leaf-c", u.get("c")); // leaf wins
+    // nearest ancestor wins over grandparent
+    assertEquals("mid-b", u.get("b"));
+    // leaf wins
+    assertEquals("leaf-c", u.get("c"));
     assertEquals("mid-d", u.get("d"));
     assertEquals("leaf-e", u.get("e"));
   }
@@ -455,11 +493,13 @@ class TagMapReadThroughTest {
   @Test
   void leafTombstoneHidesGrandparentOnlyKey() {
     TagMap leaf = threeLevelLeaf();
-    leaf.remove("a"); // "a" lives only in the grandparent, two levels up
+    // "a" lives only in the grandparent, two levels up
+    leaf.remove("a");
     assertNull(leaf.getString("a"));
     assertFalse(leaf.containsKey("a"));
     assertFalse(leaf.keySet().contains("a"));
-    assertEquals(4, leaf.size()); // {b, c, d, e}
+    // {b, c, d, e}
+    assertEquals(4, leaf.size());
   }
 
   @Test
@@ -473,16 +513,15 @@ class TagMapReadThroughTest {
     grandparent.freeze();
 
     TagMap mid = TagMap.createFromParent(grandparent);
-    mid.remove("a"); // tombstone an inherited key before freezing
+    // tombstone an inherited key before freezing
+    mid.remove("a");
     mid.freeze();
 
     TagMap leaf = TagMap.createFromParent(mid);
-
     // point lookups (recurse -> already correct)
     assertNull(leaf.getString("a"));
     assertFalse(leaf.containsKey("a"));
     assertEquals("gp-b", leaf.getString("b"));
-
     // bulk views must agree: mid's tombstone hides grandparent's "a"
     assertEquals(1, leaf.size());
     assertFalse(leaf.keySet().contains("a"));
@@ -513,7 +552,8 @@ class TagMapReadThroughTest {
     grandparent.freeze();
 
     TagMap mid = TagMap.createFromParent(grandparent);
-    mid.remove("a"); // tombstone the only inherited key -> mid is observationally empty
+    // tombstone the only inherited key -> mid is observationally empty
+    mid.remove("a");
     mid.freeze();
     assertTrue(mid.isEmpty());
 
@@ -545,13 +585,15 @@ class TagMapReadThroughTest {
   }
 
   // --- slice 6: put/getAndSet report the prior visible value, including inherited ---
-
   @Test
   void putReturnsInheritedParentValueAsPrior() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
-    Object prior = child.put("a", "child-a"); // "a" exists only in the parent
+    // parent {a, b}
+    TagMap child = TagMap.createFromParent(frozenParent());
+    // "a" exists only in the parent
+    Object prior = child.put("a", "child-a");
     assertEquals("parent-a", prior, "put must report the inherited value as the previous mapping");
-    assertEquals("child-a", child.getString("a")); // new value stored locally
+    // new value stored locally
+    assertEquals("child-a", child.getString("a"));
   }
 
   @Test
@@ -563,14 +605,16 @@ class TagMapReadThroughTest {
   @Test
   void putReturnsLocalPriorWhenShadowingParent() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("a", "local-a"); // local now shadows the parent
+    // local now shadows the parent
+    child.set("a", "local-a");
     assertEquals("local-a", child.put("a", "local-a2"), "the local prior wins over the parent's");
   }
 
   @Test
   void putAfterRemoveReportsNoPriorNotTheParentValue() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.remove("a"); // tombstone the parent's "a": no longer visible
+    // tombstone the parent's "a": no longer visible
+    child.remove("a");
     assertNull(child.put("a", "child-a"), "a tombstoned key had no visible prior value");
     assertEquals("child-a", child.getString("a"));
   }
@@ -585,23 +629,26 @@ class TagMapReadThroughTest {
   @Test
   void setDoesNotReportPriorButStillClearsTombstone() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.remove("b"); // tombstone
-    child.set("b", "child-b"); // void set: no prior lookup, but must clear the tombstone
+    // tombstone
+    child.remove("b");
+    // void set: no prior lookup, but must clear the tombstone
+    child.set("b", "child-b");
     assertEquals("child-b", child.getString("b"));
   }
 
   // --- slice 7: clear() removes inherited mappings too (detaches the parent) ---
-
   @Test
   void clearRemovesInheritedMappingsAndDetachesParent() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // {a, b}
+    // {a, b}
+    TagMap child = TagMap.createFromParent(frozenParent());
     child.set("c", "child-c");
 
     child.clear();
 
     assertTrue(child.isEmpty(), "clear must remove local AND inherited mappings");
     assertEquals(0, child.size());
-    assertNull(child.getString("a")); // inherited no longer visible
+    // inherited no longer visible
+    assertNull(child.getString("a"));
     assertNull(child.getString("c"));
     assertFalse(child.containsKey("a"));
   }
@@ -625,7 +672,6 @@ class TagMapReadThroughTest {
   }
 
   // --- slice 8: fillMap/fillStringMap materialize the visible union, not just local entries ---
-
   private static Map<String, Object> fillMapCollect(TagMap map) {
     Map<String, Object> out = new HashMap<>();
     map.fillMap(out);
@@ -640,14 +686,18 @@ class TagMapReadThroughTest {
 
   @Test
   void fillMapMaterializesDedupedUnionLocalWins() {
-    TagMap child = TagMap.createFromParent(frozenParent()); // parent {a, b}
-    child.set("b", "child-b"); // shadows parent "b"
+    // parent {a, b}
+    TagMap child = TagMap.createFromParent(frozenParent());
+    // shadows parent "b"
+    child.set("b", "child-b");
     child.set("c", "child-c");
 
     Map<String, Object> out = fillMapCollect(child);
     assertEquals(3, out.size(), "union {a, b, c} with b deduped");
-    assertEquals("parent-a", out.get("a")); // inherited tag must not be dropped
-    assertEquals("child-b", out.get("b")); // local wins
+    // inherited tag must not be dropped
+    assertEquals("parent-a", out.get("a"));
+    // local wins
+    assertEquals("child-b", out.get("b"));
     assertEquals("child-c", out.get("c"));
   }
 
@@ -655,7 +705,8 @@ class TagMapReadThroughTest {
   void fillMapHonorsTombstonedParentKeys() {
     TagMap child = TagMap.createFromParent(frozenParent());
     child.set("c", "child-c");
-    child.remove("a"); // tombstone parent's "a"
+    // tombstone parent's "a"
+    child.remove("a");
 
     Map<String, Object> out = fillMapCollect(child);
     assertEquals(2, out.size());
@@ -667,12 +718,14 @@ class TagMapReadThroughTest {
   @Test
   void fillStringMapMaterializesDedupedUnionLocalWins() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.set("b", "child-b"); // shadows parent "b"
+    // shadows parent "b"
+    child.set("b", "child-b");
     child.set("c", "child-c");
 
     Map<String, String> out = fillStringMapCollect(child);
     assertEquals(3, out.size());
-    assertEquals("parent-a", out.get("a")); // inherited tag preserved
+    // inherited tag preserved
+    assertEquals("parent-a", out.get("a"));
     assertEquals("child-b", out.get("b"));
     assertEquals("child-c", out.get("c"));
   }
@@ -680,7 +733,8 @@ class TagMapReadThroughTest {
   @Test
   void fillStringMapHonorsTombstonedParentKeys() {
     TagMap child = TagMap.createFromParent(frozenParent());
-    child.remove("a"); // tombstone parent's "a"
+    // tombstone parent's "a"
+    child.remove("a");
 
     Map<String, String> out = fillStringMapCollect(child);
     assertEquals(1, out.size());

@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -23,8 +22,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class ObjectWrapperInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public ObjectWrapperInstrumentation() {
     super("freemarker");
   }
@@ -43,8 +42,8 @@ public class ObjectWrapperInstrumentation extends InstrumenterModule.Iast
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("wrap")
-            .and(takesArgument(0, named("java.lang.Object")))
-            .and(returns(named("freemarker.template.TemplateModel"))),
+          .and(takesArgument(0, named("java.lang.Object")))
+          .and(returns(named("freemarker.template.TemplateModel"))),
         getClass().getName() + "$ObjectWrapperAdvice");
   }
 

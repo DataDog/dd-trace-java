@@ -8,8 +8,8 @@ import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
 public final class ReactiveStreamsContextPropagation {
-
-  private ReactiveStreamsContextPropagation() {}
+  private ReactiveStreamsContextPropagation() {
+  }
 
   public static ContextScope captureOnSubscribe(
       final Publisher<?> publisher,
@@ -38,7 +38,8 @@ public final class ReactiveStreamsContextPropagation {
   }
 
   public static ContextScope activateOnSignal(
-      final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
+      final Subscriber<?> subscriber,
+      final ContextStore<Subscriber, Context> subscriberContexts) {
     final Context activeContext = Context.current();
     if (activeContext != Context.root()) {
       return null;
@@ -47,7 +48,8 @@ public final class ReactiveStreamsContextPropagation {
   }
 
   public static ContextScope activateOnComplete(
-      final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
+      final Subscriber<?> subscriber,
+      final ContextStore<Subscriber, Context> subscriberContexts) {
     return attachIfRequired(subscriberContexts.get(subscriber), Context.current());
   }
 

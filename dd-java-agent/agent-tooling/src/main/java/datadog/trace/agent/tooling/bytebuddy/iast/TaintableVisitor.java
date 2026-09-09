@@ -20,16 +20,13 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.OpenedClassReader;
 
 public class TaintableVisitor implements AsmVisitorWrapper {
-
   public static volatile boolean DEBUG = false;
   static volatile boolean ENABLED = true;
-
   private static final String INTERFACE_NAME = "datadog/trace/api/iast/Taintable";
   private static final String SOURCE_CLASS_NAME = "L" + INTERFACE_NAME + "$Source;";
   private static final String FIELD_NAME = "$$DD$source";
   private static final String GETTER_NAME = "$$DD$getSource";
   private static final String SETTER_NAME = "$$DD$setSource";
-
   private final Set<String> types;
 
   public TaintableVisitor(final String... classNames) {
@@ -74,9 +71,7 @@ public class TaintableVisitor implements AsmVisitorWrapper {
   }
 
   private static class AddTaintableInterfaceVisitor extends ClassVisitor {
-
     private String owner;
-
     private boolean addTaintable = true;
 
     protected AddTaintableInterfaceVisitor(final ClassVisitor classVisitor) {
@@ -134,13 +129,12 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     }
 
     private void addField() {
-      final FieldVisitor fv =
-          cv.visitField(
-              Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
-              FIELD_NAME,
-              SOURCE_CLASS_NAME,
-              null,
-              null);
+      final FieldVisitor fv = cv.visitField(
+          Opcodes.ACC_PRIVATE | Opcodes.ACC_TRANSIENT | Opcodes.ACC_VOLATILE,
+          FIELD_NAME,
+          SOURCE_CLASS_NAME,
+          null,
+          null);
       fv.visitEnd();
     }
 
@@ -158,7 +152,11 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     private void addSetter() {
       final MethodVisitor mv =
           cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+              Opcodes.ACC_PUBLIC,
+              SETTER_NAME,
+              "(" + SOURCE_CLASS_NAME + ")V",
+              null,
+              null);
       mv.visitCode();
       mv.visitVarInsn(Opcodes.ALOAD, 0);
       mv.visitVarInsn(Opcodes.ALOAD, 1);
@@ -171,7 +169,11 @@ public class TaintableVisitor implements AsmVisitorWrapper {
     private void addSetterDebug() {
       final MethodVisitor mv =
           cv.visitMethod(
-              Opcodes.ACC_PUBLIC, SETTER_NAME, "(" + SOURCE_CLASS_NAME + ")V", null, null);
+              Opcodes.ACC_PUBLIC,
+              SETTER_NAME,
+              "(" + SOURCE_CLASS_NAME + ")V",
+              null,
+              null);
       mv.visitCode();
       mv.visitVarInsn(Opcodes.ALOAD, 0);
       mv.visitVarInsn(Opcodes.ALOAD, 1);

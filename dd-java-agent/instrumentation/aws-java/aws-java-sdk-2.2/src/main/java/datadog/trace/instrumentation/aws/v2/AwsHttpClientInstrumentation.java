@@ -11,7 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -27,8 +26,8 @@ import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRe
  * for execution for Sync clients.
  */
 public final class AwsHttpClientInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String hierarchyMarkerType() {
     return "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeHttpRequestStage";
@@ -37,28 +36,28 @@ public final class AwsHttpClientInstrumentation
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return nameStartsWith("software.amazon.awssdk.")
-        .and(
-            extendsClass(
-                namedOneOf(
-                    "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeHttpRequestStage",
-                    "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage")));
+      .and(
+          extendsClass(
+              namedOneOf(
+                  "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeHttpRequestStage",
+                  "software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRequestStage")));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("execute"))
-            .and(
-                takesArgument(
-                    1, named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
+          .and(isPublic())
+          .and(named("execute"))
+          .and(
+              takesArgument(
+                  1,
+                  named("software.amazon.awssdk.core.internal.http.RequestExecutionContext"))),
         AwsHttpClientInstrumentation.class.getName() + "$AwsHttpClientAdvice");
   }
 
   public static class AwsHttpClientAdvice {
     // scope.close here doesn't actually finish the span.
-
     /**
      * FIXME: This is a hack to prevent netty instrumentation from messing things up.
      *
@@ -76,12 +75,13 @@ public final class AwsHttpClientInstrumentation
       // check name in case TracingExecutionInterceptor failed to activate the span
       if (activeSpan != null
           && ((!activeSpan.isValid())
-              || AwsSdkClientDecorator.DECORATE
-                  .spanName(requestExecutionContext.executionAttributes())
-                  .equals(activeSpan.getSpanName()))) {
+          || AwsSdkClientDecorator.DECORATE
+            .spanName(requestExecutionContext.executionAttributes())
+            .equals(activeSpan.getSpanName()))) {
         if (thiz instanceof MakeAsyncHttpRequestStage) {
           // close async legacy HTTP span to avoid Netty leak...
-          closeActive(); // then drop-through and activate no-op span
+          // then drop-through and activate no-op span
+          closeActive();
         } else {
           // keep sync legacy HTTP span alive for duration of call
           return AgentTracer::closeActive;

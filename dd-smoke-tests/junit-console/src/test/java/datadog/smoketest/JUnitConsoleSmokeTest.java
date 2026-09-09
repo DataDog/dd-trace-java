@@ -2,7 +2,6 @@ package datadog.smoketest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
@@ -38,16 +37,13 @@ import org.slf4j.LoggerFactory;
 
 class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(JUnitConsoleSmokeTest.class);
-
   private static final String TEST_SERVICE_NAME = "test-headless-service";
-
   private static final int PROCESS_TIMEOUT_SECS = 60;
   private static final String JUNIT_CONSOLE_JAR_PATH =
       System.getProperty("datadog.smoketest.junit.console.jar.path");
   private static final String JAVA_HOME = buildJavaHome();
-
-  @TempDir Path projectHome;
-
+  @TempDir
+  Path projectHome;
   static final MockBackend mockBackend = new MockBackend();
 
   @BeforeEach
@@ -83,10 +79,9 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     int exitCode = whenRunningJUnitConsole(agentArgs, Collections.emptyMap());
     assertEquals(1, exitCode);
 
-    List<String> additionalDynamicTags =
-        Arrays.asList(
-            "content.meta.['_dd.debug.error.6.snapshot_id']",
-            "content.meta.['_dd.debug.error.exception_id']");
+    List<String> additionalDynamicTags = Arrays.asList(
+        "content.meta.['_dd.debug.error.6.snapshot_id']",
+        "content.meta.['_dd.debug.error.exception_id']");
     verifyEventsAndCoverages(
         projectName,
         "junit-console",
@@ -104,24 +99,20 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private void copyFolder(Path src, Path dest) throws IOException {
-    Files.walkFileTree(
-        src,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-              throws IOException {
-            Files.createDirectories(dest.resolve(src.relativize(dir)));
-            return FileVisitResult.CONTINUE;
-          }
+    Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+          throws IOException {
+        Files.createDirectories(dest.resolve(src.relativize(dir)));
+        return FileVisitResult.CONTINUE;
+      }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.copy(file, dest.resolve(src.relativize(file)));
-            return FileVisitResult.CONTINUE;
-          }
-        });
-
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.copy(file, dest.resolve(src.relativize(file)));
+        return FileVisitResult.CONTINUE;
+      }
+    });
     // creating empty .git directory so that the tracer could detect projectFolder as repo root
     Files.createDirectory(projectHome.resolve(".git"));
   }
@@ -134,35 +125,32 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     Files.createDirectories(classesDir);
     Files.createDirectories(testClassesDir);
-
     // Compile main classes if they exist
     if (Files.exists(srcDir)) {
       List<String> mainJavaFiles = findJavaFiles(srcDir);
       if (!mainJavaFiles.isEmpty()) {
-        int result =
-            runProcess(
-                createCompilerProcessBuilder(
-                        classesDir.toString(), mainJavaFiles, Collections.emptyList())
-                    .start(),
-                PROCESS_TIMEOUT_SECS);
+        int result = runProcess(
+            createCompilerProcessBuilder(
+                classesDir.toString(),
+                mainJavaFiles,
+                Collections.emptyList()).start(),
+            PROCESS_TIMEOUT_SECS);
         if (result != 0) {
           LOGGER.error("Error compiling source classes for JUnit Console smoke test");
           return result;
         }
       }
     }
-
     // Compile test classes
     List<String> testJavaFiles = findJavaFiles(testSrcDir);
     if (!testJavaFiles.isEmpty()) {
-      int result =
-          runProcess(
-              createCompilerProcessBuilder(
-                      testClassesDir.toString(),
-                      testJavaFiles,
-                      Collections.singletonList(classesDir.toString()))
-                  .start(),
-              PROCESS_TIMEOUT_SECS);
+      int result = runProcess(
+          createCompilerProcessBuilder(
+              testClassesDir.toString(),
+              testJavaFiles,
+              Collections.singletonList(classesDir.toString()))
+            .start(),
+          PROCESS_TIMEOUT_SECS);
       if (result != 0) {
         LOGGER.error("Error compiling source classes for JUnit Console smoke test");
         return result;
@@ -173,7 +161,9 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private ProcessBuilder createCompilerProcessBuilder(
-      String targetDir, List<String> files, List<String> additionalDeps) {
+      String targetDir,
+      List<String> files,
+      List<String> additionalDeps) {
     assertTrue(new File(JUNIT_CONSOLE_JAR_PATH).isFile());
 
     List<String> deps = new ArrayList<>();
@@ -198,28 +188,26 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     }
 
     List<String> javaFiles = new ArrayList<>();
-    Files.walkFileTree(
-        directory,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            if (file.toString().endsWith(".java")) {
-              javaFiles.add(file.toString());
-            }
-            return FileVisitResult.CONTINUE;
-          }
-        });
+    Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        if (file.toString().endsWith(".java")) {
+          javaFiles.add(file.toString());
+        }
+        return FileVisitResult.CONTINUE;
+      }
+    });
 
     return javaFiles;
   }
 
   private int whenRunningJUnitConsole(
-      Map<String, String> additionalAgentArgs, Map<String, String> additionalEnvVars)
-      throws Exception {
-    ProcessBuilder processBuilder =
-        createConsoleProcessBuilder(
-            Collections.singletonList("execute"), additionalAgentArgs, additionalEnvVars);
+      Map<String, String> additionalAgentArgs,
+      Map<String, String> additionalEnvVars) throws Exception {
+    ProcessBuilder processBuilder = createConsoleProcessBuilder(
+        Collections.singletonList("execute"),
+        additionalAgentArgs,
+        additionalEnvVars);
     processBuilder.environment().put("DD_API_KEY", "01234567890abcdef123456789ABCDEF");
     return runProcess(processBuilder.start(), PROCESS_TIMEOUT_SECS);
   }
@@ -250,12 +238,9 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     command.add("-Ddatadog.slf4j.simpleLogger.defaultLogLevel=DEBUG");
     command.addAll(Arrays.asList("-jar", JUNIT_CONSOLE_JAR_PATH));
     command.addAll(consoleCommand);
-    command.addAll(
-        Arrays.asList(
-            "--class-path",
-            projectHome.resolve("target/classes")
-                + ":"
-                + projectHome.resolve("target/test-classes")));
+    command.addAll(Arrays.asList(
+        "--class-path",
+        projectHome.resolve("target/classes") + ":" + projectHome.resolve("target/test-classes")));
     command.add("--scan-class-path");
 
     ProcessBuilder processBuilder = new ProcessBuilder(command);
@@ -278,8 +263,8 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
   String javaToolOptions(Map<String, String> additionalAgentArgs) {
     additionalAgentArgs.put(CiVisibilityConfig.CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED, "false");
     return buildJvmArguments(mockBackend.getIntakeUrl(), TEST_SERVICE_NAME, additionalAgentArgs)
-        .stream()
-        .collect(Collectors.joining(" "));
+      .stream()
+      .collect(Collectors.joining(" "));
   }
 
   private static class StreamConsumer extends Thread {

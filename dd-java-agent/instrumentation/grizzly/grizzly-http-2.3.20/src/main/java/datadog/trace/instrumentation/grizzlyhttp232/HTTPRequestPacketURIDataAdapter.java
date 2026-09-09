@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 
 final class HTTPRequestPacketURIDataAdapter extends URIRawDataAdapter {
-
   private final HttpRequestPacket packet;
 
   HTTPRequestPacketURIDataAdapter(HttpRequestPacket packet) {

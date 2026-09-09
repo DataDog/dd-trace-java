@@ -11,7 +11,6 @@ import static datadog.trace.instrumentation.commonshttpclient.HttpHeadersInjectA
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -26,8 +25,8 @@ import org.apache.commons.httpclient.HttpMethod;
 
 @AutoService(InstrumenterModule.class)
 public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public CommonsHttpClientInstrumentation() {
     super("commons-http-client");
   }
@@ -40,7 +39,8 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".CommonsHttpClientDecorator", packageName + ".HttpHeadersInjectAdapter",
+        packageName + ".CommonsHttpClientDecorator",
+        packageName + ".HttpHeadersInjectAdapter"
     };
   }
 
@@ -48,9 +48,9 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("executeMethod"))
-            .and(takesArguments(3))
-            .and(takesArgument(1, named("org.apache.commons.httpclient.HttpMethod"))),
+          .and(named("executeMethod"))
+          .and(takesArguments(3))
+          .and(takesArgument(1, named("org.apache.commons.httpclient.HttpMethod"))),
         CommonsHttpClientInstrumentation.class.getName() + "$ExecAdvice",
         CommonsHttpClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
   }
@@ -58,7 +58,6 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class ExecAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-
       try {
         final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(HttpClient.class);
         if (callDepth > 0) {
@@ -84,7 +83,6 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Argument(1) final HttpMethod httpMethod,
         @Advice.Thrown final Throwable throwable) {
-
       if (scope == null) {
         return;
       }

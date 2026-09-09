@@ -12,12 +12,9 @@ import org.testng.IRetryAnalyzer;
 import org.testng.ITestResult;
 
 public class RetryAnalyzer implements IRetryAnalyzer {
-
   private volatile TestExecutionPolicy executionPolicy;
-
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "the field is confined to a single thread")
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "the field "
+      + "is confined to a single thread")
   private boolean suppressFailures;
 
   public void createExecutionPolicy(ITestResult result) {
@@ -27,9 +24,10 @@ public class RetryAnalyzer implements IRetryAnalyzer {
           TestIdentifier testIdentifier = TestNGUtils.toTestIdentifier(result);
           TestSourceData testSourceData = TestNGUtils.toTestSourceData(result);
           Collection<String> testTags = TestNGUtils.getGroups(result);
-          executionPolicy =
-              TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
-                  testIdentifier, testSourceData, testTags);
+          executionPolicy = TestEventsHandlerHolder.TEST_EVENTS_HANDLER.executionPolicy(
+              testIdentifier,
+              testSourceData,
+              testTags);
         }
       }
     }

@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CONTEXT_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,11 +18,13 @@ import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 import org.apache.http.nio.NHttpServerConnection;
 
-/** Helps propagate parent spans over 'passthru' mechanism to synapse-client instrumentation. */
+/**
+ * Helps propagate parent spans over 'passthru' mechanism to synapse-client instrumentation.
+ */
 @AutoService(InstrumenterModule.class)
 public final class SynapsePassthruInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SynapsePassthruInstrumentation() {
     super("synapse3-client", "synapse3");
   }
@@ -37,15 +38,14 @@ public final class SynapsePassthruInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("submit"))
-            .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
+          .and(named("submit"))
+          .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
         getClass().getName() + "$PassthruAdvice");
   }
 
   public static final class PassthruAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void submit(@Advice.Argument(0) final MessageContext message) {
-
       // avoid leaking x-datadog headers from incoming server messages into client requests
       Object headers = message.getProperty(MessageContext.TRANSPORT_HEADERS);
       if (headers instanceof Map) {
@@ -56,7 +56,6 @@ public final class SynapsePassthruInstrumentation extends InstrumenterModule.Tra
           }
         }
       }
-
       // Propagate the server span to the client via the message context.
       // Prefer reading the span directly from the source connection's context (where
       // SynapseServerInstrumentation stored it) over activeSpan(). SourceHandler dispatches

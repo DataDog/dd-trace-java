@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,8 +16,8 @@ import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Subscriber;
 
 public final class FlowableInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "io.reactivex.Flowable";
@@ -29,9 +28,9 @@ public final class FlowableInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("org.reactivestreams.Subscriber"))),
+          .and(named("subscribe"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("org.reactivestreams.Subscriber"))),
         getClass().getName() + "$PropagateParentSpanAdvice");
   }
 

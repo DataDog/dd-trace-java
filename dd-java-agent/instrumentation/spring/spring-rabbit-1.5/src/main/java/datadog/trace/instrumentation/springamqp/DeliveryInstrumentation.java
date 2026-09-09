@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.cu
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.shouldCapture;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +16,8 @@ import org.springframework.amqp.rabbit.support.Delivery;
 
 @AutoService(InstrumenterModule.class)
 public class DeliveryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public DeliveryInstrumentation() {
     super("spring-rabbit");
   }

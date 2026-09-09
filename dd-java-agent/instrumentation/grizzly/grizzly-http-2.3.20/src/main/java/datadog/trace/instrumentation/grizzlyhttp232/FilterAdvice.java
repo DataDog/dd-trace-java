@@ -3,14 +3,12 @@ package datadog.trace.instrumentation.grizzlyhttp232;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import net.bytebuddy.asm.Advice;
 import org.glassfish.grizzly.filterchain.FilterChainContext;
 
 public class FilterAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(@Advice.Argument(0) final FilterChainContext ctx) {
     if (currentContext() != rootContext()) {

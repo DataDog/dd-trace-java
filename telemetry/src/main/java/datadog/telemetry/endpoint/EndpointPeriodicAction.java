@@ -7,7 +7,6 @@ import datadog.trace.api.telemetry.EndpointCollector;
 import java.util.Iterator;
 
 public class EndpointPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
-
   private final EndpointCollector collector;
 
   public EndpointPeriodicAction() {
@@ -23,7 +22,8 @@ public class EndpointPeriodicAction implements TelemetryRunnable.TelemetryPeriod
     for (final Iterator<Endpoint> it = collector.drain(); it.hasNext(); ) {
       final Endpoint endpoint = it.next();
       if (!service.addEndpoint(endpoint)) {
-        collector.supplier(new HeadAndTailIterator(endpoint, it)); // try again latter
+        // try again latter
+        collector.supplier(new HeadAndTailIterator(endpoint, it));
         break;
       }
     }

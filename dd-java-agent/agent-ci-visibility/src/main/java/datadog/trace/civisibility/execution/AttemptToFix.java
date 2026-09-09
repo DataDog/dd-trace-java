@@ -14,7 +14,6 @@ import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
  * failing run.
  */
 public class AttemptToFix implements TestExecutionPolicy {
-
   private final int maxExecutions;
   private int executions;
   private ExecutionAggregation results;
@@ -40,7 +39,11 @@ public class AttemptToFix implements TestExecutionPolicy {
     }
 
     return new ExecutionOutcomeImpl(
-        false, lastExecution, results, retry ? RetryReason.attemptToFix : null, finalStatus);
+        false,
+        lastExecution,
+        results,
+        retry ? RetryReason.attemptToFix : null,
+        finalStatus);
   }
 
   private boolean retriesLeft() {

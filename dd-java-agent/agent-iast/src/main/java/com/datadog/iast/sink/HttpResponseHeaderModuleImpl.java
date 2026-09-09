@@ -4,7 +4,6 @@ import static com.datadog.iast.model.VulnerabilityType.INSECURE_COOKIE;
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE;
 import static com.datadog.iast.util.HttpHeader.SET_COOKIE2;
 import static java.util.Collections.singletonList;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Evidence;
@@ -29,7 +28,6 @@ import javax.annotation.Nonnull;
 
 public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     implements HttpResponseHeaderModule {
-
   public HttpResponseHeaderModuleImpl(final Dependencies dependencies) {
     super(dependencies);
   }
@@ -67,8 +65,12 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
     }
     final AgentSpan span = AgentTracer.activeSpan();
     if (!overheadController.consumeQuota(
-        Operations.REPORT_VULNERABILITY, span, INSECURE_COOKIE // we need a type to check quota
-        )) {
+        // we need a type to check quota
+        Operations.REPORT_VULNERABILITY,
+        // we need a type to check quota
+        span,
+        // we need a type to check quota
+        INSECURE_COOKIE)) {
       return;
     }
     final Location location = Location.forSpanAndStack(span, getCurrentStackTrace());
@@ -87,7 +89,8 @@ public class HttpResponseHeaderModuleImpl extends SinkModuleBase
         final HttpCookieModule<VulnerabilityType> module = modules.get(i);
         if (module.isVulnerable(cookie)) {
           found.put(module.getType(), cookie);
-          modules.remove(i); // remove module as we already found a vulnerability
+          // remove module as we already found a vulnerability
+          modules.remove(i);
         }
       }
       if (modules.isEmpty()) {

@@ -7,8 +7,8 @@ import org.jboss.netty.channel.Channel;
 
 public class HttpServerTracingHandler
     extends CombinedSimpleChannelHandler<
-        HttpServerRequestTracingHandler, HttpServerResponseTracingHandler> {
-
+    HttpServerRequestTracingHandler,
+    HttpServerResponseTracingHandler> {
   public HttpServerTracingHandler(final ContextStore<Channel, ChannelTraceContext> contextStore) {
     super(
         new HttpServerRequestTracingHandler(contextStore),

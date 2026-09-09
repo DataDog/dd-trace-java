@@ -4,14 +4,12 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_PROTOCOL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-
 import datadog.trace.api.Config;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 class OtlpLogsServiceTest {
-
   @Test
   void httpJsonProtocolUsesJsonCollectorAndConfiguredEndpoint() {
     Properties properties = new Properties();

@@ -1,7 +1,6 @@
 package datadog.crashtracking;
 
 import static datadog.metrics.impl.statsd.DDAgentStatsDClientManager.statsDClientManager;
-
 import datadog.metrics.api.statsd.StatsDClient;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.concurrent.locks.LockSupport;
@@ -24,7 +23,8 @@ public final class OOMENotifier {
           "Java process encountered out of memory error",
           tags);
       log.info("OOME event sent");
-      LockSupport.parkNanos(2_000_000_000L); // wait 2s to allow statsd client flushing the event
+      // wait 2s to allow statsd client flushing the event
+      LockSupport.parkNanos(2_000_000_000L);
     }
   }
 }

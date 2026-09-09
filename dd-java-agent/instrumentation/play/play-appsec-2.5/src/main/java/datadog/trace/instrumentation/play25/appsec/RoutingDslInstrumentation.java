@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.play25.appsec;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,7 +13,8 @@ import datadog.trace.agent.tooling.muzzle.Reference;
  */
 @AutoService(InstrumenterModule.class)
 public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public RoutingDslInstrumentation() {
     super("play");
   }
@@ -32,11 +32,11 @@ public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ArgumentCaptureWrappers",
-      packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction",
-      packageName + ".ArgumentCaptureWrappers$ArgumentCaptureBiFunction",
-      packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction3",
-      "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers",
+        packageName + ".ArgumentCaptureWrappers",
+        packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction",
+        packageName + ".ArgumentCaptureWrappers$ArgumentCaptureBiFunction",
+        packageName + ".ArgumentCaptureWrappers$ArgumentCaptureFunction3",
+        "datadog.trace.instrumentation.play.appsec.PathExtractionHelpers"
     };
   }
 
@@ -44,9 +44,9 @@ public class RoutingDslInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArguments(5))
-            .and(takesArgument(3, Object.class))
-            .and(takesArgument(4, java.lang.reflect.Method.class)),
+          .and(takesArguments(5))
+          .and(takesArgument(3, Object.class))
+          .and(takesArgument(4, java.lang.reflect.Method.class)),
         packageName + ".RoutingDslRouteConstructorAdvice");
   }
 }

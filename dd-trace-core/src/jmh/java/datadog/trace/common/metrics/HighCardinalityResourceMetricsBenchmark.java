@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.common.metrics.AdversarialMetricsBenchmark.CountingHealthMetrics;
 import datadog.trace.core.CoreSpan;
@@ -45,7 +44,6 @@ import org.openjdk.jmh.infra.Blackhole;
 @Threads(8)
 @Fork(1)
 public class HighCardinalityResourceMetricsBenchmark {
-
   private ClientStatsAggregator aggregator;
   private CountingHealthMetrics health;
 
@@ -57,18 +55,18 @@ public class HighCardinalityResourceMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new CountingHealthMetrics();
-    this.aggregator =
-        new ClientStatsAggregator(
-            new WellKnownTags("", "", "", "", "", ""),
-            Collections.emptySet(),
-            AdditionalTagsSchema.EMPTY,
-            new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
-                Collections.singleton("peer.hostname"), Collections.emptySet()),
-            this.health,
-            new ClientStatsAggregatorBenchmark.NullSink(),
-            2048,
-            2048,
-            false);
+    this.aggregator = new ClientStatsAggregator(
+        new WellKnownTags("", "", "", "", "", ""),
+        Collections.emptySet(),
+        AdditionalTagsSchema.EMPTY,
+        new ClientStatsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
+            Collections.singleton("peer.hostname"),
+            Collections.emptySet()),
+        this.health,
+        new ClientStatsAggregatorBenchmark.NullSink(),
+        2048,
+        2048,
+        false);
     this.aggregator.start();
   }
 

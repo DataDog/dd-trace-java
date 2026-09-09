@@ -37,7 +37,9 @@ public class InjectingPipeWriter extends Writer {
    * @param contentToInject the content to inject once before the marker if found.
    */
   public InjectingPipeWriter(
-      final Writer downstream, final char[] marker, final char[] contentToInject) {
+      final Writer downstream,
+      final char[] marker,
+      final char[] contentToInject) {
     this(downstream, marker, contentToInject, null, null, null);
   }
 
@@ -139,7 +141,6 @@ public class InjectingPipeWriter extends Writer {
         write(array, off + pendingMatchLength, len - pendingMatchLength);
         return;
       }
-
       // if the content is large enough, we can bulk write everything but the N trail and tail.
       // This because the buffer can already contain some byte from a previous single write.
       // Also we need to fill the buffer with the tail since we don't know about the next write.
@@ -171,7 +172,6 @@ public class InjectingPipeWriter extends Writer {
         }
         drain();
         boolean wasFiltering = filter;
-
         // will be reset if no errors after the following write
         filter = false;
         int bytesToWrite = len - bulkWriteThreshold;

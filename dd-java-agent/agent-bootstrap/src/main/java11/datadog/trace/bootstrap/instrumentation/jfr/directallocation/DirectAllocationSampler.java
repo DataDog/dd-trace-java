@@ -1,14 +1,12 @@
 package datadog.trace.bootstrap.instrumentation.jfr.directallocation;
 
 import static datadog.trace.api.sampling.PerRecordingRateLimiter.samplingWindowsPerRecording;
-
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.jfr.WindowSampler;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
 public class DirectAllocationSampler extends WindowSampler<DirectAllocationSampleEvent> {
-
   /*
    * Fixed 0.5 second sampling window.
    * Logic in AdaptiveSampler relies on sampling window being small compared to (in our case) recording duration:
@@ -25,7 +23,8 @@ public class DirectAllocationSampler extends WindowSampler<DirectAllocationSampl
   }
 
   protected static int getSamplesPerWindow(final Config config) {
-    return config.getProfilingDirectAllocationSampleLimit()
-        / samplingWindowsPerRecording(config.getProfilingUploadPeriod(), SAMPLING_WINDOW);
+    return config.getProfilingDirectAllocationSampleLimit() / samplingWindowsPerRecording(
+        config.getProfilingUploadPeriod(),
+        SAMPLING_WINDOW);
   }
 }

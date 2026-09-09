@@ -1,7 +1,6 @@
 package datadog.common.socket;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.logging.RatelimitedLogger;
 import java.io.File;
@@ -23,17 +22,16 @@ import org.slf4j.LoggerFactory;
  */
 public final class UnixDomainSocketFactory extends SocketFactory {
   private static final Logger log = LoggerFactory.getLogger(UnixDomainSocketFactory.class);
-
   private static final boolean JDK_SUPPORTS_UDS = JavaVirtualMachine.isJavaVersionAtLeast(16);
-
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, MINUTES);
-
   private final File path;
   private final boolean useJdkUdsSocket;
   private final boolean agentConfiguredUsingDefault;
 
   public UnixDomainSocketFactory(
-      final File path, boolean isJdkSocketEnabled, boolean agentConfiguredUsingDefault) {
+      final File path,
+      boolean isJdkSocketEnabled,
+      boolean agentConfiguredUsingDefault) {
     this.path = path;
     this.useJdkUdsSocket = isJdkSocketEnabled && JavaVirtualMachine.isJavaVersionAtLeast(16);
     this.agentConfiguredUsingDefault = agentConfiguredUsingDefault;
@@ -73,8 +71,10 @@ public final class UnixDomainSocketFactory extends SocketFactory {
 
   @Override
   public Socket createSocket(
-      final String host, final int port, final InetAddress localHost, final int localPort)
-      throws IOException {
+      final String host,
+      final int port,
+      final InetAddress localHost,
+      final int localPort) throws IOException {
     return createSocket(host, port);
   }
 
@@ -87,8 +87,10 @@ public final class UnixDomainSocketFactory extends SocketFactory {
 
   @Override
   public Socket createSocket(
-      final InetAddress host, final int port, final InetAddress localAddress, final int localPort)
-      throws IOException {
+      final InetAddress host,
+      final int port,
+      final InetAddress localAddress,
+      final int localPort) throws IOException {
     return createSocket(host, port);
   }
 }

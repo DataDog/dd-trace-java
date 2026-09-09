@@ -6,7 +6,6 @@ import static io.undertow.server.handlers.form.FormDataParser.FORM_DATA;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -27,8 +26,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public FormDataParserInstrumentation() {
     super("undertow", "undertow-2.0");
   }
@@ -43,11 +42,10 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
     return new String[] {packageName + ".FormDataMap"};
   }
 
-  private static final Reference EXCHANGE_REFERENCE =
-      new Reference.Builder(
-              "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser")
-          .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
-          .build();
+  private static final Reference EXCHANGE_REFERENCE = new Reference.Builder(
+      "io.undertow.server.handlers.form.FormEncodedDataDefinition$FormEncodedDataParser")
+    .withField(new String[0], 0, "exchange", "Lio/undertow/server/HttpServerExchange;")
+    .build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
@@ -57,9 +55,9 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("doParse")
-            .and(takesArgument(0, named("org.xnio.channels.StreamSourceChannel")))
-            .and(takesArguments(1))
-            .and(isPrivate()),
+          .and(takesArgument(0, named("org.xnio.channels.StreamSourceChannel")))
+          .and(takesArguments(1))
+          .and(isPrivate()),
         getClass().getName() + "$DoParseAdvice");
   }
 

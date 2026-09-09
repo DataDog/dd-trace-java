@@ -15,12 +15,12 @@ import net.bytebuddy.description.method.MethodDescription;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
 
-/** Matches a set of references against a classloader. */
+/**
+ * Matches a set of references against a classloader.
+ */
 public class ReferenceMatcher {
   public static final ReferenceMatcher NO_REFERENCES = new ReferenceMatcher();
-
   private final Reference[] references;
-
   private ReferenceProvider referenceProvider;
 
   public ReferenceMatcher(final Reference... references) {
@@ -88,7 +88,10 @@ public class ReferenceMatcher {
    * @return A list of mismatched sources. A list of size 0 means the reference matches the class.
    */
   private static boolean checkReference(
-      TypePool typePool, Reference reference, ClassLoader loader, List<Mismatch> mismatches) {
+      TypePool typePool,
+      Reference reference,
+      ClassLoader loader,
+      List<Mismatch> mismatches) {
     int previousMismatchCount = mismatches.size();
     if (checkMatch(typePool, reference, loader, mismatches)) {
       return true;
@@ -107,7 +110,10 @@ public class ReferenceMatcher {
 
   @SuppressForbidden
   private static boolean checkMatch(
-      TypePool typePool, Reference reference, ClassLoader loader, List<Mismatch> mismatches) {
+      TypePool typePool,
+      Reference reference,
+      ClassLoader loader,
+      List<Mismatch> mismatches) {
     try {
       final TypePool.Resolution resolution = typePool.describe(reference.className);
       if (!resolution.isResolved()) {
@@ -126,7 +132,9 @@ public class ReferenceMatcher {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
         mismatches.add(
             new Mismatch.ReferenceCheckError(
-                e, reference, null != loader ? loader.toString() : "<bootstrap>"));
+                e,
+                reference,
+                null != loader ? loader.toString() : "<bootstrap>"));
       }
       return false;
     }
@@ -142,9 +150,11 @@ public class ReferenceMatcher {
       final String desc = reference.className;
       mismatches.add(
           new Mismatch.MissingFlag(
-              reference.sources, desc, reference.flags, typeOnClasspath.getModifiers()));
+              reference.sources,
+              desc,
+              reference.flags,
+              typeOnClasspath.getModifiers()));
     }
-
     // we match the fields and methods we are looking for by name, type or descriptor, and flags.
     // So that we don't have to check every field/method on every type we visit against every
     // field/method we're looking for, we index them by name and type/descriptor first.
@@ -167,7 +177,11 @@ public class ReferenceMatcher {
     traverseHierarchy(reference, typeOnClasspath, indexedMethods, indexedFields, mismatches);
     if (!indexedMethods.isEmpty()) {
       findInterfaceMethods(
-          reference, typeOnClasspath, indexedMethods, mismatches, new HashSet<TypeDescription>());
+          reference,
+          typeOnClasspath,
+          indexedMethods,
+          mismatches,
+          new HashSet<TypeDescription>());
     }
 
     for (Reference.Field missingField : indexedFields.values()) {
@@ -220,7 +234,11 @@ public class ReferenceMatcher {
       TypeDescription.Generic superClass = typeOnClasspath.getSuperClass();
       if (superClass != null) {
         traverseHierarchy(
-            reference, superClass.asErasure(), methodsToFind, fieldsToFind, flagMismatches);
+            reference,
+            superClass.asErasure(),
+            methodsToFind,
+            fieldsToFind,
+            flagMismatches);
       }
     }
   }
@@ -239,8 +257,7 @@ public class ReferenceMatcher {
           if (!Reference.matches(found.flags, fieldType.getModifiers())) {
             final String desc = reference.className + "#" + found.name + found.fieldType;
             flagMismatches.add(
-                new Mismatch.MissingFlag(
-                    found.sources, desc, found.flags, fieldType.getModifiers()));
+                new Mismatch.MissingFlag(found.sources, desc, found.flags, fieldType.getModifiers()));
             break;
           }
         }
@@ -266,7 +283,11 @@ public class ReferenceMatcher {
         }
         if (visitedInterfaces.add(erasureType)) {
           findInterfaceMethods(
-              reference, erasureType, methodsToFind, flagMismatches, visitedInterfaces);
+              reference,
+              erasureType,
+              methodsToFind,
+              flagMismatches,
+              visitedInterfaces);
         }
       }
     }
@@ -289,7 +310,10 @@ public class ReferenceMatcher {
             final String desc = reference.className + "#" + found.name + found.methodType;
             flagMismatches.add(
                 new Mismatch.MissingFlag(
-                    found.sources, desc, found.flags, methodDescription.getModifiers()));
+                    found.sources,
+                    desc,
+                    found.flags,
+                    methodDescription.getModifiers()));
             break;
           }
         }

@@ -1,13 +1,11 @@
 package org.example;
 
 import static org.testng.Assert.assertEquals;
-
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 public class TestSucceedDataProvider {
-
   private final int param;
 
   @Factory(dataProvider = "dataMethod")

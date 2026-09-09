@@ -6,7 +6,6 @@ import java.nio.file.Paths;
 import javax.annotation.Nullable;
 
 public class CIVisibility {
-
   private static volatile SessionFactory SESSION_FACTORY =
       (projectName, projectRoot, component, startTime) -> NoOpDDTestSession.INSTANCE;
 
@@ -31,18 +30,26 @@ public class CIVisibility {
    * @return Handle to the test session instance
    */
   public static DDTestSession startSession(
-      String projectName, String component, @Nullable Long startTime) {
+      String projectName,
+      String component,
+      @Nullable Long startTime) {
     Path projectRoot = Paths.get("").toAbsolutePath();
     return SESSION_FACTORY.startSession(projectName, projectRoot, component, startTime);
   }
 
   public static DDTestSession startSession(
-      String projectName, Path projectRoot, String component, @Nullable Long startTime) {
+      String projectName,
+      Path projectRoot,
+      String component,
+      @Nullable Long startTime) {
     return SESSION_FACTORY.startSession(projectName, projectRoot, component, startTime);
   }
 
   public interface SessionFactory {
     DDTestSession startSession(
-        String projectName, Path projectRoot, String component, Long startTime);
+        String projectName,
+        Path projectRoot,
+        String component,
+        Long startTime);
   }
 }

@@ -10,16 +10,21 @@ import javax.lang.model.element.TypeElement;
  * <p>By convention, nulls pass through nicely to allow easy composition
  */
 public final class ElementUtils {
-  private ElementUtils() {}
+  private ElementUtils() {
+  }
 
   public static final boolean isPackage(Element element, Package pkg) {
-    if (element == null) return false;
+    if (element == null) {
+      return false;
+    }
 
     return isPackage(element, pkg.getName());
   }
 
   public static final boolean isPackage(Element element, String packageName) {
-    if (!(element instanceof PackageElement)) return false;
+    if (!(element instanceof PackageElement)) {
+      return false;
+    }
 
     PackageElement packageElement = (PackageElement) element;
 
@@ -27,7 +32,9 @@ public final class ElementUtils {
   }
 
   public static final boolean isClass(Element element, Class<?> clazz) {
-    if (!(element instanceof TypeElement)) return false;
+    if (!(element instanceof TypeElement)) {
+      return false;
+    }
     TypeElement typeElement = (TypeElement) element;
 
     return TypeUtils.isClass(typeElement.asType(), clazz);

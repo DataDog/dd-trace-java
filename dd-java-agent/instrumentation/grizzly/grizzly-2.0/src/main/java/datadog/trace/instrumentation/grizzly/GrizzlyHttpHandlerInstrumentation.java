@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecora
 import static datadog.trace.instrumentation.grizzly.GrizzlyDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -21,8 +20,8 @@ import org.glassfish.grizzly.http.server.Request;
 import org.glassfish.grizzly.http.server.Response;
 
 public class GrizzlyHttpHandlerInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "org.glassfish.grizzly.http.server.HttpHandler";
@@ -32,22 +31,22 @@ public class GrizzlyHttpHandlerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod()
-            .and(named("doHandle"))
-            .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))
-            .and(takesArgument(1, named("org.glassfish.grizzly.http.server.Response"))),
+          .and(named("doHandle"))
+          .and(takesArgument(0, named("org.glassfish.grizzly.http.server.Request")))
+          .and(takesArgument(1, named("org.glassfish.grizzly.http.server.Response"))),
         GrizzlyHttpHandlerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         GrizzlyHttpHandlerInstrumentation.class.getName() + "$HandleAdvice");
   }
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextTrackingAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Local("parentScope") ContextScope parentScope,
         @Advice.Argument(0) final Request request) {
       if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
-        return; // re-entry: HandleAdvice will return false (no-op)
+        // re-entry: HandleAdvice will return false (no-op)
+        return;
       }
       Context parentContext = DECORATE.extract(request);
       parentScope = parentContext.attach();
@@ -62,18 +61,18 @@ public class GrizzlyHttpHandlerInstrumentation
   }
 
   public static class HandleAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class, skipOn = Advice.OnNonDefaultValue.class)
-    public static boolean /* skip body */ methodEnter(
+    public static boolean /* skip body */
+    methodEnter(
         @Advice.Local("contextScope") ContextScope scope,
         @Advice.Argument(0) final Request request,
         @Advice.Argument(1) final Response response) {
       if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) != null) {
         return false;
       }
-
-      final Context parentContext =
-          currentContext(); // parent context attached by ContextTrackingAdvice
+      final Context // parent context attached by ContextTrackingAdvice
+      // parent context attached by ContextTrackingAdvice
+      parentContext = currentContext();
       final Context context = DECORATE.startSpan(request, parentContext);
       final AgentSpan span = spanFromContext(context);
       DECORATE.afterStart(span);
@@ -83,14 +82,16 @@ public class GrizzlyHttpHandlerInstrumentation
 
       request.setAttribute(DD_CONTEXT_ATTRIBUTE, context);
       request.setAttribute(
-          CorrelationIdentifier.getTraceIdKey(), CorrelationIdentifier.getTraceId());
+          CorrelationIdentifier.getTraceIdKey(),
+          CorrelationIdentifier.getTraceId());
       request.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
 
       Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
       if (rba != null) {
         boolean success = GrizzlyBlockingHelper.block(request, response, rba, context);
         if (success) {
-          return true; /* skip body */
+          return true;
+          /* skip body */
         }
       }
 
@@ -119,9 +120,9 @@ public class GrizzlyHttpHandlerInstrumentation
         scope.close();
       }
       // span finished by SpanClosingListener
-
       if (skippedBody) {
-        retVal = true; // return true to avoid suspending the request
+        // return true to avoid suspending the request
+        retVal = true;
       }
     }
   }

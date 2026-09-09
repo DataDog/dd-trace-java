@@ -25,7 +25,6 @@ import static org.objectweb.asm.Type.INT_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
 import static org.objectweb.asm.Type.VOID_TYPE;
 import static org.objectweb.asm.Type.getType;
-
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
@@ -179,7 +178,9 @@ public class CapturedContextInstrumenter extends Instrumenter {
   }
 
   protected void addEvalContextAndCommitCall(
-      Where.SourceLine sourceLine, InsnList insnList, LabelNode beforeLabel) {
+      Where.SourceLine sourceLine,
+      InsnList insnList,
+      LabelNode beforeLabel) {
     insnList.add(collectCapturedContext(Snapshot.Kind.BEFORE, beforeLabel));
     // stack [capturedcontext]
     ldc(insnList, Type.getObjectType(classNode.name));
@@ -204,7 +205,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
     AbstractInsnNode current = catchHandler.handler;
     while (current != null
         && (current.getType() == AbstractInsnNode.LABEL
-            || current.getType() == AbstractInsnNode.LINE)) {
+        || current.getType() == AbstractInsnNode.LINE)) {
       current = current.getNext();
     }
     if (current == null) {
@@ -216,10 +217,10 @@ public class CapturedContextInstrumenter extends Instrumenter {
       return -1;
     }
     int exceptionLocalIdx = ((VarInsnNode) current).var;
-    Set<String> localNames =
-        methodNode.localVariables.stream()
-            .map(localVariableNode -> localVariableNode.name)
-            .collect(Collectors.toSet());
+    Set<String> localNames = methodNode.localVariables
+      .stream()
+      .map(localVariableNode -> localVariableNode.name)
+      .collect(Collectors.toSet());
     // find next label assume this is the end of the handler
     while (current != null && current.getType() != AbstractInsnNode.LABEL) {
       current = current.getNext();
@@ -271,7 +272,8 @@ public class CapturedContextInstrumenter extends Instrumenter {
 
   @Override
   protected InsnList getBeforeReturnInsnList(
-      AbstractInsnNode node, Map<AbstractInsnNode, Frame<BasicValue>> frames) {
+      AbstractInsnNode node,
+      Map<AbstractInsnNode, Frame<BasicValue>> frames) {
     InsnList insnList = new InsnList();
     // stack [ret_value]
     insnList.add(new VarInsnNode(Opcodes.ALOAD, entryContextVar));
@@ -361,7 +363,11 @@ public class CapturedContextInstrumenter extends Instrumenter {
     }
     // stack [exception]
     addEvalContextCall(
-        handler, Snapshot.Kind.UNHANDLED_EXCEPTION, endLabel, timestampStartVar, "EXIT");
+        handler,
+        Snapshot.Kind.UNHANDLED_EXCEPTION,
+        endLabel,
+        timestampStartVar,
+        "EXIT");
     // stack [exception]
     invokeStatic(handler, DEBUGGER_CONTEXT_TYPE, "disableInProbe", VOID_TYPE);
     // stack [exception]
@@ -480,8 +486,7 @@ public class CapturedContextInstrumenter extends Instrumenter {
     if (methodNode.localVariables == null || methodNode.localVariables.isEmpty()) {
       return Collections.emptyList();
     }
-    LOGGER.debug(
-        "Hoisting local variables level={} for method: {}", hoistingLevel, methodNode.name);
+    LOGGER.debug("Hoisting local variables level={} for method: {}", hoistingLevel, methodNode.name);
     return LocalVarHoisting.processMethod(methodNode, hoistingLevel);
   }
 
@@ -498,14 +503,16 @@ public class CapturedContextInstrumenter extends Instrumenter {
   }
 
   private void pushProbeIndices(InsnList insnList) {
-    ldc(insnList, probeIndices.size()); // array size
+    // array size
+    ldc(insnList, probeIndices.size());
     // stack [int]
     insnList.add(new IntInsnNode(Opcodes.NEWARRAY, Opcodes.T_INT));
     // stack [array]
     for (int i = 0; i < probeIndices.size(); i++) {
       insnList.add(new InsnNode(Opcodes.DUP));
       // stack [array, array]
-      ldc(insnList, i); // index
+      // index
+      ldc(insnList, i);
       // stack [array, array, int]
       ldc(insnList, probeIndices.get(i).intValue());
       // stack [array, array, int, int]
@@ -794,7 +801,8 @@ public class CapturedContextInstrumenter extends Instrumenter {
       insnList.add(new InsnNode(Opcodes.DUP2));
     } else {
       insnList.add(new InsnNode(Opcodes.DUP));
-    } // stack: [ret_value, ret_value]
+    }
+    // stack: [ret_value, ret_value]
     insnList.add(new VarInsnNode(returnType.getOpcode(Opcodes.ISTORE), retVar));
     // stack: [ret_value]
     insnList.add(new VarInsnNode(Opcodes.ALOAD, captureVar));

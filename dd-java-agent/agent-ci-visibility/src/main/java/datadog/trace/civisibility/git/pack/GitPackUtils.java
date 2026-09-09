@@ -6,8 +6,8 @@ import java.io.RandomAccessFile;
 import java.util.Arrays;
 
 public final class GitPackUtils {
-
-  private GitPackUtils() {}
+  private GitPackUtils() {
+  }
 
   // Version in a .idx file v1.
   private static final short V1_VERSION = 1;
@@ -36,8 +36,7 @@ public final class GitPackUtils {
     }
   }
 
-  public static byte[] readBytes(final RandomAccessFile file, final int numBytes)
-      throws IOException {
+  public static byte[] readBytes(final RandomAccessFile file, final int numBytes) throws IOException {
     long remainingBytes = file.length() - file.getFilePointer();
     final byte[] buff = new byte[Math.min(numBytes, (int) remainingBytes)];
     file.readFully(buff);
@@ -48,8 +47,8 @@ public final class GitPackUtils {
     final int len = s.length();
     final byte[] data = new byte[len / 2];
     for (int i = 0; i < len; i += 2) {
-      data[i / 2] =
-          (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i + 1), 16));
+      data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+          + Character.digit(s.charAt(i + 1), 16));
     }
     return data;
   }

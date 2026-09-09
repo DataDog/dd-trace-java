@@ -7,7 +7,6 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.htmlunit.HtmlUnitDriver;
 
 public class TestSucceedSelenium {
-
   @Test
   public void test_succeed() {
     WebDriver driver = new HtmlUnitDriver(BrowserVersion.CHROME, true);

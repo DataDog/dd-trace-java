@@ -11,7 +11,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfi
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
-
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.Request;
 import com.amazonaws.Response;
@@ -32,14 +31,14 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Tracing Request Handler */
+/**
+ * Tracing Request Handler
+ */
 public class TracingRequestHandler extends RequestHandler2 {
-
   public static final HandlerContextKey<Context> CONTEXT_CONTEXT_KEY =
-      new HandlerContextKey<>("DatadogContext"); // same as OnErrorDecorator.CONTEXT_CONTEXT_KEY
-
+      // same as OnErrorDecorator.CONTEXT_CONTEXT_KEY
+  new HandlerContextKey<>("DatadogContext");
   private static final Logger log = LoggerFactory.getLogger(TracingRequestHandler.class);
-
   private final ContextStore<Object, String> responseQueueStore;
   private final ContextStore<AmazonWebServiceRequest, Context> requestContextStore;
 
@@ -66,7 +65,8 @@ public class TracingRequestHandler extends RequestHandler2 {
       } else {
         // this is the most common code path
         span = startSpan(COMPONENT_NAME.toString(), AwsNameCache.spanName(request));
-        context = span; // TODO If DSM is enabled, add DSM context here too
+        // TODO If DSM is enabled, add DSM context here too
+        context = span;
       }
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
@@ -107,7 +107,8 @@ public class TracingRequestHandler extends RequestHandler2 {
       try {
         // store queueUrl inside response for SqsReceiveResultInstrumentation
         responseQueueStore.put(
-            response.getAwsResponse(), requestAccess.getQueueUrl(originalRequest));
+            response.getAwsResponse(),
+            requestAccess.getQueueUrl(originalRequest));
       } catch (Throwable e) {
         log.debug("Unable to extract queueUrl from ReceiveMessageRequest", e);
       }
@@ -171,12 +172,12 @@ public class TracingRequestHandler extends RequestHandler2 {
   private static boolean isPollingRequest(AmazonWebServiceRequest request) {
     return null != request
         && "com.amazonaws.services.sqs.model.ReceiveMessageRequest"
-            .equals(request.getClass().getName());
+          .equals(request.getClass().getName());
   }
 
   private static boolean isPollingResponse(Object response) {
     return null != response
         && "com.amazonaws.services.sqs.model.ReceiveMessageResult"
-            .equals(response.getClass().getName());
+          .equals(response.getClass().getName());
   }
 }

@@ -3,7 +3,6 @@ package datadog.trace.core.scopemanager;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -16,7 +15,6 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import org.junit.jupiter.api.Test;
 
 class ScopeManagerDepthTest extends DDCoreJavaSpecification {
-
   @Test
   void scopeManagerReturnsNoopScopeIfDepthExceeded() {
     // Using a local constant here to avoid classloading issues with ConfigDefaults
@@ -24,7 +22,6 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     ContinuableScopeManager scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
-
     // fill up the scope stack
     AgentScope scope = null;
     for (int i = 0; i < depth; i++) {
@@ -32,23 +29,17 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
       scope = tracer.activateSpan(testSpan);
       assertInstanceOf(ContinuableScope.class, scope);
     }
-
     // last scope is still valid
     assertEquals(depth, scopeManager.scopeStack().depth());
-
     // activate span over limit
     AgentSpan span = tracer.buildSpan("test", "test").start();
     scope = tracer.activateSpan(span);
-
     // a noop instance is returned
     assertInstanceOf(NoopScope.class, scope);
-
     // activate a noop scope over the limit
     scope = scopeManager.activateManualSpan(noopSpan());
-
     // still have a noop instance
     assertInstanceOf(NoopScope.class, scope);
-
     // scope stack not effected
     assertEquals(depth, scopeManager.scopeStack().depth());
 
@@ -64,7 +55,6 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     ContinuableScopeManager scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
-
     // fill up the scope stack
     AgentScope scope = null;
     for (int i = 0; i < defaultLimit; i++) {
@@ -72,24 +62,18 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
       scope = tracer.activateSpan(testSpan);
       assertInstanceOf(ContinuableScope.class, scope);
     }
-
     // last scope is still valid
     assertEquals(defaultLimit, scopeManager.scopeStack().depth());
-
     // activate a scope
     AgentSpan span = tracer.buildSpan("test", "test").start();
     scope = tracer.activateSpan(span);
-
     // a real scope is returned
     assertInstanceOf(ContinuableScope.class, scope);
     assertEquals(defaultLimit + 1, scopeManager.scopeStack().depth());
-
     // activate a noop span
     scope = scopeManager.activateManualSpan(noopSpan());
-
     // a real instance is still returned
     assertInstanceOf(ContinuableScope.class, scope);
-
     // scope stack not effected
     assertEquals(defaultLimit + 2, scopeManager.scopeStack().depth());
 
@@ -101,7 +85,6 @@ class ScopeManagerDepthTest extends DDCoreJavaSpecification {
   void depthIsCorrectlyUpdatedWithOutOfOrderClosing() {
     // The decision here is that depth is the top-most open scope
     // Closed scopes that are not on top still count for depth
-
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     ContinuableScopeManager scopeManager = ScopeManagerTestBridge.getScopeManager(tracer);
 

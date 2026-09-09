@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class RepoIndexSourcePathResolver implements SourcePathResolver {
-
   private final RepoIndexProvider indexProvider;
 
   public RepoIndexSourcePathResolver(RepoIndexProvider indexProvider) {

@@ -19,9 +19,7 @@ import org.slf4j.LoggerFactory;
 
 public class OpenJdkOngoingRecording implements OngoingRecording {
   private static final Logger log = LoggerFactory.getLogger(OpenJdkOngoingRecording.class);
-
   private final JfrProfilerSettings configMemento;
-
   private final Recording recording;
 
   OpenJdkOngoingRecording(
@@ -60,8 +58,10 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     }
     recording.start();
     log.debug("Recording {} started", recordingName);
-    this.configMemento =
-        new JfrProfilerSettings(configProvider, context, jfrStackDepthSettingApplied);
+    this.configMemento = new JfrProfilerSettings(
+        configProvider,
+        context,
+        jfrStackDepthSettingApplied);
   }
 
   OpenJdkOngoingRecording(
@@ -74,8 +74,10 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
     }
     recording.start();
     log.debug("Recording {} started", recording.getName());
-    this.configMemento =
-        new JfrProfilerSettings(ConfigProvider.getInstance(), context, jfrStackDepthSettingApplied);
+    this.configMemento = new JfrProfilerSettings(
+        ConfigProvider.getInstance(),
+        context,
+        jfrStackDepthSettingApplied);
   }
 
   private void disableOverriddenEvents(ControllerContext.Snapshot context) {
@@ -142,16 +144,15 @@ public class OpenJdkOngoingRecording implements OngoingRecording {
   }
 
   @Override
-  public RecordingData snapshot(
-      @Nonnull final Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
+  public RecordingData snapshot(@Nonnull final Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     if (recording.getState() != RecordingState.RUNNING) {
       throw new IllegalStateException("Cannot snapshot recording that is not running");
     }
-
     // dump the config to the current JFR recording
     configMemento.publish();
     final Recording snapshot = FlightRecorder.getFlightRecorder().takeSnapshot();
-    snapshot.setName(recording.getName()); // Copy name from original recording
+    // Copy name from original recording
+    snapshot.setName(recording.getName());
     // Since we just requested a snapshot, the end time of the snapshot will be
     // very close to now, so use that end time to minimize the risk of gaps or
     // overlaps in the data.

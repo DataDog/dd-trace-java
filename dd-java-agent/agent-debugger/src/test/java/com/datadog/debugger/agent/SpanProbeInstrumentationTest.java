@@ -8,7 +8,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
-
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
@@ -120,20 +119,29 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   }
 
   private MockTracer installSingleSpan(
-      String typeName, String methodName, String signature, String... tags) {
+      String typeName,
+      String methodName,
+      String signature,
+      String... tags) {
     SpanProbe spanProbe = createSpan(SPAN_ID, typeName, methodName, signature, tags);
     return installSpanProbes(spanProbe);
   }
 
   private MockTracer installSingleSpan(
-      String sourceFile, int lineFrom, int lineTill, String... tags) {
+      String sourceFile,
+      int lineFrom,
+      int lineTill,
+      String... tags) {
     SpanProbe spanProbe = createSpan(SPAN_ID, sourceFile, lineFrom, lineTill, tags);
     return installSpanProbes(spanProbe);
   }
 
   private MockTracer installSpanProbes(SpanProbe... spanProbes) {
-    return installSpanProbes(
-        Configuration.builder().setService(SERVICE_NAME).add(spanProbes).build());
+    return installSpanProbes(Configuration
+      .builder()
+      .setService(SERVICE_NAME)
+      .add(spanProbes)
+      .build());
   }
 
   private MockTracer installSpanProbes(Configuration configuration) {
@@ -141,17 +149,15 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
     when(config.isDynamicInstrumentationEnabled()).thenReturn(true);
     when(config.isDynamicInstrumentationClassFileDumpEnabled()).thenReturn(true);
     when(config.isDynamicInstrumentationVerifyByteCode()).thenReturn(true);
-    when(config.getFinalDebuggerSnapshotUrl())
-        .thenReturn("http://localhost:8126/debugger/v1/input");
+    when(config.getFinalDebuggerSnapshotUrl()).thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     probeStatusSink = mock(ProbeStatusSink.class);
-    currentTransformer =
-        new DebuggerTransformer(
-            config,
-            configuration,
-            null,
-            new ProbeMetadata(),
-            new DebuggerSink(config, probeStatusSink));
+    currentTransformer = new DebuggerTransformer(
+        config,
+        configuration,
+        null,
+        new ProbeMetadata(),
+        new DebuggerSink(config, probeStatusSink));
     instr.addTransformer(currentTransformer);
     mockSink = new MockSink(config, probeStatusSink);
     DebuggerAgentHelper.injectSink(mockSink);
@@ -208,16 +214,30 @@ public class SpanProbeInstrumentationTest extends ProbeInstrumentationTest {
   }
 
   private static SpanProbe createSpan(
-      ProbeId id, String typeName, String methodName, String signature, String[] tags) {
-    return SpanProbe.builder()
-        .probeId(id)
-        .where(typeName, methodName, signature)
-        .tags(tags)
-        .build();
+      ProbeId id,
+      String typeName,
+      String methodName,
+      String signature,
+      String[] tags) {
+    return SpanProbe
+      .builder()
+      .probeId(id)
+      .where(typeName, methodName, signature)
+      .tags(tags)
+      .build();
   }
 
   private static SpanProbe createSpan(
-      ProbeId id, String sourceFile, int lineFrom, int lineTill, String[] tags) {
-    return SpanProbe.builder().probeId(id).where(sourceFile, lineFrom, lineTill).tags(tags).build();
+      ProbeId id,
+      String sourceFile,
+      int lineFrom,
+      int lineTill,
+      String[] tags) {
+    return SpanProbe
+      .builder()
+      .probeId(id)
+      .where(sourceFile, lineFrom, lineTill)
+      .tags(tags)
+      .build();
   }
 }

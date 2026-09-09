@@ -1,13 +1,11 @@
 package com.datadog.debugger.agent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 public class DebuggerFeaturesTest {
-
   @Test
   public void roundtripSerialization() throws Exception {
     String buffer = serialize();

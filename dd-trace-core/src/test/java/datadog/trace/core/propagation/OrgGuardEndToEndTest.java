@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -129,7 +128,8 @@ class OrgGuardEndToEndTest {
     Map<String, String> headers = new HashMap<>();
     headers.put(
         "traceparent",
-        "00-0000000000000000000000000000007b-00000000000001c8-01"); // 0x7b=123, 0x1c8=456
+        // 0x7b=123, 0x1c8=456
+        "00-0000000000000000000000000000007b-00000000000001c8-01");
     headers.put("tracestate", "dd=s:2;o:foo;t.opm:upstream-X;t.dm:-4,vendor1=abc,vendor2=def");
 
     Context extracted = propagator.extract(Context.root(), headers, stringValuesMap());
@@ -143,15 +143,17 @@ class OrgGuardEndToEndTest {
   }
 
   // ---- helpers ----
-
   private TracingPropagator buildPropagator(
-      boolean enabled, boolean strict, Set<String> trusted, Supplier<String> localOpmSupplier) {
+      boolean enabled,
+      boolean strict,
+      Set<String> trusted,
+      Supplier<String> localOpmSupplier) {
     Config config = mock(Config.class, RETURNS_DEFAULTS);
     when(config.getxDatadogTagsMaxLength()).thenReturn(512);
     when(config.getTracePropagationStylesToExtract())
-        .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
+      .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
     when(config.getTracePropagationStylesToInject())
-        .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
+      .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
     when(config.isTracePropagationExtractFirst()).thenReturn(false);
     when(config.isAwsPropagationEnabled()).thenReturn(false);
     when(config.getBaggageMapping()).thenReturn(Collections.emptyMap());
@@ -162,12 +164,15 @@ class OrgGuardEndToEndTest {
     when(config.getTraceOrgGuardTrustedOpms()).thenReturn(trusted);
 
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, traceConfigSupplier);
-    HttpCodec.Injector injector =
-        HttpCodec.createInjector(
-            config, config.getTracePropagationStylesToInject(), Collections.emptyMap());
+    HttpCodec.Injector injector = HttpCodec.createInjector(
+        config,
+        config.getTracePropagationStylesToInject(),
+        Collections.emptyMap());
     OrgGuard orgGuard = OrgGuard.create(config, localOpmSupplier, factory, healthMetrics);
     return new TracingPropagator(
-        true, orgGuard.decorateInjector(injector), orgGuard.decorateExtractor(extractor));
+        true,
+        orgGuard.decorateInjector(injector),
+        orgGuard.decorateExtractor(extractor));
   }
 
   /**

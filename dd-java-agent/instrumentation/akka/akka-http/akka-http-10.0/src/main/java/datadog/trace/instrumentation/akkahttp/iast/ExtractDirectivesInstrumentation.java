@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.akkahttp.iast;
 
 import static datadog.trace.instrumentation.akkahttp.iast.TraitMethodMatchers.isTraitDirectiveMethod;
-
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.Uri;
 import akka.http.scaladsl.server.Directive;
@@ -34,7 +33,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public ExtractDirectivesInstrumentation() {
     super("akka-http");
   }
@@ -42,17 +42,17 @@ public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "akka.http.scaladsl.server.directives.BasicDirectives$class",
-      "akka.http.scaladsl.server.directives.BasicDirectives",
+        "akka.http.scaladsl.server.directives.BasicDirectives$class",
+        "akka.http.scaladsl.server.directives.BasicDirectives"
     };
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".helpers.TaintUriFunction",
-      packageName + ".helpers.TaintRequestFunction",
-      packageName + ".helpers.TaintRequestContextFunction",
+        packageName + ".helpers.TaintUriFunction",
+        packageName + ".helpers.TaintRequestFunction",
+        packageName + ".helpers.TaintRequestContextFunction"
     };
   }
 
@@ -89,8 +89,9 @@ public class ExtractDirectivesInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
     static void after(@Advice.Return(readOnly = false) Directive directive) {
-      directive =
-          directive.tmap(TaintRequestContextFunction.INSTANCE, Tupler$.MODULE$.forTuple(null));
+      directive = directive.tmap(
+          TaintRequestContextFunction.INSTANCE,
+          Tupler$.MODULE$.forTuple(null));
     }
   }
 }

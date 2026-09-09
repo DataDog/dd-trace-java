@@ -14,9 +14,10 @@ public class Activator implements BundleActivator {
     subscriber = new AsyncSubscriber();
     subscriber.start();
 
-    subscriberRegistration =
-        bundleContext.registerService(
-            SubscriberSupport.class.getName(), subscriber, new Properties());
+    subscriberRegistration = bundleContext.registerService(
+        SubscriberSupport.class.getName(),
+        subscriber,
+        new Properties());
   }
 
   public void stop(final BundleContext bundleContext) throws Exception {

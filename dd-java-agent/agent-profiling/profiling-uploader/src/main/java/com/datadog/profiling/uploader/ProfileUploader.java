@@ -16,7 +16,6 @@
 package com.datadog.profiling.uploader;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DISPATCHER;
-
 import com.datadog.profiling.uploader.util.JfrCliHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -71,53 +70,38 @@ import okhttp3.ResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The class for uploading profiles to the backend. */
+/**
+ * The class for uploading profiles to the backend.
+ */
 public final class ProfileUploader {
-
   private static final Logger log = LoggerFactory.getLogger(ProfileUploader.class);
   private static final MediaType APPLICATION_JSON = MediaType.get("application/json");
   private static final int TERMINATION_TIMEOUT_SEC = 5;
-
   static final int MAX_RUNNING_REQUESTS = 10;
   static final int MAX_ENQUEUED_REQUESTS = 20;
-
   // V2.4 format
   static final String V4_PROFILE_TAGS_PARAM = "tags_profiler";
   static final String V4_PROFILE_START_PARAM = "start";
   static final String V4_PROFILE_END_PARAM = "end";
   static final String V4_VERSION = "4";
   static final String V4_FAMILY = "java";
-
   static final String V4_EVENT_NAME = "event";
   static final String V4_EVENT_FILENAME = V4_EVENT_NAME + ".json";
   static final String V4_ATTACHMENT_NAME = "main";
   static final String V4_ATTACHMENT_FILENAME = V4_ATTACHMENT_NAME + ".jfr";
-
   // Header names and values
   private static final String HEADER_DD_EVP_ORIGIN = "DD-EVP-ORIGIN";
   private static final String HEADER_DD_EVP_ORIGIN_VERSION = "DD-EVP-ORIGIN-VERSION";
-
   private static final String JAVA_TRACING_LIBRARY = "dd-trace-java";
-
-  private static final Headers EVENT_HEADER =
-      Headers.of(
-          "Content-Disposition",
-          "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
-
-  private static final Headers V4_DATA_HEADERS =
-      Headers.of(
-          "Content-Disposition",
-          "form-data; name=\""
-              + V4_ATTACHMENT_NAME
-              + "\"; filename=\""
-              + V4_ATTACHMENT_FILENAME
-              + "\"");
-
+  private static final Headers EVENT_HEADER = Headers.of(
+      "Content-Disposition",
+      "form-data; name=\"" + V4_EVENT_NAME + "\"; filename=\"" + V4_EVENT_FILENAME + "\"");
+  private static final Headers V4_DATA_HEADERS = Headers.of(
+      "Content-Disposition",
+      "form-data; name=\"" + V4_ATTACHMENT_NAME + "\"; filename=\"" + V4_ATTACHMENT_FILENAME + "\"");
   static final String SERVELESS_TAG = "functionname";
-
   private final Config config;
   private final ConfigProvider configProvider;
-
   private final ExecutorService okHttpExecutorService;
   private final OkHttpClient client;
   private final IOLogger ioLogger;
@@ -126,9 +110,7 @@ public final class ProfileUploader {
   private final HttpUrl url;
   private final int terminationTimeout;
   private final CompressionType compressionType;
-
   private final RecordingDataAdapter jsonAdapter;
-
   private final Duration uploadTimeout;
 
   public ProfileUploader(final Config config, final ConfigProvider configProvider) {
@@ -178,36 +160,32 @@ public final class ProfileUploader {
     if (ServerlessInfo.get().isRunningInServerlessEnvironment()) {
       tagsMap.put(SERVELESS_TAG, ServerlessInfo.get().getFunctionName());
     }
-
     // Comma separated tags string for V2.4 format
     Pattern quotes = Pattern.compile("\"");
-    jsonAdapter =
-        new RecordingDataAdapter(
-            quotes.matcher(String.join(",", tagsToList(tagsMap))).replaceAll(""));
+    jsonAdapter = new RecordingDataAdapter(quotes
+      .matcher(String.join(",", tagsToList(tagsMap)))
+      .replaceAll(""));
     uploadTimeout = Duration.ofSeconds(config.getProfilingUploadTimeout());
-
     // This is the same thing OkHttp Dispatcher is doing except thread naming and daemonization
-    okHttpExecutorService =
-        new ThreadPoolExecutor(
-            0,
-            Integer.MAX_VALUE,
-            60,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>(),
-            new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
+    okHttpExecutorService = new ThreadPoolExecutor(
+        0,
+        Integer.MAX_VALUE,
+        60,
+        TimeUnit.SECONDS,
+        new SynchronousQueue<>(),
+        new AgentThreadFactory(PROFILER_HTTP_DISPATCHER));
 
-    client =
-        OkHttpUtils.buildHttpClient(
-            config,
-            new Dispatcher(okHttpExecutorService),
-            url,
-            true,
-            MAX_RUNNING_REQUESTS,
-            config.getProfilingProxyHost(),
-            config.getProfilingProxyPort(),
-            config.getProfilingProxyUsername(),
-            config.getProfilingProxyPassword(),
-            uploadTimeout.toMillis());
+    client = OkHttpUtils.buildHttpClient(
+        config,
+        new Dispatcher(okHttpExecutorService),
+        url,
+        true,
+        MAX_RUNNING_REQUESTS,
+        config.getProfilingProxyHost(),
+        config.getProfilingProxyPort(),
+        config.getProfilingProxyUsername(),
+        config.getProfilingProxyPassword(),
+        uploadTimeout.toMillis());
 
     compressionType = CompressionType.of(config.getProfilingUploadCompression());
   }
@@ -243,7 +221,9 @@ public final class ProfileUploader {
    *     failing)
    */
   public void upload(
-      final RecordingType type, final RecordingData data, @Nonnull final Runnable onCompletion) {
+      final RecordingType type,
+      final RecordingData data,
+      @Nonnull final Runnable onCompletion) {
     upload(type, data, false, onCompletion);
   }
 
@@ -273,24 +253,23 @@ public final class ProfileUploader {
     CountDownLatch latch = new CountDownLatch(sync ? 1 : 0);
     AtomicBoolean handled = new AtomicBoolean(false);
 
-    call.enqueue(
-        new Callback() {
-          @Override
-          public void onResponse(final Call call, final Response response) throws IOException {
-            if (handled.compareAndSet(false, true)) {
-              handleResponse(call, response, data, onCompletion);
-              latch.countDown();
-            }
-          }
+    call.enqueue(new Callback() {
+      @Override
+      public void onResponse(final Call call, final Response response) throws IOException {
+        if (handled.compareAndSet(false, true)) {
+          handleResponse(call, response, data, onCompletion);
+          latch.countDown();
+        }
+      }
 
-          @Override
-          public void onFailure(final Call call, final IOException e) {
-            if (handled.compareAndSet(false, true)) {
-              handleFailure(call, e, data, onCompletion);
-              latch.countDown();
-            }
-          }
-        });
+      @Override
+      public void onFailure(final Call call, final IOException e) {
+        if (handled.compareAndSet(false, true)) {
+          handleFailure(call, e, data, onCompletion);
+          latch.countDown();
+        }
+      }
+    });
     if (sync) {
       try {
         log.debug("Waiting at most {} seconds for upload to finish", uploadTimeout.plusSeconds(1));
@@ -320,8 +299,8 @@ public final class ProfileUploader {
     if (isEmptyReplyFromServer(e)) {
       ioLogger.error(
           "Failed to upload profile, received empty reply from "
-              + call.request().url()
-              + " after uploading profile");
+          + call.request().url()
+          + " after uploading profile");
     } else {
       ioLogger.error("Failed to upload profile to " + call.request().url(), e);
     }
@@ -334,8 +313,7 @@ public final class ProfileUploader {
       final Call call,
       final Response response,
       final RecordingData data,
-      @Nonnull final Runnable onCompletion)
-      throws IOException {
+      @Nonnull final Runnable onCompletion) throws IOException {
     if (response.isSuccessful()) {
       ioLogger.success("Upload done");
     } else {
@@ -343,7 +321,8 @@ public final class ProfileUploader {
       if (response.code() == 404 && apiKey == null) {
         // if no API key and not found error we assume we're sending to the agent
         ioLogger.error(
-            "Failed to upload profile. Datadog Agent is not accepting profiles. Agent-based profiling deployments require Datadog Agent >= 7.20");
+            "Failed to upload profile. Datadog Agent is not accepting profiles. Agent-based "
+            + "profiling deployments require Datadog Agent >= 7.20");
       } else if (response.code() == 413 && summaryOn413) {
         ioLogger.error(
             "Failed to upload profile, it's too big. Dumping information about the profile");
@@ -352,7 +331,6 @@ public final class ProfileUploader {
         ioLogger.error("Failed to upload profile", getLoggerResponse(response));
       }
     }
-
     // Note: this whole callback never touches body and would be perfectly happy even if
     // server never sends it.
     response.close();
@@ -367,7 +345,9 @@ public final class ProfileUploader {
       try {
         final ResponseBody body = response.body();
         return new IOLogger.Response(
-            response.code(), response.message(), body == null ? "<null>" : body.string().trim());
+            response.code(),
+            response.message(),
+            body == null ? "<null>" : body.string().trim());
       } catch (final NullPointerException | IOException ignored) {
       }
     }
@@ -383,7 +363,7 @@ public final class ProfileUploader {
     // server side without resetting.
     return e != null
         && ((e instanceof InterruptedIOException)
-            || (e.getCause() != null && e.getCause() instanceof java.io.EOFException));
+        || (e.getCause() != null && e.getCause() instanceof java.io.EOFException));
   }
 
   public void shutdown() {
@@ -403,7 +383,8 @@ public final class ProfileUploader {
   }
 
   private MultipartBody makeRequestBody(
-      @Nonnull final RecordingData data, final CompressingRequestBody body) {
+      @Nonnull final RecordingData data,
+      final CompressingRequestBody body) {
     final MultipartBody.Builder bodyBuilder =
         new MultipartBody.Builder().setType(MultipartBody.FORM);
 
@@ -415,9 +396,7 @@ public final class ProfileUploader {
   }
 
   private Call makeRequest(@Nonnull final RecordingType type, @Nonnull final RecordingData data) {
-
-    final CompressingRequestBody body =
-        new CompressingRequestBody(compressionType, data::getStream);
+    final CompressingRequestBody body = new CompressingRequestBody(compressionType, data::getStream);
     final RequestBody requestBody = makeRequestBody(data, body);
 
     final Map<String, String> headers = new HashMap<>();
@@ -426,8 +405,10 @@ public final class ProfileUploader {
     headers.put(HEADER_DD_EVP_ORIGIN, JAVA_TRACING_LIBRARY);
     headers.put(HEADER_DD_EVP_ORIGIN_VERSION, VersionInfo.VERSION);
 
-    return client.newCall(
-        OkHttpUtils.prepareRequest(url, headers, config, agentless).post(requestBody).build());
+    return client.newCall(OkHttpUtils
+      .prepareRequest(url, headers, config, agentless)
+      .post(requestBody)
+      .build());
   }
 
   private boolean canEnqueueMoreRequests() {
@@ -435,10 +416,12 @@ public final class ProfileUploader {
   }
 
   private List<String> tagsToList(final Map<String, String> tags) {
-    return tags.entrySet().stream()
-        .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
-        .map(e -> e.getKey() + ":" + e.getValue())
-        .collect(Collectors.toList());
+    return tags
+      .entrySet()
+      .stream()
+      .filter(e -> e.getValue() != null && !e.getValue().isEmpty())
+      .map(e -> e.getKey() + ":" + e.getValue())
+      .collect(Collectors.toList());
   }
 
   @VisibleForTesting
@@ -447,7 +430,6 @@ public final class ProfileUploader {
   }
 
   private static final class RecordingDataAdapter extends JsonAdapter<RecordingData> {
-
     private final String tags;
 
     private RecordingDataAdapter(String tags) {

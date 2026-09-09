@@ -19,7 +19,6 @@ import org.springframework.web.servlet.mvc.condition.PatternsRequestCondition;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 
 public class RequestMappingInfoWithPathPatternsIterator implements Iterator<Endpoint> {
-
   private final Map<RequestMappingInfo, HandlerMethod> mappings;
   private final Queue<Endpoint> queue = new LinkedList<>();
   private Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> iterator;
@@ -69,15 +68,14 @@ public class RequestMappingInfoWithPathPatternsIterator implements Iterator<Endp
     for (final String path : getPatterns(nextInfo)) {
       final List<String> methods = Method.parseMethods(nextInfo.getMethodsCondition().getMethods());
       for (final String method : methods) {
-        final Endpoint endpoint =
-            new Endpoint()
-                .type(Endpoint.Type.REST)
-                .operation(Endpoint.Operation.HTTP_REQUEST)
-                .resource(method + " " + path)
-                .path(path)
-                .method(method)
-                .requestBodyType(requestBody)
-                .responseBodyType(responseBody);
+        final Endpoint endpoint = new Endpoint()
+          .type(Endpoint.Type.REST)
+          .operation(Endpoint.Operation.HTTP_REQUEST)
+          .resource(method + " " + path)
+          .path(path)
+          .method(method)
+          .requestBodyType(requestBody)
+          .responseBodyType(responseBody);
         if (nextHandler != null) {
           final Map<String, String> metadata = new HashMap<>();
           metadata.put("handler", nextHandler.toString());

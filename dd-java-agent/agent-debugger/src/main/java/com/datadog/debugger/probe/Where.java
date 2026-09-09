@@ -16,11 +16,12 @@ import java.util.regex.Pattern;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.MethodNode;
 
-/** Stores probe location definition */
+/**
+ * Stores probe location definition
+ */
 public class Where {
   private static final String UNKNOWN_RETURN_TYPE = "$com.datadog.debugger.UNKNOWN$";
   private static final Pattern JVM_CLASS_PATTERN = Pattern.compile("L([^;]+);");
-
   private final String typeName;
   private final String methodName;
   private final String sourceFile;
@@ -29,8 +30,7 @@ public class Where {
   // used as cache for matching signature
   private String probeMethodDescriptor;
 
-  Where(
-      String typeName, String methodName, String signature, SourceLine[] lines, String sourceFile) {
+  Where(String typeName, String methodName, String signature, SourceLine[] lines, String sourceFile) {
     this.typeName = typeName;
     this.methodName = methodName;
     this.sourceFile = sourceFile;
@@ -63,8 +63,7 @@ public class Where {
 
   public static Where convertLineToMethod(Where lineWhere, ClassFileLines classFileLines) {
     if (lineWhere.methodName != null && lineWhere.lines != null) {
-      List<MethodNode> methodsByLine =
-          classFileLines.getMethodsByLine(lineWhere.lines[0].getFrom());
+      List<MethodNode> methodsByLine = classFileLines.getMethodsByLine(lineWhere.lines[0].getFrom());
       if (methodsByLine != null && !methodsByLine.isEmpty()) {
         // pick the first method, as we can have multiple methods (lambdas) on the same line
         MethodNode method = methodsByLine.get(0);
@@ -194,10 +193,9 @@ public class Where {
     String result = targetSignature;
     for (String className : classes) {
       Pattern classNamePattern = Pattern.compile("L" + escapeClassName(className) + ";");
-      result =
-          classNamePattern
-              .matcher(result)
-              .replaceAll("L" + escapeClassName(simplify(className)) + ";");
+      result = classNamePattern
+        .matcher(result)
+        .replaceAll("L" + escapeClassName(simplify(className)) + ";");
     }
     return result;
   }
@@ -266,8 +264,12 @@ public class Where {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     Where where = (Where) o;
     return Objects.equals(typeName, where.typeName)
         && Objects.equals(methodName, where.methodName)
@@ -332,8 +334,12 @@ public class Where {
     @Generated
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       SourceLine that = (SourceLine) o;
       return from == that.from && till == that.till;
     }

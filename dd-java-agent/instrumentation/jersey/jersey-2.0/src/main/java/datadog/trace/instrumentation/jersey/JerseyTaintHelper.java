@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 public abstract class JerseyTaintHelper {
-
-  private JerseyTaintHelper() {}
+  private JerseyTaintHelper() {
+  }
 
   public static void taintMultiValuedMap(
       final IastContext ctx,

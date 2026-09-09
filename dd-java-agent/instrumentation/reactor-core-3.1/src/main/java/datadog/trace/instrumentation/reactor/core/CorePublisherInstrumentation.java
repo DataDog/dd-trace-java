@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,8 +21,8 @@ import org.reactivestreams.Subscriber;
 import reactor.core.CoreSubscriber;
 
 public class CorePublisherInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String hierarchyMarkerType() {
     return "reactor.core.CoreSubscriber";
@@ -31,20 +30,23 @@ public class CorePublisherInstrumentation
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return implementsInterface(named("reactor.core.CorePublisher")) // from 3.1.7
-        .or(
-            hasSuperType(
-                namedOneOf(
-                    "reactor.core.publisher.Mono", "reactor.core.publisher.Flux"))); // < 3.1.7
+    return implementsInterface(named("reactor.core.CorePublisher"))
+      // from 3.1.7
+      .or(
+          hasSuperType(
+              namedOneOf(
+              // < 3.1.7
+              "reactor.core.publisher.Mono",
+              "reactor.core.publisher.Flux")));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("subscribe")
-            .and(not(isStatic()))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("reactor.core.CoreSubscriber"))),
+          .and(not(isStatic()))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("reactor.core.CoreSubscriber"))),
         getClass().getName() + "$PropagateContextSpanOnSubscribe");
   }
 

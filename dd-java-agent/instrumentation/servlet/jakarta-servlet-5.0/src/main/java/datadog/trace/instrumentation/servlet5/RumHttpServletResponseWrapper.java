@@ -51,18 +51,12 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
       if (encoding == null) {
         encoding = Charset.defaultCharset().name();
       }
-      outputStream =
-          new WrappedServletOutputStream(
-              super.getOutputStream(),
-              rumInjector.getMarkerBytes(encoding),
-              rumInjector.getSnippetBytes(encoding),
-              this::onInjected,
-              bytes ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes),
-              milliseconds ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionTime(servletVersion, milliseconds));
+      outputStream = new WrappedServletOutputStream(super.getOutputStream(), rumInjector.getMarkerBytes(
+          encoding), rumInjector.getSnippetBytes(encoding), this::onInjected, bytes -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionResponseSize(servletVersion, bytes), milliseconds -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionTime(servletVersion, milliseconds));
     } catch (Exception e) {
       RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);
       throw e;
@@ -80,18 +74,11 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
       return super.getWriter();
     }
     try {
-      wrappedPipeWriter =
-          new InjectingPipeWriter(
-              super.getWriter(),
-              rumInjector.getMarkerChars(),
-              rumInjector.getSnippetChars(),
-              this::onInjected,
-              bytes ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionResponseSize(servletVersion, bytes),
-              milliseconds ->
-                  RumInjector.getTelemetryCollector()
-                      .onInjectionTime(servletVersion, milliseconds));
+      wrappedPipeWriter = new InjectingPipeWriter(super.getWriter(), rumInjector.getMarkerChars(), rumInjector.getSnippetChars(), this::onInjected, bytes -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionResponseSize(servletVersion, bytes), milliseconds -> RumInjector
+        .getTelemetryCollector()
+        .onInjectionTime(servletVersion, milliseconds));
       printWriter = new PrintWriter(wrappedPipeWriter);
     } catch (Exception e) {
       RumInjector.getTelemetryCollector().onInjectionFailed(servletVersion, contentEncoding);

@@ -8,10 +8,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 final class OtelLoggerBuilder implements LoggerBuilder {
   private final OtelLoggerProvider loggerProvider;
-
   private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+  @Nullable
+  private String instrumentationScopeVersion;
+  @Nullable
+  private String schemaUrl;
 
   OtelLoggerBuilder(OtelLoggerProvider loggerProvider, String instrumentationScopeName) {
     this.loggerProvider = loggerProvider;
@@ -33,6 +34,8 @@ final class OtelLoggerBuilder implements LoggerBuilder {
   @Override
   public Logger build() {
     return loggerProvider.getLoggerShim(
-        instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
+        instrumentationScopeName,
+        instrumentationScopeVersion,
+        schemaUrl);
   }
 }

@@ -2,12 +2,10 @@ package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 
 public class TagsHelperTest {
-
   @Test
   public void validTagDoesNotChange() {
     String keyValue = "key:value";

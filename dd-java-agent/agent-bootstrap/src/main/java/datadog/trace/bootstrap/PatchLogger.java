@@ -34,7 +34,6 @@ public class PatchLogger {
   }
 
   // providing a bunch of empty log methods
-
   public void log(final LogRecord record) {}
 
   public void log(final Level level, final String msg) {}
@@ -46,7 +45,10 @@ public class PatchLogger {
   public void log(final Level level, final String msg, final Throwable thrown) {}
 
   public void logp(
-      final Level level, final String sourceClass, final String sourceMethod, final String msg) {}
+      final Level level,
+      final String sourceClass,
+      final String sourceMethod,
+      final String msg) {}
 
   public void logp(
       final Level level,
@@ -130,8 +132,7 @@ public class PatchLogger {
 
   public void finest(final String msg) {}
 
-  public void throwing(
-      final String sourceClass, final String sourceMethod, final Throwable thrown) {}
+  public void throwing(final String sourceClass, final String sourceMethod, final Throwable thrown) {}
 
   public void setLevel(final Level newLevel) throws SecurityException {}
 

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.hazelcast39;
 
 import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.DEFAULT_ENABLED;
 import static datadog.trace.instrumentation.hazelcast39.HazelcastConstants.INSTRUMENTATION_NAME;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,7 +17,6 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public final class HazelcastModule extends InstrumenterModule.Tracing {
-
   public HazelcastModule() {
     super(INSTRUMENTATION_NAME);
   }
@@ -31,9 +29,9 @@ public final class HazelcastModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ClientInvocationDecorator",
-      packageName + ".SpanFinishingExecutionCallback",
-      packageName + ".HazelcastConstants"
+        packageName + ".ClientInvocationDecorator",
+        packageName + ".SpanFinishingExecutionCallback",
+        packageName + ".HazelcastConstants"
     };
   }
 

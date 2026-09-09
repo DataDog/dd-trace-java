@@ -11,7 +11,6 @@ import datadog.trace.common.writer.RemoteMapperDiscovery;
  * this class is used during the mapper lazy loading in the {@code PayloadDispatcher} class.
  */
 public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
-
   private final DDAgentFeaturesDiscovery featuresDiscovery;
   private TraceMapper traceMapper;
 
@@ -40,11 +39,9 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
       case V1_0:
         traceMapper = new TraceMapperV1();
         break;
-
       case V0_5:
         traceMapper = new TraceMapperV0_5();
         break;
-
       default:
         traceMapper = new TraceMapperV0_4();
         break;

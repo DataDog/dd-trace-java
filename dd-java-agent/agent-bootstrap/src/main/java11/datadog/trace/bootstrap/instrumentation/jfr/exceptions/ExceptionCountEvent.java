@@ -19,7 +19,6 @@ import jdk.jfr.StackTrace;
 public class ExceptionCountEvent extends Event {
   @Label("Exception type")
   private String type;
-
   @Label("Exception count")
   private long count;
 

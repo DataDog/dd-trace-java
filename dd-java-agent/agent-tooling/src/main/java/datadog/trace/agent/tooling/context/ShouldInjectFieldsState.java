@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.context;
 
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
-
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -11,21 +10,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 
-/** Manages the persistent state associated with {@link ShouldInjectFieldsMatcher}. */
+/**
+ * Manages the persistent state associated with {@link ShouldInjectFieldsMatcher}.
+ */
 class ShouldInjectFieldsState {
-
   // this map will contain as many entries as there are unique
   // context store keys, so can't get very big
   private static final ConcurrentHashMap<String, Boolean> KEY_TYPE_IS_CLASS =
       new ConcurrentHashMap<>();
-
   // this map will contain entries for any root type that we wanted to field-inject
   // but were not able to - either because it was explicitly excluded, or because we
   // failed to field-inject as the type was already loaded
   private static final ConcurrentHashMap<String, BitSet> WEAK_STORE_IDS_BY_TYPE =
       new ConcurrentHashMap<String, BitSet>();
 
-  private ShouldInjectFieldsState() {}
+  private ShouldInjectFieldsState() {
+  }
 
   /**
    * Searches for the earliest class in the hierarchy to have fields injected under the given key.
@@ -33,7 +33,6 @@ class ShouldInjectFieldsState {
   public static String findInjectionTarget(TypeDescription typeDescription, String keyType) {
     // precondition: typeDescription must be a subtype of the key class
     // (checked in ShouldInjectContextFieldMatcher before calling here)
-
     // The flag takes 3 values:
     // true: the key type is a class, so should be the injection target
     // false: the key type is an interface, so we need to find the class
@@ -71,7 +70,9 @@ class ShouldInjectFieldsState {
   }
 
   private static boolean hasKeyInterface(
-      TypeDefinition typeDefinition, String keyType, Map<String, Boolean> visitedInterfaces) {
+      TypeDefinition typeDefinition,
+      String keyType,
+      Map<String, Boolean> visitedInterfaces) {
     for (TypeDefinition iface : typeDefinition.getInterfaces()) {
       String interfaceName = iface.asErasure().getName();
       if (keyType.equals(interfaceName)) {
@@ -79,13 +80,15 @@ class ShouldInjectFieldsState {
       }
       Boolean foundKeyInterface = visitedInterfaces.get(interfaceName);
       if (Boolean.TRUE.equals(foundKeyInterface)) {
-        return true; // already know this will lead to the key
+        // already know this will lead to the key
+        return true;
       }
       if (null == foundKeyInterface) {
         // avoid cycle issues by assuming we won't find the key
         visitedInterfaces.put(interfaceName, false);
         if (hasKeyInterface(iface, keyType, visitedInterfaces)) {
-          visitedInterfaces.put(interfaceName, true); // update assumption
+          // update assumption
+          visitedInterfaces.put(interfaceName, true);
           return true;
         }
       }
@@ -97,8 +100,7 @@ class ShouldInjectFieldsState {
    * Keep track of stores (per-type) where field-injection was explicitly excluded, or we failed to
    * field-inject them. This is used to decide when to apply store optimizations ahead of loading.
    */
-  public static void excludeInjectedField(
-      String instrumentedType, String keyType, String valueType) {
+  public static void excludeInjectedField(String instrumentedType, String keyType, String valueType) {
     int storeId = getContextStoreId(keyType, valueType);
     BitSet weakStoreIdsForType = WEAK_STORE_IDS_BY_TYPE.get(instrumentedType);
     if (null == weakStoreIdsForType) {
@@ -144,14 +146,17 @@ class ShouldInjectFieldsState {
     return false;
   }
 
-  /** Scans transitive interfaces to see if any match known context-key types. */
+  /**
+   * Scans transitive interfaces to see if any match known context-key types.
+   */
   private static boolean impliesInjectedField(
-      final TypeDefinition typeDefinition, final Set<String> visitedInterfaces) {
+      final TypeDefinition typeDefinition,
+      final Set<String> visitedInterfaces) {
     for (TypeDefinition iface : typeDefinition.getInterfaces()) {
       String interfaceName = iface.asErasure().getName();
       if (KEY_TYPE_IS_CLASS.containsKey(interfaceName)
           || (visitedInterfaces.add(interfaceName)
-              && impliesInjectedField(iface, visitedInterfaces))) {
+          && impliesInjectedField(iface, visitedInterfaces))) {
         return true;
       }
     }

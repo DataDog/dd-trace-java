@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.vertx_3_4.server.VertxVersionMatcher
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
@@ -31,9 +30,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForKnownTypes,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   private final String className = HeadersAdaptorInstrumentation.class.getName();
 
   public HeadersAdaptorInstrumentation() {
@@ -48,7 +46,8 @@ public class HeadersAdaptorInstrumentation extends InstrumenterModule.Iast
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.vertx.core.http.impl.HeadersAdaptor", "io.vertx.core.http.impl.Http2HeadersAdaptor"
+        "io.vertx.core.http.impl.HeadersAdaptor",
+        "io.vertx.core.http.impl.Http2HeadersAdaptor"
     };
   }
 

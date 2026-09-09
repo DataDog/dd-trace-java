@@ -12,9 +12,9 @@ import org.junit.jupiter.api.MethodOrdererContext;
 import org.junit.platform.engine.TestDescriptor;
 
 public class FailFastMethodOrderer implements MethodOrderer {
-
   private final TestEventsHandler<TestDescriptor, TestDescriptor> testEventsHandler;
-  private final @Nullable MethodOrderer delegate;
+  @Nullable
+  private final MethodOrderer delegate;
   private final Comparator<MethodDescriptor> executionOrderComparator;
 
   public FailFastMethodOrderer(

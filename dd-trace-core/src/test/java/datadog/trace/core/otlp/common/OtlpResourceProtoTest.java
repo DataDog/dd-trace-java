@@ -13,7 +13,6 @@ import static datadog.trace.core.otlp.common.OtlpResourceAttributes.traceResourc
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.Config;
@@ -49,9 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * </pre>
  */
 class OtlpResourceProtoTest {
-
   // ── test data ─────────────────────────────────────────────────────────────
-
   private static Properties props(String... keyValues) {
     Properties props = new Properties();
     for (int i = 0; i < keyValues.length; i += 2) {
@@ -78,90 +75,100 @@ class OtlpResourceProtoTest {
 
   static Stream<Arguments> resourceMessageCases() {
     return Stream.of(
-        // service not set: should use the auto-detected name
-        Arguments.of(
-            "service not set, no env, no version, no tags",
-            props(),
-            attrs("service.name", Config.get().getServiceName())),
-        // custom service name
-        Arguments.of(
-            "custom service name, no env, no version, no tags",
-            props(SERVICE_NAME, "my-service"),
-            attrs("service.name", "my-service")),
-        // env set to empty string: no deployment.environment.name written;
-        Arguments.of(
-            "env set to empty string",
-            props(SERVICE_NAME, "my-service", ENV, ""),
-            attrs("service.name", "my-service")),
-        // env set to non-empty value: deployment.environment.name written;
-        Arguments.of(
-            "env set to non-empty value",
-            props(SERVICE_NAME, "my-service", ENV, "prod"),
-            attrs("service.name", "my-service", "deployment.environment.name", "prod")),
-        // version set to empty string: no service.version written;
-        Arguments.of(
-            "version set to empty string",
-            props(SERVICE_NAME, "my-service", VERSION, ""),
-            attrs("service.name", "my-service")),
-        // version set to non-empty value: service.version written;
-        Arguments.of(
-            "version set to non-empty value",
-            props(SERVICE_NAME, "my-service", VERSION, "1.0.0"),
-            attrs("service.name", "my-service", "service.version", "1.0.0")),
-        // tags as comma-separated key:value pairs (no env or version)
-        Arguments.of(
-            "tags as comma-separated key:value pairs",
-            props(SERVICE_NAME, "my-service", TAGS, "region:us-east,team:platform"),
-            attrs(
-                "service.name", "my-service",
-                "region", "us-east",
-                "team", "platform")),
-        // report-hostname enabled: host.name written with the detected hostname
-        Arguments.of(
-            "report-hostname enabled",
-            props(SERVICE_NAME, "my-service", TRACE_REPORT_HOSTNAME, "true"),
-            attrs("service.name", "my-service", "host.name", Config.get().getHostName())),
-        // all config values set together; telemetry.sdk.* keys in tags must be ignored
-        Arguments.of(
-            "service, env, version, and tags all set",
-            props(
-                SERVICE_NAME,
-                "my-service",
-                ENV,
-                "staging",
-                VERSION,
-                "2.0.0",
-                TAGS,
-                "region:eu-west,"
-                    + "service:ignored-service,"
-                    + "env:ignored-env,"
-                    + "version:ignored-version,"
-                    + "SERVICE:ignored-service,"
-                    + "ENV:ignored-env,"
-                    + "VERSION:ignored-version,"
-                    + "service.name:ignored-service,"
-                    + "deployment.environment.name:ignored-env,"
-                    + "service.version:ignored-version,"
-                    + "SERVICE.NAME:ignored-service,"
-                    + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
-                    + "SERVICE.VERSION:ignored-version,"
-                    + "telemetry.sdk.name:ignored-sdk,"
-                    + "telemetry.sdk.version:ignored-version,"
-                    + "telemetry.sdk.language:ignored-language"),
-            attrs(
-                "service.name", "my-service",
-                "deployment.environment.name", "staging",
-                "service.version", "2.0.0",
-                "region", "eu-west")));
+        Arguments
+          // service not set: should use the auto-detected name
+          .of(
+              "service not set, no env, no version, no tags",
+              props(),
+              attrs("service.name", Config.get().getServiceName())),
+        Arguments
+          // custom service name
+          .of(
+              "custom service name, no env, no version, no tags",
+              props(SERVICE_NAME, "my-service"),
+              attrs("service.name", "my-service")),
+        Arguments
+          // env set to empty string: no deployment.environment.name written;
+          .of(
+              "env set to empty string",
+              props(SERVICE_NAME, "my-service", ENV, ""),
+              attrs("service.name", "my-service")),
+        Arguments
+          // env set to non-empty value: deployment.environment.name written;
+          .of(
+              "env set to non-empty value",
+              props(SERVICE_NAME, "my-service", ENV, "prod"),
+              attrs("service.name", "my-service", "deployment.environment.name", "prod")),
+        Arguments
+          // version set to empty string: no service.version written;
+          .of(
+              "version set to empty string",
+              props(SERVICE_NAME, "my-service", VERSION, ""),
+              attrs("service.name", "my-service")),
+        Arguments
+          // version set to non-empty value: service.version written;
+          .of(
+              "version set to non-empty value",
+              props(SERVICE_NAME, "my-service", VERSION, "1.0.0"),
+              attrs("service.name", "my-service", "service.version", "1.0.0")),
+        Arguments
+          // tags as comma-separated key:value pairs (no env or version)
+          .of(
+              "tags as comma-separated key:value pairs",
+              props(SERVICE_NAME, "my-service", TAGS, "region:us-east,team:platform"),
+              attrs("service.name", "my-service", "region", "us-east", "team", "platform")),
+        Arguments
+          // report-hostname enabled: host.name written with the detected hostname
+          .of(
+              "report-hostname enabled",
+              props(SERVICE_NAME, "my-service", TRACE_REPORT_HOSTNAME, "true"),
+              attrs("service.name", "my-service", "host.name", Config.get().getHostName())),
+        Arguments
+          // all config values set together; telemetry.sdk.* keys in tags must be ignored
+          .of(
+              "service, env, version, and tags all set",
+              props(
+                  SERVICE_NAME,
+                  "my-service",
+                  ENV,
+                  "staging",
+                  VERSION,
+                  "2.0.0",
+                  TAGS,
+                  "region:eu-west,"
+                  + "service:ignored-service,"
+                  + "env:ignored-env,"
+                  + "version:ignored-version,"
+                  + "SERVICE:ignored-service,"
+                  + "ENV:ignored-env,"
+                  + "VERSION:ignored-version,"
+                  + "service.name:ignored-service,"
+                  + "deployment.environment.name:ignored-env,"
+                  + "service.version:ignored-version,"
+                  + "SERVICE.NAME:ignored-service,"
+                  + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
+                  + "SERVICE.VERSION:ignored-version,"
+                  + "telemetry.sdk.name:ignored-sdk,"
+                  + "telemetry.sdk.version:ignored-version,"
+                  + "telemetry.sdk.language:ignored-language"),
+              attrs(
+                  "service.name",
+                  "my-service",
+                  "deployment.environment.name",
+                  "staging",
+                  "service.version",
+                  "2.0.0",
+                  "region",
+                  "eu-west")));
   }
 
   // ── test ─────────────────────────────────────────────────────────────────
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("resourceMessageCases")
   void testBuildResourceMessage(
-      String caseName, Properties properties, Map<String, Object> expectedAttributes)
-      throws IOException {
+      String caseName,
+      Properties properties,
+      Map<String, Object> expectedAttributes) throws IOException {
     Config config = Config.get(properties);
     byte[] bytes = OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap());
 
@@ -177,12 +184,12 @@ class OtlpResourceProtoTest {
   void datadogResourceAttributesVariantCarriesRuntimeId() throws IOException {
     Config config = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
-    Map<String, Object> plain =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, Collections.emptyMap()));
+    Map<String, Object> withDatadog = parseResourceAttributes(OtlpResourceProto.buildResourceMessage(
+        config,
+        datadogResourceAttributes(config)));
+    Map<String, Object> plain = parseResourceAttributes(OtlpResourceProto.buildResourceMessage(
+        config,
+        Collections.emptyMap()));
 
     assertTrue(
         withDatadog.containsKey("datadog.runtime_id"),
@@ -196,22 +203,21 @@ class OtlpResourceProtoTest {
 
   @Test
   void datadogResourceAttributesOverrideCollidingGlobalProcessTag() throws IOException {
-    Config config =
-        Config.get(
-            props(
-                SERVICE_NAME,
-                "my-service",
-                TAGS,
-                "datadog.process_tags:user-value",
-                EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
-                "true"));
+    Config config = Config.get(
+        props(
+            SERVICE_NAME,
+            "my-service",
+            TAGS,
+            "datadog.process_tags:user-value",
+            EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED,
+            "true"));
     ProcessTags.reset(config);
     ProcessTags.addTag("entrypoint.name", "app");
     ProcessTags.addTag("entrypoint.type", "web");
 
-    Map<String, Object> withDatadog =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(config, datadogResourceAttributes(config)));
+    Map<String, Object> withDatadog = parseResourceAttributes(OtlpResourceProto.buildResourceMessage(
+        config,
+        datadogResourceAttributes(config)));
 
     Object processTags = withDatadog.get("datadog.process_tags");
     assertTrue(processTags instanceof List, "datadog.process_tags is a single arrayValue");
@@ -224,22 +230,18 @@ class OtlpResourceProtoTest {
         Config.get(props(SERVICE_NAME, "my-service", OTEL_TRACES_SPAN_METRICS_ENABLED, "true"));
     Config withoutMetrics = Config.get(props(SERVICE_NAME, "my-service"));
 
-    Map<String, Object> withMarker =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
-                withMetrics, traceResourceAttributes(withMetrics)));
-    Map<String, Object> without =
-        parseResourceAttributes(
-            OtlpResourceProto.buildResourceMessage(
-                withoutMetrics, traceResourceAttributes(withoutMetrics)));
+    Map<String, Object> withMarker = parseResourceAttributes(OtlpResourceProto.buildResourceMessage(
+        withMetrics,
+        traceResourceAttributes(withMetrics)));
+    Map<String, Object> without = parseResourceAttributes(OtlpResourceProto.buildResourceMessage(
+        withoutMetrics,
+        traceResourceAttributes(withoutMetrics)));
 
-    assertEquals(
-        "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
+    assertEquals("true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
     assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
   }
 
   // ── parsing helpers ───────────────────────────────────────────────────────
-
   /**
    * Parses the resource message bytes into an attribute map while validating the protobuf wire
    * format (field numbers and wire types) of every field read.
@@ -264,7 +266,6 @@ class OtlpResourceProtoTest {
       int tag = resource.readTag();
       assertEquals(1, WireFormat.getTagFieldNumber(tag), "Resource.attributes is field 1");
       assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tag));
-
       // Read the full KeyValue body
       CodedInputStream kv = resource.readBytes().newCodedInput();
 
@@ -279,7 +280,9 @@ class OtlpResourceProtoTest {
     return attributes;
   }
 
-  /** Reads the {@code KeyValue.key} field (field 1, LEN) and returns the string value. */
+  /**
+   * Reads the {@code KeyValue.key} field (field 1, LEN) and returns the string value.
+   */
   private static String readKeyField(CodedInputStream kv) throws IOException {
     int tag = kv.readTag();
     assertEquals(1, WireFormat.getTagFieldNumber(tag), "KeyValue.key is field 1");
@@ -298,7 +301,9 @@ class OtlpResourceProtoTest {
     return kv.readBytes().newCodedInput();
   }
 
-  /** Reads {@code AnyValue.string_value} (field 1) or {@code AnyValue.array_value} (field 5). */
+  /**
+   * Reads {@code AnyValue.string_value} (field 1) or {@code AnyValue.array_value} (field 5).
+   */
   private static Object readAnyValueBody(CodedInputStream av) throws IOException {
     int avTag = av.readTag();
     int field = WireFormat.getTagFieldNumber(avTag);
@@ -314,7 +319,9 @@ class OtlpResourceProtoTest {
     return value;
   }
 
-  /** Reads {@code ArrayValue.values} (field 1, repeated {@code AnyValue}) into a string list. */
+  /**
+   * Reads {@code ArrayValue.values} (field 1, repeated {@code AnyValue}) into a string list.
+   */
   private static List<String> readArrayValue(CodedInputStream arrayValue) throws IOException {
     List<String> values = new ArrayList<>();
     while (!arrayValue.isAtEnd()) {

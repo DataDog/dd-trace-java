@@ -12,15 +12,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith({
-  CleanConfigStateExtension.class,
-  WithConfigExtension.class,
-  AllowContextTestingExtension.class
+    CleanConfigStateExtension.class,
+    WithConfigExtension.class,
+    AllowContextTestingExtension.class
 })
 @SuppressForbidden
 public class DDJavaSpecification {
-
   private static final long CHECK_TIMEOUT_MS = 3000;
-
   protected boolean assertThreadsEachCleanup = true;
   private static volatile boolean ignoreThreadCleanup;
 
@@ -48,13 +46,14 @@ public class DDJavaSpecification {
   }
 
   static Set<Thread> getDDThreads() {
-    return Thread.getAllStackTraces().keySet().stream()
-        .filter(
-            t ->
-                t.getName().startsWith("dd-")
-                    && !t.getName().equals("dd-task-scheduler")
-                    && !t.getName().equals("dd-cassandra-session-executor"))
-        .collect(Collectors.toSet());
+    return Thread
+      .getAllStackTraces()
+      .keySet()
+      .stream()
+      .filter(t -> t.getName().startsWith("dd-")
+          && !t.getName().equals("dd-task-scheduler")
+          && !t.getName().equals("dd-cassandra-session-executor"))
+      .collect(Collectors.toSet());
   }
 
   static void checkThreads() {

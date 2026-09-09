@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.akkahttp;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import akka.NotUsed;
 import akka.http.scaladsl.model.HttpRequest;
 import akka.http.scaladsl.model.HttpResponse;
@@ -51,7 +50,8 @@ import net.bytebuddy.asm.Advice;
  */
 @AutoService(InstrumenterModule.class)
 public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public AkkaHttpServerInstrumentation() {
     super("akka-http", "akka-http-server");
   }
@@ -64,20 +64,20 @@ public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".DatadogWrapperHelper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$2",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$3",
-      packageName + ".DatadogServerRequestResponseFlowWrapper$1$4",
-      packageName + ".AkkaHttpServerHeaders",
-      packageName + ".AkkaHttpServerDecorator",
-      packageName + ".UriAdapter",
-      packageName + ".RecoverFromBlockedExceptionPF",
-      packageName + ".appsec.BlockingResponseHelper",
-      packageName + ".appsec.ScalaListCollector",
-      packageName + ".appsec.AkkaBlockResponseFunction",
+        packageName + ".DatadogWrapperHelper",
+        packageName + ".DatadogServerRequestResponseFlowWrapper",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$1",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$2",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$3",
+        packageName + ".DatadogServerRequestResponseFlowWrapper$1$4",
+        packageName + ".AkkaHttpServerHeaders",
+        packageName + ".AkkaHttpServerDecorator",
+        packageName + ".UriAdapter",
+        packageName + ".RecoverFromBlockedExceptionPF",
+        packageName + ".appsec.BlockingResponseHelper",
+        packageName + ".appsec.ScalaListCollector",
+        packageName + ".appsec.AkkaBlockResponseFunction"
     };
   }
 
@@ -96,8 +96,7 @@ public final class AkkaHttpServerInstrumentation extends InstrumenterModule.Trac
   public static class AkkaHttpBindAndHandleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void enter(
-        @Advice.Argument(value = 0, readOnly = false)
-            Flow<HttpRequest, HttpResponse, NotUsed> handler,
+        @Advice.Argument(value = 0, readOnly = false) Flow<HttpRequest, HttpResponse, NotUsed> handler,
         @Advice.Argument(value = 4, readOnly = false) ServerSettings settings) {
       handler = handler.asJava().recover(RecoverFromBlockedExceptionPF.INSTANCE).asScala();
       final BidiFlow<HttpResponse, HttpResponse, HttpRequest, HttpRequest, NotUsed> wrapper =

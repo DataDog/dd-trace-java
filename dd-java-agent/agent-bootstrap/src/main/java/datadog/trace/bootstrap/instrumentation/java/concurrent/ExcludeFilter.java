@@ -15,13 +15,11 @@ import java.util.Set;
  * instrumentations, i.e. {@code Executor} and {@code Runnable}.
  */
 public class ExcludeFilter {
-
   public enum ExcludeType {
     RUNNABLE,
     FORK_JOIN_TASK,
     RUNNABLE_FUTURE,
     EXECUTOR;
-
     public static ExcludeType fromFieldType(String typeName) {
       switch (typeName) {
         case "java.lang.Runnable":
@@ -81,7 +79,6 @@ public class ExcludeFilter {
 
   private static final ClassValue<EnumSet<ExcludeType>> SKIP =
       GenericClassValue.of(ExcludeFilter::exclude);
-
   private static final EnumMap<ExcludeType, Set<String>> excludedClassNames =
       new EnumMap<>(ExcludeType.class);
 
@@ -97,22 +94,20 @@ public class ExcludeFilter {
     // Don't instrument the executor's own runnables. These runnables may never return until
     // netty shuts down.
     SKIP_TYPE_PREFIXES
-        .get(ExcludeType.EXECUTOR)
-        .add("io.netty.util.concurrent.SingleThreadEventExecutor.");
+      .get(ExcludeType.EXECUTOR)
+      .add("io.netty.util.concurrent.SingleThreadEventExecutor.");
     // Don't wrap Runnables belonging to NioEventLoop(s) as they want to propagate CloseException
     // outside of the event loop on close() and wrapping them in FutureTask interferes with that
     SKIP_TYPE_PREFIXES.get(ExcludeType.RUNNABLE).add("com.aerospike.client.async.NioEventLoop");
     // exclude various ForkJoinTasks internal to CHM
-    SKIP_TYPE_PREFIXES
-        .get(ExcludeType.FORK_JOIN_TASK)
-        .add("java.util.concurrent.ConcurrentHashMap");
+    SKIP_TYPE_PREFIXES.get(ExcludeType.FORK_JOIN_TASK).add("java.util.concurrent.ConcurrentHashMap");
     // Exclude Runnables in the Google code ConcurrentLinkedHashMap
     SKIP_TYPE_PREFIXES
-        .get(ExcludeType.RUNNABLE)
-        .add("com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap");
+      .get(ExcludeType.RUNNABLE)
+      .add("com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap");
     SKIP_TYPE_PREFIXES
-        .get(ExcludeType.RUNNABLE)
-        .add("org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer$");
+      .get(ExcludeType.RUNNABLE)
+      .add("org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer$");
   }
 
   /**

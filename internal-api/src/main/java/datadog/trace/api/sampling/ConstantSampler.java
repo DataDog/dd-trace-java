@@ -1,7 +1,6 @@
 package datadog.trace.api.sampling;
 
 public class ConstantSampler implements Sampler {
-
   private final boolean constant;
 
   public ConstantSampler(boolean constant) {

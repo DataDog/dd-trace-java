@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.profiling.controller.OngoingRecording;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.OperatingSystem;
@@ -46,7 +45,8 @@ class DatadogProfilerTest {
   @Test
   void test() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
     DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     assertFalse(profiler.enabledModes().isEmpty());
 
@@ -80,7 +80,8 @@ class DatadogProfilerTest {
   @MethodSource("profilingModes")
   void testStartCmd(boolean cpu, boolean wall, boolean alloc, boolean memleak) throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(configProvider(cpu, wall, alloc, memleak));
 
@@ -102,16 +103,20 @@ class DatadogProfilerTest {
   }
 
   private static Stream<Arguments> profilingModes() {
-    return IntStream.range(0, 1 << 4)
-        .mapToObj(
-            x ->
-                Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
+    return IntStream
+      .range(0, 1 << 4)
+      .mapToObj(x -> Arguments.of(
+          (x & 0x1000) != 0,
+          (x & 0x100) != 0,
+          (x & 0x10) != 0,
+          (x & 0x1) != 0));
   }
 
   @Test
   void testStartCmdEnableJMethodIDOptim() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
 
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED, "true");
@@ -124,7 +129,8 @@ class DatadogProfilerTest {
   @Test
   void testStartCmdNativeMemDisabledByDefault() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
 
     DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     assertFalse(profiler.enabledModes().contains(ProfilingMode.NATIVEMEM));
@@ -135,7 +141,8 @@ class DatadogProfilerTest {
   @Test
   void testStartCmdNativeMemEnabled() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
 
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED, "true");
@@ -150,7 +157,8 @@ class DatadogProfilerTest {
   @Test
   void testStartCmdNativeSocketDisabledByDefault() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
 
     DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
     assertFalse(profiler.enabledModes().contains(ProfilingMode.NATIVESOCKET));
@@ -161,7 +169,8 @@ class DatadogProfilerTest {
   @Test
   void testStartCmdNativeSocketEnabledWithoutInterval() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
 
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED, "true");
@@ -177,7 +186,8 @@ class DatadogProfilerTest {
   @Test
   void testStartCmdNativeSocketEnabledWithInterval() throws Exception {
     assertDoesNotThrow(
-        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(),
+        "Profiler not available");
 
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED, "true");
@@ -196,8 +206,7 @@ class DatadogProfilerTest {
 
   @ParameterizedTest
   @MethodSource("wallContextFilterModes")
-  void testWallContextFilter(boolean tracingEnabled, boolean contextFilterEnabled)
-      throws Exception {
+  void testWallContextFilter(boolean tracingEnabled, boolean contextFilterEnabled) throws Exception {
     // Skip test if profiler native library is not available (e.g., on macOS)
     try {
       Throwable reason = DdprofLibraryLoader.jvmAccess().getReasonNotLoaded();
@@ -231,24 +240,30 @@ class DatadogProfilerTest {
       assertTrue(
           cmd.contains(",filter="),
           "Command should contain ',filter=' when tracing is disabled or context filter is disabled: "
-              + cmd);
+          + cmd);
       if (cmd.contains(",filter=0")) {
         throw new AssertionError(
             "Command should not contain ',filter=0' when tracing is disabled or context filter is disabled: "
-                + cmd);
+            + cmd);
       }
     }
   }
 
   private static Stream<Arguments> wallContextFilterModes() {
     return Stream.of(
-        Arguments.of(true, true), // tracing enabled, context filter enabled -> filter=0
-        Arguments.of(true, false), // tracing enabled, context filter disabled -> filter=
+        Arguments
+          // tracing enabled, context filter enabled -> filter=0
+          .of(true, true),
+        Arguments
+          // tracing enabled, context filter disabled -> filter=
+          .of(true, false),
         Arguments.of(
-            false, true), // tracing disabled, context filter enabled -> filter= (tracing disabled
-        // overrides)
-        Arguments.of(false, false) // tracing disabled, context filter disabled -> filter=
-        );
+            false,
+            // tracing disabled, context filter enabled -> filter= (tracing disabled
+            true),
+        Arguments
+          // tracing disabled, context filter disabled -> filter=
+          .of(false, false));
   }
 
   @Test
@@ -286,7 +301,6 @@ class DatadogProfilerTest {
         assertFalse(Arrays.equals(snapshot2, profiler.snapshot()));
       }
     }
-
     // setSpanContext wipes all custom slots and automatically calls reapplyAppContext() to restore
     // them.
     int fooOffset = profiler.offsetOf("foo");
@@ -298,7 +312,6 @@ class DatadogProfilerTest {
 
     profiler.reapplyAppContext();
     assertNotEquals(0, profiler.snapshot()[fooOffset]);
-
     // Scenario A: clearContextValue must clear the snapshot so reapply has nothing to restore
     profiler.clearContextValue("foo");
     assertEquals(0, profiler.snapshot()[fooOffset], "clearContextValue must clear ddprof slot");
@@ -307,7 +320,6 @@ class DatadogProfilerTest {
         0,
         profiler.snapshot()[fooOffset],
         "after clearContextValue, reapplyAppContext must not restore foo");
-
     // Scenario B: scope opened when snapshot is null — close() restores null (pre-scope state)
     {
       DatadogProfilingScope scope = new DatadogProfilingScope(profiler);
@@ -321,7 +333,6 @@ class DatadogProfilerTest {
         0,
         profiler.snapshot()[fooOffset],
         "scope.close() restores pre-scope snapshot (null here), so reapply has nothing to restore");
-
     // Scenario B2: scope.close() immediately clears native slot — no span re-activation needed
     {
       DatadogProfilingScope scope = new DatadogProfilingScope(profiler);
@@ -333,7 +344,6 @@ class DatadogProfilerTest {
           profiler.snapshot()[fooOffset],
           "scope.close() must immediately clear native slot without waiting for reapplyAppContext");
     }
-
     // Scenario B3: scope.close() immediately restores prior context to native slot
     fooSetter.set("outer-val");
     int outerEncoding = profiler.snapshot()[fooOffset];
@@ -350,7 +360,6 @@ class DatadogProfilerTest {
           "scope.close() must immediately restore prior native slot value");
     }
     profiler.clearContextValue("foo");
-
     // Scenario C: reapplyAppContext is idempotent
     fooSetter.set("idempotent-value");
     profiler.setSpanContext(1L, 1L, 0L, 1L);
@@ -362,7 +371,6 @@ class DatadogProfilerTest {
         afterFirst,
         profiler.snapshot()[fooOffset],
         "calling reapplyAppContext twice must produce the same result");
-
     // Scenario D: re-activation after child activation restores app attr
     int parentEncoding = profiler.snapshot()[fooOffset];
     assertNotEquals(0, parentEncoding, "foo must be set before child activation");
@@ -377,7 +385,6 @@ class DatadogProfilerTest {
         parentEncoding,
         profiler.snapshot()[fooOffset],
         "re-activation + reapply must restore parent app attr");
-
     // Scenario E: app attr set in child survives into next activation
     profiler.setSpanContext(2L, 2L, 0L, 2L);
     fooSetter.set("child-val");
@@ -393,7 +400,6 @@ class DatadogProfilerTest {
         childEncoding,
         profiler.snapshot()[fooOffset],
         "ThreadLocal ambient value must survive into the next activation");
-
     // Scenario F: app attributes are visible after the last span scope closes.
     // clearSpanContext() wipes all custom slots and automatically calls reapplyAppContext(),
     // restoring app attrs immediately.
@@ -401,13 +407,14 @@ class DatadogProfilerTest {
     assertNotEquals(0, profiler.snapshot()[fooOffset], "foo must be live before clearSpanContext");
     profiler.clearSpanContext();
     assertNotEquals(
-        0, profiler.snapshot()[fooOffset], "clearSpanContext must auto-reapply app context");
+        0,
+        profiler.snapshot()[fooOffset],
+        "clearSpanContext must auto-reapply app context");
     profiler.reapplyAppContext();
     assertNotEquals(
         0,
         profiler.snapshot()[fooOffset],
         "reapplyAppContext after clearSpanContext must restore foo");
-
     // Scenario G: no app value set — clearSpanContext + reapplyAppContext leaves slot empty
     profiler.clearContextValue("foo");
     profiler.clearAppContextSnapshot();
@@ -417,7 +424,6 @@ class DatadogProfilerTest {
         0,
         profiler.snapshot()[fooOffset],
         "reapplyAppContext with no snapshot must leave foo at 0");
-
     // Scenario H: scope.close() restores ambient context set before scope was opened
     fooSetter.set("ambient-val");
     // Activate a span so reapplyAppContext can write the value (validOffset=1 after
@@ -430,8 +436,11 @@ class DatadogProfilerTest {
       DatadogProfilingScope scope = new DatadogProfilingScope(profiler);
       scope.setContextValue("foo", "scope-override");
       assertNotEquals(
-          ambientEncoding, profiler.snapshot()[fooOffset], "scope must override ambient");
-      scope.close(); // must restore ambient snapshot, not nuke it
+          ambientEncoding,
+          profiler.snapshot()[fooOffset],
+          "scope must override ambient");
+      // must restore ambient snapshot, not nuke it
+      scope.close();
     }
     profiler.setSpanContext(1L, 1L, 0L, 1L);
     profiler.reapplyAppContext();
@@ -439,11 +448,9 @@ class DatadogProfilerTest {
         ambientEncoding,
         profiler.snapshot()[fooOffset],
         "scope.close() must restore ambient context, not clear it");
-
     // Clean up after Scenario H so Acceptance tests start from a neutral state.
     profiler.clearContextValue("foo");
     profiler.clearSpanContext();
-
     // Acceptance 1: reapply happens automatically inside setSpanContext — no manual call needed.
     fooSetter.set("auto-reapply-val");
     assertNotEquals(0, profiler.snapshot()[fooOffset], "foo must be live before setSpanContext");
@@ -454,7 +461,6 @@ class DatadogProfilerTest {
         profiler.snapshot()[fooOffset],
         "Acceptance 1: setSpanContext must auto-restore app slot without explicit reapplyAppContext");
     profiler.clearContextValue("foo");
-
     // Acceptance 2: reapply happens automatically inside clearSpanContext — no manual call needed.
     fooSetter.set("clear-reapply-val");
     assertNotEquals(0, profiler.snapshot()[fooOffset], "foo must be live before clearSpanContext");
@@ -465,7 +471,6 @@ class DatadogProfilerTest {
         profiler.snapshot()[fooOffset],
         "Acceptance 2: clearSpanContext must auto-restore app slot without explicit reapplyAppContext");
     profiler.clearContextValue("foo");
-
     // Acceptance 3: no app value set — clearSpanContext leaves slot empty.
     profiler.clearContextValue("foo");
     profiler.clearAppContextSnapshot();
@@ -475,7 +480,6 @@ class DatadogProfilerTest {
         0,
         profiler.snapshot()[fooOffset],
         "Acceptance 3: clearSpanContext with no app value must leave foo at 0");
-
     // Acceptance 4: nonZeroCount accuracy — cleared snapshot is considered empty so a new
     // scope's save/restore does not leak a stale entry.
     fooSetter.set("v1");
@@ -492,7 +496,6 @@ class DatadogProfilerTest {
         0,
         profiler.snapshot()[fooOffset],
         "Acceptance 4: scope.close() must restore pre-scope empty state; nonZeroCount must not drift");
-
     // Acceptance 5: clearAppContextSnapshot() fully resets per-thread state so no stale value
     // leaks through.
     fooSetter.set("leak-check");
@@ -510,21 +513,20 @@ class DatadogProfilerTest {
     assertEquals(
         0,
         profiler.snapshot()[fooOffset],
-        "Acceptance 5: after clearAppContextSnapshot, scope.close() restores empty state; no stale value leaks");
-
+        "Acceptance 5: after clearAppContextSnapshot, scope.close() restores empty state; "
+        + "no stale value leaks");
     // Acceptance 6: restoreAppContext does not throw when scope stack is absent on the restoring
     // thread. The guard is verified by the absence of an exception on the normal close path.
     profiler.clearSpanContext();
     profiler.clearContextValue("foo");
     profiler.clearAppContextSnapshot();
     assertDoesNotThrow(
-        () -> {
-          DatadogProfilingScope scope6 = new DatadogProfilingScope(profiler);
-          scope6.setContextValue("foo", "guard-val");
-          scope6.close();
-        },
+          () -> {
+            DatadogProfilingScope scope6 = new DatadogProfilingScope(profiler);
+            scope6.setContextValue("foo", "guard-val");
+            scope6.close();
+          },
         "Acceptance 6: DatadogProfilingScope.close() must not throw even when scopeStack is absent");
-
     // Guard: a zero span id must not throw and must degrade to a clean clear that still reapplies
     // app context. The native setTraceContext rejects spanId==0 (IllegalArgumentException); the
     // bridge routes a zero span to clearTraceContext rather than letting that throw be swallowed
@@ -538,7 +540,9 @@ class DatadogProfilerTest {
     profiler.clearAppContextSnapshot();
     fooSetter.set("zero-span-guard");
     assertNotEquals(
-        0, profiler.snapshot()[fooOffset], "foo must be live before the zero-span activation");
+        0,
+        profiler.snapshot()[fooOffset],
+        "foo must be live before the zero-span activation");
     assertDoesNotThrow(
         () -> profiler.setSpanContext(1L, 0L, 0L, 1L),
         "Guard: a zero span id must not throw (routed to clearTraceContext, not a swallowed IAE)");
@@ -547,7 +551,6 @@ class DatadogProfilerTest {
         profiler.snapshot()[fooOffset],
         "Guard: zero-span activation must degrade to a clean clear that still reapplies app context");
     profiler.clearContextValue("foo");
-
     // Regression: a native setContextValue rejection (e.g. an oversized value, >255 UTF-8 bytes)
     // clears the native slot; the prior value must be resynced immediately instead of only
     // reappearing on the next span boundary (a flicker the pre-migration DBB path never had,
@@ -567,7 +570,6 @@ class DatadogProfilerTest {
         profiler.snapshot()[fooOffset],
         "a rejected write must not blank the slot; the prior value must stay visible immediately");
     profiler.clearContextValue("foo");
-
     // Regression: setTraceContext's trailing reapplyAppContext must not clobber the span-derived
     // value it just wrote natively to operationOffset/resourceOffset, even when that offset is
     // also app-owned (e.g. profiling.context.attributes names _dd.trace.operation/resource while
@@ -592,19 +594,23 @@ class DatadogProfilerTest {
         spanDerivedEncoding,
         profiler.snapshot()[fooOffset],
         "setTraceContext's trailing reapplyAppContext must skip operationOffset/resourceOffset so"
-            + " it doesn't overwrite the span-derived value just written to an app-owned offset");
+        + " it doesn't overwrite the span-derived value just written to an app-owned offset");
     profiler.clearSpanContext();
     profiler.clearContextValue("foo");
   }
 
   private static ConfigProvider configProvider(
-      boolean cpu, boolean wall, boolean alloc, boolean memleak) {
+      boolean cpu,
+      boolean wall,
+      boolean alloc,
+      boolean memleak) {
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED, Boolean.toString(cpu));
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, Boolean.toString(wall));
     props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED, Boolean.toString(alloc));
     props.put(
-        ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, Boolean.toString(memleak));
+        ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+        Boolean.toString(memleak));
     return ConfigProvider.withPropertiesOverride(props);
   }
 }

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.test.util.PollingConditions;
 import java.util.function.Predicate;
 import org.junit.jupiter.api.Test;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
  * the eviction-aware {@code tryGetOrCreateOrEvict} methods built on top of this.
  */
 class ConcurrentHashtableSizeManagerTest {
-
   @Test
   void tryReserveSucceedsUnderCapacityAndFailsWhenFull() {
     ConcurrentHashtable.SizeManager sizeManager = new ConcurrentHashtable.SizeManager(2);
@@ -45,7 +43,8 @@ class ConcurrentHashtableSizeManagerTest {
     boolean reserved = tryReserveOrEvict(state, e -> true);
     assertTrue(reserved);
     assertEquals(1, state.sizeManager.estimateSize());
-    assertNull(state.buckets.get(0)); // nothing was evicted
+    // nothing was evicted
+    assertNull(state.buckets.get(0));
   }
 
   @Test
@@ -58,8 +57,10 @@ class ConcurrentHashtableSizeManagerTest {
 
     boolean reserved = tryReserveOrEvict(state, e -> true);
     assertTrue(reserved);
-    assertEquals(1, state.sizeManager.estimateSize()); // one evicted, one reserved: net unchanged
-    assertNull(state.buckets.get(0)); // existing was unlinked
+    // one evicted, one reserved: net unchanged
+    assertEquals(1, state.sizeManager.estimateSize());
+    // existing was unlinked
+    assertNull(state.buckets.get(0));
   }
 
   @Test
@@ -116,7 +117,8 @@ class ConcurrentHashtableSizeManagerTest {
     TestEntry evicted = evictOne(state, e -> e.label.equals("a"));
     assertSame(a, evicted);
     assertNull(state.buckets.get(0));
-    assertSame(b, state.buckets.get(1)); // untouched
+    // untouched
+    assertSame(b, state.buckets.get(1));
     assertEquals(1, state.sizeManager.estimateSize());
   }
 
@@ -137,18 +139,16 @@ class ConcurrentHashtableSizeManagerTest {
     state.sizeManager.increment();
     state.sizeManager.increment();
     state.sizeManager.increment();
-
     // First eviction: scan starts at cursor 0, finds bucket 2 first among evictable entries
     // (only e2 matches here) -- sets the cursor to 2.
     TestEntry firstEvicted = evictOne(state, e -> e.label.equals("e2"));
     assertEquals("e2", firstEvicted.label);
-
     // Second eviction: both e0 (bucket 0) and e3 (bucket 3) match. Scanning resumes at the
     // cursor (2) and goes forward before wrapping, so bucket 3 (e3) is found before bucket 0.
     TestEntry secondEvicted = evictOne(state, e -> true);
     assertSame(e3, secondEvicted);
-    assertSame(e0, state.buckets.get(0)); // e0 not yet touched
-
+    // e0 not yet touched
+    assertSame(e0, state.buckets.get(0));
     // Third eviction: only e0 remains. The cursor is now past bucket 3, so the scan must wrap
     // around to bucket 0 to find it.
     TestEntry thirdEvicted = evictOne(state, e -> true);
@@ -184,7 +184,6 @@ class ConcurrentHashtableSizeManagerTest {
     state.sizeManager.increment();
     // Advance the cursor away from 0 via a successful eviction at bucket 2.
     evictOne(state, e -> true);
-
     // A full pass that removes nothing still resets the scan position (per evictAll's contract).
     int count = evictAll(state, e -> false);
     assertEquals(0, count);
@@ -193,7 +192,6 @@ class ConcurrentHashtableSizeManagerTest {
     TestEntry e3 = insertAt(state, 3, "e3");
     state.sizeManager.increment();
     state.sizeManager.increment();
-
     // With the cursor reset to 0, the forward scan reaches bucket 0 before bucket 3.
     TestEntry evicted = evictOne(state, e -> true);
     assertSame(e0, evicted);
@@ -206,9 +204,10 @@ class ConcurrentHashtableSizeManagerTest {
         ConcurrentHashtable.State.createBounded(TestEntry.class, 4);
     insertAt(state, 2, "a");
     state.sizeManager.increment();
-    evictOne(state, e -> true); // advances the cursor to 2, count back to 0
-    state.sizeManager.increment(); // pretend a fresh entry was inserted
-
+    // advances the cursor to 2, count back to 0
+    evictOne(state, e -> true);
+    // pretend a fresh entry was inserted
+    state.sizeManager.increment();
     // One entry is live and counted; releasing that one slot brings the count back to zero and
     // restarts the scan -- unlike a blanket zeroing, this only gives back what was removed.
     state.sizeManager.release(1);
@@ -219,7 +218,8 @@ class ConcurrentHashtableSizeManagerTest {
     state.sizeManager.increment();
     state.sizeManager.increment();
     TestEntry evicted = evictOne(state, e -> true);
-    assertSame(e0, evicted); // scan restarted from bucket 0, per release()
+    // scan restarted from bucket 0, per release()
+    assertSame(e0, evicted);
     assertSame(e3, state.buckets.get(3));
   }
 
@@ -241,7 +241,6 @@ class ConcurrentHashtableSizeManagerTest {
     }
     state.sizeManager.increment();
     assertTrue(ConcurrentHashtable.isFull(state));
-
     // Table is full: tryReserveOrEvict evicts "a" and reserves the freed slot for the caller, who
     // is now responsible for splicing in the entry that occupies it -- via insertReserved, since
     // the reservation already happened and a plain insertHeadEntryAt/increment would double-count.
@@ -251,7 +250,8 @@ class ConcurrentHashtableSizeManagerTest {
       boolean reserved = ConcurrentHashtable.tryReserveOrEvict(state, e -> true);
       assertTrue(reserved);
       assertEquals(1, ConcurrentHashtable.estimateSize(state));
-      assertNull(state.buckets.get(0)); // "a" was evicted; the reserved slot has no entry yet
+      // "a" was evicted; the reserved slot has no entry yet
+      assertNull(state.buckets.get(0));
       ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
     }
 
@@ -290,15 +290,15 @@ class ConcurrentHashtableSizeManagerTest {
       clearer.start();
       // Wait until the clear is definitely queued on the monitor we hold, so the interleaving under
       // test is the one actually attempted rather than one the scheduler happened to avoid.
-      new PollingConditions()
-          .eventually(() -> assertEquals(Thread.State.BLOCKED, clearer.getState()));
+      new PollingConditions().eventually(() -> assertEquals(
+          Thread.State.BLOCKED,
+          clearer.getState()));
 
       assertTrue(ConcurrentHashtable.tryReserveOrEvict(state, e -> true));
       ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
       assertEquals(1, ConcurrentHashtable.estimateSize(state));
     }
     clearer.join();
-
     // The clear ran strictly after the pair, so the table is exactly post-clear: no entry, no
     // count, and -- the point -- the two agree.
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
@@ -321,16 +321,14 @@ class ConcurrentHashtableSizeManagerTest {
         ConcurrentHashtable.State.createBounded(TestEntry.class, 2);
     insertAt(state, 0, "a");
     state.sizeManager.increment();
-
     // Reserve, with no lock held across what follows.
     assertTrue(ConcurrentHashtable.tryReserveOrEvict(state, e -> false));
-    assertEquals(2, ConcurrentHashtable.estimateSize(state)); // "a" plus our reservation
-
+    // "a" plus our reservation
+    assertEquals(2, ConcurrentHashtable.estimateSize(state));
     // The sweep lands in the gap, removing the one entry that exists. Our slot is not its to give
     // back, so the count drops by exactly one.
     ConcurrentHashtable.clear(state);
     assertEquals(1, ConcurrentHashtable.estimateSize(state));
-
     // The reservation is still good, and filling it leaves the count matching the entries present.
     synchronized (ConcurrentHashtable.getWriteLockAt(state, 0)) {
       ConcurrentHashtable.insertReserved(state, 0, new TestEntry(0, "reserved"));
@@ -355,16 +353,16 @@ class ConcurrentHashtableSizeManagerTest {
       java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
       Runnable reserve =
           () -> {
-            try {
-              start.await();
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              return;
-            }
-            if (sizeManager.tryReserve()) {
-              granted.incrementAndGet();
-            }
-          };
+        try {
+          start.await();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        if (sizeManager.tryReserve()) {
+          granted.incrementAndGet();
+        }
+      };
       Thread t1 = new Thread(reserve, "reserve-1");
       Thread t2 = new Thread(reserve, "reserve-2");
       t1.start();
@@ -379,15 +377,21 @@ class ConcurrentHashtableSizeManagerTest {
   }
 
   private static void assertNotNullLabel(
-      ConcurrentHashtable.State<TestEntry> state, int index, String label) {
+      ConcurrentHashtable.State<TestEntry> state,
+      int index,
+      String label) {
     TestEntry e = state.buckets.get(index);
     assertNotNull(e);
     assertEquals(label, e.label);
   }
 
-  /** Inserts a fresh entry at the given bucket index. Bucket-array length must exceed index. */
+  /**
+   * Inserts a fresh entry at the given bucket index. Bucket-array length must exceed index.
+   */
   private static TestEntry insertAt(
-      ConcurrentHashtable.State<TestEntry> state, int index, String label) {
+      ConcurrentHashtable.State<TestEntry> state,
+      int index,
+      String label) {
     TestEntry entry = new TestEntry(index, label);
     synchronized (ConcurrentHashtable.getWriteLockAt(state, index)) {
       ConcurrentHashtable.insertHeadEntryAt(state, index, entry);
@@ -395,31 +399,42 @@ class ConcurrentHashtableSizeManagerTest {
     return entry;
   }
 
-  /** {@code sizeManager.tryReserveOrEvict}, taking the write lock {@code @GuardedBy} requires. */
+  /**
+   * {@code sizeManager.tryReserveOrEvict}, taking the write lock {@code @GuardedBy} requires.
+   */
   private static boolean tryReserveOrEvict(
-      ConcurrentHashtable.State<TestEntry> state, Predicate<TestEntry> evictable) {
+      ConcurrentHashtable.State<TestEntry> state,
+      Predicate<TestEntry> evictable) {
     synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       return state.sizeManager.tryReserveOrEvict(state.buckets, evictable);
     }
   }
 
-  /** {@code sizeManager.evictOne}, taking the write lock {@code @GuardedBy} requires. */
+  /**
+   * {@code sizeManager.evictOne}, taking the write lock {@code @GuardedBy} requires.
+   */
   private static TestEntry evictOne(
-      ConcurrentHashtable.State<TestEntry> state, Predicate<TestEntry> evictable) {
+      ConcurrentHashtable.State<TestEntry> state,
+      Predicate<TestEntry> evictable) {
     synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       return state.sizeManager.evictOne(state.buckets, evictable);
     }
   }
 
-  /** {@code sizeManager.evictAll}, taking the write lock {@code @GuardedBy} requires. */
+  /**
+   * {@code sizeManager.evictAll}, taking the write lock {@code @GuardedBy} requires.
+   */
   private static int evictAll(
-      ConcurrentHashtable.State<TestEntry> state, Predicate<TestEntry> evictable) {
+      ConcurrentHashtable.State<TestEntry> state,
+      Predicate<TestEntry> evictable) {
     synchronized (ConcurrentHashtable.getTableWriteLock(state)) {
       return state.sizeManager.evictAll(state.buckets, evictable);
     }
   }
 
-  /** Entry with a caller-controlled {@code keyHash} so tests can place it in an exact bucket. */
+  /**
+   * Entry with a caller-controlled {@code keyHash} so tests can place it in an exact bucket.
+   */
   private static final class TestEntry extends ConcurrentHashtable.Entry {
     final String label;
 

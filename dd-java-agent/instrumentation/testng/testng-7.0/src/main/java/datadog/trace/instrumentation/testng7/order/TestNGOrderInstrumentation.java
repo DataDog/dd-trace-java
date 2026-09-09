@@ -17,8 +17,8 @@ import org.testng.annotations.CustomAttribute;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private final String parentPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGOrderInstrumentation() {
@@ -55,10 +55,10 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      parentPackageName + ".TestNGClassListener",
-      parentPackageName + ".TestNGUtils",
-      parentPackageName + ".TestEventsHandlerHolder",
-      packageName + ".FailFastOrderInterceptor",
+        parentPackageName + ".TestNGClassListener",
+        parentPackageName + ".TestNGUtils",
+        parentPackageName + ".TestEventsHandlerHolder",
+        packageName + ".FailFastOrderInterceptor"
     };
   }
 
@@ -74,12 +74,11 @@ public class TestNGOrderInstrumentation extends InstrumenterModule.CiVisibility
             return;
           }
         }
-
         // adding our interceptor as the first one:
         // that way custom interceptors added by the users will have higher priority
         methodInterceptors.add(
-            0, new FailFastOrderInterceptor(TestEventsHandlerHolder.TEST_EVENTS_HANDLER));
-
+            0,
+            new FailFastOrderInterceptor(TestEventsHandlerHolder.TEST_EVENTS_HANDLER));
       } else {
         throw new IllegalArgumentException("Unknown test order: " + testOrder);
       }

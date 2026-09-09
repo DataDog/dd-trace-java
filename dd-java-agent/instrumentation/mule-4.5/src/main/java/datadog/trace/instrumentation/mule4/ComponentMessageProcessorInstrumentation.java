@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,8 @@ import org.mule.runtime.tracer.api.EventTracer;
  */
 @AutoService(InstrumenterModule.class)
 public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "org.mule.runtime.module.extension.internal.runtime.operation.ComponentMessageProcessor";
@@ -35,8 +34,8 @@ public class ComponentMessageProcessorInstrumentation extends AbstractMuleInstru
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("onEvent", "onEventSynchronous", "prepareAndExecuteOperation"))
-            .and(takesArgument(0, named("org.mule.runtime.core.api.event.CoreEvent"))),
+          .and(namedOneOf("onEvent", "onEventSynchronous", "prepareAndExecuteOperation"))
+          .and(takesArgument(0, named("org.mule.runtime.core.api.event.CoreEvent"))),
         getClass().getName() + "$ProcessAdvice");
   }
 

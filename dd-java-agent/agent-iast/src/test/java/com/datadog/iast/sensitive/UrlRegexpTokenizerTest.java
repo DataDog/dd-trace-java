@@ -4,7 +4,6 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.sensitive.SensitiveHandler.Tokenizer;
 import com.datadog.iast.util.Ranged;
@@ -16,7 +15,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class UrlRegexpTokenizerTest {
-
   @ParameterizedTest(name = "{0}")
   @MethodSource("redactsUrlSecretsArguments")
   void redactsUrlSecrets(final String description, final String url, final List<String> expected) {
@@ -27,8 +25,7 @@ class UrlRegexpTokenizerTest {
     return Stream.of(
         arguments("userinfo authority", "https://user:pass@host/path", singletonList("user:pass")),
         arguments("single user authority", "ftp://bob@server/file", singletonList("bob")),
-        arguments(
-            "query parameter values", "http://h/p?token=secret&id=42", asList("secret", "42")),
+        arguments("query parameter values", "http://h/p?token=secret&id=42", asList("secret", "42")),
         arguments("authority and query together", "https://user@host/p?q=v", asList("user", "v")));
   }
 

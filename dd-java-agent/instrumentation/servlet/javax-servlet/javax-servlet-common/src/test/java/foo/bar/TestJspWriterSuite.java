@@ -4,7 +4,6 @@ import java.io.IOException;
 import javax.servlet.jsp.JspWriter;
 
 public class TestJspWriterSuite {
-
   JspWriter writer;
 
   public TestJspWriterSuite(final JspWriter writer) {

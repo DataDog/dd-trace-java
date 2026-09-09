@@ -102,7 +102,6 @@ public interface NamingSchema {
   }
 
   interface ForCloud {
-
     /**
      * Calculate the operation name for a generic cloud sdk call.
      *
@@ -113,7 +112,9 @@ public interface NamingSchema {
      */
     @Nonnull
     String operationForRequest(
-        @Nonnull String provider, @Nonnull String cloudService, @Nonnull String serviceOperation);
+        @Nonnull String provider,
+        @Nonnull String cloudService,
+        @Nonnull String serviceOperation);
 
     /**
      * Calculate the service name for a generic cloud sdk call.

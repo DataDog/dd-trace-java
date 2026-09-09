@@ -3,15 +3,13 @@ package datadog.trace.agent.test;
 import java.util.function.Supplier;
 
 public class EnclosedClasses {
-
   static {
-    String id =
-        new Supplier<String>() {
-          @Override
-          public String get() {
-            return Long.toString(System.currentTimeMillis());
-          }
-        }.get();
+    String id = new Supplier<String>() {
+      @Override
+      public String get() {
+        return Long.toString(System.currentTimeMillis());
+      }
+    }.get();
     assert id != null;
   }
 
@@ -49,11 +47,14 @@ public class EnclosedClasses {
     }
   }
 
-  public interface Interface {}
+  public interface Interface {
+  }
 
-  public abstract static class Abstract {}
+  public abstract static class Abstract {
+  }
 
-  public @interface Annotation {}
+  public @interface Annotation {
+  }
 
   public enum Enum {}
 }

@@ -18,18 +18,16 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Maintains an index from known instrumented class names to transformation id(s). */
+/**
+ * Maintains an index from known instrumented class names to transformation id(s).
+ */
 public final class KnownTypesIndex {
   private static final Logger log = LoggerFactory.getLogger(KnownTypesIndex.class);
-
   private static final String KNOWN_TYPES_INDEX_NAME = "known-types.index";
-
   // marks results that match multiple transformations
   private static final int MULTIPLE_ID_MARKER = 0x1000;
-
   // lookup table of multiple-id results
   private final int[][] multipleIdTable;
-
   private final ClassNameTrie knownTypesTrie;
 
   private KnownTypesIndex(int[][] multipleIdTable, ClassNameTrie knownTypesTrie) {
@@ -73,7 +71,8 @@ public final class KnownTypesIndex {
         log.error("Problem reading {}", KNOWN_TYPES_INDEX_NAME, e);
       }
     }
-    return buildIndex(); // fallback to runtime generation when testing
+    // fallback to runtime generation when testing
+    return buildIndex();
   }
 
   public static KnownTypesIndex buildIndex() {
@@ -87,7 +86,9 @@ public final class KnownTypesIndex {
     return new KnownTypesIndex(multipleIdTable, indexGenerator.knownTypesTrie.buildTrie());
   }
 
-  /** Generates an index from known instrumented types referenced by {@link Instrumenter}s. */
+  /**
+   * Generates an index from known instrumented types referenced by {@link Instrumenter}s.
+   */
   static class IndexGenerator {
     final ClassNameTrie.Builder knownTypesTrie = new ClassNameTrie.Builder();
     final List<BitSet> multipleIdTable = new ArrayList<>();
@@ -110,7 +111,9 @@ public final class KnownTypesIndex {
       }
     }
 
-    /** Indexes a single match from known-type to transformation-id. */
+    /**
+     * Indexes a single match from known-type to transformation-id.
+     */
     private void indexKnownType(Instrumenter instrumenter, String knownType, int transformationId) {
       if (null == knownType || knownType.isEmpty()) {
         throw new IllegalArgumentException(
@@ -158,7 +161,6 @@ public final class KnownTypesIndex {
       }
 
       Path indexDir = Paths.get(args[0]).toAbsolutePath();
-
       // satisfy some instrumenters that cache matchers in initializers
       HierarchyMatchers.registerIfAbsent(HierarchyMatchers.simpleChecks());
       SharedTypePools.registerIfAbsent(SharedTypePools.simpleCache());

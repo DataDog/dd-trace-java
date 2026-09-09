@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,8 +16,9 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 
 @AutoService(InstrumenterModule.class)
 public final class ByteBufferInstrumentation extends InstrumenterModule.Profiling
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForBootstrap,
+    Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public ByteBufferInstrumentation() {
     super("allocatedirect", "directallocation");
   }
@@ -27,9 +27,11 @@ public final class ByteBufferInstrumentation extends InstrumenterModule.Profilin
   public boolean isEnabled() {
     return JavaVirtualMachine.isJavaVersionAtLeast(11)
         && super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT)
+        && ConfigProvider
+          .getInstance()
+          .getBoolean(
+              PROFILING_DIRECT_ALLOCATION_ENABLED,
+              PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT)
         && Platform.hasJfr();
   }
 
@@ -42,10 +44,10 @@ public final class ByteBufferInstrumentation extends InstrumenterModule.Profilin
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("allocateDirect"))
-            .and(isStatic())
-            .and(takesArgument(0, int.class))
-            .and(takesArguments(1)),
+          .and(named("allocateDirect"))
+          .and(isStatic())
+          .and(takesArgument(0, int.class))
+          .and(takesArguments(1)),
         packageName + ".AllocateDirectAdvice");
   }
 }

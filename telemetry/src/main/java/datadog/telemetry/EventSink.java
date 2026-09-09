@@ -34,7 +34,8 @@ interface EventSink {
   EventSink NOOP = new Noop();
 
   class Noop implements EventSink {
-    private Noop() {}
+    private Noop() {
+    }
 
     @Override
     public void addConfigChangeEvent(ConfigSetting event) {}

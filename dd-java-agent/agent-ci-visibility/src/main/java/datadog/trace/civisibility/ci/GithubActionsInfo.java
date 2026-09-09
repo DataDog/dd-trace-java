@@ -5,7 +5,6 @@ import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -29,14 +28,11 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressFBWarnings(
-    value = "DMI_HARDCODED_ABSOLUTE_FILENAME",
-    justification =
-        "The GitHub Actions runner diagnostics directories have well-known absolute paths for Linux runners")
+@SuppressFBWarnings(value = "DMI_HARDCODED_ABSOLUTE_FILENAME", justification = "The GitHub "
+    + "Actions runner diagnostics directories have well-known absolute paths for Linux "
+    + "runners")
 class GithubActionsInfo implements CIProviderInfo {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GithubActionsInfo.class);
-
   // https://docs.github.com/en/free-pro-team@latest/actions/reference/environment-variables#default-environment-variables
   public static final String GHACTIONS = "GITHUB_ACTION";
   public static final String GHACTIONS_PROVIDER_NAME = "github";
@@ -54,12 +50,11 @@ class GithubActionsInfo implements CIProviderInfo {
   public static final String GITHUB_BASE_REF = "GITHUB_BASE_REF";
   public static final String GITHUB_EVENT_PATH = "GITHUB_EVENT_PATH";
   public static final String GHACTIONS_JOB_CHECK_RUN_ID = "JOB_CHECK_RUN_ID";
-
   static final String GHA_DIAGNOSTICS_DIR = "/home/runner/actions-runner/_diag";
   static final String GHA_DIAGNOSTICS_DIR_CACHED = "/home/runner/actions-runner/cached/_diag";
-  private static final Pattern CHECK_RUN_ID_PATTERN =
-      Pattern.compile("\"k\"\\s*:\\s*\"check_run_id\"\\s*,\\s*\"v\"\\s*:\\s*(\\d+(?:\\.\\d+)?)");
-
+  private static final Pattern CHECK_RUN_ID_PATTERN = Pattern.compile(
+      "\\\"k\\\"\\\\s*:\\\\s*\\\"check_run_id\\\"\\\\s*,\\\\s*\\\"v\\\"\\\\s*:"
+      + "\\\\s*(\\\\d+(?:\\\\.\\\\d+)?)");
   private final CiEnvironment environment;
   private final Path diagnosticsDir;
   private final Path diagnosticsDirCached;
@@ -95,8 +90,10 @@ class GithubActionsInfo implements CIProviderInfo {
 
     final String pipelineUrl =
         buildPipelineUrl(
-            serverUrl, repository, pipelineId, environment.get(GHACTIONS_PIPELINE_RETRY));
-
+            serverUrl,
+            repository,
+            pipelineId,
+            environment.get(GHACTIONS_PIPELINE_RETRY));
     // Try to get numeric job ID for better job URL
     String numericJobId = getNumericJobId();
     String jobId;
@@ -111,18 +108,21 @@ class GithubActionsInfo implements CIProviderInfo {
 
     CIInfo.Builder builder = CIInfo.builder(environment);
     return builder
-        .ciProviderName(GHACTIONS_PROVIDER_NAME)
-        .ciPipelineId(pipelineId)
-        .ciPipelineName(environment.get(GHACTIONS_PIPELINE_NAME))
-        .ciPipelineNumber(environment.get(GHACTIONS_PIPELINE_NUMBER))
-        .ciPipelineUrl(pipelineUrl)
-        .ciJobId(jobId)
-        .ciJobName(environment.get(GHACTIONS_JOB))
-        .ciJobUrl(jobUrl)
-        .ciWorkspace(expandTilde(environment.get(GHACTIONS_WORKSPACE_PATH)))
-        .ciEnvVars(
-            GHACTIONS_URL, GHACTIONS_REPOSITORY, GHACTIONS_PIPELINE_ID, GHACTIONS_PIPELINE_RETRY)
-        .build();
+      .ciProviderName(GHACTIONS_PROVIDER_NAME)
+      .ciPipelineId(pipelineId)
+      .ciPipelineName(environment.get(GHACTIONS_PIPELINE_NAME))
+      .ciPipelineNumber(environment.get(GHACTIONS_PIPELINE_NUMBER))
+      .ciPipelineUrl(pipelineUrl)
+      .ciJobId(jobId)
+      .ciJobName(environment.get(GHACTIONS_JOB))
+      .ciJobUrl(jobUrl)
+      .ciWorkspace(expandTilde(environment.get(GHACTIONS_WORKSPACE_PATH)))
+      .ciEnvVars(
+          GHACTIONS_URL,
+          GHACTIONS_REPOSITORY,
+          GHACTIONS_PIPELINE_ID,
+          GHACTIONS_PIPELINE_RETRY)
+      .build();
   }
 
   @Nonnull
@@ -165,8 +165,11 @@ class GithubActionsInfo implements CIProviderInfo {
       }
 
       return new PullRequestInfo(
-          baseRef, null, baseBranchHeadSha, new CommitInfo(headSha), prNumber);
-
+          baseRef,
+          null,
+          baseBranchHeadSha,
+          new CommitInfo(headSha),
+          prNumber);
     } catch (Exception e) {
       LOGGER.warn("Error while parsing GitHub event", e);
       return new PullRequestInfo(baseRef, null, null, CommitInfo.NOOP, null);
@@ -208,7 +211,10 @@ class GithubActionsInfo implements CIProviderInfo {
   }
 
   private String buildPipelineUrl(
-      final String host, final String repo, final String pipelineId, final String retry) {
+      final String host,
+      final String repo,
+      final String pipelineId,
+      final String retry) {
     if (retry != null && !retry.isEmpty()) {
       return String.format("%s/%s/actions/runs/%s/attempts/%s", host, repo, pipelineId, retry);
     } else {
@@ -221,7 +227,10 @@ class GithubActionsInfo implements CIProviderInfo {
   }
 
   private String buildJobUrlWithNumericId(
-      final String host, final String repo, final String pipelineId, final String jobId) {
+      final String host,
+      final String repo,
+      final String pipelineId,
+      final String jobId) {
     return String.format("%s/%s/actions/runs/%s/job/%s", host, repo, pipelineId, jobId);
   }
 
@@ -240,7 +249,6 @@ class GithubActionsInfo implements CIProviderInfo {
     if (Strings.isNotBlank(jobId)) {
       return jobId;
     }
-
     // Fall back to parsing diagnostics files
     jobId = parseJobIdFromDirectory(diagnosticsDir);
     if (Strings.isNotBlank(jobId)) {
@@ -262,8 +270,10 @@ class GithubActionsInfo implements CIProviderInfo {
       Path mostRecentLog = null;
       for (Path workerLog : stream) {
         if (mostRecentLog == null
-            || workerLog.getFileName().toString().compareTo(mostRecentLog.getFileName().toString())
-                > 0) {
+            || workerLog
+          .getFileName()
+          .toString()
+          .compareTo(mostRecentLog.getFileName().toString()) > 0) {
           mostRecentLog = workerLog;
         }
       }

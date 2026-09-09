@@ -8,7 +8,6 @@ import static datadog.trace.bootstrap.AgentClassLoading.PROBING_CLASSLOADER;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,7 +22,8 @@ import org.osgi.framework.BundleReference;
 
 @AutoService(InstrumenterModule.class)
 public final class BundleReferenceInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public BundleReferenceInstrumentation() {
     super("classloading", "osgi");
   }
@@ -42,7 +42,7 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return extendsClass(named("java.lang.ClassLoader"))
-        .and(implementsInterface(named(hierarchyMarkerType())));
+      .and(implementsInterface(named(hierarchyMarkerType())));
   }
 
   @Override
@@ -53,25 +53,22 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(named("getResource"))
-            .and(takesArguments(1).and(takesArgument(0, String.class))),
+        isMethod().and(named("getResource")).and(takesArguments(1)
+          .and(takesArgument(0, String.class))),
         BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("getResourceAsStream"))
-            .and(takesArguments(1).and(takesArgument(0, String.class))),
+          .and(named("getResourceAsStream"))
+          .and(takesArguments(1).and(takesArgument(0, String.class))),
         BundleReferenceInstrumentation.class.getName() + "$WidenGetResourceAsStreamAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("loadClass"))
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, String.class))
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(0, String.class))
-                            .and(takesArgument(1, boolean.class)))),
+          .and(named("loadClass"))
+          .and(takesArguments(1)
+            .and(takesArgument(0, String.class))
+            .or(takesArguments(2)
+              .and(takesArgument(0, String.class))
+              .and(takesArgument(1, boolean.class)))),
         BundleReferenceInstrumentation.class.getName() + "$WidenLoadClassAdvice");
   }
 
@@ -84,7 +81,8 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
   public static class WidenGetResourceAdvice {
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Object onEnter(
-        @Advice.This final BundleReference thiz, @Advice.Argument(0) final String name) {
+        @Advice.This final BundleReference thiz,
+        @Advice.Argument(0) final String name) {
       AgentClassLoading requestType = AgentClassLoading.type();
       // avoid probing "java/..." class resources, use standard lookup for them
       if (PROBING_CLASSLOADER == requestType && !name.startsWith("java/")) {
@@ -109,12 +107,14 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
       } else if (null == result) {
         AgentClassLoading requestType = AgentClassLoading.type();
         if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
+          // avoid looping back into our advice
+          requestType.end();
           try {
             // widen search by peeking inside bundle wiring
             result = BundleWiringHelper.getResource(thiz.getBundle(), name);
             if (null != result) {
-              error = null; // clear any error from original call
+              // clear any error from original call
+              error = null;
             }
           } finally {
             requestType.begin();
@@ -139,13 +139,15 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
       if (null == result) {
         AgentClassLoading requestType = AgentClassLoading.type();
         if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
+          // avoid looping back into our advice
+          requestType.end();
           try {
             // widen search by peeking inside bundle wiring
             URL resource = BundleWiringHelper.getResource(thiz.getBundle(), name);
             if (null != resource) {
               result = resource.openStream();
-              error = null; // clear any error from original call
+              // clear any error from original call
+              error = null;
             }
           } catch (IOException e) {
             // ignore missing resource
@@ -172,12 +174,14 @@ public final class BundleReferenceInstrumentation extends InstrumenterModule.Tra
       if (null == result) {
         AgentClassLoading requestType = AgentClassLoading.type();
         if (null != requestType) {
-          requestType.end(); // avoid looping back into our advice
+          // avoid looping back into our advice
+          requestType.end();
           try {
             // widen search by peeking inside bundle wiring
             result = BundleWiringHelper.loadClass(thiz.getBundle(), name);
             if (null != result) {
-              error = null; // clear any error from original call
+              // clear any error from original call
+              error = null;
             }
           } finally {
             requestType.begin();

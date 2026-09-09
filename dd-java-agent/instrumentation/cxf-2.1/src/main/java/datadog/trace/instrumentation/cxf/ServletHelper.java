@@ -30,12 +30,14 @@ public class ServletHelper {
       final Class<?> servletRequestClass) {
     if (servletRequestClass != null) {
       try {
-        return MethodHandles.lookup()
-            .unreflect(servletRequestClass.getMethod("getAttribute", String.class));
+        return MethodHandles
+          .lookup()
+          .unreflect(servletRequestClass.getMethod("getAttribute", String.class));
       } catch (Throwable t) {
         if (JAVAX_ATTRIBUTE_ACCESSOR == null) {
           LOGGER.debug(
-              "Unable to lookup getAttribute for servlet request class. The cxf-core instrumentation might not work as expected",
+              "Unable to lookup getAttribute for servlet request class. The cxf-core "
+              + "instrumentation might not work as expected",
               t);
         }
       }
@@ -44,14 +46,13 @@ public class ServletHelper {
   }
 
   public static Object getServletRequestAttribute(final Object servletRequest, final String name) {
-    final MethodHandle mh =
-        JAVAX_SERVLET_REQUEST_CLASS != null
-                && JAVAX_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
-            ? JAVAX_ATTRIBUTE_ACCESSOR
-            : JAKARTA_SERVLET_REQUEST_CLASS != null
-                    && JAKARTA_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
-                ? JAKARTA_ATTRIBUTE_ACCESSOR
-                : null;
+    final MethodHandle mh = JAVAX_SERVLET_REQUEST_CLASS != null
+        && JAVAX_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
+        ? JAVAX_ATTRIBUTE_ACCESSOR
+        : JAKARTA_SERVLET_REQUEST_CLASS != null
+        && JAKARTA_SERVLET_REQUEST_CLASS.isInstance(servletRequest)
+        ? JAKARTA_ATTRIBUTE_ACCESSOR
+        : null;
     if (mh != null) {
       try {
         return mh.invoke(servletRequest, name);

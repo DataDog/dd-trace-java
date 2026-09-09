@@ -6,7 +6,8 @@ import datadog.trace.api.Config;
 // which is banned
 public final class SimpleHttpPathNormalizer extends HttpPathNormalizer {
   // package private so things outside groovy for tests can't create an instance
-  SimpleHttpPathNormalizer() {}
+  SimpleHttpPathNormalizer() {
+  }
 
   @Override
   public String normalize(String path, boolean encoded) {

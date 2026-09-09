@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,7 +15,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class VertxImplInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public VertxImplInstrumentation() {
     super("vertx", "vertx-4.0");
   }
@@ -34,7 +34,8 @@ public class VertxImplInstrumentation extends InstrumenterModule.AppSec
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".BlockingExceptionHandler", packageName + ".VertxDecorator",
+        packageName + ".BlockingExceptionHandler",
+        packageName + ".VertxDecorator"
     };
   }
 
@@ -42,9 +43,9 @@ public class VertxImplInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("exceptionHandler"))
-            .and(takesArguments(0))
-            .and(returns(named("io.vertx.core.Handler"))),
+          .and(named("exceptionHandler"))
+          .and(takesArguments(0))
+          .and(returns(named("io.vertx.core.Handler"))),
         VertxImplInstrumentation.class.getName() + "$ExceptionHandlerAdvice");
   }
 

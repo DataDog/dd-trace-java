@@ -5,7 +5,6 @@ import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import javax.annotation.Nonnull;
 
 public class DatabaseNamingV0 implements NamingSchema.ForDatabase {
-
   private final boolean allowInferredServices;
 
   public DatabaseNamingV0(boolean allowInferredServices) {

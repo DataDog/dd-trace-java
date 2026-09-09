@@ -8,10 +8,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ParsedConfigKey implements ConfigKey {
-
   private static final Pattern EXTRACT_PRODUCT_REGEX =
       Pattern.compile("([^/]+)(/\\d+)?/([^/]+)/([^/]+)/[^/]+");
-
   private final String originalKey;
   private final String org;
   private final Integer version;
@@ -20,7 +18,11 @@ public class ParsedConfigKey implements ConfigKey {
   private final Product product;
 
   ParsedConfigKey(
-      String originalKey, String org, Integer version, String productName, String configId) {
+      String originalKey,
+      String org,
+      Integer version,
+      String productName,
+      String configId) {
     this.originalKey = originalKey;
     this.org = org;
     this.version = version;
@@ -82,8 +84,12 @@ public class ParsedConfigKey implements ConfigKey {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ParsedConfigKey that = (ParsedConfigKey) o;
     return Objects.equals(originalKey, that.originalKey);
   }

@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.stratum.parser;
 
 import static datadog.trace.agent.tooling.stratum.parser.Builder.SPACE_PATTERN;
-
 import datadog.trace.agent.tooling.stratum.EmbeddedStratum;
 import datadog.trace.agent.tooling.stratum.FileInfo;
 import datadog.trace.agent.tooling.stratum.LineInfo;

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty38.server;
 
 import static org.jboss.netty.handler.codec.http.HttpHeaders.Names.HOST;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -34,10 +33,8 @@ public class NettyHttpServerDecorator
     extends HttpServerDecorator<HttpRequest, Channel, HttpResponse, HttpHeaders> {
   public static final CharSequence NETTY = UTF8BytesString.create("netty");
   public static final CharSequence NETTY_CONNECT = UTF8BytesString.create("netty.connect");
-
   public static final NettyHttpServerDecorator DECORATE = new NettyHttpServerDecorator();
-  private static final CharSequence NETTY_REQUEST =
-      UTF8BytesString.create(DECORATE.operationName());
+  private static final CharSequence NETTY_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
@@ -71,17 +68,15 @@ public class NettyHttpServerDecorator
 
   @Override
   protected URIDataAdapter url(final HttpRequest request) {
-    return URIDataAdapterBase.fromURI(
-        request.getUri(),
-        uri -> {
-          if ((uri.getHost() == null || uri.getHost().equals(""))
-              && request.headers().contains(HOST)) {
-            return URIDataAdapterBase.fromURI(
-                "http://" + request.headers().get(HOST) + request.getUri(),
-                URIDefaultDataAdapter::new);
-          }
-          return new URIDefaultDataAdapter(uri);
-        });
+    return URIDataAdapterBase.fromURI(request.getUri(), uri -> {
+      if ((uri.getHost() == null || uri.getHost().equals(""))
+          && request.headers().contains(HOST)) {
+        return URIDataAdapterBase.fromURI(
+            "http://" + request.headers().get(HOST) + request.getUri(),
+            URIDefaultDataAdapter::new);
+      }
+      return new URIDefaultDataAdapter(uri);
+    });
   }
 
   @Override
@@ -114,7 +109,8 @@ public class NettyHttpServerDecorator
 
   @Override
   protected BlockResponseFunction createBlockResponseFunction(
-      HttpRequest httpRequest, Channel channel) {
+      HttpRequest httpRequest,
+      Channel channel) {
     return new NettyBlockResponseFunction(channel.getPipeline(), httpRequest);
   }
 
@@ -150,17 +146,23 @@ public class NettyHttpServerDecorator
             handlerBefore.getClass().getName(),
             "blocking_handler",
             new BlockingResponseHandler(
-                segment, statusCode, templateType, extraHeaders, securityResponseId));
+                segment,
+                statusCode,
+                templateType,
+                extraHeaders,
+                securityResponseId));
         pipeline.addBefore(
-            "blocking_handler", "before_blocking_handler", new SimpleChannelUpstreamHandler());
+            "blocking_handler",
+            "before_blocking_handler",
+            new SimpleChannelUpstreamHandler());
       } catch (RuntimeException rte) {
         log.warn("Failed adding blocking handler");
       }
-
       // prevent BlockingException from being handled, in order to avoid the existing
       // handlers trying to write an error response
       pipeline.addFirst(
-          "ignore_blocking_exception_handler", IgnoreBlockingExceptionHandler.INSTANCE);
+          "ignore_blocking_exception_handler",
+          IgnoreBlockingExceptionHandler.INSTANCE);
 
       ChannelHandlerContext context = pipeline.getContext("before_blocking_handler");
       context.sendUpstream(

@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.INSTRUMENTATION_NAME;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -19,7 +18,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
   static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
-
   private final Handler<RoutingContext> actual;
   private final boolean spanStarter;
 
@@ -30,9 +28,8 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     // a route is not found, without this code, a span would be created for the router when it
     // shouldn't
     String name = handler.getClass().getName();
-    spanStarter =
-        !(name.startsWith(RouterImpl.class.getName())
-            || name.startsWith(RouteImpl.class.getName()));
+    spanStarter = !(name.startsWith(RouterImpl.class.getName())
+        || name.startsWith(RouteImpl.class.getName()));
   }
 
   @Override
@@ -45,7 +42,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
         span = startSpan("vertx", INSTRUMENTATION_NAME);
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
-
         // Register three hooks that fire on response outcome:
         // finishHandlerSpan is idempotent; whichever hook fires first wins.
         //
@@ -55,7 +51,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         // not pass a resultHandler), so the span still leaks on that path.
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
         routingContext.addBodyEndHandler(v -> finishHandlerSpan(routingContext));
-        routingContext.response().exceptionHandler(t -> finishHandlerSpan(routingContext));
+        routingContext
+          .response()
+          .exceptionHandler(t -> finishHandlerSpan(routingContext));
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
       }
@@ -110,7 +108,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   }
 
   static boolean shouldUpdateRoute(
-      final RoutingContext routingContext, final AgentSpan span, final String path) {
+      final RoutingContext routingContext,
+      final AgentSpan span,
+      final String path) {
     if (span == null) {
       return false;
     }

@@ -2,7 +2,6 @@ package org.example.cucumber.calculator;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
-
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -11,7 +10,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class CalculatorSteps {
-
   private Calculator calc;
 
   @Given("a calculator I just turned on")
@@ -54,7 +52,6 @@ public class CalculatorSteps {
   }
 
   static final class Entry {
-
     private Integer first;
     private Integer second;
     private String operation;

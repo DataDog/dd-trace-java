@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
@@ -41,7 +40,6 @@ import org.mockito.ArgumentCaptor;
  * </ul>
  */
 class ClientStatsAggregatorBootstrapTest {
-
   @Test
   void bootstrapHappensOnceOnFirstPublish() {
     // Producer-side bootstrap is synchronized; we want to confirm only the first publish
@@ -54,24 +52,25 @@ class ClientStatsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.state()).thenReturn("state-1");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
-
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */
+        16,
+        /* queueSize */
+        64,
+        /* reportingInterval */
+        10,
+        SECONDS,
+        /* includeEndpointInMetrics */
+        false);
     // Do not start the aggregator thread -- reconcile must not run, only bootstrap.
     aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
     aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
     aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
-
     // Bootstrap is the only path that queries features for peer-tag schema, and it runs
     // exactly once across three publishes.
     verify(features, times(1)).peerTags();
@@ -91,36 +90,38 @@ class ClientStatsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.state()).thenReturn("state-1");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */
+        16,
+        /* queueSize */
+        64,
+        /* reportingInterval */
+        10,
+        SECONDS,
+        /* includeEndpointInMetrics */
+        false);
     aggregator.start();
     try {
       CountDownLatch cycle1 = new CountDownLatch(1);
       CountDownLatch cycle2 = new CountDownLatch(1);
       // Both reports flush a bucket; the cycle1/cycle2 countdowns synchronize the test thread
       // with the aggregator thread's per-cycle completion.
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                cycle1.countDown();
-                return null;
-              })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
-          .when(writer)
-          .finishBucket();
+      org.mockito.Mockito
+        .doAnswer(invocation -> {
+          cycle1.countDown();
+          return null;
+        })
+        .doAnswer(invocation -> {
+          cycle2.countDown();
+          return null;
+        })
+        .when(writer)
+        .finishBucket();
 
       aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
       aggregator.report();
@@ -129,7 +130,6 @@ class ClientStatsAggregatorBootstrapTest {
       aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
       aggregator.report();
       assertTrue(cycle2.await(2, SECONDS));
-
       // peerTags() is called only by bootstrap; both reconciles short-circuit on the state
       // fast path (cached state == features.state() == "state-1"), so neither reconcile reaches
       // the deep set compare. Total peerTags() calls: 1.
@@ -154,40 +154,42 @@ class ClientStatsAggregatorBootstrapTest {
     // peerTags() returns content-equal sets across calls -- the reconcile slow path's
     // hasSameTagsAs check should return true.
     when(features.peerTags())
-        .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")))
-        .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")))
-        .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")));
+      .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")))
+      .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")))
+      .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")));
     // State hash changes every reconcile -- forces reconcile into the slow path each time.
     when(features.state()).thenReturn("state-1", "state-2", "state-3");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */
+        16,
+        /* queueSize */
+        64,
+        /* reportingInterval */
+        10,
+        SECONDS,
+        /* includeEndpointInMetrics */
+        false);
     aggregator.start();
     try {
       CountDownLatch cycle1 = new CountDownLatch(1);
       CountDownLatch cycle2 = new CountDownLatch(1);
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                cycle1.countDown();
-                return null;
-              })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
-          .when(writer)
-          .finishBucket();
+      org.mockito.Mockito
+        .doAnswer(invocation -> {
+          cycle1.countDown();
+          return null;
+        })
+        .doAnswer(invocation -> {
+          cycle2.countDown();
+          return null;
+        })
+        .when(writer)
+        .finishBucket();
 
       aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
       aggregator.report();
@@ -196,7 +198,6 @@ class ClientStatsAggregatorBootstrapTest {
       aggregator.publish(Collections.<CoreSpan<?>>singletonList(peerAggregationSpan()));
       aggregator.report();
       assertTrue(cycle2.await(2, SECONDS));
-
       // Both cycles flushed (both latches counted down via writer.finishBucket). The schema kept
       // producing buckets across the state-hash changes; if the schema had been broken by the
       // update-in-place path, the second cycle's flush would not have happened.
@@ -227,56 +228,55 @@ class ClientStatsAggregatorBootstrapTest {
     //   - cycle 1 reconcile slow-path reads {peer.hostname, peer.service}
     //   - cycle 2 reconcile is state fast-path (no peerTags call)
     when(features.peerTags())
-        .thenReturn(Collections.<String>singleton("peer.hostname"))
-        .thenReturn(new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")));
+      .thenReturn(Collections.<String>singleton("peer.hostname"))
+      .thenReturn(new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")));
     // state() evolves: bootstrap = "state-1", then changes to "state-2" for cycle 1's reconcile
     // (mismatch -> slow path), stable at "state-2" for cycle 2's reconcile (match -> fast path).
     when(features.state()).thenReturn("state-1", "state-2", "state-2");
 
-    ClientStatsAggregator aggregator =
-        new ClientStatsAggregator(
-            Collections.<String>emptySet(),
-            features,
-            healthMetrics,
-            sink,
-            writer,
-            /* maxAggregates */ 16,
-            /* queueSize */ 64,
-            /* reportingInterval */ 10,
-            SECONDS,
-            /* includeEndpointInMetrics */ false);
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(
+        Collections.<String>emptySet(),
+        features,
+        healthMetrics,
+        sink,
+        writer,
+        /* maxAggregates */
+        16,
+        /* queueSize */
+        64,
+        /* reportingInterval */
+        10,
+        SECONDS,
+        /* includeEndpointInMetrics */
+        false);
     aggregator.start();
     try {
       CountDownLatch cycle1 = new CountDownLatch(1);
       CountDownLatch cycle2 = new CountDownLatch(1);
-      org.mockito.Mockito.doAnswer(
-              invocation -> {
-                cycle1.countDown();
-                return null;
-              })
-          .doAnswer(
-              invocation -> {
-                cycle2.countDown();
-                return null;
-              })
-          .when(writer)
-          .finishBucket();
-
+      org.mockito.Mockito
+        .doAnswer(invocation -> {
+          cycle1.countDown();
+          return null;
+        })
+        .doAnswer(invocation -> {
+          cycle2.countDown();
+          return null;
+        })
+        .when(writer)
+        .finishBucket();
       // Publish 1: snapshot pinned to the original {peer.hostname} schema. cycle 1's reconcile
       // will swap the cached schema BEFORE the flush, but this snapshot is already pinned so the
       // resulting AggregateEntry will still carry only peer.hostname.
-      aggregator.publish(
-          Collections.<CoreSpan<?>>singletonList(peerAggregationSpanWithBothPeerTags()));
+      aggregator.publish(Collections.<CoreSpan<?>>singletonList(
+          peerAggregationSpanWithBothPeerTags()));
       aggregator.report();
       assertTrue(cycle1.await(2, SECONDS));
-
       // Publish 2: now reads the post-swap schema {peer.hostname, peer.service} so the snapshot
       // captures both tag values. cycle 2's reconcile short-circuits on timestamp match.
-      aggregator.publish(
-          Collections.<CoreSpan<?>>singletonList(peerAggregationSpanWithBothPeerTags()));
+      aggregator.publish(Collections.<CoreSpan<?>>singletonList(
+          peerAggregationSpanWithBothPeerTags()));
       aggregator.report();
       assertTrue(cycle2.await(2, SECONDS));
-
       // Capture every AggregateEntry the writer saw across both cycles. Pre-swap snapshot has 1
       // peer tag, post-swap has 2.
       ArgumentCaptor<AggregateEntry> entryCaptor = ArgumentCaptor.forClass(AggregateEntry.class);
@@ -292,7 +292,6 @@ class ClientStatsAggregatorBootstrapTest {
               UTF8BytesString.create("peer.service:billing")),
           entries.get(1).getPeerTags(),
           "post-swap snapshot should encode both peer.hostname and peer.service");
-
       // Bootstrap (1) + cycle 1 slow-path (1) -- cycle 2 is fast-path so doesn't reach peerTags().
       verify(features, times(2)).peerTags();
       verify(features, atLeastOnce()).state();

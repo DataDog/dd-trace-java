@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.domain;
 
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
@@ -21,7 +20,6 @@ import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 public abstract class AbstractTestModule {
-
   protected final AgentSpan span;
   protected final String moduleName;
   protected final Config config;
@@ -54,11 +52,10 @@ public abstract class AbstractTestModule {
     this.linesResolver = linesResolver;
     this.onSpanFinish = onSpanFinish;
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(
-                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_module")
-            .asChildOf(sessionSpanContext);
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer
+      .get()
+      .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_module")
+      .asChildOf(sessionSpanContext);
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -75,7 +72,6 @@ public abstract class AbstractTestModule {
 
     span.setTag(Tags.TEST_MODULE_ID, span.getSpanId());
     span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
-
     // setting status to skip initially,
     // as we do not know in advance whether the module will have any children
     span.setTag(Tags.TEST_STATUS, TestStatus.skip);

@@ -5,7 +5,6 @@ import java.util.concurrent.TimeUnit;
 import sbt.testing.TaskDef;
 
 public final class TaskDefAwareLinkedBlockingQueueProxy<T> extends LinkedBlockingQueue<T> {
-
   private final TaskDef taskDef;
   private final LinkedBlockingQueue<T> delegate;
 

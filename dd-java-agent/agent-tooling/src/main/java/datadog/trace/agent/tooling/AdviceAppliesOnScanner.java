@@ -2,7 +2,6 @@ package datadog.trace.agent.tooling;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.util.Strings;
 import java.io.IOException;
 import java.util.EnumSet;
@@ -23,7 +22,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class AdviceAppliesOnScanner {
   private static final Logger log = LoggerFactory.getLogger(AdviceAppliesOnScanner.class);
-
   private static final String APPLIESON_ANNOTATION_DESC =
       "Ldatadog/trace/agent/tooling/annotation/AppliesOn;";
 
@@ -40,68 +38,65 @@ public final class AdviceAppliesOnScanner {
     // collect the advices
     final Set<String> adviceClassNames = new HashSet<>();
     ((Instrumenter.HasMethodAdvice) instrumenter)
-        .methodAdvice(
-            (matcher, adviceClass, additionalClasses) -> {
-              adviceClassNames.add(adviceClass);
-              if (additionalClasses != null) {
-                adviceClassNames.addAll(asList(additionalClasses));
-              }
-            });
+      .methodAdvice((matcher, adviceClass, additionalClasses) -> {
+        adviceClassNames.add(adviceClass);
+        if (additionalClasses != null) {
+          adviceClassNames.addAll(asList(additionalClasses));
+        }
+      });
     for (String adviceClassName : adviceClassNames) {
       // process each advice
       new ClassReader(adviceClassName)
-          .accept(
-              new ClassVisitor(Opcodes.ASM8) {
-                private String className;
+        .accept(
+            new ClassVisitor(Opcodes.ASM8) {
+              private String className;
 
-                @Override
-                public void visit(
-                    int version,
-                    int access,
-                    String name,
-                    String signature,
-                    String superName,
-                    String[] interfaces) {
-                  className = name.replace('/', '.');
-                }
+              @Override
+              public void visit(
+                  int version,
+                  int access,
+                  String name,
+                  String signature,
+                  String superName,
+                  String[] interfaces) {
+                className = name.replace('/', '.');
+              }
 
-                @Override
-                public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-                  if (APPLIESON_ANNOTATION_DESC.equals(descriptor)) {
-                    return new AnnotationVisitor(Opcodes.ASM8) {
-
-                      @Override
-                      public AnnotationVisitor visitArray(String name) {
-                        if ("value".equals(name)) {
-                          return new AnnotationVisitor(Opcodes.ASM8) {
-                            @Override
-                            public void visitEnum(String name, String descriptor, String value) {
-                              try {
-                                overriddenTargetSystems.add(
-                                    InstrumenterModule.TargetSystem.valueOf(value));
-                              } catch (IllegalArgumentException e) {
-                                log.warn("Unknown target system: {}", value);
-                              }
+              @Override
+              public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
+                if (APPLIESON_ANNOTATION_DESC.equals(descriptor)) {
+                  return new AnnotationVisitor(Opcodes.ASM8) {
+                    @Override
+                    public AnnotationVisitor visitArray(String name) {
+                      if ("value".equals(name)) {
+                        return new AnnotationVisitor(Opcodes.ASM8) {
+                          @Override
+                          public void visitEnum(String name, String descriptor, String value) {
+                            try {
+                              overriddenTargetSystems.add(InstrumenterModule.TargetSystem.valueOf(
+                                  value));
+                            } catch (IllegalArgumentException e) {
+                              log.warn("Unknown target system: {}", value);
                             }
-                          };
-                        }
-                        return null;
+                          }
+                        };
                       }
+                      return null;
+                    }
 
-                      @Override
-                      public void visitEnd() {
-                        if (!overriddenTargetSystems.isEmpty()) {
-                          log.debug(
-                              "Found @AppliesOn on {} → {}", className, overriddenTargetSystems);
-                          map.put(Strings.getSimpleName(adviceClassName), overriddenTargetSystems);
-                        }
+                    @Override
+                    public void visitEnd() {
+                      if (!overriddenTargetSystems.isEmpty()) {
+                        log.debug("Found @AppliesOn on {} → {}", className, overriddenTargetSystems);
+                        map.put(Strings.getSimpleName(adviceClassName), overriddenTargetSystems);
                       }
-                    };
-                  }
-                  return null;
+                    }
+                  };
                 }
-              },
-              ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+                return null;
+              }
+            },
+            ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
     }
     return map;
   }

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.pekkohttp;
 
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.DECORATE;
-
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.ParametersAreNonnullByDefault;

@@ -6,7 +6,6 @@ import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static java.lang.String.join;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.ArrayList;
@@ -68,9 +67,13 @@ class DatadogPropagatorTest extends AgentPropagatorTest {
 
   @Override
   void assertInjectedHeaders(
-      Map<String, String> headers, String traceId, String spanId, byte sampling) {
+      Map<String, String> headers,
+      String traceId,
+      String spanId,
+      byte sampling) {
     assertEquals(
-        Long.toString(DDTraceId.fromHex(traceId).toLong()), headers.get("x-datadog-trace-id"));
+        Long.toString(DDTraceId.fromHex(traceId).toLong()),
+        headers.get("x-datadog-trace-id"));
     assertEquals(spanId.replaceAll("^0+(?!$)", ""), headers.get("x-datadog-parent-id"));
     String samplingPriority = sampling == SAMPLER_DROP ? "0" : "1";
     List<String> tags = new ArrayList<>();

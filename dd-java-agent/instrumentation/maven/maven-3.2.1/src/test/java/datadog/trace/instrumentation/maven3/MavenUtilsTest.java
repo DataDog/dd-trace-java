@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -37,9 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class MavenUtilsTest extends AbstractMavenTest {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenUtilsTest.class);
-
   private static final Configuration FREEMARKER = new Configuration(Configuration.VERSION_2_3_30);
 
   static {
@@ -72,8 +69,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetMojoConfigValueReturnsNullIfValueNotSet(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -81,7 +78,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetMojoConfigValueReturnsNullIfValueNotSet,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetMojoConfigValueReturnsNullIfValueNotSet(ExecutionEvent executionEvent) {
@@ -98,8 +96,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetMojoConfigValueReturnsConfiguredValue(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -107,7 +105,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetMojoConfigValueReturnsConfiguredValue,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetMojoConfigValueReturnsConfiguredValue(ExecutionEvent executionEvent) {
@@ -124,8 +123,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetMojoConfigValueResolvesPropertyPlaceholders(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -133,7 +132,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetMojoConfigValueResolvesPropertyPlaceholders,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetMojoConfigValueResolvesPropertyPlaceholders(
@@ -152,8 +152,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetMojoConfigValueResolvesPropertiesSuppliedViaCmdLine(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -161,7 +161,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetMojoConfigValueResolvesPropertiesSuppliedViaCmdLine,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion),
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion),
         "-Dsurefire.parallel.timeout=112233");
   }
 
@@ -181,8 +182,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetArgLineResolvesLatePropertyPlaceholders(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -190,7 +191,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetArgLineResolvesLatePropertyPlaceholders,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetArgLineResolvesLatePropertyPlaceholders(ExecutionEvent executionEvent) {
@@ -208,8 +210,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetJacocoAgent(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -233,8 +235,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetEffectiveJvmFallbackUsesJvmProperty(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -242,7 +244,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetEffectiveJvmFallbackUsesJvmProperty,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetEffectiveJvmFallbackUsesJvmProperty(ExecutionEvent executionEvent) {
@@ -259,8 +262,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetEffectiveJvmFallbackUsesToolchains(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -272,7 +275,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetEffectiveJvmFallbackUsesToolchains,
         "samplePomToolchains.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion),
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion),
         "--global-toolchains",
         toolchainsFile.getAbsolutePath());
   }
@@ -295,7 +299,9 @@ public class MavenUtilsTest extends AbstractMavenTest {
    * toolchains template, substituting the path to the real my-jdk-home directory.
    */
   private static File createToolchainsFile()
-      throws URISyntaxException, IOException, TemplateException {
+      throws URISyntaxException,
+      IOException,
+      TemplateException {
     File toolchainJdkHome = new File(MavenUtilsTest.class.getResource("my-jdk-home").toURI());
     Map<String, String> replacements =
         Collections.singletonMap("my_jdk_home_path", toolchainJdkHome.getAbsolutePath());
@@ -311,8 +317,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetForkedJvmPath(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -320,7 +326,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetForkedJvmPath,
         "samplePomJacoco.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetForkedJvmPath(ExecutionEvent executionEvent) {
@@ -338,8 +345,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetClasspath(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -347,7 +354,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetClasspath,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private void assertClasspath(Collection<Path> classpath, String... suffixes) {
@@ -356,7 +364,9 @@ public class MavenUtilsTest extends AbstractMavenTest {
 
     for (String suffix : suffixes) {
       assertFalse(
-          classpath.stream().noneMatch(c -> c.toString().endsWith(suffix)),
+          classpath
+            .stream()
+            .noneMatch(c -> c.toString().endsWith(suffix)),
           "Missing entry: " + suffix);
     }
   }
@@ -382,8 +392,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetClasspathConsidersAdditionalClasspathDependencies(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -392,7 +402,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetClasspathConsidersAdditionalClasspathDependencies,
         "samplePomAdditionalClasspathDependencies.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetClasspathConsidersAdditionalClasspathDependencies(
@@ -417,8 +428,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetClasspathConsidersAdditionalClasspathElements(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -426,7 +437,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetClasspathConsidersAdditionalClasspathElements,
         "samplePomAdditionalClasspathElements.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetClasspathConsidersAdditionalClasspathElements(
@@ -452,8 +464,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   @ParameterizedTest
   @MethodSource("surefireVersions")
   public void testGetContainer(
-      ComparableVersion surefirePluginVersion, ComparableVersion minRequiredMavenVersion)
-      throws Exception {
+      ComparableVersion surefirePluginVersion,
+      ComparableVersion minRequiredMavenVersion) throws Exception {
     assumeTrue(
         minRequiredMavenVersion.compareTo(getCurrentMavenVersion()) <= 0,
         "Newer maven version required to run chosen version of Surefire plugin");
@@ -461,7 +473,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
         this::assertGetContainer,
         "samplePom.xml",
         String.format(
-            "org.apache.maven.plugins:maven-surefire-plugin:%s:test", surefirePluginVersion));
+            "org.apache.maven.plugins:maven-surefire-plugin:%s:test",
+            surefirePluginVersion));
   }
 
   private boolean assertGetContainer(ExecutionEvent executionEvent) {
@@ -487,8 +500,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
     Properties properties = new Properties();
     try (InputStream stream =
         MavenUtilsTest.class
-            .getClassLoader()
-            .getResourceAsStream("latest-tool-versions.properties")) {
+      .getClassLoader()
+      .getResourceAsStream("latest-tool-versions.properties")) {
       if (stream == null) {
         throw new IllegalStateException(
             "Could not find latest-tool-versions.properties on classpath");

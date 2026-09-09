@@ -10,7 +10,9 @@ import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 
-/** This class is a base test class for the {@link HttpCodec.Injector} tests. */
+/**
+ * This class is a base test class for the {@link HttpCodec.Injector} tests.
+ */
 abstract class AbstractHttpInjectorTest extends DDCoreJavaSpecification {
   protected CoreTracer tracer;
   protected HttpCodec.Injector injector;
@@ -30,7 +32,9 @@ abstract class AbstractHttpInjectorTest extends DDCoreJavaSpecification {
     this.injector = newInjector();
   }
 
-  /** Builds a span context with the standard fake service/operation/resource values. */
+  /**
+   * Builds a span context with the standard fake service/operation/resource values.
+   */
   protected DDSpanContext mockSpanContext(
       DDTraceId traceId,
       long spanId,

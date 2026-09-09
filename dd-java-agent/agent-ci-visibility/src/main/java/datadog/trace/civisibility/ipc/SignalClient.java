@@ -18,11 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SignalClient implements AutoCloseable {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(SignalClient.class);
-
   private static final int BUFFER_CAPACITY = 8192;
-
   private static final Map<SignalType, Function<ByteBuffer, SignalResponse>> DESERIALIZERS =
       new EnumMap<>(SignalType.class);
 
@@ -58,16 +55,18 @@ public class SignalClient implements AutoCloseable {
   public SignalResponse send(Signal signal) throws IOException {
     ByteBuffer message = signal.serialize();
     LOGGER.debug(
-        "Sending signal of type {} and size {} bytes", signal.getType(), message.remaining());
+        "Sending signal of type {} and size {} bytes",
+        signal.getType(),
+        message.remaining());
 
     ByteBuffer header = ByteBuffer.allocate(Integer.BYTES + 1);
-    header.putInt(message.remaining() + 1); // +1 is for signal type
+    // +1 is for signal type
+    header.putInt(message.remaining() + 1);
     header.put(signal.getType().getCode());
     header.flip();
     socketChannel.write(header);
     socketChannel.write(message);
     LOGGER.debug("Signal sent");
-
     // reading is done this way to make socket channel respect timeout
     Socket socket = socketChannel.socket();
     InputStream inputStream = socket.getInputStream();
@@ -134,10 +133,12 @@ public class SignalClient implements AutoCloseable {
       }
       try {
         return new SignalClient(
-            signalServerAddress, config.getCiVisibilitySignalClientTimeoutMillis());
+            signalServerAddress,
+            config.getCiVisibilitySignalClientTimeoutMillis());
       } catch (IOException e) {
         throw new RuntimeException(
-            "Could not instantiate signal client. Address: " + signalServerAddress, e);
+            "Could not instantiate signal client. Address: " + signalServerAddress,
+            e);
       }
     }
   }

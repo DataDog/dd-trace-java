@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -34,8 +33,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class ClassloadingInstrumentation extends InstrumenterModule
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public ClassloadingInstrumentation() {
     super("classloading");
   }
@@ -52,7 +51,8 @@ public final class ClassloadingInstrumentation extends InstrumenterModule
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -60,23 +60,21 @@ public final class ClassloadingInstrumentation extends InstrumenterModule
     // just an optimization to exclude common class loaders that are known to delegate to the
     // bootstrap loader (or happen to _be_ the bootstrap loader)
     return namedNoneOf("java.lang.ClassLoader", "com.ibm.oti.vm.BootstrapClassLoader")
-        .and(extendsClass(named("java.lang.ClassLoader")));
+      .and(extendsClass(named("java.lang.ClassLoader")));
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(named("loadClass"))
-            .and(
-                takesArguments(1)
-                    .and(takesArgument(0, named("java.lang.String")))
-                    .or(
-                        takesArguments(2)
-                            .and(takesArgument(0, named("java.lang.String")))
-                            .and(takesArgument(1, named("boolean")))))
-            .and(isPublic().or(isProtected()))
-            .and(not(isStatic())),
+          .and(named("loadClass"))
+          .and(takesArguments(1)
+            .and(takesArgument(0, named("java.lang.String")))
+            .or(takesArguments(2)
+              .and(takesArgument(0, named("java.lang.String")))
+              .and(takesArgument(1, named("boolean")))))
+          .and(isPublic().or(isProtected()))
+          .and(not(isStatic())),
         ClassloadingInstrumentation.class.getName() + "$LoadClassAdvice");
   }
 
@@ -84,13 +82,12 @@ public final class ClassloadingInstrumentation extends InstrumenterModule
     @Advice.OnMethodEnter(skipOn = Advice.OnNonDefaultValue.class, suppress = Throwable.class)
     public static Class<?> onEnter(@Advice.Argument(0) final String name) {
       if (!name.startsWith("datadog.")) {
-        return null; // ignore packages that won't be bundled on the dd-java-agent bootstrap
+        // ignore packages that won't be bundled on the dd-java-agent bootstrap
+        return null;
       }
-
       // we must access agent types used in the call-depth block like 'Constants' before entering it
       // - otherwise we risk loading these agent types with a non-zero call-depth, which will fail
       final String[] bootstrapPrefixes = Constants.BOOTSTRAP_PACKAGE_PREFIXES;
-
       // need to use call depth here to prevent re-entry from call to Class.forName() below
       // because on some JVMs (e.g. IBM's, though IBM bootstrap loader is explicitly excluded above)
       // Class.forName() ends up calling loadClass() on the bootstrap loader which would then come

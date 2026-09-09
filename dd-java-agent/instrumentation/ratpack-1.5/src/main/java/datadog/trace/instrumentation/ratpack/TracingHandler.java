@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.ratpack.RatpackServerDecorator.DECORATE;
-
 import com.google.common.reflect.TypeToken;
 import datadog.context.ContextScope;
 import datadog.trace.api.gateway.Flow;
@@ -20,11 +19,11 @@ import ratpack.util.Types;
 
 public final class TracingHandler implements Handler {
   public static Handler INSTANCE = new TracingHandler();
-
   private static final TypeToken<Flow.Action.RequestBlockingAction> RBA_CLASS_TOKEN =
       Types.token(Flow.Action.RequestBlockingAction.class);
-
-  /** This constant must stay in sync with datadog.trace.instrumentation.netty41.AttributeKeys. */
+  /**
+   * This constant must stay in sync with datadog.trace.instrumentation.netty41.AttributeKeys.
+   */
   public static final AttributeKey<datadog.context.Context> SERVER_CONTEXT_ATTRIBUTE_KEY =
       AttributeKey.valueOf(DD_CONTEXT_ATTRIBUTE);
 
@@ -36,7 +35,6 @@ public final class TracingHandler implements Handler {
         ctx.getDirectChannelAccess().getChannel().attr(SERVER_CONTEXT_ATTRIBUTE_KEY);
     final datadog.context.Context nettyContext = contextAttribute.get();
     final AgentSpan nettySpan = nettyContext != null ? fromContext(nettyContext) : null;
-
     // Relying on executor instrumentation to assume the netty span is in context as the parent.
     final AgentSpan ratpackSpan = startSpan("ratpack", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(ratpackSpan);
@@ -46,21 +44,20 @@ public final class TracingHandler implements Handler {
     boolean setFinalizer = false;
 
     try (final ContextScope scope = activateSpan(ratpackSpan)) {
-
-      ctx.getResponse()
-          .beforeSend(
-              response -> {
-                try (final ContextScope ignored = activateSpan(ratpackSpan)) {
-                  if (nettySpan != null) {
-                    // Rename the netty span resource name with the ratpack route.
-                    DECORATE.onContext(nettySpan, ctx);
-                  }
-                  DECORATE.onResponse(ratpackSpan, response);
-                  DECORATE.onContext(ratpackSpan, ctx);
-                  DECORATE.beforeFinish(ratpackSpan);
-                  ratpackSpan.finish();
-                }
-              });
+      ctx
+        .getResponse()
+        .beforeSend(response -> {
+          try (final ContextScope ignored = activateSpan(ratpackSpan)) {
+            if (nettySpan != null) {
+              // Rename the netty span resource name with the ratpack route.
+              DECORATE.onContext(nettySpan, ctx);
+            }
+            DECORATE.onResponse(ratpackSpan, response);
+            DECORATE.onContext(ratpackSpan, ctx);
+            DECORATE.beforeFinish(ratpackSpan);
+            ratpackSpan.finish();
+          }
+        });
 
       setFinalizer = true;
 

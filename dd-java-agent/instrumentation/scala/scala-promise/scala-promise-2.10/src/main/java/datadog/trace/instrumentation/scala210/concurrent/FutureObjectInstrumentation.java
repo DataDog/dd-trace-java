@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.scala210.concurrent;
 
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
-
 import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -21,8 +20,8 @@ import scala.util.Try;
  * that context and propagate it forward, which is quite unexpected and not very relevant.
  */
 public final class FutureObjectInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     // The $ at the end is how Scala encodes a Scala object (as opposed to a class or trait)
@@ -49,7 +48,9 @@ public final class FutureObjectInstrumentation
       }
     }
 
-    /** CallbackRunnable was removed in scala 2.13 */
+    /**
+     * CallbackRunnable was removed in scala 2.13
+     */
     private static void muzzleCheck(final CallbackRunnable callback) {
       callback.run();
     }

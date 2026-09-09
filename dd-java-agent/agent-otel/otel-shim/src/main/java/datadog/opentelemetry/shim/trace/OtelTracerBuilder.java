@@ -8,10 +8,11 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 final class OtelTracerBuilder implements TracerBuilder {
   private final OtelTracerProvider tracerProvider;
-
   private final String instrumentationScopeName;
-  @Nullable private String instrumentationScopeVersion;
-  @Nullable private String schemaUrl;
+  @Nullable
+  private String instrumentationScopeVersion;
+  @Nullable
+  private String schemaUrl;
 
   OtelTracerBuilder(OtelTracerProvider tracerProvider, String instrumentationScopeName) {
     this.tracerProvider = tracerProvider;
@@ -33,6 +34,8 @@ final class OtelTracerBuilder implements TracerBuilder {
   @Override
   public Tracer build() {
     return tracerProvider.getTracerShim(
-        instrumentationScopeName, instrumentationScopeVersion, schemaUrl);
+        instrumentationScopeName,
+        instrumentationScopeVersion,
+        schemaUrl);
   }
 }

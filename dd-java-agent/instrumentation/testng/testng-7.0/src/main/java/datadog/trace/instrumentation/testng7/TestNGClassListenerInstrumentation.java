@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.testng7;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,8 +19,8 @@ import org.testng.xml.XmlTest;
 
 @AutoService(InstrumenterModule.class)
 public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   private final String commonPackageName = Strings.getPackageName(TestNGUtils.class.getName());
 
   public TestNGClassListenerInstrumentation() {
@@ -31,8 +30,10 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.testng.internal.TestMethodWorker", // TestNG 7.0-7.4
-      "org.testng.internal.invokers.TestMethodWorker" // TestNG 7.5+
+        // TestNG 7.0-7.4
+        "org.testng.internal.TestMethodWorker",
+        // TestNG 7.5+
+        "org.testng.internal.invokers.TestMethodWorker"
     };
   }
 
@@ -40,23 +41,23 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("invokeBeforeClassMethods")
-            .and(takesArgument(0, named("org.testng.ITestClass")))
-            .and(takesArgument(1, named("org.testng.IMethodInstance"))),
+          .and(takesArgument(0, named("org.testng.ITestClass")))
+          .and(takesArgument(1, named("org.testng.IMethodInstance"))),
         TestNGClassListenerInstrumentation.class.getName() + "$InvokeBeforeClassAdvice");
 
     transformer.applyAdvice(
         named("invokeAfterClassMethods")
-            .and(takesArgument(0, named("org.testng.ITestClass")))
-            .and(takesArgument(1, named("org.testng.IMethodInstance"))),
+          .and(takesArgument(0, named("org.testng.ITestClass")))
+          .and(takesArgument(1, named("org.testng.IMethodInstance"))),
         TestNGClassListenerInstrumentation.class.getName() + "$InvokeAfterClassAdvice");
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      commonPackageName + ".TestNGUtils",
-      commonPackageName + ".TestNGClassListener",
-      commonPackageName + ".TracingListener"
+        commonPackageName + ".TestNGUtils",
+        commonPackageName + ".TestNGClassListener",
+        commonPackageName + ".TracingListener"
     };
   }
 
@@ -73,7 +74,6 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
     public static void invokeBeforeClass(
         @Advice.FieldValue("m_testContext") final ITestContext testContext,
         @Advice.Argument(0) final ITestClass testClass) {
-
       XmlTest xmlTest = testClass.getXmlTest();
       XmlSuite.ParallelMode parallel = xmlTest.getParallel();
       boolean parallelized =
@@ -96,7 +96,6 @@ public class TestNGClassListenerInstrumentation extends InstrumenterModule.CiVis
         @Advice.FieldValue("m_testContext") final ITestContext testContext,
         @Advice.Argument(0) final ITestClass testClass,
         @Advice.Argument(1) final IMethodInstance methodInstance) {
-
       TestNGClassListener listener = TestNGUtils.getTestNGClassListener(testContext);
       listener.invokeAfterClass(testClass, methodInstance);
     }

@@ -3,7 +3,6 @@ package datadog.trace.common.writer;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.MetadataConsumer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -16,17 +15,16 @@ import java.util.function.BooleanSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** List writer used by tests mostly */
+/**
+ * List writer used by tests mostly
+ */
 public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Writer {
   private static final Logger log = LoggerFactory.getLogger(ListWriter.class);
   private static final Filter ACCEPT_ALL = trace -> true;
-
   private final AtomicInteger traceCount = new AtomicInteger();
   private final TraceStructureWriter structureWriter = new TraceStructureWriter(true);
   private final Object monitor = new Object();
-
   private Filter filter = ACCEPT_ALL;
-
   private MetadataConsumer metadataConsumer = MetadataConsumer.NO_OP;
 
   public List<DDSpan> firstTrace() {
@@ -90,13 +88,12 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
 
   public void waitForTraces(final int number) throws InterruptedException, TimeoutException {
     if (!waitForTracesMax(number, 20)) {
-      String msg =
-          "Timeout waiting for "
-              + number
-              + " trace(s). ListWriter.size() == "
-              + size()
-              + " : "
-              + super.toString();
+      String msg = "Timeout waiting for "
+          + number
+          + " trace(s). ListWriter.size() == "
+          + size()
+          + " : "
+          + super.toString();
       log.warn(msg);
       throw new TimeoutException(msg);
     }
@@ -107,7 +104,8 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
   }
 
   public void waitUntilReported(final DDSpan span, int timeout, TimeUnit unit)
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     boolean reported = awaitUntilDeadline(timeout, unit, () -> isReported(span));
 
     if (!reported) {
@@ -125,7 +123,9 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     this.filter = filter;
   }
 
-  /** Set a {@link MetadataConsumer} to capture what trace metadata would be sent to the agent. */
+  /**
+   * Set a {@link MetadataConsumer} to capture what trace metadata would be sent to the agent.
+   */
   public void setMetadataConsumer(MetadataConsumer metadataConsumer) {
     this.metadataConsumer = metadataConsumer;
   }
@@ -172,7 +172,9 @@ public class ListWriter extends CopyOnWriteArrayList<List<DDSpan>> implements Wr
     return "ListWriter { size=" + size() + " }";
   }
 
-  /** Interface for filtering out select traces from being written. */
+  /**
+   * Interface for filtering out select traces from being written.
+   */
   public interface Filter {
     boolean accept(List<DDSpan> trace);
   }

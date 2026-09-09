@@ -6,9 +6,12 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class RandomUtils {
-  private RandomUtils() {}
+  private RandomUtils() {
+  }
 
-  /** Returns a random UUID. */
+  /**
+   * Returns a random UUID.
+   */
   public static UUID randomUUID() {
     Random rnd = ThreadLocalRandom.current();
     long msb = (rnd.nextLong() & 0xffff_ffff_ffff_0fffL) | 0x0000_0000_0000_4000L;

@@ -36,7 +36,8 @@ public interface BlockResponseFunction {
    * @return true unless blocking could not be attempted
    */
   default boolean tryCommitBlockingResponse(
-      TraceSegment segment, Flow.Action.RequestBlockingAction action) {
+      TraceSegment segment,
+      Flow.Action.RequestBlockingAction action) {
     return tryCommitBlockingResponse(
         segment,
         action.getStatusCode(),

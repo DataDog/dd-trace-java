@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mockStatic;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import org.junit.jupiter.api.Assumptions;
@@ -12,7 +11,6 @@ import org.mockito.MockedStatic;
 import org.tabletest.junit.TableTest;
 
 class ForeignMemoryWriterFactoryTest {
-
   @TableTest({
     "scenario           | osType  | architecture | javaAtLeast22 | expectedClassFragment",
     "macOS              | MACOS   | X64          | false         |                      ",
@@ -34,9 +32,11 @@ class ForeignMemoryWriterFactoryTest {
         MockedStatic<JavaVirtualMachine> jvmMock = mockStatic(JavaVirtualMachine.class)) {
       osMock.when(OperatingSystem::type).thenReturn(OperatingSystem.Type.valueOf(osType));
       osMock
-          .when(OperatingSystem::architecture)
-          .thenReturn(OperatingSystem.Architecture.valueOf(architecture));
-      jvmMock.when(() -> JavaVirtualMachine.isJavaVersionAtLeast(22)).thenReturn(javaAtLeast22);
+        .when(OperatingSystem::architecture)
+        .thenReturn(OperatingSystem.Architecture.valueOf(architecture));
+      jvmMock
+        .when(() -> JavaVirtualMachine.isJavaVersionAtLeast(22))
+        .thenReturn(javaAtLeast22);
 
       ForeignMemoryWriter writer = new ForeignMemoryWriterFactory().get();
 

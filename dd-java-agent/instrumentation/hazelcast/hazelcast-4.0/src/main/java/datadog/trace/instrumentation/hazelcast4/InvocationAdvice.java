@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastDecorator.DECORATE;
-
 import com.hazelcast.client.impl.protocol.ClientMessage;
 import com.hazelcast.client.impl.proxy.ClientMapProxy;
 import com.hazelcast.client.impl.spi.impl.ClientInvocation;
@@ -15,19 +14,20 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-/** Advice for instrumenting distributed object client proxy classes. */
+/**
+ * Advice for instrumenting distributed object client proxy classes.
+ */
 public class InvocationAdvice {
-
-  /** Method entry instrumentation. */
+  /**
+   * Method entry instrumentation.
+   */
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope methodEnter(
       @Advice.This final ClientInvocation that,
       @Advice.FieldValue("objectName") final Object objectName,
       @Advice.FieldValue("clientMessage") final ClientMessage clientMessage) {
-
     final String operationName = clientMessage.getOperationName();
     long correlationId = clientMessage.getCorrelationId();
-
     // Ensure that we only create a span for the top-level Hazelcast method; except in the
     // case of async operations where we want visibility into how long the task was delayed from
     // starting. Our call depth checker does not span threads, so the async case is handled
@@ -48,7 +48,9 @@ public class InvocationAdvice {
     return activateSpan(span);
   }
 
-  /** Method exit instrumentation. */
+  /**
+   * Method exit instrumentation.
+   */
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
       @Advice.Enter final AgentScope scope,
@@ -57,7 +59,6 @@ public class InvocationAdvice {
     if (scope == null) {
       return;
     }
-
     // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
     final AgentSpan span = scope.span();
     if (throwable != null) {
@@ -71,12 +72,13 @@ public class InvocationAdvice {
       future.whenComplete(new SpanFinishingExecutionCallback(span));
       scope.close();
     }
-    CallDepthThreadLocalMap.reset(ClientInvocation.class); // reset call depth count
+    // reset call depth count
+    CallDepthThreadLocalMap.reset(ClientInvocation.class);
   }
 
-  public static void muzzleCheck(
-      // Moved in 4.0
-      ClientMapProxy proxy) {
+  public static // Moved in 4.0
+  // Moved in 4.0
+  void muzzleCheck(ClientMapProxy proxy) {
     proxy.getServiceName();
   }
 }

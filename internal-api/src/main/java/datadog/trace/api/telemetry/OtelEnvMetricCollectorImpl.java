@@ -10,7 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class OtelEnvMetricCollectorImpl
-    implements MetricCollector<OtelEnvMetricCollectorImpl.OtelEnvMetric>, OtelEnvMetricCollector {
+    implements MetricCollector<OtelEnvMetricCollectorImpl.OtelEnvMetric>,
+    OtelEnvMetricCollector {
   private static final Logger log = LoggerFactory.getLogger(OtelEnvMetricCollectorImpl.class);
   private static final String OTEL_ENV_HIDING_METRIC_NAME = "otel.env.hiding";
   private static final String OTEL_ENV_INVALID_METRIC_NAME = "otel.env.invalid";
@@ -19,7 +20,6 @@ public class OtelEnvMetricCollectorImpl
   private static final String CONFIG_DATADOG_KEY_TAG = "config_datadog:";
   private static final String NAMESPACE = "tracers";
   private static final OtelEnvMetricCollectorImpl INSTANCE = new OtelEnvMetricCollectorImpl();
-
   private final BlockingQueue<OtelEnvMetricCollectorImpl.OtelEnvMetric> metricsQueue;
 
   private OtelEnvMetricCollectorImpl() {
@@ -53,8 +53,7 @@ public class OtelEnvMetricCollectorImpl
 
   private void setMetricOtelEnvVarMetric(String metricName, final String... tags) {
     if (!metricsQueue.offer(
-        new OtelEnvMetricCollectorImpl.OtelEnvMetric(
-            NAMESPACE, true, metricName, "count", 1, tags))) {
+        new OtelEnvMetricCollectorImpl.OtelEnvMetric(NAMESPACE, true, metricName, "count", 1, tags))) {
       log.debug("Unable to add telemetry metric {} for {}", metricName, tags[0]);
     }
   }

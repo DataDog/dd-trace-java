@@ -6,7 +6,6 @@ import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.JAVA_JDBC_POOL_WAITING;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public Dbcp2LinkedBlockingDequeInstrumentation() {
     super("jdbc", "dbcp2");
   }
@@ -31,8 +30,10 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.apache.commons.pool2.impl.LinkedBlockingDeque", // standalone
-      "org.apache.tomcat.dbcp.pool2.impl.LinkedBlockingDeque" // bundled with Tomcat
+        // standalone
+        "org.apache.commons.pool2.impl.LinkedBlockingDeque",
+        // bundled with Tomcat
+        "org.apache.tomcat.dbcp.pool2.impl.LinkedBlockingDeque"
     };
   }
 
@@ -63,7 +64,8 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
-        @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentSpan span,
+        @Advice.Thrown final Throwable throwable) {
       if (span != null) {
         DECORATE.onError(span, throwable);
         span.finish();

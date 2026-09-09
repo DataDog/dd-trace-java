@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.opensearch;
 
 import static datadog.trace.instrumentation.opensearch.OpensearchTransportClientDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRequest;
@@ -16,12 +15,13 @@ import org.opensearch.action.support.nodes.BaseNodesResponse;
 import org.opensearch.action.support.replication.ReplicationResponse;
 
 public class TransportActionListener<T extends ActionResponse> implements ActionListener<T> {
-
   private final ActionListener<T> listener;
   private final AgentSpan span;
 
   public TransportActionListener(
-      final ActionRequest actionRequest, final ActionListener<T> listener, final AgentSpan span) {
+      final ActionRequest actionRequest,
+      final ActionListener<T> listener,
+      final AgentSpan span) {
     this.listener = listener;
     this.span = span;
     onRequest(actionRequest);

@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.buffer;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,8 +49,7 @@ public class InjectingPipeOutputStreamBenchmark {
   @Benchmark
   public void withPipe() throws Exception {
     try (final PrintWriter out =
-        new PrintWriter(
-            new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content))) {
+        new PrintWriter(new InjectingPipeOutputStream(new ByteArrayOutputStream(), marker, content))) {
       htmlContent.forEach(out::println);
     }
   }

@@ -1,7 +1,8 @@
 package datadog.metrics.api;
 
 final class NoOpMonitoring implements Monitoring {
-  NoOpMonitoring() {}
+  NoOpMonitoring() {
+  }
 
   @Override
   public Recording newTimer(String name) {

@@ -7,7 +7,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface CodecModule extends IastModule {
-
   void onUrlDecode(@Nonnull String value, @Nullable String encoding, @Nonnull String result);
 
   void onUrlEncode(@Nonnull String value, @Nullable String encoding, @Nonnull String result);

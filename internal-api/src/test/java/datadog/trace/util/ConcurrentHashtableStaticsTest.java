@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.Test;
  * int} key, driving the same lock-free-read / locked-write recipe the class Javadoc documents.
  */
 class ConcurrentHashtableStaticsTest {
-
   @Test
   void sizeForRoundsUpToPowerOfTwo() {
     assertEquals(1, ConcurrentHashtable.sizeFor(1));
@@ -76,7 +74,9 @@ class ConcurrentHashtableStaticsTest {
   @Test
   void bucketIndexMasksToArrayLength() {
     AtomicReferenceArray<IntEntry> buckets =
-        ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8); // length 8, mask 7
+        ConcurrentHashtable
+      // length 8, mask 7
+      .createFixedBuckets(IntEntry.class, 8);
     assertEquals(0, ConcurrentHashtable.bucketIndex(buckets, 8L));
     assertEquals(1, ConcurrentHashtable.bucketIndex(buckets, 9L));
     assertEquals(7, ConcurrentHashtable.bucketIndex(buckets, 7L));
@@ -91,28 +91,33 @@ class ConcurrentHashtableStaticsTest {
     assertSame(a, table.get(1));
     assertSame(b, table.get(2));
     assertNull(table.get(3));
-
     // getOrCreate on a hit returns the existing entry, no new insert.
     assertSame(a, table.getOrCreate(1, 999));
     assertEquals(2, table.size.get());
 
     assertSame(a, table.remove(1));
     assertNull(table.get(1));
-    assertNull(table.remove(1)); // already gone
+    // already gone
+    assertNull(table.remove(1));
     assertEquals(1, table.size.get());
   }
 
   @Test
   void insertHeadEntryForPlacesInBucketMaskedFromKeyHash() {
     AtomicReferenceArray<IntEntry> buckets =
-        ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8); // mask 7
-    IntEntry e = new IntEntry(9, 1); // keyHash 9 → bucket 1
+        ConcurrentHashtable
+      // mask 7
+      .createFixedBuckets(IntEntry.class, 8);
+    // keyHash 9 → bucket 1
+    IntEntry e = new IntEntry(9, 1);
     synchronized (ConcurrentHashtable.getWriteLock(buckets, e.keyHash)) {
       ConcurrentHashtable.insertHeadEntryFor(buckets, e.keyHash, e);
     }
-    assertSame(e, ConcurrentHashtable.bucketFor(buckets, 9L)); // masks keyHash to the bucket index
-    assertSame(
-        e, ConcurrentHashtable.bucketAt(buckets, 1)); // same slot, addressed directly by index
+    // masks keyHash to the bucket index
+    assertSame(e, ConcurrentHashtable.bucketFor(buckets, 9L));
+    assertSame(e, ConcurrentHashtable
+      // same slot, addressed directly by index
+      .bucketAt(buckets, 1));
     assertNull(buckets.get(0));
   }
 
@@ -124,14 +129,12 @@ class ConcurrentHashtableStaticsTest {
     IntEntry b = table.getOrCreate(2, 2);
     IntEntry c = table.getOrCreate(3, 3);
     assertEquals(3, table.size.get());
-
     // Remove the middle: head and tail stay reachable.
     assertSame(b, table.remove(2));
     assertNull(table.get(2));
     assertSame(a, table.get(1));
     assertSame(c, table.get(3));
     assertEquals(2, table.size.get());
-
     // Remove the head, then the last remaining.
     assertSame(c, table.remove(3));
     assertSame(a, table.remove(1));
@@ -145,8 +148,7 @@ class ConcurrentHashtableStaticsTest {
     for (int i = 0; i < 10; i++) {
       table.getOrCreate(i, i);
     }
-    boolean removed =
-        ConcurrentHashtable.removeIf(table.buckets, table.size, e -> e.value % 2 == 0);
+    boolean removed = ConcurrentHashtable.removeIf(table.buckets, table.size, e -> e.value % 2 == 0);
     assertTrue(removed);
     assertEquals(5, table.size.get());
     for (int i = 0; i < 10; i++) {
@@ -175,12 +177,10 @@ class ConcurrentHashtableStaticsTest {
 
     Set<Integer> keys = new HashSet<>();
     int[] sum = {0};
-    ConcurrentHashtable.drain(
-        table.buckets,
-        e -> {
-          keys.add(e.key);
-          sum[0] += e.value;
-        });
+    ConcurrentHashtable.drain(table.buckets, e -> {
+      keys.add(e.key);
+      sum[0] += e.value;
+    });
 
     assertEquals(new HashSet<>(java.util.Arrays.asList(1, 2, 3)), keys);
     assertEquals(60, sum[0]);
@@ -237,9 +237,10 @@ class ConcurrentHashtableStaticsTest {
     assumeTrue(assertionsEnabled(), "assert-guard test requires -ea");
     AtomicReferenceArray<IntEntry> buckets =
         ConcurrentHashtable.createFixedBuckets(IntEntry.class, 8);
-    assertThrows(
-        AssertionError.class,
-        () -> ConcurrentHashtable.insertHeadEntryAt(buckets, 0, new IntEntry(1, 1)));
+    assertThrows(AssertionError.class, () -> ConcurrentHashtable.insertHeadEntryAt(
+        buckets,
+        0,
+        new IntEntry(1, 1)));
   }
 
   @Test
@@ -264,18 +265,16 @@ class ConcurrentHashtableStaticsTest {
 
     Thread[] workers = new Thread[threads];
     for (int i = 0; i < threads; i++) {
-      workers[i] =
-          new Thread(
-              () -> {
-                ready.countDown();
-                try {
-                  go.await();
-                } catch (InterruptedException ex) {
-                  Thread.currentThread().interrupt();
-                  return;
-                }
-                table.getOrCreateCounting(7, createCount);
-              });
+      workers[i] = new Thread(() -> {
+        ready.countDown();
+        try {
+          go.await();
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+        table.getOrCreateCounting(7, createCount);
+      });
       workers[i].start();
     }
     ready.await();
@@ -296,21 +295,20 @@ class ConcurrentHashtableStaticsTest {
     for (int i = 0; i < n; i++) {
       table.getOrCreate(i, i);
     }
-    int churn = 0; // keys 1..n-1 are stable and must never vanish
+    // keys 1..n-1 are stable and must never vanish
+    int churn = 0;
 
     AtomicBoolean stop = new AtomicBoolean(false);
     AtomicInteger missed = new AtomicInteger();
-    Thread reader =
-        new Thread(
-            () -> {
-              while (!stop.get()) {
-                for (int i = 1; i < n; i++) {
-                  if (table.get(i) == null) {
-                    missed.incrementAndGet();
-                  }
-                }
-              }
-            });
+    Thread reader = new Thread(() -> {
+      while (!stop.get()) {
+        for (int i = 1; i < n; i++) {
+          if (table.get(i) == null) {
+            missed.incrementAndGet();
+          }
+        }
+      }
+    });
     reader.start();
     for (int r = 0; r < 100_000; r++) {
       table.remove(churn);
@@ -328,7 +326,9 @@ class ConcurrentHashtableStaticsTest {
     return enabled;
   }
 
-  /** Primitive-{@code int}-key entry: no boxing, keyHash is the key itself. */
+  /**
+   * Primitive-{@code int}-key entry: no boxing, keyHash is the key itself.
+   */
   private static final class IntEntry extends ConcurrentHashtable.Entry {
     final int key;
     final int value;
@@ -358,9 +358,7 @@ class ConcurrentHashtableStaticsTest {
     }
 
     IntEntry get(int key) {
-      for (IntEntry e = ConcurrentHashtable.bucketFor(buckets, (long) key);
-          e != null;
-          e = e.next()) {
+      for (IntEntry e = ConcurrentHashtable.bucketFor(buckets, (long) key); e != null; e = e.next()) {
         if (e.matches(key)) {
           return e;
         }
@@ -388,7 +386,9 @@ class ConcurrentHashtableStaticsTest {
       }
     }
 
-    /** {@link #getOrCreate} variant that counts real creations, for the exactly-once race test. */
+    /**
+     * {@link #getOrCreate} variant that counts real creations, for the exactly-once race test.
+     */
     IntEntry getOrCreateCounting(int key, AtomicInteger createCount) {
       int index = ConcurrentHashtable.bucketIndex(buckets, key);
       for (IntEntry e = ConcurrentHashtable.bucketAt(buckets, index); e != null; e = e.next()) {

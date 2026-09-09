@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 
 @OptOut
 public interface ApplicationModule extends IastModule {
-
   void onRealPath(@Nullable String realPath);
 
   void checkSessionTrackingModes(@Nonnull Set<String> sessionTrackingModes);

@@ -1,7 +1,6 @@
 package datadog.opentelemetry.shim.baggage;
 
 import static java.util.stream.Collectors.toMap;
-
 import io.opentelemetry.api.baggage.Baggage;
 import io.opentelemetry.api.baggage.BaggageBuilder;
 import io.opentelemetry.api.baggage.BaggageEntry;
@@ -38,7 +37,11 @@ public class OtelBaggage implements Baggage {
 
   @Override
   public Map<String, BaggageEntry> asMap() {
-    return delegate.asMap().entrySet().stream().collect(toMap(Map.Entry::getKey, ValueOnly::new));
+    return delegate
+      .asMap()
+      .entrySet()
+      .stream()
+      .collect(toMap(Map.Entry::getKey, ValueOnly::new));
   }
 
   @Nullable

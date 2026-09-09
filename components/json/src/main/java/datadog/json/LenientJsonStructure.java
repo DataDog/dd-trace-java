@@ -1,8 +1,11 @@
 package datadog.json;
 
-/** A permissive {@link JsonStructure} that performs no structural checks on the built JSON. */
+/**
+ * A permissive {@link JsonStructure} that performs no structural checks on the built JSON.
+ */
 class LenientJsonStructure implements JsonStructure {
-  LenientJsonStructure() {}
+  LenientJsonStructure() {
+  }
 
   @Override
   public void beginObject() {}

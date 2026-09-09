@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,8 +12,8 @@ import org.apache.kafka.streams.processor.internals.ProcessorTopology;
 
 @AutoService(InstrumenterModule.class)
 public class InternalTopologyBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public InternalTopologyBuilderInstrumentation() {
     super("kafka", "kafka-streams");
   }
@@ -27,8 +26,8 @@ public class InternalTopologyBuilderInstrumentation extends InstrumenterModule.T
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".StreamingContextUpdater",
-      "datadog.trace.instrumentation.kafka_common.StreamingContext"
+        packageName + ".StreamingContextUpdater",
+        "datadog.trace.instrumentation.kafka_common.StreamingContext"
     };
   }
 

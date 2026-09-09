@@ -7,7 +7,6 @@ import static datadog.trace.instrumentation.jaxrs.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.JAX_RS_CLIENT;
 import static datadog.trace.instrumentation.jaxrs.JaxRsClientDecorator.JAX_RS_CLIENT_CALL;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Priority;
@@ -34,7 +33,8 @@ public class ClientTracingFilter implements ClientRequestFilter, ClientResponseF
 
   @Override
   public void filter(
-      final ClientRequestContext requestContext, final ClientResponseContext responseContext) {
+      final ClientRequestContext requestContext,
+      final ClientResponseContext responseContext) {
     final Object spanObj = requestContext.getProperty(SPAN_PROPERTY_NAME);
     if (spanObj instanceof AgentSpan) {
       final AgentSpan span = (AgentSpan) spanObj;

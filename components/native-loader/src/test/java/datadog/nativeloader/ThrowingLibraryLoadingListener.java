@@ -44,7 +44,10 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
 
   @Override
   public final void onTempFileCreated(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile) {
     this.throwException("tempFileCreated");
   }
 
@@ -61,7 +64,10 @@ public class ThrowingLibraryLoadingListener implements LibraryLoadingListener {
 
   @Override
   public final void onTempFileCleanup(
-      PlatformSpec platformSpec, String optionalComponent, String libName, Path tempFile) {
+      PlatformSpec platformSpec,
+      String optionalComponent,
+      String libName,
+      Path tempFile) {
     this.throwException("tempFileCleanup");
   }
 

@@ -9,11 +9,11 @@ import datadog.trace.api.iast.sink.XssModule;
 import javax.annotation.Nonnull;
 
 @Sink(VulnerabilityTypes.XSS)
-@CallSite(
-    spi = IastCallSites.class,
-    enabled = {"datadog.trace.api.iast.IastEnabledChecks", "isFullDetection"})
+@CallSite(spi = IastCallSites.class, enabled = {
+    "datadog.trace.api.iast.IastEnabledChecks",
+    "isFullDetection"
+})
 public class JakartaJspWriterFullDetectionCallSite {
-
   @CallSite.Before("void jakarta.servlet.jsp.JspWriter.print(char[])")
   @CallSite.Before("void jakarta.servlet.jsp.JspWriter.println(char[])")
   @CallSite.Before("void jakarta.servlet.jsp.JspWriter.write(char[])")

@@ -7,13 +7,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import javax.annotation.Nullable;
 
 public interface IastTag {
-
   void setTagTop(@Nullable final TraceSegment trace);
 
   void setTag(@Nullable final AgentSpan span);
 
   abstract class BaseTag<E> implements IastTag {
-
     protected abstract String key();
 
     protected abstract E value();
@@ -53,11 +51,8 @@ public interface IastTag {
    * </ul>
    */
   class Enabled extends BaseTag<Integer> {
-
     public static final IastTag SKIPPED = Enabled.withValue(0);
-
     public static final IastTag ANALYZED = Enabled.withValue(1);
-
     private final int value;
 
     private Enabled(int value) {

@@ -12,9 +12,7 @@ import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
 
 public class DatadogAppender extends AbstractAppender {
-
   private static final int MAX_STACKTRACE_STRING_LENGTH = 16 * 1_024;
-
   private final boolean appLogsCollectionEnabled;
 
   public DatadogAppender(String name, Filter filter, Config config) {
@@ -52,9 +50,9 @@ public class DatadogAppender extends AbstractAppender {
       PrintWriter printWriter = new PrintWriter(stringWriter);
       thrown.printStackTrace(printWriter);
       StringBuffer stackTraceBuffer = stringWriter.getBuffer();
-      String stackTraceString =
-          stackTraceBuffer.substring(
-              0, Math.min(stackTraceBuffer.length(), MAX_STACKTRACE_STRING_LENGTH));
+      String stackTraceString = stackTraceBuffer.substring(
+          0,
+          Math.min(stackTraceBuffer.length(), MAX_STACKTRACE_STRING_LENGTH));
       thrownLog.put("extendedStackTrace", stackTraceString);
 
       log.put("thrown", thrownLog);

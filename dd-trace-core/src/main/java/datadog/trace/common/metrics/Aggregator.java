@@ -1,7 +1,6 @@
 package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
@@ -14,11 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class Aggregator implements Runnable {
-
   private static final long DEFAULT_SLEEP_MILLIS = 10;
-
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
-
   private final MessagePassingQueue<InboxItem> inbox;
   private final AggregateTable aggregates;
   private final MetricWriter writer;
@@ -27,9 +23,7 @@ final class Aggregator implements Runnable {
   // when the agent is unresponsive (only 10 pending requests will be
   // buffered by OkHttpSink)
   private final long reportingIntervalNanos;
-
   private final long sleepMillis;
-
   /**
    * Per-cycle hook run on the aggregator thread at the start of each report cycle, before the
    * flush. Used by {@link ClientStatsAggregator} to reconcile its cached peer-tag schema against
@@ -38,10 +32,8 @@ final class Aggregator implements Runnable {
    * post-reconcile state. May be {@code null}.
    */
   private final Runnable onReportCycle;
-
-  @SuppressFBWarnings(
-      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
-      justification = "the field is confined to the agent thread running the Aggregator")
+  @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "the field "
+      + "is confined to the agent thread running the Aggregator")
   private boolean dirty;
 
   Aggregator(
@@ -114,7 +106,6 @@ final class Aggregator implements Runnable {
   }
 
   private final class Drainer implements MessagePassingQueue.Consumer<InboxItem> {
-
     boolean stopped = false;
 
     @Override
@@ -185,12 +176,10 @@ final class Aggregator implements Runnable {
         if (!aggregates.isEmpty()) {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          aggregates.forEach(
-              writer,
-              (w, entry) -> {
-                w.add(entry);
-                entry.clearAggregate();
-              });
+          aggregates.forEach(writer, (w, entry) -> {
+            w.add(entry);
+            entry.clearAggregate();
+          });
           // note that this may do IO and block
           writer.finishBucket();
         }

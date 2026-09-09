@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling.muzzle;
 import net.bytebuddy.asm.Advice;
 
 public class TestAdviceClasses {
-
   public static class MethodBodyAdvice {
     @Advice.OnMethodEnter
     public static void methodBodyAdvice() {
@@ -54,13 +53,15 @@ public class TestAdviceClasses {
       }
     }
 
-    public static class A2 extends A {}
+    public static class A2 extends A {
+    }
 
     public interface HasMethod {
       Object requiredMethod();
     }
 
-    public interface SkipLevel extends HasMethod {}
+    public interface SkipLevel extends HasMethod {
+    }
 
     public interface SomeInterface extends SkipLevel {
       void someMethod();
@@ -82,7 +83,8 @@ public class TestAdviceClasses {
       public final int finalField = 0;
     }
 
-    public interface AnotherInterface extends SomeInterface {}
+    public interface AnotherInterface extends SomeInterface {
+    }
   }
 
   public static class LdcAdvice {

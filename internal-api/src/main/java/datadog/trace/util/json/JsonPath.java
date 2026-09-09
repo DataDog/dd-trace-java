@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.List;
 
 public final class JsonPath {
-
   public static class Builder {
     private final List<Segment> segments;
 
@@ -81,7 +80,11 @@ public final class JsonPath {
   }
 
   private boolean matchPathBlock(
-      JsonPath pattern, int offset1, PathCursor pathCursor, int offset2, int blockSize) {
+      JsonPath pattern,
+      int offset1,
+      PathCursor pathCursor,
+      int offset2,
+      int blockSize) {
     for (int i = 0; i < blockSize; i++) {
       if (!pattern.segments[offset1 + i].matches(jsonPathSegment(pathCursor, offset2 + i))) {
         return false;
@@ -109,7 +112,6 @@ public final class JsonPath {
   }
 
   private abstract static class Segment {
-
     protected boolean matches(Object value) {
       return this == Singleton.WILDCARD
           || this == Singleton.DESCENDANT
@@ -120,7 +122,6 @@ public final class JsonPath {
       private static final Segment ROOT = new Singleton("$");
       private static final Segment WILDCARD = new Singleton("[*]");
       private static final Segment DESCENDANT = new Singleton("..");
-
       private final String repr;
 
       private Singleton(String repr) {

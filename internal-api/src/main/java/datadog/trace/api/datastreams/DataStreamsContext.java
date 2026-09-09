@@ -2,7 +2,6 @@ package datadog.trace.api.datastreams;
 
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.INBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
-
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
@@ -13,7 +12,6 @@ public class DataStreamsContext implements ImplicitContextKeyed {
       ContextKey.named("dsm-context-key");
   private static final DataStreamsTags CLIENT_PATHWAY_EDGE_TAGS;
   private static final DataStreamsTags SERVER_PATHWAY_EDGE_TAGS;
-
   final DataStreamsTags tags;
   final long defaultTimestamp;
   final long payloadSizeBytes;
@@ -69,7 +67,9 @@ public class DataStreamsContext implements ImplicitContextKeyed {
    * @return the created context.
    */
   public static DataStreamsContext create(
-      DataStreamsTags tags, long defaultTimestamp, long payloadSizeBytes) {
+      DataStreamsTags tags,
+      long defaultTimestamp,
+      long payloadSizeBytes) {
     return new DataStreamsContext(tags, defaultTimestamp, payloadSizeBytes, true);
   }
 
@@ -79,7 +79,10 @@ public class DataStreamsContext implements ImplicitContextKeyed {
 
   // That's basically a record for now
   private DataStreamsContext(
-      DataStreamsTags tags, long defaultTimestamp, long payloadSizeBytes, boolean sendCheckpoint) {
+      DataStreamsTags tags,
+      long defaultTimestamp,
+      long payloadSizeBytes,
+      boolean sendCheckpoint) {
     this.tags = tags;
     this.defaultTimestamp = defaultTimestamp;
     this.payloadSizeBytes = payloadSizeBytes;

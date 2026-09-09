@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.config.provider;
 
 import static datadog.trace.util.ConfigStrings.normalizedHeaderTag;
 import static datadog.trace.util.ConfigStrings.trim;
-
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -20,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class ConfigConverter {
-
   private static final Logger log = LoggerFactory.getLogger(ConfigConverter.class);
 
   /**
@@ -87,7 +85,9 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseMap(
-      final String str, final String settingName, final char keyValueSeparator) {
+      final String str,
+      final String settingName,
+      final char keyValueSeparator) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = trim(str);
     if (trimmed.isEmpty()) {
@@ -100,7 +100,9 @@ final class ConfigConverter {
 
   @Nonnull
   static Map<String, String> parseTraceTagsMap(
-      final String str, final char keyValueSeparator, final List<Character> argSeparators) {
+      final String str,
+      final char keyValueSeparator,
+      final List<Character> argSeparators) {
     // If we ever want to have default values besides an empty map, this will need to change.
     String trimmed = trim(str);
     if (trimmed.isEmpty()) {
@@ -160,7 +162,10 @@ final class ConfigConverter {
   }
 
   private static void loadMap(
-      Map<String, String> map, String str, String settingName, char keyValueSeparator) {
+      Map<String, String> map,
+      String str,
+      String settingName,
+      char keyValueSeparator) {
     // we know that the str is trimmed and rely on that there is no leading/trailing whitespace
     try {
       int start = 0;
@@ -213,8 +218,8 @@ final class ConfigConverter {
       if (t instanceof BadFormatException) {
         log.warn(
             "Invalid config for {}. {}. Must match "
-                + "'key1{}value1,key2{}value2' or "
-                + "'key1{}value1 key2{}value2'.",
+            + "'key1{}value1,key2{}value2' or "
+            + "'key1{}value1 key2{}value2'.",
             settingName,
             t.getMessage(),
             keyValueSeparator,
@@ -237,7 +242,6 @@ final class ConfigConverter {
     int splitter = str.indexOf(keyValueSeparator, start);
     char argSeparator = '\0';
     int argSeparatorInd = -1;
-
     // Given a list of separators ordered by priority, find the first (highest priority) separator
     // that appears in the string and store its value and first occurrence in the string
     for (Character sep : argSeparators) {
@@ -248,17 +252,19 @@ final class ConfigConverter {
       }
     }
     while (start < str.length()) {
-      int nextSplitter =
-          argSeparatorInd == -1
-              ? -1
-              : str.indexOf(
-                  keyValueSeparator,
-                  argSeparatorInd + 1); // next splitter after the next argSeparator
+      int nextSplitter = argSeparatorInd == -1
+          ? -1
+          : str
+        // next splitter after the next argSeparator
+        .indexOf(
+            // next splitter after the next argSeparator
+            keyValueSeparator,
+            argSeparatorInd + 1);
       int nextArgSeparator =
           argSeparatorInd == -1 ? -1 : str.indexOf(argSeparator, argSeparatorInd + 1);
       int end = argSeparatorInd == -1 ? str.length() : argSeparatorInd;
-
-      if (start >= end) { // the character is only the delimiter
+      if (start >= end) {
+        // the character is only the delimiter
         start = end + 1;
         splitter = nextSplitter;
         argSeparatorInd = nextArgSeparator;
@@ -266,9 +272,8 @@ final class ConfigConverter {
       }
 
       String key, value;
-      if (splitter >= end
-          || splitter
-              == -1) { // only key, no value; either due end of string or substring not having
+      if (splitter >= end || splitter == -1) {
+        // only key, no value; either due end of string or substring not having
         // splitter
         key = str.substring(start, end).trim();
         value = "";
@@ -446,11 +451,12 @@ final class ConfigConverter {
     protected MethodHandle computeValue(Class<?> type) {
       try {
         if (Boolean.class.equals(type)) {
-          return MethodHandles.lookup()
-              .findStatic(
-                  ConfigConverter.class,
-                  "booleanValueOf",
-                  MethodType.methodType(Boolean.class, String.class));
+          return MethodHandles
+            .lookup()
+            .findStatic(
+                ConfigConverter.class,
+                "booleanValueOf",
+                MethodType.methodType(Boolean.class, String.class));
         }
 
         return PUBLIC_LOOKUP.findStatic(type, "valueOf", MethodType.methodType(type, String.class));

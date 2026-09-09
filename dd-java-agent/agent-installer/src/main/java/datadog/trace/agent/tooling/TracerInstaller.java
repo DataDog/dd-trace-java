@@ -19,24 +19,25 @@ import org.slf4j.LoggerFactory;
 public class TracerInstaller {
   private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
 
-  /** Register a global tracer if no global tracer is already registered. */
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards one-time tracer install.")
+  /**
+   * Register a global tracer if no global tracer is already registered.
+   */
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal class; Class object does not escape to app code and lock only guards one-"
+      + "time tracer install.")
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects,
       ProfilingContextIntegration profilingContextIntegration) {
     if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
-        CoreTracer tracer =
-            CoreTracer.builder()
-                .sharedCommunicationObjects(sharedCommunicationObjects)
-                .profilingContextIntegration(profilingContextIntegration)
-                .reportInTracerFlare()
-                .pollForTracingConfiguration()
-                .serviceDiscoveryFactory(serviceDiscoveryFactory())
-                .build();
+        CoreTracer tracer = CoreTracer
+          .builder()
+          .sharedCommunicationObjects(sharedCommunicationObjects)
+          .profilingContextIntegration(profilingContextIntegration)
+          .reportInTracerFlare()
+          .pollForTracingConfiguration()
+          .serviceDiscoveryFactory(serviceDiscoveryFactory())
+          .build();
         installGlobalTracer(tracer);
       } else {
         log.debug("GlobalTracer already registered.");

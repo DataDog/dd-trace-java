@@ -9,7 +9,9 @@ import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Test module abstraction that is used by test framework instrumentations (e.g. JUnit, TestNG) */
+/**
+ * Test module abstraction that is used by test framework instrumentations (e.g. JUnit, TestNG)
+ */
 public interface TestFrameworkModule {
   TestSuiteImpl testSuiteStart(
       String testSuiteName,
@@ -47,7 +49,9 @@ public interface TestFrameworkModule {
 
   @Nonnull
   TestExecutionPolicy executionPolicy(
-      TestIdentifier test, TestSourceData testSource, Collection<String> testTags);
+      TestIdentifier test,
+      TestSourceData testSource,
+      Collection<String> testTags);
 
   /**
    * Returns the priority of the test execution that can be used for ordering tests. The higher the

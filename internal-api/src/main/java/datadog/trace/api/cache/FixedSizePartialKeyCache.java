@@ -2,7 +2,6 @@ package datadog.trace.api.cache;
 
 import static datadog.trace.api.cache.FixedSizeCache.calculateSize;
 import static datadog.trace.api.cache.FixedSizeCache.rehash;
-
 import java.util.Arrays;
 import javax.annotation.Nullable;
 
@@ -21,7 +20,6 @@ import javax.annotation.Nullable;
  * @param <V> value type
  */
 final class FixedSizePartialKeyCache<K, V> implements DDPartialKeyCache<K, V> {
-
   private final int mask;
   // This is a cache, so there is no need for volatile, atomics or synchronized.
   // All race conditions here are benign since you always read or write a full
@@ -74,7 +72,6 @@ final class FixedSizePartialKeyCache<K, V> implements DDPartialKeyCache<K, V> {
     int h = hash;
     int firstPos = h & mask;
     V value;
-
     // try to find a slot or a match 3 times
     for (int i = 1; true; i++) {
       int pos = h & mask;
@@ -104,7 +101,12 @@ final class FixedSizePartialKeyCache<K, V> implements DDPartialKeyCache<K, V> {
   }
 
   private V produceAndStoreValue(
-      Producer<K, ? extends V> producer, int hash, K key, int m, int n, int pos) {
+      Producer<K, ? extends V> producer,
+      int hash,
+      K key,
+      int m,
+      int n,
+      int pos) {
     V value = producer.apply(key, hash, m, n);
     elements[pos] = new HVElement<>(hash, value);
     return value;

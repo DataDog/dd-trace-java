@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.opentelemetry.shim.context.propagation.OtelContextPropagators;
 import datadog.opentelemetry.shim.trace.OtelTracerProvider;
@@ -20,8 +19,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.HasMethodAdvice {
   public OpenTelemetryInstrumentation() {
     super("opentelemetry.experimental", "opentelemetry-1");
   }
@@ -44,8 +43,8 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "io.opentelemetry.api.DefaultOpenTelemetry",
-      "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
+        "io.opentelemetry.api.DefaultOpenTelemetry",
+        "io.opentelemetry.api.GlobalOpenTelemetry$ObfuscatedOpenTelemetry"
     };
   }
 
@@ -57,30 +56,30 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.opentelemetry.shim.context.OtelContext",
-      "datadog.opentelemetry.shim.context.OtelScope",
-      "datadog.opentelemetry.shim.context.propagation.AgentTextMapPropagator",
-      "datadog.opentelemetry.shim.context.propagation.OtelContextPropagators",
-      "datadog.opentelemetry.shim.context.propagation.TraceStateHelper",
-      "datadog.opentelemetry.shim.baggage.OtelBaggage",
-      "datadog.opentelemetry.shim.baggage.OtelBaggage$ValueOnly",
-      "datadog.opentelemetry.shim.baggage.OtelBaggageBuilder",
-      "datadog.opentelemetry.shim.trace.OtelExtractedContext",
-      "datadog.opentelemetry.shim.trace.OtelConventions",
-      "datadog.opentelemetry.shim.trace.OtelConventions$1",
-      "datadog.opentelemetry.shim.trace.OtelSpan",
-      "datadog.opentelemetry.shim.trace.OtelSpan$1",
-      "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpan",
-      "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpanContext",
-      "datadog.opentelemetry.shim.trace.OtelSpanBuilder",
-      "datadog.opentelemetry.shim.trace.OtelSpanBuilder$1",
-      "datadog.opentelemetry.shim.trace.OtelSpanContext",
-      "datadog.opentelemetry.shim.trace.OtelSpanEvent",
-      "datadog.opentelemetry.shim.trace.OtelSpanEvent$AttributesJsonParser",
-      "datadog.opentelemetry.shim.trace.OtelSpanLink",
-      "datadog.opentelemetry.shim.trace.OtelTracer",
-      "datadog.opentelemetry.shim.trace.OtelTracerBuilder",
-      "datadog.opentelemetry.shim.trace.OtelTracerProvider",
+        "datadog.opentelemetry.shim.context.OtelContext",
+        "datadog.opentelemetry.shim.context.OtelScope",
+        "datadog.opentelemetry.shim.context.propagation.AgentTextMapPropagator",
+        "datadog.opentelemetry.shim.context.propagation.OtelContextPropagators",
+        "datadog.opentelemetry.shim.context.propagation.TraceStateHelper",
+        "datadog.opentelemetry.shim.baggage.OtelBaggage",
+        "datadog.opentelemetry.shim.baggage.OtelBaggage$ValueOnly",
+        "datadog.opentelemetry.shim.baggage.OtelBaggageBuilder",
+        "datadog.opentelemetry.shim.trace.OtelExtractedContext",
+        "datadog.opentelemetry.shim.trace.OtelConventions",
+        "datadog.opentelemetry.shim.trace.OtelConventions$1",
+        "datadog.opentelemetry.shim.trace.OtelSpan",
+        "datadog.opentelemetry.shim.trace.OtelSpan$1",
+        "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpan",
+        "datadog.opentelemetry.shim.trace.OtelSpan$NoopSpanContext",
+        "datadog.opentelemetry.shim.trace.OtelSpanBuilder",
+        "datadog.opentelemetry.shim.trace.OtelSpanBuilder$1",
+        "datadog.opentelemetry.shim.trace.OtelSpanContext",
+        "datadog.opentelemetry.shim.trace.OtelSpanEvent",
+        "datadog.opentelemetry.shim.trace.OtelSpanEvent$AttributesJsonParser",
+        "datadog.opentelemetry.shim.trace.OtelSpanLink",
+        "datadog.opentelemetry.shim.trace.OtelTracer",
+        "datadog.opentelemetry.shim.trace.OtelTracerBuilder",
+        "datadog.opentelemetry.shim.trace.OtelTracerProvider"
     };
   }
 
@@ -89,16 +88,16 @@ public class OpenTelemetryInstrumentation extends InstrumenterModule.Tracing
     // TracerProvider OpenTelemetry.getTracerProvider()
     transformer.applyAdvice(
         isMethod()
-            .and(named("getTracerProvider"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
+          .and(named("getTracerProvider"))
+          .and(takesNoArguments())
+          .and(returns(named("io.opentelemetry.api.trace.TracerProvider"))),
         OpenTelemetryInstrumentation.class.getName() + "$TracerProviderAdvice");
     // ContextPropagators OpenTelemetry.getPropagators();
     transformer.applyAdvice(
         isMethod()
-            .and(named("getPropagators"))
-            .and(takesNoArguments())
-            .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
+          .and(named("getPropagators"))
+          .and(takesNoArguments())
+          .and(returns(named("io.opentelemetry.context.propagation.ContextPropagators"))),
         OpenTelemetryInstrumentation.class.getName() + "$ContextPropagatorAdvice");
   }
 

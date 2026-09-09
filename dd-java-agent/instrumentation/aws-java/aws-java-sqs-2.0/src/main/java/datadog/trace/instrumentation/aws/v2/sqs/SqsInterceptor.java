@@ -6,7 +6,6 @@ import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v2.sqs.MessageAttributeInjector.SETTER;
-
 import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
@@ -29,12 +28,12 @@ import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 public class SqsInterceptor implements ExecutionInterceptor {
+  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE = InstanceStore
+    .of(ExecutionAttribute.class)
+    .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
-  public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
-      InstanceStore.of(ExecutionAttribute.class)
-          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
-
-  public SqsInterceptor() {}
+  public SqsInterceptor() {
+  }
 
   @Override
   public SdkRequest modifyRequest(ModifyRequest context, ExecutionAttributes executionAttributes) {
@@ -53,7 +52,6 @@ public class SqsInterceptor implements ExecutionInterceptor {
       }
 
       return request.toBuilder().messageAttributes(messageAttributes).build();
-
     } else if (context.request() instanceof SendMessageBatchRequest) {
       SendMessageBatchRequest request = (SendMessageBatchRequest) context.request();
       Optional<String> optionalQueueUrl = request.getValueForField("QueueUrl", String.class);
@@ -74,7 +72,6 @@ public class SqsInterceptor implements ExecutionInterceptor {
       }
 
       return request.toBuilder().entries(entries).build();
-
     } else if (context.request() instanceof ReceiveMessageRequest) {
       ReceiveMessageRequest request = (ReceiveMessageRequest) context.request();
       if (request.messageAttributeNames().size() < 10

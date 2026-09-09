@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,8 +18,8 @@ import org.openqa.selenium.WebDriver;
 
 @AutoService(InstrumenterModule.class)
 public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public SeleniumInstrumentation() {
     super("ci-visibility", "selenium");
   }
@@ -37,15 +36,14 @@ public class SeleniumInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SeleniumUtils", packageName + ".SeleniumTestListener",
-    };
+    return new String[] {packageName + ".SeleniumUtils", packageName + ".SeleniumTestListener"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isConstructor(), SeleniumInstrumentation.class.getName() + "$InjectTestListener");
+        isConstructor(),
+        SeleniumInstrumentation.class.getName() + "$InjectTestListener");
     transformer.applyAdvice(
         named("get").and(takesArguments(String.class)),
         SeleniumInstrumentation.class.getName() + "$GetPageAdvice");

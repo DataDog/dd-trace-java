@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -19,9 +18,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public class QueueBufferConfigInstrumentation extends AbstractSqsInstrumentation
     implements Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.amazonaws.services.sqs.buffered.QueueBufferConfig";
@@ -36,17 +34,14 @@ public class QueueBufferConfigInstrumentation extends AbstractSqsInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .or(
-                isMethod()
-                    .and(namedOneOf("setReceiveAttributeNames", "withReceiveAttributeNames"))),
+          .or(isMethod().and(namedOneOf("setReceiveAttributeNames", "withReceiveAttributeNames"))),
         getClass().getName() + "$QueueBufferConfigAdvice");
   }
 
   public static class QueueBufferConfigAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(
-        @Advice.FieldValue(value = "receiveAttributeNames", readOnly = false)
-            List<String> receiveAttributeNames) {
+        @Advice.FieldValue(value = "receiveAttributeNames", readOnly = false) List<String> receiveAttributeNames) {
       if (Config.get().isSqsPropagationEnabled()) {
         // QueueBufferConfig maintains an immutable list which we may need to replace
         for (String name : receiveAttributeNames) {

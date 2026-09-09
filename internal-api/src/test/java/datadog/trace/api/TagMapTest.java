@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -129,17 +128,17 @@ public class TagMapTest {
 
   @Test
   public void numericZeroToBooleanCoercion() {
-    TagMap map =
-        TagMap.ledger()
-            .set("int", 0)
-            .set("intObj", Integer.valueOf(0))
-            .set("long", 0L)
-            .set("longObj", Long.valueOf(0L))
-            .set("float", 0F)
-            .set("floatObj", Float.valueOf(0F))
-            .set("double", 0D)
-            .set("doubleObj", Double.valueOf(0D))
-            .build();
+    TagMap map = TagMap
+      .ledger()
+      .set("int", 0)
+      .set("intObj", Integer.valueOf(0))
+      .set("long", 0L)
+      .set("longObj", Long.valueOf(0L))
+      .set("float", 0F)
+      .set("floatObj", Float.valueOf(0F))
+      .set("double", 0D)
+      .set("doubleObj", Double.valueOf(0D))
+      .build();
 
     assertBoolean(false, map, "int");
     assertBoolean(false, map, "intObj");
@@ -155,17 +154,17 @@ public class TagMapTest {
 
   @Test
   public void numericNonZeroToBooleanCoercion() {
-    TagMap map =
-        TagMap.ledger()
-            .set("int", 1)
-            .set("intObj", Integer.valueOf(1))
-            .set("long", 1L)
-            .set("longObj", Long.valueOf(1L))
-            .set("float", 1F)
-            .set("floatObj", Float.valueOf(1F))
-            .set("double", 1D)
-            .set("doubleObj", Double.valueOf(1D))
-            .build();
+    TagMap map = TagMap
+      .ledger()
+      .set("int", 1)
+      .set("intObj", Integer.valueOf(1))
+      .set("long", 1L)
+      .set("longObj", Long.valueOf(1L))
+      .set("float", 1F)
+      .set("floatObj", Float.valueOf(1F))
+      .set("double", 1D)
+      .set("doubleObj", Double.valueOf(1D))
+      .build();
 
     assertBoolean(true, map, "int");
     assertBoolean(true, map, "intObj");
@@ -181,12 +180,12 @@ public class TagMapTest {
 
   @Test
   public void objectToBooleanCoercion() {
-    TagMap map =
-        TagMap.ledger()
-            .set("obj", new Object())
-            .set("trueStr", "true")
-            .set("falseStr", "false")
-            .build();
+    TagMap map = TagMap
+      .ledger()
+      .set("obj", new Object())
+      .set("trueStr", "true")
+      .set("falseStr", "false")
+      .build();
 
     assertBoolean(true, map, "obj");
     assertBoolean(true, map, "trueStr");
@@ -222,7 +221,6 @@ public class TagMapTest {
   @Test
   public void emptyToPrimitiveCoercion() {
     TagMap map = TagMap.EMPTY;
-
     // DQH - assert<type> helpers also check get<type>OrDefault, so they don't work here
     assertEquals(false, map.getBoolean("dne"));
     assertEquals(0, map.getInt("dne"));
@@ -489,10 +487,9 @@ public class TagMapTest {
 
     map.freeze();
 
-    assertFrozen(
-        () -> {
-          map.remove("foo");
-        });
+    assertFrozen(() -> {
+      map.remove("foo");
+    });
 
     assertEntry("foo", "bar", map);
 
@@ -539,7 +536,8 @@ public class TagMapTest {
     assertSize(scenario.size() + size, orig);
 
     TagMap copy = orig.copy();
-    orig.clear(); // doing this to make sure that copied isn't modified
+    // doing this to make sure that copied isn't modified
+    orig.clear();
 
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), copy);
@@ -556,7 +554,8 @@ public class TagMapTest {
     TagMap orig = createTagMap(size);
 
     TagMap immutableCopy = orig.immutableCopy();
-    orig.clear(); // doing this to make sure that copied isn't modified
+    // doing this to make sure that copied isn't modified
+    orig.clear();
 
     for (int i = 0; i < size; ++i) {
       assertEntry(key(i), value(i), immutableCopy);
@@ -608,7 +607,6 @@ public class TagMapTest {
     for (int i = size - 1; i >= 0; --i) {
       dest.set(key(i), altValue(i));
     }
-
     // This should clobber all the values in dest
     dest.putAll(orig);
 
@@ -650,7 +648,6 @@ public class TagMapTest {
     for (int i = size / 2 - 1; i >= 0; --i) {
       dest.set(key(i), altValue(i));
     }
-
     // This should clobber all the values in dest
     dest.putAll(orig);
 
@@ -679,7 +676,6 @@ public class TagMapTest {
     for (int i = 0; i < size; ++i) {
       Object removedValue = map.remove((Object) key(i));
       assertEquals(value(i), removedValue);
-
       // not doing exhaustive size checks
       assertEquals(size - i - 1, map.size());
     }
@@ -742,7 +738,6 @@ public class TagMapTest {
       // make sure the key was present
       assertTrue(keys.remove(key(i)));
     }
-
     // no extraneous keys
     assertTrue(keys.isEmpty());
 
@@ -761,7 +756,6 @@ public class TagMapTest {
       // make sure the key was present
       assertTrue(keys.remove(key(i)));
     }
-
     // no extraneous keys
     assertTrue(keys.isEmpty());
 
@@ -780,7 +774,6 @@ public class TagMapTest {
       // make sure the key was present
       assertTrue(keys.remove(key(i)));
     }
-
     // no extraneous keys
     assertTrue(keys.isEmpty());
 
@@ -799,7 +792,6 @@ public class TagMapTest {
       // make sure the key was present
       assertTrue(keys.remove(key(i)));
     }
-
     // no extraneous keys
     assertTrue(keys.isEmpty());
 

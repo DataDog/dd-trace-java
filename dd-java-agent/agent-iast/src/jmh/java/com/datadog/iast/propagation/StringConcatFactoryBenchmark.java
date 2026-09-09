@@ -1,7 +1,6 @@
 package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import datadog.trace.api.iast.IastContext;
@@ -11,7 +10,6 @@ import org.openjdk.jmh.annotations.Fork;
 
 public class StringConcatFactoryBenchmark
     extends AbstractBenchmark<StringConcatFactoryBenchmark.Context> {
-
   @Override
   protected StringConcatFactoryBenchmark.Context initializeContext() {
     final IastContext context = new IastRequestContext();
@@ -104,15 +102,13 @@ public class StringConcatFactoryBenchmark
   }
 
   protected static class Context extends AbstractBenchmark.BenchmarkContext {
-
     private final String notTainted;
     private final String tainted;
     private final String recipe;
     private final int[] recipeOffsets;
     private final Object[] constants;
 
-    protected Context(
-        final IastContext iastContext, final String notTainted, final String tainted) {
+    protected Context(final IastContext iastContext, final String notTainted, final String tainted) {
       super(iastContext);
       this.notTainted = notTainted;
       this.tainted = tainted;

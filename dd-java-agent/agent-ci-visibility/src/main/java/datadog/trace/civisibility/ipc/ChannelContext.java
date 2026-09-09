@@ -12,7 +12,6 @@ class ChannelContext {
   private final ByteBuffer readBuffer;
   private final Function<ByteBuffer, ByteBuffer[]> messageProcessor;
   private final Queue<ByteBuffer> pendingResponses;
-
   private int currentMessageIdx;
   private byte[] currentMessage;
 

@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.couchbase_31.client;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.couchbase.client.core.Core;
 import com.couchbase.client.core.env.SeedNode;
 import com.google.auto.service.AutoService;
@@ -18,15 +17,13 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CoreInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private static final Reference TRACING_IDENTIFIERS_REFERENCE =
       new Reference.Builder("com.couchbase.client.core.cnc.TracingIdentifiers").build();
-
-  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE =
-      new Reference.Builder(
-              "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
-          .build();
+  private static final Reference SUSPICIOUS_EXPIRY_REFERENCE = new Reference.Builder(
+      "com.couchbase.client.core.cnc.events.request.SuspiciousExpiryDurationEvent")
+    .build();
 
   public CoreInstrumentation() {
     super("couchbase");
@@ -49,9 +46,7 @@ public class CoreInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SeedNodeHelper",
-    };
+    return new String[] {packageName + ".SeedNodeHelper"};
   }
 
   @Override
@@ -64,9 +59,11 @@ public class CoreInstrumentation extends InstrumenterModule.Tracing
   public static class CoreConstructorAdvice {
     @Advice.OnMethodExit
     public static void afterConstruct(
-        @Advice.Argument(2) final Set<SeedNode> seedNodes, @Advice.This final Core core) {
-      InstrumentationContext.get(Core.class, String.class)
-          .put(core, SeedNodeHelper.toStringForm(seedNodes));
+        @Advice.Argument(2) final Set<SeedNode> seedNodes,
+        @Advice.This final Core core) {
+      InstrumentationContext
+        .get(Core.class, String.class)
+        .put(core, SeedNodeHelper.toStringForm(seedNodes));
     }
   }
 }

@@ -3,7 +3,6 @@ package java.util.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static java.util.concurrent.CompletableFuture.ASYNC;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
@@ -14,7 +13,6 @@ import net.bytebuddy.asm.Advice;
 
 // This class is put into java.util.concurrent to allow access to package private classes.
 public final class CompletableFutureAdvice {
-
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {

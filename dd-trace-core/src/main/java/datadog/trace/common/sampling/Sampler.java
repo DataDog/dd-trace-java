@@ -2,7 +2,6 @@ package datadog.trace.common.sampling;
 
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.DROP;
 import static datadog.trace.bootstrap.instrumentation.api.SamplerConstants.KEEP;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.TraceConfig;
@@ -19,9 +18,10 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Main interface to sample a collection of traces. */
+/**
+ * Main interface to sample a collection of traces.
+ */
 public interface Sampler {
-
   /**
    * Sample a collection of traces based on the parent span
    *
@@ -46,8 +46,9 @@ public interface Sampler {
         if (null != traceConfig) {
           traceSamplingRules = traceConfig.getTraceSamplingRules();
         } else if (null != config.getTraceSamplingRules()) {
-          traceSamplingRules =
-              TraceSamplingRules.deserialize(config.getTraceSamplingRules()).getRules();
+          traceSamplingRules = TraceSamplingRules
+            .deserialize(config.getTraceSamplingRules())
+            .getRules();
         } else {
           traceSamplingRules = Collections.emptyList();
         }
@@ -69,13 +70,12 @@ public interface Sampler {
             || traceSamplingRulesDefined
             || traceSampleRate != null) {
           try {
-            sampler =
-                RuleBasedTraceSampler.build(
-                    serviceRules,
-                    operationRules,
-                    traceSamplingRules,
-                    traceSampleRate,
-                    config.getTraceRateLimit());
+            sampler = RuleBasedTraceSampler.build(
+                serviceRules,
+                operationRules,
+                traceSamplingRules,
+                traceSampleRate,
+                config.getTraceRateLimit());
           } catch (final IllegalArgumentException e) {
             log.error("Invalid sampler configuration. Using AllSampler", e);
             sampler = new AllSampler();
@@ -83,12 +83,14 @@ public interface Sampler {
         } else if (config.isPrioritySamplingEnabled()) {
           if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
-            sampler =
-                new ForcePrioritySampler(PrioritySampling.SAMPLER_KEEP, SamplingMechanism.DEFAULT);
+            sampler = new ForcePrioritySampler(
+                PrioritySampling.SAMPLER_KEEP,
+                SamplingMechanism.DEFAULT);
           } else if (DROP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_DROP.");
-            sampler =
-                new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+            sampler = new ForcePrioritySampler(
+                PrioritySampling.SAMPLER_DROP,
+                SamplingMechanism.DEFAULT);
           } else if (config.isTraceOtlpExporterEnabled()) {
             // RateByServiceTraceSampler relies on the Datadog Agent for rate updates.
             log.debug(
@@ -121,6 +123,7 @@ public interface Sampler {
       return forConfig(Config.get(config), null);
     }
 
-    private Builder() {}
+    private Builder() {
+    }
   }
 }

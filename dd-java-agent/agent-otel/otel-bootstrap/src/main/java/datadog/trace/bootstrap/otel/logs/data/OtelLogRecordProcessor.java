@@ -18,22 +18,18 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
-/** Processes log records, grouping them by instrumentation scope. */
+/**
+ * Processes log records, grouping them by instrumentation scope.
+ */
 public final class OtelLogRecordProcessor {
-
   private static final Comparator<OtlpLogRecord> BY_SCOPE =
       Comparator.comparing(o -> o.instrumentationScope);
-
-  private static final Map<ClassLoader, BiConsumer<Map<?, ?>, OtlpAttributeVisitor>>
-      ATTRIBUTE_READERS = Collections.synchronizedMap(new WeakHashMap<>());
-
+  private static final Map<ClassLoader, BiConsumer<Map<?, ?>, OtlpAttributeVisitor>> ATTRIBUTE_READERS =
+      Collections.synchronizedMap(new WeakHashMap<>());
   public static final OtelLogRecordProcessor INSTANCE = new OtelLogRecordProcessor();
-
   private final int maxQueueSize = Config.get().getLogsOtelQueueSize();
   private final int maxBatchSize = Config.get().getLogsOtelBatchSize();
-
   private final Queue<OtlpLogRecord> queue = new ArrayBlockingQueue<>(maxQueueSize);
-
   private final BlockingQueue<Boolean> logsReady = new ArrayBlockingQueue<>(1);
   private volatile int logsNeeded = Integer.MAX_VALUE;
 
@@ -52,21 +48,19 @@ public final class OtelLogRecordProcessor {
     int batchSize = 0;
 
     while (true) {
-
       // attempt to collect enough logs to complete the batch
       OtlpLogRecord record;
       while (batchSize < maxBatchSize && (record = queue.poll()) != null) {
         batch.add(record);
         batchSize++;
       }
-
       // bail out if we have enough logs, or the interval has expired
       long waitNanos;
       if (batchSize >= maxBatchSize || (waitNanos = nextExportNanos - System.nanoTime()) <= 0) {
         break;
       }
-
-      logsNeeded = maxBatchSize - batchSize; // declare what we need and wait
+      // declare what we need and wait
+      logsNeeded = maxBatchSize - batchSize;
       try {
         if (queue.isEmpty()) {
           logsReady.poll(waitNanos, TimeUnit.NANOSECONDS);
@@ -78,8 +72,8 @@ public final class OtelLogRecordProcessor {
         logsNeeded = Integer.MAX_VALUE;
       }
     }
-
-    visitBatch(visitor, batch); // send what we have for this interval
+    // send what we have for this interval
+    visitBatch(visitor, batch);
   }
 
   private static void visitBatch(OtlpLogsVisitor visitor, List<OtlpLogRecord> batch) {
@@ -116,7 +110,8 @@ public final class OtelLogRecordProcessor {
   }
 
   public static void registerAttributeReader(
-      ClassLoader cl, BiConsumer<Map<?, ?>, OtlpAttributeVisitor> reader) {
+      ClassLoader cl,
+      BiConsumer<Map<?, ?>, OtlpAttributeVisitor> reader) {
     ATTRIBUTE_READERS.put(cl, reader);
   }
 }

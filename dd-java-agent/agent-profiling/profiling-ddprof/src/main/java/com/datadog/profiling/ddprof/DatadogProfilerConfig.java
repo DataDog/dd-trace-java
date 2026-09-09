@@ -61,7 +61,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
-
 import com.datadog.profiling.controller.ProfilingSupport;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
@@ -188,12 +187,11 @@ public class DatadogProfilerConfig {
     // JVMTI Allocation Sampler is available since Java 11
     if (JavaVirtualMachine.isJavaVersionAtLeast(11)) {
       boolean dflt = isJmethodIDSafe();
-      boolean enableDdprofAlloc =
-          getBoolean(
-              configProvider,
-              PROFILING_ALLOCATION_ENABLED,
-              dflt,
-              PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
+      boolean enableDdprofAlloc = getBoolean(
+          configProvider,
+          PROFILING_ALLOCATION_ENABLED,
+          dflt,
+          PROFILING_DATADOG_PROFILER_ALLOC_ENABLED);
 
       if (!dflt && enableDdprofAlloc) {
         log.warn(
@@ -228,21 +226,20 @@ public class DatadogProfilerConfig {
     // JVMTI Allocation Sampler is required for ddprof live heap and is available since Java 11.
     // isJmethodIDSafe() alone is not sufficient — Java 8 is jmethodID-safe but lacks the sampler.
     boolean isSafe = JavaVirtualMachine.isJavaVersionAtLeast(11) && isJmethodIDSafe();
-    boolean enableDdprofMemleak =
-        getBoolean(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
-            isSafe,
-            PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
+    boolean enableDdprofMemleak = getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED,
+        isSafe,
+        PROFILING_DATADOG_PROFILER_MEMLEAK_ENABLED);
     if (!isSafe && enableDdprofMemleak) {
       log.warn(
           "Live heap profiling (ddprof) was enabled although it is not considered stable"
-              + " on this JVM version.");
+          + " on this JVM version.");
     }
     if (!enableDdprofMemleak && !isOldObjectSampleAvailable()) {
       log.warn(
           "ddprof live heap profiling is disabled and JFR OldObjectSample is not available"
-              + " on this JVM. Live heap profiling will be inactive.");
+          + " on this JVM. Live heap profiling will be inactive.");
     }
     return enableDdprofMemleak;
   }
@@ -367,11 +364,10 @@ public class DatadogProfilerConfig {
   }
 
   public static String getCStack(ConfigProvider configProvider) {
-    String cstack =
-        getString(
-            configProvider,
-            PROFILING_DATADOG_PROFILER_CSTACK,
-            PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
+    String cstack = getString(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_CSTACK,
+        PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT);
     if (cstack.startsWith("vm") && !(JavaVirtualMachine.isHotspot())) {
       // can't use the VM stackwalking on non-hotspot VMs
       // fall-back to 'dwarf' unwinding
@@ -397,7 +393,9 @@ public class DatadogProfilerConfig {
 
   public static boolean isQueueTimeEnabled(ConfigProvider configProvider) {
     return getBoolean(
-        configProvider, PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+        configProvider,
+        PROFILING_QUEUEING_TIME_ENABLED,
+        PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   public static String getCStack() {
@@ -436,7 +434,8 @@ public class DatadogProfilerConfig {
 
   public static boolean isQueueingTimeEnabled(ConfigProvider configProvider) {
     return configProvider.getBoolean(
-        PROFILING_QUEUEING_TIME_ENABLED, PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
+        PROFILING_QUEUEING_TIME_ENABLED,
+        PROFILING_QUEUEING_TIME_ENABLED_DEFAULT);
   }
 
   public static boolean isSpanNameContextAttributeEnabled() {
@@ -453,7 +452,9 @@ public class DatadogProfilerConfig {
 
   public static boolean isTrackingGenerations(ConfigProvider configProvider) {
     return getBoolean(
-        configProvider, PROFILING_HEAP_TRACK_GENERATIONS, PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT);
+        configProvider,
+        PROFILING_HEAP_TRACK_GENERATIONS,
+        PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT);
   }
 
   public static String getString(ConfigProvider configProvider, String key, String defaultValue) {
@@ -465,9 +466,14 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean getBoolean(
-      ConfigProvider configProvider, String key, boolean defaultValue, String... aliases) {
+      ConfigProvider configProvider,
+      String key,
+      boolean defaultValue,
+      String... aliases) {
     return configProvider.getBoolean(
-        key, configProvider.getBoolean(normalizeKey(key), defaultValue), aliases);
+        key,
+        configProvider.getBoolean(normalizeKey(key), defaultValue),
+        aliases);
   }
 
   public static boolean getBoolean(ConfigProvider configProvider, String key) {
@@ -475,9 +481,14 @@ public class DatadogProfilerConfig {
   }
 
   public static int getInteger(
-      ConfigProvider configProvider, String key, int defaultValue, String... aliases) {
+      ConfigProvider configProvider,
+      String key,
+      int defaultValue,
+      String... aliases) {
     return configProvider.getInteger(
-        key, configProvider.getInteger(normalizeKey(key), defaultValue), aliases);
+        key,
+        configProvider.getInteger(normalizeKey(key), defaultValue),
+        aliases);
   }
 
   public static int getInteger(ConfigProvider configProvider, String key) {
@@ -485,9 +496,14 @@ public class DatadogProfilerConfig {
   }
 
   public static long getLong(
-      ConfigProvider configProvider, String key, long defaultValue, String... aliases) {
+      ConfigProvider configProvider,
+      String key,
+      long defaultValue,
+      String... aliases) {
     return configProvider.getLong(
-        key, configProvider.getLong(normalizeKey(key), defaultValue), aliases);
+        key,
+        configProvider.getLong(normalizeKey(key), defaultValue),
+        aliases);
   }
 
   public static long getLong(ConfigProvider configProvider, String key) {

@@ -19,7 +19,6 @@ public class JmxStartedChecker {
 
     System.out.println("READY");
     System.out.close();
-
     // Give time for the test to finish if needed
     if (args.length > 0) {
       Thread.sleep(Long.parseLong(args[0]));

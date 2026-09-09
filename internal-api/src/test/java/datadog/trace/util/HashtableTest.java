@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.util.Hashtable.BucketIterator;
 import datadog.trace.util.Hashtable.MutatingBucketIterator;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
@@ -22,12 +21,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class HashtableTest {
-
   // ============ Support ============
-
   @Nested
   class SupportTests {
-
     @Test
     void createRoundsCapacityUpToPowerOfTwo() {
       // The Hashtable.D1 / D2 size() reflects entries, but the bucket array length is
@@ -119,10 +115,8 @@ class HashtableTest {
   }
 
   // ============ BucketIterator ============
-
   @Nested
   class BucketIteratorTests {
-
     @Test
     void walksOnlyMatchingHash() {
       // Build a bucket array with two entries that share a bucket but have different hashes.
@@ -158,10 +152,8 @@ class HashtableTest {
   }
 
   // ============ MutatingBucketIterator ============
-
   @Nested
   class MutatingBucketIteratorTests {
-
     @Test
     void removeFromHeadOfChainUnlinks() {
       // Make three entries with the same hash so they chain in one bucket
@@ -175,7 +167,8 @@ class HashtableTest {
 
       MutatingBucketIterator<CollidingKeyEntry> it =
           Support.mutatingBucketIterator(table.buckets, 17L);
-      it.next(); // first match (head of chain in insertion-reverse order)
+      // first match (head of chain in insertion-reverse order)
+      it.next();
       it.remove();
       // Two should remain
       int remaining = 0;
@@ -229,10 +222,8 @@ class HashtableTest {
   }
 
   // ============ MutatingTableIterator ============
-
   @Nested
   class MutatingTableIteratorTests {
-
     @Test
     void walksEveryEntryAcrossBuckets() {
       Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(16);
@@ -241,8 +232,10 @@ class HashtableTest {
       table.insert(new StringIntEntry("c", 3));
 
       Set<String> seen = new HashSet<>();
-      for (MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets);
-          it.hasNext(); ) {
+      for (
+          MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets);
+          it.hasNext();
+          ) {
         seen.add(it.next().key);
       }
       assertEquals(3, seen.size());
@@ -266,12 +259,10 @@ class HashtableTest {
       CollidingKey k2 = new CollidingKey("second", 17);
       table.insert(new CollidingKeyEntry(k1, 1));
       table.insert(new CollidingKeyEntry(k2, 2));
-
       // The head of the chain is whichever was inserted last (insert prepends).
       MutatingTableIterator<CollidingKeyEntry> it = Support.mutatingTableIterator(table.buckets);
       CollidingKeyEntry head = it.next();
       it.remove();
-
       // Survivor still reachable via the table; removed one is not.
       CollidingKey survivorKey = head.key.equals(k1) ? k2 : k1;
       assertNotNull(table.get(survivorKey));
@@ -287,7 +278,6 @@ class HashtableTest {
       table.insert(new CollidingKeyEntry(k1, 1));
       table.insert(new CollidingKeyEntry(k2, 2));
       table.insert(new CollidingKeyEntry(k3, 3));
-
       // Walk to the second entry, remove it.
       MutatingTableIterator<CollidingKeyEntry> it = Support.mutatingTableIterator(table.buckets);
       it.next();
@@ -303,7 +293,6 @@ class HashtableTest {
         }
       }
       assertEquals(2, remaining);
-
       // Iteration can continue past a remove and yield the third entry.
       assertTrue(it.hasNext());
       assertNotNull(it.next());
@@ -361,9 +350,11 @@ class HashtableTest {
       table.insert(new CollidingKeyEntry(new CollidingKey("b10", 10), 3));
 
       Set<String> seen = new HashSet<>();
-      for (MutatingTableIterator<CollidingKeyEntry> it =
-              Support.mutatingTableIterator(table.buckets, 5, 10);
-          it.hasNext(); ) {
+      for (
+          MutatingTableIterator<CollidingKeyEntry> it =
+          Support.mutatingTableIterator(table.buckets, 5, 10);
+          it.hasNext();
+          ) {
         seen.add(it.next().key.label);
       }
       assertEquals(1, seen.size());
@@ -383,17 +374,19 @@ class HashtableTest {
     @Test
     void rangeBoundsOutOfOrderThrows() {
       Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+      assertThrows(IndexOutOfBoundsException.class, () -> Support.mutatingTableIterator(
+          table.buckets,
+          -1,
+          4));
       assertThrows(
+          // end < start
           IndexOutOfBoundsException.class,
-          () -> Support.mutatingTableIterator(table.buckets, -1, 4));
-      assertThrows(
-          IndexOutOfBoundsException.class,
-          () -> Support.mutatingTableIterator(table.buckets, 4, 2)); // end < start
-      assertThrows(
-          IndexOutOfBoundsException.class,
-          () ->
-              Support.mutatingTableIterator(
-                  table.buckets, 0, table.buckets.length + 1)); // end > len
+          () -> Support.mutatingTableIterator(table.buckets, 4, 2));
+      assertThrows(IndexOutOfBoundsException.class, () -> Support.mutatingTableIterator(
+          table.buckets,
+          0,
+          // end > len
+          table.buckets.length + 1));
     }
 
     @Test

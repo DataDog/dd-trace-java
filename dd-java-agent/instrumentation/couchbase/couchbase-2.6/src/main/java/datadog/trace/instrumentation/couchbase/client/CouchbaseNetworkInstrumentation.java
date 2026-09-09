@@ -6,7 +6,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.couchbase.client.core.message.CouchbaseRequest;
 import com.couchbase.client.java.transcoder.crypto.JsonCryptoTranscoder;
 import com.google.auto.service.AutoService;
@@ -24,7 +23,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public CouchbaseNetworkInstrumentation() {
     super("couchbase");
   }
@@ -43,7 +43,8 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "com.couchbase.client.core.message.CouchbaseRequest", AgentSpan.class.getName());
+        "com.couchbase.client.core.message.CouchbaseRequest",
+        AgentSpan.class.getName());
   }
 
   @Override
@@ -51,12 +52,13 @@ public class CouchbaseNetworkInstrumentation extends InstrumenterModule.Tracing
     // encode(ChannelHandlerContext ctx, REQUEST msg, List<Object> out)
     transformer.applyAdvice(
         isMethod()
-            .and(named("encode"))
-            .and(takesArguments(3))
-            .and(
-                takesArgument(
-                    0, named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")))
-            .and(takesArgument(2, named("java.util.List"))),
+          .and(named("encode"))
+          .and(takesArguments(3))
+          .and(
+              takesArgument(
+                  0,
+                  named("com.couchbase.client.deps.io.netty.channel.ChannelHandlerContext")))
+          .and(takesArgument(2, named("java.util.List"))),
         CouchbaseNetworkInstrumentation.class.getName() + "$CouchbaseNetworkAdvice");
   }
 

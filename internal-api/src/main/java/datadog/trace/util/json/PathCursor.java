@@ -2,7 +2,9 @@ package datadog.trace.util.json;
 
 import java.util.Arrays;
 
-/** Represents a mutable path in a hierarchical structure such as JSON. */
+/**
+ * Represents a mutable path in a hierarchical structure such as JSON.
+ */
 public class PathCursor {
   private final Object[] path;
   private int length;

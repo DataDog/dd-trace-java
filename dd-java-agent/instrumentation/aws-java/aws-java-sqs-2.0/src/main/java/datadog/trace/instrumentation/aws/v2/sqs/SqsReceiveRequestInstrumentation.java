@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.de
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Config;
 import java.util.List;
@@ -14,9 +13,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public final class SqsReceiveRequestInstrumentation
     implements Instrumenter.ForSingleType,
-        Instrumenter.WithTypeStructure,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.WithTypeStructure,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest$BuilderImpl";
@@ -30,14 +28,14 @@ public final class SqsReceiveRequestInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("build")), getClass().getName() + "$ReceiveMessageRequestAdvice");
+        isMethod().and(named("build")),
+        getClass().getName() + "$ReceiveMessageRequestAdvice");
   }
 
   public static class ReceiveMessageRequestAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEntry(
-        @Advice.FieldValue(value = "attributeNames", readOnly = false)
-            List<String> attributeNames) {
+        @Advice.FieldValue(value = "attributeNames", readOnly = false) List<String> attributeNames) {
       // ReceiveMessageRequest.BuilderImpl maintains an immutable list which we may need to replace
       if (Config.get().isSqsPropagationEnabled()) {
         for (String name : attributeNames) {

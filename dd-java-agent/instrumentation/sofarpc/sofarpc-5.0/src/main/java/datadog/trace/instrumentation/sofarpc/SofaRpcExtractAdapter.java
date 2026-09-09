@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Map;
 
 public final class SofaRpcExtractAdapter implements AgentPropagation.ContextVisitor<SofaRequest> {
-
   public static final SofaRpcExtractAdapter GETTER = new SofaRpcExtractAdapter();
 
   @Override

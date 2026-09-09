@@ -2,7 +2,6 @@ package context;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,14 +16,16 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public FieldInjectionTestInstrumentation() {
     super("fieldinjection-test");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // no particular marker type
+    // no particular marker type
+    return null;
   }
 
   @Override
@@ -36,18 +37,21 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(named("isInstrumented"), MarkInstrumentedAdvice.class.getName());
     transformer.applyAdvice(
-        named("incrementContextCount"), StoreAndIncrementApiUsageAdvice.class.getName());
+        named("incrementContextCount"),
+        StoreAndIncrementApiUsageAdvice.class.getName());
     transformer.applyAdvice(named("getContextCount"), GetApiUsageAdvice.class.getName());
     transformer.applyAdvice(named("putContextCount"), PutApiUsageAdvice.class.getName());
     transformer.applyAdvice(named("getContextCount2"), GetApiUsageAdvice2.class.getName());
     transformer.applyAdvice(named("putContextCount2"), PutApiUsageAdvice2.class.getName());
     transformer.applyAdvice(
-        named("incorrectKeyClassUsage"), IncorrectKeyClassContextApiUsageAdvice.class.getName());
+        named("incorrectKeyClassUsage"),
+        IncorrectKeyClassContextApiUsageAdvice.class.getName());
     transformer.applyAdvice(
         named("incorrectContextClassUsage"),
         IncorrectContextClassContextApiUsageAdvice.class.getName());
     transformer.applyAdvice(
-        named("incorrectCallUsage"), IncorrectCallContextApiUsageAdvice.class.getName());
+        named("incorrectCallUsage"),
+        IncorrectCallContextApiUsageAdvice.class.getName());
   }
 
   @Override
@@ -79,7 +83,8 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
   public static class StoreAndIncrementApiUsageAdvice {
     @Advice.OnMethodExit
     public static void methodExit(
-        @Advice.This final KeyClass thiz, @Advice.Return(readOnly = false) int contextCount) {
+        @Advice.This final KeyClass thiz,
+        @Advice.Return(readOnly = false) int contextCount) {
       final ContextStore<KeyClass, Context> contextStore =
           InstrumentationContext.get(KeyClass.class, Context.class);
       final Context context = contextStore.getOrPut(thiz, new Context());
@@ -90,7 +95,8 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
   public static class StoreAndIncrementWithFactoryApiUsageAdvice {
     @Advice.OnMethodExit
     public static void methodExit(
-        @Advice.This final KeyClass thiz, @Advice.Return(readOnly = false) int contextCount) {
+        @Advice.This final KeyClass thiz,
+        @Advice.Return(readOnly = false) int contextCount) {
       final ContextStore<KeyClass, Context> contextStore =
           InstrumentationContext.get(KeyClass.class, Context.class);
       final Context context = contextStore.getOrCreate(thiz, Context::new);
@@ -101,7 +107,8 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
   public static class GetApiUsageAdvice {
     @Advice.OnMethodExit
     public static void methodExit(
-        @Advice.This final KeyClass thiz, @Advice.Return(readOnly = false) int contextCount) {
+        @Advice.This final KeyClass thiz,
+        @Advice.Return(readOnly = false) int contextCount) {
       final ContextStore<KeyClass, Context> contextStore =
           InstrumentationContext.get(KeyClass.class, Context.class);
       contextCount = contextStore.get(thiz).count;
@@ -111,7 +118,8 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
   public static class PutApiUsageAdvice {
     @Advice.OnMethodExit
     public static void methodExit(
-        @Advice.This final KeyClass thiz, @Advice.Argument(0) final int value) {
+        @Advice.This final KeyClass thiz,
+        @Advice.Argument(0) final int value) {
       final ContextStore<KeyClass, Context> contextStore =
           InstrumentationContext.get(KeyClass.class, Context.class);
       final Context context = new Context();
@@ -123,11 +131,11 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
   public static class GetApiUsageAdvice2 {
     @Advice.OnMethodExit
     public static void methodExit(
-        @Advice.This final Object thiz, @Advice.Return(readOnly = false) int contextCount) {
-      final ContextStore<Object, Context> contextStore =
-          InstrumentationContext.get(
-              "context.FieldInjectionTestInstrumentation$KeyClass",
-              "context.FieldInjectionTestInstrumentation$Context");
+        @Advice.This final Object thiz,
+        @Advice.Return(readOnly = false) int contextCount) {
+      final ContextStore<Object, Context> contextStore = InstrumentationContext.get(
+          "context.FieldInjectionTestInstrumentation$KeyClass",
+          "context.FieldInjectionTestInstrumentation$Context");
       contextCount = contextStore.get(thiz).count;
     }
   }
@@ -135,11 +143,11 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
   public static class PutApiUsageAdvice2 {
     @Advice.OnMethodExit
     public static void methodExit(
-        @Advice.This final Object thiz, @Advice.Argument(0) final int value) {
-      final ContextStore<Object, Context> contextStore =
-          InstrumentationContext.get(
-              "context.FieldInjectionTestInstrumentation$KeyClass",
-              "context.FieldInjectionTestInstrumentation$Context");
+        @Advice.This final Object thiz,
+        @Advice.Argument(0) final int value) {
+      final ContextStore<Object, Context> contextStore = InstrumentationContext.get(
+          "context.FieldInjectionTestInstrumentation$KeyClass",
+          "context.FieldInjectionTestInstrumentation$Context");
       final Context context = new Context();
       context.count = value;
       contextStore.put(thiz, context);
@@ -209,7 +217,9 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
     }
   }
 
-  /** A class which cannot be transformed by our instrumentation. */
+  /**
+   * A class which cannot be transformed by our instrumentation.
+   */
   public static class UntransformableKeyClass extends KeyClass {
     @Override
     public boolean isInstrumented() {
@@ -217,7 +227,9 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
     }
   }
 
-  /** A class that is used that field injection can be disabled. */
+  /**
+   * A class that is used that field injection can be disabled.
+   */
   public static class DisabledKeyClass extends KeyClass {
     @Override
     public boolean isInstrumented() {
@@ -225,21 +237,31 @@ public class FieldInjectionTestInstrumentation extends InstrumenterModule.Tracin
     }
   }
 
-  /** A class that is serializable with serialVersionUID. */
+  /**
+   * A class that is serializable with serialVersionUID.
+   */
   public static class ValidSerializableKeyClass extends KeyClass implements Serializable {
     private static final long serialVersionUID = 123;
   }
 
-  /** A class that is serializable with no serialVersionUID. */
-  public static class InvalidSerializableKeyClass extends KeyClass implements Serializable {}
+  /**
+   * A class that is serializable with no serialVersionUID.
+   */
+  public static class InvalidSerializableKeyClass extends KeyClass implements Serializable {
+  }
 
-  /** A class that inherits serializable with serialVersionUID. */
+  /**
+   * A class that inherits serializable with serialVersionUID.
+   */
   public static class ValidInheritsSerializableKeyClass extends InvalidSerializableKeyClass {
     private static final long serialVersionUID = 456;
   }
 
-  /** A class that inherits serializable with no serialVersionUID. */
-  public static class InvalidInheritsSerializableKeyClass extends ValidSerializableKeyClass {}
+  /**
+   * A class that inherits serializable with no serialVersionUID.
+   */
+  public static class InvalidInheritsSerializableKeyClass extends ValidSerializableKeyClass {
+  }
 
   public static class IncorrectKeyClassUsageKeyClass {
     public boolean isInstrumented() {

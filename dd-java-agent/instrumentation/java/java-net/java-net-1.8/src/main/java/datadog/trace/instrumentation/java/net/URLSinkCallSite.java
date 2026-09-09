@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.net;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.Config;
@@ -26,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 @CallSite(spi = {IastCallSites.class, RaspCallSites.class})
 public class URLSinkCallSite {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(URLSinkCallSite.class);
 
   @Sink(VulnerabilityTypes.SSRF)
@@ -60,10 +58,10 @@ public class URLSinkCallSite {
     }
 
     try {
-      final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> httpClientRequestCb =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.httpClientRequest());
+      final BiFunction<RequestContext, HttpClientRequest, Flow<Void>> httpClientRequestCb = AgentTracer
+        .get()
+        .getCallbackProvider(RequestContextSlot.APPSEC)
+        .getCallback(EVENTS.httpClientRequest());
       if (httpClientRequestCb == null) {
         return;
       }

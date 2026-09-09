@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyByte;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
@@ -21,9 +20,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class HttpEndpointPostProcessorTest {
-
-  @Mock DDSpanContext mockContext;
-  @Mock AppendableSpanLinks mockSpanLinks;
+  @Mock
+  DDSpanContext mockContext;
+  @Mock
+  AppendableSpanLinks mockSpanLinks;
 
   @Test
   void shouldNotOverwriteResourceNameWhenHttpRouteIsAvailableAndEligible() {
@@ -47,7 +47,8 @@ class HttpEndpointPostProcessorTest {
     HttpEndpointPostProcessor processor = new HttpEndpointPostProcessor(endpointResolver);
     Map<String, String> tagInput = new HashMap<>();
     tagInput.put(Tags.HTTP_METHOD, "GET");
-    tagInput.put(Tags.HTTP_ROUTE, "*"); // catch-all — ineligible per RFC-1051
+    // catch-all — ineligible per RFC-1051
+    tagInput.put(Tags.HTTP_ROUTE, "*");
     tagInput.put(Tags.HTTP_URL, "http://localhost:8080/users/123/orders/456");
     TagMap tags = TagMap.fromMap(tagInput);
 

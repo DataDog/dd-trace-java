@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
-
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
@@ -65,8 +64,9 @@ final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCo
 
     @Override
     public LongUpDownCounter build() {
-      return new OtelLongUpDownCounter(
-          meter.registerStorage(builder, OtelMetricStorage::newLongSumStorage));
+      return new OtelLongUpDownCounter(meter.registerStorage(
+          builder,
+          OtelMetricStorage::newLongSumStorage));
     }
 
     @Override

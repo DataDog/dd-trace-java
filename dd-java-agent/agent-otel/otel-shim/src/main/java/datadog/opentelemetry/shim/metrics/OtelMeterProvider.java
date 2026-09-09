@@ -18,19 +18,19 @@ import org.slf4j.LoggerFactory;
 public final class OtelMeterProvider implements MeterProvider {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtelMeterProvider.class);
   private static final String DEFAULT_METER_NAME = "unknown";
-
   public static final MeterProvider INSTANCE = new OtelMeterProvider();
-
-  /** Meter shims, indexed by instrumentation scope. */
+  /**
+   * Meter shims, indexed by instrumentation scope.
+   */
   private final Map<OtelInstrumentationScope, OtelMeter> meters = new ConcurrentHashMap<>();
 
   private OtelMeterProvider() {
     // register attribute reader for class-loader where this provider is being used/injected
-    OtelMetricStorage.registerAttributeReader(
-        Attributes.class.getClassLoader(),
-        (attributes, visitor) ->
-            ((Attributes) attributes)
-                .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
+    OtelMetricStorage.registerAttributeReader(Attributes.class.getClassLoader(), (
+                                                                                     attributes,
+                                                                                     visitor
+                                                                                 ) -> ((Attributes) attributes)
+      .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
   }
 
   @Override
@@ -53,7 +53,9 @@ public final class OtelMeterProvider implements MeterProvider {
     }
     return meters.computeIfAbsent(
         new OtelInstrumentationScope(
-            instrumentationScopeName, instrumentationScopeVersion, schemaUrl),
+            instrumentationScopeName,
+            instrumentationScopeVersion,
+            schemaUrl),
         OtelMeter::new);
   }
 }

@@ -16,10 +16,10 @@ import reactor.core.CoreSubscriber;
  * to optimized subscribers.
  */
 public final class ReactorContextBridge {
-
   private static final String DD_SPAN_KEY = "dd.span";
 
-  private ReactorContextBridge() {}
+  private ReactorContextBridge() {
+  }
 
   /**
    * Records the {@link Context} derived from the {@code dd.span} span a context-writing subscriber
@@ -42,7 +42,8 @@ public final class ReactorContextBridge {
    * hot path.
    */
   public static ContextScope activateStoredContext(
-      final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
+      final Subscriber<?> subscriber,
+      final ContextStore<Subscriber, Context> subscriberContexts) {
     return attachIfRequired(subscriberContexts.get(subscriber), Context.current());
   }
 
@@ -71,7 +72,8 @@ public final class ReactorContextBridge {
       final ContextStore<Publisher, HandoffContext> publisherContexts) {
     final HandoffContext handoff = publisherContexts.get(publisher);
     return attachIfRequired(
-        handoff == null ? null : handoff.contextForCurrentThread(), Context.current());
+        handoff == null ? null : handoff.contextForCurrentThread(),
+        Context.current());
   }
 
   public static void transferToOptimizedSubscriber(

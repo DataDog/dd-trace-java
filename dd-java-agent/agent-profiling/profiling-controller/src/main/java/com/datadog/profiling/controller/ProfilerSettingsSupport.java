@@ -1,7 +1,6 @@
 package com.datadog.profiling.controller;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.trace.api.Config;
@@ -22,7 +21,9 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Capture the profiler config first and allow emitting the setting events per each recording. */
+/**
+ * Capture the profiler config first and allow emitting the setting events per each recording.
+ */
 public abstract class ProfilerSettingsSupport {
   private static final Logger logger = LoggerFactory.getLogger(ProfilerSettingsSupport.class);
   private static final String STACKDEPTH_KEY = "stackdepth=";
@@ -44,8 +45,12 @@ public abstract class ProfilerSettingsSupport {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       ProfilerActivationSetting that = (ProfilerActivationSetting) o;
       return enablement == that.enablement && ssiMechanism == that.ssiMechanism;
     }
@@ -81,14 +86,11 @@ public abstract class ProfilerSettingsSupport {
   protected static final String NATIVE_STACKS_KEY = "Native Stacks";
   protected static final String STACK_DEPTH_KEY = "Stack Depth";
   protected static final String SELINUX_STATUS_KEY = "SELinux Status";
-
   protected static final String DDPROF_UNAVAILABLE_REASON_KEY = "DDProf Unavailable Reason";
-
   protected static final String SERVICE_INSTRUMENTATION_TYPE = "Service Instrumentation Type";
   protected static final String SERVICE_INJECTION = "Service Injection";
   protected static final String PROFILER_ACTIVATION = "Profiler Activation";
   protected static final String SSI_MECHANISM = "SSI Mechanism";
-
   protected final int uploadPeriod;
   protected final int uploadTimeout;
   protected final String uploadCompression;
@@ -107,11 +109,8 @@ public abstract class ProfilerSettingsSupport {
   protected final String seLinuxStatus;
   protected final String serviceInstrumentationType;
   protected final String serviceInjection;
-
   protected final String ddprofUnavailableReason;
-
   protected final ProfilerActivationSetting profilerActivationSetting;
-
   protected final int jfrStackDepth;
   protected final int requestedStackDepth;
   protected final boolean hasJfrStackDepthApplied;
@@ -120,64 +119,53 @@ public abstract class ProfilerSettingsSupport {
       ConfigProvider configProvider,
       String ddprofUnavailableReason,
       boolean hasJfrStackDepthApplied) {
-    uploadPeriod =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_UPLOAD_PERIOD,
-            ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
-    uploadTimeout =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_UPLOAD_TIMEOUT,
-            ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT);
+    uploadPeriod = configProvider.getInteger(
+        ProfilingConfig.PROFILING_UPLOAD_PERIOD,
+        ProfilingConfig.PROFILING_UPLOAD_PERIOD_DEFAULT);
+    uploadTimeout = configProvider.getInteger(
+        ProfilingConfig.PROFILING_UPLOAD_TIMEOUT,
+        ProfilingConfig.PROFILING_UPLOAD_TIMEOUT_DEFAULT);
     // First try the new debug upload compression property, and fall back to the deprecated one
-    uploadCompression =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION,
-            ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
-            ProfilingConfig.PROFILING_UPLOAD_COMPRESSION);
-    allocationProfilingEnabled =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_ALLOCATION_ENABLED,
-            ProfilingSupport.isObjectAllocationSampleAvailable());
-    heapProfilingEnabled =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingSupport.isLiveHeapProfilingSafe());
-    startForceFirst =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_START_FORCE_FIRST,
-            ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT);
+    uploadCompression = configProvider.getString(
+        ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION,
+        ProfilingConfig.PROFILING_DEBUG_UPLOAD_COMPRESSION_DEFAULT,
+        ProfilingConfig.PROFILING_UPLOAD_COMPRESSION);
+    allocationProfilingEnabled = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ALLOCATION_ENABLED,
+        ProfilingSupport.isObjectAllocationSampleAvailable());
+    heapProfilingEnabled = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_HEAP_ENABLED,
+        ProfilingSupport.isLiveHeapProfilingSafe());
+    startForceFirst = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_START_FORCE_FIRST,
+        ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT);
     templateOverride = configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE);
-    exceptionSampleLimit =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT,
-            ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
-    exceptionHistogramTopItems =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT);
-    exceptionHistogramMaxSize =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
-            ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
+    exceptionSampleLimit = configProvider.getInteger(
+        ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT,
+        ProfilingConfig.PROFILING_EXCEPTION_SAMPLE_LIMIT_DEFAULT);
+    exceptionHistogramTopItems = configProvider.getInteger(
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS,
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_TOP_ITEMS_DEFAULT);
+    exceptionHistogramMaxSize = configProvider.getInteger(
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE,
+        ProfilingConfig.PROFILING_EXCEPTION_HISTOGRAM_MAX_COLLECTION_SIZE_DEFAULT);
     hotspotsEnabled = configProvider.getBoolean(ProfilingConfig.PROFILING_HOTSPOTS_ENABLED, false);
-    endpointsEnabled =
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
-            ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
-    auxiliaryProfiler =
-        configProvider.getString(
-            ProfilingConfig.PROFILING_AUXILIARY_TYPE, getDefaultAuxiliaryProfiler());
+    endpointsEnabled = configProvider.getBoolean(
+        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED,
+        ProfilingConfig.PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT);
+    auxiliaryProfiler = configProvider.getString(
+        ProfilingConfig.PROFILING_AUXILIARY_TYPE,
+        getDefaultAuxiliaryProfiler());
     perfEventsParanoid = readPerfEventsParanoidSetting();
-    hasNativeStacks =
-        !"no"
-            .equalsIgnoreCase(
-                configProvider.getString(
-                    ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK,
-                    configProvider.getString(
-                        "profiling.async.cstack",
-                        ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
-    requestedStackDepth =
-        configProvider.getInteger(
-            ProfilingConfig.PROFILING_STACKDEPTH, ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
+    hasNativeStacks = !"no"
+      .equalsIgnoreCase(configProvider.getString(
+          ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK,
+          configProvider.getString(
+              "profiling.async.cstack",
+              ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT)));
+    requestedStackDepth = configProvider.getInteger(
+        ProfilingConfig.PROFILING_STACKDEPTH,
+        ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT);
     jfrStackDepth = getStackDepth();
 
     seLinuxStatus = getSELinuxStatus();
@@ -185,18 +173,19 @@ public abstract class ProfilerSettingsSupport {
     this.hasJfrStackDepthApplied = hasJfrStackDepthApplied;
 
     serviceInjection = getServiceInjection(configProvider);
-    serviceInstrumentationType =
-        // usually set via DD_INSTRUMENTATION_INSTALL_TYPE env var
-        configProvider.getString("instrumentation.install.type");
+    serviceInstrumentationType = configProvider
+      // usually set via DD_INSTRUMENTATION_INSTALL_TYPE env var
+      .getString("instrumentation.install.type");
     this.profilerActivationSetting = getProfilerActivation(configProvider);
   }
 
   private static int getStackDepth() {
-    String value =
-        JavaVirtualMachine.getVmOptions().stream()
-            .filter(o -> o.startsWith("-XX:FlightRecorderOptions"))
-            .findFirst()
-            .orElse(null);
+    String value = JavaVirtualMachine
+      .getVmOptions()
+      .stream()
+      .filter(o -> o.startsWith("-XX:FlightRecorderOptions"))
+      .findFirst()
+      .orElse(null);
     if (value != null) {
       int start = value.indexOf(STACKDEPTH_KEY);
       if (start != -1) {
@@ -212,7 +201,8 @@ public abstract class ProfilerSettingsSupport {
         }
       }
     }
-    return DEFAULT_JFR_STACKDEPTH; // default stack depth if not set in JFR options
+    // default stack depth if not set in JFR options
+    return DEFAULT_JFR_STACKDEPTH;
   }
 
   private static String getServiceInjection(ConfigProvider configProvider) {
@@ -224,8 +214,8 @@ public abstract class ProfilerSettingsSupport {
     return new ProfilerActivationSetting(
         ProfilingEnablement.from(configProvider),
         getServiceInjection(configProvider) != null
-            ? ProfilerActivationSetting.Ssi.INJECTED_AGENT
-            : ProfilerActivationSetting.Ssi.NONE);
+        ? ProfilerActivationSetting.Ssi.INJECTED_AGENT
+        : ProfilerActivationSetting.Ssi.NONE);
   }
 
   private String getSELinuxStatus() {
@@ -264,7 +254,9 @@ public abstract class ProfilerSettingsSupport {
         : ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT;
   }
 
-  /** To be defined in controller specific way. Eg. one could emit JFR events. */
+  /**
+   * To be defined in controller specific way. Eg. one could emit JFR events.
+   */
   public abstract void publish();
 
   protected abstract String profilerKind();

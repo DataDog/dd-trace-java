@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public OpenLineageInstrumentation() {
     super("spark-openlineage");
   }
@@ -26,16 +25,16 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AbstractDatadogSparkListener",
-      packageName + ".DatabricksParentContext",
-      packageName + ".OpenlineageParentContext",
-      packageName + ".PredeterminedTraceIdContext",
-      packageName + ".RemoveEldestHashMap",
-      packageName + ".SparkAggregatedTaskMetrics",
-      packageName + ".SparkConfAllowList",
-      packageName + ".SparkSQLUtils",
-      packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
-      packageName + ".SparkSQLUtils$AccumulatorWithStage",
+        packageName + ".AbstractDatadogSparkListener",
+        packageName + ".DatabricksParentContext",
+        packageName + ".OpenlineageParentContext",
+        packageName + ".PredeterminedTraceIdContext",
+        packageName + ".RemoveEldestHashMap",
+        packageName + ".SparkAggregatedTaskMetrics",
+        packageName + ".SparkConfAllowList",
+        packageName + ".SparkSQLUtils",
+        packageName + ".SparkSQLUtils$SparkPlanInfoForStage",
+        packageName + ".SparkSQLUtils$AccumulatorWithStage"
     };
   }
 
@@ -54,8 +53,8 @@ public class OpenLineageInstrumentation extends InstrumenterModule.Tracing
     // LiveListenerBus class is used when running in a YARN cluster
     transformer.applyAdvice(
         isConstructor()
-            .and(isDeclaredBy(named("io.openlineage.spark.agent.OpenLineageSparkListener")))
-            .and(takesArgument(0, named("org.apache.spark.SparkConf"))),
+          .and(isDeclaredBy(named("io.openlineage.spark.agent.OpenLineageSparkListener")))
+          .and(takesArgument(0, named("org.apache.spark.SparkConf"))),
         OpenLineageInstrumentation.class.getName() + "$OpenLineageSparkListenerAdvice");
   }
 

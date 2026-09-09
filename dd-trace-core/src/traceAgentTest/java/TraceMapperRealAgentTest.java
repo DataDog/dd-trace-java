@@ -5,7 +5,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.http.OkHttpUtils;
 import datadog.metrics.api.statsd.StatsDClient;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.tabletest.junit.TableTest;
 
 class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
-
   HttpUrl agentUrl;
   OkHttpClient client;
   MonitoringImpl monitoring;
@@ -98,9 +96,11 @@ class TraceMapperRealAgentTest extends AbstractTraceAgentTest {
     DDAgentFeaturesDiscovery discovery =
         new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocol, true, false);
     DDAgentApi api = new DDAgentApi(client, agentUrl, discovery, monitoring, false);
-    PayloadDispatcherImpl dispatcher =
-        new PayloadDispatcherImpl(
-            new DDAgentMapperDiscovery(discovery), api, healthMetrics, monitoring);
+    PayloadDispatcherImpl dispatcher = new PayloadDispatcherImpl(
+        new DDAgentMapperDiscovery(discovery),
+        api,
+        healthMetrics,
+        monitoring);
     List<List<CoreSpan>> traces = TraceGenerator.generateRandomTraces(traceCount, lowCardinality);
 
     for (List<CoreSpan> trace : traces) {

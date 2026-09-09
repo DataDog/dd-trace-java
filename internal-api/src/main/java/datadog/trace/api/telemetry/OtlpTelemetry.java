@@ -10,10 +10,11 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.LongAdder;
 
-/** Collects telemetry metrics for the OTLP trace, metrics, and log exporters. */
+/**
+ * Collects telemetry metrics for the OTLP trace, metrics, and log exporters.
+ */
 public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> {
   private static final String NAMESPACE = "tracers";
-
   private static final OtlpTelemetry INSTANCE = new OtlpTelemetry();
 
   public static OtlpTelemetry getInstance() {
@@ -23,14 +24,13 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
   private final String[] tracesTags = tagsFor(Config.get().getOtlpTracesProtocol());
   private final String[] metricsTags = tagsFor(Config.get().getOtlpMetricsProtocol());
   private final String[] logsTags = tagsFor(Config.get().getOtlpLogsProtocol());
-
   private final ExportCounters tracesExport = new ExportCounters("traces");
   private final ExportCounters metricsExport = new ExportCounters("metrics");
   private final LongAdder logRecords = new LongAdder();
-
   private final BlockingQueue<OtlpMetric> telemetryQueue = new ArrayBlockingQueue<>(RAW_QUEUE_SIZE);
 
-  private OtlpTelemetry() {}
+  private OtlpTelemetry() {
+  }
 
   public void onTracesExportAttempt() {
     tracesExport.attempts.increment();
@@ -80,12 +80,13 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
     return drained;
   }
 
-  /** Counters for a single signal's export attempts/successes/failures. */
+  /**
+   * Counters for a single signal's export attempts/successes/failures.
+   */
   private static final class ExportCounters {
     final String attemptsMetric;
     final String successesMetric;
     final String failuresMetric;
-
     final LongAdder attempts = new LongAdder();
     final LongAdder successes = new LongAdder();
     final LongAdder failures = new LongAdder();
@@ -107,7 +108,10 @@ public class OtlpTelemetry implements MetricCollector<OtlpTelemetry.OtlpMetric> 
     }
 
     private static void addIfNonZero(
-        BlockingQueue<OtlpMetric> out, String metricName, LongAdder counter, String[] tags) {
+        BlockingQueue<OtlpMetric> out,
+        String metricName,
+        LongAdder counter,
+        String[] tags) {
       long value = counter.sumThenReset();
       if (value > 0) {
         out.offer(new OtlpMetric(metricName, value, tags));

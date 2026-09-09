@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.java.concurrent.executor;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.InstrumenterConfig;
 import java.util.Collection;
@@ -12,11 +11,12 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractExecutorInstrumentation
     implements Instrumenter.ForBootstrap,
-        Instrumenter.CanShortcutTypeMatching,
-        Instrumenter.ForConfiguredTypes,
-        Instrumenter.HasMethodAdvice {
-
-  /** To apply to all executors, use override setting below. */
+    Instrumenter.CanShortcutTypeMatching,
+    Instrumenter.ForConfiguredTypes,
+    Instrumenter.HasMethodAdvice {
+  /**
+   * To apply to all executors, use override setting below.
+   */
   private final boolean TRACE_ALL_EXECUTORS = InstrumenterConfig.get().isTraceExecutorsAll();
 
   @Override
@@ -27,10 +27,10 @@ public abstract class AbstractExecutorInstrumentation
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "kotlinx.coroutines.scheduling.CoroutineScheduler",
-      "play.api.libs.streams.Execution$trampoline$",
-      "scala.concurrent.Future$InternalCallbackExecutor$",
-      "scala.concurrent.impl.ExecutionContextImpl"
+        "kotlinx.coroutines.scheduling.CoroutineScheduler",
+        "play.api.libs.streams.Execution$trampoline$",
+        "scala.concurrent.Future$InternalCallbackExecutor$",
+        "scala.concurrent.impl.ExecutionContextImpl"
     };
   }
 
@@ -41,7 +41,8 @@ public abstract class AbstractExecutorInstrumentation
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override

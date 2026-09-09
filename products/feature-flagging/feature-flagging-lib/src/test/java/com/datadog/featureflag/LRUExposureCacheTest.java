@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.featureflag.exposure.Allocation;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Flag;
@@ -17,7 +16,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class LRUExposureCacheTest {
-
   @Test
   void testAddingElements() {
     LRUExposureCache cache = new LRUExposureCache(5);
@@ -73,8 +71,10 @@ class LRUExposureCacheTest {
     cache.add(event3);
 
     assertEquals(2, cache.size());
-    assertNull(cache.get(key1)); // event1 should be evicted
-    assertNotNull(cache.get(key3)); // event3 should be present
+    // event1 should be evicted
+    assertNull(cache.get(key1));
+    // event3 should be present
+    assertNotNull(cache.get(key3));
     assertEquals("variant3", cache.get(key3).variant);
     assertEquals("allocation3", cache.get(key3).allocation);
   }
@@ -142,20 +142,18 @@ class LRUExposureCacheTest {
   @Test
   void testKeyEqualityWithNullValues() {
     LRUExposureCache cache = new LRUExposureCache(5);
-    ExposureEvent event1 =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new Allocation("allocation"),
-            new Flag(null),
-            new Variant("variant"),
-            new Subject(null, emptyMap()));
-    ExposureEvent event2 =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new Allocation("allocation"),
-            new Flag(null),
-            new Variant("variant"),
-            new Subject(null, emptyMap()));
+    ExposureEvent event1 = new ExposureEvent(
+        System.currentTimeMillis(),
+        new Allocation("allocation"),
+        new Flag(null),
+        new Variant("variant"),
+        new Subject(null, emptyMap()));
+    ExposureEvent event2 = new ExposureEvent(
+        System.currentTimeMillis(),
+        new Allocation("allocation"),
+        new Flag(null),
+        new Variant("variant"),
+        new Subject(null, emptyMap()));
 
     cache.add(event1);
     boolean duplicateAdded = cache.add(event2);
@@ -179,15 +177,21 @@ class LRUExposureCacheTest {
     cache.add(event1);
     cache.add(event2);
     cache.add(event3);
-    cache.add(event1Updated); // Updates event1, moves to most recent
-    cache.add(event4); // Should evict event2, not event1
+    // Updates event1, moves to most recent
+    cache.add(event1Updated);
+    // Should evict event2, not event1
+    cache.add(event4);
 
     assertEquals(3, cache.size());
-    assertNotNull(cache.get(key1)); // event1 should be updated and present
-    assertEquals("variant2", cache.get(key1).variant); // verify it was updated
+    // event1 should be updated and present
+    assertNotNull(cache.get(key1));
+    // verify it was updated
+    assertEquals("variant2", cache.get(key1).variant);
     assertEquals("allocation2", cache.get(key1).allocation);
-    assertNull(cache.get(key2)); // event2 should be evicted
-    assertNotNull(cache.get(key4)); // event4 should be present
+    // event2 should be evicted
+    assertNull(cache.get(key2));
+    // event4 should be present
+    assertNotNull(cache.get(key4));
     assertEquals("variant4", cache.get(key4).variant);
   }
 
@@ -204,36 +208,39 @@ class LRUExposureCacheTest {
     ExposureCache.Key key1 = new ExposureCache.Key(event1);
     ExposureCache.Key key2 = new ExposureCache.Key(event2);
     ExposureCache.Key key4 = new ExposureCache.Key(event4);
-
     // Fill cache
     boolean added1 = cache.add(event1);
     boolean added2 = cache.add(event2);
     boolean added3 = cache.add(event3);
-
     // Duplicate exposure for subject1: should *not* change size, but *should* bump recency
     boolean duplicateAdded = cache.add(event1Duplicate);
-
     // Now push over capacity: the least recently used *non-hot* entry (event2) should be evicted
     boolean added4 = cache.add(event4);
 
     assertTrue(added1);
     assertTrue(added2);
     assertTrue(added3);
-    assertFalse(duplicateAdded); // dedup correctly
+    // dedup correctly
+    assertFalse(duplicateAdded);
     assertTrue(added4);
 
     assertEquals(3, cache.size());
-
-    assertNotNull(cache.get(key1)); // hot subject1 should still be present
-    assertNull(cache.get(key2)); // subject2 should be evicted
-    assertNotNull(cache.get(key4)); // newest subject4 should be present
+    // hot subject1 should still be present
+    assertNotNull(cache.get(key1));
+    // subject2 should be evicted
+    assertNull(cache.get(key2));
+    // newest subject4 should be present
+    assertNotNull(cache.get(key4));
 
     assertEquals("variant1", cache.get(key1).variant);
     assertEquals("allocation1", cache.get(key1).allocation);
   }
 
   private static ExposureEvent createEvent(
-      String flag, String subject, String variant, String allocation) {
+      String flag,
+      String subject,
+      String variant,
+      String allocation) {
     return new ExposureEvent(
         System.currentTimeMillis(),
         new Allocation(allocation),

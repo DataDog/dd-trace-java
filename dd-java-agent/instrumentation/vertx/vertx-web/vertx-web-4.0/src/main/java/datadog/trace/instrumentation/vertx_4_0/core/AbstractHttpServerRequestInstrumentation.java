@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -28,7 +27,6 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 public abstract class AbstractHttpServerRequestInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.HasMethodAdvice {
-
   private final String className = AbstractHttpServerRequestInstrumentation.class.getName();
 
   public AbstractHttpServerRequestInstrumentation() {
@@ -49,17 +47,17 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
         className + "$HeadersAdvice");
     transformer.applyAdvice(
         isPublic()
-            .and(isMethod())
-            .and(named("params"))
-            .and(takesNoArguments().or(takesArguments(boolean.class))),
+          .and(isMethod())
+          .and(named("params"))
+          .and(takesNoArguments().or(takesArguments(boolean.class))),
         className + "$ParamsAdvice");
     transformer.applyAdvice(
         isMethod().and(takesNoArguments()).and(attributesFilter()),
         className + "$AttributesAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("handleData").or(named("onData")))
-            .and(takesArguments(1).and(takesArgument(0, named("io.vertx.core.buffer.Buffer")))),
+          .and(named("handleData").or(named("onData")))
+          .and(takesArguments(1).and(takesArgument(0, named("io.vertx.core.buffer.Buffer")))),
         className + "$DataAdvice");
     transformer.applyAdvice(
         isPublic().and(isMethod()).and(named("cookies")).and(returns(Set.class)),
@@ -71,7 +69,6 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class ParamsAdvice {
-
     @Advice.OnMethodEnter
     public static void onEnter(
         @Advice.Local("beforeParams") Object beforeParams,
@@ -98,7 +95,6 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class AttributesAdvice {
-
     @Advice.OnMethodEnter
     public static void onEnter(
         @Advice.Local("beforeAttributes") Object beforeAttributes,
@@ -125,11 +121,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class HeadersAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_HEADER_VALUE)
     public static void onExit(
-        @Advice.Return final Object multiMap, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object multiMap,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -140,11 +136,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class DataAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_BODY)
     public static void onExit(
-        @Advice.Argument(0) final Object data, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Argument(0) final Object data,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -155,11 +151,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class CookiesAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(
-        @Advice.Return final Set<Object> cookies, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Set<Object> cookies,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null && cookies != null && !cookies.isEmpty()) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);
@@ -172,11 +168,11 @@ public abstract class AbstractHttpServerRequestInstrumentation extends Instrumen
 
   @RequiresRequestContext(RequestContextSlot.IAST)
   public static class GetCookieAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_COOKIE_VALUE)
     public static void onExit(
-        @Advice.Return final Object cookie, @ActiveRequestContext RequestContext reqCtx) {
+        @Advice.Return final Object cookie,
+        @ActiveRequestContext RequestContext reqCtx) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         final IastContext ctx = reqCtx.getData(RequestContextSlot.IAST);

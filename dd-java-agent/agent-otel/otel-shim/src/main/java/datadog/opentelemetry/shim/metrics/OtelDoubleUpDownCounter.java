@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofDoubles;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
-
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
@@ -59,8 +58,9 @@ final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDo
 
     @Override
     public DoubleUpDownCounter build() {
-      return new OtelDoubleUpDownCounter(
-          meter.registerStorage(builder, OtelMetricStorage::newDoubleSumStorage));
+      return new OtelDoubleUpDownCounter(meter.registerStorage(
+          builder,
+          OtelMetricStorage::newDoubleSumStorage));
     }
 
     @Override

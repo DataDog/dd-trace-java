@@ -4,7 +4,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_TRACES_ENDPOINT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
-
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.common.sampling.SingleSpanSampler;
@@ -21,7 +20,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class OtlpWriter extends RemoteWriter {
-
   private static final int BUFFER_SIZE = 1024;
   private static final String HTTP_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
   private static final String GRPC_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_GRPC_TRACES_ENDPOINT;
@@ -128,32 +126,36 @@ public class OtlpWriter extends RemoteWriter {
 
     public OtlpWriter build() {
       if (sender == null) {
-        sender =
-            protocol == OtlpConfig.Protocol.GRPC
-                ? new OtlpGrpcSender(
-                    endpoint, GRPC_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression)
-                : new OtlpHttpSender(
-                    endpoint, HTTP_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
+        sender = protocol == OtlpConfig.Protocol.GRPC
+            ? new OtlpGrpcSender(
+                endpoint,
+                GRPC_TRACES_SIGNAL_PATH,
+                headers,
+                timeoutMillis,
+                compression)
+            : new OtlpHttpSender(
+                endpoint,
+                HTTP_TRACES_SIGNAL_PATH,
+                headers,
+                timeoutMillis,
+                compression);
       }
 
-      final OtlpTraceCollector collector =
-          protocol == OtlpConfig.Protocol.HTTP_JSON
-              ? new OtlpTraceJsonCollector()
-              : new OtlpTraceProtoCollector();
+      final OtlpTraceCollector collector = protocol == OtlpConfig.Protocol.HTTP_JSON
+          ? new OtlpTraceJsonCollector()
+          : new OtlpTraceProtoCollector();
       final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-      final TraceProcessingWorker worker =
-          new TraceProcessingWorker(
-              traceBufferSize,
-              HealthMetrics.NO_OP,
-              dispatcher,
-              DroppingPolicy.DISABLED,
-              Prioritization.FAST_LANE,
-              flushIntervalMilliseconds,
-              TimeUnit.MILLISECONDS,
-              singleSpanSampler);
+      final TraceProcessingWorker worker = new TraceProcessingWorker(
+          traceBufferSize,
+          HealthMetrics.NO_OP,
+          dispatcher,
+          DroppingPolicy.DISABLED,
+          Prioritization.FAST_LANE,
+          flushIntervalMilliseconds,
+          TimeUnit.MILLISECONDS,
+          singleSpanSampler);
 
-      return new OtlpWriter(
-          worker, dispatcher, sender, flushTimeout, flushTimeoutUnit, alwaysFlush);
+      return new OtlpWriter(worker, dispatcher, sender, flushTimeout, flushTimeoutUnit, alwaysFlush);
     }
   }
 }

@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.jfr.directallocation;
 import datadog.trace.api.Config;
 
 public class DirectAllocationProfiling {
-
   private static class Holder {
     static final DirectAllocationProfiling INSTANCE = new DirectAllocationProfiling(Config.get());
   }
@@ -36,7 +35,9 @@ public class DirectAllocationProfiling {
   }
 
   public DirectAllocationSampleEvent sample(
-      DirectAllocationSource source, Class<?> caller, long bytes) {
+      DirectAllocationSource source,
+      Class<?> caller,
+      long bytes) {
     boolean firstHit = histogram.record(caller, source, bytes);
     if (sampler.sample() || firstHit) {
       return new DirectAllocationSampleEvent(caller.getName(), source.name(), bytes);

@@ -23,18 +23,16 @@ import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Handles responses from Remote Configuration */
+/**
+ * Handles responses from Remote Configuration
+ */
 public class RemoteConfigResponse {
   private static final Logger log = LoggerFactory.getLogger(RemoteConfigResponse.class);
-
   @Json(name = "client_configs")
   public List<String> clientConfigs;
-
   @Json(name = "targets")
   private String targetsJson;
-
   private transient Targets targets;
-
   @Json(name = "target_files")
   public List<TargetFile> targetFiles;
 
@@ -52,14 +50,14 @@ public class RemoteConfigResponse {
         RemoteConfigResponse response = adapterRC.fromJson(Okio.buffer(Okio.source(inputStream)));
         String targetsJsonBase64 = response.targetsJson;
         if (targetsJsonBase64 == null) {
-          return Optional.empty(); // empty response -- no change
+          // empty response -- no change
+          return Optional.empty();
         }
         byte[] targetsJsonDecoded =
             Base64.getDecoder().decode(targetsJsonBase64.getBytes(StandardCharsets.ISO_8859_1));
         if (targetsJsonDecoded.length > 0) {
-          response.targets =
-              adapterTargets.fromJson(
-                  Okio.buffer(Okio.source(new ByteArrayInputStream(targetsJsonDecoded))));
+          response.targets = adapterTargets.fromJson(Okio.buffer(Okio.source(
+              new ByteArrayInputStream(targetsJsonDecoded))));
           response.targets.targetsSignedUntyped = extractUntypedSignedField(targetsJsonDecoded);
         }
         response.targetsJson = null;
@@ -111,7 +109,6 @@ public class RemoteConfigResponse {
   }
 
   public byte[] getFileContents(String configKey) {
-
     if (targetFiles == null) {
       throw new MissingContentException("No content for " + configKey);
     }
@@ -137,22 +134,22 @@ public class RemoteConfigResponse {
         if (!expectedHash.equals(gottenHash)) {
           throw new IntegrityCheckException(
               "File "
-                  + configKey
-                  + " does not "
-                  + "have the expected sha256 hash: Expected "
-                  + expectedHash.toString(16)
-                  + ", but got "
-                  + gottenHash.toString(16));
+              + configKey
+              + " does not "
+              + "have the expected sha256 hash: Expected "
+              + expectedHash.toString(16)
+              + ", but got "
+              + gottenHash.toString(16));
         }
         if (decode.length != configTarget.length) {
           throw new IntegrityCheckException(
               "File "
-                  + configKey
-                  + " does not "
-                  + "have the expected length: Expected "
-                  + configTarget.length
-                  + ", but got "
-                  + decode.length);
+              + configKey
+              + " does not "
+              + "have the expected length: Expected "
+              + configTarget.length
+              + ", but got "
+              + decode.length);
         }
 
         return decode;
@@ -161,7 +158,8 @@ public class RemoteConfigResponse {
       throw e;
     } catch (Exception exception) {
       throw new IntegrityCheckException(
-          "Could not get file contents from remote config, file " + configKey, exception);
+          "Could not get file contents from remote config, file " + configKey,
+          exception);
     }
 
     throw new MissingContentException("No content for " + configKey);
@@ -183,16 +181,13 @@ public class RemoteConfigResponse {
 
   public static class Targets {
     public List<Signature> signatures;
-
     @Json(name = "signed")
     public TargetsSigned targetsSigned;
-
     public transient Map<String, Object> targetsSignedUntyped;
 
     public static class Signature {
       @Json(name = "keyid")
       public String keyId;
-
       @Json(name = "sig")
       public String signature;
     }
@@ -200,13 +195,10 @@ public class RemoteConfigResponse {
     public static class TargetsSigned {
       @Json(name = "_type")
       public String type;
-
       public TargetsCustom custom;
       public Instant expires;
-
       @Json(name = "spec_version")
       public String specVersion;
-
       public long version;
       public Map<String, ConfigTarget> targets;
 

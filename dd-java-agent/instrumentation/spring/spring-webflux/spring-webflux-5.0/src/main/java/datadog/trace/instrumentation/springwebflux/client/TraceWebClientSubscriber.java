@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.springwebflux.client;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.springwebflux.client.SpringWebfluxHttpClientDecorator.DECORATE;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.reactivestreams.Subscription;
@@ -12,11 +11,8 @@ import reactor.core.CoreSubscriber;
 import reactor.util.context.Context;
 
 public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResponse> {
-
   final CoreSubscriber<? super ClientResponse> actual;
-
   final Context context;
-
   private final AgentSpan span;
   private final AgentSpan parent;
 
@@ -61,7 +57,6 @@ public final class TraceWebClientSubscriber implements CoreSubscriber<ClientResp
 
   @Override
   public void onComplete() {
-
     try (final ContextScope scope = activateSpan(parent)) {
       actual.onComplete();
     }

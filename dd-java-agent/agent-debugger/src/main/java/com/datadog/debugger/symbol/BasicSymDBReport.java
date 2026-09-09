@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 public class BasicSymDBReport implements SymDBReport {
   private static final Logger LOGGER = LoggerFactory.getLogger(BasicSymDBReport.class);
-
   private final Set<String> missingJars = new HashSet<>();
   private final Map<String, String> ioExceptions = new HashMap<>();
   private final List<String> locationErrors = new ArrayList<>();
@@ -41,16 +40,16 @@ public class BasicSymDBReport implements SymDBReport {
 
   public void report() {
     int totalClasses = classCountByJar.values().stream().mapToInt(Integer::intValue).sum();
-    String content =
-        String.format(
-            "SymDB Report: Scanned jar count=%d, Total class count=%d, class count by jar: %s, Scanned jars: %s, Location errors: %s Missing jars: %s IOExceptions: %s",
-            scannedJars.size(),
-            totalClasses,
-            classCountByJar,
-            scannedJars,
-            locationErrors,
-            missingJars,
-            ioExceptions);
+    String content = String.format(
+        "SymDB Report: Scanned jar count=%d, Total class count=%d, class count by jar: %s, "
+        + "Scanned jars: %s, Location errors: %s Missing jars: %s IOExceptions: %s",
+        scannedJars.size(),
+        totalClasses,
+        classCountByJar,
+        scannedJars,
+        locationErrors,
+        missingJars,
+        ioExceptions);
     LOGGER.info(content);
   }
 }

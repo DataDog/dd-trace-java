@@ -5,7 +5,6 @@ import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import javax.annotation.Nonnull;
 
 public class CacheNamingV0 implements NamingSchema.ForCache {
-
   private final boolean allowInferredServices;
 
   public CacheNamingV0(boolean allowInferredServices) {

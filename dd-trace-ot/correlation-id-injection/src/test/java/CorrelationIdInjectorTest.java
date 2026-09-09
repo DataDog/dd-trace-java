@@ -1,5 +1,4 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.opentracing.DDTracer;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
@@ -9,13 +8,11 @@ import io.opentracing.Span;
 import org.junit.jupiter.api.Test;
 
 abstract class CorrelationIdInjectorTest extends DDJavaSpecification {
-
-  protected static final String LOG_PATTERN =
-      "TRACE_ID=%X{"
-          + CorrelationIdentifier.getTraceIdKey()
-          + "} SPAN_ID=%X{"
-          + CorrelationIdentifier.getSpanIdKey()
-          + "} %m";
+  protected static final String LOG_PATTERN = "TRACE_ID=%X{"
+      + CorrelationIdentifier.getTraceIdKey()
+      + "} SPAN_ID=%X{"
+      + CorrelationIdentifier.getSpanIdKey()
+      + "} %m";
 
   @Test
   void testCorrelationIdInjection() throws Exception {
@@ -57,7 +54,9 @@ abstract class CorrelationIdInjectorTest extends DDJavaSpecification {
   private static String expectedLog(String message) {
     return String.format(
         "TRACE_ID=%s SPAN_ID=%s %s",
-        CorrelationIdentifier.getTraceId(), CorrelationIdentifier.getSpanId(), message);
+        CorrelationIdentifier.getTraceId(),
+        CorrelationIdentifier.getSpanId(),
+        message);
   }
 
   DDTracer buildTracer() {

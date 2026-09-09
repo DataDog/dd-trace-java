@@ -1,12 +1,10 @@
 package org.example;
 
 import static org.junit.Assert.assertTrue;
-
 import org.junit.AfterClass;
 import org.junit.Test;
 
 public class TestFailedSuiteTearDown {
-
   @AfterClass
   public static void suiteTearDown() {
     throw new RuntimeException("suite tear down failed");

@@ -4,7 +4,6 @@ import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.el.values.StringValue;
@@ -73,7 +72,7 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
+        CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("foo", message);
@@ -84,15 +83,14 @@ class StringTemplateBuilderTest {
     List<LogProbe.Segment> segments = new ArrayList<>();
     segments.add(
         new LogProbe.Segment(
-            new ValueScript(
-                DSL.bool(DSL.contains(DSL.ref("arg"), new StringValue("o"))), "{arg}")));
+            new ValueScript(DSL.bool(DSL.contains(DSL.ref("arg"), new StringValue("o"))), "{arg}")));
     LogProbe probe = LogProbe.builder().template("{contains(arg, 'o')}", segments).build();
     StringTemplateBuilder summaryBuilder =
         new StringTemplateBuilder(probe.getSegments(), LIMITS, TIMEOUT);
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
+        CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("true", message);
@@ -106,7 +104,7 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
+        CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "foo")
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     StringTemplateBuilder summaryBuilder2 =
@@ -114,7 +112,7 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext2 = new CapturedContext();
     capturedContext2.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "bar")
+        CapturedContext.CapturedValue.of("arg", String.class.getTypeName(), "bar")
         });
     String message2 = summaryBuilder2.evaluate(capturedContext2, new LogProbe.LogStatus(probe));
     assertEquals("foo", message);
@@ -129,7 +127,7 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("nullObject", Object.class.getTypeName(), null)
+        CapturedContext.CapturedValue.of("nullObject", Object.class.getTypeName(), null)
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("null", message);
@@ -143,14 +141,25 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of(
-              "primArray", String.class.getTypeName(), new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}),
-          CapturedContext.CapturedValue.of(
-              "strArray",
-              String.class.getTypeName(),
-              new String[] {
-                "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8", "foo9"
-              })
+        CapturedContext.CapturedValue.of(
+            "primArray",
+            String.class.getTypeName(),
+            new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}),
+        CapturedContext.CapturedValue.of(
+            "strArray",
+            String.class.getTypeName(),
+            new String[] {
+            "foo0",
+            "foo1",
+            "foo2",
+            "foo3",
+            "foo4",
+            "foo5",
+            "foo6",
+            "foo7",
+            "foo8",
+            "foo9"
+            })
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("[0, 1, 2, ...] [foo0, foo1, foo2, ...]", message);
@@ -164,20 +173,34 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of(
-              "strList",
-              String.class.getTypeName(),
-              new ArrayList<>(
-                  Arrays.asList(
-                      "foo0", "foo1", "foo2", "foo3", "foo4", "foo5", "foo6", "foo7", "foo8",
-                      "foo9"))),
-          CapturedContext.CapturedValue.of(
-              "strSet",
-              String.class.getTypeName(),
-              new LinkedHashSet<>(
-                  Arrays.asList(
-                      "bar0", "bar1", "bar2", "bar3", "bar4", "bar5", "bar6", "bar7", "bar8",
-                      "bar9")))
+        CapturedContext.CapturedValue.of(
+            "strList",
+            String.class.getTypeName(),
+            new ArrayList<>(Arrays.asList(
+                "foo0",
+                "foo1",
+                "foo2",
+                "foo3",
+                "foo4",
+                "foo5",
+                "foo6",
+                "foo7",
+                "foo8",
+                "foo9"))),
+        CapturedContext.CapturedValue.of(
+            "strSet",
+            String.class.getTypeName(),
+            new LinkedHashSet<>(Arrays.asList(
+                "bar0",
+                "bar1",
+                "bar2",
+                "bar3",
+                "bar4",
+                "bar5",
+                "bar6",
+                "bar7",
+                "bar8",
+                "bar9")))
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("[foo0, foo1, foo2, ...] [bar0, bar1, bar2, ...]", message);
@@ -195,7 +218,7 @@ class StringTemplateBuilderTest {
     }
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("strMap", String.class.getTypeName(), map)
+        CapturedContext.CapturedValue.of("strMap", String.class.getTypeName(), map)
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("{[foo0=bar0], [foo1=bar1], [foo2=bar2], ...}", message);
@@ -220,7 +243,7 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of("obj", Level0.class.getTypeName(), new Level0())
+        CapturedContext.CapturedValue.of("obj", Level0.class.getTypeName(), new Level0())
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("{intField0=0, strField0=foo0, level1=...}", message);
@@ -234,8 +257,10 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of(
-              "array", Level0[].class.getTypeName(), new Level0[] {new Level0(), new Level0()})
+        CapturedContext.CapturedValue.of(
+            "array",
+            Level0[].class.getTypeName(),
+            new Level0[] {new Level0(), new Level0()})
         });
     String message = summaryBuilder.evaluate(capturedContext, new LogProbe.LogStatus(probe));
     assertEquals("[..., ...]", message);
@@ -251,13 +276,16 @@ class StringTemplateBuilderTest {
     CapturedContext capturedContext = new CapturedContext();
     capturedContext.addArguments(
         new CapturedContext.CapturedValue[] {
-          CapturedContext.CapturedValue.of(
-              "obj", Object.class.getTypeName(), ManagementFactory.getOperatingSystemMXBean())
+        CapturedContext.CapturedValue.of(
+            "obj",
+            Object.class.getTypeName(),
+            ManagementFactory.getOperatingSystemMXBean())
         });
     LogProbe.LogStatus status = new LogProbe.LogStatus(probe);
     String message = summaryBuilder.evaluate(capturedContext, status);
     assertEquals(
-        "{containerMetrics=UNDEFINED, systemLoadTicks=UNDEFINED, processLoadTicks=UNDEFINED, jvm=UNDEFINED, loadavg=UNDEFINED}",
+        "{containerMetrics=UNDEFINED, systemLoadTicks=UNDEFINED, "
+        + "processLoadTicks=UNDEFINED, jvm=UNDEFINED, loadavg=UNDEFINED}",
         message);
     assertTrue(status.hasLogTemplateErrors());
     List<EvaluationError> evaluationErrors = status.getErrors();

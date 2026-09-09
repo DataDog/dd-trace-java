@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -34,10 +33,10 @@ class ContextKeyTest {
   }
 
   @SuppressWarnings({
-    "EqualsWithItself",
-    "SimplifiableAssertion",
-    "ConstantValue",
-    "EqualsBetweenInconvertibleTypes"
+      "EqualsWithItself",
+      "SimplifiableAssertion",
+      "ConstantValue",
+      "EqualsBetweenInconvertibleTypes"
   })
   @Test
   void testEqualsAndHashCode() {

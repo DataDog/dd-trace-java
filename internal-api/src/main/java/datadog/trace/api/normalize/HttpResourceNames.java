@@ -12,45 +12,40 @@ import javax.annotation.Nonnull;
 
 public class HttpResourceNames {
   public static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
-
   private static final Function<Pair<CharSequence, CharSequence>, UTF8BytesString> JOINER =
       input -> {
-        CharSequence path = input.getRight();
-        if (path == null) {
-          return DEFAULT_RESOURCE_NAME;
-        }
-        StringBuilder sb;
-        CharSequence method = input.getLeft();
-        if (method == null) {
-          sb = new StringBuilder(path.length());
-        } else {
-          sb = new StringBuilder(path.length() + method.length() + 1);
-          sb.append(method);
-          // uppercase the method part of the resource name
-          for (int i = 0; i < sb.length(); i++) {
-            sb.setCharAt(i, Character.toUpperCase(sb.charAt(i)));
-          }
-          sb.append(' ');
-        }
-        int l = path.length() - 1;
-        if (instance().removeTrailingSlash && l > 0 && path.charAt(l) == '/') {
-          // remove trailing slash from the resource name path if needed
-          sb.append(path, 0, l);
-        } else {
-          sb.append(path);
-        }
-        return UTF8BytesString.create(sb);
-      };
-
+    CharSequence path = input.getRight();
+    if (path == null) {
+      return DEFAULT_RESOURCE_NAME;
+    }
+    StringBuilder sb;
+    CharSequence method = input.getLeft();
+    if (method == null) {
+      sb = new StringBuilder(path.length());
+    } else {
+      sb = new StringBuilder(path.length() + method.length() + 1);
+      sb.append(method);
+      // uppercase the method part of the resource name
+      for (int i = 0; i < sb.length(); i++) {
+        sb.setCharAt(i, Character.toUpperCase(sb.charAt(i)));
+      }
+      sb.append(' ');
+    }
+    int l = path.length() - 1;
+    if (instance().removeTrailingSlash && l > 0 && path.charAt(l) == '/') {
+      // remove trailing slash from the resource name path if needed
+      sb.append(path, 0, l);
+    } else {
+      sb.append(path);
+    }
+    return UTF8BytesString.create(sb);
+  };
   private static final DDCache<Pair<CharSequence, CharSequence>, CharSequence> JOINER_CACHE =
       DDCaches.newFixedSizeCache(128);
-
   private static final SimpleHttpPathNormalizer simpleHttpPathNormalizer =
       new SimpleHttpPathNormalizer();
-
   // Not final for testing
   private static HttpResourceNames INSTANCE;
-
   private final AntPatternHttpPathNormalizer serverAntPatternHttpPathNormalizer;
   private final AntPatternHttpPathNormalizer clientAntPatternHttpPathNormalizer;
   private final boolean removeTrailingSlash;
@@ -63,15 +58,20 @@ public class HttpResourceNames {
   }
 
   private HttpResourceNames() {
-    serverAntPatternHttpPathNormalizer =
-        new AntPatternHttpPathNormalizer(Config.get().getHttpServerPathResourceNameMapping());
-    clientAntPatternHttpPathNormalizer =
-        new AntPatternHttpPathNormalizer(Config.get().getHttpClientPathResourceNameMapping());
+    serverAntPatternHttpPathNormalizer = new AntPatternHttpPathNormalizer(Config
+      .get()
+      .getHttpServerPathResourceNameMapping());
+    clientAntPatternHttpPathNormalizer = new AntPatternHttpPathNormalizer(Config
+      .get()
+      .getHttpClientPathResourceNameMapping());
     removeTrailingSlash = Config.get().getHttpResourceRemoveTrailingSlash();
   }
 
   public static AgentSpan setForServer(
-      AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+      AgentSpan span,
+      CharSequence method,
+      CharSequence path,
+      boolean encoded) {
     if (path == null) {
       return span;
     }
@@ -84,7 +84,9 @@ public class HttpResourceNames {
   }
 
   public static Pair<CharSequence, Byte> computeForServer(
-      CharSequence method, @Nonnull CharSequence path, boolean encoded) {
+      CharSequence method,
+      @Nonnull CharSequence path,
+      boolean encoded) {
     byte priority;
 
     String resourcePath =
@@ -100,7 +102,9 @@ public class HttpResourceNames {
   }
 
   public static Pair<CharSequence, Byte> computeForClient(
-      CharSequence method, @Nonnull CharSequence path, boolean encoded) {
+      CharSequence method,
+      @Nonnull CharSequence path,
+      boolean encoded) {
     byte priority;
 
     String resourcePath =
@@ -115,7 +119,10 @@ public class HttpResourceNames {
   }
 
   public static AgentSpan setForClient(
-      AgentSpan span, CharSequence method, CharSequence path, boolean encoded) {
+      AgentSpan span,
+      CharSequence method,
+      CharSequence path,
+      boolean encoded) {
     if (path == null) {
       return span;
     }

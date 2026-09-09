@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.context.Context;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,7 +37,6 @@ import io.netty.util.ReferenceCountUtil;
 import org.junit.jupiter.api.Test;
 
 class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
-
   @Test
   void finishesMirroredContextOnLastContentWhenRequestQueueIsAbsent() {
     EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
@@ -81,8 +79,7 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
     EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
     AgentSpan span = startSpan("netty", "header-only-server");
     ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
-    ServerRequestContext nextServerContext =
-        ServerRequestContext.add(channel, Context.root(), null);
+    ServerRequestContext nextServerContext = ServerRequestContext.add(channel, Context.root(), null);
     HttpResponse response = new DefaultHttpResponse(HTTP_1_1, NO_CONTENT);
 
     assertTrue(channel.writeOutbound(response));
@@ -107,8 +104,7 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
     EmbeddedChannel channel = new EmbeddedChannel(HttpServerResponseTracingHandler.INSTANCE);
     AgentSpan span = startSpan("netty", "raw-body-server");
     ServerRequestContext serverContext = ServerRequestContext.add(channel, span, null);
-    ServerRequestContext nextServerContext =
-        ServerRequestContext.add(channel, Context.root(), null);
+    ServerRequestContext nextServerContext = ServerRequestContext.add(channel, Context.root(), null);
     HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
     response.headers().set(CONTENT_LENGTH, 4);
 
@@ -158,10 +154,8 @@ class HttpServerResponseTracingHandlerTest extends AbstractInstrumentationTest {
     assertTrue(channel.writeOutbound(Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4})));
     ReferenceCountUtil.release(channel.readOutbound());
 
-    EncoderException exception =
-        assertThrows(
-            EncoderException.class,
-            () -> channel.writeOutbound(new DefaultFullHttpResponse(HTTP_1_1, OK)));
+    EncoderException exception = assertThrows(EncoderException.class, () -> channel.writeOutbound(
+        new DefaultFullHttpResponse(HTTP_1_1, OK)));
 
     assertTrue(exception.getCause() instanceof IllegalStateException);
 

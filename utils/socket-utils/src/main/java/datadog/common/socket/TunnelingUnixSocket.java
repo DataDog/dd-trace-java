@@ -27,7 +27,9 @@ final class TunnelingUnixSocket extends UnixSocket {
   }
 
   TunnelingUnixSocket(
-      final File path, final UnixSocketChannel channel, final InetSocketAddress address) {
+      final File path,
+      final UnixSocketChannel channel,
+      final InetSocketAddress address) {
     this(path, channel);
     inetSocketAddress = address;
   }

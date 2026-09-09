@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.config.provider.stableconfig;
 
 import static datadog.trace.bootstrap.config.provider.stableconfig.StableConfigMappingException.throwStableConfigMappingException;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;

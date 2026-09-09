@@ -21,14 +21,13 @@ public class OtelSpanEvent {
       AttributeKey.stringKey("exception.type");
   public static final AttributeKey<String> EXCEPTION_STACK_TRACE_ATTRIBUTE_KEY =
       AttributeKey.stringKey("exception.stacktrace");
-
   // TODO TimeSource instance is not retrieved from CoreTracer
   private static TimeSource timeSource = SystemTimeSource.INSTANCE;
-
   private final String name;
   private final String attributes;
-
-  /** Event timestamp in nanoseconds. */
+  /**
+   * Event timestamp in nanoseconds.
+   */
   private final long timestamp;
 
   public OtelSpanEvent(String name, Attributes attributes) {
@@ -69,7 +68,8 @@ public class OtelSpanEvent {
    * @return An {@link Attributes} collection with exception attributes.
    */
   static Attributes initializeExceptionAttributes(
-      Throwable exception, Attributes additionalAttributes) {
+      Throwable exception,
+      Attributes additionalAttributes) {
     // Create an AttributesBuilder with the additionalAttributes provided
     AttributesBuilder builder = additionalAttributes.toBuilder();
     // Handle exception message
@@ -99,7 +99,9 @@ public class OtelSpanEvent {
     return errorString.toString();
   }
 
-  /** Helper class for JSON-encoding {@link OtelSpanEvent} {@link #attributes}. */
+  /**
+   * Helper class for JSON-encoding {@link OtelSpanEvent} {@link #attributes}.
+   */
   public static class AttributesJsonParser {
     public static String toJson(Attributes attributes) {
       if (attributes == null || attributes.isEmpty()) {
@@ -150,19 +152,20 @@ public class OtelSpanEvent {
       } else if (value instanceof Number || value instanceof Boolean) {
         jsonBuilder.append(value);
       } else {
-        jsonBuilder.append("null"); // null for unsupported types
+        // null for unsupported types
+        jsonBuilder.append("null");
       }
     }
 
     private static String escapeJson(String value) {
       return value
-          .replace("\\", "\\\\")
-          .replace("\"", "\\\"")
-          .replace("\b", "\\b")
-          .replace("\f", "\\f")
-          .replace("\n", "\\n")
-          .replace("\r", "\\r")
-          .replace("\t", "\\t");
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\b", "\\b")
+        .replace("\f", "\\f")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t");
     }
   }
 

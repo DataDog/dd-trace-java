@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import org.openjdk.jmh.infra.Blackhole;
 
 public class BlackholeBuffer implements StreamingBuffer {
-
   private final Blackhole blackhole;
 
   public BlackholeBuffer(Blackhole blackhole) {

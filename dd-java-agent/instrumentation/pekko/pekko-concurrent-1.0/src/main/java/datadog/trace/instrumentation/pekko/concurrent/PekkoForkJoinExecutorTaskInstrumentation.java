@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -26,7 +25,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public final class PekkoForkJoinExecutorTaskInstrumentation
     extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public PekkoForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "pekko_concurrent");
   }

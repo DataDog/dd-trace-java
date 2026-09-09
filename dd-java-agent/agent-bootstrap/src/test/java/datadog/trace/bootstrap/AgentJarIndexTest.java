@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -20,9 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class AgentJarIndexTest {
-
   // --- computeEntryKey tests ---
-
   private static String computeEntryKey(String pathStr) {
     return AgentJarIndex.IndexGenerator.computeEntryKey(Paths.get(pathStr));
   }
@@ -81,8 +78,9 @@ class AgentJarIndexTest {
   }
 
   // --- buildIndex / writeIndex / readIndex round-trip ---
-
-  /** Creates a temp JAR containing only the index file written by the generator. */
+  /**
+   * Creates a temp JAR containing only the index file written by the generator.
+   */
   private static AgentJarIndex buildAndReadIndex(Path resourcesDir, Path tempDir) throws Exception {
     AgentJarIndex.IndexGenerator generator = new AgentJarIndex.IndexGenerator(resourcesDir);
     generator.buildIndex();
@@ -168,8 +166,7 @@ class AgentJarIndexTest {
   }
 
   @Test
-  void classEntryNameResolvesDeepNestedClassToCorrectPrefix(@TempDir Path tempDir)
-      throws Exception {
+  void classEntryNameResolvesDeepNestedClassToCorrectPrefix(@TempDir Path tempDir) throws Exception {
     Path resources = tempDir.resolve("resources");
     createFile(resources, "metrics/com/datadoghq/stats/StatsClient.classdata");
 
@@ -236,8 +233,7 @@ class AgentJarIndexTest {
   }
 
   @Test
-  void buildIndexIgnoresTopLevelFilesWhenCollectingPrefixes(@TempDir Path tempDir)
-      throws Exception {
+  void buildIndexIgnoresTopLevelFilesWhenCollectingPrefixes(@TempDir Path tempDir) throws Exception {
     Path resources = tempDir.resolve("resources");
     createFile(resources, "root-resource.properties");
     createFile(resources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
@@ -253,15 +249,15 @@ class AgentJarIndexTest {
     createFile(buildResources, "appsec/com/datadog/appsec/Event.classdata");
     createFile(buildResources, "ci-visibility/com/datadog/ci/Visibility.classdata");
     createFile(buildResources, "cws-tls/com/datadog/cws/Tls.classdata");
-    createFile(
-        buildResources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
+    createFile(buildResources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
 
     Path deployResources = tempDir.resolve("deploy-resources");
     createFile(deployResources, "cws-tls/com/datadog/cws/Tls.classdata");
     createFile(deployResources, "ci-visibility/com/datadog/ci/Visibility.classdata");
     createFile(deployResources, "appsec/com/datadog/appsec/Event.classdata");
     createFile(
-        deployResources, "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
+        deployResources,
+        "inst/datadog/trace/instrumentation/servlet/ServletAdvice.classdata");
 
     Path buildIndex = writeIndex(buildResources, tempDir.resolve("build-dd-java-agent.index"));
     Path deployIndex = writeIndex(deployResources, tempDir.resolve("deploy-dd-java-agent.index"));

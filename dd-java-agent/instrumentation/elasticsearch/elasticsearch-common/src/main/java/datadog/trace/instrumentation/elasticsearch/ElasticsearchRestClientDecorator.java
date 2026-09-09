@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.elasticsearch;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,16 +18,14 @@ import org.elasticsearch.client.Response;
 
 public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseClientDecorator {
   private static final int MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH = 25000;
-
   private static final String SERVICE_NAME =
       SpanNaming.instance().namingSchema().database().service("elasticsearch");
-
-  public static final CharSequence OPERATION_NAME =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().database().operation("elasticsearch.rest"));
-  public static final CharSequence ELASTICSEARCH_JAVA =
-      UTF8BytesString.create("elasticsearch-java");
-
+  public static final CharSequence OPERATION_NAME = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .database()
+    .operation("elasticsearch.rest"));
+  public static final CharSequence ELASTICSEARCH_JAVA = UTF8BytesString.create("elasticsearch-java");
   public static final ElasticsearchRestClientDecorator DECORATE =
       new ElasticsearchRestClientDecorator();
 
@@ -105,10 +102,10 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
           span.setTag(
               "elasticsearch.body",
               "<body size "
-                  + contentLength
-                  + " exceeds limit of "
-                  + MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH
-                  + ">");
+              + contentLength
+              + " exceeds limit of "
+              + MAX_ELASTICSEARCH_BODY_CONTENT_LENGTH
+              + ">");
         }
       }
     }
@@ -117,8 +114,10 @@ public class ElasticsearchRestClientDecorator extends DBTypeProcessingDatabaseCl
       if (parameters != null) {
         StringBuilder queryParametersStringBuilder = new StringBuilder();
         for (Map.Entry<String, String> parameter : parameters.entrySet()) {
-          queryParametersStringBuilder.append(
-              parameter.getKey() + "=" + parameter.getValue() + "&");
+          queryParametersStringBuilder.append(parameter.getKey()
+              + "="
+              + parameter.getValue()
+              + "&");
         }
         if (queryParametersStringBuilder.length() >= 1) {
           queryParametersStringBuilder.deleteCharAt(queryParametersStringBuilder.length() - 1);

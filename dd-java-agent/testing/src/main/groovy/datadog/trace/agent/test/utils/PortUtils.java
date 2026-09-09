@@ -9,14 +9,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PortUtils {
-
   public static int UNUSABLE_PORT = 61;
   private static final int PORT_CONNECT_TIMEOUT_MS = 1000;
-
   private static final int FREE_PORT_RANGE_START = 20000;
   private static final int FREE_PORT_RANGE_END = 40000;
   private static final int PORT_POOL_SIZE = 200;
-
   private static final ServerSocket baseSocket;
   private static final int basePort;
   private static final int lastPort;
@@ -47,7 +44,9 @@ public class PortUtils {
     }
   }
 
-  /** Open up a random, reusable port. */
+  /**
+   * Open up a random, reusable port.
+   */
   public static int randomOpenPort() {
     if (basePort > 0) {
       for (int i = 0; i < PORT_POOL_SIZE; i++) {
@@ -78,7 +77,9 @@ public class PortUtils {
     }
   }
 
-  /** Open up a random, server socket and keep it open. */
+  /**
+   * Open up a random, server socket and keep it open.
+   */
   public static ServerSocket randomOpenSocket() {
     return openSocket(0);
   }
@@ -100,10 +101,9 @@ public class PortUtils {
 
   private static boolean isPortOpen(String host, int port) {
     try (final Socket socket = new Socket()) {
-      InetSocketAddress address =
-          host == null
-              ? new InetSocketAddress(InetAddress.getLoopbackAddress(), port)
-              : new InetSocketAddress(host, port);
+      InetSocketAddress address = host == null
+          ? new InetSocketAddress(InetAddress.getLoopbackAddress(), port)
+          : new InetSocketAddress(host, port);
       socket.connect(address, PORT_CONNECT_TIMEOUT_MS);
       return true;
     } catch (final IOException e) {
@@ -112,7 +112,10 @@ public class PortUtils {
   }
 
   public static void waitForPortToOpen(
-      final int port, final long timeout, final TimeUnit unit, final Process process) {
+      final int port,
+      final long timeout,
+      final TimeUnit unit,
+      final Process process) {
     final long startedAt = System.currentTimeMillis();
     final long waitUntil = startedAt + unit.toMillis(timeout);
 
@@ -127,11 +130,7 @@ public class PortUtils {
         int exitCode = process.exitValue();
         if (exitCode != 0) {
           throw new RuntimeException(
-              "Process exited abnormally exitCode="
-                  + exitCode
-                  + " before port="
-                  + port
-                  + " was opened");
+              "Process exited abnormally exitCode=" + exitCode + " before port=" + port + " was opened");
         } else {
           throw new RuntimeException("Process finished before port=" + port + " was opened");
         }
@@ -144,11 +143,11 @@ public class PortUtils {
 
     throw new RuntimeException(
         "Timed out waiting for port "
-            + port
-            + " to be opened, started to wait at: "
-            + startedAt
-            + ", timed out at: "
-            + System.currentTimeMillis());
+        + port
+        + " to be opened, started to wait at: "
+        + startedAt
+        + ", timed out at: "
+        + System.currentTimeMillis());
   }
 
   public static void waitForPortToOpen(String host, int port, long timeout, TimeUnit unit) {
@@ -163,8 +162,7 @@ public class PortUtils {
     waitForPort(null, port, timeout, unit, false);
   }
 
-  private static void waitForPort(
-      String host, int port, long timeout, TimeUnit unit, boolean open) {
+  private static void waitForPort(String host, int port, long timeout, TimeUnit unit, boolean open) {
     long waitNanos = unit.toNanos(timeout);
     long start = System.nanoTime();
     String state = open ? "open" : "closed";
@@ -178,19 +176,11 @@ public class PortUtils {
         Thread.sleep(100);
       } catch (final InterruptedException e) {
         throw new RuntimeException(
-            "Interrupted while waiting for "
-                + (host != null ? host + ":" : "")
-                + port
-                + " to be "
-                + state);
+            "Interrupted while waiting for " + (host != null ? host + ":" : "") + port + " to be " + state);
       }
     }
 
     throw new RuntimeException(
-        "Timed out waiting for port "
-            + (host != null ? host + ":" : "")
-            + port
-            + " to be "
-            + state);
+        "Timed out waiting for port " + (host != null ? host + ":" : "") + port + " to be " + state);
   }
 }

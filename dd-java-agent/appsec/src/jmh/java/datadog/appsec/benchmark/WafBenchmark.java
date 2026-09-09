@@ -2,7 +2,6 @@ package datadog.appsec.benchmark;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import com.datadog.appsec.event.data.KnownAddresses;
 import com.datadog.ddwaf.Waf;
 import com.datadog.ddwaf.WafBuilder;
@@ -41,10 +40,9 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 3)
 public class WafBenchmark {
-  private static final JsonAdapter<Map<String, Object>> ADAPTER =
-      new Moshi.Builder()
-          .build()
-          .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
+  private static final JsonAdapter<Map<String, Object>> ADAPTER = new Moshi.Builder()
+    .build()
+    .adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
 
   static {
     BenchmarkUtil.disableLogging();
@@ -86,7 +84,8 @@ public class WafBenchmark {
     wafHandle = wafBuilder.buildWafHandleInstance();
     wafData.put(KnownAddresses.REQUEST_METHOD.getKey(), "POST");
     wafData.put(
-        KnownAddresses.REQUEST_URI_RAW.getKey(), "/foo/bar?foo=bar&foo=xpto&foo=%3cscript%3e");
+        KnownAddresses.REQUEST_URI_RAW.getKey(),
+        "/foo/bar?foo=bar&foo=xpto&foo=%3cscript%3e");
     Map<String, String> headers = new HashMap<>();
     headers.put("host", "localhost:8080");
     headers.put("connection", "keep-alive");
@@ -112,7 +111,10 @@ public class WafBenchmark {
     cookies.put(
         "color_mode",
         Collections.singletonList(
-            "=%7B%22color_mode%22%3A%22light%22%2C%22light_theme%22%3A%7B%22name%22%3A%22light%22%2C%22color_mode%22%3A%22light%22%7D%2C%22dark_theme%22%3A%7B%22name%22%3A%22dark%22%2C%22color_mode%22%3A%22dark%22%7D%7D"));
+            "=%7B%22color_mode%22%3A%22light%22%2C%22light_"
+            + "theme%22%3A%7B%22name%22%3A%22light%22%2C%22color_"
+            + "mode%22%3A%22light%22%7D%2C%22dark_"
+            + "theme%22%3A%7B%22name%22%3A%22dark%22%2C%22color_mode%22%3A%22dark%22%7D%7D"));
     cookies.put("tz", Collections.singletonList("Europe/Lisbon"));
     wafData.put(KnownAddresses.REQUEST_COOKIES.getKey(), cookies);
   }

@@ -31,9 +31,8 @@ public class LogCollector {
     this(DEFAULT_MAX_CAPACITY);
   }
 
-  @SuppressFBWarnings(
-      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-      justification = "Usage in tests")
+  @SuppressFBWarnings(value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR", justification = "Usage"
+      + " in tests")
   LogCollector(int maxCapacity) {
     this.maxCapacity = maxCapacity;
     this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);
@@ -53,7 +52,10 @@ public class LogCollector {
    *     tag1:value1,tag2:value2
    */
   public void addLogMessage(
-      String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
+      String logLevel,
+      String message,
+      @Nullable Throwable throwable,
+      @Nullable String tags) {
     if (rawLogMessages.size() >= maxCapacity) {
       // TODO: We could emit a metric for dropped logs.
       return;
@@ -95,11 +97,14 @@ public class LogCollector {
     public final String tags;
     public final long timestamp;
     public int count;
-
     private StackTraceElement[] cachedStackTrace = null;
 
     public RawLogMessage(
-        String logLevel, String message, Throwable throwable, String tags, long timestamp) {
+        String logLevel,
+        String message,
+        Throwable throwable,
+        String tags,
+        long timestamp) {
       this.logLevel = logLevel;
       this.message = message;
       this.throwable = throwable;
@@ -108,15 +113,18 @@ public class LogCollector {
     }
 
     public StackTraceElement[] stackTrace() {
-      if (throwable == null) return null;
-
+      if (throwable == null) {
+        return null;
+      }
       // DQH - getStackTrace makes a defensive copy, so getStackTrace can become a significant
       // source of allocation
       // In the worst case of a hot exception, we'll constantly call hashCode & equals to
       // check against the key stored in the map, so avoiding repeated allocation on each
       // comparison does provide a measurable gain
       StackTraceElement[] stackTrace = cachedStackTrace;
-      if (stackTrace != null) return stackTrace;
+      if (stackTrace != null) {
+        return stackTrace;
+      }
 
       cachedStackTrace = stackTrace = throwable.getStackTrace();
       return stackTrace;
@@ -124,17 +132,24 @@ public class LogCollector {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       RawLogMessage that = (RawLogMessage) o;
 
-      if (!Objects.equals(logLevel, that.logLevel)) return false;
-      if (!Objects.equals(message, that.message)) return false;
+      if (!Objects.equals(logLevel, that.logLevel)) {
+        return false;
+      }
+      if (!Objects.equals(message, that.message)) {
+        return false;
+      }
 
       if (throwable == that.throwable) {
         // DQH - While this path may seem unlikely, it does happen if the JVM fast
         // throws optimization kicks-in (for NPE, etc), so this case is worth optimizing.
-
         // This also covers the case where both throwables are null
         return true;
       } else if (throwable != null && that.throwable != null) {

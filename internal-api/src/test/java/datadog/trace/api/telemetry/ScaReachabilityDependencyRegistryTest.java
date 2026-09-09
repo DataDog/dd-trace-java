@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.Config;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class ScaReachabilityDependencyRegistryTest {
-
   @BeforeEach
   void setUp() {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
@@ -51,26 +49,26 @@ class ScaReachabilityDependencyRegistryTest {
 
     for (int i = 0; i < threadCount; i++) {
       final int idx = i;
-      pool.submit(
-          () -> {
-            try {
-              startLatch.await(); // wait until all threads are ready
-              ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-                  "com.example:lib",
-                  "1.0.0",
-                  "GHSA-test",
-                  "com.myapp.Controller" + idx,
-                  "method" + idx,
-                  idx);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            } finally {
-              doneLatch.countDown();
-            }
-          });
+      pool.submit(() -> {
+        try {
+          // wait until all threads are ready
+          startLatch.await();
+          ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+              "com.example:lib",
+              "1.0.0",
+              "GHSA-test",
+              "com.myapp.Controller" + idx,
+              "method" + idx,
+              idx);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        } finally {
+          doneLatch.countDown();
+        }
+      });
     }
-
-    startLatch.countDown(); // release all threads simultaneously
+    // release all threads simultaneously
+    startLatch.countDown();
     doneLatch.await(10, TimeUnit.SECONDS);
     pool.shutdown();
 
@@ -83,7 +81,6 @@ class ScaReachabilityDependencyRegistryTest {
 
     ScaReachabilityDependencyRegistry.CveSnapshot cve = dep.cves.get(0);
     assertNotNull(cve.hit, "exactly one hit must have been recorded");
-
     // Verify the recorded callsite is one of the N valid options
     String recordedClass = cve.hit.className();
     String recordedSymbol = cve.hit.symbolName();
@@ -96,7 +93,8 @@ class ScaReachabilityDependencyRegistryTest {
       }
     }
     assertTrue(
-        isValidCallsite, "recorded callsite must be one of the " + threadCount + " valid options");
+        isValidCallsite,
+        "recorded callsite must be one of the " + threadCount + " valid options");
   }
 
   @Test
@@ -118,7 +116,12 @@ class ScaReachabilityDependencyRegistryTest {
   @Test
   void recordHit_snapshotContainsFullHitMetadata() {
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Ctrl", "handle", 42);
+        "com.example:lib",
+        "2.0.0",
+        "GHSA-0001",
+        "com.myapp.Ctrl",
+        "handle",
+        42);
 
     List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
@@ -146,7 +149,12 @@ class ScaReachabilityDependencyRegistryTest {
 
     ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "2.0.0", "GHSA-0001");
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Ctrl", "handle", 42);
+        "com.example:lib",
+        "2.0.0",
+        "GHSA-0001",
+        "com.myapp.Ctrl",
+        "handle",
+        42);
 
     ScaReachabilityDependencyRegistry.DependencySnapshot peeked =
         ScaReachabilityDependencyRegistry.INSTANCE.peekSnapshot("com.example:lib", "2.0.0");
@@ -166,20 +174,22 @@ class ScaReachabilityDependencyRegistryTest {
   @Test
   void drainPendingDependencies_secondDrainEmpty_untilNewHit() {
     ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "2.0.0", "GHSA-0001");
-
     // First drain returns the pending dep
     List<ScaReachabilityDependencyRegistry.DependencySnapshot> first =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertEquals(1, first.size());
-
     // Second drain with no new state change returns empty
     List<ScaReachabilityDependencyRegistry.DependencySnapshot> second =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertTrue(second.isEmpty(), "no pending changes since last drain");
-
     // A new hit marks the dep pending again
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Ctrl", "handle", 42);
+        "com.example:lib",
+        "2.0.0",
+        "GHSA-0001",
+        "com.myapp.Ctrl",
+        "handle",
+        42);
     List<ScaReachabilityDependencyRegistry.DependencySnapshot> third =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertEquals(1, third.size(), "dep must be pending again after a hit");
@@ -189,11 +199,21 @@ class ScaReachabilityDependencyRegistryTest {
   @Test
   void recordHit_firstHitWinsAndDuplicateDoesNotMarkPendingAgain() {
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.First", "first", 1);
+        "com.example:lib",
+        "2.0.0",
+        "GHSA-0001",
+        "com.myapp.First",
+        "first",
+        1);
     ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
 
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Second", "second", 2);
+        "com.example:lib",
+        "2.0.0",
+        "GHSA-0001",
+        "com.myapp.Second",
+        "second",
+        2);
 
     assertTrue(
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies().isEmpty(),
@@ -209,32 +229,30 @@ class ScaReachabilityDependencyRegistryTest {
   @Test
   void registerCve_atCap_newKeysRejected() {
     int cap = Config.get().getAppSecScaMaxTrackedDependencies();
-
     // Fill registry to cap
     for (int i = 0; i < cap; i++) {
       ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art" + i, "1.0", "GHSA-" + i);
     }
-
     // One more unique key — must be rejected
     ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art-over-cap", "1.0", "GHSA-over");
 
     List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertEquals(cap, snapshots.size(), "registry must not exceed cap");
-    boolean found = snapshots.stream().anyMatch(s -> s.artifact.equals("art-over-cap"));
+    boolean found = snapshots
+      .stream()
+      .anyMatch(s -> s.artifact.equals("art-over-cap"));
     assertFalse(found, "over-cap dep must be rejected");
   }
 
   @Test
   void registerCve_atCap_existingKeyStillUpdated() {
     int cap = Config.get().getAppSecScaMaxTrackedDependencies();
-
     // Fill registry to cap
     for (int i = 0; i < cap; i++) {
       ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art" + i, "1.0", "GHSA-" + i);
     }
     ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
-
     // Adding a NEW CVE to an EXISTING key must still succeed (key already present, cap not
     // exceeded)
     ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art0", "1.0", "GHSA-second-cve");
@@ -255,13 +273,23 @@ class ScaReachabilityDependencyRegistryTest {
     ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
 
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        "art-over-cap", "1.0", "GHSA-over", "com.myapp.Ctrl", "handle", 42);
+        "art-over-cap",
+        "1.0",
+        "GHSA-over",
+        "com.myapp.Ctrl",
+        "handle",
+        42);
     assertTrue(
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies().isEmpty(),
         "over-cap hit for a new dependency must be rejected");
 
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
-        "art0", "1.0", "GHSA-0", "com.myapp.Ctrl", "handle", 42);
+        "art0",
+        "1.0",
+        "GHSA-0",
+        "com.myapp.Ctrl",
+        "handle",
+        42);
     List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertEquals(1, snapshots.size(), "existing dependency can still be updated at cap");

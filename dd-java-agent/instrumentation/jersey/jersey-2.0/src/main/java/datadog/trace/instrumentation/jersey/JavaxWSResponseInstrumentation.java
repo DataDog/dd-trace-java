@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.ex
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -20,8 +19,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public JavaxWSResponseInstrumentation() {
     super("jersey");
   }
@@ -55,7 +54,8 @@ public class JavaxWSResponseInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.RESPONSE_HEADER)
     public static void onExit(
-        @Advice.Argument(0) String headerName, @Advice.Argument(1) Object headerValue) {
+        @Advice.Argument(0) String headerName,
+        @Advice.Argument(1) Object headerValue) {
       if (null != headerValue) {
         String value = headerValue.toString();
         if (value.length() > 0) {

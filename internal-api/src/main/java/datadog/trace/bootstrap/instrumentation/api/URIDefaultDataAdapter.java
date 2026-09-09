@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.instrumentation.api;
 import java.net.URI;
 
 public class URIDefaultDataAdapter extends URIDataAdapterBase {
-
   private final URI uri;
 
   public URIDefaultDataAdapter(URI uri) {

@@ -23,8 +23,9 @@ import java.util.Map;
  * session/module.
  */
 public class CiVisibilityCoverageServices {
-
-  /** Services used in the parent process (build system). */
+  /**
+   * Services used in the parent process (build system).
+   */
   static class Parent {
     final ModuleSignalRouter moduleSignalRouter;
     final CoverageProcessor.Factory<?> coverageProcessorFactory;
@@ -34,26 +35,26 @@ public class CiVisibilityCoverageServices {
 
       ExecutionSettings executionSettings =
           repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
-      CoverageReportUploader coverageReportUploader =
-          executionSettings.isCodeCoverageReportUploadEnabled()
-              ? new CoverageReportUploader(
-                  services.ciIntake,
-                  repoServices.ciTags,
-                  services.config.getCodeCoverageFlags(),
-                  services.metricCollector)
-              : null;
+      CoverageReportUploader coverageReportUploader = executionSettings.isCodeCoverageReportUploadEnabled()
+          ? new CoverageReportUploader(
+              services.ciIntake,
+              repoServices.ciTags,
+              services.config.getCodeCoverageFlags(),
+              services.metricCollector)
+          : null;
 
-      coverageProcessorFactory =
-          new JacocoCoverageProcessor.Factory(
-              services.config,
-              repoServices.repoIndexProvider,
-              coverageReportUploader,
-              repoServices.repoRoot,
-              moduleSignalRouter);
+      coverageProcessorFactory = new JacocoCoverageProcessor.Factory(
+          services.config,
+          repoServices.repoIndexProvider,
+          coverageReportUploader,
+          repoServices.repoRoot,
+          moduleSignalRouter);
     }
   }
 
-  /** Services used in the children processes (JVMs forked to run tests). */
+  /**
+   * Services used in the children processes (JVMs forked to run tests).
+   */
   static class Child {
     final CoverageStore.Factory coverageStoreFactory;
     final ChildProcessCoverageReporter coverageReporter;
@@ -62,8 +63,8 @@ public class CiVisibilityCoverageServices {
         CiVisibilityServices services,
         CiVisibilityRepoServices repoServices,
         ExecutionSettings executionSettings) {
-      coverageReporter =
-          new JacocoChildProcessCoverageReporter(CoveragePercentageBridge::getJacocoCoverageData);
+      coverageReporter = new JacocoChildProcessCoverageReporter(
+          CoveragePercentageBridge::getJacocoCoverageData);
 
       coverageStoreFactory = buildCoverageStoreFactory(services, repoServices, executionSettings);
     }
@@ -72,18 +73,17 @@ public class CiVisibilityCoverageServices {
         CiVisibilityServices services,
         CiVisibilityRepoServices repoServices,
         ExecutionSettings executionSettings) {
-
       CoverageStore.Factory factory;
       if (!services.config.isCiVisibilityCodeCoverageEnabled()) {
         factory = new NoOpCoverageStore.Factory();
       } else if (services.config.isCiVisibilityCoverageLinesEnabled()) {
-        factory =
-            new LineCoverageStore.Factory(
-                services.metricCollector, repoServices.sourcePathResolver);
+        factory = new LineCoverageStore.Factory(
+            services.metricCollector,
+            repoServices.sourcePathResolver);
       } else {
-        factory =
-            new FileCoverageStore.Factory(
-                services.metricCollector, repoServices.sourcePathResolver);
+        factory = new FileCoverageStore.Factory(
+            services.metricCollector,
+            repoServices.sourcePathResolver);
       }
 
       if (executionSettings.isItrEnabled()) {

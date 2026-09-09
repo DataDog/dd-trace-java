@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiVisibilityGradleListenerInjector_8_10 {
-
   private static final Logger LOGGER =
       LoggerFactory.getLogger(CiVisibilityGradleListenerInjector_8_10.class);
 
@@ -21,33 +20,31 @@ public class CiVisibilityGradleListenerInjector_8_10 {
    */
   // TODO: once the tracer is bumped to use Gradle v8.10 replace reflection with regular invocations
   public static void injectCiVisibilityGradleListener(
-      DefaultServiceRegistry buildScopeServices, ServiceRegistry... parentServices) {
+      DefaultServiceRegistry buildScopeServices,
+      ServiceRegistry... parentServices) {
     try {
       ClassLoaderRegistry classLoaderRegistry = getClassLoaderRegistry(parentServices);
       ClassLoader coreApiClassLoader = classLoaderRegistry.getGradleCoreApiClassLoader();
       Class<?> serviceRegistrationActionClass =
           coreApiClassLoader.loadClass("org.gradle.internal.service.ServiceRegistrationAction");
 
-      Object serviceRegistrationAction =
-          Proxy.newProxyInstance(
-              coreApiClassLoader,
-              new Class<?>[] {serviceRegistrationActionClass},
-              (proxy, method, args) -> {
-                if (method.getName().equals("registerServices")) {
-                  ServiceRegistration serviceRegistration = (ServiceRegistration) args[0];
-                  Class<?> ciVisibilityGradleListener =
-                      CiVisibilityGradleListenerInjector_8_10.loadCiVisibilityGradleListener(
-                          classLoaderRegistry);
-                  serviceRegistration.add(ciVisibilityGradleListener);
-                  return null;
-                }
-                throw new UnsupportedOperationException("Method not implemented");
-              });
+      Object serviceRegistrationAction = Proxy.newProxyInstance(coreApiClassLoader, new Class<?>[] {
+          serviceRegistrationActionClass
+      }, (proxy, method, args) -> {
+        if (method.getName().equals("registerServices")) {
+          ServiceRegistration serviceRegistration = (ServiceRegistration) args[0];
+          Class<?> ciVisibilityGradleListener =
+              CiVisibilityGradleListenerInjector_8_10.loadCiVisibilityGradleListener(
+                  classLoaderRegistry);
+          serviceRegistration.add(ciVisibilityGradleListener);
+          return null;
+        }
+        throw new UnsupportedOperationException("Method not implemented");
+      });
 
       Method register =
           DefaultServiceRegistry.class.getMethod("register", serviceRegistrationActionClass);
       register.invoke(buildScopeServices, serviceRegistrationAction);
-
     } catch (Exception e) {
       LOGGER.warn("Could not inject CI Visibility Gradle listener", e);
     }
@@ -77,8 +74,8 @@ public class CiVisibilityGradleListenerInjector_8_10 {
   private static Class<?> loadCiVisibilityGradleListener(ClassLoaderRegistry classLoaderRegistry) {
     try {
       return classLoaderRegistry
-          .getPluginsClassLoader()
-          .loadClass("datadog.trace.instrumentation.gradle.CiVisibilityGradleListener");
+        .getPluginsClassLoader()
+        .loadClass("datadog.trace.instrumentation.gradle.CiVisibilityGradleListener");
     } catch (ClassNotFoundException e) {
       throw new RuntimeException("Could not load CI Visibility Gradle Listener", e);
     }

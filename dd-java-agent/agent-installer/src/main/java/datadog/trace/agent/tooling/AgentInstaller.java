@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.ExtensionFinder.findExtensions;
 import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
-
 import datadog.environment.SystemProperties;
 import datadog.instrument.fieldinject.GlobalObjectStore;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
@@ -52,10 +51,8 @@ import org.slf4j.LoggerFactory;
 public class AgentInstaller {
   private static final Logger log = LoggerFactory.getLogger(AgentInstaller.class);
   private static final boolean DEBUG = log.isDebugEnabled();
-
   private static final List<Runnable> LOG_MANAGER_CALLBACKS = new CopyOnWriteArrayList<>();
   private static final List<Runnable> MBEAN_SERVER_BUILDER_CALLBACKS = new CopyOnWriteArrayList<>();
-
   private static final long GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS = 1;
 
   static {
@@ -89,12 +86,13 @@ public class AgentInstaller {
       }
       int poolCleaningInterval = InstrumenterConfig.get().getResolverResetInterval();
       if (poolCleaningInterval > 0) {
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                SharedTypePools::clear,
-                poolCleaningInterval,
-                Math.max(poolCleaningInterval, 10),
-                TimeUnit.SECONDS);
+        AgentTaskScheduler
+          .get()
+          .scheduleAtFixedRate(
+              SharedTypePools::clear,
+              poolCleaningInterval,
+              Math.max(poolCleaningInterval, 10),
+              TimeUnit.SECONDS);
       }
     } else if (DEBUG) {
       log.debug("No target systems enabled, skipping instrumentation.");
@@ -125,20 +123,18 @@ public class AgentInstaller {
       UsmMessageFactoryImpl.registerAsSupplier();
       UsmExtractorImpl.registerAsSupplier();
     }
-
     // By default ByteBuddy will skip all methods that are synthetic or default finalizer
     // but we need to instrument some synthetic methods in Scala, so change the ignore matcher
-    ByteBuddy byteBuddy =
-        new ByteBuddy().ignore(new LatentMatcher.Resolved<>(isDefaultFinalizer()));
+    ByteBuddy byteBuddy = new ByteBuddy()
+      .ignore(new LatentMatcher.Resolved<>(isDefaultFinalizer()));
 
     boolean simpleMethodGraph = InstrumenterConfig.get().isResolverSimpleMethodGraph();
     if (simpleMethodGraph) {
       // faster compiler that just considers visibility of locally declared methods
-      byteBuddy =
-          byteBuddy
-              .with(MethodGraph.Compiler.ForDeclaredMethods.INSTANCE)
-              .with(VisibilityBridgeStrategy.Default.NEVER)
-              .with(InstrumentedType.Factory.Default.FROZEN);
+      byteBuddy = byteBuddy
+        .with(MethodGraph.Compiler.ForDeclaredMethods.INSTANCE)
+        .with(VisibilityBridgeStrategy.Default.NEVER)
+        .with(InstrumentedType.Factory.Default.FROZEN);
     }
 
     AgentBuilder agentBuilder = new AgentBuilder.Default(byteBuddy);
@@ -147,33 +143,29 @@ public class AgentInstaller {
       agentBuilder = agentBuilder.with(AgentBuilder.TypeStrategy.Default.DECORATE);
     }
 
-    agentBuilder =
-        agentBuilder
-            .disableClassFormatChanges()
-            .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
-            .with(AgentStrategies.transformerDecorator())
-            .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-            .with(AgentStrategies.rediscoveryStrategy())
-            .with(redefinitionStrategyListener(enabledSystems))
-            .with(AgentStrategies.locationStrategy())
-            .with(AgentStrategies.poolStrategy())
-            .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
-            .with(AgentStrategies.bufferStrategy())
-            .with(AgentStrategies.typeStrategy())
-            .with(new ClassLoadListener())
-            // FIXME: we cannot enable it yet due to BB/JVM bug, see
-            // https://github.com/raphw/byte-buddy/issues/558
-            // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
-            .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
+    agentBuilder = agentBuilder
+      .disableClassFormatChanges()
+      .assureReadEdgeTo(inst, FieldBackedContextAccessor.class)
+      .with(AgentStrategies.transformerDecorator())
+      .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+      .with(AgentStrategies.rediscoveryStrategy())
+      .with(redefinitionStrategyListener(enabledSystems))
+      .with(AgentStrategies.locationStrategy())
+      .with(AgentStrategies.poolStrategy())
+      .with(AgentBuilder.DescriptionStrategy.Default.POOL_ONLY)
+      .with(AgentStrategies.bufferStrategy())
+      .with(AgentStrategies.typeStrategy())
+      .with(new ClassLoadListener())
+      // .with(AgentBuilder.LambdaInstrumentationStrategy.ENABLED)
+      .ignore(globalIgnoresMatcher(skipAdditionalLibraryMatcher));
 
     if (DEBUG) {
-      agentBuilder =
-          agentBuilder
-              .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
-              .with(AgentStrategies.rediscoveryStrategy())
-              .with(redefinitionStrategyListener(enabledSystems))
-              .with(new RedefinitionLoggingListener())
-              .with(new TransformLoggingListener());
+      agentBuilder = agentBuilder
+        .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+        .with(AgentStrategies.rediscoveryStrategy())
+        .with(redefinitionStrategyListener(enabledSystems))
+        .with(new RedefinitionLoggingListener())
+        .with(new TransformLoggingListener());
     }
 
     for (final AgentBuilder.Listener listener : listeners) {
@@ -181,16 +173,13 @@ public class AgentInstaller {
     }
 
     InstrumenterIndex instrumenterIndex = InstrumenterIndex.readIndex();
-
     // pre-size state before registering instrumentations to reduce number of allocations
     InstrumenterState.initialize(instrumenterIndex.instrumentationCount());
-
     // combine known modules indexed at build-time with extensions contributed at run-time
     Iterable<InstrumenterModule> instrumenterModules =
         withExtensions(instrumenterIndex.modules(enabledSystems));
 
     final boolean javaModuleSupported = JavaModule.isSupported();
-
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
@@ -245,22 +234,22 @@ public class AgentInstaller {
     }
 
     if (InstrumenterConfig.get().isTelemetryEnabled()) {
-      InstrumenterState.setObserver(
-          new InstrumenterState.Observer() {
-            @Override
-            public void applied(Iterable<String> instrumentationNames) {
-              IntegrationsCollector.get().update(instrumentationNames, true);
-            }
-          });
+      InstrumenterState.setObserver(new InstrumenterState.Observer() {
+        @Override
+        public void applied(Iterable<String> instrumentationNames) {
+          IntegrationsCollector.get().update(instrumentationNames, true);
+        }
+      });
     }
 
     if (!InstrumenterConfig.get().isRuntimeContextMapPerStore()) {
-      AgentTaskScheduler.get()
-          .scheduleAtFixedRate(
-              GlobalObjectStore::removeStaleEntries,
-              GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
-              GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
-              TimeUnit.SECONDS);
+      AgentTaskScheduler
+        .get()
+        .scheduleAtFixedRate(
+            GlobalObjectStore::removeStaleEntries,
+            GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
+            GLOBAL_OBJECT_STORE_CLEAN_FREQUENCY_SECONDS,
+            TimeUnit.SECONDS);
     }
 
     InstrumenterState.resetDefaultState();
@@ -271,7 +260,9 @@ public class AgentInstaller {
     }
   }
 
-  /** Returns an iterable that combines the original sequence with any discovered extensions. */
+  /**
+   * Returns an iterable that combines the original sequence with any discovered extensions.
+   */
   private static Iterable<InstrumenterModule> withExtensions(Iterable<InstrumenterModule> initial) {
     String extensionsPath = InstrumenterConfig.get().getTraceExtensionsPath();
     if (null != extensionsPath) {
@@ -289,9 +280,12 @@ public class AgentInstaller {
     return initial;
   }
 
-  /** Returns an iterator that combines the original sequence with any discovered extensions. */
+  /**
+   * Returns an iterator that combines the original sequence with any discovered extensions.
+   */
   private static Iterator<InstrumenterModule> withExtensions(
-      final Iterator<InstrumenterModule> initial, final Iterable<InstrumenterModule> extensions) {
+      final Iterator<InstrumenterModule> initial,
+      final Iterable<InstrumenterModule> extensions) {
     return new Iterator<InstrumenterModule>() {
       private Iterator<InstrumenterModule> delegate = initial;
 
@@ -354,7 +348,8 @@ public class AgentInstaller {
   }
 
   private static boolean rawTypesEnabled() {
-    return TypeDescription.AbstractBase.RAW_TYPES; // must avoid touching this before the override
+    // must avoid touching this before the override
+    return TypeDescription.AbstractBase.RAW_TYPES;
   }
 
   private static void disableByteBuddyNexus() {
@@ -363,10 +358,13 @@ public class AgentInstaller {
   }
 
   private static boolean nexusDisabled() {
-    return !NexusAccessor.isAlive(); // must avoid touching this before the override
+    // must avoid touching this before the override
+    return !NexusAccessor.isAlive();
   }
 
-  /** Temporarily overrides a system property while checking it's had the intended side effect. */
+  /**
+   * Temporarily overrides a system property while checking it's had the intended side effect.
+   */
   private static void temporaryOverride(String key, String value, BooleanSupplier sideEffect) {
     final String savedPropertyValue = SystemProperties.get(key);
     final boolean overridden = SystemProperties.set(key, value);
@@ -392,7 +390,6 @@ public class AgentInstaller {
   }
 
   static class RedefinitionLoggingListener implements AgentBuilder.RedefinitionStrategy.Listener {
-
     private static final Logger log = LoggerFactory.getLogger(RedefinitionLoggingListener.class);
 
     @Override
@@ -418,7 +415,6 @@ public class AgentInstaller {
   }
 
   static class TransformLoggingListener implements AgentBuilder.Listener {
-
     private static final Logger log = LoggerFactory.getLogger(TransformLoggingListener.class);
 
     @Override
@@ -558,5 +554,6 @@ public class AgentInstaller {
     }
   }
 
-  private AgentInstaller() {}
+  private AgentInstaller() {
+  }
 }

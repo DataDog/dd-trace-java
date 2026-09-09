@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.api.Config;
@@ -20,7 +19,6 @@ import net.bytebuddy.asm.Advice;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 class RoutingContextFilenamesAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   static int before() {
     return CallDepthThreadLocalMap.incrementCallDepth(FileUpload.class);
@@ -70,9 +68,11 @@ class RoutingContextFilenamesAdvice {
     }
 
     if (filenamesCb != null && filenames != null) {
-      throwable =
-          FileUploadHelper.commitBlockingResponse(
-              filenamesCb, reqCtx, filenames, "Blocked request (multipart file upload)");
+      throwable = FileUploadHelper.commitBlockingResponse(
+          filenamesCb,
+          reqCtx,
+          filenames,
+          "Blocked request (multipart file upload)");
     }
 
     if (throwable != null) {
@@ -80,9 +80,11 @@ class RoutingContextFilenamesAdvice {
     }
 
     if (contentCb != null && filesContent != null) {
-      throwable =
-          FileUploadHelper.commitBlockingResponse(
-              contentCb, reqCtx, filesContent, "Blocked request (file content)");
+      throwable = FileUploadHelper.commitBlockingResponse(
+          contentCb,
+          reqCtx,
+          filesContent,
+          "Blocked request (file content)");
     }
   }
 }

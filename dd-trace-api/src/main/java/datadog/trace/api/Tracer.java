@@ -3,10 +3,13 @@ package datadog.trace.api;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.context.TraceScope;
 
-/** A class with Datadog tracer features. */
+/**
+ * A class with Datadog tracer features.
+ */
 public interface Tracer {
-
-  /** Get the trace id of the active trace. Returns 0 if there is no active trace. */
+  /**
+   * Get the trace id of the active trace. Returns 0 if there is no active trace.
+   */
   String getTraceId();
 
   /**

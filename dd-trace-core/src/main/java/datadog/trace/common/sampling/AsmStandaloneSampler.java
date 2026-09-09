@@ -2,7 +2,6 @@ package datadog.trace.common.sampling;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
-
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.core.CoreSpan;
 import java.time.Clock;
@@ -18,10 +17,9 @@ import org.slf4j.LoggerFactory;
  * go through, even in the absence of ASM events.
  */
 public class AsmStandaloneSampler implements Sampler, PrioritySampler {
-
   private static final Logger log = LoggerFactory.getLogger(AsmStandaloneSampler.class);
-  private static final int RATE_IN_MILLISECONDS = 60000; // 1 minute
-
+  // 1 minute
+  private static final int RATE_IN_MILLISECONDS = 60000;
   private final AtomicLong lastSampleTime;
   private final Clock clock;
 
@@ -39,7 +37,6 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(final T span) {
-
     if (shouldSample()) {
       log.debug("Set SAMPLER_KEEP for span {}", span.getSpanId());
       span.setSamplingPriority(SAMPLER_KEEP, SamplingMechanism.APPSEC);
@@ -51,8 +48,8 @@ public class AsmStandaloneSampler implements Sampler, PrioritySampler {
 
   private boolean shouldSample() {
     long now = clock.millis();
-    return lastSampleTime.updateAndGet(
-            lastTime -> now - lastTime >= RATE_IN_MILLISECONDS ? now : lastTime)
-        == now;
+    return lastSampleTime.updateAndGet(lastTime -> now - lastTime >= RATE_IN_MILLISECONDS
+        ? now
+        : lastTime) == now;
   }
 }

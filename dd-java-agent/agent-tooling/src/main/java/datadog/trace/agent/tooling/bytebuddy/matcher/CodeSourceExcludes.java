@@ -14,10 +14,10 @@ import java.util.List;
  * <p>Matches any code source location that contains one of the configured strings.
  */
 public class CodeSourceExcludes {
-  private CodeSourceExcludes() {}
+  private CodeSourceExcludes() {
+  }
 
   static final List<String> excludes = InstrumenterConfig.get().getExcludedCodeSources();
-
   private static final DDCache<String, Boolean> excludedCodeSources;
 
   static {
@@ -35,16 +35,14 @@ public class CodeSourceExcludes {
         // avoid hashing on the URL because that can be a blocking operation
         URL location = codeSource.getLocation();
         return null != location
-            && excludedCodeSources.computeIfAbsent(
-                location.getPath(),
-                path -> {
-                  for (String name : excludes) {
-                    if (path.contains(name)) {
-                      return true;
-                    }
-                  }
-                  return false;
-                });
+            && excludedCodeSources.computeIfAbsent(location.getPath(), path -> {
+              for (String name : excludes) {
+                if (path.contains(name)) {
+                  return true;
+                }
+              }
+              return false;
+            });
       }
     }
     return false;

@@ -1,5 +1,4 @@
 // This file includes software developed at SignalFx
-
 package spring.jpa;
 
 import java.util.List;

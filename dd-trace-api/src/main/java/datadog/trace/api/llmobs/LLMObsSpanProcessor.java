@@ -2,10 +2,11 @@ package datadog.trace.api.llmobs;
 
 import javax.annotation.Nullable;
 
-/** Processes LLM Observability spans before they are sent. */
+/**
+ * Processes LLM Observability spans before they are sent.
+ */
 @FunctionalInterface
 public interface LLMObsSpanProcessor {
-
   /**
    * Processes an LLM Observability span.
    *

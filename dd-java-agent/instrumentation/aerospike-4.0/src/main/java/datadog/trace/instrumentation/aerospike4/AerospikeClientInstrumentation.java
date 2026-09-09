@@ -8,14 +8,14 @@ import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAM
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
 public final class AerospikeClientInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.aerospike.client.AerospikeClient";
@@ -24,14 +24,12 @@ public final class AerospikeClientInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(takesArgument(0, nameStartsWith("com.aerospike.client.policy"))),
+        isMethod().and(isPublic()).and(
+            takesArgument(0, nameStartsWith("com.aerospike.client.policy"))),
         getClass().getName() + "$TraceSyncRequestAdvice");
     transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
-            .and(takesArgument(1, nameStartsWith("com.aerospike.client.listener"))),
+        isMethod().and(isPublic()).and(
+            takesArgument(1, nameStartsWith("com.aerospike.client.listener"))),
         getClass().getName() + "$TraceAsyncRequestAdvice");
   }
 
@@ -44,7 +42,8 @@ public final class AerospikeClientInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exitRequest(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable error) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable error) {
       DECORATE.finishAerospikeSpan(scope.span(), error);
       scope.close();
     }
@@ -64,7 +63,8 @@ public final class AerospikeClientInstrumentation
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exitRequest(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable error) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable error) {
       if (error != null) {
         DECORATE.finishAerospikeSpan(scope.span(), error);
       } else {

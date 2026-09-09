@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class Receiver {
-
   private final boolean forwardMessage;
   private final String senderQueueName;
   private final RabbitTemplate template;

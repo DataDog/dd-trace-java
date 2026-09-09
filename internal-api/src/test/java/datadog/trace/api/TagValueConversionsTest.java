@@ -3,7 +3,6 @@ package datadog.trace.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -89,22 +88,21 @@ public class TagValueConversionsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      longs = {
-        Long.MIN_VALUE,
-        Integer.MIN_VALUE,
-        -1_048_576L,
-        -256L,
-        -128L,
-        -1L,
-        0L,
-        1L,
-        128L,
-        256L,
-        1_048_576L,
-        Integer.MAX_VALUE,
-        Long.MAX_VALUE
-      })
+  @ValueSource(longs = {
+      Long.MIN_VALUE,
+      Integer.MIN_VALUE,
+      -1_048_576L,
+      -256L,
+      -128L,
+      -1L,
+      0L,
+      1L,
+      128L,
+      256L,
+      1_048_576L,
+      Integer.MAX_VALUE,
+      Long.MAX_VALUE
+  })
   public void longConversions(long value) {
     Long box = Long.valueOf(value);
 
@@ -144,8 +142,16 @@ public class TagValueConversionsTest {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      doubles = {Double.MIN_VALUE, Float.MIN_VALUE, -1D, 0D, 1D, Math.E, Math.PI, Double.MAX_VALUE})
+  @ValueSource(doubles = {
+      Double.MIN_VALUE,
+      Float.MIN_VALUE,
+      -1D,
+      0D,
+      1D,
+      Math.E,
+      Math.PI,
+      Double.MAX_VALUE
+  })
   public void doubleConversions(double value) {
     Double box = Double.valueOf(value);
 

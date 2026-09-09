@@ -35,7 +35,8 @@ public class PromiseHelper {
       return ret.asType(MethodType.methodType(CompletionStage.class, cls));
     } catch (Throwable t) {
       LOGGER.debug(
-          "Redisson instrumentation blocked. Cannot getPromise method for class {} is not compatible with CompletionStage",
+          "Redisson instrumentation blocked. Cannot getPromise method for class {} is not "
+          + "compatible with CompletionStage",
           cls,
           t);
     }
@@ -54,5 +55,6 @@ public class PromiseHelper {
     return null;
   }
 
-  private PromiseHelper() {}
+  private PromiseHelper() {
+  }
 }

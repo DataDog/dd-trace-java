@@ -9,7 +9,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -19,7 +18,6 @@ class IOLoggerTest {
   private final IOLogger.Response response =
       new IOLogger.Response(404, "Not Found", "The thing you were looking for does not exist");
   private final RuntimeException exception = new RuntimeException("Something went wrong!");
-
   private Logger log;
   private RatelimitedLogger rateLimitedLogger;
   private IOLogger ioLogger;
@@ -66,13 +64,13 @@ class IOLoggerTest {
     this.ioLogger.error("test message", this.response);
 
     verify(this.log)
-        .debug(
-            eq(EXCLUDE_TELEMETRY),
-            anyString(),
-            eq("test message"),
-            eq(404),
-            eq("Not Found"),
-            eq("The thing you were looking for does not exist"));
+      .debug(
+          eq(EXCLUDE_TELEMETRY),
+          anyString(),
+          eq("test message"),
+          eq(404),
+          eq("Not Found"),
+          eq("The thing you were looking for does not exist"));
   }
 
   @Test
@@ -100,7 +98,7 @@ class IOLoggerTest {
     this.ioLogger.error("test message", this.response);
 
     verify(this.rateLimitedLogger)
-        .warn(eq(EXCLUDE_TELEMETRY), anyString(), eq("test message"), eq(404), eq("Not Found"));
+      .warn(eq(EXCLUDE_TELEMETRY), anyString(), eq("test message"), eq(404), eq("Not Found"));
   }
 
   @Test
@@ -110,12 +108,12 @@ class IOLoggerTest {
     this.ioLogger.error("test message", this.exception);
 
     verify(this.rateLimitedLogger)
-        .warn(
-            eq(EXCLUDE_TELEMETRY),
-            anyString(),
-            eq("test message"),
-            eq("java.lang.RuntimeException"),
-            eq("Something went wrong!"));
+      .warn(
+          eq(EXCLUDE_TELEMETRY),
+          anyString(),
+          eq("test message"),
+          eq("java.lang.RuntimeException"),
+          eq("Something went wrong!"));
   }
 
   @Test
@@ -131,7 +129,7 @@ class IOLoggerTest {
     verify(this.rateLimitedLogger).warn("test message");
     verify(this.log).info(eq(EXCLUDE_TELEMETRY), eq("very successful"), (Object[]) any());
     verify(this.log, never())
-        .info(eq(EXCLUDE_TELEMETRY), eq("very successful again"), (Object[]) any());
+      .info(eq(EXCLUDE_TELEMETRY), eq("very successful again"), (Object[]) any());
   }
 
   @Test

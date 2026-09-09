@@ -18,7 +18,6 @@ import static io.opentelemetry.api.trace.SpanKind.PRODUCER;
 import static io.opentelemetry.api.trace.SpanKind.SERVER;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.opentelemetry.shim.trace.OtelConventions;
 import datadog.trace.agent.test.assertions.TagsMatcher;
 import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
@@ -88,25 +87,29 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
         // FAAS spans
         arguments(
             CLIENT,
-            attributes(
-                "faas.invoked_provider", "alibaba_cloud", "faas.invoked_name", "my-function"),
+            attributes("faas.invoked_provider", "alibaba_cloud", "faas.invoked_name", "my-function"),
             "alibaba_cloud.my-function.invoke"),
         arguments(SERVER, attributes("faas.trigger", "datasource"), "datasource.invoke"),
         // GraphQL spans
-        arguments(
-            INTERNAL, attributes("graphql.operation.type", "query"), "graphql.server.request"),
+        arguments(INTERNAL, attributes("graphql.operation.type", "query"), "graphql.server.request"),
         arguments(null, attributes("graphql.operation.type", "query"), "graphql.server.request"),
         // User override
         arguments(
-            CLIENT, attributes("db.system", "mysql", "operation.name", "db.query"), "db.query"),
+            CLIENT,
+            attributes("db.system", "mysql", "operation.name", "db.query"),
+            "db.query"),
         arguments(
-            CLIENT, attributes("db.system", "mysql", "operation.name", "DB.query"), "db.query"));
+            CLIENT,
+            attributes("db.system", "mysql", "operation.name", "DB.query"),
+            "db.query"));
   }
 
   @ParameterizedTest(name = "[{index}] {0} {1} -> {2}")
   @MethodSource("testSpanNameConventionsArguments")
   void testSpanNameConventions(
-      SpanKind kind, Map<String, String> attributes, String expectedOperationName) {
+      SpanKind kind,
+      Map<String, String> attributes,
+      String expectedOperationName) {
     SpanBuilder builder = this.otelTracer.spanBuilder("some-name");
     if (kind != null) {
       builder.setSpanKind(kind);
@@ -118,20 +121,18 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     List<TagsMatcher> tagMatchers = new ArrayList<>();
     tagMatchers.add(defaultTags());
     tagMatchers.add(tag(SPAN_KIND, is(expectedSpanKindTag)));
-    attributes.forEach(
-        (key, value) -> {
-          if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
-            tagMatchers.add(tag(key, is(value)));
-          }
-        });
+    attributes.forEach((key, value) -> {
+      if (!OPERATION_NAME_SPECIFIC_ATTRIBUTE.equals(key)) {
+        tagMatchers.add(tag(key, is(value)));
+      }
+    });
 
     assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName(expectedOperationName)
-                .resourceName("some-name")
-                .tags(tagMatchers.toArray(new TagsMatcher[0]))));
+        trace(span()
+          .root()
+          .operationName(expectedOperationName)
+          .resourceName("some-name")
+          .tags(tagMatchers.toArray(new TagsMatcher[0]))));
   }
 
   static Stream<Arguments> testSpanSpecificTagsArguments() {
@@ -150,48 +151,47 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     if (setInBuilder) {
       if (useAttributeKey) {
         builder
-            .setAttribute(stringKey("operation.name"), "my-operation")
-            .setAttribute(stringKey("service.name"), "my-service")
-            .setAttribute(stringKey("resource.name"), "/my-resource")
-            .setAttribute(stringKey("span.type"), "http");
+          .setAttribute(stringKey("operation.name"), "my-operation")
+          .setAttribute(stringKey("service.name"), "my-service")
+          .setAttribute(stringKey("resource.name"), "/my-resource")
+          .setAttribute(stringKey("span.type"), "http");
       } else {
         builder
-            .setAttribute("operation.name", "my-operation")
-            .setAttribute("service.name", "my-service")
-            .setAttribute("resource.name", "/my-resource")
-            .setAttribute("span.type", "http");
+          .setAttribute("operation.name", "my-operation")
+          .setAttribute("service.name", "my-service")
+          .setAttribute("resource.name", "/my-resource")
+          .setAttribute("span.type", "http");
       }
     }
     Span result = builder.startSpan();
     if (!setInBuilder) {
       if (useAttributeKey) {
         result
-            .setAttribute(stringKey("operation.name"), "my-operation")
-            .setAttribute(stringKey("service.name"), "my-service")
-            .setAttribute(stringKey("resource.name"), "/my-resource")
-            .setAttribute(stringKey("span.type"), "http");
+          .setAttribute(stringKey("operation.name"), "my-operation")
+          .setAttribute(stringKey("service.name"), "my-service")
+          .setAttribute(stringKey("resource.name"), "/my-resource")
+          .setAttribute(stringKey("span.type"), "http");
       } else {
         result
-            .setAttribute("operation.name", "my-operation")
-            .setAttribute("service.name", "my-service")
-            .setAttribute("resource.name", "/my-resource")
-            .setAttribute("span.type", "http");
+          .setAttribute("operation.name", "my-operation")
+          .setAttribute("service.name", "my-service")
+          .setAttribute("resource.name", "/my-resource")
+          .setAttribute("span.type", "http");
       }
     }
     result.end();
 
     assertTraces(
-        trace(
-            span()
-                .root()
-                .operationName("my-operation")
-                .resourceName("/my-resource")
-                .serviceName("my-service")
-                .type("http")
-                .tags(
-                    defaultTags(),
-                    tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
-                    tag(DD_SVC_SRC, isManuallySet()))));
+        trace(span()
+          .root()
+          .operationName("my-operation")
+          .resourceName("/my-resource")
+          .serviceName("my-service")
+          .type("http")
+          .tags(
+              defaultTags(),
+              tag(SPAN_KIND, is(SPAN_KIND_INTERNAL)),
+              tag(DD_SVC_SRC, isManuallySet()))));
   }
 
   static Stream<Arguments> testSpanAnalyticsEventSpecificTagArguments() {
@@ -249,8 +249,10 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
       tagMatchers.add(tag(ANALYTICS_SAMPLE_RATE, is(expectedMetric)));
     }
     assertTraces(
-        trace(
-            span().root().operationName("internal").tags(tagMatchers.toArray(new TagsMatcher[0]))));
+        trace(span()
+          .root()
+          .operationName("internal")
+          .tags(tagMatchers.toArray(new TagsMatcher[0]))));
   }
 
   static Stream<Arguments> testSpanHttpResponseStatusCodeSpecificTagArguments() {
@@ -276,7 +278,10 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
   @ParameterizedTest(name = "[{index}] setInBuilder={0} attributeKey={1} value={2}")
   @MethodSource("testSpanHttpResponseStatusCodeSpecificTagArguments")
   void testSpanHttpResponseStatusCodeSpecificTag(
-      boolean setInBuilder, boolean attributeKey, Object value, int expectedStatus) {
+      boolean setInBuilder,
+      boolean attributeKey,
+      Object value,
+      int expectedStatus) {
     SpanBuilder builder = this.otelTracer.spanBuilder("some-name");
 
     if (setInBuilder) {
@@ -308,8 +313,10 @@ public class OpenTelemetry14ConventionsTest extends AbstractOpenTelemetry14Test 
     }
 
     assertTraces(
-        trace(
-            span().root().operationName("internal").tags(tagMatchers.toArray(new TagsMatcher[0]))));
+        trace(span()
+          .root()
+          .operationName("internal")
+          .tags(tagMatchers.toArray(new TagsMatcher[0]))));
   }
 
   static Map<String, String> attributes(String... keyValues) {

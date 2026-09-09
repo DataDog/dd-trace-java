@@ -7,7 +7,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.trace.util.AgentThreadFactory.AgentThread;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.ref.WeakReference;
@@ -20,16 +19,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Not a singleton")
+@SuppressFBWarnings(value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR", justification = "Not a "
+    + "singleton")
 public class AgentTaskScheduler implements Executor {
   private static final Logger log = LoggerFactory.getLogger(AgentTaskScheduler.class);
-
   // not final for testing purposes
   private static AgentTaskScheduler INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
-
-  private static final long SHUTDOWN_TIMEOUT = 5; // seconds
+  // seconds
+  private static final long SHUTDOWN_TIMEOUT = 5;
 
   public static AgentTaskScheduler get() {
     return INSTANCE;
@@ -102,14 +99,19 @@ public class AgentTaskScheduler implements Executor {
   }
 
   public <T> Scheduled<T> schedule(
-      final Task<T> task, final T target, final long initialDelay, final TimeUnit unit) {
+      final Task<T> task,
+      final T target,
+      final long initialDelay,
+      final TimeUnit unit) {
     final Scheduled<T> scheduled = new Scheduled<>(target);
     scheduleTarget(task, scheduled, initialDelay, 0, unit);
     return scheduled;
   }
 
   public Scheduled<Runnable> schedule(
-      final Runnable target, final long initialDelay, final TimeUnit unit) {
+      final Runnable target,
+      final long initialDelay,
+      final TimeUnit unit) {
     return schedule(RunnableTask.INSTANCE, target, initialDelay, unit);
   }
 
@@ -118,26 +120,26 @@ public class AgentTaskScheduler implements Executor {
    * applications starting at the same time and scheduling the same publishing task in sync
    */
   public <T> Scheduled<T> scheduleWithJitter(
-      final Task<T> task, final T target, final long initialDelay, final TimeUnit unit) {
-
+      final Task<T> task,
+      final T target,
+      final long initialDelay,
+      final TimeUnit unit) {
     // schedule to start after geometrically distributed number of seconds expressed in
     // milliseconds, with p = 0.25, meaning the probability that the aggregator will not
     // have started by the nth second is 0.25(0.75)^n-1 (or a 1% chance of not having
     // started within 10 seconds, where a cap is applied)
-    long randomMillis =
-        unit.toMillis(initialDelay)
-            + Math.min(
-                (long)
-                    (1000D
-                        * Math.log(ThreadLocalRandom.current().nextDouble())
-                        / Math.log(1 - 0.25)),
-                10_000);
+    long randomMillis = unit.toMillis(initialDelay)
+        + Math.min(
+            (long) (1000D * Math.log(ThreadLocalRandom.current().nextDouble()) / Math.log(1 - 0.25)),
+            10_000);
 
     return schedule(task, target, randomMillis, MILLISECONDS);
   }
 
   public Scheduled<Runnable> scheduleWithJitter(
-      final Runnable target, final long initialDelay, final TimeUnit unit) {
+      final Runnable target,
+      final long initialDelay,
+      final TimeUnit unit) {
     return scheduleWithJitter(RunnableTask.INSTANCE, target, initialDelay, unit);
   }
 
@@ -153,7 +155,10 @@ public class AgentTaskScheduler implements Executor {
   }
 
   public Scheduled<Runnable> scheduleAtFixedRate(
-      final Runnable target, final long initialDelay, final long period, final TimeUnit unit) {
+      final Runnable target,
+      final long initialDelay,
+      final long period,
+      final TimeUnit unit) {
     return scheduleAtFixedRate(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
@@ -167,25 +172,35 @@ public class AgentTaskScheduler implements Executor {
   }
 
   public void weakScheduleAtFixedRate(
-      final Runnable target, final long initialDelay, final long period, final TimeUnit unit) {
+      final Runnable target,
+      final long initialDelay,
+      final long period,
+      final TimeUnit unit) {
     weakScheduleAtFixedRate(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
   public <T> Scheduled<T> scheduleWithFixedDelay(
-      Task<T> task, T target, long initialDelay, long period, TimeUnit unit) {
+      Task<T> task,
+      T target,
+      long initialDelay,
+      long period,
+      TimeUnit unit) {
     final Scheduled<T> scheduled = new Scheduled<>(target);
     scheduleTarget(task, scheduled, initialDelay, -period, unit);
     return scheduled;
   }
 
   public Scheduled<Runnable> scheduleWithFixedDelay(
-      Runnable target, long initialDelay, long period, TimeUnit unit) {
+      Runnable target,
+      long initialDelay,
+      long period,
+      TimeUnit unit) {
     return scheduleWithFixedDelay(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
   @SuppressFBWarnings({
-    "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
-    "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
+      "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
+      "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
   })
   private <T> void scheduleTarget(
       final Task<T> task,
@@ -193,7 +208,6 @@ public class AgentTaskScheduler implements Executor {
       final long initialDelay,
       final long period,
       final TimeUnit unit) {
-
     if (target == null || target.get() == null) {
       return;
     }
@@ -208,7 +222,8 @@ public class AgentTaskScheduler implements Executor {
             Runtime.getRuntime().addShutdownHook(new ShutdownHook());
             worker.start();
           } catch (final IllegalStateException e) {
-            shutdown = true; // couldn't add hook, JVM is shutting down
+            // couldn't add hook, JVM is shutting down
+            shutdown = true;
           }
         }
       }
@@ -311,17 +326,14 @@ public class AgentTaskScheduler implements Executor {
   }
 
   private static final AtomicInteger TASK_SEQUENCE_GENERATOR = new AtomicInteger();
-
   private static final PeriodicTask<Object> FUTURE_NOOP_PLACEHOLDER =
       new PeriodicTask<>(null, new Scheduled<>(null), 10, 0, MINUTES);
 
   private static final class PeriodicTask<T> implements Delayed {
-
     private final Task<T> task;
     private final Target<T> target;
     private final long period;
     private final int taskSequence;
-
     private long nextFireTime;
 
     public PeriodicTask(
@@ -330,7 +342,6 @@ public class AgentTaskScheduler implements Executor {
         final long initialDelay,
         final long period,
         final TimeUnit unit) {
-
       this.task = task;
       this.target = target;
       this.period = unit.toNanos(period);

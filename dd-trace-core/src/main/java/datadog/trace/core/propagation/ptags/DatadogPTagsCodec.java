@@ -11,7 +11,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.IntPredicate;
 import org.slf4j.LoggerFactory;
 
-/** Captures configuration required for PropagationTags logic */
+/**
+ * Captures configuration required for PropagationTags logic
+ */
 final class DatadogPTagsCodec extends PTagsCodec {
   private static final RatelimitedLogger log =
       new RatelimitedLogger(LoggerFactory.getLogger(DatadogPTagsCodec.class), 5, TimeUnit.MINUTES);
@@ -21,7 +23,6 @@ final class DatadogPTagsCodec extends PTagsCodec {
   private static final char TAG_KEY_SEPARATOR = '=';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-
   private final int xDatadogTagsLimit;
 
   DatadogPTagsCodec(int xDatadogTagsLimit) {
@@ -65,17 +66,21 @@ final class DatadogPTagsCodec extends PTagsCodec {
     int traceSource = 0;
     TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < len) {
-      int tagKeyEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagPos, TAG_KEY_SEPARATOR, DatadogPTagsCodec::isAllowedKeyChar);
+      int tagKeyEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagPos,
+          TAG_KEY_SEPARATOR,
+          DatadogPTagsCodec::isAllowedKeyChar);
       if (tagKeyEndsAt < 0 || tagKeyEndsAt == len) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagPos);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
       }
       int tagValuePos = tagKeyEndsAt + 1;
-      int tagValueEndsAt =
-          validateCharsUntilSeparatorOrEnd(
-              value, tagValuePos, TAGS_SEPARATOR, DatadogPTagsCodec::isAllowedValueChar);
+      int tagValueEndsAt = validateCharsUntilSeparatorOrEnd(
+          value,
+          tagValuePos,
+          TAGS_SEPARATOR,
+          DatadogPTagsCodec::isAllowedValueChar);
       if (tagValueEndsAt < 0) {
         log.warn("Invalid datadog tags header value: '{}' at {}", value, tagKeyEndsAt);
         return tagsFactory.createInvalid(PROPAGATION_ERROR_DECODING_ERROR);
@@ -162,7 +167,10 @@ final class DatadogPTagsCodec extends PTagsCodec {
   }
 
   private static int validateCharsUntilSeparatorOrEnd(
-      String s, int start, char separator, IntPredicate isValid) {
+      String s,
+      int start,
+      char separator,
+      IntPredicate isValid) {
     int end = s.length();
     if (start >= end) {
       return -1;
@@ -177,7 +185,8 @@ final class DatadogPTagsCodec extends PTagsCodec {
       if (pos < end) {
         c = s.charAt(pos);
         if (c == separator) {
-          break; // trailing separator allowed; caller resumes parsing from here
+          // trailing separator allowed; caller resumes parsing from here
+          break;
         }
       }
     } while (pos < end);

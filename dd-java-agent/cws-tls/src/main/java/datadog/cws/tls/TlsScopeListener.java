@@ -8,9 +8,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 public class TlsScopeListener implements ExtendedScopeListener {
-
   private final ThreadLocal<Deque<Span>> spanStack = ThreadLocal.withInitial(ArrayDeque::new);
-
   private Tls tls;
 
   public TlsScopeListener() {

@@ -1,7 +1,6 @@
 package com.datadog.iast.overhead;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
 import datadog.trace.api.Config;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -20,7 +19,6 @@ import org.openjdk.jmh.annotations.Warmup;
 @BenchmarkMode(Mode.Throughput)
 @State(Scope.Benchmark)
 public class OverheadControllerBenchmark {
-
   private OverheadController overheadController;
 
   @Setup(Level.Trial)

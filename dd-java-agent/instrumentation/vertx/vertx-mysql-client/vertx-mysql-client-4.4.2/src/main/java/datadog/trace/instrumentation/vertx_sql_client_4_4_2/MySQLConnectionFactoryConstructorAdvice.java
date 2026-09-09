@@ -19,14 +19,13 @@ public class MySQLConnectionFactoryConstructorAdvice {
     if (databases instanceof SingletonSupplier) {
       SqlConnectOptions options = (SqlConnectOptions) ((SingletonSupplier) databases).unwrap();
       DBInfo.Builder builder = DBInfo.DEFAULT.toBuilder();
-      DBInfo info =
-          builder
-              .host(options.getHost())
-              .port(options.getPort())
-              .db(options.getDatabase())
-              .user(options.getUser())
-              .type("mysql")
-              .build();
+      DBInfo info = builder
+        .host(options.getHost())
+        .port(options.getPort())
+        .db(options.getDatabase())
+        .user(options.getUser())
+        .type("mysql")
+        .build();
       InstrumentationContext.get(MySQLConnectionFactory.class, DBInfo.class).put(factory, info);
     }
   }

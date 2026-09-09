@@ -22,10 +22,10 @@ import org.slf4j.LoggerFactory;
 
 public class StableConfigParser {
   private static final Logger log = LoggerFactory.getLogger(StableConfigParser.class);
-
   private static final String ENVIRONMENT_VARIABLES_PREFIX = "environment_variables['";
   private static final String PROCESS_ARGUMENTS_PREFIX = "process_arguments['";
-  static final int MAX_FILE_SIZE_BYTES = 256 * 1024; // 256 KB in bytes;
+  // 256 KB in bytes;
+  static final int MAX_FILE_SIZE_BYTES = 256 * 1024;
   private static final String UNDEFINED_VALUE = "";
 
   /**
@@ -45,7 +45,6 @@ public class StableConfigParser {
   public static StableConfigSource.StableConfig parse(String filePath) throws IOException {
     try {
       Path path = Paths.get(filePath);
-
       // If file is over size limit, drop
       if (Files.size(path) > MAX_FILE_SIZE_BYTES) {
         log.warn(
@@ -82,7 +81,6 @@ public class StableConfigParser {
       if (!configMap.isEmpty()) {
         return new StableConfigSource.StableConfig(configId, configMap);
       }
-
       // If there's a configId but no configMap, use configId but return an empty map
       if (configId != null) {
         return new StableConfigSource.StableConfig(configId, Collections.emptyMap());
@@ -100,11 +98,16 @@ public class StableConfigParser {
   private static boolean doesRuleMatch(Rule rule) {
     for (Selector selector : rule.getSelectors()) {
       if (!selectorMatch(
-          selector.getOrigin(), selector.getMatches(), selector.getOperator(), selector.getKey())) {
-        return false; // Return false immediately if any selector doesn't match
+          selector.getOrigin(),
+          selector.getMatches(),
+          selector.getOperator(),
+          selector.getKey())) {
+        // Return false immediately if any selector doesn't match
+        return false;
       }
     }
-    return true; // Return true if all selectors match
+    // Return true if all selectors match
+    return true;
   }
 
   private static boolean matchOperator(String value, String operator, List<String> matches) {
@@ -175,7 +178,8 @@ public class StableConfigParser {
         // TODO: flesh out the meaning of each operator for process_arguments
         if (!key.startsWith("-D")) {
           log.warn(
-              "Ignoring unsupported process_arguments entry in selector match, '{}'. Only system properties specified with the '-D' prefix are supported.",
+              "Ignoring unsupported process_arguments entry in selector match, '{}'. Only system "
+              + "properties specified with the '-D' prefix are supported.",
               key);
           return false;
         }
@@ -197,27 +201,21 @@ public class StableConfigParser {
     }
 
     StringBuilder result = new StringBuilder(content.length());
-
     // Add everything before the opening braces
     result.append(content, 0, openIndex);
 
     while (true) {
-
       // Find the closing braces
       int closeIndex = content.indexOf("}}", openIndex);
       if (closeIndex == -1) {
         throw new IOException("Unterminated template in config");
       }
-
       // Extract the template variable
       String templateVar = content.substring(openIndex + 2, closeIndex).trim();
-
       // Process the template variable and get its value
       String value = processTemplateVar(templateVar);
-
       // Add the processed value
       result.append(value);
-
       // Continue with the next template variable
       openIndex = content.indexOf("{{", closeIndex);
       if (openIndex == -1) {
@@ -237,8 +235,8 @@ public class StableConfigParser {
     if (templateVar.startsWith(ENVIRONMENT_VARIABLES_PREFIX) && templateVar.endsWith("']")) {
       String envVar =
           templateVar
-              .substring(ENVIRONMENT_VARIABLES_PREFIX.length(), templateVar.length() - 2)
-              .trim();
+        .substring(ENVIRONMENT_VARIABLES_PREFIX.length(), templateVar.length() - 2)
+        .trim();
       if (envVar.isEmpty()) {
         throw new IOException("Empty environment variable name in template");
       }
@@ -249,13 +247,16 @@ public class StableConfigParser {
       return value;
     } else if (templateVar.startsWith(PROCESS_ARGUMENTS_PREFIX) && templateVar.endsWith("']")) {
       String processArg =
-          templateVar.substring(PROCESS_ARGUMENTS_PREFIX.length(), templateVar.length() - 2).trim();
+          templateVar
+        .substring(PROCESS_ARGUMENTS_PREFIX.length(), templateVar.length() - 2)
+        .trim();
       if (processArg.isEmpty()) {
         throw new IOException("Empty process argument in template");
       }
       if (!processArg.startsWith("-D")) {
         log.warn(
-            "Ignoring unsupported process_arguments entry in template variable, '{}'. Only system properties specified with the '-D' prefix are supported.",
+            "Ignoring unsupported process_arguments entry in template variable, '{}'. Only "
+            + "system properties specified with the '-D' prefix are supported.",
             processArg);
         return UNDEFINED_VALUE;
       }

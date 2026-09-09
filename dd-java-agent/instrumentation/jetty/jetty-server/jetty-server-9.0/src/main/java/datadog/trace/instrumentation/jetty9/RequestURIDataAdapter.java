@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.URIRawDataAdapter;
 import org.eclipse.jetty.server.Request;
 
 public final class RequestURIDataAdapter extends URIRawDataAdapter {
-
   private final Request request;
 
   public RequestURIDataAdapter(Request request) {

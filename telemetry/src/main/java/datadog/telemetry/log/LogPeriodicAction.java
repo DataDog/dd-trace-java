@@ -7,7 +7,6 @@ import datadog.telemetry.api.LogMessageLevel;
 import datadog.trace.api.telemetry.LogCollector;
 
 public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAction {
-
   /**
    * The current list of packages passed in is small, but if it kept growing and this did become a
    * performance issue then we could consider using ClassNameTrie instead (ie. use the builder to
@@ -15,29 +14,26 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
    * as a filter)
    */
   static final String[] PACKAGE_ALLOW_LIST = {
-    "datadog.",
-    "com.datadog.",
-    "java.",
-    "javax.",
-    "jakarta.",
-    "jdk.",
-    "sun.",
-    "com.sun.",
-    "com.datadog.ddwaf."
+      "datadog.",
+      "com.datadog.",
+      "java.",
+      "javax.",
+      "jakarta.",
+      "jdk.",
+      "sun.",
+      "com.sun.",
+      "com.datadog.ddwaf."
   };
-
   private static final String UNKNOWN = "<unknown>";
 
   @Override
   public void doIteration(TelemetryService service) {
     for (LogCollector.RawLogMessage rawLogMsg : LogCollector.get().drain()) {
-
-      LogMessage logMessage =
-          new LogMessage()
-              .message(rawLogMsg.message)
-              .tracerTime(rawLogMsg.timestamp)
-              .tags(rawLogMsg.tags)
-              .count(rawLogMsg.count);
+      LogMessage logMessage = new LogMessage()
+        .message(rawLogMsg.message)
+        .tracerTime(rawLogMsg.timestamp)
+        .tags(rawLogMsg.tags)
+        .count(rawLogMsg.count);
 
       if (rawLogMsg.logLevel != null) {
         logMessage.level(LogMessageLevel.fromString(rawLogMsg.logLevel));
@@ -103,7 +99,8 @@ public class LogPeriodicAction implements TelemetryRunnable.TelemetryPeriodicAct
   }
 
   private static int countCommonFrames(
-      StackTraceElement[] previousStackTrace, StackTraceElement[] currentStackTrace) {
+      StackTraceElement[] previousStackTrace,
+      StackTraceElement[] currentStackTrace) {
     int previousIndex = previousStackTrace.length - 1;
     int currentIndex = currentStackTrace.length - 1;
     int count = 0;

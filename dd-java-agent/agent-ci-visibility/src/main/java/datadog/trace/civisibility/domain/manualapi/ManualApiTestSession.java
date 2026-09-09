@@ -18,7 +18,6 @@ import javax.annotation.Nullable;
  * datadog.trace.api.civisibility.CIVisibility})
  */
 public class ManualApiTestSession extends AbstractTestSession implements DDTestSession {
-
   private final CoverageStore.Factory coverageStoreFactory;
 
   public ManualApiTestSession(

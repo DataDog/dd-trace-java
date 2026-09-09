@@ -1,6 +1,8 @@
 package datadog.trace.agent.tooling.muzzle;
 
-/** A reference that checks an alternative spec if the first doesn't match. */
+/**
+ * A reference that checks an alternative spec if the first doesn't match.
+ */
 public class OrReference extends Reference {
   public final Reference[] ors;
 

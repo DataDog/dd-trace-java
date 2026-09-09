@@ -12,12 +12,13 @@ import java.util.function.Function;
  * would have been imported if the original code had needed them.
  */
 public final class ModuleLinkageHelper {
-
-  /** Delegates the resource request to any modules linked as dependencies. */
+  /**
+   * Delegates the resource request to any modules linked as dependencies.
+   */
   public static URL getResource(final Module module, final String resourceName) {
     return searchDirectDependencies(
-        module,
         // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
+        module,
         new Function<Module, URL>() {
           @Override
           public URL apply(Module input) {
@@ -27,11 +28,13 @@ public final class ModuleLinkageHelper {
         new HashSet<>());
   }
 
-  /** Delegates the class-load request to any modules linked as dependencies. */
+  /**
+   * Delegates the class-load request to any modules linked as dependencies.
+   */
   public static Class<?> loadClass(final Module module, final String className) {
     return searchDirectDependencies(
-        module,
         // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
+        module,
         new Function<Module, Class<?>>() {
           @Override
           public Class<?> apply(Module input) {
@@ -41,9 +44,13 @@ public final class ModuleLinkageHelper {
         new HashSet<>());
   }
 
-  /** Searches a module's direct (module) dependencies. */
+  /**
+   * Searches a module's direct (module) dependencies.
+   */
   private static <T> T searchDirectDependencies(
-      final Module origin, final Function<Module, T> filter, final Set<ModuleIdentifier> visited) {
+      final Module origin,
+      final Function<Module, T> filter,
+      final Set<ModuleIdentifier> visited) {
     // track which modules we've visited to avoid dependency cycles
     visited.add(origin.getIdentifier());
     for (DependencySpec dependency : origin.getDependencies()) {

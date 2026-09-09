@@ -7,7 +7,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableAsync
 public class AsyncTaskConfig {
-
   @Bean
   AsyncTask asyncTask() {
     return new AsyncTask();

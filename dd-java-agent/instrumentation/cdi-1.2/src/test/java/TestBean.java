@@ -1,5 +1,4 @@
 public class TestBean {
-
   private String someField;
 
   public String getSomeField() {

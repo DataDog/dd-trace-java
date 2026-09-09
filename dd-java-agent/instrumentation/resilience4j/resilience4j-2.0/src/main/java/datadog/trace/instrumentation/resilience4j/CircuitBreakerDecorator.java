@@ -22,8 +22,7 @@ public final class CircuitBreakerDecorator extends Resilience4jSpanDecorator<Cir
       span.setTag(TAG_METRICS_PREFIX + "failure_rate", ms.getFailureRate());
       span.setTag(TAG_METRICS_PREFIX + "slow_call_rate", ms.getSlowCallRate());
       span.setTag(TAG_METRICS_PREFIX + "slow_calls", ms.getNumberOfSlowCalls());
-      span.setTag(
-          TAG_METRICS_PREFIX + "slow_successful_calls", ms.getNumberOfSlowSuccessfulCalls());
+      span.setTag(TAG_METRICS_PREFIX + "slow_successful_calls", ms.getNumberOfSlowSuccessfulCalls());
       span.setTag(TAG_METRICS_PREFIX + "slow_failed_calls", ms.getNumberOfSlowFailedCalls());
       span.setTag(TAG_METRICS_PREFIX + "buffered_calls", ms.getNumberOfBufferedCalls());
       span.setTag(TAG_METRICS_PREFIX + "failed_calls", ms.getNumberOfFailedCalls());

@@ -9,7 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,8 +23,8 @@ import net.spy.memcached.internal.OperationFuture;
 
 @AutoService(InstrumenterModule.class)
 public final class MemcachedClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private static final String MEMCACHED_PACKAGE = "net.spy.memcached";
 
   public MemcachedClientInstrumentation() {
@@ -40,12 +39,12 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MemcacheClientDecorator",
-      packageName + ".CompletionListener",
-      packageName + ".SyncCompletionListener",
-      packageName + ".GetCompletionListener",
-      packageName + ".OperationCompletionListener",
-      packageName + ".BulkGetCompletionListener"
+        packageName + ".MemcacheClientDecorator",
+        packageName + ".CompletionListener",
+        packageName + ".SyncCompletionListener",
+        packageName + ".GetCompletionListener",
+        packageName + ".OperationCompletionListener",
+        packageName + ".BulkGetCompletionListener"
     };
   }
 
@@ -53,13 +52,13 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(returns(named(MEMCACHED_PACKAGE + ".internal.OperationFuture")))
-            /*
+          .and(isPublic())
+          .and(returns(named(MEMCACHED_PACKAGE + ".internal.OperationFuture")))
+          /*
             Flush seems to have a bug when listeners may not be always called.
             Also tracing flush is probably of a very limited value.
             */
-            .and(not(named("flush"))),
+          .and(not(named("flush"))),
         MemcachedClientInstrumentation.class.getName() + "$AsyncOperationAdvice");
     transformer.applyAdvice(
         isMethod().and(isPublic()).and(returns(named(MEMCACHED_PACKAGE + ".internal.GetFuture"))),
@@ -73,7 +72,6 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   }
 
   public static class AsyncOperationAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter() {
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
@@ -103,7 +101,6 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   }
 
   public static class AsyncGetAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter() {
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
@@ -124,8 +121,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       CallDepthThreadLocalMap.reset(MemcachedClient.class);
       try (final AgentScope toClose = scope) {
         if (future != null) {
-          final GetCompletionListener listener =
-              new GetCompletionListener(scope.span(), methodName);
+          final GetCompletionListener listener = new GetCompletionListener(scope.span(), methodName);
           future.addListener(listener);
         }
       }
@@ -133,7 +129,6 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   }
 
   public static class AsyncBulkAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope methodEnter() {
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
@@ -163,7 +158,6 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
   }
 
   public static class SyncOperationAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static SyncCompletionListener methodEnter(@Advice.Origin("#m") final String methodName) {
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {

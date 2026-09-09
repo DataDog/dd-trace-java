@@ -18,7 +18,8 @@ public class SyncCompletionListener extends CompletionListener<Void> {
 
   @Override
   protected void processResult(final AgentSpan span, final Void future)
-      throws ExecutionException, InterruptedException {
+      throws ExecutionException,
+      InterruptedException {
     log.error("processResult was called on SyncCompletionListener. This should never happen. ");
   }
 

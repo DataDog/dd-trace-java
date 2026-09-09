@@ -21,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JettyOnCommitBlockingHelper {
-
   private static final Logger log = LoggerFactory.getLogger(JettyOnCommitBlockingHelper.class);
   private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
 
@@ -61,7 +60,6 @@ public class JettyOnCommitBlockingHelper {
         if (!commit(channel, info)) {
           return false;
         }
-
         // we need to update the upper layers too
         // so that the correct status code/headers get reported correctly on the span`
         reset(channel);
@@ -93,18 +91,17 @@ public class JettyOnCommitBlockingHelper {
   static {
     MethodHandle mh = null;
     try {
-      Class<?> mutableCls =
-          Class.forName(
-              "org.eclipse.jetty.http.HttpFields$Mutable",
-              false,
-              JettyOnCommitBlockingHelper.class.getClassLoader());
+      Class<?> mutableCls = Class.forName(
+          "org.eclipse.jetty.http.HttpFields$Mutable",
+          false,
+          JettyOnCommitBlockingHelper.class.getClassLoader());
       Method put = mutableCls.getDeclaredMethod("put", String.class, String.class);
       put.setAccessible(true);
       mh = MethodHandles.lookup().unreflect(put);
     } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException e) {
       log.warn(
           "Could not find method HttpFields$Mutable.put(String,String). "
-              + "Blocking on responses will be unavailable");
+          + "Blocking on responses will be unavailable");
     }
     PUT_HEADER = mh;
   }
@@ -144,7 +141,6 @@ public class JettyOnCommitBlockingHelper {
 
   public static final class CloseCallback implements Callback {
     private static final Logger log = LoggerFactory.getLogger(CloseCallback.class);
-
     private final Callback delegate;
     private final HttpChannel channel;
 

@@ -3,7 +3,6 @@ package com.datadog.debugger.el.expressions;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedList;
 import static com.datadog.debugger.el.expressions.CollectionExpressionHelper.checkSupportedMap;
 import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
-
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
@@ -14,7 +13,6 @@ import com.datadog.debugger.el.values.MapValue;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 
 public class IndexExpression implements ValueExpression<Value<?>> {
-
   private final ValueExpression<?> target;
   private final ValueExpression<?> key;
 
@@ -28,11 +26,13 @@ public class IndexExpression implements ValueExpression<Value<?>> {
     Value<?> targetValue = target.evaluate(evalContext);
     if (targetValue.isUndefined()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for undefined value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for undefined value",
+          PrettyPrintVisitor.print(this));
     }
     if (targetValue.isNull()) {
       throw new EvaluationException(
-          "Cannot evaluate the expression for null value", PrettyPrintVisitor.print(this));
+          "Cannot evaluate the expression for null value",
+          PrettyPrintVisitor.print(this));
     }
     Value<?> result = Value.undefinedValue();
     Value<?> keyValue = key.evaluate(evalContext);
@@ -55,8 +55,9 @@ public class IndexExpression implements ValueExpression<Value<?>> {
         result = listValue.get(keyValue.getValue());
       } else {
         throw new EvaluationException(
-            "Cannot evaluate the expression for unsupported type: "
-                + targetValue.getClass().getTypeName(),
+            "Cannot evaluate the expression for unsupported type: " + targetValue
+              .getClass()
+              .getTypeName(),
             PrettyPrintVisitor.print(this));
       }
     } catch (IllegalArgumentException | UnsupportedOperationException ex) {

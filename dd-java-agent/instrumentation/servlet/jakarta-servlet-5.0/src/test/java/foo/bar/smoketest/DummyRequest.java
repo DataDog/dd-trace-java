@@ -24,7 +24,6 @@ import java.util.Locale;
 import java.util.Map;
 
 public class DummyRequest implements HttpServletRequest {
-
   private ServletContext context = new DummyContext();
 
   @Override
@@ -159,7 +158,8 @@ public class DummyRequest implements HttpServletRequest {
 
   @Override
   public boolean authenticate(HttpServletResponse httpServletResponse)
-      throws IOException, ServletException {
+      throws IOException,
+      ServletException {
     return false;
   }
 
@@ -181,7 +181,8 @@ public class DummyRequest implements HttpServletRequest {
 
   @Override
   public <T extends HttpUpgradeHandler> T upgrade(Class<T> aClass)
-      throws IOException, ServletException {
+      throws IOException,
+      ServletException {
     return null;
   }
 

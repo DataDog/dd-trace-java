@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static java.lang.Thread.currentThread;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -27,7 +26,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 class TraceGenerator {
-
   static List<List<CoreSpan>> generateRandomTraces(int howMany, boolean lowCardinality) {
     List<List<CoreSpan>> traces = new ArrayList<>(howMany);
     for (int i = 0; i < howMany; ++i) {
@@ -130,7 +128,6 @@ class TraceGenerator {
   }
 
   static class PojoSpan implements CoreSpan<PojoSpan> {
-
     private final CharSequence serviceName;
     private final CharSequence operationName;
     private final CharSequence resourceName;
@@ -169,20 +166,19 @@ class TraceGenerator {
       this.error = error;
       this.type = type;
       this.measured = measured;
-      this.metadata =
-          new Metadata(
-              currentThread().getId(),
-              UTF8BytesString.create(currentThread().getName()),
-              fromMap(tags),
-              baggage,
-              UNSET,
-              measured,
-              isTopLevel(),
-              null,
-              null,
-              0,
-              getTagsForSerialization(),
-              emptyList());
+      this.metadata = new Metadata(
+          currentThread().getId(),
+          UTF8BytesString.create(currentThread().getName()),
+          fromMap(tags),
+          baggage,
+          UNSET,
+          measured,
+          isTopLevel(),
+          null,
+          null,
+          0,
+          getTagsForSerialization(),
+          emptyList());
     }
 
     @Override
@@ -359,7 +355,10 @@ class TraceGenerator {
 
     @Override
     public PojoSpan setSamplingPriority(
-        int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+        int samplingPriority,
+        CharSequence rate,
+        double sampleRate,
+        int samplingMechanism) {
       return this;
     }
 

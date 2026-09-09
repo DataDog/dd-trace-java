@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.profiling.RecordingInputStream;
 import io.airlift.compress.zstd.ZstdInputStream;
 import io.airlift.compress.zstd.ZstdOutputStream;
@@ -48,18 +47,18 @@ class CompressingRequestBodyTest {
   @ParameterizedTest
   @EnumSource(CompressionType.class)
   void contentLength(CompressionType compressionType) throws Exception {
-    CompressingRequestBody instance =
-        new CompressingRequestBody(
-            compressionType, mock(CompressingRequestBody.InputStreamSupplier.class));
+    CompressingRequestBody instance = new CompressingRequestBody(
+        compressionType,
+        mock(CompressingRequestBody.InputStreamSupplier.class));
     assertEquals(-1, instance.contentLength());
   }
 
   @ParameterizedTest
   @EnumSource(CompressionType.class)
   void contentType(CompressionType compressionType) {
-    CompressingRequestBody instance =
-        new CompressingRequestBody(
-            compressionType, mock(CompressingRequestBody.InputStreamSupplier.class));
+    CompressingRequestBody instance = new CompressingRequestBody(
+        compressionType,
+        mock(CompressingRequestBody.InputStreamSupplier.class));
     assertEquals(CompressingRequestBody.OCTET_STREAM, instance.contentType());
   }
 
@@ -76,12 +75,14 @@ class CompressingRequestBodyTest {
 
     assertWriteToRetryIrrecoverable(faultySupplier(expectedRetries + 1), expectedRetries);
     assertWriteToRetryIrrecoverable(
-        faultyStreamSupplier(expectedRetries), 0); // faulty stream is not retried
+        faultyStreamSupplier(expectedRetries),
+        // faulty stream is not retried
+        0);
   }
 
   private void assertWriteToRecoverable(
-      CompressingRequestBody.InputStreamSupplier faultySupplier, int expectedRetries)
-      throws Exception {
+      CompressingRequestBody.InputStreamSupplier faultySupplier,
+      int expectedRetries) throws Exception {
     CompressingRequestBody instance =
         new CompressingRequestBody(CompressionType.OFF, faultySupplier, r -> r <= expectedRetries);
     byte[] compressed = instanceWriteAsBytes(instance);
@@ -93,8 +94,8 @@ class CompressingRequestBodyTest {
   }
 
   private void assertWriteToRetryIrrecoverable(
-      CompressingRequestBody.InputStreamSupplier faultySupplier, int expectedRetries)
-      throws Exception {
+      CompressingRequestBody.InputStreamSupplier faultySupplier,
+      int expectedRetries) throws Exception {
     CompressingRequestBody instance =
         new CompressingRequestBody(CompressionType.OFF, faultySupplier, r -> r <= expectedRetries);
     assertThrows(IOException.class, () -> instanceWriteAsBytes(instance));
@@ -109,15 +110,12 @@ class CompressingRequestBodyTest {
     CompressingRequestBody.InputStreamSupplier supplier =
         mock(CompressingRequestBody.InputStreamSupplier.class);
     AtomicInteger invocationCounter = new AtomicInteger(failingAttempts);
-    when(supplier.get())
-        .then(
-            (Answer<InputStream>)
-                invocation -> {
-                  if (invocationCounter.getAndDecrement() > 0) {
-                    throw new IllegalStateException();
-                  }
-                  return testRecordingStream();
-                });
+    when(supplier.get()).then((Answer<InputStream>) invocation -> {
+      if (invocationCounter.getAndDecrement() > 0) {
+        throw new IllegalStateException();
+      }
+      return testRecordingStream();
+    });
     return supplier;
   }
 
@@ -128,29 +126,27 @@ class CompressingRequestBodyTest {
     AtomicInteger invocationCounter = new AtomicInteger(failingAttempts);
 
     when(supplier.get())
-        .then(
-            (Answer<InputStream>)
-                invocation ->
-                    new BufferedInputStream(testRecordingStream()) {
-                      int byteCounter = 300; // read first 300 bytes without error
+      .then((Answer<InputStream>) invocation -> new BufferedInputStream(testRecordingStream()) {
+        // read first 300 bytes without error
+        int byteCounter = 300;
 
-                      @Override
-                      public synchronized int read() throws IOException {
-                        if (--byteCounter <= 0 && invocationCounter.getAndDecrement() > 0) {
-                          throw new IllegalStateException();
-                        }
-                        return super.read();
-                      }
+        @Override
+        public synchronized int read() throws IOException {
+          if (--byteCounter <= 0 && invocationCounter.getAndDecrement() > 0) {
+            throw new IllegalStateException();
+          }
+          return super.read();
+        }
 
-                      @Override
-                      public synchronized int read(byte[] b, int off, int len) throws IOException {
-                        byteCounter -= len;
-                        if (byteCounter <= 0 && invocationCounter.getAndDecrement() > 0) {
-                          throw new IllegalStateException();
-                        }
-                        return super.read(b, off, len);
-                      }
-                    });
+        @Override
+        public synchronized int read(byte[] b, int off, int len) throws IOException {
+          byteCounter -= len;
+          if (byteCounter <= 0 && invocationCounter.getAndDecrement() > 0) {
+            throw new IllegalStateException();
+          }
+          return super.read(b, off, len);
+        }
+      });
     return supplier;
   }
 
@@ -158,8 +154,7 @@ class CompressingRequestBodyTest {
   @EnumSource(CompressionType.class)
   void writeTo(CompressionType compressionType) throws IOException {
     CompressingRequestBody instance =
-        new CompressingRequestBody(
-            compressionType, CompressingRequestBodyTest::testRecordingStream);
+        new CompressingRequestBody(compressionType, CompressingRequestBodyTest::testRecordingStream);
 
     byte[] compressed = instanceWriteAsBytes(instance);
     BufferedInputStream compressedStream =
@@ -239,10 +234,8 @@ class CompressingRequestBodyTest {
 
       byte[] compressedInput = baos.toByteArray();
 
-      CompressingRequestBody instance =
-          new CompressingRequestBody(
-              targetType,
-              () -> new RecordingInputStream(new ByteArrayInputStream(compressedInput)));
+      CompressingRequestBody instance = new CompressingRequestBody(targetType, () -> new RecordingInputStream(
+          new ByteArrayInputStream(compressedInput)));
       byte[] compressedOutput = instanceWriteAsBytes(instance);
 
       assertArrayEquals(compressedInput, compressedOutput);
@@ -258,7 +251,7 @@ class CompressingRequestBodyTest {
   }
 
   private static RecordingInputStream testRecordingStream() {
-    return new RecordingInputStream(
-        CompressingRequestBodyTest.class.getResourceAsStream("/test-recording.jfr"));
+    return new RecordingInputStream(CompressingRequestBodyTest.class
+      .getResourceAsStream("/test-recording.jfr"));
   }
 }

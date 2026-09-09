@@ -8,7 +8,6 @@ import static datadog.crashtracking.Initializer.getScriptPathFromArg;
 import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
 import java.io.File;
@@ -20,7 +19,8 @@ import java.util.Set;
 public final class OOMENotifierScriptInitializer {
   private static final String OOME_NOTIFIER_SCRIPT_PREFIX = "dd_oome_notifier.";
 
-  private OOMENotifierScriptInitializer() {}
+  private OOMENotifierScriptInitializer() {
+  }
 
   @VisibleForTesting
   static boolean initialize(String onOutOfMemoryVal) {
@@ -34,7 +34,8 @@ public final class OOMENotifierScriptInitializer {
     if (scriptFile == null) {
       LOG.error(
           SEND_TELEMETRY,
-          "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
+          "OOME notifier script value ({}) does not follow the expected format: <path>/dd_"
+          + "oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
           onOutOfMemoryVal);
       return false;
     }
@@ -64,7 +65,8 @@ public final class OOMENotifierScriptInitializer {
       if (!isOwnedAndPrivate(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Untrusted OOME script folder {} (wrong owner or group/world bits set). OOME notification will not work properly.",
+            "Untrusted OOME script folder {} (wrong owner or group/world bits set). OOME "
+            + "notification will not work properly.",
             scriptDirectory);
         return false;
       }
@@ -102,7 +104,8 @@ public final class OOMENotifierScriptInitializer {
         if (!isOwnedAndPrivate(scriptFile)) {
           LOG.warn(
               SEND_TELEMETRY,
-              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification "
+              + "will not work properly.",
               scriptFile);
           return false;
         }

@@ -16,15 +16,11 @@ import jdk.jfr.StackTrace;
 @Category("Datadog")
 @StackTrace(false)
 public class EndpointEvent extends Event implements EndpointTracker {
-
   private static final long TEN_MILLISECONDS = TimeUnit.MILLISECONDS.toNanos(10);
-
   @Label("Endpoint")
   private String endpoint = "unknown";
-
   @Label("Operation")
   private String operation = "unknown";
-
   @Label("Local Root Span Id")
   private final long localRootSpanId;
 

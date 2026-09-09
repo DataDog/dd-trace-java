@@ -9,7 +9,6 @@ import org.datanucleus.identity.SCOID;
 import org.datanucleus.identity.SingleFieldId;
 
 public class DatanucleusDecorator extends OrmClientDecorator {
-
   public static final CharSequence DATANUCLEUS_FIND_OBJECT =
       UTF8BytesString.create("datanucleus.findObject");
   public static final CharSequence DATANUCLEUS_QUERY_EXECUTE =

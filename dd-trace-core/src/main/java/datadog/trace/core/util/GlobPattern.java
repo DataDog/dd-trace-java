@@ -3,7 +3,6 @@ package datadog.trace.core.util;
 import java.util.regex.Pattern;
 
 public final class GlobPattern {
-
   public static Pattern globToRegexPattern(String globPattern) {
     String regex = globToRegex(globPattern);
     return Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
@@ -43,5 +42,6 @@ public final class GlobPattern {
     return sb.toString();
   }
 
-  private GlobPattern() {}
+  private GlobPattern() {
+  }
 }

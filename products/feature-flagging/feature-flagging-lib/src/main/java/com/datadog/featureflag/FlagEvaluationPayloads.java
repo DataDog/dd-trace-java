@@ -10,10 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 final class FlagEvaluationPayloads {
-
   private static final byte[] PAYLOAD_SUFFIX = FeatureFlagEvpPublisher.utf8Bytes("]}");
   private static final byte[] JSON_COMMA = FeatureFlagEvpPublisher.utf8Bytes(",");
-
   /**
    * Wire prefix identifying a privacy-preserving, hashed targeting key. Emitted for full-tier rows
    * when {@code observeFullEvaluationData} is off. The suffix is the lower-case hex SHA-256 of the
@@ -21,7 +19,6 @@ final class FlagEvaluationPayloads {
    * contract - keep it in sync with the other server SDKs and the UFC/EVP spec.
    */
   private static final String HASHED_TARGETING_KEY_PREFIX = "sha256_";
-
   private static final JsonAdapter<FlagEvaluationEvent> EVENT_JSON_ADAPTER;
   private static final JsonAdapter<Map<String, String>> CONTEXT_JSON_ADAPTER;
 
@@ -32,14 +29,16 @@ final class FlagEvaluationPayloads {
     CONTEXT_JSON_ADAPTER = moshi.adapter(contextType);
   }
 
-  private FlagEvaluationPayloads() {}
+  private FlagEvaluationPayloads() {
+  }
 
   static class FlagEvaluationsRequest {
     public final Map<String, String> context;
     public final List<FlagEvaluationEvent> flagEvaluations;
 
     FlagEvaluationsRequest(
-        final Map<String, String> context, final List<FlagEvaluationEvent> flagEvaluations) {
+        final Map<String, String> context,
+        final List<FlagEvaluationEvent> flagEvaluations) {
       this.context = context;
       this.flagEvaluations = flagEvaluations;
     }
@@ -188,16 +187,17 @@ final class FlagEvaluationPayloads {
       this.last_evaluation = lastEvalMs;
       this.evaluation_count = count;
       this.variant = (variant != null && !variant.isEmpty()) ? new KeyObject(variant) : null;
-      this.allocation =
-          (allocation != null && !allocation.isEmpty()) ? new KeyObject(allocation) : null;
+      this.allocation = (allocation != null && !allocation.isEmpty())
+          ? new KeyObject(allocation)
+          : null;
       this.targeting_key = targetingKey;
       this.runtime_default_used = runtimeDefaultUsed ? Boolean.TRUE : null;
-      this.context =
-          (evaluationAttrs != null && !evaluationAttrs.isEmpty())
-              ? new EventContext(evaluationAttrs)
-              : null;
-      this.error =
-          (errorMessage != null && !errorMessage.isEmpty()) ? new ErrorObject(errorMessage) : null;
+      this.context = (evaluationAttrs != null && !evaluationAttrs.isEmpty())
+          ? new EventContext(evaluationAttrs)
+          : null;
+      this.error = (errorMessage != null && !errorMessage.isEmpty())
+          ? new ErrorObject(errorMessage)
+          : null;
     }
 
     static FlagEvaluationEvent fromBucket(

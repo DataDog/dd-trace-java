@@ -4,7 +4,6 @@ import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.FEATURE_FLAG_EXPOSURE_PROCESSOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.queue.MessagePassingBlockingQueue;
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -21,13 +20,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ExposureWriterImpl implements ExposureWriter {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ExposureWriterImpl.class);
-  private static final int DEFAULT_CAPACITY = 1 << 16; // 65536 elements
+  // 65536 elements
+  private static final int DEFAULT_CAPACITY = 1 << 16;
   private static final int DEFAULT_FLUSH_INTERVAL_IN_SECONDS = 1;
   private static final int FLUSH_THRESHOLD = 100;
   private static final String EXPOSURES_ROUTE = "exposures";
-
   private final MessagePassingBlockingQueue<ExposureEvent> queue;
   private final Thread serializerThread;
 
@@ -56,14 +54,13 @@ public class ExposureWriterImpl implements ExposureWriter {
       final FeatureFlagBackendApiFactory backendApiFactory,
       final Config config) {
     this.queue = Queues.mpscBlockingConsumerArrayQueue(capacity);
-    final ExposureSerializingHandler serializer =
-        new ExposureSerializingHandler(
-            backendApiFactory,
-            queue,
-            flushInterval,
-            timeUnit,
-            FeatureFlagEvpContext.from(config),
-            this::close);
+    final ExposureSerializingHandler serializer = new ExposureSerializingHandler(
+        backendApiFactory,
+        queue,
+        flushInterval,
+        timeUnit,
+        FeatureFlagEvpContext.from(config),
+        this::close);
     this.serializerThread = newAgentThread(FEATURE_FLAG_EXPOSURE_PROCESSOR, serializer);
   }
 
@@ -100,11 +97,9 @@ public class ExposureWriterImpl implements ExposureWriter {
     private final MessagePassingBlockingQueue<ExposureEvent> queue;
     private final long ticksRequiredToFlush;
     private long lastTicks;
-
     private final FeatureFlagEvpPublisher<ExposuresRequest> evpPublisher;
     private final Map<String, String> context;
     private final ExposureCache cache;
-
     private final List<ExposureEvent> buffer = new ArrayList<>();
     private final Runnable errorCallback;
 
@@ -117,8 +112,9 @@ public class ExposureWriterImpl implements ExposureWriter {
         final Runnable errorCallback) {
       this.queue = queue;
       this.cache = new LRUExposureCache(queue.capacity());
-      this.evpPublisher =
-          new FeatureFlagEvpPublisher<>(backendApiFactory::create, ExposuresRequest.class);
+      this.evpPublisher = new FeatureFlagEvpPublisher<>(
+          backendApiFactory::create,
+          ExposuresRequest.class);
       this.context = context;
 
       this.lastTicks = System.nanoTime();
@@ -162,7 +158,9 @@ public class ExposureWriterImpl implements ExposureWriter {
       queue.drain(this::addToBuffer, queue.size());
     }
 
-    /** Adds an element to the buffer taking care of duplicated exposures thanks to the LRU cache */
+    /**
+     * Adds an element to the buffer taking care of duplicated exposures thanks to the LRU cache
+     */
     private boolean addToBuffer(final ExposureEvent event) {
       if (cache.add(event)) {
         buffer.add(event);

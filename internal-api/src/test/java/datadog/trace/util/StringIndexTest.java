@@ -6,13 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.util.StringIndex.Data;
 import datadog.trace.util.StringIndex.EmbeddingSupport;
 import org.junit.jupiter.api.Test;
 
 class StringIndexTest {
-
   @Test
   void hash_spread_and_zeroSentinel() {
     // "".hashCode() == 0 -> remapped to the non-zero sentinel so 0 can mean "empty slot"
@@ -25,11 +23,16 @@ class StringIndexTest {
 
   @Test
   void capacityFor_isPow2_andAtLeastDoubled() {
-    assertEquals(2, EmbeddingSupport.capacityFor(0)); // empty set -> minimal table
-    assertEquals(2, EmbeddingSupport.capacityFor(1)); // >= 2x, smallest power of two
-    assertEquals(8, EmbeddingSupport.capacityFor(3)); // ceil(3/0.5)=6 -> 8
-    assertEquals(8, EmbeddingSupport.capacityFor(4)); // ceil(4/0.5)=8 -> 8 (was 16: tightened)
-    assertEquals(64, EmbeddingSupport.capacityFor(16, EmbeddingSupport.LOW_LOAD_FACTOR)); // 4x
+    // empty set -> minimal table
+    assertEquals(2, EmbeddingSupport.capacityFor(0));
+    // >= 2x, smallest power of two
+    assertEquals(2, EmbeddingSupport.capacityFor(1));
+    // ceil(3/0.5)=6 -> 8
+    assertEquals(8, EmbeddingSupport.capacityFor(3));
+    // ceil(4/0.5)=8 -> 8 (was 16: tightened)
+    assertEquals(8, EmbeddingSupport.capacityFor(4));
+    // 4x
+    assertEquals(64, EmbeddingSupport.capacityFor(16, EmbeddingSupport.LOW_LOAD_FACTOR));
   }
 
   @Test
@@ -42,7 +45,8 @@ class StringIndexTest {
   @Test
   void capacityFor_boundsAtMaxCapacity() {
     // ceil(n / loadFactor) landing exactly on MAX_CAPACITY still succeeds.
-    int n = EmbeddingSupport.MAX_CAPACITY / 2; // ceil(n / 0.5) == MAX_CAPACITY
+    // ceil(n / 0.5) == MAX_CAPACITY
+    int n = EmbeddingSupport.MAX_CAPACITY / 2;
     assertEquals(EmbeddingSupport.MAX_CAPACITY, EmbeddingSupport.capacityFor(n));
   }
 
@@ -51,19 +55,19 @@ class StringIndexTest {
     // Required capacity exceeds MAX_CAPACITY: previously the double->int narrowing conversion
     // saturated at Integer.MAX_VALUE and the subsequent << 1 wrapped to a negative array size.
     assertThrows(IllegalArgumentException.class, () -> EmbeddingSupport.capacityFor(1, 1e-10f));
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> EmbeddingSupport.capacityFor(EmbeddingSupport.MAX_CAPACITY + 1));
+    assertThrows(IllegalArgumentException.class, () -> EmbeddingSupport.capacityFor(
+        EmbeddingSupport.MAX_CAPACITY + 1));
   }
 
   @Test
   void instance_contains_internedAndCopy_andMiss() {
     StringIndex set = StringIndex.of("foo", "bar", "baz");
-
-    assertEquals(8, set.numSlots()); // 3 names -> capacityFor(3) == 8
-
-    assertTrue(set.contains("foo")); // interned literal -> == fast path in eq
-    assertTrue(set.contains(new String("bar"))); // non-interned -> .equals path
+    // 3 names -> capacityFor(3) == 8
+    assertEquals(8, set.numSlots());
+    // interned literal -> == fast path in eq
+    assertTrue(set.contains("foo"));
+    // non-interned -> .equals path
+    assertTrue(set.contains(new String("bar")));
     assertFalse(set.contains("nope"));
 
     assertTrue(set.indexOf("baz") >= 0);
@@ -73,49 +77,59 @@ class StringIndexTest {
   @Test
   void support_create_then_indexOf() {
     Data d = EmbeddingSupport.create("x", "y");
-
-    int slot = EmbeddingSupport.indexOf(d.hashes, d.names, "x"); // 3-arg overload computes the hash
+    // 3-arg overload computes the hash
+    int slot = EmbeddingSupport.indexOf(d.hashes, d.names, "x");
     assertTrue(slot >= 0);
     assertEquals("x", d.names[slot]);
 
     assertEquals(-1, EmbeddingSupport.indexOf(d.hashes, d.names, "q"));
   }
 
-  /** Controlled hashes force collision, linear-probe wraparound, and the already-present path. */
+  /**
+   * Controlled hashes force collision, linear-probe wraparound, and the already-present path.
+   */
   @Test
   void put_and_indexOf_collisionAndWraparound() {
-    int[] hashes = new int[4]; // mask = 3
+    // mask = 3
+    int[] hashes = new int[4];
     String[] names = new String[4];
-
-    assertEquals(3, EmbeddingSupport.put(hashes, names, "a", 7)); // 7 & 3 == 3
-    assertEquals(
-        0, EmbeddingSupport.put(hashes, names, "b", 7)); // collides at 3, probes (3+1)&3 == 0
-    assertEquals(
-        3, EmbeddingSupport.put(hashes, names, "a", 7)); // already present -> existing slot
-
-    assertEquals(3, EmbeddingSupport.indexOf(hashes, names, "a", 7)); // direct hit
-    assertEquals(
-        0, EmbeddingSupport.indexOf(hashes, names, "b", 7)); // hit after collision + wraparound
-    assertEquals(
-        -1,
-        EmbeddingSupport.indexOf(hashes, names, "c", 7)); // miss after probing 3 -> 0 -> 1(empty)
-    assertEquals(
-        -1, EmbeddingSupport.indexOf(hashes, names, "z", 6)); // 6 & 3 == 2, empty -> immediate miss
+    // 7 & 3 == 3
+    assertEquals(3, EmbeddingSupport.put(hashes, names, "a", 7));
+    assertEquals(0, EmbeddingSupport
+      // collides at 3, probes (3+1)&3 == 0
+      .put(hashes, names, "b", 7));
+    assertEquals(3, EmbeddingSupport
+      // already present -> existing slot
+      .put(hashes, names, "a", 7));
+    // direct hit
+    assertEquals(3, EmbeddingSupport.indexOf(hashes, names, "a", 7));
+    assertEquals(0, EmbeddingSupport
+      // hit after collision + wraparound
+      .indexOf(hashes, names, "b", 7));
+    assertEquals(-1, EmbeddingSupport
+      // miss after probing 3 -> 0 -> 1(empty)
+      .indexOf(hashes, names, "c", 7));
+    assertEquals(-1, EmbeddingSupport
+      // 6 & 3 == 2, empty -> immediate miss
+      .indexOf(hashes, names, "z", 6));
   }
 
   @Test
   void put_throwsWhenFull() {
-    int[] hashes = new int[2]; // mask = 1
+    // mask = 1
+    int[] hashes = new int[2];
     String[] names = new String[2];
-
-    EmbeddingSupport.put(hashes, names, "a", 4); // 4 & 1 == 0
-    EmbeddingSupport.put(hashes, names, "b", 5); // 5 & 1 == 1
-
+    // 4 & 1 == 0
+    EmbeddingSupport.put(hashes, names, "a", 4);
+    // 5 & 1 == 1
+    EmbeddingSupport.put(hashes, names, "b", 5);
     // both slots occupied, no match -> probe exhausts -> throw
     assertThrows(IllegalStateException.class, () -> EmbeddingSupport.put(hashes, names, "c", 6));
   }
 
-  /** The documented usage: build a StringIndex, attach a parallel payload indexed by slot. */
+  /**
+   * The documented usage: build a StringIndex, attach a parallel payload indexed by slot.
+   */
   @Test
   void parallelPayloadBySlot() {
     String[] names = {"a", "b", "c"};
@@ -136,13 +150,16 @@ class StringIndexTest {
     StringIndex idx = StringIndex.of("a", "b", "c");
     // 1-based ids; 0 stays the empty-slot / not-found sentinel.
     int[] ids = idx.mapIntValues(s -> s.charAt(0) - 'a' + 1);
-    assertEquals(idx.numSlots(), ids.length); // sized to the table, not the name count
+    // sized to the table, not the name count
+    assertEquals(idx.numSlots(), ids.length);
 
     assertEquals(1, idx.lookup(ids, "a"));
     assertEquals(2, idx.lookup(ids, "b"));
     assertEquals(3, idx.lookup(ids, "c"));
-    assertEquals(0, idx.lookup(ids, "z")); // miss -> 0
-    assertEquals(-1, idx.lookupOrDefault(ids, "z", -1)); // miss -> supplied default
+    // miss -> 0
+    assertEquals(0, idx.lookup(ids, "z"));
+    // miss -> supplied default
+    assertEquals(-1, idx.lookupOrDefault(ids, "z", -1));
   }
 
   @Test
@@ -152,7 +169,8 @@ class StringIndexTest {
 
     assertEquals(1L, EmbeddingSupport.lookup(d.hashes, d.names, vals, "a"));
     assertEquals(3L, EmbeddingSupport.lookup(d.hashes, d.names, vals, "c"));
-    assertEquals(0L, EmbeddingSupport.lookup(d.hashes, d.names, vals, "z")); // miss -> 0
+    // miss -> 0
+    assertEquals(0L, EmbeddingSupport.lookup(d.hashes, d.names, vals, "z"));
     assertEquals(-1L, EmbeddingSupport.lookupOrDefault(d.hashes, d.names, vals, "z", -1L));
   }
 
@@ -160,13 +178,13 @@ class StringIndexTest {
   void mapValues_objects_typedArray_andLookup() {
     StringIndex idx = StringIndex.of("a", "bb", "ccc");
     Integer[] lengths = idx.mapValues(Integer.class, String::length);
-
     // Class<T> drives a real Integer[], not an Object[].
     assertEquals(Integer[].class, lengths.getClass());
 
     assertEquals(Integer.valueOf(1), idx.lookup(lengths, "a"));
     assertEquals(Integer.valueOf(3), idx.lookup(lengths, "ccc"));
-    assertNull(idx.lookup(lengths, "z")); // miss -> null
+    // miss -> null
+    assertNull(idx.lookup(lengths, "z"));
     assertEquals(Integer.valueOf(-1), idx.lookupOrDefault(lengths, "z", -1));
   }
 
@@ -174,15 +192,16 @@ class StringIndexTest {
   void support_mapValues_objects_sizedToSlots_emptyStayNull() {
     Data d = EmbeddingSupport.create("a", "b", "c");
     String[] tagged = EmbeddingSupport.mapValues(d.names, String.class, s -> s + "!");
-
-    assertEquals(d.names.length, tagged.length); // sized to the table
+    // sized to the table
+    assertEquals(d.names.length, tagged.length);
     int nonNull = 0;
     for (String s : tagged) {
       if (s != null) {
         nonNull++;
       }
     }
-    assertEquals(3, nonNull); // only the placed names map; unfilled slots stay null
+    // only the placed names map; unfilled slots stay null
+    assertEquals(3, nonNull);
 
     assertEquals("a!", EmbeddingSupport.lookup(d.hashes, d.names, tagged, "a"));
     assertEquals("dflt", EmbeddingSupport.lookupOrDefault(d.hashes, d.names, tagged, "z", "dflt"));
@@ -203,13 +222,17 @@ class StringIndexTest {
   void instance_longValues_mapAndLookup() {
     StringIndex idx = StringIndex.of("a", "b", "c");
     long[] vals = idx.mapLongValues(s -> s.charAt(0) - 'a' + 1L);
-    assertEquals(idx.numSlots(), vals.length); // sized to the table, not the name count
+    // sized to the table, not the name count
+    assertEquals(idx.numSlots(), vals.length);
 
     assertEquals(1L, idx.lookup(vals, "a"));
     assertEquals(3L, idx.lookup(vals, "c"));
-    assertEquals(0L, idx.lookup(vals, "z")); // miss -> 0
-    assertEquals(2L, idx.lookupOrDefault(vals, "b", -1L)); // hit
-    assertEquals(-1L, idx.lookupOrDefault(vals, "z", -1L)); // miss -> supplied default
+    // miss -> 0
+    assertEquals(0L, idx.lookup(vals, "z"));
+    // hit
+    assertEquals(2L, idx.lookupOrDefault(vals, "b", -1L));
+    // miss -> supplied default
+    assertEquals(-1L, idx.lookupOrDefault(vals, "z", -1L));
   }
 
   @Test

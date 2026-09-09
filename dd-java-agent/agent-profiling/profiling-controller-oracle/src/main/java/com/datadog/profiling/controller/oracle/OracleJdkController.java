@@ -21,9 +21,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class OracleJdkController implements Controller {
   private static final Logger log = LoggerFactory.getLogger(OracleJdkController.class);
-  static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024; // 64 megs
+  // 64 megs
+  static final int RECORDING_MAX_SIZE = 64 * 1024 * 1024;
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);
-
   private final Map<String, String> eventSettings;
   private final JfrMBeanHelper helper;
 
@@ -41,11 +41,9 @@ public final class OracleJdkController implements Controller {
     try {
       log.debug("Initializing Oracle JFR controller");
       helper = new JfrMBeanHelper();
-      eventSettings =
-          Collections.unmodifiableMap(
-              JfpUtils.readJfpResources(
-                  JfpUtils.DEFAULT_JFP,
-                  configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
+      eventSettings = Collections.unmodifiableMap(JfpUtils.readJfpResources(
+          JfpUtils.DEFAULT_JFP,
+          configProvider.getString(ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE)));
     } catch (final IOException e) {
       throw new ConfigurationException(e);
     }
@@ -54,12 +52,16 @@ public final class OracleJdkController implements Controller {
   @Override
   @Nonnull
   public OracleJdkOngoingRecording createRecording(
-      @Nonnull final String recordingName, ControllerContext.Snapshot context)
-      throws UnsupportedEnvironmentException {
+      @Nonnull final String recordingName,
+      ControllerContext.Snapshot context) throws UnsupportedEnvironmentException {
     try {
       log.debug("Attempting to create a new recording with name '{}'", recordingName);
       return new OracleJdkOngoingRecording(
-          helper, recordingName, RECORDING_MAX_SIZE, RECORDING_MAX_AGE, eventSettings);
+          helper,
+          recordingName,
+          RECORDING_MAX_SIZE,
+          RECORDING_MAX_AGE,
+          eventSettings);
     } catch (final IOException e) {
       throw new RuntimeException("Unable to create a new recording with name " + recordingName, e);
     }

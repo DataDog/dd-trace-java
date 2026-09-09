@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.logs;
 
 import static datadog.opentelemetry.shim.trace.OtelExtractedContext.extract;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
-
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
@@ -24,22 +23,24 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLogRecordBuilder implements LogRecordBuilder {
-  @VisibleForTesting static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
-
+  @VisibleForTesting
+  static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
   private static final AttributeKey<String> EXCEPTION_TYPE_KEY = stringKey("exception.type");
   private static final AttributeKey<String> EXCEPTION_MESSAGE_KEY = stringKey("exception.message");
-
   private final OtelLogger logger;
-
   private long timestampNanos;
   private long observedNanos;
   private Severity severity = Severity.UNDEFINED_SEVERITY_NUMBER;
-  @Nullable private String severityText;
-  @Nullable private String body;
-  @Nullable private Map<AttributeKey<?>, Object> attributes;
-  @Nullable private Context context;
-  @Nullable private String eventName;
-
+  @Nullable
+  private String severityText;
+  @Nullable
+  private String body;
+  @Nullable
+  private Map<AttributeKey<?>, Object> attributes;
+  @Nullable
+  private Context context;
+  @Nullable
+  private String eventName;
   private boolean attributesEmitted;
 
   OtelLogRecordBuilder(OtelLogger logger) {
@@ -144,7 +145,8 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
   @Override
   public void emit() {
     if (body == null && eventName == null) {
-      return; // drop log records where body and eventName are both missing
+      // drop log records where body and eventName are both missing
+      return;
     }
     Context context = this.context != null ? this.context : Context.current();
     if (logger.isEnabled(severity, context)) {

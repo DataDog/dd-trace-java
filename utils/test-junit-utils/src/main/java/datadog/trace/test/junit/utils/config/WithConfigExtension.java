@@ -36,11 +36,12 @@ import org.junit.platform.commons.support.AnnotationSupport;
  */
 @SuppressForbidden
 public class WithConfigExtension
-    implements BeforeAllCallback, BeforeEachCallback, AfterEachCallback, AfterAllCallback {
-
+    implements BeforeAllCallback,
+    BeforeEachCallback,
+    AfterEachCallback,
+    AfterAllCallback {
   static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig";
   static final String CONFIG = "datadog.trace.api.Config";
-
   private static final Field instConfigInstanceField;
   private static final Constructor<?> instConfigConstructor;
   private static final Field configInstanceField;
@@ -63,11 +64,9 @@ public class WithConfigExtension
   }
 
   static final TestEnvironmentVariables environmentVariables = TestEnvironmentVariables.setup();
-
   private static Properties originalSystemProperties;
 
   // region JUnit lifecycle callbacks
-
   @Override
   public void beforeAll(ExtensionContext context) {
     // Back up config and apply class-level config values.
@@ -124,16 +123,13 @@ public class WithConfigExtension
 
   private static void applyMethodLevelConfig(ExtensionContext context) {
     // Method-level @WithConfig annotations (supports composed/meta-annotations)
-    context
-        .getTestMethod()
-        .ifPresent(
-            method -> {
-              List<WithConfig> methodConfigs =
-                  AnnotationSupport.findRepeatableAnnotations(method, WithConfig.class);
-              for (WithConfig cfg : methodConfigs) {
-                applyConfig(cfg);
-              }
-            });
+    context.getTestMethod().ifPresent(method -> {
+      List<WithConfig> methodConfigs =
+          AnnotationSupport.findRepeatableAnnotations(method, WithConfig.class);
+      for (WithConfig cfg : methodConfigs) {
+        applyConfig(cfg);
+      }
+    });
   }
 
   private static void applyConfig(WithConfig cfg) {
@@ -155,9 +151,7 @@ public class WithConfigExtension
   }
 
   // endregion
-
   // region Public static API for imperative config injection
-
   public static void injectSysConfig(String name, String value) {
     injectSysConfig(name, value, true);
   }
@@ -197,17 +191,15 @@ public class WithConfigExtension
   }
 
   // endregion
-
   // region Config infrastructure setup
-
   private static void ensureConfigInstrumentationHasBeenApplied() {
     if (isWritableInstance(CONFIG) && isWritableInstance(INST_CONFIG)) {
       return;
     }
     throw new IllegalStateException(
         "Config/InstrumenterConfig INSTANCE fields are not modifiable. "
-            + "Need the '-javaagent:modifiable-config-agent.jar' on the test JVM "
-            + "(the dd-trace-java.configure-tests Gradle convention plugin wires this automatically).");
+        + "Need the '-javaagent:modifiable-config-agent.jar' on the test JVM "
+        + "(the dd-trace-java.configure-tests Gradle convention plugin wires this automatically).");
   }
 
   private static boolean isWritableInstance(String className) {
@@ -236,9 +228,7 @@ public class WithConfigExtension
   }
 
   // endregion
-
   // region Property management
-
   static void saveProperties() {
     originalSystemProperties = new Properties();
     originalSystemProperties.putAll(System.getProperties());
@@ -253,8 +243,9 @@ public class WithConfigExtension
   }
 
   // endregion
-
-  /** Test-only environment variable provider that replaces the real one during tests. */
+  /**
+   * Test-only environment variable provider that replaces the real one during tests.
+   */
   public static class TestEnvironmentVariables
       extends EnvironmentVariables.EnvironmentVariablesProvider {
     private final Map<String, String> env = new HashMap<>();

@@ -3,7 +3,6 @@ package datadog.appsec.api.user;
 import java.util.Map;
 
 public class User {
-
   private static volatile UserService SERVICE = UserService.NO_OP;
 
   /**

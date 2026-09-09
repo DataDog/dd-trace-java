@@ -47,4 +47,5 @@ import java.lang.annotation.Target;
 @Inherited
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE, ElementType.PARAMETER})
-public @interface Strategy {}
+public @interface Strategy {
+}

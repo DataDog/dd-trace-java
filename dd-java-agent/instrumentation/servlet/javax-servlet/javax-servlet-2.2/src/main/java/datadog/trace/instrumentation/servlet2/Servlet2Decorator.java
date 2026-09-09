@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.servlet2;
 
 import static datadog.trace.instrumentation.servlet2.HttpServletRequestExtractAdapter.GETTER;
-
 import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -11,8 +10,7 @@ import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.http.HttpServletRequest;
 
 public class Servlet2Decorator
-    extends HttpServerDecorator<
-        HttpServletRequest, HttpServletRequest, Integer, HttpServletRequest> {
+    extends HttpServerDecorator<HttpServletRequest, HttpServletRequest, Integer, HttpServletRequest> {
   public static final CharSequence JAVA_WEB_SERVLET = UTF8BytesString.create("java-web-servlet");
   public static final Servlet2Decorator DECORATE = new Servlet2Decorator();
   public static final CharSequence SERVLET_REQUEST =
@@ -40,7 +38,8 @@ public class Servlet2Decorator
 
   @Override
   protected AgentPropagation.ContextVisitor<Integer> responseGetter() {
-    return null; // There is no way to access the headers
+    // There is no way to access the headers
+    return null;
   }
 
   @Override

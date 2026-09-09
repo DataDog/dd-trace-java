@@ -6,10 +6,11 @@ import datadog.communication.serialization.Writable;
 import datadog.trace.api.aiguard.AIGuard;
 
 public class ToolCallWriter implements ValueWriter<AIGuard.ToolCall> {
-
   @Override
   public void write(
-      final AIGuard.ToolCall value, final Writable writable, final EncodingCache encodingCache) {
+      final AIGuard.ToolCall value,
+      final Writable writable,
+      final EncodingCache encodingCache) {
     writable.startMap(2);
     writable.writeString("id", encodingCache);
     writable.writeString(value.getId(), encodingCache);

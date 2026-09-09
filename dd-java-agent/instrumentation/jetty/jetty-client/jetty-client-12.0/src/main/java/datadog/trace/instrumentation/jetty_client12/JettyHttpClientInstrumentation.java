@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,7 +21,9 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class JettyHttpClientInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   public JettyHttpClientInstrumentation() {
     super("jetty-client");
   }
@@ -35,10 +36,10 @@ public class JettyHttpClientInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JettyClientDecorator",
-      packageName + ".HeadersInjectAdapter",
-      packageName + ".SpanFinishingCompleteListener",
-      packageName + ".CallbackWrapper",
+        packageName + ".JettyClientDecorator",
+        packageName + ".HeadersInjectAdapter",
+        packageName + ".SpanFinishingCompleteListener",
+        packageName + ".CallbackWrapper"
     };
   }
 
@@ -52,15 +53,15 @@ public class JettyHttpClientInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(isConstructor(), packageName + ".RequestCreateAdvice");
     transformer.applyAdvices(
         isMethod()
-            .and(named("send"))
-            .and(takesArgument(0, named("org.eclipse.jetty.client.Response$CompleteListener"))),
+          .and(named("send"))
+          .and(takesArgument(0, named("org.eclipse.jetty.client.Response$CompleteListener"))),
         packageName + ".SendAdvice",
         packageName + ".SendContextPropagationAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(namedOneOf("listener", "onSuccess", "onFailure", "onComplete"))
-            .and(takesArguments(1)),
+          .and(isPublic())
+          .and(namedOneOf("listener", "onSuccess", "onFailure", "onComplete"))
+          .and(takesArguments(1)),
         packageName + ".WrapListenerAdvice");
   }
 

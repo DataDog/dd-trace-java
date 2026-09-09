@@ -5,7 +5,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.Map;
 
 public interface CoreSpan<T extends CoreSpan<T>> {
-
   T getLocalRootSpan();
 
   String getServiceName();
@@ -115,14 +114,18 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   }
 
   default void processTagsAndBaggageWithStructuredLinks(
-      MetadataConsumer consumer, boolean firstInChunk) {
+      MetadataConsumer consumer,
+      boolean firstInChunk) {
     processTagsAndBaggageWithStructuredLinks(consumer);
   }
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 
   T setSamplingPriority(
-      int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism);
+      int samplingPriority,
+      CharSequence rate,
+      double sampleRate,
+      int samplingMechanism);
 
   T setSpanSamplingPriority(double rate, int limit);
 

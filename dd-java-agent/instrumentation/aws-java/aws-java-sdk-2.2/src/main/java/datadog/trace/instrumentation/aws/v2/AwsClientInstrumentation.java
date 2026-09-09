@@ -2,17 +2,18 @@ package datadog.trace.instrumentation.aws.v2;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 
-/** AWS SDK v2 instrumentation */
+/**
+ * AWS SDK v2 instrumentation
+ */
 public final class AwsClientInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "software.amazon.awssdk.core.client.builder.SdkDefaultClientBuilder";
@@ -30,14 +31,14 @@ public final class AwsClientInstrumentation
     public static void methodExit(@Advice.Return final List<ExecutionInterceptor> interceptors) {
       for (ExecutionInterceptor interceptor : interceptors) {
         if (interceptor instanceof TracingExecutionInterceptor) {
-          return; // list already has our interceptor, return to builder
+          // list already has our interceptor, return to builder
+          return;
         }
       }
       interceptors.add(
-          new TracingExecutionInterceptor(
-              InstrumentationContext.get(
-                  "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse",
-                  "java.lang.String")));
+          new TracingExecutionInterceptor(InstrumentationContext.get(
+              "software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse",
+              "java.lang.String")));
     }
   }
 }

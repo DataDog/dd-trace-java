@@ -3,7 +3,6 @@ package com.datadog.iast.sink;
 import static com.datadog.iast.util.StringUtils.endsWithIgnoreCase;
 import static com.datadog.iast.util.StringUtils.substringTrim;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-
 import com.datadog.iast.Dependencies;
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Location;
@@ -37,12 +36,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ApplicationModuleImpl extends SinkModuleBase implements ApplicationModule {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ApplicationModule.class);
-
-  /** Bounds for the file visitor depth when trying to locate insecure JSP folders */
+  /**
+   * Bounds for the file visitor depth when trying to locate insecure JSP folders
+   */
   private static final int JSP_MAX_WALK_DEPTH = 32;
-
   private static final String CONTEXT_LOADER_LISTENER =
       "org.springframework.web.context.ContextLoaderListener";
   private static final String DISPATCHER_SERVLET =
@@ -52,7 +50,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   private static final String JETTY_LISTINGS_PATTERN = "<param-name>dirAllowed</param-name>";
   private static final String WEBLOGIC_LISTING_PATTERN =
       "<index-directory-enabled>true</index-directory-enabled>";
-  private static final String WEBSPHERE_XMI_LISTING_PATTERN = "directoryBrowsingEnabled=\"true\"";
+  private static final String WEBSPHERE_XMI_LISTING_PATTERN =
+      "directoryBrowsingEnabled=\"true\"";
   private static final String WEBSPHERE_XML_LISTING_PATTERN =
       "<enable-directory-browsing value=\"true\"/>";
   private static final String SESSION_TIMEOUT_START_TAG = "<session-timeout>";
@@ -73,45 +72,37 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   static final String JETTY_TEST_APP = "Test WebApp";
   public static final Set<String> ADMIN_CONSOLE_LIST =
       new HashSet<>(Arrays.asList(TOMCAT_MANAGER_APP, TOMCAT_HOST_MANAGER_APP));
-  public static final Set<String> DEFAULT_APP_LIST =
-      new HashSet<>(
-          Arrays.asList(
-              TOMCAT_SAMPLES_APP,
-              JETTY_ASYNC_REST_APP,
-              JETTY_JAVADOC_APP,
-              JETTY_JAAS_APP,
-              JETTY_JNDI_APP,
-              JETTY_SPEC_APP,
-              JETTY_TEST_APP));
+  public static final Set<String> DEFAULT_APP_LIST = new HashSet<>(Arrays.asList(
+      TOMCAT_SAMPLES_APP,
+      JETTY_ASYNC_REST_APP,
+      JETTY_JAVADOC_APP,
+      JETTY_JAAS_APP,
+      JETTY_JNDI_APP,
+      JETTY_SPEC_APP,
+      JETTY_TEST_APP));
   public static final String WEB_INF = "WEB-INF";
   public static final String WEB_XML = "web.xml";
   public static final String WEBLOGIC_XML = "weblogic.xml";
   public static final String IBM_WEB_EXT_XMI = "ibm-web-ext.xmi";
   public static final String IBM_WEB_EXT_XML = "ibm-web-ext.xml";
   static final String SESSION_REWRITING_EVIDENCE_VALUE = "Servlet URL Session Tracking Mode";
-
-  private static final Pattern PATTERN =
-      Pattern.compile(
-          Stream.of(
-                  CONTEXT_LOADER_LISTENER,
-                  DISPATCHER_SERVLET,
-                  DEFAULT_HTML_ESCAPE,
-                  LISTINGS_PATTERN,
-                  JETTY_LISTINGS_PATTERN,
-                  SESSION_TIMEOUT_START_TAG,
-                  SECURITY_CONSTRAINT_START_TAG,
-                  DISPLAY_NAME_PATTERN)
-              .collect(Collectors.joining("|")));
-
+  private static final Pattern PATTERN = Pattern.compile(Stream
+    .of(
+        CONTEXT_LOADER_LISTENER,
+        DISPATCHER_SERVLET,
+        DEFAULT_HTML_ESCAPE,
+        LISTINGS_PATTERN,
+        JETTY_LISTINGS_PATTERN,
+        SESSION_TIMEOUT_START_TAG,
+        SECURITY_CONSTRAINT_START_TAG,
+        DISPLAY_NAME_PATTERN)
+    .collect(Collectors.joining("|")));
   private static final Pattern WEBLOGIC_PATTERN =
       Pattern.compile(WEBLOGIC_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
-
   private static final Pattern WEBSPHERE_XMI_PATTERN =
       Pattern.compile(WEBSPHERE_XMI_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
-
   private static final Pattern WEBSPHERE_XML_PATTERN =
       Pattern.compile(WEBSPHERE_XML_LISTING_PATTERN, Pattern.CASE_INSENSITIVE);
-
   private static final int NO_LINE = -1;
 
   public ApplicationModuleImpl(final Dependencies dependencies) {
@@ -124,7 +115,7 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
    * @param realPath the real path of the application
    */
   @Override
-  public void onRealPath(final @Nullable String realPath) {
+  public void onRealPath(@Nullable final String realPath) {
     if (realPath == null) {
       return;
     }
@@ -229,7 +220,8 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
         case SECURITY_CONSTRAINT_START_TAG:
           checkVerbTampering(webXmlContent, matcher.start(), span);
           break;
-        default: // DISPLAY NAME MATCH
+        default:
+          // DISPLAY NAME MATCH
           String displayName = matcher.group(1);
           if (ADMIN_CONSOLE_LIST.contains(displayName)) {
             reportAdminConsoleActive(span, displayName);
@@ -246,11 +238,12 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   private void checkDefaultHtmlEscapeInvalid(
-      @Nonnull String webXmlContent, int defaultHtmlEscapeIndex, AgentSpan span) {
+      @Nonnull String webXmlContent,
+      int defaultHtmlEscapeIndex,
+      AgentSpan span) {
     if (defaultHtmlEscapeIndex != -1) {
-      int start =
-          webXmlContent.indexOf(PARAM_VALUE_START_TAG, defaultHtmlEscapeIndex)
-              + PARAM_VALUE_START_TAG.length();
+      int start = webXmlContent.indexOf(PARAM_VALUE_START_TAG, defaultHtmlEscapeIndex)
+          + PARAM_VALUE_START_TAG.length();
       String value =
           substringTrim(webXmlContent, start, webXmlContent.indexOf(PARAM_VALUE_END_TAG, start));
       if (!value.equalsIgnoreCase("true")) {
@@ -289,7 +282,9 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   private void checkDirectoryListingLeak(
-      final String webXmlContent, int index, final AgentSpan span) {
+      final String webXmlContent,
+      int index,
+      final AgentSpan span) {
     int valueIndex =
         webXmlContent.indexOf(PARAM_VALUE_START_TAG, index) + PARAM_VALUE_START_TAG.length();
     int valueLast = webXmlContent.indexOf(PARAM_VALUE_END_TAG, valueIndex);
@@ -300,7 +295,9 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   private void reportDirectoryListingLeak(
-      final String webXmlContent, int index, final AgentSpan span) {
+      final String webXmlContent,
+      int index,
+      final AgentSpan span) {
     report(
         span,
         VulnerabilityType.DIRECTORY_LISTING_LEAK,
@@ -310,11 +307,10 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
 
   private void checkSessionTimeOut(final String webXmlContent, int index, final AgentSpan span) {
     try {
-      String innerText =
-          substringTrim(
-              webXmlContent,
-              index + SESSION_TIMEOUT_START_TAG.length(),
-              webXmlContent.indexOf(SESSION_TIMEOUT_END_TAG, index));
+      String innerText = substringTrim(
+          webXmlContent,
+          index + SESSION_TIMEOUT_START_TAG.length(),
+          webXmlContent.indexOf(SESSION_TIMEOUT_END_TAG, index));
       int timeoutValue = Integer.parseInt(innerText);
       if (timeoutValue > 30 || timeoutValue == -1) {
         report(
@@ -329,11 +325,10 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
   }
 
   private void checkVerbTampering(final String webXmlContent, int index, final AgentSpan span) {
-    String innerText =
-        substringTrim(
-            webXmlContent,
-            index + SECURITY_CONSTRAINT_START_TAG.length(),
-            webXmlContent.indexOf(SECURITY_CONSTRAINT_END_TAG, index));
+    String innerText = substringTrim(
+        webXmlContent,
+        index + SECURITY_CONSTRAINT_START_TAG.length(),
+        webXmlContent.indexOf(SECURITY_CONSTRAINT_END_TAG, index));
     if (!innerText.contains("<http-method>")) {
       report(
           span,
@@ -347,7 +342,9 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     reporter.report(
         span,
         new Vulnerability(
-            type, Location.forSpanAndFileAndLine(span, WEB_XML, line), new Evidence(value)));
+            type,
+            Location.forSpanAndFileAndLine(span, WEB_XML, line),
+            new Evidence(value)));
   }
 
   private void checkInsecureJSPLayout(@Nonnull Path path, AgentSpan span) {
@@ -355,14 +352,16 @@ public class ApplicationModuleImpl extends SinkModuleBase implements Application
     if (jspPaths.isEmpty()) {
       return;
     }
-    String result =
-        jspPaths.stream()
-            .map(jspFolder -> relativize(path, jspFolder))
-            .collect(Collectors.joining(System.lineSeparator()));
+    String result = jspPaths
+      .stream()
+      .map(jspFolder -> relativize(path, jspFolder))
+      .collect(Collectors.joining(System.lineSeparator()));
     reporter.report(
         span,
         new Vulnerability(
-            VulnerabilityType.INSECURE_JSP_LAYOUT, Location.forSpan(span), new Evidence(result)));
+            VulnerabilityType.INSECURE_JSP_LAYOUT,
+            Location.forSpan(span),
+            new Evidence(result)));
   }
 
   private static int getLine(String webXmlContent, int index) {

@@ -1,7 +1,6 @@
 package datadog.trace.core.tagprocessor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class PeerServiceCalculatorTest extends DDJavaSpecification {
-
   private static LinkedHashMap<String, Object> linkedMap(Object... pairs) {
     LinkedHashMap<String, Object> map = new LinkedHashMap<>();
     for (int i = 0; i < pairs.length; i += 2) {
@@ -41,24 +39,34 @@ class PeerServiceCalculatorTest extends DDJavaSpecification {
 
     TagMap unsafeTags = TagMap.fromMap(tags);
     calculator.processTags(unsafeTags, null, link -> {});
-
     // tags are not modified
     assertEquals(tags, unsafeTags);
   }
 
   @TableTest({
-    "scenario                              | tags                                                                        | provenance    | peerService",
-    "empty                                 | [:]                                                                         |               |            ",
-    "hostname only (1)                     | ['peer.hostname': 'test']                                                   | peer.hostname | test       ",
-    "hostname only (2)                     | ['peer.hostname': 'test']                                                   | peer.hostname | test       ",
-    "hostname and db instance              | ['peer.hostname': 'test', 'db.instance': 'instance']                        | db.instance   | instance   ",
-    "db instance before hostname           | ['db.instance': 'instance', 'peer.hostname': 'test']                        | db.instance   | instance   ",
-    "hostname, rpc service, grpc component | ['peer.hostname': 'test', 'rpc.service': 'svc', 'component': 'grpc-client'] | rpc.service   | svc        ",
-    "rpc service before hostname           | ['rpc.service': 'svc', 'peer.hostname': 'test', 'component': 'grpc-client'] | rpc.service   | svc        ",
-    "hostname and peer service             | ['peer.hostname': 'test', 'peer.service': 'userService']                    |               | userService"
+    "scenario                              | tags                                      ",
+    "                                  | provenance    | peerService                   ",
+    "empty                                 | [:]                                       ",
+    "                                  |               |                               ",
+    "hostname only (1)                     | ['peer.hostname': 'test']                 ",
+    "                                  | peer.hostname | test                          ",
+    "hostname only (2)                     | ['peer.hostname': 'test']                 ",
+    "                                  | peer.hostname | test                          ",
+    "hostname and db instance              | ['peer.hostname': 'test', 'db.instance':  ",
+    "'instance']                        | db.instance   | instance                     ",
+    "db instance before hostname           | ['db.instance': 'instance', 'peer.        ",
+    "hostname': 'test']                        | db.instance   | instance              ",
+    "hostname, rpc service, grpc component | ['peer.hostname': 'test', 'rpc.service':  ",
+    "'svc', 'component': 'grpc-client'] | rpc.service   | svc                          ",
+    "rpc service before hostname           | ['rpc.service': 'svc', 'peer.hostname':   ",
+    "'test', 'component': 'grpc-client'] | rpc.service   | svc                         ",
+    "hostname and peer service             | ['peer.hostname': 'test', 'peer.service': ",
+    "'userService']                    |               | userService                   "
   })
   void schemaV1TestPeerServiceDefaultLogicAndPrecursors(
-      Map<String, Object> tags, String provenance, String peerService) {
+      Map<String, Object> tags,
+      String provenance,
+      String peerService) {
     PeerServiceCalculator calculator =
         new PeerServiceCalculator(new NamingSchemaV1().peerService(), Collections.emptyMap());
 
@@ -101,21 +109,26 @@ class PeerServiceCalculatorTest extends DDJavaSpecification {
     assertEquals(calculate, unsafeTags.containsKey(Tags.PEER_SERVICE));
   }
 
-  @WithConfig(
-      key = "trace.peer.service.mapping",
-      value = "service1:best_service,userService:my_service")
+  @WithConfig(key = "trace.peer.service.mapping", value = "service1:best_service,userService:my_"
+      + "service")
   @WithConfig(key = "trace.peer.service.defaults.enabled", value = "true")
   @TableTest({
-    "scenario                         | tags                                                   | expected     | original   ",
-    "peer service remapped            | ['peer.service': 'userService']                        | my_service   | userService",
-    "hostname client, no remap        | ['peer.hostname': 'test', 'span.kind': 'client']       | test         |            ",
-    "hostname producer, remap service | ['peer.hostname': 'service1', 'span.kind': 'producer'] | best_service | service1   "
+    "scenario                         | tags                                           ",
+    "        | expected     | original                                                 ",
+    "peer service remapped            | ['peer.service': 'userService']                ",
+    "        | my_service   | userService                                              ",
+    "hostname client, no remap        | ['peer.hostname': 'test', 'span.kind':         ",
+    "'client']       | test         |                                                  ",
+    "hostname producer, remap service | ['peer.hostname': 'service1', 'span.kind':     ",
+    "'producer'] | best_service | service1                                             "
   })
   void shouldApplyPeerServiceMappingsIfConfigured(
-      Map<String, Object> tags, String expected, String original) {
-    PeerServiceCalculator calculator =
-        new PeerServiceCalculator(
-            new NamingSchemaV0().peerService(), Config.get().getPeerServiceMapping());
+      Map<String, Object> tags,
+      String expected,
+      String original) {
+    PeerServiceCalculator calculator = new PeerServiceCalculator(
+        new NamingSchemaV0().peerService(),
+        Config.get().getPeerServiceMapping());
 
     TagMap unsafeTags = TagMap.fromMap(tags);
     calculator.processTags(unsafeTags, null, link -> {});
@@ -127,15 +140,20 @@ class PeerServiceCalculatorTest extends DDJavaSpecification {
   @WithConfig(key = "trace.peer.service.component.overrides", value = "java-couchbase:couchbase")
   @WithConfig(key = "trace.peer.service.defaults.enabled", value = "true")
   @TableTest({
-    "scenario                    | tags                                                                             | expected  | source             ",
-    "component override applies  | ['component': 'java-couchbase', 'span.kind': 'client']                           | couchbase | _component_override",
-    "hostname wins over override | ['peer.hostname': 'host1', 'span.kind': 'client', 'component': 'my-http-client'] | host1     | peer.hostname      "
+    "scenario                    | tags                                                ",
+    "                             | expected  | source                                 ",
+    "component override applies  | ['component': 'java-couchbase', 'span.kind':        ",
+    "'client']                           | couchbase | _component_override             ",
+    "hostname wins over override | ['peer.hostname': 'host1', 'span.kind': 'client',   ",
+    "'component': 'my-http-client'] | host1     | peer.hostname                        "
   })
   void shouldOverridePeerServiceValuesIfConfigured(
-      Map<String, Object> tags, String expected, String source) {
-    PeerServiceCalculator calculator =
-        new PeerServiceCalculator(
-            new NamingSchemaV0().peerService(), Config.get().getPeerServiceComponentOverrides());
+      Map<String, Object> tags,
+      String expected,
+      String source) {
+    PeerServiceCalculator calculator = new PeerServiceCalculator(
+        new NamingSchemaV0().peerService(),
+        Config.get().getPeerServiceComponentOverrides());
 
     TagMap unsafeTags = TagMap.fromMap(tags);
     calculator.processTags(unsafeTags, null, link -> {});

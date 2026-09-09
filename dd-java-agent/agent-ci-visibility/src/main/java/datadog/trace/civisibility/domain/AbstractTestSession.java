@@ -2,7 +2,6 @@ package datadog.trace.civisibility.domain;
 
 import static datadog.trace.api.TracePropagationStyle.NONE;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -42,7 +41,6 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 public abstract class AbstractTestSession {
-
   protected final Provider ciProvider;
   protected final InstrumentationType instrumentationType;
   protected final AgentSpan span;
@@ -73,27 +71,24 @@ public abstract class AbstractTestSession {
     this.sourcePathResolver = sourcePathResolver;
     this.codeowners = codeowners;
     this.linesResolver = linesResolver;
-
     // CI Test Cycle protocol requires session's trace ID and span ID to be the same
     IdGenerationStrategy idGenerationStrategy = config.getIdGenerationStrategy();
     DDTraceId traceId = idGenerationStrategy.generateTraceId();
-    AgentSpanContext traceContext =
-        new TagContext(
-            CIConstants.CIAPP_TEST_ORIGIN,
-            null,
-            null,
-            null,
-            PrioritySampling.UNSET,
-            null,
-            NONE,
-            traceId);
+    AgentSpanContext traceContext = new TagContext(
+        CIConstants.CIAPP_TEST_ORIGIN,
+        null,
+        null,
+        null,
+        PrioritySampling.UNSET,
+        null,
+        NONE,
+        traceId);
 
-    AgentTracer.SpanBuilder spanBuilder =
-        AgentTracer.get()
-            .buildSpan(
-                CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_session")
-            .asChildOf(traceContext)
-            .withSpanId(traceId.toLong());
+    AgentTracer.SpanBuilder spanBuilder = AgentTracer
+      .get()
+      .buildSpan(CI_VISIBILITY_INSTRUMENTATION_NAME, testDecorator.component() + ".test_session")
+      .asChildOf(traceContext)
+      .withSpanId(traceId.toLong());
 
     if (startTime != null) {
       spanBuilder = spanBuilder.withStartTimestamp(startTime);
@@ -105,13 +100,11 @@ public abstract class AbstractTestSession {
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);
     span.setTag(Tags.TEST_SESSION_ID, span.getTraceId());
-
     // setting status to skip initially,
     // as we do not know in advance whether the session will have any children
     span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
     span.setResourceName(projectName);
-
     // The backend requires all session spans to have the test command tag
     // because it is used for session fingerprint calculation.
     // We're setting it here to project name as a default that works
@@ -137,8 +130,8 @@ public abstract class AbstractTestSession {
         config.isCiVisibilityAutoInjected() ? AutoInjected.TRUE : null,
         config.isAgentlessLogSubmissionEnabled() ? AgentlessLogSubmissionEnabled.TRUE : null,
         CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())
-            ? FailFastTestOrderEnabled.TRUE
-            : null);
+        ? FailFastTestOrderEnabled.TRUE
+        : null);
 
     if (instrumentationType == InstrumentationType.MANUAL_API) {
       metricCollector.add(CiVisibilityCountMetric.MANUAL_API_EVENTS, 1, EventType.SESSION);
@@ -170,7 +163,6 @@ public abstract class AbstractTestSession {
     }
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_FINISHED, 1, telemetryTags());
-
     // flushing written traces synchronously:
     // as soon as build finish event is processed,
     // the process can be killed by the CI provider

@@ -6,13 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class FlatHashtableD2Test {
-
   static final class PairEntry extends FlatHashtable.D2.Entry<String, Integer> {
     int value;
 
@@ -22,7 +20,9 @@ class FlatHashtableD2Test {
     }
   }
 
-  /** A key whose hash is fixed at construction so composite-hash collisions can be forced. */
+  /**
+   * A key whose hash is fixed at construction so composite-hash collisions can be forced.
+   */
   static final class CollidingKey {
     final String label;
     final int hash;
@@ -84,8 +84,10 @@ class FlatHashtableD2Test {
   void distinctCompositeKeysStaySeparate() {
     FlatHashtable.D2<String, Integer, PairEntry> table = growable(16);
     PairEntry a1 = new PairEntry("a", 1, 10);
-    PairEntry a2 = new PairEntry("a", 2, 20); // same key1, different key2
-    PairEntry b1 = new PairEntry("b", 1, 30); // different key1, same key2
+    // same key1, different key2
+    PairEntry a2 = new PairEntry("a", 2, 20);
+    // different key1, same key2
+    PairEntry b1 = new PairEntry("b", 1, 30);
     table.insert(a1);
     table.insert(a2);
     table.insert(b1);
@@ -166,14 +168,10 @@ class FlatHashtableD2Test {
   void getOrCreateOnMissBuildsEntryViaCreator() {
     FlatHashtable.D2<String, Integer, PairEntry> table = growable(8);
     int[] createCount = {0};
-    PairEntry created =
-        table.getOrCreate(
-            "foo",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 42);
-            });
+    PairEntry created = table.getOrCreate("foo", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 42);
+    });
     assertNotNull(created);
     assertEquals("foo", created.key1());
     assertEquals(1, created.key2());
@@ -189,14 +187,10 @@ class FlatHashtableD2Test {
     PairEntry seeded = new PairEntry("foo", 1, 1);
     table.insert(seeded);
     int[] createCount = {0};
-    PairEntry got =
-        table.getOrCreate(
-            "foo",
-            1,
-            (k1, k2) -> {
-              createCount[0]++;
-              return new PairEntry(k1, k2, 999);
-            });
+    PairEntry got = table.getOrCreate("foo", 1, (k1, k2) -> {
+      createCount[0]++;
+      return new PairEntry(k1, k2, 999);
+    });
     assertSame(seeded, got);
     assertEquals(1, table.size());
     assertEquals(0, createCount[0]);
@@ -243,7 +237,6 @@ class FlatHashtableD2Test {
     CollidingKey key2 = new CollidingKey("x", 3);
     CollidingPairEntry e = new CollidingPairEntry(key1, key2, 100);
     table.insert(e);
-
     // Same combined hash (31*7 + 3) as the stored entry, but key1 differs by equals: the entry's
     // matches() must reject on key1, so the lookup misses rather than returning the wrong entry.
     assertNull(table.get(new CollidingKey("b", 7), key2));

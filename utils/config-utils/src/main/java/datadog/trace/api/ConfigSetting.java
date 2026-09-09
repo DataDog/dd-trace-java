@@ -2,7 +2,6 @@ package datadog.trace.api;
 
 import static datadog.trace.config.inversion.GeneratedSupportedConfigurations.SENSITIVE_KEYS;
 import static datadog.trace.util.ConfigStrings.toCanonicalEnvVar;
-
 import java.util.BitSet;
 import java.util.Map;
 import java.util.Objects;
@@ -11,13 +10,13 @@ public final class ConfigSetting {
   public static final int DEFAULT_SEQ_ID = 1;
   public static final int NON_DEFAULT_SEQ_ID = DEFAULT_SEQ_ID + 1;
   public static final int ABSENT_SEQ_ID = 0;
-
   public final String key;
   public final Object value;
   public final ConfigOrigin origin;
   public final int seqId;
-
-  /** The config ID associated with this setting, or {@code null} if not applicable. */
+  /**
+   * The config ID associated with this setting, or {@code null} if not applicable.
+   */
   public final String configId;
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
@@ -34,7 +33,11 @@ public final class ConfigSetting {
   }
 
   public static ConfigSetting of(
-      String key, Object value, ConfigOrigin origin, int seqId, String configId) {
+      String key,
+      Object value,
+      ConfigOrigin origin,
+      int seqId,
+      String configId) {
     return new ConfigSetting(key, value, origin, seqId, configId);
   }
 
@@ -112,8 +115,12 @@ public final class ConfigSetting {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     ConfigSetting that = (ConfigSetting) o;
     return key.equals(that.key)
         && Objects.equals(value, that.value)

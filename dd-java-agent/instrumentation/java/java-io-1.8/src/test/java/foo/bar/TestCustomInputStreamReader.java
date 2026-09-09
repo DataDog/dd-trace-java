@@ -6,13 +6,11 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 
 public class TestCustomInputStreamReader extends InputStreamReader {
-
   public TestCustomInputStreamReader(final InputStream in) throws IOException {
     super(in);
   }
 
-  public TestCustomInputStreamReader(final InputStream in, final Charset charset)
-      throws IOException {
+  public TestCustomInputStreamReader(final InputStream in, final Charset charset) throws IOException {
     // XXX: DO NOT MODIFY THIS CODE. This is testing a very specific error (APPSEC-58131).
     // This caused the following error:
     //   VerifyError: Inconsistent stackmap frames at branch target \d

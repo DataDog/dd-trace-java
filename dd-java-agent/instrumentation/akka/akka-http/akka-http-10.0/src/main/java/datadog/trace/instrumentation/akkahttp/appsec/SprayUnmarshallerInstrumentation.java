@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.akkahttp.appsec;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ScalaTraitMatchers.isTraitMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import akka.http.scaladsl.unmarshalling.Unmarshaller;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,8 +13,8 @@ import net.bytebuddy.asm.Advice;
 // TODO: move to separate module and have better support
 @AutoService(InstrumenterModule.class)
 public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   private static final String TRAIT_NAME =
       "akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport";
 
@@ -25,22 +24,20 @@ public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] knownMatchingTypes() {
-    return new String[] {
-      TRAIT_NAME, TRAIT_NAME + "$class",
-    };
+    return new String[] {TRAIT_NAME, TRAIT_NAME + "$class"};
   }
 
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".UnmarshallerHelpers",
-      packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
-      packageName + ".AkkaBlockResponseFunction",
-      packageName + ".BlockingResponseHelper",
-      packageName + ".ScalaListCollector",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
-      "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
-      "datadog.trace.instrumentation.akkahttp.UriAdapter",
+        packageName + ".UnmarshallerHelpers",
+        packageName + ".UnmarshallerHelpers$UnmarkStrictFormOngoingOnUnsupportedException",
+        packageName + ".AkkaBlockResponseFunction",
+        packageName + ".BlockingResponseHelper",
+        packageName + ".ScalaListCollector",
+        "datadog.trace.instrumentation.akkahttp.AkkaHttpServerDecorator",
+        "datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders",
+        "datadog.trace.instrumentation.akkahttp.UriAdapter"
     };
   }
 
@@ -53,11 +50,12 @@ public class SprayUnmarshallerInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isTraitMethod(TRAIT_NAME, "sprayJsonUnmarshaller", "spray.json.RootJsonReader")
-            .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
-            .or(
-                isTraitMethod(
-                        TRAIT_NAME, "sprayJsonByteStringUnmarshaller", "spray.json.RootJsonReader")
-                    .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))),
+          .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))
+          .or(isTraitMethod(
+              TRAIT_NAME,
+              "sprayJsonByteStringUnmarshaller",
+              "spray.json.RootJsonReader")
+            .and(returns(named("akka.http.scaladsl.unmarshalling.Unmarshaller")))),
         SprayUnmarshallerInstrumentation.class.getName() + "$ArbitraryTypeAdvice");
     // support is basic:
     // * Source[T, NotUsed] is not intercepted

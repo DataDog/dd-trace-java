@@ -9,6 +9,7 @@ public class TestIndexLastModule extends InstrumenterModule {
 
   @Override
   public int order() {
-    return 100; // higher-values applied last
+    // higher-values applied last
+    return 100;
   }
 }

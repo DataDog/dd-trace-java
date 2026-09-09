@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
@@ -29,8 +28,8 @@ import net.bytebuddy.pool.TypePool;
 
 @AutoService(InstrumenterModule.class)
 public class DecodedFormParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public DecodedFormParametersInstrumentation() {
     super("resteasy");
   }
@@ -46,9 +45,9 @@ public class DecodedFormParametersInstrumentation extends InstrumenterModule.App
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "org.jboss.resteasy.plugins.server.BaseHttpRequest",
-      "org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage",
-      NETTY_HTTP_REQUEST_CLASS_NAME
+        "org.jboss.resteasy.plugins.server.BaseHttpRequest",
+        "org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage",
+        NETTY_HTTP_REQUEST_CLASS_NAME
     };
   }
 
@@ -65,23 +64,18 @@ public class DecodedFormParametersInstrumentation extends InstrumenterModule.App
   }
 
   public static class CustomReferenceProvider implements ReferenceProvider {
-    private static final Reference BASE_HTTP_REQUEST_DECODED_PARAMETERS =
-        new Reference.Builder("org.jboss.resteasy.plugins.server.BaseHttpRequest")
-            .withField(
-                new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-            .build();
-
-    private static final Reference HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS =
-        new Reference.Builder("org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage")
-            .withField(
-                new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-            .build();
-
-    private static final Reference NETTY_HTTP_REQUEST_DECODED_PARAMETERS =
-        new Reference.Builder(NETTY_HTTP_REQUEST_CLASS_NAME)
-            .withField(
-                new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
-            .build();
+    private static final Reference BASE_HTTP_REQUEST_DECODED_PARAMETERS = new Reference.Builder(
+        "org.jboss.resteasy.plugins.server.BaseHttpRequest")
+      .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+      .build();
+    private static final Reference HTTP_SERVLET_INPUT_MESSAGE_DECODED_PARAMETERS = new Reference.Builder(
+        "org.jboss.resteasy.plugins.server.servlet.HttpServletInputMessage")
+      .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+      .build();
+    private static final Reference NETTY_HTTP_REQUEST_DECODED_PARAMETERS = new Reference.Builder(
+        NETTY_HTTP_REQUEST_CLASS_NAME)
+      .withField(new String[0], 0, "decodedFormParameters", "Ljavax/ws/rs/core/MultivaluedMap;")
+      .build();
 
     @Override
     public Iterable<Reference> buildReferences(TypePool typePool) {

@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,8 +22,8 @@ import org.jboss.netty.channel.ChannelPipeline;
 
 @AutoService(InstrumenterModule.class)
 public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   static final String INSTRUMENTATION_NAME = "netty";
   static final String[] ADDITIONAL_INSTRUMENTATION_NAMES = {"netty-3.8"};
 
@@ -45,32 +44,32 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".AbstractNettyAdvice",
-      packageName + ".ChannelTraceContext",
-      packageName + ".ChannelTraceContext$Factory",
-      packageName + ".ChannelPipelineAdviceUtil",
-      // Util
-      packageName + ".util.CombinedSimpleChannelHandler",
-      // client helpers
-      packageName + ".client.NettyHttpClientDecorator",
-      packageName + ".client.NettyResponseInjectAdapter",
-      packageName + ".client.HttpClientRequestTracingHandler",
-      packageName + ".client.HttpClientResponseTracingHandler",
-      packageName + ".client.HttpClientTracingHandler",
-      // server helpers
-      packageName + ".server.ResponseExtractAdapter",
-      packageName + ".server.NettyHttpServerDecorator",
-      packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
-      packageName + ".server.NettyHttpServerDecorator$IgnoreBlockingExceptionHandler",
-      packageName + ".server.BlockingResponseHandler",
-      packageName + ".server.BlockAllWritesHandler",
-      packageName + ".server.HttpServerRequestTracingHandler",
-      packageName + ".server.HttpServerResponseTracingHandler",
-      packageName + ".server.HttpServerTracingHandler",
-      packageName + ".server.MaybeBlockResponseHandler",
-      packageName + ".server.websocket.WebSocketServerTracingHandler",
-      packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
-      packageName + ".server.websocket.WebSocketServerResponseTracingHandler",
+        packageName + ".AbstractNettyAdvice",
+        packageName + ".ChannelTraceContext",
+        packageName + ".ChannelTraceContext$Factory",
+        packageName + ".ChannelPipelineAdviceUtil",
+        // Util
+        packageName + ".util.CombinedSimpleChannelHandler",
+        // client helpers
+        packageName + ".client.NettyHttpClientDecorator",
+        packageName + ".client.NettyResponseInjectAdapter",
+        packageName + ".client.HttpClientRequestTracingHandler",
+        packageName + ".client.HttpClientResponseTracingHandler",
+        packageName + ".client.HttpClientTracingHandler",
+        // server helpers
+        packageName + ".server.ResponseExtractAdapter",
+        packageName + ".server.NettyHttpServerDecorator",
+        packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
+        packageName + ".server.NettyHttpServerDecorator$IgnoreBlockingExceptionHandler",
+        packageName + ".server.BlockingResponseHandler",
+        packageName + ".server.BlockAllWritesHandler",
+        packageName + ".server.HttpServerRequestTracingHandler",
+        packageName + ".server.HttpServerResponseTracingHandler",
+        packageName + ".server.HttpServerTracingHandler",
+        packageName + ".server.MaybeBlockResponseHandler",
+        packageName + ".server.websocket.WebSocketServerTracingHandler",
+        packageName + ".server.websocket.WebSocketServerRequestTracingHandler",
+        packageName + ".server.websocket.WebSocketServerResponseTracingHandler"
     };
   }
 
@@ -78,20 +77,21 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(nameStartsWith("add"))
-            .and(takesArgument(1, named("org.jboss.netty.channel.ChannelHandler"))),
+          .and(nameStartsWith("add"))
+          .and(takesArgument(1, named("org.jboss.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAdd2ArgsAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(nameStartsWith("add"))
-            .and(takesArgument(2, named("org.jboss.netty.channel.ChannelHandler"))),
+          .and(nameStartsWith("add"))
+          .and(takesArgument(2, named("org.jboss.netty.channel.ChannelHandler"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ChannelPipelineAdd3ArgsAdvice");
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "org.jboss.netty.channel.Channel", packageName + ".ChannelTraceContext");
+        "org.jboss.netty.channel.Channel",
+        packageName + ".ChannelTraceContext");
   }
 
   public static class ChannelPipelineAdd2ArgsAdvice extends AbstractNettyAdvice {

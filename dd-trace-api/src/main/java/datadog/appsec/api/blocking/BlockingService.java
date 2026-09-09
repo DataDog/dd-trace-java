@@ -9,10 +9,13 @@ public interface BlockingService {
   BlockingDetails shouldBlockUser(@Nonnull String userId);
 
   boolean tryCommitBlockingResponse(
-      int statusCode, @Nonnull BlockingContentType type, @Nonnull Map<String, String> extraHeaders);
+      int statusCode,
+      @Nonnull BlockingContentType type,
+      @Nonnull Map<String, String> extraHeaders);
 
   class BlockingServiceNoop implements BlockingService {
-    private BlockingServiceNoop() {}
+    private BlockingServiceNoop() {
+    }
 
     @Override
     public BlockingDetails shouldBlockUser(@Nonnull String userId) {

@@ -8,9 +8,10 @@ import java.io.Closeable;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Encapsulation for the IAST context, */
+/**
+ * Encapsulation for the IAST context,
+ */
 public interface IastContext extends Closeable {
-
   /**
    * Get the tainted objects dictionary linked to the context, since we have no visibility over the
    * {@code TaintedObject} class from here, we use a dirty generics hack.
@@ -24,7 +25,6 @@ public interface IastContext extends Closeable {
   }
 
   abstract class Provider {
-
     private static Provider INSTANCE;
 
     public static void register(@Nonnull final Provider instance) {
@@ -43,10 +43,14 @@ public interface IastContext extends Closeable {
     @Nullable
     public abstract IastContext resolve();
 
-    /** Builds a new context to be scoped to the request */
+    /**
+     * Builds a new context to be scoped to the request
+     */
     public abstract IastContext buildRequestContext();
 
-    /** Release the current request context, e.g. free resources, add objects to pools, ... */
+    /**
+     * Release the current request context, e.g. free resources, add objects to pools, ...
+     */
     public abstract void releaseRequestContext(@Nonnull IastContext context);
 
     /**
@@ -63,7 +67,9 @@ public interface IastContext extends Closeable {
       return INSTANCE.resolve();
     }
 
-    /** Gets the current IAST context associated with the request context inside the span */
+    /**
+     * Gets the current IAST context associated with the request context inside the span
+     */
     @Nullable
     public static IastContext get(@Nullable final AgentSpan span) {
       if (span == null) {

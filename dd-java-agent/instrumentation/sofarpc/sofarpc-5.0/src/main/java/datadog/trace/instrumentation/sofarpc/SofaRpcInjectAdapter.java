@@ -4,7 +4,6 @@ import com.alipay.sofa.rpc.core.request.SofaRequest;
 import datadog.context.propagation.CarrierSetter;
 
 public final class SofaRpcInjectAdapter implements CarrierSetter<SofaRequest> {
-
   public static final SofaRpcInjectAdapter SETTER = new SofaRpcInjectAdapter();
 
   @Override

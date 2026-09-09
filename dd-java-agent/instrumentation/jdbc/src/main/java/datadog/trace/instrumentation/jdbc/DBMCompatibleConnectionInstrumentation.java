@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logQueryInfoInjection;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -29,9 +28,11 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionInstrumentation
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
-  /** Instrumentation class for connections for Database Monitoring supported DBs * */
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
+  /**
+   * Instrumentation class for connections for Database Monitoring supported DBs *
+   */
   public DBMCompatibleConnectionInstrumentation() {
     super("jdbc", "dbm");
   }
@@ -39,48 +40,48 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   // Classes to cover all currently supported
   // db types for the Database Monitoring product
   static final String[] CONCRETE_TYPES = {
-    "com.microsoft.sqlserver.jdbc.SQLServerConnection",
-    // jtds (for SQL Server and Sybase)
-    "net.sourceforge.jtds.jdbc.ConnectionJDBC2", // 1.2
-    "net.sourceforge.jtds.jdbc.JtdsConnection", // 1.3
-    // postgresql seems to be complete
-    "org.postgresql.jdbc.PgConnection",
-    "org.postgresql.jdbc1.Connection",
-    "org.postgresql.jdbc1.Jdbc1Connection",
-    "org.postgresql.jdbc2.Connection",
-    "org.postgresql.jdbc2.Jdbc2Connection",
-    "org.postgresql.jdbc3.Jdbc3Connection",
-    "org.postgresql.jdbc3g.Jdbc3gConnection",
-    "org.postgresql.jdbc4.Jdbc4Connection",
-    "postgresql.Connection",
-    // EDB version of postgresql
-    "com.edb.jdbc.PgConnection",
-    // should cover Oracle
-    "oracle.jdbc.driver.PhysicalConnection",
-    // should cover mysql
-    "com.mysql.jdbc.Connection",
-    "com.mysql.jdbc.jdbc1.Connection",
-    "com.mysql.jdbc.jdbc2.Connection",
-    "com.mysql.jdbc.ConnectionImpl",
-    "com.mysql.jdbc.JDBC4Connection",
-    "com.mysql.cj.jdbc.ConnectionImpl",
-    // complete
-    "org.mariadb.jdbc.MySQLConnection",
-    // MariaDB Connector/J v2.x
-    "org.mariadb.jdbc.MariaDbConnection",
-    // MariaDB Connector/J v3.x
-    "org.mariadb.jdbc.Connection",
-    // aws-mysql-jdbc
-    "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
-    // for testing purposes
-    "test.TestConnection"
+      "com.microsoft.sqlserver.jdbc.SQLServerConnection",
+      // jtds (for SQL Server and Sybase)
+  // 1.2
+      "net.sourceforge.jtds.jdbc.ConnectionJDBC2",
+      // 1.3
+      "net.sourceforge.jtds.jdbc.JtdsConnection",
+      // postgresql seems to be complete
+      "org.postgresql.jdbc.PgConnection",
+      "org.postgresql.jdbc1.Connection",
+      "org.postgresql.jdbc1.Jdbc1Connection",
+      "org.postgresql.jdbc2.Connection",
+      "org.postgresql.jdbc2.Jdbc2Connection",
+      "org.postgresql.jdbc3.Jdbc3Connection",
+      "org.postgresql.jdbc3g.Jdbc3gConnection",
+      "org.postgresql.jdbc4.Jdbc4Connection",
+      "postgresql.Connection",
+      // EDB version of postgresql
+      "com.edb.jdbc.PgConnection",
+      // should cover Oracle
+      "oracle.jdbc.driver.PhysicalConnection",
+      // should cover mysql
+      "com.mysql.jdbc.Connection",
+      "com.mysql.jdbc.jdbc1.Connection",
+      "com.mysql.jdbc.jdbc2.Connection",
+      "com.mysql.jdbc.ConnectionImpl",
+      "com.mysql.jdbc.JDBC4Connection",
+      "com.mysql.cj.jdbc.ConnectionImpl",
+      // complete
+      "org.mariadb.jdbc.MySQLConnection",
+      // MariaDB Connector/J v2.x
+      "org.mariadb.jdbc.MariaDbConnection",
+      // MariaDB Connector/J v3.x
+      "org.mariadb.jdbc.Connection",
+      // aws-mysql-jdbc
+      "software.aws.rds.jdbc.mysql.shading.com.mysql.cj.jdbc.ConnectionImpl",
+      // for testing purposes
+      "test.TestConnection"
   };
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
-    };
+    return new String[] {packageName + ".JDBCDecorator", packageName + ".SQLCommenter"};
   }
 
   @Override
@@ -92,9 +93,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         nameStartsWith("prepare")
-            .and(takesArgument(0, String.class))
-            // Also include CallableStatement, which is a subtype of PreparedStatement
-            .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
+          .and(takesArgument(0, String.class))
+          // Also include CallableStatement, which is a subtype of PreparedStatement
+          .and(returns(hasInterface(named("java.sql.PreparedStatement")))),
         DBMCompatibleConnectionInstrumentation.class.getName() + "$ConnectionAdvice");
   }
 
@@ -107,7 +108,6 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   }
 
   public static class ConnectionAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static String onEnter(
         @Advice.This Connection connection,
@@ -120,9 +120,9 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
       }
       final String inputSql = sql;
       final AgentSpan activeSpan = activeSpan();
-      final DBInfo dbInfo =
-          JDBCDecorator.parseDBInfo(
-              connection, InstrumentationContext.get(Connection.class, DBInfo.class));
+      final DBInfo dbInfo = JDBCDecorator.parseDBInfo(
+          connection,
+          InstrumentationContext.get(Connection.class, DBInfo.class));
       String dbService = DECORATE.getDbService(dbInfo);
       if (dbService != null) {
         dbService = traceConfig(activeSpan).getServiceMapping().getOrDefault(dbService, dbService);
@@ -130,9 +130,14 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
 
       boolean append =
           DECORATE.DBM_ALWAYS_APPEND_SQL_COMMENT || "sqlserver".equals(dbInfo.getType());
-      sql =
-          SQLCommenter.inject(
-              sql, dbService, dbInfo.getType(), dbInfo.getHost(), dbInfo.getDb(), null, append);
+      sql = SQLCommenter.inject(
+          sql,
+          dbService,
+          dbInfo.getType(),
+          dbInfo.getHost(),
+          dbInfo.getDb(),
+          null,
+          append);
       return inputSql;
     }
 

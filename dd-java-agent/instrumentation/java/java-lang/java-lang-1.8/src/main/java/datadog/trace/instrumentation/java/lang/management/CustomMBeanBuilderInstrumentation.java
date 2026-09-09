@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.java.lang.management;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
-
 import com.google.auto.service.AutoService;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -14,8 +13,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class CustomMBeanBuilderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForConfiguredType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForConfiguredType,
+    Instrumenter.HasMethodAdvice {
   private final String customBuilder;
 
   public CustomMBeanBuilderInstrumentation() {

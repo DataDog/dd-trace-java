@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -30,8 +29,8 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public KarateExecutionInstrumentation() {
     super("ci-visibility", "karate", "test-retry");
   }
@@ -44,20 +43,21 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".ExecutionContext",
-      packageName + ".KarateTracingListener",
-      packageName + ".KarateScenarioAdvice",
-      packageName + ".KarateScenarioAdvice$RetryAdvice",
-      packageName + ".KarateScenarioAdvice$SuppressErrorAdvice"
+        packageName + ".KarateUtils",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".ExecutionContext",
+        packageName + ".KarateTracingListener",
+        packageName + ".KarateScenarioAdvice",
+        packageName + ".KarateScenarioAdvice$RetryAdvice",
+        packageName + ".KarateScenarioAdvice$SuppressErrorAdvice"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
+        "io.karatelabs.gherkin.Scenario",
+        packageName + ".ExecutionContext");
   }
 
   @Override
@@ -66,16 +66,15 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
     // method, not the synthetic Callable#call() bridge.
     transformer.applyAdvice(
         named("call")
-            .and(takesNoArguments())
-            .and(returns(named("io.karatelabs.core.ScenarioResult")))
-            .and(not(isBridge())),
+          .and(takesNoArguments())
+          .and(returns(named("io.karatelabs.core.ScenarioResult")))
+          .and(not(isBridge())),
         packageName + ".KarateScenarioAdvice$RetryAdvice");
-
     // ScenarioResult#addStepResult(StepResult)
     transformer.applyAdvice(
         named("addStepResult")
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.karatelabs.core.StepResult"))),
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.karatelabs.core.StepResult"))),
         packageName + ".KarateScenarioAdvice$SuppressErrorAdvice");
   }
 }

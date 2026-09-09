@@ -8,7 +8,6 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 class MessagingNamingV0 implements NamingSchema.ForMessaging {
-
   private static class ClassloaderDependentNamingSupplier implements Supplier<String> {
     private static final ClassloaderDependentNamingSupplier INSTANCE =
         new ClassloaderDependentNamingSupplier();
@@ -28,7 +27,6 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
   }
 
   private static final Supplier<String> NULL_SUPPLIER = () -> null;
-
   private final boolean allowInferredServices;
 
   public MessagingNamingV0(final boolean allowInferredServices) {
@@ -46,7 +44,8 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
 
   @Override
   public Supplier<String> outboundService(
-      @Nonnull final String messagingSystem, boolean useLegacyTracing) {
+      @Nonnull final String messagingSystem,
+      boolean useLegacyTracing) {
     return inboundService(messagingSystem, useLegacyTracing);
   }
 
@@ -65,7 +64,8 @@ class MessagingNamingV0 implements NamingSchema.ForMessaging {
 
   @Override
   public Supplier<String> inboundService(
-      @Nonnull final String messagingSystem, boolean useLegacyTracing) {
+      @Nonnull final String messagingSystem,
+      boolean useLegacyTracing) {
     if (allowInferredServices) {
       if (useLegacyTracing) {
         ServiceNameCollector.get().addService(messagingSystem);

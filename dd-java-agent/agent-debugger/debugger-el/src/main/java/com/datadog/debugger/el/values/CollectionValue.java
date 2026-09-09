@@ -10,91 +10,88 @@ import datadog.trace.bootstrap.debugger.el.Values;
  * @param <T>
  */
 public interface CollectionValue<T> extends Value<T> {
-  CollectionValue<?> UNDEFINED =
-      new CollectionValue<Object>() {
-        @Override
-        public boolean isEmpty() {
-          return true;
-        }
+  CollectionValue<?> UNDEFINED = new CollectionValue<Object>() {
+    @Override
+    public boolean isEmpty() {
+      return true;
+    }
 
-        @Override
-        public int count() {
-          return 0;
-        }
+    @Override
+    public int count() {
+      return 0;
+    }
 
-        @Override
-        public Value<?> get(Object key) {
-          return Value.undefinedValue();
-        }
+    @Override
+    public Value<?> get(Object key) {
+      return Value.undefinedValue();
+    }
 
-        @Override
-        public Object getValue() {
-          return Values.UNDEFINED_OBJECT;
-        }
+    @Override
+    public Object getValue() {
+      return Values.UNDEFINED_OBJECT;
+    }
 
-        @Override
-        public ValueType getType() {
-          return ValueType.OBJECT;
-        }
+    @Override
+    public ValueType getType() {
+      return ValueType.OBJECT;
+    }
 
-        @Override
-        public boolean isUndefined() {
-          return true;
-        }
+    @Override
+    public boolean isUndefined() {
+      return true;
+    }
 
-        @Override
-        public boolean isNull() {
-          return false;
-        }
+    @Override
+    public boolean isNull() {
+      return false;
+    }
 
-        @Override
-        public boolean contains(Value<?> val) {
-          return false;
-        }
-      };
+    @Override
+    public boolean contains(Value<?> val) {
+      return false;
+    }
+  };
+  CollectionValue<?> NULL = new CollectionValue<Object>() {
+    @Override
+    public boolean isEmpty() {
+      return true;
+    }
 
-  CollectionValue<?> NULL =
-      new CollectionValue<Object>() {
-        @Override
-        public boolean isEmpty() {
-          return true;
-        }
+    @Override
+    public int count() {
+      return -1;
+    }
 
-        @Override
-        public int count() {
-          return -1;
-        }
+    @Override
+    public Value<?> get(Object key) {
+      return Value.nullValue();
+    }
 
-        @Override
-        public Value<?> get(Object key) {
-          return Value.nullValue();
-        }
+    @Override
+    public Object getValue() {
+      return Value.nullValue();
+    }
 
-        @Override
-        public Object getValue() {
-          return Value.nullValue();
-        }
+    @Override
+    public ValueType getType() {
+      return ValueType.OBJECT;
+    }
 
-        @Override
-        public ValueType getType() {
-          return ValueType.OBJECT;
-        }
+    @Override
+    public boolean isUndefined() {
+      return false;
+    }
 
-        @Override
-        public boolean isUndefined() {
-          return false;
-        }
+    @Override
+    public boolean isNull() {
+      return true;
+    }
 
-        @Override
-        public boolean isNull() {
-          return true;
-        }
-
-        @Override
-        public boolean contains(Value<?> val) {
-          return false;
-        }
-      };
+    @Override
+    public boolean contains(Value<?> val) {
+      return false;
+    }
+  };
 
   boolean isEmpty();
 

@@ -2,7 +2,6 @@ package datadog.trace.test.agent.decoder.v04.raw;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.unmodifiableMap;
-
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import datadog.trace.test.agent.decoder.DecodedSpanLink;
 import datadog.trace.test.agent.decoder.DecodedSpanLinks;
@@ -43,9 +42,7 @@ public class SpanV04 implements DecodedSpan {
       int size = unpacker.unpackMapHeader();
       if (size != 12 && size != 13) {
         throw new IllegalArgumentException(
-            "Wrong span element map size "
-                + size
-                + ". Expected 12 (plain) or 13 (with meta_struct).");
+            "Wrong span element map size " + size + ". Expected 12 (plain) or 13 (with meta_struct).");
       }
 
       String service = unpackString("service", unpacker);
@@ -226,7 +223,8 @@ public class SpanV04 implements DecodedSpan {
         final Map<String, Object> resultMap = new HashMap<>(map.size());
         for (final Map.Entry<Value, Value> entry : map.entrySet()) {
           resultMap.put(
-              entry.getKey().asStringValue().asString(), convertValueToObject(entry.getValue()));
+              entry.getKey().asStringValue().asString(),
+              convertValueToObject(entry.getValue()));
         }
         return resultMap;
       default:

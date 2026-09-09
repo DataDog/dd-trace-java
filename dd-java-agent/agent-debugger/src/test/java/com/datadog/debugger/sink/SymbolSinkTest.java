@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import com.datadog.debugger.symbol.Scope;
 import com.datadog.debugger.symbol.ScopeType;
 import com.datadog.debugger.uploader.BatchUploader;
@@ -19,7 +18,6 @@ import okhttp3.MediaType;
 import org.junit.jupiter.api.Test;
 
 class SymbolSinkTest {
-
   @Test
   public void testSimpleFlush() {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
@@ -90,14 +88,12 @@ class SymbolSinkTest {
     // implicit flush because Q is full
     symbolSink.addScope(Scope.builder(ScopeType.JAR, "jar2.jar", 0, 0).build());
     assertEquals(2, symbolUploaderMock.multiPartContents.size());
-    assertTrue(
-        new String(symbolUploaderMock.multiPartContents.get(1).getContent())
-            .contains("\"source_file\":\"jar1.jar\""));
+    assertTrue(new String(symbolUploaderMock.multiPartContents.get(1).getContent())
+      .contains("\"source_file\":\"jar1.jar\""));
     symbolSink.flush();
     assertEquals(4, symbolUploaderMock.multiPartContents.size());
-    assertTrue(
-        new String(symbolUploaderMock.multiPartContents.get(3).getContent())
-            .contains("\"source_file\":\"jar2.jar\""));
+    assertTrue(new String(symbolUploaderMock.multiPartContents.get(3).getContent())
+      .contains("\"source_file\":\"jar2.jar\""));
   }
 
   @Test
@@ -109,10 +105,10 @@ class SymbolSinkTest {
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 1024);
     final int NUM_JAR_SCOPES = 10;
     for (int i = 0; i < NUM_JAR_SCOPES; i++) {
-      symbolSink.addScope(
-          Scope.builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
-              .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
-              .build());
+      symbolSink.addScope(Scope
+        .builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
+        .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
+        .build());
     }
     symbolSink.flush();
     // split upload request per jar scope
@@ -132,10 +128,10 @@ class SymbolSinkTest {
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 4096);
     final int NUM_JAR_SCOPES = 21;
     for (int i = 0; i < NUM_JAR_SCOPES; i++) {
-      symbolSink.addScope(
-          Scope.builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
-              .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
-              .build());
+      symbolSink.addScope(Scope
+        .builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
+        .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
+        .build());
     }
     symbolSink.flush();
     // split upload request per half jar scopes
@@ -158,30 +154,28 @@ class SymbolSinkTest {
     final int NUM_CLASS_SCOPES = 10;
     List<Scope> classScopes = new ArrayList<>();
     for (int i = 0; i < NUM_CLASS_SCOPES; i++) {
-      classScopes.add(
-          Scope.builder(ScopeType.CLASS, "class" + i, 0, 0)
-              .scopes(
-                  Collections.singletonList(
-                      Scope.builder(ScopeType.METHOD, "class" + i, 0, 0)
-                          .name("method" + i)
-                          .build()))
-              .build());
+      classScopes.add(Scope
+        .builder(ScopeType.CLASS, "class" + i, 0, 0)
+        .scopes(Collections.singletonList(Scope
+          .builder(ScopeType.METHOD, "class" + i, 0, 0)
+          .name("method" + i)
+          .build()))
+        .build());
     }
-    symbolSink.addScope(
-        Scope.builder(ScopeType.JAR, "jar1.jar", 0, 0)
-            .name("jar1.jar")
-            .scopes(classScopes)
-            .build());
+    symbolSink.addScope(Scope
+      .builder(ScopeType.JAR, "jar1.jar", 0, 0)
+      .name("jar1.jar")
+      .scopes(classScopes)
+      .build());
     symbolSink.flush();
     // split upload request per jar scope
     final int EXPECTED_REQUESTS = 4;
     assertEquals(EXPECTED_REQUESTS * 2, symbolUploaderMock.multiPartContents.size());
-    List<List<String>> expectedSourceFiles =
-        Arrays.asList(
-            Arrays.asList("class0", "class1"),
-            Arrays.asList("class2", "class3", "class4"),
-            Arrays.asList("class5", "class6"),
-            Arrays.asList("class7", "class8", "class9"));
+    List<List<String>> expectedSourceFiles = Arrays.asList(
+        Arrays.asList("class0", "class1"),
+        Arrays.asList("class2", "class3", "class4"),
+        Arrays.asList("class5", "class6"),
+        Arrays.asList("class7", "class8", "class9"));
     for (int i = 0; i < EXPECTED_REQUESTS * 2; i += 2) {
       String strContent = assertMultipartContent(symbolUploaderMock, i);
       for (String sourceFile : expectedSourceFiles.get(i / 2)) {
@@ -200,20 +194,19 @@ class SymbolSinkTest {
     final int NUM_CLASS_SCOPES = 10;
     List<Scope> classScopes = new ArrayList<>();
     for (int i = 0; i < NUM_CLASS_SCOPES; i++) {
-      classScopes.add(
-          Scope.builder(ScopeType.CLASS, "class" + i, 0, 0)
-              .scopes(
-                  Collections.singletonList(
-                      Scope.builder(ScopeType.METHOD, "class" + i, 0, 0)
-                          .name("method" + i)
-                          .build()))
-              .build());
+      classScopes.add(Scope
+        .builder(ScopeType.CLASS, "class" + i, 0, 0)
+        .scopes(Collections.singletonList(Scope
+          .builder(ScopeType.METHOD, "class" + i, 0, 0)
+          .name("method" + i)
+          .build()))
+        .build());
     }
-    symbolSink.addScope(
-        Scope.builder(ScopeType.JAR, "jar1.jar", 0, 0)
-            .name("jar1.jar")
-            .scopes(classScopes)
-            .build());
+    symbolSink.addScope(Scope
+      .builder(ScopeType.JAR, "jar1.jar", 0, 0)
+      .name("jar1.jar")
+      .scopes(classScopes)
+      .build());
     symbolSink.flush();
     // no request to upload because we cannot split the jar scope
     assertTrue(symbolUploaderMock.multiPartContents.isEmpty());
@@ -228,23 +221,24 @@ class SymbolSinkTest {
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, 512);
     final int NUM_JAR_SCOPES = 100;
     for (int i = 0; i < NUM_JAR_SCOPES; i++) {
-      symbolSink.addScope(
-          Scope.builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
-              .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
-              .build());
+      symbolSink.addScope(Scope
+        .builder(ScopeType.JAR, "jar" + i + ".jar", 0, 0)
+        .scopes(singletonList(Scope.builder(ScopeType.CLASS, "class" + i, 0, 0).build()))
+        .build());
     }
     symbolSink.flush();
     int total = symbolUploaderMock.multiPartContents.size();
     assertTrue(
-        total >= 4, "expected at least 4 multipart entries (2+ event/file pairs), got " + total);
+        total >= 4,
+        "expected at least 4 multipart entries (2+ event/file pairs), got " + total);
     assertTrue(
         total % 2 == 0,
         "expected an even number of multipart entries (event/file pairs), got " + total);
     for (int i = 0; i < total; i += 2) {
       BatchUploader.MultiPartContent eventContent = symbolUploaderMock.multiPartContents.get(i);
       assertEquals("event", eventContent.getPartName());
-      BatchUploader.MultiPartContent symbolContent =
-          symbolUploaderMock.multiPartContents.get(i + 1);
+      BatchUploader.MultiPartContent symbolContent = symbolUploaderMock.multiPartContents.get(i
+          + 1);
       assertEquals(MediaType.get("application/gzip"), symbolContent.getMediaType());
     }
   }

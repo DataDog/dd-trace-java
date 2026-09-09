@@ -4,9 +4,10 @@ import datadog.trace.core.DDSpan;
 import java.io.Closeable;
 import java.util.List;
 
-/** A writer is responsible to send collected spans to some place */
+/**
+ * A writer is responsible to send collected spans to some place
+ */
 public interface Writer extends Closeable {
-
   /**
    * Write a trace represented by the entire list of all the finished spans
    *
@@ -14,7 +15,9 @@ public interface Writer extends Closeable {
    */
   void write(List<DDSpan> trace);
 
-  /** Start the writer */
+  /**
+   * Start the writer
+   */
   void start();
 
   /**
@@ -31,6 +34,8 @@ public interface Writer extends Closeable {
   @Override
   void close();
 
-  /** Count that a trace was captured for stats, but without reporting it. */
+  /**
+   * Count that a trace was captured for stats, but without reporting it.
+   */
   void incrementDropCounts(int spanCount);
 }

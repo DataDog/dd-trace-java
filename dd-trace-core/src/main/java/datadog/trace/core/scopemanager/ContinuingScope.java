@@ -4,7 +4,9 @@ import datadog.context.Context;
 import datadog.trace.api.Stateful;
 
 final class ContinuingScope extends ContinuableScope {
-  /** Continuation that created this scope. */
+  /**
+   * Continuation that created this scope.
+   */
   private final ScopeContinuation continuation;
 
   ContinuingScope(

@@ -19,7 +19,9 @@ import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Represents list of Span Sampling Rules read from JSON. See SPAN_SAMPLING_RULES */
+/**
+ * Represents list of Span Sampling Rules read from JSON. See SPAN_SAMPLING_RULES
+ */
 public class SpanSamplingRules {
   public static final SpanSamplingRules EMPTY = new SpanSamplingRules(Collections.emptyList());
   private static final Logger log = LoggerFactory.getLogger(SpanSamplingRules.class);
@@ -193,13 +195,14 @@ public class SpanSamplingRules {
 
   private static final class JsonRule {
     private static final JsonAdapter<JsonRule> jsonAdapter = MOSHI.adapter(JsonRule.class);
-
     String service;
     String name;
     String resource;
     Map<String, String> tags;
-    String sample_rate; // Use String to be able to map int as double
-    String max_per_second; // Use String to be able to map int as double
+    // Use String to be able to map int as double
+    String sample_rate;
+    // Use String to be able to map int as double
+    String max_per_second;
 
     @Override
     public String toString() {

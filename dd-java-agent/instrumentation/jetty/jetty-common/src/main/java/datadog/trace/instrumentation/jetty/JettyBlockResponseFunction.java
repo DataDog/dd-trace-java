@@ -23,6 +23,12 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
       String securityResponseId) {
     Response response = request.getResponse();
     return JettyBlockingHelper.block(
-        segment, request, response, statusCode, templateType, extraHeaders, securityResponseId);
+        segment,
+        request,
+        response,
+        statusCode,
+        templateType,
+        extraHeaders,
+        securityResponseId);
   }
 }

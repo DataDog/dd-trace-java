@@ -7,8 +7,8 @@ import datadog.trace.api.iast.propagation.StringModule;
 import java.net.URI;
 
 public abstract class PropagationUtils {
-
-  private PropagationUtils() {}
+  private PropagationUtils() {
+  }
 
   public static URI onUriCreate(final String value, final URI uri) {
     final CodecModule module = InstrumentationBridge.CODEC;

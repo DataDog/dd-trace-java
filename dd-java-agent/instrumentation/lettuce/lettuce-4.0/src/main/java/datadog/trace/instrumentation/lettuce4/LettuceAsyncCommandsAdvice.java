@@ -10,15 +10,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import net.bytebuddy.asm.Advice;
 
 public class LettuceAsyncCommandsAdvice {
-
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(
       @Advice.Argument(0) final RedisCommand<?, ?, ?> command,
       @Advice.This AbstractRedisAsyncCommands thiz) {
     return InstrumentationPoints.beforeCommand(
         command,
-        InstrumentationContext.get(StatefulConnection.class, RedisURI.class)
-            .get(thiz.getConnection()));
+        InstrumentationContext.get(StatefulConnection.class, RedisURI.class).get(thiz.getConnection()));
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

@@ -29,17 +29,14 @@ import org.slf4j.LoggerFactory;
  * the {@code appsec} writer and the {@code telemetry} reader without circular dependencies.
  */
 public final class ScaReachabilityDependencyRegistry {
-
-  private static final Logger log =
-      LoggerFactory.getLogger(ScaReachabilityDependencyRegistry.class);
-
+  private static final Logger log = LoggerFactory.getLogger(ScaReachabilityDependencyRegistry.class);
   public static final ScaReachabilityDependencyRegistry INSTANCE =
       new ScaReachabilityDependencyRegistry();
-
   private final int maxTrackedDependencies = Config.get().getAppSecScaMaxTrackedDependencies();
   private final AtomicBoolean capWarningLogged = new AtomicBoolean(false);
-
-  /** Keyed by {@link #depKey(String, String)}. */
+  /**
+   * Keyed by {@link #depKey(String, String)}.
+   */
   private final ConcurrentHashMap<String, DependencyState> dependencies = new ConcurrentHashMap<>();
 
   public static String depKey(String artifact, String version) {
@@ -60,7 +57,9 @@ public final class ScaReachabilityDependencyRegistry {
     return periodicWorkCallback;
   }
 
-  /** Clears all state. Used in tests to reset between test cases. */
+  /**
+   * Clears all state. Used in tests to reset between test cases.
+   */
   @VisibleForTesting
   public void resetForTesting() {
     dependencies.clear();
@@ -68,7 +67,8 @@ public final class ScaReachabilityDependencyRegistry {
     periodicWorkCallback = null;
   }
 
-  private ScaReachabilityDependencyRegistry() {}
+  private ScaReachabilityDependencyRegistry() {
+  }
 
   /**
    * Registers a CVE for a dependency when a class from a vulnerable version is loaded. Creates a
@@ -80,7 +80,9 @@ public final class ScaReachabilityDependencyRegistry {
    */
   public void registerCve(String artifact, String version, String vulnId) {
     String key = depKey(artifact, version);
-    if (isCapExceeded(key)) return;
+    if (isCapExceeded(key)) {
+      return;
+    }
     DependencyState dep =
         dependencies.computeIfAbsent(key, k -> new DependencyState(artifact, version));
     dep.registerCve(vulnId);
@@ -100,17 +102,21 @@ public final class ScaReachabilityDependencyRegistry {
       String callsiteSymbol,
       int callsiteLine) {
     String key = depKey(artifact, version);
-    if (isCapExceeded(key)) return;
+    if (isCapExceeded(key)) {
+      return;
+    }
     dependencies
-        .computeIfAbsent(key, k -> new DependencyState(artifact, version))
-        .recordHit(vulnId, callsiteClass, callsiteSymbol, callsiteLine);
+      .computeIfAbsent(key, k -> new DependencyState(artifact, version))
+      .recordHit(vulnId, callsiteClass, callsiteSymbol, callsiteLine);
   }
 
   private boolean isCapExceeded(String key) {
     if (!dependencies.containsKey(key) && dependencies.size() >= maxTrackedDependencies) {
       if (capWarningLogged.compareAndSet(false, true)) {
         log.warn(
-            "SCA Reachability: dependency tracking cap ({}) reached, further dependencies will not be tracked. Increase DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES to raise the limit.",
+            "SCA Reachability: dependency tracking cap ({}) reached, further dependencies will "
+            + "not be tracked. Increase DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES to raise the "
+            + "limit.",
             maxTrackedDependencies);
       }
       return true;
@@ -160,15 +166,16 @@ public final class ScaReachabilityDependencyRegistry {
   // ---------------------------------------------------------------------------
   // Internal state classes
   // ---------------------------------------------------------------------------
-
-  /** Mutable state for one (artifact, version) dependency. Thread-safe. */
+  /**
+   * Mutable state for one (artifact, version) dependency. Thread-safe.
+   */
   public static final class DependencyState {
     public final String artifact;
     public final String version;
-
-    /** CVE ID → first callsite hit, or {@code null} if not yet reached. */
+    /**
+     * CVE ID → first callsite hit, or {@code null} if not yet reached.
+     */
     private final ConcurrentHashMap<String, CveState> cves = new ConcurrentHashMap<>();
-
     private volatile boolean pendingReport = false;
 
     DependencyState(String artifact, String version) {
@@ -188,7 +195,12 @@ public final class ScaReachabilityDependencyRegistry {
       // methods of the same CVE to both see null and both write, violating the invariant.
       ScaReachabilityHit newHit =
           new ScaReachabilityHit(
-              vulnId, artifact, version, callsiteClass, callsiteSymbol, callsiteLine);
+              vulnId,
+              artifact,
+              version,
+              callsiteClass,
+              callsiteSymbol,
+              callsiteLine);
       if (state.hitRef.compareAndSet(null, newHit)) {
         pendingReport = true;
       }
@@ -211,7 +223,9 @@ public final class ScaReachabilityDependencyRegistry {
     }
   }
 
-  /** Mutable state for one CVE within a dependency. */
+  /**
+   * Mutable state for one CVE within a dependency.
+   */
   static final class CveState {
     /**
      * First callsite hit, or {@code null} if not yet reached. AtomicReference ensures compareAndSet
@@ -220,12 +234,15 @@ public final class ScaReachabilityDependencyRegistry {
     final AtomicReference<ScaReachabilityHit> hitRef = new AtomicReference<>(null);
   }
 
-  /** Immutable snapshot of a dependency's CVE state at drain time. */
+  /**
+   * Immutable snapshot of a dependency's CVE state at drain time.
+   */
   public static final class DependencySnapshot {
     public final String artifact;
     public final String version;
-
-    /** All CVEs for this dependency: hit==null means known but not reached yet. */
+    /**
+     * All CVEs for this dependency: hit==null means known but not reached yet.
+     */
     public final List<CveSnapshot> cves;
 
     DependencySnapshot(String artifact, String version, List<CveSnapshot> cves) {
@@ -235,10 +252,13 @@ public final class ScaReachabilityDependencyRegistry {
     }
   }
 
-  /** Snapshot of one CVE: hit is null if not yet reached. */
+  /**
+   * Snapshot of one CVE: hit is null if not yet reached.
+   */
   public static final class CveSnapshot {
     public final String vulnId;
-    public final ScaReachabilityHit hit; // null = reached:[]
+    // null = reached:[]
+    public final ScaReachabilityHit hit;
 
     public CveSnapshot(String vulnId, ScaReachabilityHit hit) {
       this.vulnId = vulnId;

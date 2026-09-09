@@ -8,9 +8,10 @@ import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
 
-/** Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors */
+/**
+ * Wraps HttpHost and HttpRequest into a HttpUriRequest for decorators and injectors
+ */
 public class HostAndRequestAsHttpUriRequest extends BasicClassicHttpRequest {
-
   private final HttpRequest actualRequest;
 
   public HostAndRequestAsHttpUriRequest(final HttpHost httpHost, final HttpRequest httpRequest) {

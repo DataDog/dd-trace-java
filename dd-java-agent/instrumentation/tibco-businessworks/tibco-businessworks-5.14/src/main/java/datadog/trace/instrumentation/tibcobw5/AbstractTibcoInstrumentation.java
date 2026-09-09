@@ -17,10 +17,10 @@ public abstract class AbstractTibcoInstrumentation extends InstrumenterModule.Tr
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".TibcoDecorator",
-      packageName + ".ActivityHelper",
-      packageName + ".ActivityHelper$ActivityInfo",
-      "com.tibco.pe.core.DDJobMate",
+        packageName + ".TibcoDecorator",
+        packageName + ".ActivityHelper",
+        packageName + ".ActivityHelper$ActivityInfo",
+        "com.tibco.pe.core.DDJobMate"
     };
   }
 }

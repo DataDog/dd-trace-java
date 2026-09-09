@@ -11,7 +11,8 @@ public class TestExecutionWrapper implements scala.Function1<SuperEngine<?>.Test
   private final TestExecutionPolicy executionPolicy;
 
   public TestExecutionWrapper(
-      Function1<SuperEngine<?>.TestLeaf, Outcome> delegate, TestExecutionPolicy executionPolicy) {
+      Function1<SuperEngine<?>.TestLeaf, Outcome> delegate,
+      TestExecutionPolicy executionPolicy) {
     this.delegate = delegate;
     this.executionPolicy = executionPolicy;
   }

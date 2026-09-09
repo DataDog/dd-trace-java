@@ -7,7 +7,6 @@ import java.util.ListIterator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableDelegator {
-
   private final List<ConsumerRecord<?, ?>> delegate;
   private final CharSequence operationName;
   private final KafkaDecorator decorator;
@@ -140,7 +139,12 @@ public class TracingList implements List<ConsumerRecord<?, ?>>, TracingIterableD
   public ListIterator<ConsumerRecord<?, ?>> listIterator(final int index) {
     // every iteration will add spans. Not only the very first one
     return new TracingListIterator(
-        delegate.listIterator(index), operationName, decorator, group, clusterId, bootstrapServers);
+        delegate.listIterator(index),
+        operationName,
+        decorator,
+        group,
+        clusterId,
+        bootstrapServers);
   }
 
   @Override

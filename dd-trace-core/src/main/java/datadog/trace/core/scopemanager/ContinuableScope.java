@@ -8,25 +8,18 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 
 class ContinuableScope implements AgentScope {
-
   // different sources of scopes
   static final byte INSTRUMENTATION = 0;
   static final byte MANUAL = 1;
   static final byte ITERATION = 2;
   static final byte CONTEXT = 3;
-
   private final ContinuableScopeManager scopeManager;
-
-  final Context context; // package-private so scopeManager can access it directly
-
+  // package-private so scopeManager can access it directly
+  final Context context;
   private boolean asyncPropagating;
-
   private short checkpointCount = 0;
-
   private final byte source;
-
   private short referenceCount = 1;
-
   private final Stateful scopeState;
 
   ContinuableScope(
@@ -45,12 +38,13 @@ class ContinuableScope implements AgentScope {
   @Override
   public final void close() {
     final ScopeStack scopeStack = scopeManager.scopeStack();
-
     // fast check first, only perform slower check when there's an inconsistency with the stack
     if (!scopeStack.checkTop(this) && !scopeStack.checkOverdueScopes(this)) {
       if (ContinuableScopeManager.log.isDebugEnabled()) {
         ContinuableScopeManager.log.debug(
-            "Tried to close {} scope when not on top.  Current top: {}", this, scopeStack.top);
+            "Tried to close {} scope when not on top.  Current top: {}",
+            this,
+            scopeStack.top);
       }
 
       byte source = source();
@@ -109,7 +103,9 @@ class ContinuableScope implements AgentScope {
     ++referenceCount;
   }
 
-  /** Decrements ref count -- returns true if the scope is still alive */
+  /**
+   * Decrements ref count -- returns true if the scope is still alive
+   */
   final boolean decrementReferences() {
     return --referenceCount > 0;
   }
@@ -118,7 +114,9 @@ class ContinuableScope implements AgentScope {
     referenceCount = 0;
   }
 
-  /** Returns true if the scope is still alive (non-zero ref count) */
+  /**
+   * Returns true if the scope is still alive (non-zero ref count)
+   */
   final boolean alive() {
     return referenceCount > 0;
   }
@@ -155,7 +153,8 @@ class ContinuableScope implements AgentScope {
   public boolean rollback() {
     if (checkpointCount > 0) {
       checkpointCount--;
-      return false; // stop rollback at checkpoint
+      // stop rollback at checkpoint
+      return false;
     } else {
       return true;
     }
@@ -173,7 +172,9 @@ class ContinuableScope implements AgentScope {
       scopeState.activate(span.spanContext());
     } catch (Throwable e) {
       ContinuableScopeManager.ratelimitedLog.warn(
-          "ScopeState {} threw exception in beforeActivated()", scopeState.getClass(), e);
+          "ScopeState {} threw exception in beforeActivated()",
+          scopeState.getClass(),
+          e);
     }
   }
 
@@ -202,7 +203,8 @@ class ContinuableScope implements AgentScope {
           listener.afterScopeActivated(span.getTraceId(), span.getSpanId());
         } catch (Throwable e) {
           ContinuableScopeManager.log.debug(
-              "ExtendedScopeListener threw exception in afterActivated()", e);
+              "ExtendedScopeListener threw exception in afterActivated()",
+              e);
         }
       }
     }

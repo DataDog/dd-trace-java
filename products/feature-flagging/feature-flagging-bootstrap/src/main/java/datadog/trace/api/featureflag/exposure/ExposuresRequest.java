@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 
 public class ExposuresRequest {
-
   public final Map<String, String> context;
   public final List<ExposureEvent> exposures;
 

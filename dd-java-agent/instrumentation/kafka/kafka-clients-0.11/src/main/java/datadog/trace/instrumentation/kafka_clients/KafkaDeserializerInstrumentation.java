@@ -5,7 +5,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -24,20 +23,21 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 @AutoService(InstrumenterModule.class)
 public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private static final String DESERIALIZER_CLASS =
       "org.apache.kafka.common.serialization.Deserializer";
-
-  /** Ensure same compatibility as the tracer */
+  /**
+   * Ensure same compatibility as the tracer
+   */
   static final Reference[] MUZZLE_CHECK = {
-    new Reference.Builder("org.apache.kafka.clients.consumer.ConsumerRecord")
-        .withMethod(
-            new String[0],
-            Reference.EXPECTS_PUBLIC | Reference.EXPECTS_NON_STATIC,
-            "headers",
-            "Lorg/apache/kafka/common/header/Headers;")
-        .build()
+      new Reference.Builder("org.apache.kafka.clients.consumer.ConsumerRecord")
+    .withMethod(
+        new String[0],
+        Reference.EXPECTS_PUBLIC | Reference.EXPECTS_NON_STATIC,
+        "headers",
+        "Lorg/apache/kafka/common/header/Headers;")
+    .build()
   };
 
   public KafkaDeserializerInstrumentation() {
@@ -95,7 +95,8 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
   public static class ConfigureAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void configure(
-        @Advice.This final Deserializer<?> deserializer, @Advice.Argument(1) final boolean isKey) {
+        @Advice.This final Deserializer<?> deserializer,
+        @Advice.Argument(1) final boolean isKey) {
       final ContextStore<Deserializer, Boolean> store =
           InstrumentationContext.get(Deserializer.class, Boolean.class);
       KafkaIastHelper.configure(store, deserializer, isKey);
@@ -104,7 +105,6 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
 
   @SuppressWarnings("rawtypes")
   public static class Deserialize2Advice {
-
     @Source(SourceTypes.KAFKA_MESSAGE)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void deserialize(
@@ -129,7 +129,6 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
 
   @SuppressWarnings({"rawtypes", "JavaExistingMethodCanBeUsed"})
   public static class Deserialize3Advice {
-
     @Source(SourceTypes.KAFKA_MESSAGE)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void deserialize(
@@ -154,7 +153,6 @@ public class KafkaDeserializerInstrumentation extends InstrumenterModule.Iast
 
   @SuppressWarnings({"rawtypes", "JavaExistingMethodCanBeUsed"})
   public static class DeserializeByteBufferAdvice {
-
     @Source(SourceTypes.KAFKA_MESSAGE)
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void deserialize(

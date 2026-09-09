@@ -13,14 +13,12 @@ import javax.annotation.Nullable;
  * @param <C> context type
  */
 public interface ContextStore<K, C> {
-
   /**
    * Factory interface to create context instances
    *
    * @param <C> context type
    */
   interface Factory<C> extends Function<Object, C> {
-
     /**
      * @return new context instance
      */

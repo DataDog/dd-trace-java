@@ -10,7 +10,6 @@ import datadog.trace.core.propagation.HttpCodec;
  * inbound Org Propagation Marker (OPM) does not match the local one.
  */
 final class OrgGuardEnforcingExtractor implements HttpCodec.Extractor {
-
   private final HttpCodec.Extractor delegate;
   private final OrgGuardEnforcer enforcer;
 

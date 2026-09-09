@@ -1,7 +1,6 @@
 package com.datadog.iast.taint;
 
 import static java.util.Collections.emptyIterator;
-
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.json.TaintedObjectEncoding;
@@ -18,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("UnusedReturnValue")
 public interface TaintedObjects extends Iterable<TaintedObject> {
-
   Logger LOGGER = LoggerFactory.getLogger(TaintedObjects.class);
 
   static TaintedObjects build(@Nonnull final TaintedMap map) {
@@ -37,16 +35,15 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
   int count();
 
   class TaintedObjectsImpl implements TaintedObjects {
-
     private final TaintedMap map;
 
-    private TaintedObjectsImpl(final @Nonnull TaintedMap map) {
+    private TaintedObjectsImpl(@Nonnull final TaintedMap map) {
       this.map = map;
     }
 
     @Nullable
     @Override
-    public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
+    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
       try {
         final TaintedObject tainted = new TaintedObject(obj, ranges);
         map.put(tainted);
@@ -59,7 +56,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Nullable
     @Override
-    public TaintedObject get(final @Nonnull Object obj) {
+    public TaintedObject get(@Nonnull final Object obj) {
       return map.get(obj);
     }
 
@@ -81,7 +78,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
   }
 
   final class TaintedObjectsDebugAdapter implements TaintedObjects, Wrapper<TaintedObjectsImpl> {
-
     private final TaintedObjectsImpl delegated;
     private final UUID id;
 
@@ -93,7 +89,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Nullable
     @Override
-    public TaintedObject taint(final @Nonnull Object obj, final @Nonnull Range[] ranges) {
+    public TaintedObject taint(@Nonnull final Object obj, @Nonnull final Range[] ranges) {
       final TaintedObject tainted = delegated.taint(obj, ranges);
       logTainted(tainted);
       return tainted;
@@ -101,7 +97,7 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
 
     @Nullable
     @Override
-    public TaintedObject get(final @Nonnull Object obj) {
+    public TaintedObject get(@Nonnull final Object obj) {
       return delegated.get(obj);
     }
 
@@ -153,7 +149,6 @@ public interface TaintedObjects extends Iterable<TaintedObject> {
   }
 
   final class NoOp implements TaintedObjects {
-
     public static final TaintedObjects INSTANCE = new NoOp();
 
     @Nullable

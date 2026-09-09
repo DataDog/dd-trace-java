@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.Test;
  * <p>POSIX-only (skipped automatically on non-POSIX).
  */
 public class ScriptInitializerSecurityTest {
-
   private Path tempDir;
 
   @BeforeEach
@@ -46,14 +44,13 @@ public class ScriptInitializerSecurityTest {
     }
     try (Stream<Path> stream = Files.walk(tempDir)) {
       stream
-          .sorted(Comparator.reverseOrder())
-          .map(Path::toFile)
-          .forEach(
-              f -> {
-                // Restore write permission before delete to handle read-only test artefacts
-                f.setWritable(true, false);
-                f.delete();
-              });
+        .sorted(Comparator.reverseOrder())
+        .map(Path::toFile)
+        .forEach(f -> {
+          // Restore write permission before delete to handle read-only test artefacts
+          f.setWritable(true, false);
+          f.delete();
+        });
     }
   }
 
@@ -75,17 +72,17 @@ public class ScriptInitializerSecurityTest {
     Files.setPosixFilePermissions(scriptFile, PosixFilePermissions.fromString("rwxrwxrwx"));
 
     long sizeBefore = Files.size(scriptFile);
-
     // Initializer must not proceed to write config (it returns false internally)
-    assertDoesNotThrow(
-        () -> CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log"));
-
+    assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(
+        scriptFile.toString(),
+        "/tmp/hs_err.log"));
     // The config file must NOT have been written (init refused)
     String cfgName = scriptFile.getFileName().toString().replace(".sh", "") + "_pid*.cfg";
     boolean configWritten =
-        Files.list(tempDir).anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
+        Files
+      .list(tempDir)
+      .anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
     assertFalse(configWritten, "Config must not be written when the script is hijacked");
-
     // The script content must remain unchanged (empty file planted by attacker)
     long sizeAfter = Files.size(scriptFile);
     assertTrue(
@@ -101,9 +98,9 @@ public class ScriptInitializerSecurityTest {
     Files.setPosixFilePermissions(scriptDir, PosixFilePermissions.fromString("rwxrwxrwx"));
 
     Path scriptFile = scriptDir.resolve("dd_crash_uploader.sh");
-    assertDoesNotThrow(
-        () -> CrashUploaderScriptInitializer.initialize(scriptFile.toString(), "/tmp/hs_err.log"));
-
+    assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(
+        scriptFile.toString(),
+        "/tmp/hs_err.log"));
     // Script must not have been written into the untrusted dir
     assertFalse(Files.exists(scriptFile), "Script must not be written into a hijacked directory");
   }
@@ -128,16 +125,17 @@ public class ScriptInitializerSecurityTest {
     long sizeBefore = Files.size(scriptFile);
 
     assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(scriptFile + " %p"));
-
     // Config must not be written when initializer refuses
     boolean configWritten =
-        Files.list(tempDir).anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
+        Files
+      .list(tempDir)
+      .anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
     assertFalse(configWritten, "Config must not be written when the OOME script is hijacked");
-
     // Script content must be unchanged
     long sizeAfter = Files.size(scriptFile);
     assertTrue(
-        sizeAfter == sizeBefore, "Hijacked OOME script must not be overwritten by the initializer");
+        sizeAfter == sizeBefore,
+        "Hijacked OOME script must not be overwritten by the initializer");
   }
 
   @Test
@@ -156,23 +154,22 @@ public class ScriptInitializerSecurityTest {
   void cleanPosixTreeEndToEndInitProducesScriptsAndConfigs() throws Exception {
     Path crashScript = tempDir.resolve("dd_crash_uploader.sh");
     Path oomeScript = tempDir.resolve("dd_oome_notifier.sh");
-
     // Initialise crash uploader
-    assertDoesNotThrow(
-        () -> CrashUploaderScriptInitializer.initialize(crashScript.toString(), "/tmp/hs_err.log"));
-
+    assertDoesNotThrow(() -> CrashUploaderScriptInitializer.initialize(
+        crashScript.toString(),
+        "/tmp/hs_err.log"));
     // Initialise OOME notifier
     assertDoesNotThrow(() -> OOMENotifierScriptInitializer.initialize(oomeScript + " %p"));
-
     // Both scripts must exist and be non-empty
     assertTrue(Files.exists(crashScript), "dd_crash_uploader.sh must exist");
     assertTrue(Files.size(crashScript) > 0, "dd_crash_uploader.sh must be non-empty");
     assertTrue(Files.exists(oomeScript), "dd_oome_notifier.sh must exist");
     assertTrue(Files.size(oomeScript) > 0, "dd_oome_notifier.sh must be non-empty");
-
     // At least one .cfg file must have been written (crash uploader config)
     boolean crashCfgWritten =
-        Files.list(tempDir).anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
+        Files
+      .list(tempDir)
+      .anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
     assertTrue(crashCfgWritten, "Crash uploader .cfg file must be written in the clean flow");
   }
 
@@ -180,8 +177,9 @@ public class ScriptInitializerSecurityTest {
     Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
     for (PosixFilePermission bit :
         new PosixFilePermission[] {
-          PosixFilePermission.GROUP_WRITE, PosixFilePermission.OTHERS_WRITE
-        }) {
+        PosixFilePermission.GROUP_WRITE,
+        PosixFilePermission.OTHERS_WRITE
+    }) {
       assertFalse(
           perms.contains(bit),
           "Expected no group/world write bit but found " + bit + " on " + path);

@@ -5,7 +5,6 @@ import static net.bytebuddy.jar.asm.Opcodes.ACC_ABSTRACT;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_INTERFACE;
 import static net.bytebuddy.jar.asm.Opcodes.ACC_PUBLIC;
 import static net.bytebuddy.jar.asm.Opcodes.V1_8;
-
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
@@ -28,27 +27,26 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.JavaModule;
 
 public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmVisitorWrapper {
-
   private static final String BINARY_NAME = "locator/InjectedInterface";
   public static final String NAME = BINARY_NAME.replace("/", ".");
 
   public static AgentBuilder instrument(AgentBuilder agentBuilder) {
     return agentBuilder
-        .type(named(ClassInjectingTestInstrumentation.class.getName() + "$ToBeInstrumented"))
-        .transform(new ClassInjectingTransformer());
+      .type(named(ClassInjectingTestInstrumentation.class.getName() + "$ToBeInstrumented"))
+      .transform(new ClassInjectingTransformer());
   }
 
   public static void injectInterfaceNamed(String binaryName, ClassLoader classLoader) {
     MethodHandles.Lookup myLookup = MethodHandles.lookup();
     try {
-      Method m =
-          ClassLoader.class.getDeclaredMethod(
-              "defineClass",
-              String.class,
-              byte[].class,
-              Integer.TYPE,
-              Integer.TYPE,
-              ProtectionDomain.class);
+      Method m = ClassLoader.class
+        .getDeclaredMethod(
+            "defineClass",
+            String.class,
+            byte[].class,
+            Integer.TYPE,
+            Integer.TYPE,
+            ProtectionDomain.class);
       m.setAccessible(true);
       MethodHandle defineMethod = myLookup.unreflect(m);
       ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
@@ -75,10 +73,8 @@ public class ClassInjectingTransformer implements AgentBuilder.Transformer, AsmV
       ClassLoader classLoader,
       JavaModule module,
       ProtectionDomain pd) {
-
     // First we create an interface and define it
     injectInterfaceNamed(BINARY_NAME, classLoader);
-
     // Then we let the visitor add it to the class
     return builder.visit(this);
   }

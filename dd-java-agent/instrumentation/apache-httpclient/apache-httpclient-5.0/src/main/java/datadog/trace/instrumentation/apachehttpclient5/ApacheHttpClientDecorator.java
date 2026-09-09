@@ -9,21 +9,19 @@ import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
 
 public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpRequest, HttpResponse> {
-
-  public static final CharSequence APACHE_HTTP_CLIENT =
-      UTF8BytesString.create("apache-httpclient5");
+  public static final CharSequence APACHE_HTTP_CLIENT = UTF8BytesString.create("apache-httpclient5");
   public static final ApacheHttpClientDecorator DECORATE = new ApacheHttpClientDecorator();
   public static final CharSequence HTTP_REQUEST = UTF8BytesString.create(DECORATE.operationName());
 
   @Override
   protected String[] instrumentationNames() {
     return new String[] {
-      "httpclient5",
-      "apache-httpclient5",
-      "apache-http-client5",
-      "httpclient",
-      "apache-httpclient",
-      "apache-http-client"
+        "httpclient5",
+        "apache-httpclient5",
+        "apache-http-client5",
+        "httpclient",
+        "apache-httpclient",
+        "apache-http-client"
     };
   }
 

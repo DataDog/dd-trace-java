@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,8 +16,8 @@ import io.reactivex.rxjava3.core.SingleObserver;
 import net.bytebuddy.asm.Advice;
 
 public final class SingleInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "io.reactivex.rxjava3.core.Single";
@@ -29,9 +28,9 @@ public final class SingleInstrumentation
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$CaptureParentSpanAdvice");
     transformer.applyAdvice(
         isMethod()
-            .and(named("subscribe"))
-            .and(takesArguments(1))
-            .and(takesArgument(0, named("io.reactivex.rxjava3.core.SingleObserver"))),
+          .and(named("subscribe"))
+          .and(takesArguments(1))
+          .and(takesArgument(0, named("io.reactivex.rxjava3.core.SingleObserver"))),
         getClass().getName() + "$PropagateParentSpanAdvice");
   }
 
@@ -51,7 +50,9 @@ public final class SingleInstrumentation
         @Advice.This final Single<?> single,
         @Advice.Argument(value = 0, readOnly = false) SingleObserver<?> observer) {
       if (observer != null) {
-        Context parentContext = InstrumentationContext.get(Single.class, Context.class).get(single);
+        Context parentContext = InstrumentationContext
+          .get(Single.class, Context.class)
+          .get(single);
         if (parentContext != null) {
           observer = new TracingSingleObserver<>(observer, parentContext);
           // attach the context here in case additional observers are created during subscribe

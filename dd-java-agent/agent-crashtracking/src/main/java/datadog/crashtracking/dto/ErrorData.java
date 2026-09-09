@@ -6,16 +6,12 @@ import java.util.Objects;
 public final class ErrorData {
   @Json(name = "is_crash")
   public final boolean isCrash = true;
-
   public final String kind;
   public final String message;
-
   @Json(name = "thread_name")
   public final String threadName;
-
   @Json(name = "source_type")
   public final String sourceType = "Crashtracking";
-
   public final StackTrace stack;
 
   public ErrorData(String kind, String message, StackTrace stack) {

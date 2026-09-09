@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.ratpack;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -13,7 +12,8 @@ import java.util.Map;
 
 @AutoService(InstrumenterModule.class)
 public class RatpackTypedDataInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public RatpackTypedDataInstrumentation() {
     super("ratpack-request-body");
   }
@@ -26,24 +26,23 @@ public class RatpackTypedDataInstrumentation extends InstrumenterModule.AppSec
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "ratpack.http.internal.ByteBufBackedTypedData", Boolean.class.getName());
+        "ratpack.http.internal.ByteBufBackedTypedData",
+        Boolean.class.getName());
   }
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GetTextCharSequenceSupplier",
-    };
+    return new String[] {packageName + ".GetTextCharSequenceSupplier"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getBuffer")
-            .and(takesArguments(0))
-            .or(named("getBytes").and(takesArguments(0)))
-            .or(named("writeTo").and(takesArguments(OutputStream.class)))
-            .or(named("getInputStream").and(takesArguments(0))),
+          .and(takesArguments(0))
+          .or(named("getBytes").and(takesArguments(0)))
+          .or(named("writeTo").and(takesArguments(OutputStream.class)))
+          .or(named("getInputStream").and(takesArguments(0))),
         packageName + ".RatpackRequestBodyCallGetBufferAdvice");
     transformer.applyAdvice(
         named("getText").and(takesArguments(0).or(takesArguments(Charset.class))),

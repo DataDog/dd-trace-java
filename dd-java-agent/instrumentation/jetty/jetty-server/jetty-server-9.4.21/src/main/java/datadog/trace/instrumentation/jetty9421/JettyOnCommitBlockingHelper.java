@@ -22,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JettyOnCommitBlockingHelper {
-
   private static final Logger log = LoggerFactory.getLogger(JettyOnCommitBlockingHelper.class);
   private static final ByteBuffer EMPTY_BB = ByteBuffer.allocate(0);
 
@@ -62,7 +61,6 @@ public class JettyOnCommitBlockingHelper {
         if (!commit(channel, info)) {
           return false;
         }
-
         // we need to update the upper layers too
         // so that the correct status code/headers get reported correctly on the span`
         reset(channel);
@@ -100,7 +98,7 @@ public class JettyOnCommitBlockingHelper {
     } catch (NoSuchMethodException | IllegalAccessException e) {
       log.warn(
           "Could not find method HttpChannel#commit(MetaData.Response). "
-              + "Blocking on responses will be unavailable");
+          + "Blocking on responses will be unavailable");
     }
     COMMIT_METADATA = commitMh;
   }
@@ -148,22 +146,22 @@ public class JettyOnCommitBlockingHelper {
     static {
       MethodHandle mh = null;
       try {
-        mh =
-            MethodHandles.lookup()
-                .findVirtual(HttpOutput.class, "closed", MethodType.methodType(void.class));
+        mh = MethodHandles
+          .lookup()
+          .findVirtual(HttpOutput.class, "closed", MethodType.methodType(void.class));
       } catch (NoSuchMethodException | IllegalAccessException e) {
         try {
-          mh =
-              MethodHandles.lookup()
-                  .findVirtual(
-                      HttpOutput.class,
-                      "completed",
-                      MethodType.methodType(void.class, Throwable.class));
+          mh = MethodHandles
+            .lookup()
+            .findVirtual(
+                HttpOutput.class,
+                "completed",
+                MethodType.methodType(void.class, Throwable.class));
           mh = MethodHandles.insertArguments(mh, 1, new Object[] {null});
         } catch (NoSuchMethodException | IllegalAccessException e2) {
           log.warn(
               "Can't find either closed() or completed() on HttpOutput. "
-                  + "No blocking on responses will be possible",
+              + "No blocking on responses will be possible",
               e2);
         }
       }

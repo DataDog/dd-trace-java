@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.junit5.execution;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -14,8 +13,8 @@ import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());
 
@@ -36,7 +35,8 @@ public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ThrowableCollectorFactoryWrapper", parentPackageName + ".JUnitPlatformUtils"
+        packageName + ".ThrowableCollectorFactoryWrapper",
+        parentPackageName + ".JUnitPlatformUtils"
     };
   }
 
@@ -50,8 +50,7 @@ public class JUnit5NodeTestTaskContextInstrumentation extends InstrumenterModule
   public static class BeforeConstructor {
     @Advice.OnMethodEnter
     public static void replaceThrowableCollectorFactory(
-        @Advice.Argument(value = 2, readOnly = false, typing = Assigner.Typing.DYNAMIC)
-            ThrowableCollector.Factory throwableCollectorFactory) {
+        @Advice.Argument(value = 2, readOnly = false, typing = Assigner.Typing.DYNAMIC) ThrowableCollector.Factory throwableCollectorFactory) {
       throwableCollectorFactory = new ThrowableCollectorFactoryWrapper(throwableCollectorFactory);
     }
   }

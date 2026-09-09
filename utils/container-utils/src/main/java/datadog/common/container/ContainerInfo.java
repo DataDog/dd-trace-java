@@ -21,47 +21,36 @@ import org.slf4j.LoggerFactory;
  * Qard/container-info
  */
 @SuppressForbidden
-@SuppressFBWarnings(
-    value = "DMI_HARDCODED_ABSOLUTE_FILENAME",
-    justification = "DEFAULT_CGROUP_MOUNT_PATH")
+@SuppressFBWarnings(value = "DMI_HARDCODED_ABSOLUTE_FILENAME", justification = "DEFAULT_CGROUP_"
+    + "MOUNT_PATH")
 public class ContainerInfo {
-
   private static final Logger log = LoggerFactory.getLogger(ContainerInfo.class);
-
   private static final Path CGROUP_DEFAULT_PROCFILE = Paths.get("/proc/self/cgroup");
   private static final Path DEFAULT_CGROUP_MOUNT_PATH = Paths.get("/sys/fs/cgroup");
   private static final Path HOST_GROUP_NAMESPACE = Paths.get("/proc/self/ns/cgroup");
-
   // The second part is the PCF/Garden regexp. We assume no suffix ($) to avoid matching pod UIDs
   // See https://github.com/DataDog/datadog-agent/blob/7.40.x/pkg/util/cgroups/reader.go#L50
   private static final String UUID_REGEX =
-      "[0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}|[0-9a-f]{8}(?:-[0-9a-f]{4}){4}$";
+      "[0-9a-f]{8}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{4}[-_][0-9a-f]{12}|[0-9a-f]"
+      + "{8}(?:-[0-9a-f]{4}){4}$";
   private static final String CONTAINER_REGEX = "[0-9a-f]{64}";
   private static final String TASK_REGEX = "[0-9a-f]{32}-\\d+";
   private static final Pattern LINE_PATTERN = Pattern.compile("(\\d+):([^:]*):(.+)$");
   private static final Pattern POD_PATTERN =
       Pattern.compile("(?:.+)?pod(" + UUID_REGEX + ")(?:.slice)?$");
-  private static final Pattern CONTAINER_PATTERN =
-      Pattern.compile(
-          "(?:.+)?(" + UUID_REGEX + "|" + CONTAINER_REGEX + "|" + TASK_REGEX + ")(?:.scope)?$");
-
+  private static final Pattern CONTAINER_PATTERN = Pattern.compile(
+      "(?:.+)?(" + UUID_REGEX + "|" + CONTAINER_REGEX + "|" + TASK_REGEX + ")(?:.scope)?$");
   private static final ContainerInfo INSTANCE;
-
   private static final long PROC_CGROUP_INIT_INO = 0xEFFFFFFBL;
   private static final String CGROUPV1_BASE_CONTROLLER = "memory";
   private static final String CGROUPV2_BASE_CONTROLLER = "";
-
   private static final String ENTITY_ID;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerId;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String containerTagsHash;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public String podId;
-
   @SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE")
   public List<CGroupInfo> cGroups = new ArrayList<>();
 
@@ -113,7 +102,9 @@ public class ContainerInfo {
   }
 
   static @Nullable String readEntityID(
-      ContainerInfo containerInfo, boolean isHostCgroupNamespace, Path cgroupMountPath) {
+      ContainerInfo containerInfo,
+      boolean isHostCgroupNamespace,
+      Path cgroupMountPath) {
     String cid = containerInfo.getContainerId();
     if (cid != null && !cid.isEmpty()) {
       return "cid-" + cid;
@@ -124,7 +115,9 @@ public class ContainerInfo {
     return getCgroupInode(cgroupMountPath, containerInfo.getCGroups());
   }
 
-  /** Checks if the agent is running in the host cgroup namespace. */
+  /**
+   * Checks if the agent is running in the host cgroup namespace.
+   */
   static boolean isHostCgroupNamespace() {
     // Currently, host namespace inode number is hardcoded, which can be used to detect if it's
     // running in host namespace or not (does not work when running in DinD)
@@ -265,9 +258,12 @@ public class ContainerInfo {
    * path (0::...) where the tail can be task-level and less specific.
    */
   private static void replaceContainerIdIfBetter(
-      ContainerInfo currentContainerInfo, CGroupInfo candidate) {
+      ContainerInfo currentContainerInfo,
+      CGroupInfo candidate) {
     String candidateContainerId = candidate.getContainerId();
-    if (candidateContainerId == null) return;
+    if (candidateContainerId == null) {
+      return;
+    }
 
     String currentContainerId = currentContainerInfo.getContainerId();
     if (currentContainerId != null

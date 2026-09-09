@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.play23;
 
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.play23.PlayHttpServerDecorator.REPORT_HTTP_STATUS;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import org.slf4j.Logger;
@@ -11,7 +10,6 @@ import play.api.mvc.Result;
 import scala.util.Try;
 
 public class RequestCompleteCallback extends scala.runtime.AbstractFunction1<Try<Result>, Object> {
-
   private static final Logger log = LoggerFactory.getLogger(RequestCompleteCallback.class);
   private final ContextScope scope;
   private final AgentSpan span;

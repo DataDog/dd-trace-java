@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.netty4.promise;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
-
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -11,7 +10,6 @@ import io.netty.util.concurrent.GenericProgressiveFutureListener;
 import io.netty.util.concurrent.ProgressiveFuture;
 
 public final class ListenerWrapper {
-
   public static GenericFutureListener wrapIfNeeded(final GenericFutureListener listener) {
     if (listener == null || listener instanceof GenericWrapper) {
       return listener;
@@ -22,18 +20,17 @@ public final class ListenerWrapper {
     }
     if (listener instanceof GenericProgressiveFutureListener) {
       return new GenericProgressiveWrapper(
-          (GenericProgressiveFutureListener<?>) listener, continuation);
+          (GenericProgressiveFutureListener<?>) listener,
+          continuation);
     }
     return new GenericWrapper(listener, continuation);
   }
 
   private static class GenericWrapper<T extends Future<?>> implements GenericFutureListener<T> {
-
     private final GenericFutureListener<T> listener;
     final ContextContinuation continuation;
 
-    public GenericWrapper(
-        final GenericFutureListener<T> listener, ContextContinuation continuation) {
+    public GenericWrapper(final GenericFutureListener<T> listener, ContextContinuation continuation) {
       this.listener = listener;
       this.continuation = continuation;
     }
@@ -48,11 +45,11 @@ public final class ListenerWrapper {
 
   private static class GenericProgressiveWrapper<S extends ProgressiveFuture<?>>
       extends GenericWrapper<S> implements GenericProgressiveFutureListener<S> {
-
     private final GenericProgressiveFutureListener<S> listener;
 
     public GenericProgressiveWrapper(
-        GenericProgressiveFutureListener<S> listener, ContextContinuation continuation) {
+        GenericProgressiveFutureListener<S> listener,
+        ContextContinuation continuation) {
       super(listener, continuation);
       this.listener = listener;
     }

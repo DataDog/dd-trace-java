@@ -9,12 +9,12 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Redirects requests to our own {@link ConfigProvider}. */
+/**
+ * Redirects requests to our own {@link ConfigProvider}.
+ */
 public final class InstrumentationConfig {
   private static final InstrumentationConfig INSTANCE = new InstrumentationConfig();
-
   private static final Pattern DURATION_PATTERN = Pattern.compile("(\\d+)(ms|[DdHhMmSs]?)");
-
   private static final ConfigProvider delegate = ConfigProvider.getInstance();
 
   public static InstrumentationConfig get() {
@@ -63,11 +63,14 @@ public final class InstrumentationConfig {
       } else if ("S".equalsIgnoreCase(unit)) {
         return Duration.ofSeconds(value);
       } else {
-        return Duration.ofMillis(value); // already in ms
+        // already in ms
+        return Duration.ofMillis(value);
       }
     } else {
-      throw new IllegalArgumentException(
-          "Invalid duration property " + name + "=" + durationString);
+      throw new IllegalArgumentException("Invalid duration property "
+          + name
+          + "="
+          + durationString);
     }
   }
 

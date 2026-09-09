@@ -18,15 +18,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CiVisibilityMetricCollectorImpl implements CiVisibilityMetricCollector {
-
   private static final Logger log = LoggerFactory.getLogger(CiVisibilityMetricCollectorImpl.class);
-
   private static final int COUNTER_CARD_SIZE = 64;
-
   private final BlockingQueue<CiVisibilityMetricData> rawMetricsQueue;
   private final BlockingQueue<DistributionSeriesPoint> rawDistributionPointsQueue;
   private final AtomicLongArray counters;
-
   /**
    * Cards are used to avoid iterating over the entire {@link
    * CiVisibilityMetricCollectorImpl#counters} array every time {@link

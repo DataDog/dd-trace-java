@@ -2,7 +2,6 @@ package datadog.smoketest.backend;
 
 import static datadog.smoketest.backend.AgentBackendMessages.decodeMessages;
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.Moshi;
@@ -52,35 +51,33 @@ public final class TestAgentBackend extends AgentBackend {
       "ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent";
   private static final String DEFAULT_VERSION = "v1.64.1";
   private static final String CUSTOM_IMAGE_REF_PROPERTY = "DATADOG_SMOKETEST_TESTAGENT_IMAGE";
-
-  /** Set by the CI jobs providing a dd-apm-test-agent sidecar (see {@code .gitlab-ci.yml}). */
+  /**
+   * Set by the CI jobs providing a dd-apm-test-agent sidecar (see {@code .gitlab-ci.yml}).
+   */
   private static final String CI_AGENT_HOST_ENV = "CI_AGENT_HOST";
-
-  /** The dd-apm-test-agent trace port inside the container. */
+  /**
+   * The dd-apm-test-agent trace port inside the container.
+   */
   private static final int AGENT_PORT = 8126;
-
   /**
    * Trace-invariant checks enabled by default, mirroring the CI sidecar in {@code .gitlab-ci.yml}.
    */
   private static final String ENABLED_CHECKS =
-      "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service";
-
+      "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,"
+      + "trace_peer_service,trace_dd_service";
   private static final MediaType JSON = MediaType.parse("application/json");
-
   private static final Moshi MOSHI = new Moshi.Builder().build();
   private static final JsonAdapter<Map<String, Object>> MAP_ADAPTER =
       MOSHI.adapter(Types.newParameterizedType(Map.class, String.class, Object.class));
-  private static final JsonAdapter<List<Map<String, Object>>> REQUEST_LIST_ADAPTER =
-      MOSHI.adapter(
-          Types.newParameterizedType(
-              List.class, Types.newParameterizedType(Map.class, String.class, Object.class)));
-
+  private static final JsonAdapter<List<Map<String, Object>>> REQUEST_LIST_ADAPTER = MOSHI.adapter(Types.newParameterizedType(
+      List.class,
+      Types.newParameterizedType(Map.class, String.class, Object.class)));
   private final String image;
-  private final String externalHost; // null => Testcontainers-managed container
+  // null => Testcontainers-managed container
+  private final String externalHost;
   private final int externalPort;
   private final boolean retainAcrossTests;
   private final String sessionToken;
-
   private final OkHttpClient client = new OkHttpClient();
   private volatile GenericContainer<?> container;
   private volatile HttpUrl baseUrl;
@@ -92,8 +89,9 @@ public final class TestAgentBackend extends AgentBackend {
     this.externalHost = builder.externalHost;
     this.externalPort = builder.externalPort;
     this.retainAcrossTests = builder.retainAcrossTests;
-    this.sessionToken =
-        builder.sessionToken != null ? builder.sessionToken : "smoke-" + UUID.randomUUID();
+    this.sessionToken = builder.sessionToken != null
+        ? builder.sessionToken
+        : "smoke-" + UUID.randomUUID();
   }
 
   static Builder builder() {
@@ -126,12 +124,11 @@ public final class TestAgentBackend extends AgentBackend {
       return;
     }
     if (this.externalHost != null && this.externalPort > 0) {
-      this.baseUrl =
-          new HttpUrl.Builder()
-              .scheme("http")
-              .host(this.externalHost)
-              .port(this.externalPort)
-              .build();
+      this.baseUrl = new HttpUrl.Builder()
+        .scheme("http")
+        .host(this.externalHost)
+        .port(this.externalPort)
+        .build();
     } else {
       GenericContainer<?> started = new GenericContainer<>(DockerImageName.parse(this.image));
       started.withExposedPorts(AGENT_PORT);
@@ -142,12 +139,11 @@ public final class TestAgentBackend extends AgentBackend {
       started.setWaitStrategy(Wait.forHttp("/test/traces"));
       started.start();
       this.container = started;
-      this.baseUrl =
-          new HttpUrl.Builder()
-              .scheme("http")
-              .host(started.getHost())
-              .port(started.getMappedPort(AGENT_PORT))
-              .build();
+      this.baseUrl = new HttpUrl.Builder()
+        .scheme("http")
+        .host(started.getHost())
+        .port(started.getMappedPort(AGENT_PORT))
+        .build();
     }
     // Normalize the external URI
     this.baseUri = cleanBaseUri(this.baseUrl);
@@ -187,12 +183,11 @@ public final class TestAgentBackend extends AgentBackend {
     resetRemoteConfig();
     // GET /test/session/start begins (and clears) a session identified by the token. The
     // dd-apm-test-agent session endpoints are GET (verified against v1.44.0: POST returns 405).
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/start")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+      .newBuilder()
+      .addPathSegments("test/session/start")
+      .addQueryParameter("test_session_token", this.sessionToken)
+      .build();
     Request request = new Request.Builder().url(url).get().build();
     execute(request, "start test-agent session");
   }
@@ -228,12 +223,11 @@ public final class TestAgentBackend extends AgentBackend {
    * @throws AssertionError If the agent recorded one or more trace-invariant check failures.
    */
   public void assertNoInvariantFailures() {
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/trace_check/failures")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+      .newBuilder()
+      .addPathSegments("test/trace_check/failures")
+      .addQueryParameter("test_session_token", this.sessionToken)
+      .build();
     Request request = new Request.Builder().url(url).get().build();
     try (Response response = this.client.newCall(request).execute()) {
       int code = response.code();
@@ -251,23 +245,21 @@ public final class TestAgentBackend extends AgentBackend {
   }
 
   private List<DecodedTrace> fetchTraces() {
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/traces")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+      .newBuilder()
+      .addPathSegments("test/session/traces")
+      .addQueryParameter("test_session_token", this.sessionToken)
+      .build();
     Request request = new Request.Builder().url(url).get().build();
     return Decoder.decodeJson(execute(request, "read test-agent session traces")).getTraces();
   }
 
   private List<Map<String, Object>> fetchTelemetry() {
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/apmtelemetry")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+      .newBuilder()
+      .addPathSegments("test/session/apmtelemetry")
+      .addQueryParameter("test_session_token", this.sessionToken)
+      .build();
     Request request = new Request.Builder().url(url).get().build();
     return decodeMessages(execute(request, "read test-agent session telemetry"));
   }
@@ -276,18 +268,16 @@ public final class TestAgentBackend extends AgentBackend {
     // POST {"path": ..., "msg": <config>} to /test/session/responses/config/path; the agent builds
     // the signed RC envelope from it, so callers don't hand-build it (mirrors the Groovy base's
     // setRemoteConfig).
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/responses/config/path")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
-    String body =
-        "{\"path\":\""
-            + path.replace("\\", "\\\\").replace("\"", "\\\"")
-            + "\",\"msg\":"
-            + config
-            + "}";
+    HttpUrl url = requireStarted()
+      .newBuilder()
+      .addPathSegments("test/session/responses/config/path")
+      .addQueryParameter("test_session_token", this.sessionToken)
+      .build();
+    String body = "{\"path\":\""
+        + path.replace("\\", "\\\\").replace("\"", "\\\"")
+        + "\",\"msg\":"
+        + config
+        + "}";
     Request request = new Request.Builder().url(url).post(RequestBody.create(JSON, body)).build();
     execute(request, "set remote-config response");
   }
@@ -295,12 +285,11 @@ public final class TestAgentBackend extends AgentBackend {
   private List<Map<String, Object>> fetchRemoteConfigRequests() {
     // The test agent records every request the tracer made in this session; select the /v0.7/config
     // polls and decode their base64-encoded bodies into JSON maps.
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/requests")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+      .newBuilder()
+      .addPathSegments("test/session/requests")
+      .addQueryParameter("test_session_token", this.sessionToken)
+      .build();
     Request request = new Request.Builder().url(url).get().build();
     String json = execute(request, "read test-agent session requests");
     List<Map<String, Object>> requests;
@@ -326,7 +315,8 @@ public final class TestAgentBackend extends AgentBackend {
             }
           } catch (IOException | JsonDataException e) {
             throw new IllegalStateException(
-                "Failed to parse remote-config poll body: " + decoded, e);
+                "Failed to parse remote-config poll body: " + decoded,
+                e);
           }
         }
       }
@@ -339,12 +329,11 @@ public final class TestAgentBackend extends AgentBackend {
     // stored under the (stable) session token. Replace it with an empty payload — the
     // tracer's "no configs" default — so each test method starts with a clean RC slate,
     // matching the per-test trace and telemetry isolation.
-    HttpUrl url =
-        requireStarted()
-            .newBuilder()
-            .addPathSegments("test/session/responses/config")
-            .addQueryParameter("test_session_token", this.sessionToken)
-            .build();
+    HttpUrl url = requireStarted()
+      .newBuilder()
+      .addPathSegments("test/session/responses/config")
+      .addQueryParameter("test_session_token", this.sessionToken)
+      .build();
     Request request = new Request.Builder().url(url).post(RequestBody.create(JSON, "{}")).build();
     execute(request, "reset remote-config response");
   }
@@ -383,7 +372,9 @@ public final class TestAgentBackend extends AgentBackend {
     return url;
   }
 
-  /** Fluent builder; obtain via {@link AgentBackend#testAgentBuilder()}. */
+  /**
+   * Fluent builder; obtain via {@link AgentBackend#testAgentBuilder()}.
+   */
   public static final class Builder {
     private String image;
     private String externalHost;

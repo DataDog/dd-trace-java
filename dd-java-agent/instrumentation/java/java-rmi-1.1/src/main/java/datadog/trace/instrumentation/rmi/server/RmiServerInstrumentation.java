@@ -12,7 +12,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -27,16 +26,16 @@ import net.bytebuddy.matcher.ElementMatcher;
 @AutoService(InstrumenterModule.class)
 public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForBootstrap,
-        Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public RmiServerInstrumentation() {
     super("rmi", "rmi-server");
   }
 
   @Override
   public String hierarchyMarkerType() {
-    return null; // bootstrap type
+    // bootstrap type
+    return null;
   }
 
   @Override
@@ -47,13 +46,15 @@ public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(isPublic()).and(not(isStatic())), getClass().getName() + "$ServerAdvice");
+        isMethod().and(isPublic()).and(not(isStatic())),
+        getClass().getName() + "$ServerAdvice");
   }
 
   public static class ServerAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class, inline = true)
     public static AgentScope onEnter(
-        @Advice.This final Object thiz, @Advice.Origin final Method method) {
+        @Advice.This final Object thiz,
+        @Advice.Origin final Method method) {
       final AgentSpanContext context = THREAD_LOCAL_CONTEXT.getAndResetContext();
 
       final AgentSpan span;
@@ -71,7 +72,8 @@ public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }

@@ -12,12 +12,12 @@ import javax.annotation.Nullable;
 
 public final class KnownTestsResponse {
   public final Map<String, Map<String, List<String>>> tests;
-
   @Json(name = "page_info")
   public final PageInfo.Response pageInfo;
 
   public KnownTestsResponse(
-      Map<String, Map<String, List<String>>> tests, PageInfo.Response pageInfo) {
+      Map<String, Map<String, List<String>>> tests,
+      PageInfo.Response pageInfo) {
     this.tests = tests;
     this.pageInfo = pageInfo;
   }
@@ -54,8 +54,8 @@ public final class KnownTestsResponse {
         totalTests += testNames.size();
         for (String testName : testNames) {
           testsByModule
-              .computeIfAbsent(moduleName, k -> new HashSet<>())
-              .add(new TestFQN(suiteName, testName));
+            .computeIfAbsent(moduleName, k -> new HashSet<>())
+            .add(new TestFQN(suiteName, testName));
         }
       }
     }

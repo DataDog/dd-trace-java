@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_A
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
@@ -38,12 +37,10 @@ import javax.annotation.Nullable;
 public final class OtlpStatsMetricWriter implements MetricWriter {
   static final String METRIC_NAME = "traces.span.sdk.metrics.duration";
   static final String METRIC_UNIT = "s";
-
   private static final OtelInstrumentDescriptor METRIC_DESCRIPTOR =
       new OtelInstrumentDescriptor(METRIC_NAME, HISTOGRAM, false, null, METRIC_UNIT);
   private static final OtelInstrumentationScope SCOPE =
       new OtelInstrumentationScope("datadog.trace.metrics", null, null);
-
   private static final String SERVICE_NAME = "service.name";
   private static final String SPAN_NAME = "span.name";
   private static final String SPAN_KIND = "span.kind";
@@ -62,21 +59,17 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   private static final String DATADOG_ORIGIN = "datadog.origin";
   private static final String DATADOG_PEER_TAGS = "datadog.peer_tags";
   private static final String SYNTHETICS_ORIGIN = "synthetics";
-
   private static final String SPAN_KIND_SERVER = "SPAN_KIND_SERVER";
   private static final String SPAN_KIND_CLIENT = "SPAN_KIND_CLIENT";
   private static final String SPAN_KIND_PRODUCER = "SPAN_KIND_PRODUCER";
   private static final String SPAN_KIND_CONSUMER = "SPAN_KIND_CONSUMER";
   private static final String SPAN_KIND_INTERNAL = "SPAN_KIND_INTERNAL";
-
-  @Nullable private final OtlpSender sender;
-
+  @Nullable
+  private final OtlpSender sender;
   // own single-thread collector; forced to DELTA since trace-stats buckets are per-interval deltas.
   private final OtlpMetricsCollector collector;
-
   // data points snapshotted during add(), replayed through the visitor in finishBucket()
   private final List<PendingPoint> pending = new ArrayList<>();
-
   private long startNanos;
   private long endNanos;
 
@@ -107,16 +100,15 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
 
   private OtlpStatsMetricWriter(@Nullable OtlpSender sender, OtlpConfig.Protocol protocol) {
     this.sender = sender;
-    this.collector =
-        protocol == OtlpConfig.Protocol.HTTP_JSON
-            ? new OtlpMetricsJsonCollector(
-                SystemTimeSource.INSTANCE,
-                true,
-                OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
-            : new OtlpMetricsProtoCollector(
-                SystemTimeSource.INSTANCE,
-                true,
-                OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
+    this.collector = protocol == OtlpConfig.Protocol.HTTP_JSON
+        ? new OtlpMetricsJsonCollector(
+            SystemTimeSource.INSTANCE,
+            true,
+            OtlpResourceJson.RESOURCE_FRAGMENT_WITH_DATADOG_ATTRS)
+        : new OtlpMetricsProtoCollector(
+            SystemTimeSource.INSTANCE,
+            true,
+            OtlpResourceProto.RESOURCE_MESSAGE_WITH_DATADOG_ATTRS);
   }
 
   @Override
@@ -196,7 +188,10 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   }
 
   private void emitDataPointAttributes(
-      OtlpMetricVisitor metric, AggregateEntry entry, boolean error, boolean allTopLevel) {
+      OtlpMetricVisitor metric,
+      AggregateEntry entry,
+      boolean error,
+      boolean allTopLevel) {
     emitStringAttribute(metric, STATUS_CODE, error ? STATUS_CODE_ERROR : STATUS_CODE_OK);
     emitStringAttribute(metric, SPAN_NAME, entry.getResource());
     emitStringAttribute(metric, SPAN_KIND, canonicalSpanKind(entry.getSpanKind()));
@@ -268,7 +263,9 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
   }
 
   private static void emitStringAttribute(
-      OtlpMetricVisitor metric, String key, @Nullable CharSequence value) {
+      OtlpMetricVisitor metric,
+      String key,
+      @Nullable CharSequence value) {
     if (value != null) {
       metric.visitAttribute(STRING_ATTRIBUTE, key, value.toString());
     }

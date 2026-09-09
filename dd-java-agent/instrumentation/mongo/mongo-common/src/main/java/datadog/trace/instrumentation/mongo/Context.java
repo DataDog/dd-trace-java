@@ -1,18 +1,14 @@
 package datadog.trace.instrumentation.mongo;
 
 final class Context {
-
   private static final int MAX_DEPTH = 64;
   private static final int MAX_SEQUENCE_LENGTH = 256;
-
   private final StringBuilder buffer = new StringBuilder();
-
   // specifies the depth below which everything must be discarded,
   // e.g. because we're inside an $in clause we want to collapse
   private int discardDepth = MAX_DEPTH;
   private int keepDepth = MAX_DEPTH;
   private int depth;
-
   // tracks sequence element counts at each depth level to limit long arrays
   private final int[] sequenceCounts = new int[MAX_DEPTH];
 
@@ -60,7 +56,8 @@ final class Context {
       sequenceCounts[depth]++;
       return sequenceCounts[depth] <= MAX_SEQUENCE_LENGTH;
     }
-    return false; // theoretically unreachable
+    // theoretically unreachable
+    return false;
   }
 
   public boolean disableObfuscation() {

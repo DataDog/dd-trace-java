@@ -10,10 +10,11 @@ import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Default implementation of {@link DebuggerContext.ExceptionDebugger} for Exception Replay. */
+/**
+ * Default implementation of {@link DebuggerContext.ExceptionDebugger} for Exception Replay.
+ */
 public class DefaultExceptionDebugger extends AbstractExceptionDebugger {
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultExceptionDebugger.class);
-
   private final CircuitBreaker circuitBreaker;
 
   public DefaultExceptionDebugger(
@@ -22,7 +23,8 @@ public class DefaultExceptionDebugger extends AbstractExceptionDebugger {
       Config config) {
     this(
         new ExceptionProbeManager(
-            classNameFiltering, Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
+            classNameFiltering,
+            Duration.ofSeconds(config.getDebuggerExceptionCaptureInterval())),
         configurationUpdater,
         classNameFiltering,
         config.getDebuggerMaxExceptionPerSecond(),

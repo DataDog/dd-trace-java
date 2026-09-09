@@ -10,7 +10,6 @@ import javax.xml.bind.annotation.XmlRootElement;
 public class KeyCloakResources {
   @Path("/admin")
   public static class AdminRoot {
-
     @Path("realms")
     public Object getRealmsAdmin(@Context final HttpHeaders headers) {
       return new RealmsAdminResource();
@@ -18,10 +17,10 @@ public class KeyCloakResources {
   }
 
   public static class RealmsAdminResource {
-
     @Path("{realm}")
     public RealmAdminResource getRealmAdmin(
-        @Context final HttpHeaders headers, @PathParam("realm") final String name) {
+        @Context final HttpHeaders headers,
+        @PathParam("realm") final String name) {
       return new RealmAdminResource();
     }
   }
@@ -34,9 +33,8 @@ public class KeyCloakResources {
   }
 
   public static class UsersResource {
-
     @Path("{id}")
-    public UserResource user(final @PathParam("id") String id) {
+    public UserResource user(@PathParam("id") final String id) {
       return new UserResource();
     }
   }
@@ -56,5 +54,6 @@ public class KeyCloakResources {
   }
 
   @XmlRootElement
-  public static class UserRepresentation {}
+  public static class UserRepresentation {
+  }
 }

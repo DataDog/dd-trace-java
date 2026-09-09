@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/** Wrapper around the DDSketch library so that it can be used in an instrumentation */
+/**
+ * Wrapper around the DDSketch library so that it can be used in an instrumentation
+ */
 public class DDSketchHistogram implements Histogram {
   private final DDSketch sketch;
 

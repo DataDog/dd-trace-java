@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 public final class Matchers {
   public static final Matcher ANY = new AnyMatcher();
 
-  private Matchers() {}
+  private Matchers() {
+  }
 
   public static Matcher compileGlob(String glob) {
     if (glob == null || isAny(glob)) {
@@ -36,7 +37,9 @@ public final class Matchers {
       return false;
     } else {
       for (int i = 0; i < glob.length(); ++i) {
-        if (glob.charAt(i) != '*') return false;
+        if (glob.charAt(i) != '*') {
+          return false;
+        }
       }
       return true;
     }

@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.servlet3;
 
 import static java.util.Collections.emptyEnumeration;
 import static java.util.Collections.enumeration;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import java.util.Collection;
 import java.util.Enumeration;

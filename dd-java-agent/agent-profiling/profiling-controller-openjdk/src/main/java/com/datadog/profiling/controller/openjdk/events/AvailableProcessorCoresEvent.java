@@ -18,7 +18,6 @@ import jdk.jfr.Period;
 @Enabled
 public class AvailableProcessorCoresEvent extends Event {
   private static final AtomicBoolean registered = new AtomicBoolean(false);
-
   @Label("Available Processor Cores")
   @Description("The number of available processor cores as reported by the runtime")
   private int availableProcessorCores;
@@ -35,7 +34,8 @@ public class AvailableProcessorCoresEvent extends Event {
     // Make sure the periodic event is registered only once
     if (registered.compareAndSet(false, true)) {
       JfrHelper.addPeriodicEvent(
-          AvailableProcessorCoresEvent.class, AvailableProcessorCoresEvent::emit);
+          AvailableProcessorCoresEvent.class,
+          AvailableProcessorCoresEvent::emit);
     }
   }
 }

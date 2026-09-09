@@ -35,9 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ShellGitClient implements GitClient {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(ShellGitClient.class);
-
   private static final String DD_TEMP_DIRECTORY_PREFIX = "dd-ci-vis-";
   private static final List<String> POSSIBLE_BASE_BRANCHES =
       Arrays.asList("main", "master", "preprod", "prod", "dev", "development", "trunk");
@@ -46,7 +44,6 @@ public class ShellGitClient implements GitClient {
   private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
   private static final String ORIGIN = "origin";
   private static final Pattern COMMIT_INFO_SPLIT = Pattern.compile("\",\"");
-
   private final CiVisibilityMetricCollector metricCollector;
   private final String repoRoot;
   private final String latestCommitsSince;
@@ -129,16 +126,12 @@ public class ShellGitClient implements GitClient {
    */
   @Override
   public boolean isShallow() throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.CHECK_SHALLOW,
-        () -> {
-          String output =
-              commandExecutor
-                  .executeCommand(
-                      IOUtils::readFully, buildGitCommand("rev-parse", "--is-shallow-repository"))
-                  .trim();
-          return Boolean.parseBoolean(output);
-        });
+    return executeCommand(Command.CHECK_SHALLOW, () -> {
+      String output = commandExecutor
+        .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", "--is-shallow-repository"))
+        .trim();
+      return Boolean.parseBoolean(output);
+    });
   }
 
   /**
@@ -157,12 +150,9 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getUpstreamBranchSha() throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.OTHER,
-        () ->
-            commandExecutor
-                .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", "@{upstream}"))
-                .trim());
+    return executeCommand(Command.OTHER, () -> commandExecutor
+      .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", "@{upstream}"))
+      .trim());
   }
 
   /**
@@ -178,39 +168,38 @@ public class ShellGitClient implements GitClient {
    */
   @Override
   public void unshallow(@Nullable String remoteCommitReference)
-      throws IOException, TimeoutException, InterruptedException {
-    executeCommand(
-        Command.UNSHALLOW,
-        () -> {
-          String remote = getRemoteName();
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
+    executeCommand(Command.UNSHALLOW, () -> {
+      String remote = getRemoteName();
+      // refetch data from the server for the given period of time
+      if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
+        String commitSha = getSha(remoteCommitReference);
+        commandExecutor.executeCommand(
+            ShellCommandExecutor.OutputParser.IGNORE,
+            buildGitCommand(
+                "fetch",
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                String.format("--shallow-since='%s'", latestCommitsSince),
+                remote,
+                commitSha));
+      } else {
+        commandExecutor.executeCommand(
+            ShellCommandExecutor.OutputParser.IGNORE,
+            buildGitCommand(
+                "fetch",
+                "--update-shallow",
+                "--filter=blob:none",
+                "--recurse-submodules=no",
+                String.format("--shallow-since='%s'", latestCommitsSince),
+                remote));
+      }
 
-          // refetch data from the server for the given period of time
-          if (remoteCommitReference != null && GitUtils.isValidRef(remoteCommitReference)) {
-            String commitSha = getSha(remoteCommitReference);
-            commandExecutor.executeCommand(
-                ShellCommandExecutor.OutputParser.IGNORE,
-                buildGitCommand(
-                    "fetch",
-                    "--update-shallow",
-                    "--filter=blob:none",
-                    "--recurse-submodules=no",
-                    String.format("--shallow-since='%s'", latestCommitsSince),
-                    remote,
-                    commitSha));
-          } else {
-            commandExecutor.executeCommand(
-                ShellCommandExecutor.OutputParser.IGNORE,
-                buildGitCommand(
-                    "fetch",
-                    "--update-shallow",
-                    "--filter=blob:none",
-                    "--recurse-submodules=no",
-                    String.format("--shallow-since='%s'", latestCommitsSince),
-                    remote));
-          }
-
-          return (Void) null;
-        });
+      return (Void) null;
+    });
   }
 
   /**
@@ -225,13 +214,9 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getGitFolder() throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.OTHER,
-        () ->
-            commandExecutor
-                .executeCommand(
-                    IOUtils::readFully, buildGitCommand("rev-parse", "--absolute-git-dir"))
-                .trim());
+    return executeCommand(Command.OTHER, () -> commandExecutor
+      .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", "--absolute-git-dir"))
+      .trim());
   }
 
   /**
@@ -246,12 +231,9 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getRepoRoot() throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.OTHER,
-        () ->
-            commandExecutor
-                .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", "--show-toplevel"))
-                .trim());
+    return executeCommand(Command.OTHER, () -> commandExecutor
+      .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", "--show-toplevel"))
+      .trim());
   }
 
   /**
@@ -267,18 +249,17 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getRemoteUrl(String remoteName)
-      throws IOException, TimeoutException, InterruptedException {
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
     if (!GitUtils.isValidRef(remoteName)) {
       return null;
     }
-    return executeCommand(
-        Command.GET_REPOSITORY,
-        () ->
-            commandExecutor
-                .executeCommand(
-                    IOUtils::readFully,
-                    buildGitCommand("config", "--get", "remote." + remoteName + ".url"))
-                .trim());
+    return executeCommand(Command.GET_REPOSITORY, () -> commandExecutor
+      .executeCommand(
+          IOUtils::readFully,
+          buildGitCommand("config", "--get", "remote." + remoteName + ".url"))
+      .trim());
   }
 
   /**
@@ -293,12 +274,9 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getCurrentBranch() throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.GET_BRANCH,
-        () ->
-            commandExecutor
-                .executeCommand(IOUtils::readFully, buildGitCommand("branch", "--show-current"))
-                .trim());
+    return executeCommand(Command.GET_BRANCH, () -> commandExecutor
+      .executeCommand(IOUtils::readFully, buildGitCommand("branch", "--show-current"))
+      .trim());
   }
 
   /**
@@ -314,22 +292,23 @@ public class ShellGitClient implements GitClient {
   @Nonnull
   @Override
   public List<String> getTags(String commit)
-      throws IOException, TimeoutException, InterruptedException {
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
     if (GitUtils.isNotValidCommit(commit)) {
       return Collections.emptyList();
     }
-    return executeCommand(
-        Command.OTHER,
-        () -> {
-          try {
-            return commandExecutor.executeCommand(
-                IOUtils::readLines, buildGitCommand("describe", "--tags", "--exact-match", commit));
-          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            // if provided commit is not tagged,
-            // command will fail because "--exact-match" is specified
-            return Collections.emptyList();
-          }
-        });
+    return executeCommand(Command.OTHER, () -> {
+      try {
+        return commandExecutor.executeCommand(
+            IOUtils::readLines,
+            buildGitCommand("describe", "--tags", "--exact-match", commit));
+      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        // if provided commit is not tagged,
+        // command will fail because "--exact-match" is specified
+        return Collections.emptyList();
+      }
+    });
   }
 
   /**
@@ -344,61 +323,61 @@ public class ShellGitClient implements GitClient {
    */
   @Nullable
   @Override
-  public String getSha(String reference)
-      throws IOException, TimeoutException, InterruptedException {
+  public String getSha(String reference) throws IOException, TimeoutException, InterruptedException {
     if (GitUtils.isNotValidCommit(reference)) {
       return null;
     }
-    return executeCommand(
-        Command.OTHER,
-        () ->
-            commandExecutor
-                .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", reference))
-                .trim());
+    return executeCommand(Command.OTHER, () -> commandExecutor
+      .executeCommand(IOUtils::readFully, buildGitCommand("rev-parse", reference))
+      .trim());
   }
 
-  /** Checks whether the provided reference object is present or not. */
+  /**
+   * Checks whether the provided reference object is present or not.
+   */
   private boolean isCommitPresent(String commitReference)
-      throws IOException, TimeoutException, InterruptedException {
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
     if (GitUtils.isNotValidCommit(commitReference)) {
       return false;
     }
-    return executeCommand(
-        Command.OTHER,
-        () -> {
-          try {
-            commandExecutor.executeCommand(
-                ShellCommandExecutor.OutputParser.IGNORE,
-                buildGitCommand("cat-file", "-e", commitReference + "^{commit}"));
-            return true;
-          } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
-            return false;
-          }
-        });
+    return executeCommand(Command.OTHER, () -> {
+      try {
+        commandExecutor.executeCommand(
+            ShellCommandExecutor.OutputParser.IGNORE,
+            buildGitCommand("cat-file", "-e", commitReference + "^{commit}"));
+        return true;
+      } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
+        return false;
+      }
+    });
   }
 
-  /** Fetches provided commit object from the server. */
+  /**
+   * Fetches provided commit object from the server.
+   */
   private void fetchCommit(String remoteCommitReference)
-      throws IOException, TimeoutException, InterruptedException {
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
     if (GitUtils.isNotValidCommit(remoteCommitReference)) {
       return;
     }
-    executeCommand(
-        Command.FETCH_COMMIT,
-        () -> {
-          String remote = getRemoteName();
-          commandExecutor.executeCommand(
-              ShellCommandExecutor.OutputParser.IGNORE,
-              buildGitCommand(
-                  "fetch",
-                  "--filter=blob:none",
-                  "--recurse-submodules=no",
-                  "--no-write-fetch-head",
-                  remote,
-                  remoteCommitReference));
+    executeCommand(Command.FETCH_COMMIT, () -> {
+      String remote = getRemoteName();
+      commandExecutor.executeCommand(
+          ShellCommandExecutor.OutputParser.IGNORE,
+          buildGitCommand(
+              "fetch",
+              "--filter=blob:none",
+              "--recurse-submodules=no",
+              "--no-write-fetch-head",
+              remote,
+              remoteCommitReference));
 
-          return (Void) null;
-        });
+      return (Void) null;
+    });
   }
 
   /**
@@ -415,7 +394,9 @@ public class ShellGitClient implements GitClient {
   @Nonnull
   @Override
   public CommitInfo getCommitInfo(String commit, boolean fetchIfNotPresent)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     if (GitUtils.isNotValidCommit(commit)) {
       return CommitInfo.NOOP;
     }
@@ -425,37 +406,34 @@ public class ShellGitClient implements GitClient {
         fetchCommit(commit);
       }
     }
-    return executeCommand(
-        Command.OTHER,
-        () -> {
-          String info = "";
-          try {
-            info =
-                commandExecutor
-                    .executeCommand(
-                        IOUtils::readFully,
-                        buildGitCommand(
-                            "show",
-                            commit,
-                            "-s",
-                            "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B"))
-                    .trim();
-          } catch (ShellCommandExecutor.ShellCommandFailedException e) {
-            LOGGER.error("Failed to fetch commit info", e);
-            return CommitInfo.NOOP;
-          }
+    return executeCommand(Command.OTHER, () -> {
+      String info = "";
+      try {
+        info = commandExecutor
+          .executeCommand(
+              IOUtils::readFully,
+              buildGitCommand(
+                  "show",
+                  commit,
+                  "-s",
+                  "--format=%H\",\"%an\",\"%ae\",\"%aI\",\"%cn\",\"%ce\",\"%cI\",\"%B"))
+          .trim();
+      } catch (ShellCommandExecutor.ShellCommandFailedException e) {
+        LOGGER.error("Failed to fetch commit info", e);
+        return CommitInfo.NOOP;
+      }
 
-          String[] fields = COMMIT_INFO_SPLIT.split(info);
-          if (fields.length < 8) {
-            LOGGER.error("Could not parse commit info: {}", info);
-            return CommitInfo.NOOP;
-          }
-          return new CommitInfo(
-              fields[0],
-              new PersonInfo(fields[1], fields[2], fields[3]),
-              new PersonInfo(fields[4], fields[5], fields[6]),
-              fields[7]);
-        });
+      String[] fields = COMMIT_INFO_SPLIT.split(info);
+      if (fields.length < 8) {
+        LOGGER.error("Could not parse commit info: {}", info);
+        return CommitInfo.NOOP;
+      }
+      return new CommitInfo(
+          fields[0],
+          new PersonInfo(fields[1], fields[2], fields[3]),
+          new PersonInfo(fields[4], fields[5], fields[6]),
+          fields[7]);
+    });
   }
 
   /**
@@ -470,19 +448,15 @@ public class ShellGitClient implements GitClient {
    */
   @Nonnull
   @Override
-  public List<String> getLatestCommits()
-      throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.GET_LOCAL_COMMITS,
-        () ->
-            commandExecutor.executeCommand(
-                IOUtils::readLines,
-                buildGitCommand(
-                    "log",
-                    "--format=%H",
-                    "-n",
-                    String.valueOf(latestCommitsLimit),
-                    String.format("--since='%s'", latestCommitsSince))));
+  public List<String> getLatestCommits() throws IOException, TimeoutException, InterruptedException {
+    return executeCommand(Command.GET_LOCAL_COMMITS, () -> commandExecutor.executeCommand(
+        IOUtils::readLines,
+        buildGitCommand(
+            "log",
+            "--format=%H",
+            "-n",
+            String.valueOf(latestCommitsLimit),
+            String.format("--since='%s'", latestCommitsSince))));
   }
 
   /**
@@ -500,28 +474,29 @@ public class ShellGitClient implements GitClient {
   @Nonnull
   @Override
   public List<String> getObjects(
-      Collection<String> commitsToSkip, Collection<String> commitsToInclude)
-      throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.GET_OBJECTS,
-        () -> {
-          String[] gitArgs = new String[5 + commitsToSkip.size() + commitsToInclude.size()];
-          gitArgs[0] = "rev-list";
-          gitArgs[1] = "--objects";
-          gitArgs[2] = "--no-object-names";
-          gitArgs[3] = "--filter=blob:none";
-          gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
+      Collection<String> commitsToSkip,
+      Collection<String> commitsToInclude)
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
+    return executeCommand(Command.GET_OBJECTS, () -> {
+      String[] gitArgs = new String[5 + commitsToSkip.size() + commitsToInclude.size()];
+      gitArgs[0] = "rev-list";
+      gitArgs[1] = "--objects";
+      gitArgs[2] = "--no-object-names";
+      gitArgs[3] = "--filter=blob:none";
+      gitArgs[4] = String.format("--since='%s'", latestCommitsSince);
 
-          int count = 5;
-          for (String commitToSkip : commitsToSkip) {
-            gitArgs[count++] = "^" + commitToSkip;
-          }
-          for (String commitToInclude : commitsToInclude) {
-            gitArgs[count++] = commitToInclude;
-          }
+      int count = 5;
+      for (String commitToSkip : commitsToSkip) {
+        gitArgs[count++] = "^" + commitToSkip;
+      }
+      for (String commitToInclude : commitsToInclude) {
+        gitArgs[count++] = commitToInclude;
+      }
 
-          return commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
-        });
+      return commandExecutor.executeCommand(IOUtils::readLines, buildGitCommand(gitArgs));
+    });
   }
 
   /**
@@ -537,22 +512,22 @@ public class ShellGitClient implements GitClient {
    */
   @Override
   public Path createPackFiles(List<String> objectHashes)
-      throws IOException, TimeoutException, InterruptedException {
-    return executeCommand(
-        Command.PACK_OBJECTS,
-        () -> {
-          byte[] input = String.join("\n", objectHashes).getBytes(Charset.defaultCharset());
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
+    return executeCommand(Command.PACK_OBJECTS, () -> {
+      byte[] input = String.join("\n", objectHashes).getBytes(Charset.defaultCharset());
 
-          Path tempDirectory = createTempDirectory();
-          String basename = Strings.random(8);
-          String path = tempDirectory.toString() + File.separator + basename;
+      Path tempDirectory = createTempDirectory();
+      String basename = Strings.random(8);
+      String path = tempDirectory.toString() + File.separator + basename;
 
-          commandExecutor.executeCommand(
-              ShellCommandExecutor.OutputParser.IGNORE,
-              input,
-              buildGitCommand("pack-objects", "--compression=9", "--max-pack-size=3m", path));
-          return tempDirectory;
-        });
+      commandExecutor.executeCommand(
+          ShellCommandExecutor.OutputParser.IGNORE,
+          input,
+          buildGitCommand("pack-objects", "--compression=9", "--max-pack-size=3m", path));
+      return tempDirectory;
+    });
   }
 
   private Path createTempDirectory() throws IOException {
@@ -588,51 +563,48 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public String getBaseCommitSha(
-      @Nullable String baseBranch, @Nullable String settingsDefaultBranch)
-      throws IOException, TimeoutException, InterruptedException {
+      @Nullable String baseBranch,
+      @Nullable String settingsDefaultBranch)
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
     if ((baseBranch != null && !GitUtils.isValidRef(baseBranch))
         || (settingsDefaultBranch != null && !GitUtils.isValidRef(settingsDefaultBranch))) {
       return null;
     }
-    return executeCommand(
-        Command.BASE_COMMIT_SHA,
-        () -> {
-          String sourceBranch = getCurrentBranch();
-          if (Strings.isBlank(sourceBranch)) {
-            return null;
-          }
-          LOGGER.debug("Source branch: {}", sourceBranch);
+    return executeCommand(Command.BASE_COMMIT_SHA, () -> {
+      String sourceBranch = getCurrentBranch();
+      if (Strings.isBlank(sourceBranch)) {
+        return null;
+      }
+      LOGGER.debug("Source branch: {}", sourceBranch);
 
-          String remoteName = getRemoteName();
-          LOGGER.debug("Remote name: {}", remoteName);
+      String remoteName = getRemoteName();
+      LOGGER.debug("Remote name: {}", remoteName);
 
-          if (baseBranch != null) {
-            tryFetchingIfNotFoundLocally(baseBranch, remoteName);
-            String fullBaseBranchName =
-                remoteName + "/" + removeRemotePrefix(baseBranch, remoteName);
-            return getMergeBase(fullBaseBranchName, sourceBranch);
-          } else {
-            return guessBestBaseBranchSha(sourceBranch, remoteName, settingsDefaultBranch);
-          }
-        });
+      if (baseBranch != null) {
+        tryFetchingIfNotFoundLocally(baseBranch, remoteName);
+        String fullBaseBranchName = remoteName + "/" + removeRemotePrefix(baseBranch, remoteName);
+        return getMergeBase(fullBaseBranchName, sourceBranch);
+      } else {
+        return guessBestBaseBranchSha(sourceBranch, remoteName, settingsDefaultBranch);
+      }
+    });
   }
 
   String getRemoteName() throws IOException, InterruptedException, TimeoutException {
     try {
-      String remote =
-          commandExecutor
-              .executeCommand(
-                  IOUtils::readFully,
-                  buildGitCommand(
-                      "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"))
-              .trim();
+      String remote = commandExecutor
+        .executeCommand(
+            IOUtils::readFully,
+            buildGitCommand("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"))
+        .trim();
 
       int slashIdx = remote.indexOf('/');
       return slashIdx != -1 ? remote.substring(0, slashIdx) : remote;
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug("Error getting remote from upstream, falling back to first remote", e);
     }
-
     // fallback to first remote if no upstream
     try {
       List<String> remotes =
@@ -646,8 +618,12 @@ public class ShellGitClient implements GitClient {
 
   @Nullable
   String guessBestBaseBranchSha(
-      String sourceBranch, String remoteName, @Nullable String settingsDefaultBranch)
-      throws IOException, InterruptedException, TimeoutException {
+      String sourceBranch,
+      String remoteName,
+      @Nullable String settingsDefaultBranch)
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     for (String branch : POSSIBLE_BASE_BRANCHES) {
       tryFetchingIfNotFoundLocally(branch, remoteName);
     }
@@ -667,10 +643,9 @@ public class ShellGitClient implements GitClient {
       return null;
     }
 
-    String defaultBranch =
-        Strings.isNotBlank(settingsDefaultBranch)
-            ? settingsDefaultBranch
-            : detectDefaultBranch(remoteName);
+    String defaultBranch = Strings.isNotBlank(settingsDefaultBranch)
+        ? settingsDefaultBranch
+        : detectDefaultBranch(remoteName);
 
     List<BaseBranchMetric> sortedMetrics =
         sortBaseBranchCandidates(metrics, defaultBranch, remoteName);
@@ -686,7 +661,9 @@ public class ShellGitClient implements GitClient {
   }
 
   void tryFetchingIfNotFoundLocally(String branch, String remoteName)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     String shortBranchName = removeRemotePrefix(branch, remoteName);
     try {
       // check if branch exists locally as a remote ref
@@ -701,18 +678,18 @@ public class ShellGitClient implements GitClient {
       return;
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
-          "Branch {}/{} does not exist locally, checking remote", remoteName, shortBranchName);
+          "Branch {}/{} does not exist locally, checking remote",
+          remoteName,
+          shortBranchName);
     }
-
     // check if branch exists in remote
     String remoteHeads = null;
     try {
-      remoteHeads =
-          commandExecutor
-              .executeCommand(
-                  IOUtils::readFully,
-                  buildGitCommand("ls-remote", "--heads", remoteName, shortBranchName))
-              .trim();
+      remoteHeads = commandExecutor
+        .executeCommand(
+            IOUtils::readFully,
+            buildGitCommand("ls-remote", "--heads", remoteName, shortBranchName))
+        .trim();
     } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
     }
 
@@ -720,7 +697,6 @@ public class ShellGitClient implements GitClient {
       LOGGER.debug("Branch {}/{} does not exist in remote", remoteName, shortBranchName);
       return;
     }
-
     // fetch latest commit for branch from remote
     LOGGER.debug("Branch {}/{} exists in remote, fetching", remoteName, shortBranchName);
     try {
@@ -733,15 +709,16 @@ public class ShellGitClient implements GitClient {
   }
 
   List<String> getBaseBranchCandidates(@Nullable String defaultBranch, String remoteName)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     List<String> candidates = new ArrayList<>();
     try {
       // only consider remote branches
-      List<String> branches =
-          commandExecutor.executeCommand(
-              IOUtils::readLines,
-              buildGitCommand(
-                  "for-each-ref", "--format=%(refname:short)", "refs/remotes/" + remoteName));
+      List<String> branches = commandExecutor.executeCommand(
+          IOUtils::readLines,
+          buildGitCommand("for-each-ref", "--format=%(refname:short)", "refs/remotes/"
+          + remoteName));
       for (String branch : branches) {
         if (isBaseLikeBranch(branch, remoteName)
             || branchesEquals(branch, defaultBranch, remoteName)) {
@@ -785,15 +762,19 @@ public class ShellGitClient implements GitClient {
 
   @Nullable
   String detectDefaultBranch(String remoteName)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     try {
-      String defaultRef =
-          commandExecutor
-              .executeCommand(
-                  IOUtils::readFully,
-                  buildGitCommand(
-                      "symbolic-ref", "--quiet", "--short", "refs/remotes/" + remoteName + "/HEAD"))
-              .trim();
+      String defaultRef = commandExecutor
+        .executeCommand(
+            IOUtils::readFully,
+            buildGitCommand(
+                "symbolic-ref",
+                "--quiet",
+                "--short",
+                "refs/remotes/" + remoteName + "/HEAD"))
+        .trim();
       if (Strings.isNotBlank(defaultRef)) {
         return removeRemotePrefix(defaultRef, remoteName);
       }
@@ -807,7 +788,10 @@ public class ShellGitClient implements GitClient {
         commandExecutor.executeCommand(
             ShellCommandExecutor.OutputParser.IGNORE,
             buildGitCommand(
-                "show-ref", "--verify", "--quiet", "refs/remotes/" + remoteName + "/" + branch));
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/remotes/" + remoteName + "/" + branch));
         LOGGER.debug("Found fallback default branch: {}", branch);
         return branch;
       } catch (ShellCommandExecutor.ShellCommandFailedException ignored) {
@@ -831,7 +815,9 @@ public class ShellGitClient implements GitClient {
 
     @Override
     public boolean equals(Object o) {
-      if (!(o instanceof BaseBranchMetric)) return false;
+      if (!(o instanceof BaseBranchMetric)) {
+        return false;
+      }
       BaseBranchMetric that = (BaseBranchMetric) o;
       return behind == that.behind && ahead == that.ahead && Objects.equals(branch, that.branch);
     }
@@ -856,18 +842,22 @@ public class ShellGitClient implements GitClient {
   }
 
   List<BaseBranchMetric> computeBranchMetrics(List<String> candidates, String sourceBranch)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     List<BaseBranchMetric> branchMetrics = new ArrayList<>();
 
     for (String candidate : candidates) {
       try {
-        String countsResult =
-            commandExecutor
-                .executeCommand(
-                    IOUtils::readFully,
-                    buildGitCommand(
-                        "rev-list", "--left-right", "--count", candidate + "..." + sourceBranch))
-                .trim();
+        String countsResult = commandExecutor
+          .executeCommand(
+              IOUtils::readFully,
+              buildGitCommand(
+                  "rev-list",
+                  "--left-right",
+                  "--count",
+                  candidate + "..." + sourceBranch))
+          .trim();
 
         String[] counts = WHITESPACE_PATTERN.split(countsResult);
         int behind = Integer.parseInt(counts[0]);
@@ -890,10 +880,12 @@ public class ShellGitClient implements GitClient {
   }
 
   List<BaseBranchMetric> sortBaseBranchCandidates(
-      List<BaseBranchMetric> metrics, String defaultBranch, String remoteName) {
-    Comparator<BaseBranchMetric> comparator =
-        Comparator.comparingInt((BaseBranchMetric b) -> b.ahead)
-            .thenComparing(b -> !isDefaultBranch(b.branch, defaultBranch, remoteName));
+      List<BaseBranchMetric> metrics,
+      String defaultBranch,
+      String remoteName) {
+    Comparator<BaseBranchMetric> comparator = Comparator
+      .comparingInt((BaseBranchMetric b) -> b.ahead)
+      .thenComparing(b -> !isDefaultBranch(b.branch, defaultBranch, remoteName));
 
     return metrics.stream().sorted(comparator).collect(Collectors.toList());
   }
@@ -906,14 +898,16 @@ public class ShellGitClient implements GitClient {
    * @return Merge base between the two references
    */
   public String getMergeBase(@Nullable String base, @Nullable String source)
-      throws IOException, InterruptedException, TimeoutException {
+      throws IOException,
+      InterruptedException,
+      TimeoutException {
     if (GitUtils.isNotValidCommit(base) || GitUtils.isNotValidCommit(source)) {
       return null;
     }
     try {
       return commandExecutor
-          .executeCommand(IOUtils::readFully, buildGitCommand("merge-base", base, source))
-          .trim();
+        .executeCommand(IOUtils::readFully, buildGitCommand("merge-base", base, source))
+        .trim();
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug("Error calculating common ancestor for {} and {}", base, source, e);
     }
@@ -934,31 +928,26 @@ public class ShellGitClient implements GitClient {
   @Nullable
   @Override
   public LineDiff getGitDiff(String baseCommit, String targetCommit)
-      throws IOException, TimeoutException, InterruptedException {
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
     if (Strings.isBlank(baseCommit) || !GitUtils.isValidCommitSha(baseCommit)) {
       LOGGER.debug("Base commit info is not available, returning empty git diff");
       return null;
     } else if (Strings.isNotBlank(targetCommit) && GitUtils.isValidCommitSha(targetCommit)) {
-      return executeCommand(
-          Command.DIFF,
-          () ->
-              commandExecutor.executeCommand(
-                  GitDiffParser::parse,
-                  buildGitCommand(
-                      "diff",
-                      "-U0",
-                      "--word-diff=porcelain",
-                      "--no-prefix",
-                      baseCommit,
-                      targetCommit)));
+      return executeCommand(Command.DIFF, () -> commandExecutor.executeCommand(
+          GitDiffParser::parse,
+          buildGitCommand(
+              "diff",
+              "-U0",
+              "--word-diff=porcelain",
+              "--no-prefix",
+              baseCommit,
+              targetCommit)));
     } else {
-      return executeCommand(
-          Command.DIFF,
-          () ->
-              commandExecutor.executeCommand(
-                  GitDiffParser::parse,
-                  buildGitCommand(
-                      "diff", "-U0", "--word-diff=porcelain", "--no-prefix", baseCommit)));
+      return executeCommand(Command.DIFF, () -> commandExecutor.executeCommand(
+          GitDiffParser::parse,
+          buildGitCommand("diff", "-U0", "--word-diff=porcelain", "--no-prefix", baseCommit)));
     }
   }
 
@@ -972,11 +961,12 @@ public class ShellGitClient implements GitClient {
   }
 
   private <T> T executeCommand(Command commandType, GitCommand<T> command)
-      throws IOException, TimeoutException, InterruptedException {
+      throws IOException,
+      TimeoutException,
+      InterruptedException {
     long startTime = System.currentTimeMillis();
     try {
       return command.execute();
-
     } catch (IOException | TimeoutException | InterruptedException e) {
       metricCollector.add(
           CiVisibilityCountMetric.GIT_COMMAND_ERRORS,
@@ -984,7 +974,6 @@ public class ShellGitClient implements GitClient {
           commandType,
           ShellCommandExecutor.getExitCode(e));
       throw e;
-
     } finally {
       metricCollector.add(CiVisibilityCountMetric.GIT_COMMAND, 1, commandType);
       metricCollector.add(
@@ -1008,7 +997,11 @@ public class ShellGitClient implements GitClient {
       long commandTimeoutMillis = config.getCiVisibilityGitCommandTimeoutMillis();
       if (repoRoot != null && GitUtils.isValidPath(repoRoot)) {
         return new ShellGitClient(
-            metricCollector, repoRoot, "1 month ago", 1000, commandTimeoutMillis);
+            metricCollector,
+            repoRoot,
+            "1 month ago",
+            1000,
+            commandTimeoutMillis);
       } else {
         LOGGER.debug("Could not determine repository root, using no-op git client");
         return NoOpGitClient.INSTANCE;

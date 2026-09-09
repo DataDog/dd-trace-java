@@ -30,14 +30,14 @@ public class ReactorAsyncResultExtension implements AsyncResultExtension, EagerH
   public Object apply(Object result, AgentSpan span) {
     if (result instanceof Flux) {
       return ((Flux<?>) result)
-          .doOnError(span::addThrowable)
-          .doOnTerminate(span::finish)
-          .doOnCancel(span::finish);
+        .doOnError(span::addThrowable)
+        .doOnTerminate(span::finish)
+        .doOnCancel(span::finish);
     } else if (result instanceof Mono) {
       return ((Mono<?>) result)
-          .doOnError(span::addThrowable)
-          .doOnTerminate(span::finish)
-          .doOnCancel(span::finish);
+        .doOnError(span::addThrowable)
+        .doOnTerminate(span::finish)
+        .doOnCancel(span::finish);
     }
     return null;
   }

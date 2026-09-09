@@ -12,7 +12,6 @@ class ProcessImplStartAdvice {
   public static AgentSpan beforeStart(
       @Advice.Argument(0) final String[] command,
       @Advice.Argument(1) final Map<String, String> environment) {
-
     if (!AgentTracer.isRegistered()) {
       return null;
     }
@@ -38,7 +37,9 @@ class ProcessImplStartAdvice {
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterStart(
-      @Advice.Return Process p, @Advice.Enter AgentSpan span, @Advice.Thrown Throwable t) {
+      @Advice.Return Process p,
+      @Advice.Enter AgentSpan span,
+      @Advice.Thrown Throwable t) {
     if (span == null) {
       return;
     }

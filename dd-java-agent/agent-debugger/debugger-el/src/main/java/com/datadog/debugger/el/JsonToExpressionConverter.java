@@ -4,7 +4,6 @@ import static com.squareup.moshi.JsonReader.Token.BEGIN_ARRAY;
 import static com.squareup.moshi.JsonReader.Token.END_ARRAY;
 import static com.squareup.moshi.JsonReader.Token.NUMBER;
 import static com.squareup.moshi.JsonReader.Token.STRING;
-
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.expressions.ContainsExpression;
 import com.datadog.debugger.el.expressions.StringPredicateExpression;
@@ -19,39 +18,38 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.BiFunction;
 
-/** Converts json representation to object model */
+/**
+ * Converts json representation to object model
+ */
 public class JsonToExpressionConverter {
-
-  private static final Set<String> PREDICATE_FUNCTIONS =
-      new HashSet<>(
-          Arrays.asList(
-              "not",
-              "==",
-              "eq",
-              "!=",
-              "neq",
-              "ne",
-              ">=",
-              "ge",
-              ">",
-              "gt",
-              "<=",
-              "le",
-              "<",
-              "lt",
-              "or",
-              "and",
-              "hasAny",
-              "any",
-              "hasAll",
-              "all",
-              "isEmpty",
-              "startsWith",
-              "endsWith",
-              "contains",
-              "matches",
-              "instanceof",
-              "isDefined"));
+  private static final Set<String> PREDICATE_FUNCTIONS = new HashSet<>(Arrays.asList(
+      "not",
+      "==",
+      "eq",
+      "!=",
+      "neq",
+      "ne",
+      ">=",
+      "ge",
+      ">",
+      "gt",
+      "<=",
+      "le",
+      "<",
+      "lt",
+      "or",
+      "and",
+      "hasAny",
+      "any",
+      "hasAll",
+      "all",
+      "isEmpty",
+      "startsWith",
+      "endsWith",
+      "contains",
+      "matches",
+      "instanceof",
+      "isDefined"));
 
   @FunctionalInterface
   interface BinaryPredicateExpressionFunction<T extends Expression> {
@@ -285,20 +283,20 @@ public class JsonToExpressionConverter {
   }
 
   public static BooleanExpression createBinaryValuePredicate(
-      JsonReader reader, BinaryPredicateExpressionFunction<ValueExpression<?>> function)
-      throws IOException {
+      JsonReader reader,
+      BinaryPredicateExpressionFunction<ValueExpression<?>> function) throws IOException {
     return function.apply(asValueExpression(reader), asValueExpression(reader));
   }
 
   public static BooleanExpression createBinaryLogicalPredicate(
-      JsonReader reader, BinaryPredicateExpressionFunction<BooleanExpression> function)
-      throws IOException {
+      JsonReader reader,
+      BinaryPredicateExpressionFunction<BooleanExpression> function) throws IOException {
     return function.apply(createPredicate(reader), createPredicate(reader));
   }
 
   public static BooleanExpression createCompositeLogicalPredicate(
-      JsonReader reader, CompositePredicateExpressionFunction<BooleanExpression> function)
-      throws IOException {
+      JsonReader reader,
+      CompositePredicateExpressionFunction<BooleanExpression> function) throws IOException {
     List<BooleanExpression> expressions = new ArrayList<>(2);
     while (reader.hasNext() && reader.peek() != END_ARRAY) {
       expressions.add(createPredicate(reader));

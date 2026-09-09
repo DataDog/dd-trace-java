@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.confluentschemaregistry;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,8 @@ public class ConfluentSchemaRegistryModule extends InstrumenterModule.Tracing {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
-      packageName + ".SchemaIdExtractor"
+        "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+        packageName + ".SchemaIdExtractor"
     };
   }
 

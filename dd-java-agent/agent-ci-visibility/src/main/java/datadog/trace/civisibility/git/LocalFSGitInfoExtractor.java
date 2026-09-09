@@ -28,9 +28,7 @@ import java.util.zip.DataFormatException;
  * https://github.com/eclipse/jgit/blob/master/org.eclipse.jgit/src/org/eclipse/jgit/util/RawParseUtils.java
  */
 public class LocalFSGitInfoExtractor implements GitInfoExtractor {
-
   private static final int SHA_INDEX = 1;
-
   private static final VersionedPackGitInfoExtractor V2_PACK_GIT_INFO_EXTRACTOR =
       new V2PackGitInfoExtractor();
 
@@ -91,17 +89,17 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     if (head == null || !head.contains("ref:")) {
       return null;
     }
-
     // The HEAD file contains a reference: e.g: ref: /refs/head/master
-    return head.substring(5); // Remove the ref: prefix
+    // Remove the ref: prefix
+    return head.substring(5);
   }
 
   private CommitInfo findCommit(final String gitFolder, final String sha)
-      throws IOException, DataFormatException {
+      throws IOException,
+      DataFormatException {
     if (sha == null || sha.isEmpty()) {
       return CommitInfo.NOOP;
     }
-
     // We access to the Git object represented by the commit sha.
     // In Git, the 2 first characters of the sha corresponds with the folder. The rest of the sha,
     // corresponds with the file name.
@@ -127,17 +125,14 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     return parseCommit(gitFolder, sha, gitObject);
   }
 
-  private GitPackObject readPackObject(final String gitFolder, final String sha)
-      throws IOException {
+  private GitPackObject readPackObject(final String gitFolder, final String sha) throws IOException {
     final File packFolder = Paths.get(gitFolder, "objects", "pack").toFile();
-    final File[] idxFiles =
-        packFolder.listFiles(
-            new FilenameFilter() {
-              @Override
-              public boolean accept(final File dir, final String name) {
-                return name.endsWith(".idx");
-              }
-            });
+    final File[] idxFiles = packFolder.listFiles(new FilenameFilter() {
+      @Override
+      public boolean accept(final File dir, final String name) {
+        return name.endsWith(".idx");
+      }
+    });
 
     if (idxFiles == null) {
       return null;
@@ -176,21 +171,19 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
   private static final Pattern SPACE_PATTERN = Pattern.compile(" ");
 
   private CommitInfo parseCommit(
-      final String gitFolder, final String sha, final GitObject gitObject)
-      throws IOException, DataFormatException {
+      final String gitFolder,
+      final String sha,
+      final GitObject gitObject) throws IOException, DataFormatException {
     if (gitObject.getType() == GitObject.TAG_TYPE) {
       // If the Git object is a tag, we need to read which sha is being referenced within the tag
       // object content.
-
       // The referenced object is in the first bytes until the first LF ("object $sha1\ntype ")
       final int lf = RawParseUtils.nextLF(gitObject.getContent(), 0);
       if (lf == -1) {
         return CommitInfo.NOOP;
       }
-
       // We get the reference in the object getting the bytes until the \n character:
       final String objectSha = new String(Arrays.copyOfRange(gitObject.getContent(), 0, lf - 1));
-
       // Here, objectSha = "object $sha1". E.g: "object 44c242675ddf69b7b1f440b4a5d8d24e908d8bef"
       // Split by " " and get the sha in the second position of the array
       final String[] objectShaChunks = SPACE_PATTERN.split(objectSha);
@@ -200,7 +193,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
 
       final String innerSha = objectShaChunks[SHA_INDEX];
       return findCommit(gitFolder, innerSha);
-
     } else if (gitObject.getType() != GitObject.COMMIT_TYPE) {
       return CommitInfo.NOOP;
     }
@@ -219,7 +211,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       if (decompressed == null) {
         return GitObject.NOOP;
       }
-
       // The ((byte) 0) separates the metadata and the content
       // in the decompressed git object.
       final int separatorIndex = RawParseUtils.findByte(decompressed, (byte) 0);
@@ -227,10 +218,8 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
         // We cannot find the separator.
         return GitObject.NOOP;
       }
-
       // Getting the metadata from 0 to separator index
       final byte[] metadataBytes = Arrays.copyOfRange(decompressed, 0, separatorIndex);
-
       // The metadata has the type and the size of the git object separated by the space character
       // ((byte)32)
       // metadata[0] contains the type (e.g. commit)
@@ -240,7 +229,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
         // Unexpected metadata format.
         return GitObject.NOOP;
       }
-
       // Getting the content from separator index to the end of decompressed byte array.
       final byte[] content =
           Arrays.copyOfRange(decompressed, separatorIndex + 1, decompressed.length);
@@ -286,7 +274,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     if (head == null) {
       return null;
     }
-
     // HEAD can contain a reference (e.g.: refs/heads/master) or
     // a SHA (e.g.: 6ba9a670e26a69ae26bafd2409ae200d152afa76)
     if (head.contains("ref:")) {
@@ -294,7 +281,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
       if (refStr == null) {
         return null;
       }
-
       // If the HEAD contains a reference, we need to access to
       // the content of that reference which will contain the SHA.
       final File ref = gitFolder.resolve(refStr).toFile();
@@ -315,7 +301,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     if (authorNameBeginning < 0) {
       return PersonInfo.NOOP;
     }
-
     // Starting from the author name beginning index,
     // we parse the "person" info of the author.
     return parsePersonInfo(buffer, authorNameBeginning);
@@ -329,7 +314,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     if (nameB < 0) {
       return PersonInfo.NOOP;
     }
-
     // Starting from the committer name beginning index,
     // we parse the "person" info of the author.
     return parsePersonInfo(buffer, nameB);
@@ -343,7 +327,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     if (msgB < 0) {
       return null;
     }
-
     // Starting from the commit message beginning index,
     // we parse the "person" info of the author.
     return RawParseUtils.decode(buffer, msgB, buffer.length);
@@ -356,7 +339,6 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     // the person information looks like:
     // author John Doe <john@doe.com> 1613137668 +0100
     // committer Jane Doe <jane@doe.com> 1613137724 +0100
-
     // First, we find the index where the email starts and ends:
     final int emailB = RawParseUtils.nextLF(raw, nameB, '<');
     final int emailE = RawParseUtils.nextLF(raw, emailB, '>');
@@ -365,19 +347,15 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
         || (emailE >= raw.length - 1 && raw[emailE - 1] != '>')) {
       return null;
     }
-
     // We need to find which is the index where the name ends,
     // using the relative position where the email starts.
     final int nameEnd = emailB - 2 >= nameB && raw[emailB - 2] == ' ' ? emailB - 2 : emailB - 1;
-
     // Once we have the indexes where the name starts and ends
     // we can extract the name.
     final String name = RawParseUtils.decode(raw, nameB, nameEnd);
-
     // Same approach to extract the email, using the indexes
     // where the email starts and ends.
     final String email = RawParseUtils.decode(raw, emailB, emailE - 1);
-
     // Start searching from end of line, as after first name-email pair,
     // another name-email pair may occur. We will ignore all kinds of
     // "junk" following the first email.
@@ -388,15 +366,15 @@ public class LocalFSGitInfoExtractor implements GitInfoExtractor {
     // character if there is no trailing LF.
     final int tzBegin =
         RawParseUtils.lastIndexOfTrim(raw, ' ', RawParseUtils.nextLF(raw, emailE - 1) - 2) + 1;
-    if (tzBegin <= emailE) // No time/zone, still valid
-    {
+    if (// No time/zone, still valid
+    tzBegin <= emailE) {
       return new PersonInfo(name, email, 0, 0);
     }
 
-    final int whenBegin =
-        Math.max(emailE, RawParseUtils.lastIndexOfTrim(raw, ' ', tzBegin - 1) + 1);
-    if (whenBegin >= tzBegin - 1) // No time/zone, still valid
-    {
+    final int whenBegin = Math.max(emailE, RawParseUtils.lastIndexOfTrim(raw, ' ', tzBegin - 1)
+        + 1);
+    if (// No time/zone, still valid
+    whenBegin >= tzBegin - 1) {
       return new PersonInfo(name, email, 0, 0);
     }
 

@@ -28,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.internal.TraceSegment;
@@ -54,7 +53,6 @@ import org.tabletest.junit.TypeConverterSources;
 
 @TypeConverterSources(TableTestTypeConverters.class)
 public class DDSpanContextTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
   private ProfilingContextIntegration profilingContextIntegration;
@@ -63,23 +61,21 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void setup() {
     writer = new ListWriter();
     profilingContextIntegration = mock(ProfilingContextIntegration.class);
-    tracer =
-        tracerBuilder()
-            .writer(writer)
-            .profilingContextIntegration(profilingContextIntegration)
-            .build();
+    tracer = tracerBuilder()
+      .writer(writer)
+      .profilingContextIntegration(profilingContextIntegration)
+      .build();
   }
 
   @ParameterizedTest
   @ValueSource(strings = {DDTags.SERVICE_NAME, DDTags.RESOURCE_NAME, DDTags.SPAN_TYPE, "some.tag"})
   void nullValuesForTagsDeleteExistingTags(String name) throws Exception {
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .withSpanType("fakeType")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setTag("some.tag", "asdf");
@@ -118,13 +114,12 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   //spotless:on
   void specialTagsSetCertainValues(String scenario, String name, String expected, String method)
       throws Exception {
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .withSpanType("fakeType")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setTag(name, expected);
@@ -153,23 +148,22 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   static Object[][] tagsCanBeAddedToContextArguments() {
     return new Object[][] {
-      {"tag.name", "some value"},
-      {"tag with int", 1234},
-      {"tag-with-bool", false},
-      {"tag_with_float", 0.321}
+        {"tag.name", "some value"},
+        {"tag with int", 1234},
+        {"tag-with-bool", false},
+        {"tag_with_float", 0.321}
     };
   }
 
   @ParameterizedTest
   @MethodSource("tagsCanBeAddedToContextArguments")
   void tagsCanBeAddedToContext(String name, Object value) throws Exception {
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .withSpanType("fakeType")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanType("fakeType")
+      .start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setTag(name, value);
@@ -200,12 +194,11 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   })
   void metricsUseExpectedTypes(Class<?> expectedType, Number value) {
     // floats should be converted to doubles.
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setMetric("test", value);
@@ -217,12 +210,11 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void forceKeepReallyKeepsTrace() {
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
 
     context.setSamplingPriority(SAMPLER_DROP, DEFAULT);
@@ -240,23 +232,24 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void setTraceSegmentTagsAndDataOnCorrectSpan() {
-    ExtractedContext extracted =
-        (ExtractedContext)
-            new ExtractedContext(
-                    DDTraceId.from(123),
-                    456,
-                    SAMPLER_KEEP,
-                    "789",
-                    tracer.getPropagationTagsFactory().empty(),
-                    DATADOG)
-                .withRequestContextDataAppSec("dummy");
+    ExtractedContext extracted = (ExtractedContext) new ExtractedContext(
+        DDTraceId.from(123),
+        456,
+        SAMPLER_KEEP,
+        "789",
+        tracer.getPropagationTagsFactory().empty(),
+        DATADOG)
+      .withRequestContextDataAppSec("dummy");
 
     AgentSpan top =
         tracer.buildSpan("datadog", "top").asChildOf((AgentSpanContext) extracted).start();
     DDSpanContext topC = (DDSpanContext) top.spanContext();
     TraceSegment topTS = top.getRequestContext().getTraceSegment();
 
-    AgentSpan current = tracer.buildSpan("datadog", "current").asChildOf(top.spanContext()).start();
+    AgentSpan current = tracer
+      .buildSpan("datadog", "current")
+      .asChildOf(top.spanContext())
+      .start();
     TraceSegment currentTS = current.getRequestContext().getTraceSegment();
     DDSpanContext currentC = (DDSpanContext) current.spanContext();
 
@@ -294,12 +287,11 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     "0.25 | Integer.MAX_VALUE"
   })
   void setSingleSpanSamplingTags(double rate, int limit) {
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
     assertEquals(UNSET, context.getSamplingPriority());
 
@@ -320,12 +312,11 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void settingResourceNameToNullIsIgnored() {
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start();
 
     span.setResourceName(null);
 
@@ -339,12 +330,11 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     when(profilingContextIntegration.encodeOperationName("fakeOperation")).thenReturn(1);
     when(profilingContextIntegration.encodeResourceName("fakeResource")).thenReturn(-1);
 
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .start();
 
     verify(profilingContextIntegration, times(1)).encodeOperationName("fakeOperation");
     verify(profilingContextIntegration, times(1)).encodeResourceName("fakeResource");
@@ -368,25 +358,22 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void spanIdsPrintedAsUnsignedLong() {
-    AgentSpan parent =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .withSpanId(-987654321)
-            .start();
+    AgentSpan parent = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanId(-987654321)
+      .start();
 
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "fakeOperation")
-            .withServiceName("fakeService")
-            .withResourceName("fakeResource")
-            .withSpanId(-123456789)
-            .asChildOf(parent.spanContext())
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "fakeOperation")
+      .withServiceName("fakeService")
+      .withResourceName("fakeResource")
+      .withSpanId(-123456789)
+      .asChildOf(parent.spanContext())
+      .start();
 
     DDSpanContext context = (DDSpanContext) span.spanContext();
-
     // even though span ID and parent ID are setup as negative numbers, they should be printed as
     // their unsigned value
     // asserting there is no negative sign after ids is the best I can do.
@@ -415,7 +402,6 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void spanKindOrdinalConstantsAndSpanKindValuesArrayStayInSync() {
     // SPAN_KIND_VALUES array covers all ordinals
     assertEquals(DDSpanContext.SPAN_KIND_CUSTOM + 1, SPAN_KIND_VALUES.length);
-
     // each known ordinal maps to the correct Tags constant"
     assertEquals(Tags.SPAN_KIND_SERVER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_SERVER]);
     assertEquals(Tags.SPAN_KIND_CLIENT, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CLIENT]);
@@ -423,7 +409,6 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertEquals(Tags.SPAN_KIND_CONSUMER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CONSUMER]);
     assertEquals(Tags.SPAN_KIND_INTERNAL, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_INTERNAL]);
     assertEquals(Tags.SPAN_KIND_BROKER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_BROKER]);
-
     // UNSET and CUSTOM map to null
     assertNull(SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_UNSET]);
     assertNull(SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CUSTOM]);
@@ -439,7 +424,9 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     "broker   | broker     | DDSpanContext.SPAN_KIND_BROKER  "
   })
   void setSpanKindOrdinalRoundTripsWithSpanKindValues(
-      String scenario, String kindString, int expectedOrdinal) {
+      String scenario,
+      String kindString,
+      int expectedOrdinal) {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
     context.setSpanKindOrdinal(kindString);
@@ -456,12 +443,11 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     // setAllTags(TagMap.Ledger) at construction time. The removal path must
     // keep the cached ordinal in sync with unsafeTags, otherwise eligibility
     // checks that read the cached byte see a stale kind.
-    AgentSpan span =
-        tracer
-            .buildSpan("datadog", "test")
-            .withTag(SPAN_KIND, Tags.SPAN_KIND_CLIENT)
-            .withTag(SPAN_KIND, (Object) null)
-            .start();
+    AgentSpan span = tracer
+      .buildSpan("datadog", "test")
+      .withTag(SPAN_KIND, Tags.SPAN_KIND_CLIENT)
+      .withTag(SPAN_KIND, (Object) null)
+      .start();
     DDSpanContext context = (DDSpanContext) span.spanContext();
 
     assertNull(context.getTag(SPAN_KIND));
@@ -494,15 +480,14 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        Tags.SPAN_KIND_SERVER,
-        Tags.SPAN_KIND_CLIENT,
-        Tags.SPAN_KIND_PRODUCER,
-        Tags.SPAN_KIND_CONSUMER,
-        Tags.SPAN_KIND_INTERNAL,
-        Tags.SPAN_KIND_BROKER
-      })
+  @ValueSource(strings = {
+      Tags.SPAN_KIND_SERVER,
+      Tags.SPAN_KIND_CLIENT,
+      Tags.SPAN_KIND_PRODUCER,
+      Tags.SPAN_KIND_CONSUMER,
+      Tags.SPAN_KIND_INTERNAL,
+      Tags.SPAN_KIND_BROKER
+  })
   void setTagAndGetTagRoundTripForSpanKind(String kindString) {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     span.setTag(SPAN_KIND, kindString);
@@ -522,15 +507,14 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   }
 
   @ParameterizedTest
-  @ValueSource(
-      strings = {
-        Tags.SPAN_KIND_SERVER,
-        Tags.SPAN_KIND_CLIENT,
-        Tags.SPAN_KIND_PRODUCER,
-        Tags.SPAN_KIND_CONSUMER,
-        Tags.SPAN_KIND_INTERNAL,
-        Tags.SPAN_KIND_BROKER
-      })
+  @ValueSource(strings = {
+      Tags.SPAN_KIND_SERVER,
+      Tags.SPAN_KIND_CLIENT,
+      Tags.SPAN_KIND_PRODUCER,
+      Tags.SPAN_KIND_CONSUMER,
+      Tags.SPAN_KIND_INTERNAL,
+      Tags.SPAN_KIND_BROKER
+  })
   void setTagThenRemoveTagClearsSpanKind(String kindString) {
     AgentSpan span = tracer.buildSpan("test", "test").start();
     span.setTag(SPAN_KIND, kindString);

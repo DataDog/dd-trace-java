@@ -6,9 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public class TestManagementSettings {
-
   public static final TestManagementSettings DEFAULT = new TestManagementSettings(false, -1);
-
   private final boolean enabled;
   private final int attemptToFixRetries;
 
@@ -61,8 +59,7 @@ public class TestManagementSettings {
         return TestManagementSettings.DEFAULT;
       }
 
-      int attemptToFixRetries =
-          datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
+      int attemptToFixRetries = datadog.trace.civisibility.ipc.serialization.Serializer.readInt(buf);
       return new TestManagementSettings(enabled, attemptToFixRetries);
     }
   }

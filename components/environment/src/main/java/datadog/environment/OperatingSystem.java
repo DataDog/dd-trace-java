@@ -4,7 +4,6 @@ import static datadog.environment.OperatingSystem.Type.LINUX;
 import static datadog.environment.OperatingSystem.Type.MACOS;
 import static datadog.environment.OperatingSystem.Type.WINDOWS;
 import static java.util.Locale.ROOT;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -16,14 +15,17 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Detects operating systems and libc library. */
+/**
+ * Detects operating systems and libc library.
+ */
 public final class OperatingSystem {
   private static final String OS_NAME_PROPERTY = "os.name";
   private static final String OS_ARCH_PROPERTY = "os.arch";
   private static final Type TYPE = Type.current();
   private static final Architecture ARCHITECTURE = Architecture.current();
 
-  private OperatingSystem() {}
+  private OperatingSystem() {
+  }
 
   /**
    * Checks whether the operating system is Linux based.
@@ -61,7 +63,9 @@ public final class OperatingSystem {
     return TYPE;
   }
 
-  /** Gets the operating system architecture . */
+  /**
+   * Gets the operating system architecture .
+   */
   public static Architecture architecture() {
     return ARCHITECTURE;
   }
@@ -112,8 +116,10 @@ public final class OperatingSystem {
    */
   private static boolean isMuslJavaExecutable() throws IOException {
     byte[] magic = new byte[] {(byte) 0x7f, (byte) 'E', (byte) 'L', (byte) 'F'};
-    byte[] prefix = new byte[] {(byte) '/', (byte) 'l', (byte) 'd', (byte) '-'}; // '/ld-*'
-    byte[] musl = new byte[] {(byte) 'm', (byte) 'u', (byte) 's', (byte) 'l'}; // 'musl'
+    // '/ld-*'
+    byte[] prefix = new byte[] {(byte) '/', (byte) 'l', (byte) 'd', (byte) '-'};
+    // 'musl'
+    byte[] musl = new byte[] {(byte) 'm', (byte) 'u', (byte) 's', (byte) 'l'};
 
     Path binary = Paths.get(SystemProperties.getOrDefault("java.home", ""), "bin", "java");
     byte[] buffer = new byte[4096];
@@ -159,7 +165,6 @@ public final class OperatingSystem {
     MACOS("MacOS"),
     LINUX("Linux"),
     UNKNOWN("unknown");
-
     private final String name;
 
     Type(String name) {
@@ -186,14 +191,15 @@ public final class OperatingSystem {
     }
   }
 
-  /** Detects the operating system architecture. */
+  /**
+   * Detects the operating system architecture.
+   */
   public enum Architecture {
     X64("x86_64", "amd64", "k8"),
     X86("x86", "i386", "i486", "i586", "i686"),
     ARM("arm", "aarch32"),
     ARM64("arm64", "aarch64"),
-    UNKNOWN();
-
+    UNKNOWN;
     private final Set<String> identifiers;
 
     Architecture(String... identifiers) {

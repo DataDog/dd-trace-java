@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.SpanEnrichmentEvent;
 import dev.openfeature.sdk.FlagEvaluationDetails;
@@ -33,7 +32,6 @@ import org.junit.jupiter.api.Test;
  * {@code feature-flagging-lib}) plus the {@link Provider} gating.
  */
 class SpanEnrichmentHookTest {
-
   private final List<SpanEnrichmentEvent> captured = new ArrayList<>();
   private final FeatureFlaggingGateway.SpanEnrichmentListener listener = captured::add;
 
@@ -48,18 +46,18 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- helpers ----
-
   private static FlagEvaluationDetails<Object> details(
       final String flagKey,
       final String variant,
       final Object value,
       final ImmutableMetadata metadata) {
-    return FlagEvaluationDetails.builder()
-        .flagKey(flagKey)
-        .variant(variant)
-        .value(value)
-        .flagMetadata(metadata)
-        .build();
+    return FlagEvaluationDetails
+      .builder()
+      .flagKey(flagKey)
+      .variant(variant)
+      .value(value)
+      .flagMetadata(metadata)
+      .build();
   }
 
   private static ImmutableMetadata metadata(final Integer serialId, final boolean doLog) {
@@ -82,14 +80,13 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- serial-id branch ----
-
   @Test
   void serialIdWithDoLogDispatchesSerialAndSubject() {
     new SpanEnrichmentHook()
-        .finallyAfter(
-            ctx("flag", "user-1"),
-            details("flag", "on", "v", metadata(42, true)),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("flag", "user-1"),
+          details("flag", "on", "v", metadata(42, true)),
+          Collections.emptyMap());
 
     assertEquals(1, captured.size());
     final SpanEnrichmentEvent event = captured.get(0);
@@ -102,50 +99,48 @@ class SpanEnrichmentHookTest {
   @Test
   void serialIdWithoutDoLogStillDispatchesSerialButNotDoLog() {
     new SpanEnrichmentHook()
-        .finallyAfter(
-            ctx("flag", "user-1"),
-            details("flag", "on", "v", metadata(7, false)),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("flag", "user-1"),
+          details("flag", "on", "v", metadata(7, false)),
+          Collections.emptyMap());
 
     assertEquals(1, captured.size());
     final SpanEnrichmentEvent event = captured.get(0);
     assertTrue(event.hasSerialId());
     assertEquals(7, event.serialId());
     assertFalse(
-        event.doLog(), "doLog=false must be carried through so the write side skips subject");
+        event.doLog(),
+        "doLog=false must be carried through so the write side skips subject");
   }
 
   @Test
   void wrongTypedSerialIdDispatchesNothing() {
     // Defensive: a non-integer value under the serial-id key (wrong type) is ignored, not crashed.
-    final ImmutableMetadata bad =
-        ImmutableMetadata.builder()
-            .addString(SpanEnrichmentHook.METADATA_SERIAL_ID, "not-a-number")
-            .addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, true)
-            .build();
+    final ImmutableMetadata bad = ImmutableMetadata
+      .builder()
+      .addString(SpanEnrichmentHook.METADATA_SERIAL_ID, "not-a-number")
+      .addBoolean(SpanEnrichmentHook.METADATA_DO_LOG, true)
+      .build();
     new SpanEnrichmentHook()
-        .finallyAfter(
-            ctx("flag", "user-1"), details("flag", "on", "v", bad), Collections.emptyMap());
+      .finallyAfter(ctx("flag", "user-1"), details("flag", "on", "v", bad), Collections.emptyMap());
     assertTrue(captured.isEmpty(), "a wrong-typed serial id must never break eval or dispatch");
   }
 
   // ---- runtime-default branch (missing variant) ----
-
   @Test
   void missingVariantDispatchesRuntimeDefaultWithNativeMap() {
     final Map<String, Object> objectValue = Collections.singletonMap("k", "val");
     new SpanEnrichmentHook()
-        .finallyAfter(
-            ctx("obj-flag", "user-1"),
-            details("obj-flag", null, objectValue, ImmutableMetadata.builder().build()),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("obj-flag", "user-1"),
+          details("obj-flag", null, objectValue, ImmutableMetadata.builder().build()),
+          Collections.emptyMap());
 
     assertEquals(1, captured.size());
     final SpanEnrichmentEvent event = captured.get(0);
     assertFalse(event.hasSerialId());
     assertEquals("obj-flag", event.flagKey());
-    assertEquals(
-        objectValue, event.defaultValue(), "a native map default passes through unchanged");
+    assertEquals(objectValue, event.defaultValue(), "a native map default passes through unchanged");
   }
 
   @Test
@@ -155,10 +150,10 @@ class SpanEnrichmentHookTest {
     final Value structureDefault = new Value(new ImmutableStructure(inner));
 
     new SpanEnrichmentHook()
-        .finallyAfter(
-            ctx("struct-flag", "user-1"),
-            details("struct-flag", null, structureDefault, ImmutableMetadata.builder().build()),
-            Collections.emptyMap());
+      .finallyAfter(
+          ctx("struct-flag", "user-1"),
+          details("struct-flag", null, structureDefault, ImmutableMetadata.builder().build()),
+          Collections.emptyMap());
 
     assertEquals(1, captured.size());
     final Object value = captured.get(0).defaultValue();
@@ -168,7 +163,6 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- unwrapDefaultValue (the Value -> native conversion) ----
-
   @Test
   void unwrapConvertsValueScalarsToNative() {
     assertEquals("hello", SpanEnrichmentHook.unwrapDefaultValue(new Value("hello")));
@@ -194,7 +188,6 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- error isolation ----
-
   @Test
   void nullDetailsDispatchesNothing() {
     new SpanEnrichmentHook().finallyAfter(null, null, null);
@@ -202,14 +195,14 @@ class SpanEnrichmentHookTest {
   }
 
   // ---- Provider gating ----
-
   @Test
   void gateOffConstructsNoHook() {
     final Provider provider = new Provider(new Provider.Options(), null, Boolean.FALSE);
     assertNull(provider.spanEnrichmentHook(), "gate off => no span-enrichment hook");
     for (final Hook hook : provider.getProviderHooks()) {
       assertFalse(
-          hook instanceof SpanEnrichmentHook, "gate off => SpanEnrichmentHook never registered");
+          hook instanceof SpanEnrichmentHook,
+          "gate off => SpanEnrichmentHook never registered");
     }
   }
 

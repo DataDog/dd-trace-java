@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,11 +17,11 @@ import net.bytebuddy.matcher.ElementMatcher;
  * calls to <code>handoffQueue.poll(timeout, NANOSECONDS)</code>.
  */
 @AutoService(InstrumenterModule.class)
-public final class HikariConcurrentBagHandoffQueueInstrumentation extends InstrumenterModule.Tracing
+public final class HikariConcurrentBagHandoffQueueInstrumentation
+    extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.WithTypeStructure {
-
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.WithTypeStructure {
   public HikariConcurrentBagHandoffQueueInstrumentation() {
     super("jdbc", "hikari");
   }
@@ -45,7 +44,8 @@ public final class HikariConcurrentBagHandoffQueueInstrumentation extends Instru
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".HikariBlockedTracker", packageName + ".HikariBlockedTrackingSynchronousQueue",
+        packageName + ".HikariBlockedTracker",
+        packageName + ".HikariBlockedTrackingSynchronousQueue"
     };
   }
 
@@ -59,8 +59,7 @@ public final class HikariConcurrentBagHandoffQueueInstrumentation extends Instru
   public static class ConstructorAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     static void after(
-        @Advice.FieldValue(value = "handoffQueue", readOnly = false)
-            SynchronousQueue handoffQueue) {
+        @Advice.FieldValue(value = "handoffQueue", readOnly = false) SynchronousQueue handoffQueue) {
       handoffQueue = new HikariBlockedTrackingSynchronousQueue<>();
     }
   }

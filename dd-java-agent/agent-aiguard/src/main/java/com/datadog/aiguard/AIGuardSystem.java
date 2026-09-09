@@ -1,8 +1,8 @@
 package com.datadog.aiguard;
 
 public abstract class AIGuardSystem {
-
-  private AIGuardSystem() {}
+  private AIGuardSystem() {
+  }
 
   public static void start() {
     initializeSDK();

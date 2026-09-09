@@ -15,7 +15,6 @@ import org.testng.ITestResult;
 import org.testng.internal.TestResult;
 
 public class FailFastOrderInterceptor implements IMethodInterceptor {
-
   private final TestEventsHandler<TestSuiteDescriptor, ITestResult> testEventsHandler;
   private final Comparator<IMethodInstance> executionOrderComparator;
 

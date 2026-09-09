@@ -7,7 +7,6 @@ import static datadog.trace.agent.tooling.muzzle.Reference.EXPECTS_STATIC;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -22,8 +21,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class BeanShellInstrumentation extends InstrumenterModule.Iast
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForKnownTypes,
+    Instrumenter.HasMethodAdvice {
   public BeanShellInstrumentation() {
     super("beanshell");
   }
@@ -36,32 +35,32 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {
-      new Reference.Builder("bsh.Interpreter")
-          .withMethod(
-              new String[0],
-              EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
-              "eval",
-              "Ljava/lang/Object;",
-              "Ljava/lang/String;",
-              "Lbsh/NameSpace;")
-          .withMethod(
-              new String[0],
-              EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
-              "eval",
-              "Ljava/lang/Object;",
-              "Ljava/io/Reader;",
-              "Lbsh/NameSpace;",
-              "Ljava/lang/String;")
-          .build(),
-      new Reference.Builder("bsh.Remote")
-          .withMethod(
-              new String[0],
-              EXPECTS_PUBLIC | EXPECTS_STATIC,
-              "eval",
-              "I",
-              "Ljava/lang/String;",
-              "Ljava/lang/String;")
-          .build(),
+        new Reference.Builder("bsh.Interpreter")
+      .withMethod(
+          new String[0],
+          EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
+          "eval",
+          "Ljava/lang/Object;",
+          "Ljava/lang/String;",
+          "Lbsh/NameSpace;")
+      .withMethod(
+          new String[0],
+          EXPECTS_PUBLIC | EXPECTS_NON_STATIC,
+          "eval",
+          "Ljava/lang/Object;",
+          "Ljava/io/Reader;",
+          "Lbsh/NameSpace;",
+          "Ljava/lang/String;")
+      .build(),
+        new Reference.Builder("bsh.Remote")
+      .withMethod(
+          new String[0],
+          EXPECTS_PUBLIC | EXPECTS_STATIC,
+          "eval",
+          "I",
+          "Ljava/lang/String;",
+          "Ljava/lang/String;")
+      .build()
     };
   }
 
@@ -72,11 +71,10 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
     // (iast_exclusion.trie) so that reader is never tainted; we inspect the String arg directly.
     transformer.applyAdvice(
         named("eval")
-            .and(isMethod())
-            .and(
-                takesArguments(2)
-                    .and(takesArgument(0, String.class))
-                    .and(takesArgument(1, named("bsh.NameSpace")))),
+          .and(isMethod())
+          .and(takesArguments(2)
+            .and(takesArgument(0, String.class))
+            .and(takesArgument(1, named("bsh.NameSpace")))),
         BeanShellInstrumentation.class.getName() + "$StringEvalAdvice");
     // bsh.Interpreter.eval(Reader, NameSpace, String): shared core reached by public eval(Reader).
     // Only reports when the caller supplied a tainted Reader; the Reader built internally by
@@ -85,12 +83,11 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
     // taint the internally built reader and make eval(String) double-report CODE_INJECTION.
     transformer.applyAdvice(
         named("eval")
-            .and(isMethod())
-            .and(
-                takesArguments(3)
-                    .and(takesArgument(0, Reader.class))
-                    .and(takesArgument(1, named("bsh.NameSpace")))
-                    .and(takesArgument(2, String.class))),
+          .and(isMethod())
+          .and(takesArguments(3)
+            .and(takesArgument(0, Reader.class))
+            .and(takesArgument(1, named("bsh.NameSpace")))
+            .and(takesArgument(2, String.class))),
         BeanShellInstrumentation.class.getName() + "$EvalAdvice");
     // bsh.Remote.eval(String url, String text)
     transformer.applyAdvice(
@@ -99,7 +96,6 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class StringEvalAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.CODE_INJECTION)
     public static void onEnter(@Advice.Argument(0) final String statements) {
@@ -115,7 +111,6 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class EvalAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.CODE_INJECTION)
     public static void onEnter(@Advice.Argument(0) final Reader reader) {
@@ -131,11 +126,11 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
   }
 
   public static class RemoteEvalAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.CODE_INJECTION)
     public static void onEnter(
-        @Advice.Argument(0) final String url, @Advice.Argument(1) final String text) {
+        @Advice.Argument(0) final String url,
+        @Advice.Argument(1) final String text) {
       // Remote.eval dispatches on the URL scheme: "http:" opens a URL connection and "bsh:" opens a
       // raw socket; every other scheme throws before any I/O or script dispatch, so neither the URL
       // nor the script reaches a sink. bsh.* is excluded from call-site instrumentation, so neither
@@ -143,7 +138,6 @@ public class BeanShellInstrumentation extends InstrumenterModule.Iast
       if (url == null || !(url.startsWith("http:") || url.startsWith("bsh:"))) {
         return;
       }
-
       // @Sink only declares CODE_INJECTION (it is single-valued), so this SSRF report is not
       // counted in the instrumented/executed-sink telemetry; the vulnerability itself is still
       // reported.

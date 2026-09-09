@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -22,7 +21,9 @@ import org.slf4j.LoggerFactory;
 
 @AutoService(InstrumenterModule.class)
 public final class VMRuntimeModule extends AbstractNativeImageModule
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice,
+    ExcludeFilterProvider {
   @Override
   public String instrumentedType() {
     return "org.graalvm.nativeimage.VMRuntime";
@@ -31,7 +32,8 @@ public final class VMRuntimeModule extends AbstractNativeImageModule
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        isMethod().and(named("initialize")), VMRuntimeModule.class.getName() + "$InitializeAdvice");
+        isMethod().and(named("initialize")),
+        VMRuntimeModule.class.getName() + "$InitializeAdvice");
   }
 
   @Override
@@ -47,7 +49,8 @@ public final class VMRuntimeModule extends AbstractNativeImageModule
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
     return singletonMap(
-        RUNNABLE, singletonList("com.oracle.svm.core.thread.VMOperationControl$VMOperationThread"));
+        RUNNABLE,
+        singletonList("com.oracle.svm.core.thread.VMOperationControl$VMOperationThread"));
   }
 
   public static class InitializeAdvice {

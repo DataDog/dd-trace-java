@@ -15,8 +15,9 @@ public class HandleResultAdvice {
       @Advice.Return(readOnly = false) Mono<Void> mono) {
     final AgentSpan span = exchange.getAttribute(AdviceUtils.SPAN_ATTRIBUTE);
     if (span != null && mono != null) {
-      InstrumentationContext.get(Publisher.class, HandoffContext.class)
-          .put(mono, HandoffContext.anyThread(span));
+      InstrumentationContext
+        .get(Publisher.class, HandoffContext.class)
+        .put(mono, HandoffContext.anyThread(span));
     }
   }
 }

@@ -13,11 +13,12 @@ import java.util.Arrays;
  * validated during parsing but not retained because it does not affect SemVer precedence.
  */
 public final class ParsedSemver {
-
-  /** Sentinel returned by {@link #parse(String)} when the input is not a valid semantic version. */
+  /**
+   * Sentinel returned by {@link #parse(String)} when the input is not a valid semantic version.
+   */
   public static final ParsedSemver INVALID = null;
-
-  private final long[] core; // unsigned, with omitted minor and patch normalized to zero
+  // unsigned, with omitted minor and patch normalized to zero
+  private final long[] core;
   private final int coreLength;
   private final String prerelease;
 
@@ -47,7 +48,8 @@ public final class ParsedSemver {
       try {
         component = Long.parseUnsignedLong(version.substring(next, end));
       } catch (final NumberFormatException e) {
-        return INVALID; // overflow
+        // overflow
+        return INVALID;
       }
       if (coreSize == core.length) {
         core = Arrays.copyOf(core, core.length * 2);
@@ -63,7 +65,6 @@ public final class ParsedSemver {
     if (next == version.length()) {
       return new ParsedSemver(core, coreLength, "");
     }
-
     // Parse prerelease and/or build metadata.
     String remainder = version.substring(next);
     String prerelease = "";
@@ -152,20 +153,21 @@ public final class ParsedSemver {
    * Validates dot-separated identifiers. Permits leading zeros for build metadata only; numeric
    * prerelease identifiers reject them.
    */
-  private static boolean validSemverIdentifiers(
-      final String value, final boolean allowLeadingZeros) {
+  private static boolean validSemverIdentifiers(final String value, final boolean allowLeadingZeros) {
     int identifierStart = 0;
     boolean identifierNumeric = true;
     for (int i = 0; i <= value.length(); i++) {
       if (i == value.length() || value.charAt(i) == '.') {
         if (i == identifierStart) {
-          return false; // empty identifier
+          // empty identifier
+          return false;
         }
         if (!allowLeadingZeros
             && identifierNumeric
             && i - identifierStart > 1
             && value.charAt(identifierStart) == '0') {
-          return false; // leading zero in numeric identifier
+          // leading zero in numeric identifier
+          return false;
         }
         identifierStart = i + 1;
         identifierNumeric = true;
@@ -188,10 +190,12 @@ public final class ParsedSemver {
       return 0;
     }
     if (left.isEmpty()) {
-      return 1; // release > prerelease
+      // release > prerelease
+      return 1;
     }
     if (right.isEmpty()) {
-      return -1; // prerelease < release
+      // prerelease < release
+      return -1;
     }
 
     int leftPos = 0;
@@ -214,10 +218,12 @@ public final class ParsedSemver {
         if (rightDot == -1) {
           return 0;
         }
-        return -1; // left has fewer identifiers
+        // left has fewer identifiers
+        return -1;
       }
       if (rightDot == -1) {
-        return 1; // right has fewer identifiers
+        // right has fewer identifiers
+        return 1;
       }
       leftPos = leftDot + 1;
       rightPos = rightDot + 1;
@@ -238,9 +244,11 @@ public final class ParsedSemver {
       }
       return left.compareTo(right);
     } else if (leftNumeric) {
-      return -1; // numeric < alphanumeric
+      // numeric < alphanumeric
+      return -1;
     } else if (rightNumeric) {
-      return 1; // alphanumeric > numeric
+      // alphanumeric > numeric
+      return 1;
     }
     return left.compareTo(right);
   }
@@ -263,7 +271,6 @@ public final class ParsedSemver {
   }
 
   // --- Accessors for testing ---
-
   long getMajor() {
     return core[0];
   }

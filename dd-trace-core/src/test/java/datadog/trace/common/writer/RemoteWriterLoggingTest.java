@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -34,11 +33,9 @@ import org.slf4j.LoggerFactory;
  * discards an already sampled-out trace is routine and must not reach the user as a warning.
  */
 class RemoteWriterLoggingTest extends DDCoreJavaSpecification {
-
   private Logger logger;
   private Level previousLevel;
   private ListAppender<ILoggingEvent> appender;
-
   private final HealthMetrics monitor = mock(HealthMetrics.class);
   private final TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
   private final PayloadDispatcherImpl dispatcher = mock(PayloadDispatcherImpl.class);
@@ -96,7 +93,7 @@ class RemoteWriterLoggingTest extends DDCoreJavaSpecification {
     assertTrue(
         event.getFormattedMessage().contains("single span sampling"),
         "the warning should say a single span sampling candidate was lost: "
-            + event.getFormattedMessage());
+        + event.getFormattedMessage());
   }
 
   /**

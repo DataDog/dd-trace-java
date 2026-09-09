@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import com.google.common.net.HostAndPort;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,8 +16,8 @@ import ratpack.path.PathBinding;
 
 @AutoService(InstrumenterModule.class)
 public final class DefaultExecutionInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public DefaultExecutionInstrumentation() {
     super("ratpack");
   }
@@ -30,22 +29,20 @@ public final class DefaultExecutionInstrumentation extends InstrumenterModule.Tr
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ActionWrapper",
-    };
+    return new String[] {packageName + ".ActionWrapper"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        nameStartsWith("delimit") // include delimitStream
-            .and(takesArgument(0, named("ratpack.func.Action")))
-            .and(takesArgument(1, named("ratpack.func.Action"))),
+        nameStartsWith("delimit")
+          .and(takesArgument(0, named("ratpack.func.Action")))
+          // include delimitStream
+          .and(takesArgument(1, named("ratpack.func.Action"))),
         DefaultExecutionInstrumentation.class.getName() + "$DelimitAdvice");
   }
 
   public static class DelimitAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void wrap(
         @Advice.Argument(value = 0, readOnly = false) Action<? super Throwable> onError,
@@ -62,7 +59,6 @@ public final class DefaultExecutionInstrumentation extends InstrumenterModule.Tr
     public void muzzleCheck(final PathBinding binding, final HostAndPort host) {
       // This was added in 1.4.  Added here to ensure consistency with other instrumentation.
       binding.getDescription();
-
       // This is available in Guava 20 which was required starting in 1.5
       host.getHost();
     }

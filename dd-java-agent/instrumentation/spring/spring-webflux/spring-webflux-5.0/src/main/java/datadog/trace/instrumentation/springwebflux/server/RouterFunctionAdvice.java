@@ -11,7 +11,6 @@ import reactor.core.publisher.Mono;
  * functional interface.
  */
 public class RouterFunctionAdvice {
-
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void methodExit(
       @Advice.This final RouterFunction thiz,

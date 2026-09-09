@@ -3,7 +3,6 @@ package datadog.trace.plugin.csi.impl.assertion;
 import static datadog.trace.plugin.csi.impl.CallSiteFactory.typeResolver;
 import static datadog.trace.plugin.csi.util.CallSiteUtils.classNameToType;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
@@ -52,44 +51,46 @@ public class AssertBuilder {
   }
 
   protected Set<Class<?>> getSpi(ClassOrInterfaceDeclaration type) {
-    return type.getAnnotationByName("AutoService")
-        .<Set<Class<?>>>map(
-            annotation ->
-                annotation.asNormalAnnotationExpr().getPairs().stream()
-                    .filter(pair -> pair.getNameAsString().equals("value"))
-                    .flatMap(
-                        pair ->
-                            pair.getValue().asArrayInitializerExpr().getValues().stream()
-                                .map(
-                                    value ->
-                                        value
-                                            .asClassExpr()
-                                            .getType()
-                                            .resolve()
-                                            .asReferenceType()
-                                            .getTypeDeclaration()
-                                            .get()
-                                            .getQualifiedName()))
-                    .map(AssertBuilder::loadClass)
-                    .collect(Collectors.toSet()))
-        .orElse(Collections.emptySet());
+    return type
+      .getAnnotationByName("AutoService")
+      .<Set<Class<?>>>map(annotation -> annotation
+        .asNormalAnnotationExpr()
+        .getPairs()
+        .stream()
+        .filter(pair -> pair.getNameAsString().equals("value"))
+        .flatMap(pair -> pair
+          .getValue()
+          .asArrayInitializerExpr()
+          .getValues()
+          .stream()
+          .map(value -> value
+            .asClassExpr()
+            .getType()
+            .resolve()
+            .asReferenceType()
+            .getTypeDeclaration()
+            .get()
+            .getQualifiedName()))
+        .map(AssertBuilder::loadClass)
+        .collect(Collectors.toSet()))
+      .orElse(Collections.emptySet());
   }
 
   protected Set<Class<?>> getInterfaces(ClassOrInterfaceDeclaration type) {
-    return type.getImplementedTypes().stream()
-        .map(
-            implementedType -> {
-              String qualifiedName =
-                  implementedType
-                      .asClassOrInterfaceType()
-                      .resolve()
-                      .asReferenceType()
-                      .getTypeDeclaration()
-                      .get()
-                      .getQualifiedName();
-              return loadClass(qualifiedName);
-            })
-        .collect(Collectors.toSet());
+    return type
+      .getImplementedTypes()
+      .stream()
+      .map(implementedType -> {
+        String qualifiedName = implementedType
+          .asClassOrInterfaceType()
+          .resolve()
+          .asReferenceType()
+          .getTypeDeclaration()
+          .get()
+          .getQualifiedName();
+        return loadClass(qualifiedName);
+      })
+      .collect(Collectors.toSet());
   }
 
   private static Class<?> loadClass(String qualifiedName) {
@@ -110,76 +111,79 @@ public class AssertBuilder {
   }
 
   protected Object[] getEnabledDeclaration(
-      ClassOrInterfaceDeclaration type, Set<Class<?>> interfaces) {
+      ClassOrInterfaceDeclaration type,
+      Set<Class<?>> interfaces) {
     if (!interfaces.contains(CallSites.HasEnabledProperty.class)) {
       return new Object[] {null, null};
     }
     MethodDeclaration isEnabled = type.getMethodsByName("isEnabled").get(0);
-    MethodCallExpr enabledMethodCall =
-        isEnabled
-            .getBody()
-            .get()
-            .getStatements()
-            .get(0)
-            .asReturnStmt()
-            .getExpression()
-            .get()
-            .asMethodCallExpr();
+    MethodCallExpr enabledMethodCall = isEnabled
+      .getBody()
+      .get()
+      .getStatements()
+      .get(0)
+      .asReturnStmt()
+      .getExpression()
+      .get()
+      .asMethodCallExpr();
     Method enabled = resolveMethod(enabledMethodCall);
-    Set<String> enabledArgs =
-        enabledMethodCall.getArguments().stream()
-            .map(arg -> arg.asStringLiteralExpr().asString())
-            .collect(Collectors.toSet());
+    Set<String> enabledArgs = enabledMethodCall
+      .getArguments()
+      .stream()
+      .map(arg -> arg.asStringLiteralExpr().asString())
+      .collect(Collectors.toSet());
     return new Object[] {enabled, enabledArgs};
   }
 
   protected Set<Class<?>> getHelpers(ClassOrInterfaceDeclaration type) {
     MethodDeclaration acceptMethod = type.getMethodsByName("accept").get(0);
     List<MethodCallExpr> methodCalls = getMethodCalls(acceptMethod);
-    return methodCalls.stream()
-        .filter(methodCall -> methodCall.getNameAsString().equals("addHelpers"))
-        .flatMap(methodCall -> methodCall.getArguments().stream())
-        .map(
-            arg -> {
-              String className = arg.asStringLiteralExpr().asString();
-              return typeResolver().resolveType(classNameToType(className));
-            })
-        .collect(Collectors.toSet());
+    return methodCalls
+      .stream()
+      .filter(methodCall -> methodCall.getNameAsString().equals("addHelpers"))
+      .flatMap(methodCall -> methodCall.getArguments().stream())
+      .map(arg -> {
+        String className = arg.asStringLiteralExpr().asString();
+        return typeResolver().resolveType(classNameToType(className));
+      })
+      .collect(Collectors.toSet());
   }
 
   protected List<AdviceAssert> getAdvices(ClassOrInterfaceDeclaration type) {
     MethodDeclaration acceptMethod = type.getMethodsByName("accept").get(0);
-    return getMethodCalls(acceptMethod).stream()
-        .filter(methodCall -> methodCall.getNameAsString().equals("addAdvice"))
-        .map(
-            methodCall -> {
-              String adviceType = methodCall.getArgument(0).asFieldAccessExpr().getNameAsString();
-              String owner = methodCall.getArgument(1).asStringLiteralExpr().asString();
-              String method = methodCall.getArgument(2).asStringLiteralExpr().asString();
-              String descriptor = methodCall.getArgument(3).asStringLiteralExpr().asString();
-              List<String> statements =
-                  methodCall
-                      .getArgument(4)
-                      .asLambdaExpr()
-                      .getBody()
-                      .asBlockStmt()
-                      .getStatements()
-                      .stream()
-                      .map(Object::toString)
-                      .collect(Collectors.toList());
-              return new AdviceAssert(adviceType, owner, method, descriptor, statements);
-            })
-        .collect(Collectors.toList());
+    return getMethodCalls(acceptMethod)
+      .stream()
+      .filter(methodCall -> methodCall.getNameAsString().equals("addAdvice"))
+      .map(methodCall -> {
+        String adviceType = methodCall.getArgument(0).asFieldAccessExpr().getNameAsString();
+        String owner = methodCall.getArgument(1).asStringLiteralExpr().asString();
+        String method = methodCall.getArgument(2).asStringLiteralExpr().asString();
+        String descriptor = methodCall.getArgument(3).asStringLiteralExpr().asString();
+        List<String> statements = methodCall
+          .getArgument(4)
+          .asLambdaExpr()
+          .getBody()
+          .asBlockStmt()
+          .getStatements()
+          .stream()
+          .map(Object::toString)
+          .collect(Collectors.toList());
+        return new AdviceAssert(adviceType, owner, method, descriptor, statements);
+      })
+      .collect(Collectors.toList());
   }
 
   protected static List<MethodCallExpr> getMethodCalls(MethodDeclaration method) {
-    return method.getBody().get().asBlockStmt().getStatements().stream()
-        .filter(
-            stmt ->
-                stmt.isExpressionStmt()
-                    && stmt.asExpressionStmt().getExpression().isMethodCallExpr())
-        .map(stmt -> stmt.asExpressionStmt().getExpression().asMethodCallExpr())
-        .collect(Collectors.toList());
+    return method
+      .getBody()
+      .get()
+      .asBlockStmt()
+      .getStatements()
+      .stream()
+      .filter(stmt -> stmt.isExpressionStmt()
+          && stmt.asExpressionStmt().getExpression().isMethodCallExpr())
+      .map(stmt -> stmt.asExpressionStmt().getExpression().asMethodCallExpr())
+      .collect(Collectors.toList());
   }
 
   private static Method resolveMethod(MethodCallExpr methodCallExpr) {

@@ -27,10 +27,10 @@ public abstract class AbstractMuleInstrumentation extends InstrumenterModule.Tra
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".MuleDecorator",
-      packageName + ".DDEventTracer",
-      packageName + ".SpanState",
-      packageName + ".NoopMuleSpan",
+        packageName + ".MuleDecorator",
+        packageName + ".DDEventTracer",
+        packageName + ".SpanState",
+        packageName + ".NoopMuleSpan"
     };
   }
 }

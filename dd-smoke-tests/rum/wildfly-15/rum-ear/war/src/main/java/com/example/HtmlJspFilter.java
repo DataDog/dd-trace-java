@@ -13,8 +13,9 @@ import javax.servlet.http.HttpServletRequest;
 public class HtmlJspFilter implements Filter {
   @Override
   public void doFilter(
-      ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
-      throws IOException, ServletException {
+      ServletRequest servletRequest,
+      ServletResponse servletResponse,
+      FilterChain filterChain) throws IOException, ServletException {
     final String uri = ((HttpServletRequest) servletRequest).getRequestURI();
     if (uri.contains("/xml")) {
       filterChain.doFilter(servletRequest, servletResponse);

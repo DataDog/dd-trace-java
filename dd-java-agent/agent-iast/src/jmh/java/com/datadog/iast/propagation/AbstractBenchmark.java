@@ -1,7 +1,6 @@
 package com.datadog.iast.propagation;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-
 import com.datadog.iast.IastSystem;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -40,9 +39,7 @@ import org.slf4j.LoggerFactory;
 @Measurement(iterations = 5_000)
 @Fork(value = 3)
 public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkContext> {
-
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBenchmark.class);
-
   private AgentSpan span;
   private AgentScope scope;
   protected C context;
@@ -90,7 +87,8 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
     } else {
       result = value;
     }
-    computeHash(result); // compute it before to ensure all tests compare the same
+    // compute it before to ensure all tests compare the same
+    computeHash(result);
     return result;
   }
 
@@ -105,7 +103,6 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
   }
 
   protected abstract static class BenchmarkContext {
-
     private final IastContext iastContext;
 
     protected BenchmarkContext(final IastContext iasContext) {
@@ -118,7 +115,6 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
   }
 
   private static class NoOpWriter implements Writer {
-
     @Override
     public void write(final List<DDSpan> trace) {}
 

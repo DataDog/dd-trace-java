@@ -11,13 +11,11 @@ import ratpack.path.internal.TokenPathBinder;
  * @see ratpack.path.internal.PathBindingStorage
  */
 public class PathHandlerAdvice {
-
   // limitation: we can publish tokens for more than one handler in the same request
   // only the first one will be considered further down
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  @SuppressFBWarnings(
-      value = "UC_USELESS_OBJECT",
-      justification = "write to handler is not without effect")
+  @SuppressFBWarnings(value = "UC_USELESS_OBJECT", justification = "write to handler is not "
+      + "without effect")
   static void before(
       @Advice.Argument(0) PathBinder pathBinder,
       @Advice.Argument(value = 1, readOnly = false) Handler handler) {

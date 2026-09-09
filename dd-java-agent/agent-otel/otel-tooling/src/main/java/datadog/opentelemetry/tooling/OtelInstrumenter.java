@@ -4,15 +4,17 @@ import datadog.trace.agent.tooling.Instrumenter;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-/** Replaces OpenTelemetry's {@code TypeInstrumentation} callback when mapping extensions. */
+/**
+ * Replaces OpenTelemetry's {@code TypeInstrumentation} callback when mapping extensions.
+ */
 public interface OtelInstrumenter
     extends Instrumenter.ForTypeHierarchy,
-        Instrumenter.HasMethodAdvice,
-        Instrumenter.HasTypeAdvice {
-
+    Instrumenter.HasMethodAdvice,
+    Instrumenter.HasTypeAdvice {
   @Override
   default String hierarchyMarkerType() {
-    return null; // no hint available
+    // no hint available
+    return null;
   }
 
   @Override

@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
-
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponseFor;
 import com.openai.core.http.StreamResponse;
@@ -14,7 +13,6 @@ import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 
 public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<StreamResponse<T>> {
-
   public static <T> HttpResponseFor<StreamResponse<T>> wrap(
       HttpResponseFor<StreamResponse<T>> response,
       final AgentSpan span,
@@ -28,13 +26,12 @@ public final class HttpStreamResponseWrapper<T> implements HttpResponseFor<Strea
       AgentSpan span,
       BiConsumer<AgentSpan, List<T>> decorate) {
     return future
-        .thenApply(r -> wrap(r, span, decorate))
-        .whenComplete(
-            (_r, err) -> {
-              if (err != null) {
-                DECORATE.finishSpan(span, err);
-              }
-            });
+      .thenApply(r -> wrap(r, span, decorate))
+      .whenComplete((_r, err) -> {
+        if (err != null) {
+          DECORATE.finishSpan(span, err);
+        }
+      });
   }
 
   private final HttpResponseFor<StreamResponse<T>> delegate;

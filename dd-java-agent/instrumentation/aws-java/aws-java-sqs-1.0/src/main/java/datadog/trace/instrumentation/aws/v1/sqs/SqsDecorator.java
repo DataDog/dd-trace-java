@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.MESS
 import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.MESSAGE_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_BROKER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,9 +13,11 @@ import java.util.function.Supplier;
 
 public class SqsDecorator extends MessagingClientDecorator {
   static final CharSequence COMPONENT_NAME = UTF8BytesString.create("java-aws-sdk");
-  public static final CharSequence SQS_INBOUND_OPERATION =
-      UTF8BytesString.create(
-          SpanNaming.instance().namingSchema().messaging().inboundOperation("sqs"));
+  public static final CharSequence SQS_INBOUND_OPERATION = UTF8BytesString.create(SpanNaming
+    .instance()
+    .namingSchema()
+    .messaging()
+    .inboundOperation("sqs"));
   public static final CharSequence SQS_RECEIVE = UTF8BytesString.create("SQS.ReceiveMessage");
   public static final CharSequence SQS_DELIVER = UTF8BytesString.create("SQS.DeliverMessage");
   public static final CharSequence SQS_TIME_IN_QUEUE_OPERATION =
@@ -27,21 +28,14 @@ public class SqsDecorator extends MessagingClientDecorator {
   private final String spanKind;
   private final CharSequence spanType;
   private final Supplier<String> serviceNameSupplier;
-
-  public static final SqsDecorator CONSUMER_DECORATE =
-      new SqsDecorator(
-          SPAN_KIND_CONSUMER,
-          MESSAGE_CONSUMER,
-          SpanNaming.instance()
-              .namingSchema()
-              .messaging()
-              .inboundService("sqs", SQS_LEGACY_TRACING));
-
-  public static final SqsDecorator BROKER_DECORATE =
-      new SqsDecorator(
-          SPAN_KIND_BROKER,
-          MESSAGE_BROKER,
-          SpanNaming.instance().namingSchema().messaging().timeInQueueService("sqs"));
+  public static final SqsDecorator CONSUMER_DECORATE = new SqsDecorator(
+      SPAN_KIND_CONSUMER,
+      MESSAGE_CONSUMER,
+      SpanNaming.instance().namingSchema().messaging().inboundService("sqs", SQS_LEGACY_TRACING));
+  public static final SqsDecorator BROKER_DECORATE = new SqsDecorator(
+      SPAN_KIND_BROKER,
+      MESSAGE_BROKER,
+      SpanNaming.instance().namingSchema().messaging().timeInQueueService("sqs"));
 
   protected SqsDecorator(String spanKind, CharSequence spanType, Supplier<String> serviceName) {
     this.spanKind = spanKind;

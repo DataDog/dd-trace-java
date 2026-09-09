@@ -2,7 +2,6 @@ package com.datadog.featureflag;
 
 import static datadog.trace.util.HashingUtils.addToHash;
 import static datadog.trace.util.HashingUtils.hash;
-
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import java.util.HashMap;
 import java.util.Map;
@@ -12,27 +11,28 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class FlagEvaluationAggregator {
-
   // Design assumptions — document the scale we sized for
   static final int EXPECTED_FLAG_COUNT = 2_500;
   static final int EXPECTED_FULL_BUCKETS_PER_FLAG = 50;
   static final int EXPECTED_USERS_PER_FLAG = 1_000;
   static final int PER_FLAG_HEADROOM_MULTIPLIER = 10;
   static final int EXPECTED_DEGRADED_BUCKETS_PER_FLAG = 10;
-
   // Derived sizing — show the math behind the bucket caps below
-  static final int FULL_BUCKET_SIZING_BASIS =
-      EXPECTED_FLAG_COUNT * EXPECTED_FULL_BUCKETS_PER_FLAG; // 125_000
+  static final int // 125_000
+  // 125_000
+  FULL_BUCKET_SIZING_BASIS = EXPECTED_FLAG_COUNT * EXPECTED_FULL_BUCKETS_PER_FLAG;
   static final int PER_FLAG_BUCKET_SIZING_BASIS =
-      PER_FLAG_HEADROOM_MULTIPLIER * EXPECTED_USERS_PER_FLAG; // 10_000
+      // 10_000
+  PER_FLAG_HEADROOM_MULTIPLIER * EXPECTED_USERS_PER_FLAG;
   static final int DEGRADED_BUCKET_SIZING_BASIS =
-      EXPECTED_FLAG_COUNT * EXPECTED_DEGRADED_BUCKETS_PER_FLAG; // 25_000
-
+      // 25_000
+  EXPECTED_FLAG_COUNT * EXPECTED_DEGRADED_BUCKETS_PER_FLAG;
   // Enforced bucket caps
-  static final int GLOBAL_CAP = 131_072; // nearest power of two above FULL_BUCKET_SIZING_BASIS
+  // nearest power of two above FULL_BUCKET_SIZING_BASIS
+  static final int GLOBAL_CAP = 131_072;
   static final int PER_FLAG_CAP = PER_FLAG_BUCKET_SIZING_BASIS;
-  static final int DEGRADED_CAP = 32_768; // nearest power of two above DEGRADED_BUCKET_SIZING_BASIS
-
+  // nearest power of two above DEGRADED_BUCKET_SIZING_BASIS
+  static final int DEGRADED_CAP = 32_768;
   private static final byte CTX_TAG_STRING = 's';
   private static final byte CTX_TAG_BOOL = 'b';
   private static final byte CTX_TAG_INT = 'i';
@@ -40,7 +40,6 @@ final class FlagEvaluationAggregator {
   private static final byte CTX_TAG_FLOAT = 'f';
   private static final byte CTX_TAG_DOUBLE = 'd';
   private static final byte CTX_TAG_OTHER = 'o';
-
   final Map<FullKey, EvalBucket> fullTier = new HashMap<>();
   final Map<DegradedKey, EvalBucket> degradedTier = new HashMap<>();
   final Map<String, Integer> perFlagCount = new HashMap<>();
@@ -147,7 +146,9 @@ final class FlagEvaluationAggregator {
 
   AggregatedState snapshot() {
     return new AggregatedState(
-        new HashMap<>(fullTier), new HashMap<>(degradedTier), droppedDegradedOverflow.get());
+        new HashMap<>(fullTier),
+        new HashMap<>(degradedTier),
+        droppedDegradedOverflow.get());
   }
 
   void simulateFullTierAtCap() {

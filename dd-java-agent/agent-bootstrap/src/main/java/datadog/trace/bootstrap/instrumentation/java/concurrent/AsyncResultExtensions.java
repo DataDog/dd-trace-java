@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
 import static java.util.Collections.singletonList;
-
 import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.List;
@@ -15,17 +14,17 @@ import java.util.function.BiConsumer;
 public final class AsyncResultExtensions {
   private static final List<AsyncResultExtension> EXTENSIONS =
       new CopyOnWriteArrayList<>(singletonList(new CompletableAsyncResultExtension()));
-
   private static final ClassValue<AsyncResultExtension> EXTENSION_CLASS_VALUE =
       new ClassValue<AsyncResultExtension>() {
-        @Override
-        protected AsyncResultExtension computeValue(Class<?> type) {
-          return EXTENSIONS.stream()
-              .filter(extension -> extension.supports(type))
-              .findFirst()
-              .orElse(null);
-        }
-      };
+    @Override
+    protected AsyncResultExtension computeValue(Class<?> type) {
+      return EXTENSIONS
+        .stream()
+        .filter(extension -> extension.supports(type))
+        .findFirst()
+        .orElse(null);
+    }
+  };
 
   /**
    * Wraps a supported async result so the span is finished when the async computation completes.
@@ -34,7 +33,9 @@ public final class AsyncResultExtensions {
    *     wrapping is applied
    */
   public static Object wrapAsyncResult(
-      final Object result, final Class<?> resultType, final AgentSpan span) {
+      final Object result,
+      final Class<?> resultType,
+      final AgentSpan span) {
     AsyncResultExtension extension;
     if (result != null && (extension = EXTENSION_CLASS_VALUE.get(resultType)) != null) {
       return extension.apply(result, span);
@@ -51,12 +52,13 @@ public final class AsyncResultExtensions {
     if (extension != null) {
       if (Platform.isNativeImageBuilder()
           && extension
-              .getClass()
-              .getClassLoader()
-              .getClass()
-              .getName()
-              .endsWith("ThrowawayClassLoader")) {
-        return; // spring-native expects this to be thrown away, not persisted
+            .getClass()
+            .getClassLoader()
+            .getClass()
+            .getName()
+            .endsWith("ThrowawayClassLoader")) {
+        // spring-native expects this to be thrown away, not persisted
+        return;
       }
       EXTENSIONS.add(extension);
     }
@@ -89,8 +91,8 @@ public final class AsyncResultExtensions {
       if (throwable != null) {
         span.addThrowable(
             throwable instanceof ExecutionException || throwable instanceof CompletionException
-                ? throwable.getCause()
-                : throwable);
+            ? throwable.getCause()
+            : throwable);
       }
       span.finish();
     };

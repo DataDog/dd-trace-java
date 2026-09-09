@@ -22,25 +22,21 @@ import spock.config.RunnerConfiguration;
  * where:} row).
  */
 public final class SpockRetryDescriptorFactory implements RetryDescriptorFactory {
-
   private static final MethodHandles METHOD_HANDLES =
       new MethodHandles(ClassLoaderUtils.getDefaultClassLoader());
-
-  private static final MethodHandle SIMPLE_FEATURE_NODE_CONSTRUCTOR =
-      METHOD_HANDLES.constructor(
-          SimpleFeatureNode.class,
-          UniqueId.class,
-          RunnerConfiguration.class,
-          FeatureInfo.class,
-          IterationNode.class);
-
-  private static final MethodHandle ITERATION_NODE_CONSTRUCTOR =
-      METHOD_HANDLES.constructor(
-          IterationNode.class, UniqueId.class, RunnerConfiguration.class, IterationInfo.class);
-
+  private static final MethodHandle SIMPLE_FEATURE_NODE_CONSTRUCTOR = METHOD_HANDLES.constructor(
+      SimpleFeatureNode.class,
+      UniqueId.class,
+      RunnerConfiguration.class,
+      FeatureInfo.class,
+      IterationNode.class);
+  private static final MethodHandle ITERATION_NODE_CONSTRUCTOR = METHOD_HANDLES.constructor(
+      IterationNode.class,
+      UniqueId.class,
+      RunnerConfiguration.class,
+      IterationInfo.class);
   private static final MethodHandle SIMPLE_FEATURE_NODE_DELEGATE =
       METHOD_HANDLES.privateFieldGetter(SimpleFeatureNode.class, "delegate");
-
   private static final MethodHandle ITERATION_NODE_INFO =
       METHOD_HANDLES.privateFieldGetter(IterationNode.class, "iterationInfo");
 
@@ -52,11 +48,13 @@ public final class SpockRetryDescriptorFactory implements RetryDescriptorFactory
     if (original instanceof IterationNode) {
       return copyIterationNode((IterationNode) original, idTransform);
     }
-    return null; // unknown Spock node type -> fall back to the generic clone
+    // unknown Spock node type -> fall back to the generic clone
+    return null;
   }
 
   private static TestDescriptor copySimpleFeatureNode(
-      SimpleFeatureNode original, UnaryOperator<UniqueId> idTransform) {
+      SimpleFeatureNode original,
+      UnaryOperator<UniqueId> idTransform) {
     if (SIMPLE_FEATURE_NODE_CONSTRUCTOR == null || ITERATION_NODE_CONSTRUCTOR == null) {
       return null;
     }
@@ -75,16 +73,24 @@ public final class SpockRetryDescriptorFactory implements RetryDescriptorFactory
 
     IterationNode delegate =
         METHOD_HANDLES.invoke(
-            ITERATION_NODE_CONSTRUCTOR, newDelegateId, configuration, iterationInfo);
+            ITERATION_NODE_CONSTRUCTOR,
+            newDelegateId,
+            configuration,
+            iterationInfo);
     if (delegate == null) {
       return null;
     }
     return METHOD_HANDLES.invoke(
-        SIMPLE_FEATURE_NODE_CONSTRUCTOR, newId, configuration, featureInfo, delegate);
+        SIMPLE_FEATURE_NODE_CONSTRUCTOR,
+        newId,
+        configuration,
+        featureInfo,
+        delegate);
   }
 
   private static TestDescriptor copyIterationNode(
-      IterationNode original, UnaryOperator<UniqueId> idTransform) {
+      IterationNode original,
+      UnaryOperator<UniqueId> idTransform) {
     if (ITERATION_NODE_CONSTRUCTOR == null) {
       return null;
     }

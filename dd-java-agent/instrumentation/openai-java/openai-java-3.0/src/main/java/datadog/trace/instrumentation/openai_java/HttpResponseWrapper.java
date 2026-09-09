@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
 import static datadog.trace.instrumentation.openai_java.OpenAiDecorator.DECORATE;
-
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpResponseFor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +16,9 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
   private static final Logger log = LoggerFactory.getLogger(HttpResponseWrapper.class);
 
   public static <T> HttpResponseFor<T> wrap(
-      HttpResponseFor<T> response, AgentSpan span, BiConsumer<AgentSpan, T> decorate) {
+      HttpResponseFor<T> response,
+      AgentSpan span,
+      BiConsumer<AgentSpan, T> decorate) {
     DECORATE.withHttpResponse(span, response.headers());
     return new HttpResponseWrapper<>(response, span, decorate);
   }
@@ -27,15 +28,14 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
       AgentSpan span,
       BiConsumer<AgentSpan, T> decorate) {
     return future
-        .thenApply(response -> wrap(response, span, decorate))
-        .whenComplete(
-            (_r, t) -> {
-              if (t != null) {
-                // Only finish if there was an error; otherwise, HttpResponseWrapper.close will
-                // finish it later.
-                DECORATE.finishSpan(span, t);
-              }
-            });
+      .thenApply(response -> wrap(response, span, decorate))
+      .whenComplete((_r, t) -> {
+        if (t != null) {
+          // Only finish if there was an error; otherwise, HttpResponseWrapper.close will
+          // finish it later.
+          DECORATE.finishSpan(span, t);
+        }
+      });
   }
 
   private final HttpResponseFor<T> delegate;
@@ -44,7 +44,9 @@ public final class HttpResponseWrapper<T> implements HttpResponseFor<T> {
   private final AtomicBoolean finished = new AtomicBoolean(false);
 
   private HttpResponseWrapper(
-      HttpResponseFor<T> delegate, AgentSpan span, BiConsumer<AgentSpan, T> decorate) {
+      HttpResponseFor<T> delegate,
+      AgentSpan span,
+      BiConsumer<AgentSpan, T> decorate) {
     this.delegate = delegate;
     this.span = span;
     this.decorate = decorate;

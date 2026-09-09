@@ -8,7 +8,6 @@ import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_TYPE;
 import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.instrumentation.CodeOriginInstrumenter;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
@@ -29,7 +28,6 @@ import org.slf4j.LoggerFactory;
 
 public class CodeOriginProbe extends ProbeDefinition {
   private static final Logger LOGGER = LoggerFactory.getLogger(CodeOriginProbe.class);
-
   private final boolean entrySpanProbe;
   private String signature;
 
@@ -40,7 +38,9 @@ public class CodeOriginProbe extends ProbeDefinition {
 
   @Override
   public Status instrument(
-      MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
+      MethodInfo methodInfo,
+      List<DiagnosticMessage> diagnostics,
+      List<Integer> probeIndices) {
     return new CodeOriginInstrumenter(this, methodInfo, probeIndices).instrument();
   }
 
@@ -102,7 +102,9 @@ public class CodeOriginProbe extends ProbeDefinition {
   @Generated
   @Override
   public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     CodeOriginProbe that = (CodeOriginProbe) o;
     return Objects.equals(language, that.language)
         && Objects.equals(id, that.id)
@@ -126,6 +128,10 @@ public class CodeOriginProbe extends ProbeDefinition {
   public String toString() {
     return String.format(
         "CodeOriginProbe{probeId=%s, entrySpanProbe=%s, signature=%s, where=%s, location=%s}",
-        probeId, entrySpanProbe, signature, where, location);
+        probeId,
+        entrySpanProbe,
+        signature,
+        where,
+        location);
   }
 }

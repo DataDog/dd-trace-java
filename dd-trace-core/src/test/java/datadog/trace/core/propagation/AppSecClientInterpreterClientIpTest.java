@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -116,7 +115,6 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
         HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8",
         HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9");
     // spotless:on
-
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals("some-user-agent", context.getUserAgent());
@@ -135,8 +133,7 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
   @MethodSource("styles")
   void extractEmptyHeadersReturnsNull(Style style) {
     this.extractor = buildExtractor(style.factory);
-    assertNull(
-        this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -167,10 +164,9 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
 
-    TagContext tagOnly =
-        this.extractor.extract(
-            headers("X-Forwarded-For", forwardedIp, "X-Forwarded-Port", forwardedPort),
-            stringValuesMap());
+    TagContext tagOnly = this.extractor.extract(
+        headers("X-Forwarded-For", forwardedIp, "X-Forwarded-Port", forwardedPort),
+        stringValuesMap());
 
     assertNotNull(tagOnly);
     assertFalse(tagOnly instanceof ExtractedContext);
@@ -244,7 +240,9 @@ class AppSecClientInterpreterClientIpTest extends DDJavaSpecification {
     }
   }
 
-  /** A propagation style under test: its extractor factory and minimal valid trace headers. */
+  /**
+   * A propagation style under test: its extractor factory and minimal valid trace headers.
+   */
   static final class Style {
     final String name;
     final BiFunction<Config, Supplier<TraceConfig>, HttpCodec.Extractor> factory;

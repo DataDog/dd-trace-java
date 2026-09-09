@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -79,10 +78,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
 public class ThreadSafeMapD2Benchmark {
-
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
-
   static final String[] SOURCE_K1 = new String[N_KEYS];
   static final Integer[] SOURCE_K2 = new Integer[N_KEYS];
   static final int[] SOURCE_K2_INT = new int[N_KEYS];
@@ -129,7 +126,9 @@ public class ThreadSafeMapD2Benchmark {
     }
   }
 
-  /** Composite key for map-based baselines. */
+  /**
+   * Composite key for map-based baselines.
+   */
   static final class Key2 implements Comparable<Key2> {
     final String k1;
     final Integer k2;
@@ -200,7 +199,9 @@ public class ThreadSafeMapD2Benchmark {
     }
   }
 
-  /** Per-thread cursor so each thread cycles through keys independently. */
+  /**
+   * Per-thread cursor so each thread cycles through keys independently.
+   */
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;
@@ -224,7 +225,8 @@ public class ThreadSafeMapD2Benchmark {
     String k1 = SOURCE_K1[i];
     int k2 = SOURCE_K2_INT[i];
     long keyHash = SupportEntry.hash(k1, k2);
-    for (SupportEntry e = ConcurrentHashtable.bucketFor(s.supportBuckets, keyHash);
+    for (
+        SupportEntry e = ConcurrentHashtable.bucketFor(s.supportBuckets, keyHash);
         e != null;
         e = e.next()) {
       if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -265,7 +267,8 @@ public class ThreadSafeMapD2Benchmark {
     int k2 = SOURCE_K2_INT[i];
     long keyHash = SupportEntry.hash(k1, k2);
     int index = ConcurrentHashtable.bucketIndex(s.supportBuckets, keyHash);
-    for (SupportEntry e = ConcurrentHashtable.bucketAt(s.supportBuckets, index);
+    for (
+        SupportEntry e = ConcurrentHashtable.bucketAt(s.supportBuckets, index);
         e != null;
         e = e.next()) {
       if (e.keyHash == keyHash && e.matches(k1, k2)) {
@@ -273,7 +276,8 @@ public class ThreadSafeMapD2Benchmark {
       }
     }
     synchronized (ConcurrentHashtable.getWriteLockAt(s.supportBuckets, index)) {
-      for (SupportEntry e = ConcurrentHashtable.bucketAt(s.supportBuckets, index);
+      for (
+          SupportEntry e = ConcurrentHashtable.bucketAt(s.supportBuckets, index);
           e != null;
           e = e.next()) {
         if (e.keyHash == keyHash && e.matches(k1, k2)) {

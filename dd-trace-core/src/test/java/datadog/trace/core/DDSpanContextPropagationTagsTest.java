@@ -9,7 +9,6 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.common.writer.ListWriter;
@@ -24,7 +23,6 @@ import org.tabletest.junit.TypeConverterSources;
 
 @TypeConverterSources(TableTestTypeConverters.class)
 public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -35,12 +33,24 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                        | priority     | header                              | newPriority  | newMechanism | newHeader                           | tagMap                                  ",
-    "UNSET->USER_KEEP                | UNSET        | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.dm=-4,_dd.p.usr=123           | [_dd.p.dm: -4, _dd.p.usr: 123]          ",
-    "UNSET->SAMPLER_DROP             | UNSET        | _dd.p.usr=123                       | SAMPLER_DROP | DEFAULT      | _dd.p.usr=123                       | [_dd.p.usr: 123]                        ",
-    "SAMPLER_KEEP->USER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_KEEP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
-    "SAMPLER_KEEP->USER_DROP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_DROP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
-    "SAMPLER_KEEP->USER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.usr=123                       | [_dd.p.usr: 123]                        "
+    "scenario                        | priority     | header                           ",
+    "   | newPriority  | newMechanism | newHeader                           | tagMap   ",
+    "                                                                                  ",
+    "UNSET->USER_KEEP                | UNSET        | _dd.p.usr=123                    ",
+    "   | USER_KEEP    | MANUAL       | _dd.p.dm=-4,_dd.p.usr=123           | [_dd.p.  ",
+    "dm: -4, _dd.p.usr: 123]                                                           ",
+    "UNSET->SAMPLER_DROP             | UNSET        | _dd.p.usr=123                    ",
+    "   | SAMPLER_DROP | DEFAULT      | _dd.p.usr=123                       | [_dd.p.  ",
+    "usr: 123]                                                                         ",
+    "SAMPLER_KEEP->USER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.     ",
+    "usr=123 | USER_KEEP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_  ",
+    "dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]                                            ",
+    "SAMPLER_KEEP->USER_DROP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.     ",
+    "usr=123 | USER_DROP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_  ",
+    "dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]                                            ",
+    "SAMPLER_KEEP->USER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                    ",
+    "   | USER_KEEP    | MANUAL       | _dd.p.usr=123                       | [_dd.p.  ",
+    "usr: 123]                                                                         "
   })
   void updateSpanPropagationTags(
       String scenario,
@@ -52,11 +62,16 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
       Map<String, String> tagMap) {
     PropagationTags propagationTags =
         tracer
-            .getPropagationTagsFactory()
-            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
-    AgentSpanContext extracted =
-        new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
-            .withRequestContextDataAppSec("dummy");
+      .getPropagationTagsFactory()
+      .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
+    AgentSpanContext extracted = new ExtractedContext(
+        DDTraceId.from(123),
+        456,
+        priority,
+        "789",
+        propagationTags,
+        DATADOG)
+      .withRequestContextDataAppSec("dummy");
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags dd = span.spanContext().getPropagationTags();
 
@@ -67,12 +82,24 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                        | priority     | header                              | newPriority  | newMechanism | rootHeader                          | rootTagMap                              ",
-    "UNSET->USER_KEEP                | UNSET        | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.dm=-4,_dd.p.usr=123           | [_dd.p.dm: -4, _dd.p.usr: 123]          ",
-    "UNSET->SAMPLER_DROP             | UNSET        | _dd.p.usr=123                       | SAMPLER_DROP | DEFAULT      | _dd.p.usr=123                       | [_dd.p.usr: 123]                        ",
-    "SAMPLER_KEEP->USER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_KEEP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
-    "SAMPLER_KEEP->USER_DROP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_DROP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
-    "SAMPLER_KEEP->USER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.usr=123                       | [_dd.p.usr: 123]                        "
+    "scenario                        | priority     | header                           ",
+    "   | newPriority  | newMechanism | rootHeader                          |          ",
+    "rootTagMap                                                                        ",
+    "UNSET->USER_KEEP                | UNSET        | _dd.p.usr=123                    ",
+    "   | USER_KEEP    | MANUAL       | _dd.p.dm=-4,_dd.p.usr=123           | [_dd.p.  ",
+    "dm: -4, _dd.p.usr: 123]                                                           ",
+    "UNSET->SAMPLER_DROP             | UNSET        | _dd.p.usr=123                    ",
+    "   | SAMPLER_DROP | DEFAULT      | _dd.p.usr=123                       | [_dd.p.  ",
+    "usr: 123]                                                                         ",
+    "SAMPLER_KEEP->USER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.     ",
+    "usr=123 | USER_KEEP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_  ",
+    "dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]                                            ",
+    "SAMPLER_KEEP->USER_DROP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.     ",
+    "usr=123 | USER_DROP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_  ",
+    "dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]                                            ",
+    "SAMPLER_KEEP->USER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                    ",
+    "   | USER_KEEP    | MANUAL       | _dd.p.usr=123                       | [_dd.p.  ",
+    "usr: 123]                                                                         "
   })
   void updateTracePropagationTags(
       String scenario,
@@ -84,11 +111,16 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
       Map<String, String> rootTagMap) {
     PropagationTags propagationTags =
         tracer
-            .getPropagationTagsFactory()
-            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
-    AgentSpanContext extracted =
-        new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
-            .withRequestContextDataAppSec("dummy");
+      .getPropagationTagsFactory()
+      .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
+    AgentSpanContext extracted = new ExtractedContext(
+        DDTraceId.from(123),
+        456,
+        priority,
+        "789",
+        propagationTags,
+        DATADOG)
+      .withRequestContextDataAppSec("dummy");
     DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags ddRoot = rootSpan.spanContext().getPropagationTags();
     DDSpan span =
@@ -101,20 +133,33 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario             | priority     | header                              | newHeader                 | tagMap                        ",
-    "UNSET                | UNSET        | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
-    "SAMPLER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
-    "SAMPLER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]"
+    "scenario             | priority     | header                              |       ",
+    "newHeader                 | tagMap                                                ",
+    "UNSET                | UNSET        | _dd.p.usr=123                       | _dd.p.",
+    "dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]                              ",
+    "SAMPLER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | _dd.p.",
+    "dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]                              ",
+    "SAMPLER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | _dd.p.",
+    "dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]                              "
   })
   void forceKeepSpanPropagationTags(
-      String scenario, int priority, String header, String newHeader, Map<String, String> tagMap) {
+      String scenario,
+      int priority,
+      String header,
+      String newHeader,
+      Map<String, String> tagMap) {
     PropagationTags propagationTags =
         tracer
-            .getPropagationTagsFactory()
-            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
-    AgentSpanContext extracted =
-        new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
-            .withRequestContextDataAppSec("dummy");
+      .getPropagationTagsFactory()
+      .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
+    AgentSpanContext extracted = new ExtractedContext(
+        DDTraceId.from(123),
+        456,
+        priority,
+        "789",
+        propagationTags,
+        DATADOG)
+      .withRequestContextDataAppSec("dummy");
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags dd = span.spanContext().getPropagationTags();
 
@@ -125,10 +170,14 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario             | priority     | header                              | newHeader                 | tagMap                        ",
-    "UNSET                | UNSET        | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
-    "SAMPLER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
-    "SAMPLER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]"
+    "scenario             | priority     | header                              |       ",
+    "newHeader                 | tagMap                                                ",
+    "UNSET                | UNSET        | _dd.p.usr=123                       | _dd.p.",
+    "dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]                              ",
+    "SAMPLER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | _dd.p.",
+    "dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]                              ",
+    "SAMPLER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | _dd.p.",
+    "dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]                              "
   })
   void forceKeepTracePropagationTags(
       String scenario,
@@ -138,11 +187,16 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
       Map<String, String> rootTagMap) {
     PropagationTags propagationTags =
         tracer
-            .getPropagationTagsFactory()
-            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
-    AgentSpanContext extracted =
-        new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
-            .withRequestContextDataAppSec("dummy");
+      .getPropagationTagsFactory()
+      .fromHeaderValue(PropagationTags.HeaderType.DATADOG, header);
+    AgentSpanContext extracted = new ExtractedContext(
+        DDTraceId.from(123),
+        456,
+        priority,
+        "789",
+        propagationTags,
+        DATADOG)
+      .withRequestContextDataAppSec("dummy");
     DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags ddRoot = rootSpan.spanContext().getPropagationTags();
     DDSpan span =

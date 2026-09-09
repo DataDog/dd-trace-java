@@ -3,7 +3,6 @@ package datadog.trace.agent.jmxfetch;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.JMX_COLLECTOR;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static org.datadog.jmxfetch.AppConfig.ACTION_COLLECT;
-
 import datadog.environment.SystemProperties;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.api.statsd.StatsDClientManager;
@@ -29,13 +28,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class JMXFetch {
-
   private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
-
   private static final String DEFAULT_CONFIG = "jmxfetch-config.yaml";
   private static final String OTLP_JMX_CONFIG = "jmxfetch-config-no-jvm-defaults.yaml";
   private static final String WEBSPHERE_CONFIG = "jmxfetch-websphere-config.yaml";
-
   private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
 
   public static void run(final StatsDClientManager statsDClientManager) {
@@ -71,10 +67,9 @@ public class JMXFetch {
     if (log.isDebugEnabled()) {
       String statsDConnectionString;
       if (namedPipe == null) {
-        statsDConnectionString =
-            "statsd:"
-                + (null != host ? host : "<auto-detect>")
-                + (null != port && port > 0 ? ":" + port : "");
+        statsDConnectionString = "statsd:"
+            + (null != host ? host : "<auto-detect>")
+            + (null != port && port > 0 ? ":" + port : "");
       } else {
         statsDConnectionString = "statsd:" + namedPipe;
       }
@@ -115,23 +110,23 @@ public class JMXFetch {
       defaultConfigs.add(WEBSPHERE_CONFIG);
     }
 
-    final AppConfig.AppConfigBuilder configBuilder =
-        AppConfig.builder()
-            .action(Collections.singletonList(ACTION_COLLECT))
-            // App should be run as daemon otherwise CLI apps would not exit once main method exits.
-            .daemon(true)
-            .embedded(true)
-            .confdDirectory(jmxFetchConfigDir)
-            .yamlFileList(jmxFetchConfigs)
-            .targetDirectInstances(true)
-            .instanceConfigResources(defaultConfigs)
-            .metricConfigResources(internalMetricsConfigs)
-            .metricConfigFiles(metricsConfigs)
-            .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
-            .refreshBeansPeriod(refreshBeansPeriod)
-            .globalTags(globalTags)
-            .reporter(reporter)
-            .connectionFactory(new AgentConnectionFactory());
+    final AppConfig.AppConfigBuilder configBuilder = AppConfig
+      .builder()
+      .action(Collections.singletonList(ACTION_COLLECT))
+      // App should be run as daemon otherwise CLI apps would not exit once main method exits.
+      .daemon(true)
+      .embedded(true)
+      .confdDirectory(jmxFetchConfigDir)
+      .yamlFileList(jmxFetchConfigs)
+      .targetDirectInstances(true)
+      .instanceConfigResources(defaultConfigs)
+      .metricConfigResources(internalMetricsConfigs)
+      .metricConfigFiles(metricsConfigs)
+      .initialRefreshBeansPeriod(initialRefreshBeansPeriod)
+      .refreshBeansPeriod(refreshBeansPeriod)
+      .globalTags(globalTags)
+      .reporter(reporter)
+      .connectionFactory(new AgentConnectionFactory());
 
     if (config.isJmxFetchMultipleRuntimeServicesEnabled()) {
       ServiceNameCollectingTraceInterceptor serviceNameProvider =
@@ -147,40 +142,37 @@ public class JMXFetch {
 
     final AppConfig appConfig = configBuilder.build();
 
-    final Thread thread =
-        newAgentThread(
-            JMX_COLLECTOR,
-            new Runnable() {
-              @Override
-              public void run() {
-                App app = new App(appConfig);
-                while (true) {
-                  // check in case dynamic-config has temporarily disabled JMXFetch
-                  if (!appConfig.getExitWatcher().shouldExit()) {
-                    try {
-                      final int result = app.run();
-                      if (result != 0) {
-                        log.warn("jmx collector exited with error code: {}", result);
-                      }
-                    } catch (final Exception e) {
-                      String message = e.getMessage();
-                      boolean ignoredException =
-                          message != null && message.startsWith("Shutdown in progress");
-                      if (!ignoredException) {
-                        log.warn("Exception in jmx collector thread", e);
-                      }
-                    }
-                  }
-                  // always wait before next attempt
-                  try {
-                    Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
-                  } catch (final InterruptedException ignore) {
-                    Thread.currentThread().interrupt();
-                    break;
-                  }
-                }
+    final Thread thread = newAgentThread(JMX_COLLECTOR, new Runnable() {
+      @Override
+      public void run() {
+        App app = new App(appConfig);
+        while (true) {
+          // check in case dynamic-config has temporarily disabled JMXFetch
+          if (!appConfig.getExitWatcher().shouldExit()) {
+            try {
+              final int result = app.run();
+              if (result != 0) {
+                log.warn("jmx collector exited with error code: {}", result);
               }
-            });
+            } catch (final Exception e) {
+              String message = e.getMessage();
+              boolean ignoredException =
+                  message != null && message.startsWith("Shutdown in progress");
+              if (!ignoredException) {
+                log.warn("Exception in jmx collector thread", e);
+              }
+            }
+          }
+          // always wait before next attempt
+          try {
+            Thread.sleep(DELAY_BETWEEN_RUN_ATTEMPTS);
+          } catch (final InterruptedException ignore) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+        }
+      }
+    });
     thread.setContextClassLoader(JMXFetch.class.getClassLoader());
     thread.start();
   }
@@ -211,12 +203,10 @@ public class JMXFetch {
         } else {
           final URL resource = JMXFetch.class.getResource("metricconfigs/" + config);
           if (resource == null) {
-            log.debug(
-                LogCollector.SEND_TELEMETRY, "metric config `{}` not found. skipping", config);
+            log.debug(LogCollector.SEND_TELEMETRY, "metric config `{}` not found. skipping", config);
             continue;
           }
           log.debug("adding metric config `{}`", config);
-
           // jar!/ means a file internal to a jar, only add the part after if it exists
           final String path = resource.getPath();
           final int filenameIndex = path.indexOf("jar!/");
@@ -239,7 +229,8 @@ public class JMXFetch {
   }
 
   private static String getLogLevel() {
-    return SystemProperties.getOrDefault("org.slf4j.simpleLogger.defaultLogLevel", "info")
-        .toUpperCase();
+    return SystemProperties
+      .getOrDefault("org.slf4j.simpleLogger.defaultLogLevel", "info")
+      .toUpperCase();
   }
 }

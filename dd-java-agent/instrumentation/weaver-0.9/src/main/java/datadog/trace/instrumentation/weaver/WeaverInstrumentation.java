@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.weaver;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -15,8 +14,8 @@ import weaver.framework.SuiteEvent;
 
 @AutoService(InstrumenterModule.class)
 public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public WeaverInstrumentation() {
     super("ci-visibility", "weaver");
   }
@@ -29,10 +28,10 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".WeaverUtils",
-      packageName + ".DatadogWeaverReporter",
-      packageName + ".TaskDefAwareLinkedBlockingQueueProxy",
-      packageName + ".TaskDefAwareConcurrentLinkedQueueProxy",
+        packageName + ".WeaverUtils",
+        packageName + ".DatadogWeaverReporter",
+        packageName + ".TaskDefAwareLinkedBlockingQueueProxy",
+        packageName + ".TaskDefAwareConcurrentLinkedQueueProxy"
     };
   }
 

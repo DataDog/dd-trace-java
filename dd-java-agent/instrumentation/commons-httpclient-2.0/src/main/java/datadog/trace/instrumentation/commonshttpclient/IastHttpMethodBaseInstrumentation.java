@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.commonshttpclient;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -16,9 +15,8 @@ import net.bytebuddy.asm.Advice;
 @AutoService(InstrumenterModule.class)
 public class IastHttpMethodBaseInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
-
+    Instrumenter.HasTypeAdvice,
+    Instrumenter.HasMethodAdvice {
   private final String className = IastHttpMethodBaseInstrumentation.class.getName();
 
   public IastHttpMethodBaseInstrumentation() {
@@ -51,7 +49,8 @@ public class IastHttpMethodBaseInstrumentation extends InstrumenterModule.Iast
     @Advice.OnMethodExit(suppress = Throwable.class)
     @Propagation
     public static void afterCtor(
-        @Advice.This final Object self, @Advice.Argument(0) final Object argument) {
+        @Advice.This final Object self,
+        @Advice.Argument(0) final Object argument) {
       final PropagationModule module = InstrumentationBridge.PROPAGATION;
       if (module != null) {
         module.taintObjectIfTainted(self, argument);

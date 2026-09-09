@@ -7,7 +7,9 @@ public interface DataStreamsTransactionTracker {
     String readHeader(Object source, String headerName);
   }
 
-  /** trackTransaction used to emit "seen" event for transactions */
+  /**
+   * trackTransaction used to emit "seen" event for transactions
+   */
   void trackTransaction(String transactionId, String checkpointName);
 
   /**

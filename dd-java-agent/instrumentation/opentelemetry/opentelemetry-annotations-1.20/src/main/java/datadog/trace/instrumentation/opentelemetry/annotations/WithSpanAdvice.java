@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.opentelemetry.annotations;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.opentelemetry.annotations.WithSpanDecorator.DECORATE;
-
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.lang.invoke.MethodType;

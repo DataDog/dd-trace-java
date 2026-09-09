@@ -2,7 +2,9 @@ package datadog.trace.bootstrap.otel.metrics;
 
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 
-/** Ensure all instruments implement the same equivalency. */
+/**
+ * Ensure all instruments implement the same equivalency.
+ */
 public abstract class OtelInstrument {
   protected final OtelMetricStorage storage;
 

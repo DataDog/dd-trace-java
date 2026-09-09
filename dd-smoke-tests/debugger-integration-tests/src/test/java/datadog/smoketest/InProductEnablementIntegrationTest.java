@@ -25,7 +25,10 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     commandParams.remove("-Ddd.dynamic.instrumentation.enabled=true");
     commandParams.addAll(additionalJvmArgs);
     return ProcessBuilderHelper.createProcessBuilder(
-        commandParams, logFilePath, getAppClass(), params);
+        commandParams,
+        logFilePath,
+        getAppClass(),
+        params);
   }
 
   @Test
@@ -34,14 +37,19 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
     LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
+        LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
+      .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
     waitForInstrumentation(appUrl);
     // disable DI
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
-    waitForReTransformation(appUrl); // wait for retransformation of removed probe
+    // wait for retransformation of removed probe
+    waitForReTransformation(appUrl);
   }
 
   @Flaky
@@ -51,11 +59,11 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
-    LogProbe probe =
-        LogProbe.builder()
-            .probeId(LINE_PROBE_ID1)
-            .where("ServerDebuggerTestApplication.java", 329)
-            .build();
+    LogProbe probe = LogProbe
+      .builder()
+      .probeId(LINE_PROBE_ID1)
+      .where("ServerDebuggerTestApplication.java", 329)
+      .build();
     setCurrentConfiguration(createConfig(probe));
     waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
     execute(appUrl, "topLevelMethod", "");
@@ -65,7 +73,8 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     waitForFeatureStopped(appUrl, "Dynamic Instrumentation");
     waitForReTransformation(
         appUrl,
-        "datadog.smoketest.debugger.TopLevel"); // wait for retransformation of removed probe
+        // wait for retransformation of removed probe
+        "datadog.smoketest.debugger.TopLevel");
   }
 
   @Test
@@ -76,7 +85,11 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(true, false));
     LogProbe probe =
-        LogProbe.builder().probeId(PROBE_ID).where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME).build();
+        LogProbe
+      .builder()
+      .probeId(PROBE_ID)
+      .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
+      .build();
     setCurrentConfiguration(createConfig(probe));
     waitForSpecificLine(appUrl, "Feature dynamic.instrumentation.enabled is explicitly disabled");
   }
@@ -89,17 +102,18 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
     appUrl = startAppAndAndGetUrl();
     setConfigOverrides(createConfigOverrides(false, true));
     waitForFeatureStarted(appUrl, "Exception Replay");
-    execute(appUrl, TRACED_METHOD_NAME, "oops"); // instrumenting first exception
+    // instrumenting first exception
+    execute(appUrl, TRACED_METHOD_NAME, "oops");
     waitForInstrumentation(appUrl, SERVER_DEBUGGER_TEST_APP_CLASS, false);
     // disable ER
     setConfigOverrides(createConfigOverrides(false, false));
     waitForFeatureStopped(appUrl, "Exception Replay");
-    waitForReTransformation(appUrl); // wait for retransformation of removed probes
+    // wait for retransformation of removed probes
+    waitForReTransformation(appUrl);
   }
 
   // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
   // TODO by not providing endpoints
-
   @Flaky
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
@@ -119,8 +133,11 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   private MockResponse noEndpointDispatch(RecordedRequest request) {
     if (request.getPath().equals("/info")) {
       // no debugger endpoints
-      String info =
-          "{\"endpoints\": [\"" + TRACE_URL_PATH + "\", \"" + LOG_UPLOAD_URL_PATH + "\"]}";
+      String info = "{\"endpoints\": [\""
+          + TRACE_URL_PATH
+          + "\", \""
+          + LOG_UPLOAD_URL_PATH
+          + "\"]}";
       return new MockResponse().setResponseCode(200).setBody(info);
     }
     return datadogAgentDispatch(request);
@@ -139,7 +156,8 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   }
 
   private static ConfigOverrides createConfigOverrides(
-      boolean dynamicInstrumentationEnabled, boolean exceptionReplayEnabled) {
+      boolean dynamicInstrumentationEnabled,
+      boolean exceptionReplayEnabled) {
     ConfigOverrides config = new ConfigOverrides();
     config.libConfig = new LibConfig();
     config.libConfig.dynamicInstrumentationEnabled = dynamicInstrumentationEnabled;

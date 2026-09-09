@@ -38,8 +38,8 @@ import java.util.StringTokenizer;
  * </ul>
  */
 final class AntPathMatcher {
-
-  AntPathMatcher() {}
+  AntPathMatcher() {
+  }
 
   /**
    * Checks if {@code path} is a pattern (i.e. contains a '*', or '?'). For example the {@code
@@ -74,7 +74,6 @@ final class AntPathMatcher {
     int pattIdxEnd = pattDirs.length - 1;
     int pathIdxStart = 0;
     int pathIdxEnd = pathDirs.length - 1;
-
     // Match all elements up to the first **
     while (pattIdxStart <= pattIdxEnd && pathIdxStart <= pathIdxEnd) {
       String patDir = pattDirs[pattIdxStart];
@@ -108,7 +107,6 @@ final class AntPathMatcher {
       // String not exhausted, but pattern is. Failure.
       return false;
     }
-
     // up to last '**'
     while (pattIdxStart <= pattIdxEnd && pathIdxStart <= pathIdxEnd) {
       String patDir = pattDirs[pattIdxEnd];
@@ -150,8 +148,7 @@ final class AntPathMatcher {
       int strLength = (pathIdxEnd - pathIdxStart + 1);
       int foundIdx = -1;
 
-      strLoop:
-      for (int i = 0; i <= strLength - patLength; i++) {
+      strLoop: for (int i = 0; i <= strLength - patLength; i++) {
         for (int j = 0; j < patLength; j++) {
           String subPat = pattDirs[pattIdxStart + j + 1];
           String subStr = pathDirs[pathIdxStart + i + j];
@@ -211,28 +208,32 @@ final class AntPathMatcher {
     if (!containsStar) {
       // No '*'s, so we make a shortcut
       if (patIdxEnd != strIdxEnd) {
-        return false; // Pattern and string do not have the same size
+        // Pattern and string do not have the same size
+        return false;
       }
       for (int i = 0; i <= patIdxEnd; i++) {
         ch = patArr[i];
         if (ch != '?') {
           if (ch != strArr[i]) {
-            return false; // Character mismatch
+            // Character mismatch
+            return false;
           }
         }
       }
-      return true; // String matches against pattern
+      // String matches against pattern
+      return true;
     }
 
     if (patIdxEnd == 0) {
-      return true; // Pattern contains only '*', which matches anything
+      // Pattern contains only '*', which matches anything
+      return true;
     }
-
     // Process characters before first star
     while ((ch = patArr[patIdxStart]) != '*' && strIdxStart <= strIdxEnd) {
       if (ch != '?') {
         if (ch != strArr[strIdxStart]) {
-          return false; // Character mismatch
+          // Character mismatch
+          return false;
         }
       }
       patIdxStart++;
@@ -248,12 +249,12 @@ final class AntPathMatcher {
       }
       return true;
     }
-
     // Process characters after last star
     while ((ch = patArr[patIdxEnd]) != '*' && strIdxStart <= strIdxEnd) {
       if (ch != '?') {
         if (ch != strArr[strIdxEnd]) {
-          return false; // Character mismatch
+          // Character mismatch
+          return false;
         }
       }
       patIdxEnd--;
@@ -269,7 +270,6 @@ final class AntPathMatcher {
       }
       return true;
     }
-
     // process pattern between stars. padIdxStart and patIdxEnd point
     // always to a '*'.
     while (patIdxStart != patIdxEnd && strIdxStart <= strIdxEnd) {
@@ -290,8 +290,7 @@ final class AntPathMatcher {
       int patLength = (patIdxTmp - patIdxStart - 1);
       int strLength = (strIdxEnd - strIdxStart + 1);
       int foundIdx = -1;
-      strLoop:
-      for (int i = 0; i <= strLength - patLength; i++) {
+      strLoop: for (int i = 0; i <= strLength - patLength; i++) {
         for (int j = 0; j < patLength; j++) {
           ch = patArr[patIdxStart + j + 1];
           if (ch != '?') {
@@ -312,7 +311,6 @@ final class AntPathMatcher {
       patIdxStart = patIdxTmp;
       strIdxStart = foundIdx + patLength;
     }
-
     // All characters in the string are used. Check if only '*'s are left
     // in the pattern. If so, we succeeded. Otherwise failure.
     for (int i = patIdxStart; i <= patIdxEnd; i++) {
@@ -327,7 +325,6 @@ final class AntPathMatcher {
   private static final String[] EMPTY_STRING_ARRAY = {};
 
   private static String[] tokenizeToStringArray(String str, String delimiters) {
-
     if (str == null) {
       return EMPTY_STRING_ARRAY;
     }

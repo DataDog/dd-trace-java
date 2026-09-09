@@ -6,15 +6,14 @@ import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_ASY
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_TRANSPORT;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
 public final class WebSphereAsyncInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.ibm.ws.websvcs.transport.http.SOAPOverHTTPSender";
@@ -26,7 +25,8 @@ public final class WebSphereAsyncInstrumentation
         isMethod().and(named("sendSOAPRequestAsync")),
         getClass().getName() + "$CaptureAsyncAdvice");
     transformer.applyAdvice(
-        isMethod().and(named("releaseBuffer")), getClass().getName() + "$ReleaseAsyncAdvice");
+        isMethod().and(named("releaseBuffer")),
+        getClass().getName() + "$ReleaseAsyncAdvice");
   }
 
   public static final class CaptureAsyncAdvice {

@@ -86,7 +86,8 @@ public class BufferedReaderWrapper extends BufferedReader {
     int read = this.reader.read(target);
     if (read > 0) {
       int finalLimit = target.limit();
-      int finalPos = target.position(); // or initPos + read
+      // or initPos + read
+      int finalPos = target.position();
       target.limit(target.position());
       target.position(initPos);
 

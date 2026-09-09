@@ -1,7 +1,6 @@
 package datadog.trace.util;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -61,10 +60,8 @@ import org.openjdk.jmh.annotations.Warmup;
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
 public class ThreadSafeMapCounterBenchmark {
-
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
-
   static final String[] KEYS = new String[N_KEYS];
 
   static {
@@ -76,7 +73,6 @@ public class ThreadSafeMapCounterBenchmark {
   static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String> {
     private static final AtomicLongFieldUpdater<CounterEntry> COUNT =
         AtomicLongFieldUpdater.newUpdater(CounterEntry.class, "count");
-
     volatile long count;
 
     CounterEntry(String key) {
@@ -111,7 +107,9 @@ public class ThreadSafeMapCounterBenchmark {
     }
   }
 
-  /** Per-thread cursor so each thread cycles through keys independently. */
+  /**
+   * Per-thread cursor so each thread cycles through keys independently.
+   */
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;

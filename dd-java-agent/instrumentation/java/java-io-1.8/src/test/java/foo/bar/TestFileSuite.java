@@ -4,7 +4,6 @@ import java.io.File;
 import java.net.URI;
 
 public class TestFileSuite {
-
   public static File newFile(final String path) {
     return new File(path);
   }

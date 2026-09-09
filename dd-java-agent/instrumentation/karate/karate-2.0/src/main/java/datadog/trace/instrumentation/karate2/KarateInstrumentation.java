@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.karate2;
 
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -18,8 +17,8 @@ import java.util.Map;
  */
 @AutoService(InstrumenterModule.class)
 public class KarateInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public KarateInstrumentation() {
     super("ci-visibility", "karate");
   }
@@ -32,18 +31,19 @@ public class KarateInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".KarateUtils",
-      packageName + ".TestEventsHandlerHolder",
-      packageName + ".ExecutionContext",
-      packageName + ".KarateTracingListener",
-      packageName + ".KarateBuilderAdvice"
+        packageName + ".KarateUtils",
+        packageName + ".TestEventsHandlerHolder",
+        packageName + ".ExecutionContext",
+        packageName + ".KarateTracingListener",
+        packageName + ".KarateBuilderAdvice"
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
-        "io.karatelabs.gherkin.Scenario", packageName + ".ExecutionContext");
+        "io.karatelabs.gherkin.Scenario",
+        packageName + ".ExecutionContext");
   }
 
   @Override

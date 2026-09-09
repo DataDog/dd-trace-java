@@ -1,7 +1,6 @@
 package com.datadog.profiling.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.datadog.profiling.controller.ProfilerSettingsSupport.ProfilerActivationSetting;
 import com.datadog.profiling.controller.ProfilerSettingsSupport.ProfilerActivationSetting.Ssi;
 import datadog.trace.api.config.ProfilingConfig;
@@ -17,7 +16,9 @@ public class ProfilerSettingsSupportTest {
   @ParameterizedTest
   @MethodSource("activationSettings")
   void testActivation(
-      String enabledSetting, String injectSetting, ProfilerActivationSetting expected) {
+      String enabledSetting,
+      String injectSetting,
+      ProfilerActivationSetting expected) {
     Properties props = new Properties();
     if (enabledSetting != null) {
       props.put(ProfilingConfig.PROFILING_ENABLED, enabledSetting);
@@ -35,13 +36,17 @@ public class ProfilerSettingsSupportTest {
   private static Stream<Arguments> activationSettings() {
     return Stream.of(
         Arguments.of(
-            "true", null, new ProfilerActivationSetting(ProfilingEnablement.ENABLED, Ssi.NONE)),
+            "true",
+            null,
+            new ProfilerActivationSetting(ProfilingEnablement.ENABLED, Ssi.NONE)),
         Arguments.of(
             "true",
             "tracer",
             new ProfilerActivationSetting(ProfilingEnablement.ENABLED, Ssi.INJECTED_AGENT)),
         Arguments.of(
-            "auto", null, new ProfilerActivationSetting(ProfilingEnablement.AUTO, Ssi.NONE)),
+            "auto",
+            null,
+            new ProfilerActivationSetting(ProfilingEnablement.AUTO, Ssi.NONE)),
         Arguments.of(
             "auto",
             "tracer",

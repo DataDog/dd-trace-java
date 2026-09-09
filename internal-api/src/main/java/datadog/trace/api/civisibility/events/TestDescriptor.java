@@ -6,15 +6,17 @@ import javax.annotation.Nullable;
 
 public final class TestDescriptor {
   private final String testSuiteName;
-  private final @Nullable Class<?> testClass;
+  @Nullable
+  private final Class<?> testClass;
   private final String testName;
-  private final @Nullable Object testParameters;
-
+  @Nullable
+  private final Object testParameters;
   /**
    * A test-framework-specific "tie-breaker" that helps to differentiate between tests that would
    * otherwise be considered identical.
    */
-  private final @Nullable Object testQualifier;
+  @Nullable
+  private final Object testQualifier;
 
   public TestDescriptor(
       String testSuiteName,

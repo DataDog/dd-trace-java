@@ -5,10 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.zip.CRC32;
 
 public abstract class CRCUtils {
-
   private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
 
-  private CRCUtils() {}
+  private CRCUtils() {
+  }
 
   public static void update(final CRC32 crc, final String value) {
     update(crc, value, DEFAULT_CHARSET);

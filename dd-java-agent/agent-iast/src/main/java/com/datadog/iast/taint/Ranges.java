@@ -2,7 +2,6 @@ package com.datadog.iast.taint;
 
 import static com.datadog.iast.taint.TaintedObject.MAX_RANGE_COUNT;
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.util.HttpHeader;
@@ -14,34 +13,41 @@ import java.util.BitSet;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Utilities to work with {@link Range} instances. */
+/**
+ * Utilities to work with {@link Range} instances.
+ */
 public final class Ranges {
-
   public static final Range[] EMPTY = new Range[0];
 
-  private Ranges() {}
+  private Ranges() {
+  }
 
   public static Range[] forCharSequence(
-      final @Nonnull CharSequence obj, final @Nonnull Source source) {
+      @Nonnull final CharSequence obj,
+      @Nonnull final Source source) {
     return forCharSequence(obj, source, NOT_MARKED);
   }
 
   public static Range[] forCharSequence(
-      final @Nonnull CharSequence obj, final @Nonnull Source source, final int mark) {
+      @Nonnull final CharSequence obj,
+      @Nonnull final Source source,
+      final int mark) {
     return new Range[] {new Range(0, obj.length(), source, mark)};
   }
 
-  public static Range[] forObject(final @Nonnull Source source) {
+  public static Range[] forObject(@Nonnull final Source source) {
     return forObject(source, NOT_MARKED);
   }
 
-  public static Range[] forObject(final @Nonnull Source source, final int mark) {
+  public static Range[] forObject(@Nonnull final Source source, final int mark) {
     return new Range[] {new Range(0, Integer.MAX_VALUE, source, mark)};
   }
 
   @Nullable
   public static Range[] intersection(
-      final @Nonnull Ranged targetRange, @Nonnull final Range[] ranges, final int offset) {
+      @Nonnull final Ranged targetRange,
+      @Nonnull final Range[] ranges,
+      final int offset) {
     final Range last = ranges[ranges.length - 1];
     final int lastIndex = last.getStart() + last.getLength();
 
@@ -65,7 +71,8 @@ public final class Ranges {
 
   @Nullable
   public static Range[] intersection(
-      final @Nonnull Ranged targetRange, @Nonnull final Range[] ranges) {
+      @Nonnull final Ranged targetRange,
+      @Nonnull final Range[] ranges) {
     return intersection(targetRange, ranges, 0);
   }
 
@@ -79,13 +86,16 @@ public final class Ranges {
   }
 
   public static void copyShift(
-      final @Nonnull Range[] src, final @Nonnull Range[] dst, final int dstPos, final int shift) {
+      @Nonnull final Range[] src,
+      @Nonnull final Range[] dst,
+      final int dstPos,
+      final int shift) {
     copyShift(src, dst, dstPos, shift, src.length);
   }
 
   public static void copyShift(
-      final @Nonnull Range[] src,
-      final @Nonnull Range[] dst,
+      @Nonnull final Range[] src,
+      @Nonnull final Range[] dst,
       final int dstPos,
       final int shift,
       final int max) {
@@ -103,7 +113,9 @@ public final class Ranges {
   }
 
   public static Range[] mergeRanges(
-      final int offset, @Nonnull final Range[] rangesLeft, @Nonnull final Range[] rangesRight) {
+      final int offset,
+      @Nonnull final Range[] rangesLeft,
+      @Nonnull final Range[] rangesRight) {
     final long nRanges = rangesLeft.length + (long) rangesRight.length;
     final Range[] ranges = newArray(nRanges);
     int remaining = ranges.length;
@@ -119,7 +131,7 @@ public final class Ranges {
   }
 
   @Nullable
-  public static Range[] forSubstring(int offset, int length, final @Nonnull Range[] ranges) {
+  public static Range[] forSubstring(int offset, int length, @Nonnull final Range[] ranges) {
     final Ranged substring = Ranged.build(offset, length);
     return intersection(substring, ranges, -offset);
   }
@@ -159,7 +171,9 @@ public final class Ranges {
     return true;
   }
 
-  /** Checks if a range is coming from the header */
+  /**
+   * Checks if a range is coming from the header
+   */
   public static boolean rangeFromHeader(@Nonnull final String header, @Nonnull final Range range) {
     final Source source = range.getSource();
     if (source.getOrigin() != SourceTypes.REQUEST_HEADER_VALUE) {
@@ -190,7 +204,8 @@ public final class Ranges {
    * {@code true}
    */
   public static boolean allRangesFromHeader(
-      @Nonnull final String header, @Nonnull final Range[] ranges) {
+      @Nonnull final String header,
+      @Nonnull final Range[] ranges) {
     for (Range range : ranges) {
       if (!rangeFromHeader(header, range)) {
         return false;
@@ -203,7 +218,8 @@ public final class Ranges {
    * @see #allRangesFromHeader(String, Range[])
    */
   public static boolean allRangesFromHeader(
-      @Nonnull final HttpHeader header, @Nonnull final Range[] ranges) {
+      @Nonnull final HttpHeader header,
+      @Nonnull final Range[] ranges) {
     return allRangesFromHeader(header.name, ranges);
   }
 
@@ -211,7 +227,9 @@ public final class Ranges {
     return new Range[size > MAX_RANGE_COUNT ? MAX_RANGE_COUNT : (int) size];
   }
 
-  /** Merge the new ranges maintaining order (it assumes that both arrays are already sorted) */
+  /**
+   * Merge the new ranges maintaining order (it assumes that both arrays are already sorted)
+   */
   public static Range[] mergeRangesSorted(final Range[] leftRanges, final Range[] rightRanges) {
     if (leftRanges.length == 0) {
       return rightRanges;
@@ -273,9 +291,10 @@ public final class Ranges {
     return new Range(offset, length, range.getSource(), range.getMarks());
   }
 
-  /** Returns a new array of ranges with the indentation applied to each line */
-  public static Range[] forIndentation(
-      String input, int indentation, final @Nonnull Range[] ranges) {
+  /**
+   * Returns a new array of ranges with the indentation applied to each line
+   */
+  public static Range[] forIndentation(String input, int indentation, @Nonnull final Range[] ranges) {
     final Range[] newRanges = new Range[ranges.length];
     int delimitersCount = 0;
     int offset = 0;
@@ -297,16 +316,15 @@ public final class Ranges {
         currentIndentation = indentation * ++delimitersCount;
       }
       currentIndentation -= offset;
-      rangeStart =
-          updateRangesWithIndentation(
-              currentIndex,
-              delimiterIndex[0] - 1,
-              indentation,
-              rangeStart,
-              ranges,
-              newRanges,
-              currentIndentation,
-              lineOffset);
+      rangeStart = updateRangesWithIndentation(
+          currentIndex,
+          delimiterIndex[0] - 1,
+          indentation,
+          rangeStart,
+          ranges,
+          newRanges,
+          currentIndentation,
+          lineOffset);
       offset += lineOffset;
       currentIndex = delimiterIndex[0];
     }
@@ -328,7 +346,9 @@ public final class Ranges {
    * @param offset is to take into account the previous lines
    */
   private static int[] getNextDelimiterIndex(
-      @Nonnull final String original, final int start, final int offset) {
+      @Nonnull final String original,
+      final int start,
+      final int offset) {
     for (int i = start; i < original.length(); i++) {
       final char c = original.charAt(i);
       if (c == '\n') {
@@ -363,8 +383,8 @@ public final class Ranges {
       int end,
       int indentation,
       int rangeStart,
-      final @Nonnull Range[] ranges,
-      final @Nonnull Range[] newRanges,
+      @Nonnull final Range[] ranges,
+      @Nonnull final Range[] newRanges,
       int offset,
       int lineOffset) {
     int i = rangeStart;
@@ -408,7 +428,12 @@ public final class Ranges {
    * @param diffLength is the difference between the new length and the old length
    */
   public static Range[] splitRanges(
-      int start, int end, int newLength, Range range, int offset, int diffLength) {
+      int start,
+      int end,
+      int newLength,
+      Range range,
+      int offset,
+      int diffLength) {
     start += offset;
     end += offset;
     int rangeStart = range.getStart() + offset;

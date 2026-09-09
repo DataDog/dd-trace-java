@@ -6,7 +6,6 @@ import static datadog.trace.api.git.GitUtils.isTagReference;
 import static datadog.trace.api.git.GitUtils.normalizeBranch;
 import static datadog.trace.api.git.GitUtils.normalizeTag;
 import static datadog.trace.civisibility.utils.FileUtils.expandTilde;
-
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
 import datadog.trace.api.git.GitInfo;
@@ -19,7 +18,6 @@ import javax.annotation.Nonnull;
 
 @SuppressForbidden
 class JenkinsInfo implements CIProviderInfo {
-
   // https://wiki.jenkins.io/display/JENKINS/Building+a+software+project
   public static final String JENKINS = "JENKINS_URL";
   public static final String JENKINS_PROVIDER_NAME = "jenkins";
@@ -39,7 +37,6 @@ class JenkinsInfo implements CIProviderInfo {
   public static final String JENKINS_NODE_LABELS = "NODE_LABELS";
   public static final String JENKINS_PR_NUMBER = "CHANGE_ID";
   public static final String JENKINS_PR_BASE_BRANCH = "CHANGE_TARGET";
-
   private final CiEnvironment environment;
 
   JenkinsInfo(CiEnvironment environment) {
@@ -59,17 +56,18 @@ class JenkinsInfo implements CIProviderInfo {
   public CIInfo buildCIInfo() {
     final String gitBranch = buildGitBranch();
 
-    return CIInfo.builder(environment)
-        .ciProviderName(JENKINS_PROVIDER_NAME)
-        .ciPipelineId(environment.get(JENKINS_PIPELINE_ID))
-        .ciPipelineName(buildCiPipelineName(gitBranch))
-        .ciPipelineNumber(environment.get(JENKINS_PIPELINE_NUMBER))
-        .ciPipelineUrl(environment.get(JENKINS_PIPELINE_URL))
-        .ciWorkspace(expandTilde(environment.get(JENKINS_WORKSPACE_PATH)))
-        .ciNodeName(environment.get(JENKINS_NODE_NAME))
-        .ciNodeLabels(buildCiNodeLabels())
-        .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID, JENKINS_DD_CUSTOM_PARENT_ID)
-        .build();
+    return CIInfo
+      .builder(environment)
+      .ciProviderName(JENKINS_PROVIDER_NAME)
+      .ciPipelineId(environment.get(JENKINS_PIPELINE_ID))
+      .ciPipelineName(buildCiPipelineName(gitBranch))
+      .ciPipelineNumber(environment.get(JENKINS_PIPELINE_NUMBER))
+      .ciPipelineUrl(environment.get(JENKINS_PIPELINE_URL))
+      .ciWorkspace(expandTilde(environment.get(JENKINS_WORKSPACE_PATH)))
+      .ciNodeName(environment.get(JENKINS_NODE_NAME))
+      .ciNodeLabels(buildCiNodeLabels())
+      .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID, JENKINS_DD_CUSTOM_PARENT_ID)
+      .build();
   }
 
   @Nonnull
@@ -124,7 +122,6 @@ class JenkinsInfo implements CIProviderInfo {
     if (jobName == null) {
       return null;
     }
-
     // First, the git branch is removed from the raw jobName
     final String jobNameNoBranch;
     if (gitBranch != null) {
@@ -132,7 +129,6 @@ class JenkinsInfo implements CIProviderInfo {
     } else {
       jobNameNoBranch = jobName;
     }
-
     // Once the branch has been removed, we try to extract
     // the configurations from the job name.
     // The configurations have the form like "key1=value1,key2=value2"

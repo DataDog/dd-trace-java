@@ -15,7 +15,6 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-
 import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -44,37 +43,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class ClientStatsAggregator implements MetricsAggregator, EventListener {
-
   private static final Logger log = LoggerFactory.getLogger(ClientStatsAggregator.class);
-
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
-
   private static final String SYNTHETICS_ORIGIN = "synthetics";
-
-  private static final SpanKindFilter METRICS_ELIGIBLE_KINDS =
-      SpanKindFilter.builder()
-          .includeServer()
-          .includeClient()
-          .includeProducer()
-          .includeConsumer()
-          .build();
-
+  private static final SpanKindFilter METRICS_ELIGIBLE_KINDS = SpanKindFilter
+    .builder()
+    .includeServer()
+    .includeClient()
+    .includeProducer()
+    .includeConsumer()
+    .build();
   private static final SpanKindFilter PEER_AGGREGATION_KINDS =
       SpanKindFilter.builder().includeClient().includeProducer().includeConsumer().build();
-
   private static final SpanKindFilter INTERNAL_KIND =
       SpanKindFilter.builder().includeInternal().build();
-
   // gRPC status-code source tags, probed in priority order on the OTLP export path
   private static final String[] GRPC_STATUS_CODE_KEYS = {
-    InstrumentationTags.GRPC_STATUS_CODE, // "rpc.grpc.status_code"
-    "grpc.code",
-    "rpc.grpc.status.code",
-    "grpc.status.code",
-    "rpc.response.status_code",
+      // "rpc.grpc.status_code"
+      InstrumentationTags.GRPC_STATUS_CODE,
+      "grpc.code",
+      "rpc.grpc.status.code",
+      "grpc.status.code",
+      "rpc.response.status_code"
   };
-
   private final Set<String> ignoredResources;
   private final Thread thread;
   private final MessagePassingQueue<InboxItem> inbox;
@@ -91,7 +83,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final AdditionalTagsSchema additionalTagsSchema;
   private final boolean includeEndpointInMetrics;
   private final boolean otlpStatsExportEnabled;
-
   /**
    * Cached peer-aggregation schema read by producer threads.
    *
@@ -109,7 +100,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * only on the aggregator thread.
    */
   private volatile PeerTagSchema cachedPeerTagSchema;
-
   /**
    * Previous peer-tag schema, kept until the next reporting cycle.
    *
@@ -124,7 +114,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * <p>This field is accessed only by the aggregator thread, so it does not need to be volatile.
    */
   private PeerTagSchema previousPeerTagSchema;
-
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
   public ClientStatsAggregator(
@@ -178,7 +167,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     return AdditionalTagsSchema.from(
         config.getTraceStatsAdditionalTags(),
         config.getTraceStatsCardinalityLimit(
-            "additional_tags", MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
+            "additional_tags",
+            MetricCardinalityLimits.ADDITIONAL_TAG_VALUE),
         MetricCardinalityLimits.USE_BLOCKED_SENTINEL);
   }
 
@@ -232,7 +222,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         includeEndpointInMetrics);
   }
 
-  /** Test-only: defaults to no additional tags schema. */
+  /**
+   * Test-only: defaults to no additional tags schema.
+   */
   ClientStatsAggregator(
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -279,16 +271,15 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.healthMetrics = healthMetric;
     this.sink = sink;
     this.metricWriter = metricWriter;
-    this.aggregator =
-        new Aggregator(
-            metricWriter,
-            inbox,
-            maxAggregates,
-            reportingInterval,
-            timeUnit,
-            healthMetric,
-            additionalTagsSchema,
-            this::resetCardinalityHandlers);
+    this.aggregator = new Aggregator(
+        metricWriter,
+        inbox,
+        maxAggregates,
+        reportingInterval,
+        timeUnit,
+        healthMetric,
+        additionalTagsSchema,
+        this::resetCardinalityHandlers);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -297,7 +288,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   // ── visible for testing ─────────────────────────────────────────────────────
   // Expose the writer-selection outcome and reporting cadence so tests can assert
   // the native-vs-OTLP XOR choice without reflecting into private fields.
-
   boolean isOtlpStatsExportEnabled() {
     return otlpStatsExportEnabled;
   }
@@ -319,14 +309,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   public void start() {
     sink.register(this);
     thread.start();
-    cancellation =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                new ReportTask(),
-                this,
-                reportingInterval,
-                reportingInterval,
-                reportingIntervalTimeUnit);
+    cancellation = AgentTaskScheduler
+      .get()
+      .scheduleAtFixedRate(
+          new ReportTask(),
+          this,
+          reportingInterval,
+          reportingInterval,
+          reportingIntervalTimeUnit);
     log.debug("started metrics aggregator");
   }
 
@@ -428,8 +418,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   private boolean shouldComputeMetric(CoreSpan<?> span, boolean isTopLevel) {
     return (span.isMeasured() || isTopLevel || span.isKind(METRICS_ELIGIBLE_KINDS))
-        && span.getLongRunningVersion()
-            <= 0 // either not long-running or unpublished long-running span
+        && span
+      // either not long-running or unpublished long-running span
+      .getLongRunningVersion() <= 0
         && span.getDurationNano() > 0;
   }
 
@@ -486,24 +477,23 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
     String[] additionalTagValues = captureAdditionalTagValues(span);
 
-    SpanSnapshot snapshot =
-        new SpanSnapshot(
-            span.getResourceName(),
-            span.getServiceName(),
-            span.getOperationName(),
-            span.getServiceNameSource(),
-            spanType,
-            span.getHttpStatusCode(),
-            isSynthetic(span),
-            span.getParentId() == 0,
-            spanKind,
-            spanPeerTagSchema,
-            peerTagValues,
-            httpMethod,
-            httpEndpoint,
-            grpcStatusCode,
-            additionalTagValues,
-            tagAndDuration);
+    SpanSnapshot snapshot = new SpanSnapshot(
+        span.getResourceName(),
+        span.getServiceName(),
+        span.getOperationName(),
+        span.getServiceNameSource(),
+        spanType,
+        span.getHttpStatusCode(),
+        isSynthetic(span),
+        span.getParentId() == 0,
+        spanKind,
+        spanPeerTagSchema,
+        peerTagValues,
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode,
+        additionalTagValues,
+        tagAndDuration);
     if (!inbox.offer(snapshot)) {
       healthMetrics.onStatsInboxFull();
     }
@@ -511,7 +501,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     return error;
   }
 
-  /** Returns the first non-null span tag among {@code keys}, in order, or {@code null} if none. */
+  /**
+   * Returns the first non-null span tag among {@code keys}, in order, or {@code null} if none.
+   */
   private static String firstTag(CoreSpan<?> span, String[] keys) {
     for (String key : keys) {
       Object value = span.unsafeGetTag(key);
@@ -738,7 +730,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   private static final class ReportTask implements AgentTaskScheduler.Task<ClientStatsAggregator> {
-
     @Override
     public void run(ClientStatsAggregator target) {
       target.report();

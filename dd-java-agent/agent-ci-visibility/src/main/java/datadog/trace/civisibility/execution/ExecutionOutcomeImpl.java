@@ -7,7 +7,6 @@ import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import javax.annotation.Nullable;
 
 class ExecutionOutcomeImpl implements TestExecutionTracker.ExecutionOutcome {
-
   private final boolean failureSuppressed;
   private final boolean lastExecution;
   private final ExecutionAggregation aggregation;

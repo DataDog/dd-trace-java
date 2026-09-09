@@ -12,7 +12,9 @@ import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 
-/** Special lightweight pre-main class that skips installation on incompatible JVMs. */
+/**
+ * Special lightweight pre-main class that skips installation on incompatible JVMs.
+ */
 public class AgentPreCheck {
   public static final int MIN_JAVA_VERSION = 8;
 
@@ -34,42 +36,44 @@ public class AgentPreCheck {
   }
 
   private static void reportIncompatibleJava(
-      String javaVersion, String javaHome, String agentVersion, PrintStream output) {
+      String javaVersion,
+      String javaHome,
+      String agentVersion,
+      PrintStream output) {
     output.println(
         "Warning: "
-            + (agentVersion == null ? "This version" : "Version " + agentVersion)
-            + " of dd-java-agent is not compatible with Java "
-            + javaVersion
-            + " found at '"
-            + javaHome
-            + "' and is effectively disabled.");
+        + (agentVersion == null ? "This version" : "Version " + agentVersion)
+        + " of dd-java-agent is not compatible with Java "
+        + javaVersion
+        + " found at '"
+        + javaHome
+        + "' and is effectively disabled.");
     output.println("Please upgrade your Java version to 8+");
   }
 
   static void sendTelemetry(String forwarderPath, String javaVersion, String agentVersion) {
     // Hardcoded payload for unsupported Java version.
-    String payload =
-        "{\"metadata\":{"
-            + "\"runtime_name\":\"jvm\","
-            + "\"language_name\":\"jvm\","
-            + "\"runtime_version\":\""
-            + javaVersion
-            + "\","
-            + "\"language_version\":\""
-            + javaVersion
-            + "\","
-            + "\"tracer_version\":\""
-            + agentVersion
-            + "\","
-            + "\"result\":\"abort\","
-            + "\"result_class\":\"unknown\","
-            + "\"result_reason\":\"incompatible_runtime\""
-            + "},"
-            + "\"points\":[{"
-            + "\"name\":\"library_entrypoint.abort\","
-            + "\"tags\":[\"reason:incompatible_runtime\"]"
-            + "}]"
-            + "}";
+    String payload = "{\"metadata\":{"
+        + "\"runtime_name\":\"jvm\","
+        + "\"language_name\":\"jvm\","
+        + "\"runtime_version\":\""
+        + javaVersion
+        + "\","
+        + "\"language_version\":\""
+        + javaVersion
+        + "\","
+        + "\"tracer_version\":\""
+        + agentVersion
+        + "\","
+        + "\"result\":\"abort\","
+        + "\"result_class\":\"unknown\","
+        + "\"result_reason\":\"incompatible_runtime\""
+        + "},"
+        + "\"points\":[{"
+        + "\"name\":\"library_entrypoint.abort\","
+        + "\"tags\":[\"reason:incompatible_runtime\"]"
+        + "}]"
+        + "}";
 
     ForwarderJsonSenderThread t = new ForwarderJsonSenderThread(forwarderPath, payload);
     t.setDaemon(true);
@@ -129,7 +133,6 @@ public class AgentPreCheck {
         && Character.isDigit(javaVersion.charAt(2))) {
       start = 2;
     }
-
     // Parse the major digit and be a bit lenient, allowing digits followed by any non digit
     for (int i = start; i < javaVersion.length(); i++) {
       char c = javaVersion.charAt(i);

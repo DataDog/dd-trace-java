@@ -10,7 +10,8 @@ public final class JavaVirtualMachine {
   private static final JavaVersion javaVersion = JavaVersion.getRuntimeVersion();
   private static final Runtime runtime = new Runtime();
 
-  private JavaVirtualMachine() {}
+  private JavaVirtualMachine() {
+  }
 
   public static boolean isJavaVersion(int major) {
     return javaVersion.is(major);
@@ -60,8 +61,7 @@ public final class JavaVirtualMachine {
    * @return if the current java version is between the from version (inclusive) and the to version
    *     exclusive
    */
-  public static boolean isJavaVersionBetween(
-      int fromMajor, int fromMinor, int toMajor, int toMinor) {
+  public static boolean isJavaVersionBetween(int fromMajor, int fromMinor, int toMajor, int toMinor) {
     return isJavaVersionBetween(fromMajor, fromMinor, 0, toMajor, toMinor, 0);
   }
 
@@ -79,7 +79,12 @@ public final class JavaVirtualMachine {
    *     exclusive
    */
   public static boolean isJavaVersionBetween(
-      int fromMajor, int fromMinor, int fromUpdate, int toMajor, int toMinor, int toUpdate) {
+      int fromMajor,
+      int fromMinor,
+      int fromUpdate,
+      int toMajor,
+      int toMinor,
+      int toUpdate) {
     return javaVersion.isBetween(fromMajor, fromMinor, fromUpdate, toMajor, toMinor, toUpdate);
   }
 
@@ -198,7 +203,6 @@ public final class JavaVirtualMachine {
      *    patches -> "b01"
      */
     public final String name;
-
     public final String vendor;
     public final String version;
     public final String vendorVersion;

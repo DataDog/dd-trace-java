@@ -29,9 +29,7 @@ final class PropertyCardinalityHandler {
   // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
   // Practical limits are 8..512; this cap is well beyond any realistic configuration.
   private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
-
   final String name;
-
   /**
    * Protobuf field name this handler reports under in the {@code collapsed:} health/telemetry tag,
    * per the approved Cardinality Limits RFC (section 5), which keys collapses by the lowercased
@@ -41,10 +39,8 @@ final class PropertyCardinalityHandler {
    * CardinalityLimitReporter} still says {@code operation}.
    */
   private final String statsDField;
-
   private final int cardinalityLimit;
   private final int capacityMask;
-
   /**
    * Whether to substitute the {@code tracer_blocked_value} sentinel when the per-cycle budget is
    * exhausted. With limits enabled (sentinel mode), overflow values collapse to one bucket; with
@@ -53,7 +49,6 @@ final class PropertyCardinalityHandler {
    * real value and entries don't collapse. Prior-cycle reuse runs in either mode.
    */
   private final boolean useBlockedSentinel;
-
   // Single open-addressed table per cycle. The stored UTF8BytesString IS the slot identity --
   // equality is checked by comparing its underlying String against the incoming CharSequence.
   private UTF8BytesString[] curValues;
@@ -61,11 +56,11 @@ final class PropertyCardinalityHandler {
   // their UTF8BytesString instance without re-allocating.
   private UTF8BytesString[] priorValues;
   private int curSize;
-
   private UTF8BytesString cacheBlocked = null;
   private String[] statsDTag = null;
-
-  /** Accumulated block count for the current cycle. Returned and zeroed by {@link #reset()}. */
+  /**
+   * Accumulated block count for the current cycle. Returned and zeroed by {@link #reset()}.
+   */
   private long blockedCount;
 
   /**
@@ -82,7 +77,10 @@ final class PropertyCardinalityHandler {
   }
 
   PropertyCardinalityHandler(
-      String name, String statsDField, int cardinalityLimit, boolean useBlockedSentinel) {
+      String name,
+      String statsDField,
+      int cardinalityLimit,
+      boolean useBlockedSentinel) {
     this.name = name;
     this.statsDField = statsDField;
     if (cardinalityLimit <= 0) {
@@ -120,7 +118,6 @@ final class PropertyCardinalityHandler {
     // Initial table slot, used to probe current and prior tables.
     int h = value.hashCode();
     int start = (h ^ (h >>> 16)) & this.capacityMask;
-
     // First, look in the current-cycle table.
     // If found, this value already consumed cardinality budget in this cycle.
     int slot = start;
@@ -164,7 +161,9 @@ final class PropertyCardinalityHandler {
 
   private UTF8BytesString tracerBlockedValue() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
-    if (cacheBlocked != null) return cacheBlocked;
+    if (cacheBlocked != null) {
+      return cacheBlocked;
+    }
 
     this.cacheBlocked = cacheBlocked = UTF8BytesString.create("tracer_blocked_value");
     return cacheBlocked;

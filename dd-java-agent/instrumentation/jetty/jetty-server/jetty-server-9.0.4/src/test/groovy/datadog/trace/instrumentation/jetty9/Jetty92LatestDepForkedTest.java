@@ -14,7 +14,6 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  * Jetty 9.0.4 where {@code getSubmittedFileName()} does not exist.
  */
 abstract class Jetty92LatestDepForkedTest extends Jetty9Test {
-
   @Override
   public boolean testBodyMultipart() {
     return true;
@@ -44,7 +43,6 @@ abstract class Jetty92LatestDepForkedTest extends Jetty9Test {
 @EnabledIfSystemProperty(named = "test.dd.jetty92", matches = ".+")
 class Jetty92V0LatestDepForkedTest extends Jetty92LatestDepForkedTest
     implements TestingGenericHttpNamingConventions.ServerV0 {
-
   @Override
   public int version() {
     return 0;
@@ -64,7 +62,6 @@ class Jetty92V0LatestDepForkedTest extends Jetty92LatestDepForkedTest
 @EnabledIfSystemProperty(named = "test.dd.jetty92", matches = ".+")
 class Jetty92V1LatestDepForkedTest extends Jetty92LatestDepForkedTest
     implements TestingGenericHttpNamingConventions.ServerV1 {
-
   @Override
   public int version() {
     return 1;

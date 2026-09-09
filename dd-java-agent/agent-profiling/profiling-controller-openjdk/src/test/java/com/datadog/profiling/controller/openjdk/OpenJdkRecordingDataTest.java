@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingSnapshot;
 import java.io.IOException;
@@ -27,17 +26,21 @@ import org.mockito.quality.Strictness;
 // see https://github.com/mockito/mockito/issues/1540
 @MockitoSettings(strictness = Strictness.LENIENT)
 public class OpenJdkRecordingDataTest {
-
   private static final String TEST_NAME = "recording name";
-
-  @Mock Instant start;
-  @Mock Instant end;
-  @Mock Instant customStart;
-  @Mock Instant customEnd;
-  @Mock private InputStream stream;
-  @Mock private InputStream customStream;
-  @Mock private Recording recording;
-
+  @Mock
+  Instant start;
+  @Mock
+  Instant end;
+  @Mock
+  Instant customStart;
+  @Mock
+  Instant customEnd;
+  @Mock
+  private InputStream stream;
+  @Mock
+  private InputStream customStream;
+  @Mock
+  private Recording recording;
   private OpenJdkRecordingData recordingData;
   private OpenJdkRecordingData customRecordingData;
 
@@ -51,9 +54,11 @@ public class OpenJdkRecordingDataTest {
     when(recording.getName()).thenReturn(TEST_NAME);
 
     recordingData = new OpenJdkRecordingData(recording, ProfilingSnapshot.Kind.PERIODIC);
-    customRecordingData =
-        new OpenJdkRecordingData(
-            recording, customStart, customEnd, ProfilingSnapshot.Kind.PERIODIC);
+    customRecordingData = new OpenJdkRecordingData(
+        recording,
+        customStart,
+        customEnd,
+        ProfilingSnapshot.Kind.PERIODIC);
   }
 
   @Test

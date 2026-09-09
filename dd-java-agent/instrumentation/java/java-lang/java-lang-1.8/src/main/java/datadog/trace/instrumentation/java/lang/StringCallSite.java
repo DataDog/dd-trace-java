@@ -15,7 +15,6 @@ import javax.annotation.Nullable;
 @Propagation
 @CallSite(spi = IastCallSites.class)
 public class StringCallSite {
-
   @CallSite.After("java.lang.String java.lang.String.concat(java.lang.String)")
   @Nonnull
   public static String afterConcat(
@@ -83,8 +82,8 @@ public class StringCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String java.lang.String.join(java.lang.CharSequence, java.lang.CharSequence[])")
+  @CallSite.After("java.lang.String java.lang.String.join(java.lang.CharSequence, java.lang."
+      + "CharSequence[])")
   public static String afterJoin(
       @CallSite.Argument final CharSequence delimiter,
       @CallSite.Argument final CharSequence[] elements,
@@ -100,12 +99,11 @@ public class StringCallSite {
     return result;
   }
 
-  @CallSite.Around(
-      "java.lang.String java.lang.String.join(java.lang.CharSequence, java.lang.Iterable)")
+  @CallSite.Around("java.lang.String java.lang.String.join(java.lang.CharSequence, java.lang."
+      + "Iterable)")
   public static String aroundJoin(
       @CallSite.Argument final CharSequence delimiter,
-      @CallSite.Argument final Iterable<? extends CharSequence> elements)
-      throws Throwable {
+      @CallSite.Argument final Iterable<? extends CharSequence> elements) throws Throwable {
     // Iterate the iterable to guarantee the default behavior for custom mutable Iterables
     List<CharSequence> copy = new ArrayList<>();
     String result;
@@ -128,7 +126,8 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.toUpperCase()")
   public static String afterToUpperCase(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final String self,
+      @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -158,7 +157,8 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.toLowerCase()")
   public static String afterToLowerCase(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final String self,
+      @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -188,7 +188,8 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.trim()")
   public static String afterTrim(
-      @CallSite.This final String self, @CallSite.Return final String result) {
+      @CallSite.This final String self,
+      @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {
@@ -233,8 +234,8 @@ public class StringCallSite {
     return result;
   }
 
-  @CallSite.After(
-      "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
+  @CallSite.After("java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, "
+      + "java.lang.Object[])")
   public static String afterFormat(
       @CallSite.Argument(0) @Nullable final Locale locale,
       @CallSite.Argument(1) @Nullable final String pattern,
@@ -303,7 +304,8 @@ public class StringCallSite {
 
   @CallSite.After("java.lang.String java.lang.String.valueOf(java.lang.Object)")
   public static String afterValueOf(
-      @CallSite.Argument(0) final Object obj, @CallSite.Return final String result) {
+      @CallSite.Argument(0) final Object obj,
+      @CallSite.Return final String result) {
     final StringModule module = InstrumentationBridge.STRING;
     if (module != null) {
       try {

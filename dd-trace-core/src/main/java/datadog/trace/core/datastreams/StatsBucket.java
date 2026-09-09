@@ -31,32 +31,30 @@ public class StatsBucket {
     // lower-level granularity and unblock dataset name manipulations on the backend
     // without affecting the precision.
     hashToGroup
-        .computeIfAbsent(
-            statsPoint.getAggregationHash(),
-            hash ->
-                new StatsGroup(
-                    statsPoint.getTags(), statsPoint.getHash(), statsPoint.getParentHash()))
-        .add(
-            statsPoint.getPathwayLatencyNano(),
-            statsPoint.getEdgeLatencyNano(),
-            statsPoint.getPayloadSizeBytes());
+      .computeIfAbsent(statsPoint.getAggregationHash(), hash -> new StatsGroup(
+          statsPoint.getTags(),
+          statsPoint.getHash(),
+          statsPoint.getParentHash()))
+      .add(
+          statsPoint.getPathwayLatencyNano(),
+          statsPoint.getEdgeLatencyNano(),
+          statsPoint.getPayloadSizeBytes());
   }
 
   public void addBacklog(Backlog backlog) {
-    backlogs.compute(
-        backlog.getTags(),
-        (k, v) -> (v == null) ? backlog.getValue() : Math.max(v, backlog.getValue()));
+    backlogs.compute(backlog.getTags(), (k, v) -> (v == null)
+        ? backlog.getValue()
+        : Math.max(v, backlog.getValue()));
   }
 
   public void addSchemaRegistryUsage(SchemaRegistryUsage usage) {
-    SchemaKey key =
-        new SchemaKey(
-            usage.getTopic(),
-            usage.getClusterId(),
-            usage.getSchemaId(),
-            usage.isSuccess(),
-            usage.isKey(),
-            usage.getOperation());
+    SchemaKey key = new SchemaKey(
+        usage.getTopic(),
+        usage.getClusterId(),
+        usage.getSchemaId(),
+        usage.isSuccess(),
+        usage.isKey(),
+        usage.getOperation());
     schemaRegistryUsages.merge(key, 1L, Long::sum);
   }
 
@@ -149,8 +147,12 @@ public class StatsBucket {
 
     @Override
     public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
       SchemaKey that = (SchemaKey) o;
       return schemaId == that.schemaId
           && isSuccess == that.isSuccess

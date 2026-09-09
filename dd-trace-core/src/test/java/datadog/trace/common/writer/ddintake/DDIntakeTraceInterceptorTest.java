@@ -1,7 +1,6 @@
 package datadog.trace.common.writer.ddintake;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.ListWriter;
@@ -18,7 +17,6 @@ import org.tabletest.junit.TableTest;
 
 @Timeout(100)
 class DDIntakeTraceInterceptorTest extends DDCoreJavaSpecification {
-
   ListWriter writer;
   CoreTracer tracer;
 
@@ -45,17 +43,18 @@ class DDIntakeTraceInterceptorTest extends DDCoreJavaSpecification {
     "integer 600  | 600        |                   "
   })
   void testNormalizationForDdIntake(Object httpStatus, Integer expectedHttpStatus)
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     tracer
-        .buildSpan("datadog", "my-operation-name")
-        .withResourceName("my-resource-name")
-        .withSpanType("my-span-type")
-        .withServiceName("my-service-name")
-        .withTag("some-tag-key", "some-tag-value")
-        .withTag("env", "     My_____Env     ")
-        .withTag(Tags.HTTP_STATUS, httpStatus)
-        .start()
-        .finish();
+      .buildSpan("datadog", "my-operation-name")
+      .withResourceName("my-resource-name")
+      .withSpanType("my-span-type")
+      .withServiceName("my-service-name")
+      .withTag("some-tag-key", "some-tag-value")
+      .withTag("env", "     My_____Env     ")
+      .withTag(Tags.HTTP_STATUS, httpStatus)
+      .start()
+      .finish();
     writer.waitForTraces(1);
 
     List<DDSpan> trace = writer.firstTrace();
@@ -72,13 +71,10 @@ class DDIntakeTraceInterceptorTest extends DDCoreJavaSpecification {
 
   @Test
   void testNormalizationDoesNotImplicitlyConvertSpanType()
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException,
+      TimeoutException {
     UTF8BytesString originalSpanType = UTF8BytesString.create("a UTF8 span type");
-    tracer
-        .buildSpan("datadog", "my-operation-name")
-        .withSpanType(originalSpanType)
-        .start()
-        .finish();
+    tracer.buildSpan("datadog", "my-operation-name").withSpanType(originalSpanType).start().finish();
 
     writer.waitForTraces(1);
 

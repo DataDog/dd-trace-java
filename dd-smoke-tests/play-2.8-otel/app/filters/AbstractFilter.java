@@ -37,18 +37,16 @@ public abstract class AbstractFilter extends Filter {
     Scope outerScope = wrap ? startedSpan.makeCurrent() : null;
     try {
       return nextFilter
-          .apply(requestHeader)
-          .thenApplyAsync(
-              result -> {
-                Span span = wrap ? startedSpan : tracer.spanBuilder(spanName).startSpan();
-                try (Scope innerScope = span.makeCurrent()) {
-                  // Yes this does no real work
-                  return result;
-                } finally {
-                  span.end();
-                }
-              },
-              ec.current());
+        .apply(requestHeader)
+        .thenApplyAsync(result -> {
+          Span span = wrap ? startedSpan : tracer.spanBuilder(spanName).startSpan();
+          try (Scope innerScope = span.makeCurrent()) {
+            // Yes this does no real work
+            return result;
+          } finally {
+            span.end();
+          }
+        }, ec.current());
     } finally {
       if (wrap) {
         outerScope.close();

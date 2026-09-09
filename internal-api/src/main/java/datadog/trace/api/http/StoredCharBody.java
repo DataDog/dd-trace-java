@@ -10,23 +10,22 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Analogous to {@link StoredByteBody}, but Java doesn't support generics with scalar types. */
+/**
+ * Analogous to {@link StoredByteBody}, but Java doesn't support generics with scalar types.
+ */
 public class StoredCharBody implements StoredBodySupplier {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(StoredCharBody.class);
-
-  private static final int MIN_BUFFER_SIZE = 128; // chars
-  private static final int MAX_BUFFER_SIZE = 128 * 1024; // 256k (char == 2 bytes)
+  // chars
+  private static final int MIN_BUFFER_SIZE = 128;
+  // 256k (char == 2 bytes)
+  private static final int MAX_BUFFER_SIZE = 128 * 1024;
   private static final int GROW_FACTOR = 4;
   private static final CharBuffer EMPTY_CHAR_BUFFER = CharBuffer.allocate(0);
-
   private final RequestContext httpContext;
   private final BiFunction<RequestContext, StoredBodySupplier, Void> startCb;
   private final BiFunction<RequestContext, StoredBodySupplier, Flow<Void>> endCb;
   private final StoredBodySupplier supplierInNotifications;
-
   private boolean listenerNotified;
-
   private char[] storedBody;
   private int storedBodyLen;
   private boolean bodyReadStarted = false;
@@ -103,10 +102,9 @@ public class StoredCharBody implements StoredBodySupplier {
     } else if (this.storedBodyLen == MAX_BUFFER_SIZE) {
       return false;
     } else if (capacityLeft() < newDataLen) {
-      int newSize =
-          Math.min(
-              Math.max(this.storedBodyLen + newDataLen, this.storedBodyLen * GROW_FACTOR),
-              MAX_BUFFER_SIZE);
+      int newSize = Math.min(
+          Math.max(this.storedBodyLen + newDataLen, this.storedBodyLen * GROW_FACTOR),
+          MAX_BUFFER_SIZE);
       this.storedBody = Arrays.copyOf(this.storedBody, newSize);
     }
     return true;
@@ -123,7 +121,6 @@ public class StoredCharBody implements StoredBodySupplier {
       s.getChars(0, lenToCopy, this.storedBody, this.storedBodyLen);
 
       this.storedBodyLen += lenToCopy;
-
     } catch (final Throwable e) {
       LOGGER.debug("Error appending string", e);
     }
@@ -147,7 +144,6 @@ public class StoredCharBody implements StoredBodySupplier {
       }
       this.storedBody[this.storedBodyLen] = (char) utf16CodeUnit;
       this.storedBodyLen += 1;
-
     } catch (final Throwable e) {
       LOGGER.debug("Error appending code unit", e);
     }

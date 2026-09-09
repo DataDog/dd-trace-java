@@ -19,14 +19,14 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
  * ConfigSetting} renders integer ranges, so the cell literal reads the same as the expected output.
  */
 public class ConfigValueConverter implements ArgumentConverter {
-
   private static final String BITSET_PREFIX = "bits(";
   private static final Pattern COMMA = Pattern.compile(",");
 
   @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
-    if (source == null) return null;
+  public Object convert(Object source, ParameterContext context) throws ArgumentConversionException {
+    if (source == null) {
+      return null;
+    }
     if (source instanceof String) {
       String s = ((String) source).trim();
       if (s.startsWith(BITSET_PREFIX) && s.endsWith(")")) {

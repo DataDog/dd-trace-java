@@ -3,7 +3,6 @@ package datadog.cws.tls;
 import datadog.trace.api.DDTraceId;
 
 final class Span {
-
   private final DDTraceId traceId;
   private final long spanId;
 

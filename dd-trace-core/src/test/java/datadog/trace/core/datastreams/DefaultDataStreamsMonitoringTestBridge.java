@@ -18,7 +18,8 @@ final class DefaultDataStreamsMonitoringTestBridge {
     }
   }
 
-  private DefaultDataStreamsMonitoringTestBridge() {}
+  private DefaultDataStreamsMonitoringTestBridge() {
+  }
 
   static boolean isInboxEmpty(DefaultDataStreamsMonitoring monitoring) {
     try {

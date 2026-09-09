@@ -1,7 +1,6 @@
 package com.datadog.iast.propagation;
 
 import static datadog.trace.api.iast.VulnerabilityMarks.NOT_MARKED;
-
 import com.datadog.iast.IastRequestContext;
 import com.datadog.iast.model.Range;
 import com.datadog.iast.model.Source;
@@ -19,25 +18,28 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
 
     final String tainted = new String("I am a tainted string");
     iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            tainted,
-            new Range[] {
-              new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
-            });
+      .getTaintedObjects()
+      .taint(
+          tainted,
+          new Range[] {
+          new Range(0, tainted.length(), new Source((byte) 0, "key", "value"), NOT_MARKED)
+          });
 
     final String taintedDelimiter = new String("-");
     iastRequestContext
-        .getTaintedObjects()
-        .taint(
-            taintedDelimiter,
-            new Range[] {
-              new Range(
-                  0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
-            });
+      .getTaintedObjects()
+      .taint(
+          taintedDelimiter,
+          new Range[] {
+          new Range(0, taintedDelimiter.length(), new Source((byte) 1, "key", "value"), NOT_MARKED)
+          });
 
     return new StringJoinBenchmark.Context(
-        iastRequestContext, notTainted, tainted, notTaintedDelimiter, taintedDelimiter);
+        iastRequestContext,
+        notTainted,
+        tainted,
+        notTaintedDelimiter,
+        taintedDelimiter);
   }
 
   @Benchmark
@@ -75,12 +77,13 @@ public class StringJoinBenchmark extends AbstractBenchmark<StringJoinBenchmark.C
   private static String instrumentStringJoin(final String delimiter, final String element) {
     final String result = String.join(delimiter, element, element, element, element, element);
     InstrumentationBridge.STRING.onStringJoin(
-        result, delimiter, new String[] {element, element, element, element, element});
+        result,
+        delimiter,
+        new String[] {element, element, element, element, element});
     return result;
   }
 
   protected static class Context extends AbstractBenchmark.BenchmarkContext {
-
     private final String notTainted;
     private final String tainted;
     private final String taintedDelimiter;

@@ -14,7 +14,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static utils.TestClassFileHelper.getClassFileBytes;
-
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.util.ClassNameFiltering;
 import java.io.ByteArrayOutputStream;
@@ -35,7 +34,6 @@ import org.junit.jupiter.api.condition.DisabledIf;
 import org.mockito.ArgumentCaptor;
 
 class SymbolAggregatorTest {
-
   @Test
   void testScanQueuedJars() {
     SymbolSink symbolSink = mock(SymbolSink.class);
@@ -48,11 +46,12 @@ class SymbolAggregatorTest {
     symbolAggregator.scanQueuedJars(null);
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(symbolAggregator, atLeastOnce())
-        .parseClass(any(), captor.capture(), any(), eq(jarFileUrl.getFile()));
+      .parseClass(any(), captor.capture(), any(), eq(jarFileUrl.getFile()));
     // captor.getAllValues().get(0) is the first argument of the first invocation of parseClass with
     // null
     assertEquals(
-        "com/datadog/debugger/symbol/SymbolExtraction01.class", captor.getAllValues().get(1));
+        "com/datadog/debugger/symbol/SymbolExtraction01.class",
+        captor.getAllValues().get(1));
     assertEquals(
         "BOOT-INF/classes/org/springframework/samples/petclinic/vet/VetController.class",
         captor.getAllValues().get(2));
@@ -78,11 +77,12 @@ class SymbolAggregatorTest {
     // clean jar should have been processed
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(symbolAggregator, atLeastOnce())
-        .parseClass(any(), captor.capture(), any(), eq(jarFileUrl.getFile()));
+      .parseClass(any(), captor.capture(), any(), eq(jarFileUrl.getFile()));
     // captor.getAllValues().get(0) is the first argument of the first invocation of parseClass with
     // null
     assertEquals(
-        "com/datadog/debugger/symbol/SymbolExtraction01.class", captor.getAllValues().get(1));
+        "com/datadog/debugger/symbol/SymbolExtraction01.class",
+        captor.getAllValues().get(1));
     assertEquals(
         "BOOT-INF/classes/org/springframework/samples/petclinic/vet/VetController.class",
         captor.getAllValues().get(2));
@@ -94,14 +94,17 @@ class SymbolAggregatorTest {
     CountingJarFile[] holder = new CountingJarFile[1];
     SymbolAggregator symbolAggregator =
         new SymbolAggregator(ClassNameFiltering.allowAll(), emptyList(), symbolSink, 1) {
-          @Override
-          JarFile openJarFile(File file) throws IOException {
-            return holder[0] = new CountingJarFile(file);
-          }
-        };
+      @Override
+      JarFile openJarFile(File file) throws IOException {
+        return holder[0] = new CountingJarFile(file);
+      }
+    };
     Path jarPath = Paths.get(getClass().getResource("/debugger-symbol.jar").toURI());
     symbolAggregator.scanJar(
-        SymDBReport.NO_OP, jarPath, new ByteArrayOutputStream(8192), new byte[4096]);
+        SymDBReport.NO_OP,
+        jarPath,
+        new ByteArrayOutputStream(8192),
+        new byte[4096]);
     assertTrue(holder[0].opened.get() > 0);
     assertEquals(holder[0].opened.get(), holder[0].closed.get());
   }
@@ -128,28 +131,27 @@ class SymbolAggregatorTest {
   }
 
   @Test
-  @DisabledIf(
-      value = "datadog.environment.JavaVirtualMachine#isJ9",
-      disabledReason = "Flaky on J9 JVMs")
+  @DisabledIf(value = "datadog.environment.JavaVirtualMachine#isJ9", disabledReason = "Flaky on "
+      + "J9 JVMs")
   void testScopeFilter() {
     ScopeFilter mockFilter = mock(ScopeFilter.class);
     when(mockFilter.filterOut(any())).thenReturn(true);
     SymbolSink symbolSink = mock(SymbolSink.class);
-    doAnswer(
-            invocation -> {
-              Object[] args = invocation.getArguments();
-              assertEquals(1, args.length);
-              assertInstanceOf(Scope.class, args[0]);
-              Scope scope = (Scope) args[0];
-              assertTrue(scope.getScopes().isEmpty());
-              return null;
-            })
-        .when(symbolSink)
-        .addScope(any());
+    doAnswer(invocation -> {
+      Object[] args = invocation.getArguments();
+      assertEquals(1, args.length);
+      assertInstanceOf(Scope.class, args[0]);
+      Scope scope = (Scope) args[0];
+      assertTrue(scope.getScopes().isEmpty());
+      return null;
+    }).when(symbolSink).addScope(any());
     SymbolAggregator symbolAggregator =
         new SymbolAggregator(ClassNameFiltering.allowAll(), asList(mockFilter), symbolSink, 1);
     symbolAggregator.parseClass(
-        SymDBReport.NO_OP, String.class.getTypeName(), getClassFileBytes(String.class), null);
+        SymDBReport.NO_OP,
+        String.class.getTypeName(),
+        getClassFileBytes(String.class),
+        null);
     verify(mockFilter).filterOut(any());
   }
 }

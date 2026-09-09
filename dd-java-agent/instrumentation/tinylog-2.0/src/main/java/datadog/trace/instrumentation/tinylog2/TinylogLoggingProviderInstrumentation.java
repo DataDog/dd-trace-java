@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -21,7 +20,8 @@ import org.tinylog.core.LogEntry;
 
 @AutoService(InstrumenterModule.class)
 public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public TinylogLoggingProviderInstrumentation() {
     super("tinylog");
   }
@@ -40,10 +40,10 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPrivate())
-            .and(named("output"))
-            .and(takesArguments(2))
-            .and(takesArgument(0, named("org.tinylog.core.LogEntry"))),
+          .and(isPrivate())
+          .and(named("output"))
+          .and(takesArguments(2))
+          .and(takesArgument(0, named("org.tinylog.core.LogEntry"))),
         TinylogLoggingProviderInstrumentation.class.getName() + "$OutputAdvice");
   }
 
@@ -53,8 +53,9 @@ public class TinylogLoggingProviderInstrumentation extends InstrumenterModule.Tr
       AgentSpan span = activeSpan();
 
       if (span != null && traceConfig(span).isLogsInjectionEnabled()) {
-        InstrumentationContext.get(LogEntry.class, AgentSpanContext.class)
-            .put(event, span.spanContext());
+        InstrumentationContext.get(LogEntry.class, AgentSpanContext.class).put(
+            event,
+            span.spanContext());
       }
     }
   }

@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 
 public class HttpClientRequest extends HttpClientPayload {
-
   private final String url;
   private final String method;
 

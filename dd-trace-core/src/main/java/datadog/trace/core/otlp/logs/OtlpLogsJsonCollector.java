@@ -5,7 +5,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonJson.writeScopeAndSchema;
 import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.RESOURCE_FRAGMENT;
 import static datadog.trace.core.otlp.logs.OtlpLogsJson.writeLogRecordFields;
-
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.logs.data.OtelLogRecordProcessor;
@@ -29,20 +28,18 @@ import java.util.function.ObjIntConsumer;
  * closes it.
  */
 public final class OtlpLogsJsonCollector extends OtlpLogsCollector
-    implements OtlpLogsVisitor, OtlpScopedLogsVisitor {
-
+    implements OtlpLogsVisitor,
+    OtlpScopedLogsVisitor {
   public static final OtlpLogsJsonCollector INSTANCE = new OtlpLogsJsonCollector();
-
   private JsonWriter writer;
   private boolean anyLogRecordWritten;
   private boolean logRecordStarted;
   private int logRecordCount;
-
   private final LazyJsonArray attributesArray = new LazyJsonArray();
-
   private OtelInstrumentationScope currentScope;
 
-  private OtlpLogsJsonCollector() {}
+  private OtlpLogsJsonCollector() {
+  }
 
   /**
    * Collects OpenTelemetry logs and marshals them into a JSON payload.
@@ -64,7 +61,9 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
     }
   }
 
-  /** Prepare temporary elements to collect logs data. */
+  /**
+   * Prepare temporary elements to collect logs data.
+   */
   private void start() {
     logRecordCount = 0;
 
@@ -76,7 +75,9 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
     writer.name("scopeLogs").beginArray();
   }
 
-  /** Cleanup elements used to collect logs data. */
+  /**
+   * Cleanup elements used to collect logs data.
+   */
   private void stop() {
     attributesArray.reset();
 
@@ -122,8 +123,8 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
     attributesArray.closeIfOpen(writer);
 
     writeLogRecordFields(writer, logRecord);
-
-    writer.endObject(); // log record
+    // log record
+    writer.endObject();
 
     logRecordStarted = false;
     anyLogRecordWritten = true;
@@ -143,11 +144,14 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
     if (currentScope != null) {
       completeScope();
     }
-
-    writer.endArray(); // scopeLogs
-    writer.endObject(); // resourceLogs[0]
-    writer.endArray(); // resourceLogs
-    writer.endObject(); // root
+    // scopeLogs
+    writer.endArray();
+    // resourceLogs[0]
+    writer.endObject();
+    // resourceLogs
+    writer.endArray();
+    // root
+    writer.endObject();
 
     if (!anyLogRecordWritten) {
       return OtlpPayload.EMPTY;
@@ -159,9 +163,10 @@ public final class OtlpLogsJsonCollector extends OtlpLogsCollector
 
   // called once we've processed all log records in a specific scope
   private void completeScope() {
-    writer.endArray(); // logRecords
-    writer.endObject(); // scopeLogs[0]
-
+    // logRecords
+    writer.endArray();
+    // scopeLogs[0]
+    writer.endObject();
     // reset temporary elements for next scope
     currentScope = null;
   }

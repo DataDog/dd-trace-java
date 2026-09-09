@@ -16,7 +16,6 @@ import org.springframework.web.servlet.mvc.condition.MediaTypeExpression;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 
 public class RequestMappingInfoIterator implements Iterator<Endpoint> {
-
   private final Map<RequestMappingInfo, HandlerMethod> mappings;
   private final Queue<Endpoint> queue = new LinkedList<>();
   private Iterator<Map.Entry<RequestMappingInfo, HandlerMethod>> iterator;
@@ -65,15 +64,14 @@ public class RequestMappingInfoIterator implements Iterator<Endpoint> {
     for (final String path : nextInfo.getPatternsCondition().getPatterns()) {
       final List<String> methods = Method.parseMethods(nextInfo.getMethodsCondition().getMethods());
       for (final String method : methods) {
-        Endpoint endpoint =
-            new Endpoint()
-                .type(Endpoint.Type.REST)
-                .operation(Endpoint.Operation.HTTP_REQUEST)
-                .resource(method + " " + path)
-                .path(path)
-                .method(method)
-                .requestBodyType(requestBody)
-                .responseBodyType(responseBody);
+        Endpoint endpoint = new Endpoint()
+          .type(Endpoint.Type.REST)
+          .operation(Endpoint.Operation.HTTP_REQUEST)
+          .resource(method + " " + path)
+          .path(path)
+          .method(method)
+          .requestBodyType(requestBody)
+          .responseBodyType(responseBody);
         if (nextHandler != null) {
           final Map<String, String> metadata = new HashMap<>();
           metadata.put("handler", nextHandler.toString());

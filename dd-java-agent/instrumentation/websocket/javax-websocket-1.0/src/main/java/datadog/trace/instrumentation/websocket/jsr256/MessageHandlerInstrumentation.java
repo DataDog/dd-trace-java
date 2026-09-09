@@ -7,7 +7,6 @@ import static datadog.trace.bootstrap.instrumentation.decorator.WebsocketDecorat
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
@@ -21,7 +20,8 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 
 public class MessageHandlerInstrumentation
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   private final String namespace;
 
   public MessageHandlerInstrumentation(String namespace) {
@@ -42,10 +42,11 @@ public class MessageHandlerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
-            .and(named("onMessage"))
-            .and(
-                takesArguments(1) // whole
-                    .or(takesArguments(2).and(takesArgument(1, boolean.class)))), // partial
+          .and(named("onMessage"))
+          // whole
+          .and(takesArguments(1)
+            // partial
+            .or(takesArguments(2).and(takesArgument(1, boolean.class)))),
         getClass().getName() + "$OnMessageAdvice");
   }
 
@@ -56,9 +57,9 @@ public class MessageHandlerInstrumentation
         @Advice.Argument(value = 0, typing = Assigner.Typing.DYNAMIC) final Object data,
         @Advice.Argument(value = 1, optional = true) final Boolean last,
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext) {
-      handlerContext =
-          InstrumentationContext.get(MessageHandler.class, HandlerContext.Receiver.class)
-              .get(handler);
+      handlerContext = InstrumentationContext
+        .get(MessageHandler.class, HandlerContext.Receiver.class)
+        .get(handler);
       if (handlerContext == null) {
         return null;
       }

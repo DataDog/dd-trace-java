@@ -18,10 +18,10 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 public abstract class IOUtils {
-
   private static final int DEFAULT_BUFFER_SIZE = 4096;
 
-  private IOUtils() {}
+  private IOUtils() {
+  }
 
   public static @Nonnull String readFully(InputStream input) throws IOException {
     return readFully(input, Charset.defaultCharset());
@@ -63,22 +63,19 @@ public abstract class IOUtils {
   }
 
   public static void copyFolder(Path src, Path dest) throws IOException {
-    Files.walkFileTree(
-        src,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-              throws IOException {
-            Files.createDirectories(dest.resolve(src.relativize(dir)));
-            return FileVisitResult.CONTINUE;
-          }
+    Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+          throws IOException {
+        Files.createDirectories(dest.resolve(src.relativize(dir)));
+        return FileVisitResult.CONTINUE;
+      }
 
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.copy(file, dest.resolve(src.relativize(file)));
-            return FileVisitResult.CONTINUE;
-          }
-        });
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.copy(file, dest.resolve(src.relativize(file)));
+        return FileVisitResult.CONTINUE;
+      }
+    });
   }
 }

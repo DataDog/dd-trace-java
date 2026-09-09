@@ -5,7 +5,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -17,8 +16,8 @@ import org.apache.kafka.common.record.TimestampType;
 @AutoService(InstrumenterModule.class)
 public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation
     extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public KafkaStreamsSourceNodeRecordDeserializerInstrumentation() {
     super("kafka", "kafka-streams");
   }
@@ -32,33 +31,30 @@ public class KafkaStreamsSourceNodeRecordDeserializerInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(isPublic())
-            .and(named("deserialize"))
-            .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerRecord")))
-            .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecord"))),
-        KafkaStreamsSourceNodeRecordDeserializerInstrumentation.class.getName()
-            + "$SaveHeadersAdvice");
+          .and(isPublic())
+          .and(named("deserialize"))
+          .and(takesArgument(0, named("org.apache.kafka.clients.consumer.ConsumerRecord")))
+          .and(returns(named("org.apache.kafka.clients.consumer.ConsumerRecord"))),
+        KafkaStreamsSourceNodeRecordDeserializerInstrumentation.class.getName() + "$SaveHeadersAdvice");
   }
 
   public static class SaveHeadersAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void saveHeaders(
         @Advice.Argument(0) final ConsumerRecord incoming,
         @Advice.Return(readOnly = false) ConsumerRecord result) {
-      result =
-          new ConsumerRecord<>(
-              result.topic(),
-              result.partition(),
-              result.offset(),
-              result.timestamp(),
-              TimestampType.CREATE_TIME,
-              result.checksum(),
-              result.serializedKeySize(),
-              result.serializedValueSize(),
-              result.key(),
-              result.value(),
-              incoming.headers());
+      result = new ConsumerRecord<>(
+          result.topic(),
+          result.partition(),
+          result.offset(),
+          result.timestamp(),
+          TimestampType.CREATE_TIME,
+          result.checksum(),
+          result.serializedKeySize(),
+          result.serializedValueSize(),
+          result.key(),
+          result.value(),
+          incoming.headers());
     }
   }
 }

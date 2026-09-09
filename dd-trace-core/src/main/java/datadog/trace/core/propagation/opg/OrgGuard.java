@@ -15,8 +15,8 @@ import javax.annotation.Nullable;
  * untouched.
  */
 public final class OrgGuard {
-
-  @Nullable private final OrgGuardEnforcer enforcer;
+  @Nullable
+  private final OrgGuardEnforcer enforcer;
 
   public static OrgGuard create(
       Config config,
@@ -44,18 +44,21 @@ public final class OrgGuard {
         : new OpmStampingInjector(delegate, enforcer.localOpmSupplier());
   }
 
-  /** Reason an extracted Datadog context was dropped by the OPG enforcer. */
+  /**
+   * Reason an extracted Datadog context was dropped by the OPG enforcer.
+   */
   public enum Reason {
     MISMATCH("mismatch"),
     STRICT_MISSING("strict_missing");
-
     private final String tag;
 
     Reason(String tag) {
       this.tag = tag;
     }
 
-    /** Statsd tag value for the {@code reason} dimension on {@code org_guard.enforce} metrics. */
+    /**
+     * Statsd tag value for the {@code reason} dimension on {@code org_guard.enforce} metrics.
+     */
     public String tag() {
       return tag;
     }

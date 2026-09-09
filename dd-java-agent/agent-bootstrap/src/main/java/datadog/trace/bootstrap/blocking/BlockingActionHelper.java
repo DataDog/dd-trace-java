@@ -3,7 +3,6 @@ package datadog.trace.bootstrap.blocking;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static java.lang.ClassLoader.getSystemClassLoader;
-
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -21,13 +20,11 @@ import org.slf4j.LoggerFactory;
 
 public class BlockingActionHelper {
   private static final Logger log = LoggerFactory.getLogger(BlockingActionHelper.class);
-
   private static final int DEFAULT_HTTP_CODE = 403;
-  private static final int MAX_ALLOWED_TEMPLATE_SIZE = 1024 * 500; // 500 kiB
-
+  // 500 kiB
+  private static final int MAX_ALLOWED_TEMPLATE_SIZE = 1024 * 500;
   private static volatile byte[] TEMPLATE_HTML;
   private static volatile byte[] TEMPLATE_JSON;
-
   public static final String CONTENT_TYPE_HTML = "text/html;charset=utf-8";
   public static final String CONTENT_TYPE_JSON = "application/json";
 
@@ -52,14 +49,14 @@ public class BlockingActionHelper {
     ASTERISK,
     PARTIAL,
     FULL;
-
     public boolean isMoreSpecificThan(Specificity other) {
       return ordinal() > other.ordinal();
     }
   }
 
   public static TemplateType determineTemplateType(
-      BlockingContentType blockingContentType, String acceptHeader) {
+      BlockingContentType blockingContentType,
+      String acceptHeader) {
     if (blockingContentType == BlockingContentType.HTML) {
       return TemplateType.HTML;
     }
@@ -132,7 +129,6 @@ public class BlockingActionHelper {
     } else {
       return null;
     }
-
     // Use empty string when securityResponseId is not present
     String replacementValue =
         (securityResponseId == null || securityResponseId.isEmpty()) ? "" : securityResponseId;
@@ -151,13 +147,10 @@ public class BlockingActionHelper {
     return null;
   }
 
-  private static final Pattern MEDIA_TYPE_PATTERN =
-      Pattern.compile(
-          "(?x)^[\\ \\t]* ( [!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+/[!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+ )");
-
-  private static final Pattern QUALITY_PATTERN =
-      Pattern.compile(
-          "(?x);[\\ \\t]* q=( (?:0(?:\\.\\d{0,3})?) | (?:1(?:\\.0{0,3})?) )  (?:$|,|;|[\\ \\t])");
+  private static final Pattern MEDIA_TYPE_PATTERN = Pattern.compile(
+      "(?x)^[\\ \\t]* ( [!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+/[!\\#$%&'*+\\-.^_`|~\\da-zA-Z]+ )");
+  private static final Pattern QUALITY_PATTERN = Pattern.compile(
+      "(?x);[\\ \\t]* q=( (?:0(?:\\.\\d{0,3})?) | (?:1(?:\\.0{0,3})?) )  (?:$|,|;|[\\ \\t])");
 
   private static String nextMediaRange(String s, int[] pos, float[] quality) {
     int initPos = pos[0];
@@ -170,12 +163,14 @@ public class BlockingActionHelper {
     if (endCommaSep == -1) {
       endCommaSep = s.length();
     }
-    pos[0] = endCommaSep + 1; // pos for next iter
+    // pos for next iter
+    pos[0] = endCommaSep + 1;
 
     String commaSepToken = s.substring(initPos, endCommaSep);
     Matcher mediaRangeMatcher = MEDIA_TYPE_PATTERN.matcher(commaSepToken);
     if (!mediaRangeMatcher.find()) {
-      return null; // error / trailing comma
+      // error / trailing comma
+      return null;
     }
 
     Matcher qualityMatcher = QUALITY_PATTERN.matcher(commaSepToken);
@@ -229,7 +224,7 @@ public class BlockingActionHelper {
   private static byte[] readDefaultTemplate(String ext) {
     try (InputStream is =
         getSystemClassLoader()
-            .getResourceAsStream("datadog/trace/bootstrap/blocking/template." + ext)) {
+      .getResourceAsStream("datadog/trace/bootstrap/blocking/template." + ext)) {
       if (is == null) {
         log.error("Could not open default {} template", ext);
         return new byte[] {'e', 'r', 'r', 'o', 'r'};

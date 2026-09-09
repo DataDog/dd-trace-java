@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage.newHistogramStorage;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
@@ -56,11 +55,22 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
   }
 
   static final class Builder implements DoubleHistogramBuilder {
-    private static final List<Double> DEFAULT_BOUNDARIES =
-        asList(
-            0d, 5d, 10d, 25d, 50d, 75d, 100d, 250d, 500d, 750d, 1_000d, 2_500d, 5_000d, 7_500d,
-            10_000d);
-
+    private static final List<Double> DEFAULT_BOUNDARIES = asList(
+        0d,
+        5d,
+        10d,
+        25d,
+        50d,
+        75d,
+        100d,
+        250d,
+        500d,
+        750d,
+        1_000d,
+        2_500d,
+        5_000d,
+        7_500d,
+        10_000d);
     private final OtelMeter meter;
     private final OtelInstrumentBuilder builder;
     private List<Double> bucketBoundaries;
@@ -84,7 +94,8 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
     }
 
     @Override
-    @SuppressFBWarnings("DCN") // match OTel in catching and logging NPE
+    // match OTel in catching and logging NPE
+    @SuppressFBWarnings("DCN")
     public DoubleHistogramBuilder setExplicitBucketBoundariesAdvice(List<Double> bucketBoundaries) {
       try {
         Objects.requireNonNull(bucketBoundaries, "bucketBoundaries must not be null");
@@ -102,9 +113,9 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
 
     @Override
     public DoubleHistogram build() {
-      return new OtelDoubleHistogram(
-          meter.registerStorage(
-              builder, descriptor -> newHistogramStorage(descriptor, bucketBoundaries)));
+      return new OtelDoubleHistogram(meter.registerStorage(builder, descriptor -> newHistogramStorage(
+          descriptor,
+          bucketBoundaries)));
     }
 
     static List<Double> validateBoundaries(List<Double> boundaries) {
@@ -124,10 +135,7 @@ final class OtelDoubleHistogram extends OtelInstrument implements DoubleHistogra
         }
         if (previousBoundary != null && previousBoundary >= boundary) {
           throw new IllegalArgumentException(
-              "Bucket boundaries must be in increasing order: "
-                  + previousBoundary
-                  + " >= "
-                  + boundary);
+              "Bucket boundaries must be in increasing order: " + previousBoundary + " >= " + boundary);
         }
         previousBoundary = boundary;
       }

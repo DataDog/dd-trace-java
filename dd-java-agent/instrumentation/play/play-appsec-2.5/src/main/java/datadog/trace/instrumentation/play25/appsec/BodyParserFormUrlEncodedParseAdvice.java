@@ -12,7 +12,8 @@ import play.mvc.Http;
 public class BodyParserFormUrlEncodedParseAdvice {
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after(
-      @Advice.Return Map<String, String[]> ret, @Advice.Thrown(readOnly = false) Throwable t) {
+      @Advice.Return Map<String, String[]> ret,
+      @Advice.Thrown(readOnly = false) Throwable t) {
     if (t != null) {
       return;
     }

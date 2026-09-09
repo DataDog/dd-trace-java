@@ -10,7 +10,6 @@ import static datadog.trace.instrumentation.servlet.filter.FilterDecorator.JAVA_
 import static datadog.trace.instrumentation.servlet.filter.FilterDecorator.SERVLET_FILTER;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -23,7 +22,8 @@ import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
 public final class FilterInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForTypeHierarchy,
+    Instrumenter.HasMethodAdvice {
   public FilterInstrumentation() {
     super("servlet-filter");
   }
@@ -45,23 +45,20 @@ public final class FilterInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".FilterDecorator",
-    };
+    return new String[] {packageName + ".FilterDecorator"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("doFilter")
-            .and(takesArgument(0, named("javax.servlet.ServletRequest")))
-            .and(takesArgument(1, named("javax.servlet.ServletResponse")))
-            .and(isPublic()),
+          .and(takesArgument(0, named("javax.servlet.ServletRequest")))
+          .and(takesArgument(1, named("javax.servlet.ServletResponse")))
+          .and(isPublic()),
         getClass().getName() + "$FilterAdvice");
   }
 
   public static class FilterAdvice {
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(@Advice.This final Filter filter) {
       if (activeSpan() == null) {
@@ -71,7 +68,6 @@ public final class FilterInstrumentation extends InstrumenterModule.Tracing
 
       final AgentSpan span = startSpan(JAVA_WEB_SERVLET_FILTER.toString(), SERVLET_FILTER);
       DECORATE.afterStart(span);
-
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.
       span.setResourceName(DECORATE.spanNameForMethod(filter.getClass(), "doFilter"));
 
@@ -80,7 +76,8 @@ public final class FilterInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentScope scope,
+        @Advice.Thrown final Throwable throwable) {
       if (scope == null) {
         return;
       }

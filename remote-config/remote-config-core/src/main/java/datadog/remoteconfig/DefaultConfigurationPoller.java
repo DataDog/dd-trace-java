@@ -2,7 +2,6 @@ package datadog.remoteconfig;
 
 import static datadog.remoteconfig.ConfigurationChangesTypedListener.Builder.useDeserializer;
 import static datadog.remoteconfig.PollingHinterNoop.NOOP;
-
 import cafe.cryptography.curve25519.InvalidEncodingException;
 import cafe.cryptography.ed25519.Ed25519PublicKey;
 import cafe.cryptography.ed25519.Ed25519Signature;
@@ -53,14 +52,15 @@ import okio.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Handles polling debugger configuration from datadog agent/Remote Configuration */
+/**
+ * Handles polling debugger configuration from datadog agent/Remote Configuration
+ */
 public class DefaultConfigurationPoller
     implements ConfigurationPoller,
-        PollingRateHinter,
-        AgentTaskScheduler.Target<ConfigurationPoller> {
+    PollingRateHinter,
+    AgentTaskScheduler.Target<ConfigurationPoller> {
   private static final Logger log = LoggerFactory.getLogger(ConfigurationPoller.class);
   private static final int MINUTES_BETWEEN_ERROR_LOG = 5;
-
   private final String keyId;
   private final Ed25519PublicKey key;
   private final Config config;
@@ -73,11 +73,9 @@ public class DefaultConfigurationPoller
   private final PollerScheduler scheduler;
   private final long maxPayloadSize;
   private final boolean integrityChecks;
-
   private final Map<Product, ProductState> productStates = new EnumMap<>(Product.class);
   private final Map<File, ConfigurationChangesListener> fileListeners = new HashMap<>();
   private final List<ConfigurationEndListener> configurationEndListeners = new ArrayList<>();
-
   private final ClientState nextClientState = new ClientState();
   private final AtomicInteger startCount = new AtomicInteger(0);
   private long capabilities;
@@ -127,8 +125,7 @@ public class DefaultConfigurationPoller
 
     this.scheduler = new PollerScheduler(config, this, taskScheduler);
     log.debug("Started remote config poller every {} ms", scheduler.getInitialPollInterval());
-    this.ratelimitedLogger =
-        new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
+    this.ratelimitedLogger = new RatelimitedLogger(log, MINUTES_BETWEEN_ERROR_LOG, TimeUnit.MINUTES);
     this.maxPayloadSize = config.getRemoteConfigMaxPayloadSizeBytes();
     this.integrityChecks = config.isRemoteConfigIntegrityCheckEnabled();
     this.httpClient = httpClient;
@@ -136,7 +133,8 @@ public class DefaultConfigurationPoller
 
   @Override
   public synchronized void addListener(
-      Product product, ConfigurationChangesListener configurationChangesListener) {
+      Product product,
+      ConfigurationChangesListener configurationChangesListener) {
     this.addListener(product, new SimpleProductListener(configurationChangesListener));
   }
 
@@ -156,8 +154,7 @@ public class DefaultConfigurationPoller
   }
 
   @Override
-  public synchronized void addListener(
-      Product product, String configKey, ProductListener listener) {
+  public synchronized void addListener(Product product, String configKey, ProductListener listener) {
     ProductState productState =
         this.productStates.computeIfAbsent(product, p -> new ProductState(product));
     productState.addProductListener(configKey, listener);
@@ -170,7 +167,9 @@ public class DefaultConfigurationPoller
       ConfigurationDeserializer<T> deserializer,
       ConfigurationChangesTypedListener<T> listener) {
     this.addListener(
-        product, configKey, new SimpleProductListener(useDeserializer(deserializer, listener)));
+        product,
+        configKey,
+        new SimpleProductListener(useDeserializer(deserializer, listener)));
   }
 
   @Override
@@ -232,7 +231,6 @@ public class DefaultConfigurationPoller
     }
 
     if (!this.productStates.isEmpty()) {
-
       if (!initialize()) {
         // Do not log anything before initialization to avoid excessive verboseness when remote
         // config is disabled in the agent. The urlSupplier will log failed attempts whenever it
@@ -254,7 +252,9 @@ public class DefaultConfigurationPoller
     }
   }
 
-  /** Tries to initialize remote config, and returns true if it is ready to run. */
+  /**
+   * Tries to initialize remote config, and returns true if it is ready to run.
+   */
   private boolean initialize() {
     if (fatalOnInitialization) {
       return false;
@@ -272,14 +272,18 @@ public class DefaultConfigurationPoller
     try {
       // Initialization of these is delayed until the remote config URL is available.
       // See #initialize().
-      Moshi moshi =
-          new Moshi.Builder()
-              .add(Instant.class, new InstantJsonAdapter())
-              .add(ByteString.class, new RawJsonAdapter())
-              .build();
+      Moshi moshi = new Moshi.Builder()
+        .add(Instant.class, new InstantJsonAdapter())
+        .add(ByteString.class, new RawJsonAdapter())
+        .build();
       this.responseFactory = new RemoteConfigResponse.Factory(moshi);
-      this.requestFactory =
-          new PollerRequestFactory(config, tracerVersion, containerId, entityId, url, moshi);
+      this.requestFactory = new PollerRequestFactory(
+          config,
+          tracerVersion,
+          containerId,
+          entityId,
+          url,
+          moshi);
     } catch (Exception e) {
       // We can't recover from this, so we'll not try to initialize again.
       fatalOnInitialization = true;
@@ -289,12 +293,11 @@ public class DefaultConfigurationPoller
   }
 
   private Response fetchConfiguration() throws IOException {
-    Request request =
-        this.requestFactory.newConfigurationRequest(
-            getSubscribedProductNames(),
-            this.nextClientState,
-            getCachedTargetFiles(),
-            capabilities);
+    Request request = this.requestFactory.newConfigurationRequest(
+        getSubscribedProductNames(),
+        this.nextClientState,
+        getCachedTargetFiles(),
+        capabilities);
     if (request == null) {
       throw new IOException("Endpoint has not been discovered yet");
     }
@@ -354,7 +357,10 @@ public class DefaultConfigurationPoller
               body.string());
         } catch (IOException ex) {
           ExceptionHelper.rateLimitedLogException(
-              ratelimitedLogger, log, ex, "Error while getting error message body");
+              ratelimitedLogger,
+              log,
+              ex,
+              "Error while getting error message body");
         }
       } else {
         ratelimitedLogger.warn(
@@ -392,7 +398,8 @@ public class DefaultConfigurationPoller
 
     if (log.isDebugEnabled() && fleetResponse.getTargetsSigned() != null) {
       log.debug(
-          "Got configuration with targets version {}", fleetResponse.getTargetsSigned().version);
+          "Got configuration with targets version {}",
+          fleetResponse.getTargetsSigned().version);
     }
 
     try {
@@ -416,12 +423,14 @@ public class DefaultConfigurationPoller
         if (!(productStates.containsKey(product))) {
           throw new ReportableException(
               "Told to handle config key "
-                  + configKey
-                  + ", but the product "
-                  + parsedConfigKey.getProductName()
-                  + " is not being handled");
+              + configKey
+              + ", but the product "
+              + parsedConfigKey.getProductName()
+              + " is not being handled");
         }
-        parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
+        parsedKeysByProduct
+          .computeIfAbsent(product, k -> new ArrayList<>())
+          .add(parsedConfigKey);
       } catch (ReportableException e) {
         errors.add(e);
       }
@@ -451,7 +460,8 @@ public class DefaultConfigurationPoller
   }
 
   private void runConfigurationEndListener(
-      ConfigurationEndListener listener, List<ReportableException> errors) {
+      ConfigurationEndListener listener,
+      List<ReportableException> errors) {
     try {
       listener.onConfigurationEnd();
     } catch (ReportableException re) {
@@ -461,7 +471,10 @@ public class DefaultConfigurationPoller
       // This is because errors are scoped to a specific config key and this listener
       // is about combining configuration from different products
       ratelimitedLogger.warn(
-          "Error running configuration listener {}: {}", listener, rte.getMessage(), rte);
+          "Error running configuration listener {}: {}",
+          listener,
+          rte.getMessage(),
+          rte);
     }
   }
 
@@ -473,8 +486,9 @@ public class DefaultConfigurationPoller
       return errors.get(0).getMessage();
     }
     StringBuilder aggregateMessage = new StringBuilder();
-    aggregateMessage.append(
-        String.format("Failed to apply configuration due to %d errors:%n", errors.size()));
+    aggregateMessage.append(String.format(
+        "Failed to apply configuration due to %d errors:%n",
+        errors.size()));
     for (int i = 0; i < errors.size(); i++) {
       aggregateMessage.append(String.format(" (%d) %s%n", i + 1, errors.get(i).getMessage()));
     }
@@ -491,13 +505,14 @@ public class DefaultConfigurationPoller
     RemoteConfigResponse.Targets.TargetsSigned targetsSigned = fleetResponse.getTargetsSigned();
 
     long newTargetsVersion = targetsSigned.version;
-    this.nextClientState.setState(
-        // if there was an error, we did not apply the configurations fully
-        // the system tests expect here the targets version not to be updated
-        error == null ? newTargetsVersion : this.nextClientState.targetsVersion,
-        getConfigState(),
-        error,
-        targetsSigned.custom != null ? targetsSigned.custom.opaqueBackendState : null);
+    this.nextClientState
+      .setState(
+          // if there was an error, we did not apply the configurations fully
+          // the system tests expect here the targets version not to be updated
+          error == null ? newTargetsVersion : this.nextClientState.targetsVersion,
+          getConfigState(),
+          error,
+          targetsSigned.custom != null ? targetsSigned.custom.opaqueBackendState : null);
   }
 
   private void rescheduleBaseOnConfiguration(Duration hint) {
@@ -528,11 +543,17 @@ public class DefaultConfigurationPoller
         log.debug("Loaded configuration from file {}", file);
       } catch (Exception ex) {
         ratelimitedLogger.warn(
-            "Failed reading or applying configuration from {}: {}", file, ex.getMessage());
+            "Failed reading or applying configuration from {}: {}",
+            file,
+            ex.getMessage());
       }
     } catch (IOException | RuntimeException ex) {
       ExceptionHelper.rateLimitedLogException(
-          ratelimitedLogger, log, ex, "Unable to load config file: {}.", file);
+          ratelimitedLogger,
+          log,
+          ex,
+          "Unable to load config file: {}.",
+          file);
     }
   }
 
@@ -563,7 +584,8 @@ public class DefaultConfigurationPoller
       }
     } catch (RuntimeException rte) {
       throw new ReportableException(
-          "Error reading signature or canonicalizing targets.signed: " + rte.getMessage(), rte);
+          "Error reading signature or canonicalizing targets.signed: " + rte.getMessage(),
+          rte);
     }
     boolean valid = this.key.verify(canonicalTargetsSigned, sig);
     if (!valid) {

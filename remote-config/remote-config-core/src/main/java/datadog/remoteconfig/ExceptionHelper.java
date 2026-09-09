@@ -4,7 +4,9 @@ import datadog.logging.RatelimitedLogger;
 import java.util.Arrays;
 import org.slf4j.Logger;
 
-/** Helper class for rate limiting & logging exceptions */
+/**
+ * Helper class for rate limiting & logging exceptions
+ */
 public class ExceptionHelper {
   private static final Object[] EMPTY_ARRAY = new Object[0];
 

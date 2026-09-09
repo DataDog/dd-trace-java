@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.scala.concurrent;
 
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE_FUTURE;
 import static java.util.Collections.singletonMap;
-
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +16,6 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public final class ScalaConcurrentModule extends InstrumenterModule.ContextTracking
     implements ExcludeFilterProvider {
-
   public ScalaConcurrentModule() {
     super("java_concurrent", "scala_concurrent");
   }
@@ -40,6 +38,7 @@ public final class ScalaConcurrentModule extends InstrumenterModule.ContextTrack
   @Override
   public List<Instrumenter> typeInstrumentations() {
     return Arrays.asList(
-        new ScalaForkJoinTaskInstrumentation(), new ScalaForkJoinPoolInstrumentation());
+        new ScalaForkJoinTaskInstrumentation(),
+        new ScalaForkJoinPoolInstrumentation());
   }
 }

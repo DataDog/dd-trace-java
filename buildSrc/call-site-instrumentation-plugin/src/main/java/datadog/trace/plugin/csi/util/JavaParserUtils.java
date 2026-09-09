@@ -8,8 +8,8 @@ import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
 
 public abstract class JavaParserUtils {
-
-  private JavaParserUtils() {}
+  private JavaParserUtils() {
+  }
 
   public static Expression intLiteral(final int value) {
     return new IntegerLiteralExpr().setValue(Integer.toString(value));
@@ -21,14 +21,17 @@ public abstract class JavaParserUtils {
 
   public static ClassOrInterfaceDeclaration getPrimaryType(final CompilationUnit javaClass) {
     return javaClass
-        .getPrimaryType()
-        .orElseGet(() -> javaClass.getTypes().get(0))
-        .asClassOrInterfaceDeclaration();
+      .getPrimaryType()
+      .orElseGet(() -> javaClass.getTypes().get(0))
+      .asClassOrInterfaceDeclaration();
   }
 
   public static boolean implementsInterface(
-      final ClassOrInterfaceDeclaration type, final String interfaceName) {
-    return type.getImplementedTypes().stream()
-        .anyMatch(it -> it.getNameAsString().equals(interfaceName));
+      final ClassOrInterfaceDeclaration type,
+      final String interfaceName) {
+    return type
+      .getImplementedTypes()
+      .stream()
+      .anyMatch(it -> it.getNameAsString().equals(interfaceName));
   }
 }

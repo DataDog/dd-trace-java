@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class LanguageDetector {
-
   private static final Logger log = LoggerFactory.getLogger(LanguageDetector.class);
 
   @Nullable
@@ -48,7 +47,6 @@ class LanguageDetector {
     } catch (IOException e) {
       log.debug("Error while trying to read filename from class {}", clazz.getName(), e);
     }
-
     // assuming Java
     return Language.JAVA;
   }

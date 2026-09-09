@@ -21,16 +21,13 @@ import org.tabletest.junit.TableTest;
  * injected into the Gradle Daemon.
  */
 class GradleLauncherSmokeTest extends AbstractGradleTest {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GradleLauncherSmokeTest.class);
-
   private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000;
   private static final int GRADLE_STOP_TIMEOUT_MILLIS = 30_000;
   private static final int GRADLE_WRAPPER_RETRIES = 3;
-
   private static final String JAVA_HOME = buildJavaHome();
-
-  @TempDir static Path gradleUserHome;
+  @TempDir
+  static Path gradleUserHome;
 
   @TableTest({
     "scenario                 | gradleVersion | gradleDaemonCmdLineParams         ",
@@ -45,20 +42,22 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   })
   @ParameterizedTest
   void testGradleLauncherInjectsTracerIntoGradleDaemon(
-      String gradleVersion, String gradleDaemonCmdLineParams) throws Exception {
+      String gradleVersion,
+      String gradleDaemonCmdLineParams) throws Exception {
     String resolvedGradleVersion =
         "latest".equals(gradleVersion) ? LATEST_GRADLE_VERSION : gradleVersion;
-    String cmdLineParams =
-        (gradleDaemonCmdLineParams == null || gradleDaemonCmdLineParams.isEmpty())
-            ? null
-            : gradleDaemonCmdLineParams;
+    String cmdLineParams = (gradleDaemonCmdLineParams == null
+        || gradleDaemonCmdLineParams.isEmpty())
+        ? null
+        : gradleDaemonCmdLineParams;
 
     givenGradleVersionIsCompatibleWithCurrentJvm(resolvedGradleVersion);
     Map<String, Map<String, String>> replacements = new HashMap<>();
     Map<String, String> versionMap = new HashMap<>();
     versionMap.put("gradle-version", resolvedGradleVersion);
     versionMap.put(
-        "gradle-distribution-url", GradleDistribution.uriPropertiesValueFor(resolvedGradleVersion));
+        "gradle-distribution-url",
+        GradleDistribution.uriPropertiesValueFor(resolvedGradleVersion));
     replacements.put("gradle-wrapper.properties", versionMap);
     givenGradleProjectFiles("test-gradle-wrapper", replacements);
     // we want to check that instrumentation works with different wrapper versions too
@@ -124,12 +123,17 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     for (int attempt = 0; attempt < GRADLE_WRAPPER_RETRIES; attempt++) {
       try {
         shellCommandExecutor.executeCommand(
-            IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion);
+            IOUtils::readFully,
+            "./gradlew",
+            "wrapper",
+            "--gradle-version",
+            gradleVersion);
         GradleDistribution.rewriteWrapperDistributionUrl(projectFolder, gradleVersion);
         return;
       } catch (ShellCommandExecutor.ShellCommandFailedException e) {
         LOGGER.warn("Failed gradle wrapper resolution with exception: ", e);
-        Thread.sleep(2000); // small delay for rapid retries on network issues
+        // small delay for rapid retries on network issues
+        Thread.sleep(2000);
       }
     }
     throw new AssertionError(
@@ -162,8 +166,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     }
 
     try {
-      return shellCommandExecutor.executeCommand(
-          IOUtils::readFully, command.toArray(new String[0]));
+      return shellCommandExecutor.executeCommand(IOUtils::readFully, command.toArray(new String[0]));
     } catch (Exception e) {
       System.out.println("==============================================================");
       System.out.println("Gradle Launcher execution failed with exception:\n " + e.getMessage());

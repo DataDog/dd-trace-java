@@ -8,10 +8,11 @@ import datadog.trace.util.Strings;
 import java.util.List;
 
 public class MessageWriter implements ValueWriter<AIGuard.Message> {
-
   @Override
   public void write(
-      final AIGuard.Message value, final Writable writable, final EncodingCache encodingCache) {
+      final AIGuard.Message value,
+      final Writable writable,
+      final EncodingCache encodingCache) {
     final int[] size = {0};
     final boolean hasRole = isNotBlank(value.getRole(), size);
     final boolean hasToolCallId = isNotBlank(value.getToolCallId(), size);

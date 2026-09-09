@@ -11,12 +11,13 @@ import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import java.time.Duration;
 
-/** Serializes snapshots in Json using Moshi */
+/**
+ * Serializes snapshots in Json using Moshi
+ */
 public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
-  private static final JsonAdapter<IntakeRequest> ADAPTER =
-      MoshiHelper.createMoshiSnapshot(
-              Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout()))
-          .adapter(IntakeRequest.class);
+  private static final JsonAdapter<IntakeRequest> ADAPTER = MoshiHelper
+    .createMoshiSnapshot(Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout()))
+    .adapter(IntakeRequest.class);
   private static final JsonAdapter<CapturedContext.CapturedValue> VALUE_ADAPTER =
       new MoshiSnapshotHelper.CapturedValueAdapter();
 
@@ -56,34 +57,23 @@ public class JsonSnapshotSerializer implements DebuggerContext.ValueSerializer {
     private final String ddsource = "dd_debugger";
     private final String message;
     private final String type = "snapshot";
-
     private final String ddtags;
-
     @Json(name = "process_tags")
     private final String processTags;
-
     @Json(name = "dd.trace_id")
     private String traceId;
-
     @Json(name = "dd.span_id")
     private String spanId;
-
     private long duration;
-
     private long timestamp;
-
     @Json(name = "logger.name")
     private String loggerName;
-
     @Json(name = "logger.method")
     private String loggerMethod;
-
     @Json(name = "logger.version")
     private int loggerVersion;
-
     @Json(name = "logger.thread_id")
     private long loggerThreadId;
-
     @Json(name = "logger.thread_name")
     private String loggerThreadName;
 

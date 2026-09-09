@@ -1,7 +1,6 @@
 package datadog.communication;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import datadog.communication.http.HttpRetryPolicy;
 import java.io.IOException;
 import okhttp3.MediaType;
@@ -15,9 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class IntakeApiTest {
-
   private static final MediaType JSON = MediaType.parse("application/json");
-
   private MockWebServer server;
   private OkHttpClient client;
 
@@ -47,14 +44,13 @@ class IntakeApiTest {
 
   private String postAndReadAcceptEncoding(final boolean responseCompression) throws Exception {
     server.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
-    final IntakeApi api =
-        new IntakeApi(
-            server.url("/api/v2/"),
-            "api-key",
-            "123",
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            client,
-            responseCompression);
+    final IntakeApi api = new IntakeApi(
+        server.url("/api/v2/"),
+        "api-key",
+        "123",
+        HttpRetryPolicy.Factory.NEVER_RETRY,
+        client,
+        responseCompression);
 
     api.post("flagevaluation", RequestBody.create(JSON, "{}"), responseBody -> null, null, false);
 

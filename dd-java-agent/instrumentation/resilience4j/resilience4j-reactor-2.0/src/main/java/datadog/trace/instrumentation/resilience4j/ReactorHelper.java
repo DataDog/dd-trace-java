@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.resilience4j;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -18,7 +17,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
 
 public class ReactorHelper {
-
   private static final Logger log = LoggerFactory.getLogger(ReactorHelper.class);
 
   // These build the hand-off BiConsumer here rather than in @Advice code on purpose: a lambda
@@ -71,7 +69,6 @@ public class ReactorHelper {
       spanDecorator.afterStart(current);
     }
     spanDecorator.decorate(current, data);
-
     // This schedules a span to be finished when the publisher finishes to be non-zero
     Publisher<?> newResult = scheduleOwnedSpanFinish(publisher, spanDecorator, owned);
     if (newResult instanceof Scannable) {
@@ -89,7 +86,9 @@ public class ReactorHelper {
   }
 
   private static <T> Publisher<?> scheduleOwnedSpanFinish(
-      Publisher<?> publisher, Resilience4jSpanDecorator<T> spanDecorator, AgentSpan owned) {
+      Publisher<?> publisher,
+      Resilience4jSpanDecorator<T> spanDecorator,
+      AgentSpan owned) {
     if (owned == null) {
       return publisher;
     }
@@ -107,7 +106,8 @@ public class ReactorHelper {
   }
 
   private static <T> Consumer<SignalType> beforeFinish(
-      Resilience4jSpanDecorator<T> spanDecorator, AgentSpan span) {
+      Resilience4jSpanDecorator<T> spanDecorator,
+      AgentSpan span) {
     return signalType -> {
       spanDecorator.beforeFinish(span);
       span.finish();

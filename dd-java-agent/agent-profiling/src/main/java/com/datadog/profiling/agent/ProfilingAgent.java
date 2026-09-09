@@ -11,7 +11,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIR
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.AgentThreadFactory.AGENT_THREAD_GROUP;
-
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
 import com.datadog.profiling.controller.ControllerContext;
@@ -45,14 +44,13 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Profiling agent implementation */
+/**
+ * Profiling agent implementation
+ */
 public class ProfilingAgent {
-
   private static final Logger log = LoggerFactory.getLogger(ProfilingAgent.class);
-
   private static final Predicate<String> API_KEY_REGEX =
       Pattern.compile("^[0-9a-fA-F]{32}$").asPredicate();
-
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
 
@@ -96,25 +94,24 @@ public class ProfilingAgent {
    * Main entry point into profiling Note: this must be reentrant because we may want to start
    * profiling before any other tool, and then attempt to start it again at normal time
    */
-  @SuppressFBWarnings(
-      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
-      justification =
-          "Agent-internal class; Class object does not escape to app code and lock only guards reentrant one-time profiler startup.")
+  @SuppressFBWarnings(value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION", justification = "Agent-"
+      + "internal class; Class object does not escape to app code and lock only guards "
+      + "reentrant one-time profiler startup.")
   public static synchronized boolean run(final boolean earlyStart, Instrumentation inst)
-      throws IllegalArgumentException, IOException {
+      throws IllegalArgumentException,
+      IOException {
     if (profiler == null) {
       final Config config = Config.get();
       final ConfigProvider configProvider = ConfigProvider.getInstance();
-
       // Register the profiler flare before we start the profiling system, but early during the
       // profiler lifecycle
       ProfilerFlareReporter.register();
       ProcessContext.register(configProvider);
 
-      boolean startForceFirst =
-          Platform.isNativeImage()
-              || configProvider.getBoolean(
-                  PROFILING_START_FORCE_FIRST, PROFILING_START_FORCE_FIRST_DEFAULT);
+      boolean startForceFirst = Platform.isNativeImage()
+          || configProvider.getBoolean(
+              PROFILING_START_FORCE_FIRST,
+              PROFILING_START_FORCE_FIRST_DEFAULT);
 
       if (!isStartForceFirstSafe()) {
         log.debug(
@@ -133,7 +130,8 @@ public class ProfilingAgent {
       }
       if (config.getApiKey() != null && !API_KEY_REGEX.test(config.getApiKey())) {
         log.info(
-            "Profiling: API key doesn't match expected format, expected to get a 32 character hex string. Profiling is disabled.");
+            "Profiling: API key doesn't match expected format, expected to get a 32 character "
+            + "hex string. Profiling is disabled.");
         return false;
       }
 
@@ -151,11 +149,10 @@ public class ProfilingAgent {
         RecordingDataListener listener = uploader::upload;
         if (dumper != null) {
           RecordingDataListener upload = listener;
-          listener =
-              (type, data, sync) -> {
-                dumper.onNewData(type, data, sync);
-                upload.onNewData(type, data, sync);
-              };
+          listener = (type, data, sync) -> {
+            dumper.onNewData(type, data, sync);
+            upload.onNewData(type, data, sync);
+          };
         }
         // Scrubber wraps the combined dumper+uploader so debug dumps also contain scrubbed data
         // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable — skip it to avoid
@@ -166,27 +163,26 @@ public class ProfilingAgent {
               configProvider.getList(ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS);
           boolean failOpen =
               configProvider.getBoolean(
-                  PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
+                  PROFILING_SCRUB_FAIL_OPEN,
+                  PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
           listener = wrapWithScrubber(listener, excludeEventTypes, failOpen);
         }
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
-
         // Randomize startup delay for up to one upload period. Consider having separate setting for
         // this in the future
         final Duration startupDelayRandomRange = uploadPeriod;
 
-        profiler =
-            new ProfilingSystem(
-                configProvider,
-                controller,
-                context.snapshot(),
-                listener,
-                startupDelay,
-                startupDelayRandomRange,
-                uploadPeriod,
-                startForceFirst);
+        profiler = new ProfilingSystem(
+            configProvider,
+            controller,
+            context.snapshot(),
+            listener,
+            startupDelay,
+            startupDelayRandomRange,
+            uploadPeriod,
+            startForceFirst);
         profiler.start();
         log.debug("Profiling has started");
 
@@ -210,7 +206,9 @@ public class ProfilingAgent {
   }
 
   private static RecordingDataListener wrapWithScrubber(
-      RecordingDataListener listener, List<String> excludeEventTypes, boolean failOpen) {
+      RecordingDataListener listener,
+      List<String> excludeEventTypes,
+      boolean failOpen) {
     try {
       return ScrubRecordingDataListener.wrap(listener, excludeEventTypes, failOpen);
     } catch (Exception e) {
@@ -235,8 +233,7 @@ public class ProfilingAgent {
 
   private static final AtomicBoolean shutDownFlag = new AtomicBoolean();
 
-  private static void shutdown(
-      ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
+  private static void shutdown(ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
     if (shutDownFlag.compareAndSet(false, true)) {
       if (profiler != null) {
         profiler.shutdown(snapshot);
@@ -249,7 +246,6 @@ public class ProfilingAgent {
   }
 
   private static class ShutdownHook extends Thread {
-
     private final WeakReference<ProfilingSystem> profilerRef;
     private final WeakReference<ProfileUploader> uploaderRef;
 

@@ -17,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.time.ControllableTimeSource;
@@ -70,13 +69,13 @@ import org.junit.jupiter.params.provider.MethodSource;
  * </pre>
  */
 class OtlpMetricsProtoTest {
-
   // ── spec classes (test-data descriptors) ──────────────────────────────────
-
   static final class ScopeSpec {
     final String name;
-    final String version; // null → absent from wire
-    final String schemaUrl; // null → absent from wire
+    // null → absent from wire
+    final String version;
+    // null → absent from wire
+    final String schemaUrl;
     final List<MetricSpec> metrics;
 
     ScopeSpec(String name, String version, String schemaUrl, List<MetricSpec> metrics) {
@@ -93,8 +92,10 @@ class OtlpMetricsProtoTest {
 
   static final class MetricSpec {
     final String name;
-    final String description; // null → absent from wire
-    final String unit; // null → absent from wire
+    // null → absent from wire
+    final String description;
+    // null → absent from wire
+    final String unit;
     final OtelInstrumentType type;
     final boolean longValues;
     final OtlpDataPoint point;
@@ -149,13 +150,15 @@ class OtlpMetricsProtoTest {
   }
 
   // ── shorthand builders ────────────────────────────────────────────────────
-
   private static ScopeSpec scope(String name, MetricSpec... metrics) {
     return new ScopeSpec(name, null, null, asList(metrics));
   }
 
   private static ScopeSpec scopeFull(
-      String name, String version, String schemaUrl, MetricSpec... metrics) {
+      String name,
+      String version,
+      String schemaUrl,
+      MetricSpec... metrics) {
     return new ScopeSpec(name, version, schemaUrl, asList(metrics));
   }
 
@@ -164,7 +167,11 @@ class OtlpMetricsProtoTest {
   }
 
   private static MetricSpec counterLongFull(
-      String name, String desc, String unit, long value, AttrSpec... attrs) {
+      String name,
+      String desc,
+      String unit,
+      long value,
+      AttrSpec... attrs) {
     return new MetricSpec(name, desc, unit, COUNTER, true, longPoint(value), asList(attrs));
   }
 
@@ -186,7 +193,13 @@ class OtlpMetricsProtoTest {
 
   private static MetricSpec upDownDouble(String name, double value, AttrSpec... attrs) {
     return new MetricSpec(
-        name, null, null, UP_DOWN_COUNTER, false, doublePoint(value), asList(attrs));
+        name,
+        null,
+        null,
+        UP_DOWN_COUNTER,
+        false,
+        doublePoint(value),
+        asList(attrs));
   }
 
   private static MetricSpec observableGaugeLong(String name, long value) {
@@ -195,27 +208,50 @@ class OtlpMetricsProtoTest {
 
   private static MetricSpec observableGaugeDouble(String name, double value) {
     return new MetricSpec(
-        name, null, null, OBSERVABLE_GAUGE, false, doublePoint(value), emptyList());
+        name,
+        null,
+        null,
+        OBSERVABLE_GAUGE,
+        false,
+        doublePoint(value),
+        emptyList());
   }
 
   private static MetricSpec observableCounterLong(String name, long value) {
-    return new MetricSpec(
-        name, null, null, OBSERVABLE_COUNTER, true, longPoint(value), emptyList());
+    return new MetricSpec(name, null, null, OBSERVABLE_COUNTER, true, longPoint(value), emptyList());
   }
 
   private static MetricSpec observableCounterDouble(String name, double value) {
     return new MetricSpec(
-        name, null, null, OBSERVABLE_COUNTER, false, doublePoint(value), emptyList());
+        name,
+        null,
+        null,
+        OBSERVABLE_COUNTER,
+        false,
+        doublePoint(value),
+        emptyList());
   }
 
   private static MetricSpec observableUpDownCounterLong(String name, long value) {
     return new MetricSpec(
-        name, null, null, OBSERVABLE_UP_DOWN_COUNTER, true, longPoint(value), emptyList());
+        name,
+        null,
+        null,
+        OBSERVABLE_UP_DOWN_COUNTER,
+        true,
+        longPoint(value),
+        emptyList());
   }
 
   private static MetricSpec observableUpDownCounterDouble(String name, double value) {
     return new MetricSpec(
-        name, null, null, OBSERVABLE_UP_DOWN_COUNTER, false, doublePoint(value), emptyList());
+        name,
+        null,
+        null,
+        OBSERVABLE_UP_DOWN_COUNTER,
+        false,
+        doublePoint(value),
+        emptyList());
   }
 
   private static MetricSpec histogram(
@@ -254,36 +290,35 @@ class OtlpMetricsProtoTest {
   }
 
   // ── test cases ─────────────────────────────────────────────────────────────
-
   static Stream<Arguments> cases() {
     return Stream.of(
-        // ── empty ─────────────────────────────────────────────────────────────
-        Arguments.of("empty — no scopes produces empty payload", emptyList()),
-
-        // ── scope with no metrics ─────────────────────────────────────────────
-        Arguments.of("scope with no metrics", asList(scope("io.empty"))),
-
-        // ── counter long boundary values ──────────────────────────────────────
-        Arguments.of(
-            "counter long zero — boundary", asList(scope("io.test", counterLong("requests", 0L)))),
+        Arguments
+          // ── empty ─────────────────────────────────────────────────────────────
+          .of("empty — no scopes produces empty payload", emptyList()),
+        Arguments
+          // ── scope with no metrics ─────────────────────────────────────────────
+          .of("scope with no metrics", asList(scope("io.empty"))),
+        Arguments
+          // ── counter long boundary values ──────────────────────────────────────
+          .of("counter long zero — boundary", asList(scope("io.test", counterLong("requests", 0L)))),
         Arguments.of(
             "counter long Long.MAX_VALUE — boundary",
             asList(scope("io.test", counterLong("requests", Long.MAX_VALUE)))),
         Arguments.of(
             "counter long Long.MIN_VALUE — negative boundary",
             asList(scope("io.test", counterLong("requests", Long.MIN_VALUE)))),
-
-        // ── gauge long boundary values (no start time) ───────────────────────
-        Arguments.of("gauge long zero", asList(scope("io.gauge", gaugeLong("connections", 0L)))),
+        Arguments
+          // ── gauge long boundary values (no start time) ───────────────────────
+          .of("gauge long zero", asList(scope("io.gauge", gaugeLong("connections", 0L)))),
         Arguments.of(
             "gauge long Long.MAX_VALUE",
             asList(scope("io.gauge", gaugeLong("connections", Long.MAX_VALUE)))),
         Arguments.of(
             "gauge long Long.MIN_VALUE — negative",
             asList(scope("io.gauge", gaugeLong("balance", Long.MIN_VALUE)))),
-
-        // ── gauge double special values (no start time) ───────────────────────
-        Arguments.of("gauge double zero", asList(scope("io.gauge", gaugeDouble("rate", 0.0)))),
+        Arguments
+          // ── gauge double special values (no start time) ───────────────────────
+          .of("gauge double zero", asList(scope("io.gauge", gaugeDouble("rate", 0.0)))),
         Arguments.of(
             "gauge double -0.0 — negative zero",
             asList(scope("io.gauge", gaugeDouble("temperature", -0.0)))),
@@ -297,149 +332,150 @@ class OtlpMetricsProtoTest {
             "gauge double -Infinity",
             asList(scope("io.gauge", gaugeDouble("temperature", Double.NEGATIVE_INFINITY)))),
         Arguments.of(
-            "gauge double NaN", asList(scope("io.gauge", gaugeDouble("invalid", Double.NaN)))),
-
-        // ── up-down counter long (non-monotonic sum) ──────────────────────────
-        Arguments.of(
-            "up-down-counter long zero", asList(scope("io.test", upDownLong("queue.size", 0L)))),
+            "gauge double NaN",
+            asList(scope("io.gauge", gaugeDouble("invalid", Double.NaN)))),
+        Arguments
+          // ── up-down counter long (non-monotonic sum) ──────────────────────────
+          .of("up-down-counter long zero", asList(scope("io.test", upDownLong("queue.size", 0L)))),
         Arguments.of(
             "up-down-counter long Long.MAX_VALUE",
             asList(scope("io.test", upDownLong("queue.size", Long.MAX_VALUE)))),
         Arguments.of(
             "up-down-counter long negative with string attr",
             asList(scope("io.test", upDownLong("queue.size", -42L, strAttr("host", "my-host"))))),
-
-        // ── up-down counter double ────────────────────────────────────────────
-        Arguments.of(
-            "up-down-counter double positive",
-            asList(scope("io.test", upDownDouble("balance", 3.14)))),
+        Arguments
+          // ── up-down counter double ────────────────────────────────────────────
+          .of(
+              "up-down-counter double positive",
+              asList(scope("io.test", upDownDouble("balance", 3.14)))),
         Arguments.of(
             "up-down-counter double negative",
             asList(scope("io.test", upDownDouble("delta", -2.71)))),
         Arguments.of(
-            "up-down-counter double zero", asList(scope("io.test", upDownDouble("offset", 0.0)))),
-
-        // ── counter double ────────────────────────────────────────────────────
-        Arguments.of(
-            "counter double zero — no attrs",
-            asList(scope("io.test", counterDouble("errors", 0.0)))),
-
-        // ── counter double with multiple attribute types ───────────────────────
-        Arguments.of(
-            "counter double with string, long, bool, double attrs",
-            asList(
-                scope(
-                    "io.test",
-                    counterDouble(
-                        "latency",
-                        3.14,
-                        strAttr("service", "web"),
-                        longAttr("status", 200L),
-                        boolAttr("success", true),
-                        dblAttr("rate", 0.5))))),
-
-        // ── histogram — overflow only (no explicit bounds) ────────────────────
-        Arguments.of(
-            "histogram no explicit bounds — overflow bucket only",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "response.time",
-                        1.0,
-                        asList(Double.POSITIVE_INFINITY),
-                        asList(1.0),
-                        0.5,
-                        0.5,
-                        0.5)))),
-
-        // ── histogram — zero count and sum with overflow bucket ───────────────
-        Arguments.of(
-            "histogram zero count and sum",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "idle.time",
-                        0.0,
-                        asList(Double.POSITIVE_INFINITY),
-                        asList(0.0),
-                        0.0,
-                        0.0,
-                        0.0)))),
-
-        // ── histogram — single explicit bound with overflow ───────────────────
-        Arguments.of(
-            "histogram single bound with overflow",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "request.size",
-                        5.0,
-                        asList(100.0, Double.POSITIVE_INFINITY),
-                        asList(4.0, 1.0),
-                        280.0,
-                        20.0,
-                        200.0)))),
-
-        // ── histogram — finite bounds only (no overflow) — extra zero appended ─
-        Arguments.of(
-            "histogram finite bounds — no overflow — extra zero bucket appended",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "queue.size",
-                        8.0,
-                        asList(50.0, 100.0),
-                        asList(3.0, 5.0),
-                        750.0,
-                        10.0,
-                        95.0)))),
-
-        // ── histogram — with explicit bounds, overflow, and attrs ─────────────
-        Arguments.of(
-            "histogram with bounds, overflow, and string attr",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "response.time",
-                        10.0,
-                        asList(1.0, 5.0, 10.0, Double.POSITIVE_INFINITY),
-                        asList(2.0, 3.0, 4.0, 1.0),
-                        45.5,
-                        0.5,
-                        12.0,
-                        strAttr("region", "us-east"))))),
-
-        // ── histogram — many buckets with overflow and multiple attrs ──────────
-        Arguments.of(
-            "histogram many buckets with overflow, long and bool attrs",
-            asList(
-                scope(
-                    "io.hist",
-                    histogram(
-                        "latency.ms",
-                        100.0,
-                        asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0, Double.POSITIVE_INFINITY),
-                        asList(5.0, 10.0, 20.0, 30.0, 15.0, 12.0, 6.0, 2.0),
-                        4321.0,
-                        0.5,
-                        150.0,
-                        longAttr("shard", 3L),
-                        boolAttr("cached", false))))),
-
-        // ── scope metadata — optional version and schema URL ──────────────────
-        Arguments.of(
-            "scope with version and schemaUrl",
-            asList(
-                scopeFull(
-                    "io.opentelemetry",
-                    "1.2.3",
-                    "https://opentelemetry.io/schemas/1.21",
-                    counterLong("events", 1L)))),
+            "up-down-counter double zero",
+            asList(scope("io.test", upDownDouble("offset", 0.0)))),
+        Arguments
+          // ── counter double ────────────────────────────────────────────────────
+          .of(
+              "counter double zero — no attrs",
+              asList(scope("io.test", counterDouble("errors", 0.0)))),
+        Arguments
+          // ── counter double with multiple attribute types ───────────────────────
+          .of(
+              "counter double with string, long, bool, double attrs",
+              asList(
+                  scope(
+                      "io.test",
+                      counterDouble(
+                          "latency",
+                          3.14,
+                          strAttr("service", "web"),
+                          longAttr("status", 200L),
+                          boolAttr("success", true),
+                          dblAttr("rate", 0.5))))),
+        Arguments
+          // ── histogram — overflow only (no explicit bounds) ────────────────────
+          .of(
+              "histogram no explicit bounds — overflow bucket only",
+              asList(
+                  scope(
+                      "io.hist",
+                      histogram(
+                          "response.time",
+                          1.0,
+                          asList(Double.POSITIVE_INFINITY),
+                          asList(1.0),
+                          0.5,
+                          0.5,
+                          0.5)))),
+        Arguments
+          // ── histogram — zero count and sum with overflow bucket ───────────────
+          .of(
+              "histogram zero count and sum",
+              asList(
+                  scope(
+                      "io.hist",
+                      histogram(
+                          "idle.time",
+                          0.0,
+                          asList(Double.POSITIVE_INFINITY),
+                          asList(0.0),
+                          0.0,
+                          0.0,
+                          0.0)))),
+        Arguments
+          // ── histogram — single explicit bound with overflow ───────────────────
+          .of(
+              "histogram single bound with overflow",
+              asList(
+                  scope(
+                      "io.hist",
+                      histogram(
+                          "request.size",
+                          5.0,
+                          asList(100.0, Double.POSITIVE_INFINITY),
+                          asList(4.0, 1.0),
+                          280.0,
+                          20.0,
+                          200.0)))),
+        Arguments
+          // ── histogram — finite bounds only (no overflow) — extra zero appended ─
+          .of(
+              "histogram finite bounds — no overflow — extra zero bucket appended",
+              asList(
+                  scope(
+                      "io.hist",
+                      histogram(
+                          "queue.size",
+                          8.0,
+                          asList(50.0, 100.0),
+                          asList(3.0, 5.0),
+                          750.0,
+                          10.0,
+                          95.0)))),
+        Arguments
+          // ── histogram — with explicit bounds, overflow, and attrs ─────────────
+          .of(
+              "histogram with bounds, overflow, and string attr",
+              asList(
+                  scope(
+                      "io.hist",
+                      histogram(
+                          "response.time",
+                          10.0,
+                          asList(1.0, 5.0, 10.0, Double.POSITIVE_INFINITY),
+                          asList(2.0, 3.0, 4.0, 1.0),
+                          45.5,
+                          0.5,
+                          12.0,
+                          strAttr("region", "us-east"))))),
+        Arguments
+          // ── histogram — many buckets with overflow and multiple attrs ──────────
+          .of(
+              "histogram many buckets with overflow, long and bool attrs",
+              asList(
+                  scope(
+                      "io.hist",
+                      histogram(
+                          "latency.ms",
+                          100.0,
+                          asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0, Double.POSITIVE_INFINITY),
+                          asList(5.0, 10.0, 20.0, 30.0, 15.0, 12.0, 6.0, 2.0),
+                          4321.0,
+                          0.5,
+                          150.0,
+                          longAttr("shard", 3L),
+                          boolAttr("cached", false))))),
+        Arguments
+          // ── scope metadata — optional version and schema URL ──────────────────
+          .of(
+              "scope with version and schemaUrl",
+              asList(
+                  scopeFull(
+                      "io.opentelemetry",
+                      "1.2.3",
+                      "https://opentelemetry.io/schemas/1.21",
+                      counterLong("events", 1L)))),
         Arguments.of(
             "scope with version only — no schemaUrl",
             asList(scopeFull("io.versioned", "2.0.0", null, counterLong("events", 1L)))),
@@ -451,21 +487,22 @@ class OtlpMetricsProtoTest {
                     null,
                     "https://opentelemetry.io/schemas/1.21",
                     counterLong("events", 1L)))),
-
-        // ── metric metadata — optional description and unit ───────────────────
+        Arguments
+          // ── metric metadata — optional description and unit ───────────────────
+          .of(
+              "metric with description and unit",
+              asList(
+                  scope(
+                      "io.test",
+                      counterLongFull("cpu.usage", "CPU utilisation of the process", "%", 75L)))),
+        Arguments
+          // ── observable gauge ──────────────────────────────────────────────────
+          .of(
+              "observable gauge long — no start time written",
+              asList(scope("io.obs", observableGaugeLong("heap.used", 1024L * 1024L)))),
         Arguments.of(
-            "metric with description and unit",
-            asList(
-                scope(
-                    "io.test",
-                    counterLongFull("cpu.usage", "CPU utilisation of the process", "%", 75L)))),
-
-        // ── observable gauge ──────────────────────────────────────────────────
-        Arguments.of(
-            "observable gauge long — no start time written",
-            asList(scope("io.obs", observableGaugeLong("heap.used", 1024L * 1024L)))),
-        Arguments.of(
-            "observable gauge long zero", asList(scope("io.obs", observableGaugeLong("idle", 0L)))),
+            "observable gauge long zero",
+            asList(scope("io.obs", observableGaugeLong("idle", 0L)))),
         Arguments.of(
             "observable gauge long Long.MIN_VALUE — negative",
             asList(scope("io.obs", observableGaugeLong("balance", Long.MIN_VALUE)))),
@@ -475,11 +512,11 @@ class OtlpMetricsProtoTest {
         Arguments.of(
             "observable gauge double NaN",
             asList(scope("io.obs", observableGaugeDouble("invalid", Double.NaN)))),
-
-        // ── observable counter (monotonic sum) ────────────────────────────────
-        Arguments.of(
-            "observable counter long Long.MAX_VALUE — has temporality and is_monotonic",
-            asList(scope("io.obs", observableCounterLong("file.reads", Long.MAX_VALUE)))),
+        Arguments
+          // ── observable counter (monotonic sum) ────────────────────────────────
+          .of(
+              "observable counter long Long.MAX_VALUE — has temporality and is_monotonic",
+              asList(scope("io.obs", observableCounterLong("file.reads", Long.MAX_VALUE)))),
         Arguments.of(
             "observable counter long zero",
             asList(scope("io.obs", observableCounterLong("events", 0L)))),
@@ -489,11 +526,11 @@ class OtlpMetricsProtoTest {
         Arguments.of(
             "observable counter double zero",
             asList(scope("io.obs", observableCounterDouble("noop", 0.0)))),
-
-        // ── observable up-down-counter (non-monotonic sum) ────────────────────
-        Arguments.of(
-            "observable up-down-counter long positive",
-            asList(scope("io.obs", observableUpDownCounterLong("queue.depth", 42L)))),
+        Arguments
+          // ── observable up-down-counter (non-monotonic sum) ────────────────────
+          .of(
+              "observable up-down-counter long positive",
+              asList(scope("io.obs", observableUpDownCounterLong("queue.depth", 42L)))),
         Arguments.of(
             "observable up-down-counter long negative",
             asList(scope("io.obs", observableUpDownCounterLong("balance", -10L)))),
@@ -506,31 +543,30 @@ class OtlpMetricsProtoTest {
         Arguments.of(
             "observable up-down-counter double negative",
             asList(scope("io.obs", observableUpDownCounterDouble("delta", -1.5)))),
-
-        // ── empty scope between two scopes with metrics ───────────────────────
-        Arguments.of(
-            "middle scope with no metrics — flanked by scopes with metrics",
-            asList(
-                scope("io.first", counterLong("a", 1L)),
-                scope("io.empty"),
-                scope("io.last", counterLong("b", 2L)))),
-
-        // ── multiple scopes and multiple metrics ──────────────────────────────
-        Arguments.of(
-            "two scopes each with two metrics",
-            asList(
-                scope(
-                    "io.http",
-                    counterLong("requests", 100L, strAttr("method", "GET")),
-                    gaugeDouble("active.connections", 5.0)),
-                scope(
-                    "io.db",
-                    counterLong("queries", 50L),
-                    upDownLong("pool.size", 10L, longAttr("pool.id", 1L))))));
+        Arguments
+          // ── empty scope between two scopes with metrics ───────────────────────
+          .of(
+              "middle scope with no metrics — flanked by scopes with metrics",
+              asList(
+                  scope("io.first", counterLong("a", 1L)),
+                  scope("io.empty"),
+                  scope("io.last", counterLong("b", 2L)))),
+        Arguments
+          // ── multiple scopes and multiple metrics ──────────────────────────────
+          .of(
+              "two scopes each with two metrics",
+              asList(
+                  scope(
+                      "io.http",
+                      counterLong("requests", 100L, strAttr("method", "GET")),
+                      gaugeDouble("active.connections", 5.0)),
+                  scope(
+                      "io.db",
+                      counterLong("queries", 50L),
+                      upDownLong("pool.size", 10L, longAttr("pool.id", 1L))))));
   }
 
   // ── parameterized test ────────────────────────────────────────────────────
-
   private static final long START_EPOCH_NS = TimeUnit.SECONDS.toNanos(1330837567);
   private static final long END_EPOCH_NS = START_EPOCH_NS + TimeUnit.MINUTES.toNanos(30);
 
@@ -538,28 +574,29 @@ class OtlpMetricsProtoTest {
   @MethodSource("cases")
   void testCollectMetrics(String caseName, List<ScopeSpec> expectedScopes) throws IOException {
     ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(START_EPOCH_NS); // captured in constructor
+    // captured in constructor
+    timeSource.set(START_EPOCH_NS);
     OtlpMetricsProtoCollector collector = new OtlpMetricsProtoCollector(timeSource);
-    timeSource.set(END_EPOCH_NS); // captured during collection
-    OtlpPayload payload =
-        collector.collectMetrics(
-            visitor -> {
-              for (ScopeSpec scope : expectedScopes) {
-                OtlpScopedMetricsVisitor sv = visitor.visitScopedMetrics(scope.toScope());
-                for (MetricSpec metric : scope.metrics) {
-                  OtlpMetricVisitor mv = sv.visitMetric(metric.toDescriptor());
-                  for (AttrSpec attr : metric.attrs) {
-                    mv.visitAttribute(attr.type, attr.key, attr.value);
-                  }
-                  mv.visitDataPoint(metric.point);
-                }
-              }
-            });
-
+    // captured during collection
+    timeSource.set(END_EPOCH_NS);
+    OtlpPayload payload = collector.collectMetrics(visitor -> {
+      for (ScopeSpec scope : expectedScopes) {
+        OtlpScopedMetricsVisitor sv = visitor.visitScopedMetrics(scope.toScope());
+        for (MetricSpec metric : scope.metrics) {
+          OtlpMetricVisitor mv = sv.visitMetric(metric.toDescriptor());
+          for (AttrSpec attr : metric.attrs) {
+            mv.visitAttribute(attr.type, attr.key, attr.value);
+          }
+          mv.visitDataPoint(metric.point);
+        }
+      }
+    });
     // Scopes with no metrics produce no wire output — filter them for verification
     List<ScopeSpec> nonEmptyScopes = new ArrayList<>();
     for (ScopeSpec scope : expectedScopes) {
-      if (!scope.metrics.isEmpty()) nonEmptyScopes.add(scope);
+      if (!scope.metrics.isEmpty()) {
+        nonEmptyScopes.add(scope);
+      }
     }
 
     if (nonEmptyScopes.isEmpty()) {
@@ -568,17 +605,17 @@ class OtlpMetricsProtoTest {
     }
 
     assertTrue(payload.getContentLength() > 0, "non-empty registry must produce bytes");
-
     // ── parse MetricsData ──────────────────────────────────────────────────
     // The full payload encodes a single MetricsData.resource_metrics (field 1, LEN).
     CodedInputStream metricsData = CodedInputStream.newInstance(payload.getContent());
     int metricsTag = metricsData.readTag();
     assertEquals(
-        1, WireFormat.getTagFieldNumber(metricsTag), "MetricsData.resource_metrics is field 1");
+        1,
+        WireFormat.getTagFieldNumber(metricsTag),
+        "MetricsData.resource_metrics is field 1");
     assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(metricsTag));
     CodedInputStream resourceMetrics = metricsData.readBytes().newCodedInput();
     assertTrue(metricsData.isAtEnd(), "expected exactly one ResourceMetrics");
-
     // ── parse ResourceMetrics (order-insensitive) ──────────────────────────
     // Fields: resource=1, scope_metrics=2 (repeated)
     boolean resourceFound = false;
@@ -598,7 +635,9 @@ class OtlpMetricsProtoTest {
     }
     assertTrue(resourceFound, "Resource message must be present in ResourceMetrics");
     assertEquals(
-        nonEmptyScopes.size(), parsedScopes.size(), "scope count mismatch in case: " + caseName);
+        nonEmptyScopes.size(),
+        parsedScopes.size(),
+        "scope count mismatch in case: " + caseName);
 
     for (ScopeSpec expected : nonEmptyScopes) {
       ParsedScopeMetrics parsedScope = parsedScopes.get(expected.name);
@@ -621,20 +660,13 @@ class OtlpMetricsProtoTest {
         MetricSpec metricSpec = expectedMetricsByName.get(metricName);
         assertNotNull(
             metricSpec,
-            "unexpected metric '"
-                + metricName
-                + "' in scope "
-                + expected.name
-                + " ["
-                + caseName
-                + "]");
+            "unexpected metric '" + metricName + "' in scope " + expected.name + " [" + caseName + "]");
         verifyMetric(CodedInputStream.newInstance(metricBlob), metricSpec);
       }
     }
   }
 
   // ── verification helpers ──────────────────────────────────────────────────
-
   /**
    * Parses a {@code Resource} message body and asserts it contains a {@code service.name}
    * attribute. The value is not verified as it depends on the runtime environment.
@@ -647,7 +679,8 @@ class OtlpMetricsProtoTest {
     boolean foundServiceName = false;
     while (!resource.isAtEnd()) {
       int tag = resource.readTag();
-      if (WireFormat.getTagFieldNumber(tag) == 1) { // attributes (repeated KeyValue)
+      if (WireFormat.getTagFieldNumber(tag) == 1) {
+        // attributes (repeated KeyValue)
         String key = readKeyValueKey(resource.readBytes().newCodedInput());
         if ("service.name".equals(key)) {
           foundServiceName = true;
@@ -676,7 +709,9 @@ class OtlpMetricsProtoTest {
     while (!scopeMetrics.isAtEnd()) {
       int tag = scopeMetrics.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
-        case 1: // InstrumentationScope
+        case
+            // InstrumentationScope
+        1:
           CodedInputStream scopeStream = scopeMetrics.readBytes().newCodedInput();
           while (!scopeStream.isAtEnd()) {
             int scopeTag = scopeStream.readTag();
@@ -692,10 +727,14 @@ class OtlpMetricsProtoTest {
             }
           }
           break;
-        case 2: // Metric (repeated)
+        case
+            // Metric (repeated)
+        2:
           metricBlobs.add(scopeMetrics.readBytes().toByteArray());
           break;
-        case 3: // schema_url
+        case
+            // schema_url
+        3:
           schemaUrl = scopeMetrics.readString();
           break;
         default:
@@ -724,8 +763,7 @@ class OtlpMetricsProtoTest {
    *   Metric { name=1, description=2, unit=3, gauge=5, sum=7, histogram=9 }
    * </pre>
    */
-  private static void verifyMetric(CodedInputStream metric, MetricSpec expected)
-      throws IOException {
+  private static void verifyMetric(CodedInputStream metric, MetricSpec expected) throws IOException {
     String parsedName = null;
     String parsedDesc = null;
     String parsedUnit = null;
@@ -743,17 +781,23 @@ class OtlpMetricsProtoTest {
         case 3:
           parsedUnit = metric.readString();
           break;
-        case 5: // Gauge
+        case
+            // Gauge
+        5:
           assertTrue(isGaugeType(expected.type), "unexpected gauge for " + expected.name);
           verifyGauge(metric.readBytes().newCodedInput(), expected);
           dataFound = true;
           break;
-        case 7: // Sum
+        case
+            // Sum
+        7:
           assertTrue(isSumType(expected.type), "unexpected sum for " + expected.name);
           verifySum(metric.readBytes().newCodedInput(), expected);
           dataFound = true;
           break;
-        case 9: // Histogram
+        case
+            // Histogram
+        9:
           assertEquals(HISTOGRAM, expected.type, "unexpected histogram for " + expected.name);
           verifyHistogram(metric.readBytes().newCodedInput(), expected);
           dataFound = true;
@@ -794,7 +838,10 @@ class OtlpMetricsProtoTest {
       if (WireFormat.getTagFieldNumber(tag) == 1) {
         assertFalse(foundDataPoint, "expected exactly one data point in gauge " + expected.name);
         verifyNumberDataPoint(
-            gauge.readBytes().newCodedInput(), expected, /* hasStartTime= */ false);
+            gauge.readBytes().newCodedInput(),
+            expected,
+            /* hasStartTime= */
+            false);
         foundDataPoint = true;
       } else {
         gauge.skipField(tag);
@@ -817,20 +864,26 @@ class OtlpMetricsProtoTest {
     while (!sum.isAtEnd()) {
       int tag = sum.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
-        case 1: // NumberDataPoint
+        case
+            // NumberDataPoint
+        1:
           assertFalse(foundDataPoint, "expected exactly one data point in sum " + expected.name);
-          verifyNumberDataPoint(
-              sum.readBytes().newCodedInput(), expected, /* hasStartTime= */ true);
+          verifyNumberDataPoint(sum.readBytes().newCodedInput(), expected, /* hasStartTime= */
+          true);
           foundDataPoint = true;
           break;
-        case 2: // AggregationTemporality (1=DELTA, 2=CUMULATIVE)
+        case
+            // AggregationTemporality (1=DELTA, 2=CUMULATIVE)
+        2:
           int temporality = sum.readEnum();
           assertTrue(
               temporality == 1 || temporality == 2,
               "aggregation_temporality must be DELTA(1) or CUMULATIVE(2)");
           foundTemporality = true;
           break;
-        case 3: // is_monotonic
+        case
+            // is_monotonic
+        3:
           boolean isMonotonic = sum.readBool();
           boolean expectedMonotonic =
               expected.type == COUNTER || expected.type == OBSERVABLE_COUNTER;
@@ -860,13 +913,18 @@ class OtlpMetricsProtoTest {
     while (!histogram.isAtEnd()) {
       int tag = histogram.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
-        case 1: // HistogramDataPoint
+        case
+            // HistogramDataPoint
+        1:
           assertFalse(
-              foundDataPoint, "expected exactly one data point in histogram " + expected.name);
+              foundDataPoint,
+              "expected exactly one data point in histogram " + expected.name);
           verifyHistogramDataPoint(histogram.readBytes().newCodedInput(), expected);
           foundDataPoint = true;
           break;
-        case 2: // AggregationTemporality
+        case
+            // AggregationTemporality
+        2:
           int temporality = histogram.readEnum();
           assertTrue(
               temporality == 1 || temporality == 2,
@@ -879,7 +937,8 @@ class OtlpMetricsProtoTest {
     }
 
     assertTrue(foundDataPoint, "no data point found in histogram " + expected.name);
-    assertTrue(foundTemporality, "aggregation_temporality missing from histogram " + expected.name);
+    assertTrue(foundTemporality, "aggregation_temporality missing from histogram "
+        + expected.name);
   }
 
   /**
@@ -893,7 +952,9 @@ class OtlpMetricsProtoTest {
    * @param hasStartTime true for non-gauge types; gauges omit {@code start_time_unix_nano}
    */
   private static void verifyNumberDataPoint(
-      CodedInputStream dataPoint, MetricSpec expected, boolean hasStartTime) throws IOException {
+      CodedInputStream dataPoint,
+      MetricSpec expected,
+      boolean hasStartTime) throws IOException {
     boolean foundStartTime = false;
     boolean foundEndTime = false;
     boolean foundValue = false;
@@ -902,17 +963,25 @@ class OtlpMetricsProtoTest {
     while (!dataPoint.isAtEnd()) {
       int tag = dataPoint.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
-        case 2: // start_time_unix_nano (fixed64)
+        case
+            // start_time_unix_nano (fixed64)
+        2:
           assertEquals(
-              START_EPOCH_NS, dataPoint.readFixed64(), "start_time_unix_nano for " + expected.name);
+              START_EPOCH_NS,
+              dataPoint.readFixed64(),
+              "start_time_unix_nano for " + expected.name);
           foundStartTime = true;
           break;
-        case 3: // time_unix_nano (fixed64)
-          assertEquals(
-              END_EPOCH_NS, dataPoint.readFixed64(), "time_unix_nano for " + expected.name);
+        case
+            // time_unix_nano (fixed64)
+        3:
+          assertEquals(END_EPOCH_NS, dataPoint.readFixed64(), "time_unix_nano for "
+              + expected.name);
           foundEndTime = true;
           break;
-        case 4: // as_double (double via fixed64 wire type)
+        case
+            // as_double (double via fixed64 wire type)
+        4:
           double parsedDouble = dataPoint.readDouble();
           OtlpDoublePoint expectedDouble = (OtlpDoublePoint) expected.point;
           assertEquals(
@@ -921,13 +990,17 @@ class OtlpMetricsProtoTest {
               "as_double for " + expected.name);
           foundValue = true;
           break;
-        case 6: // as_int (sfixed64)
+        case
+            // as_int (sfixed64)
+        6:
           long parsedLong = dataPoint.readSFixed64();
           OtlpLongPoint expectedLong = (OtlpLongPoint) expected.point;
           assertEquals(expectedLong.value, parsedLong, "as_int for " + expected.name);
           foundValue = true;
           break;
-        case 7: // attributes (repeated KeyValue)
+        case
+            // attributes (repeated KeyValue)
+        7:
           parsedAttrKeys.add(readKeyValueKey(dataPoint.readBytes().newCodedInput()));
           break;
         default:
@@ -935,12 +1008,14 @@ class OtlpMetricsProtoTest {
       }
     }
 
-    assertEquals(
-        hasStartTime, foundStartTime, "start_time_unix_nano presence for " + expected.name);
+    assertEquals(hasStartTime, foundStartTime, "start_time_unix_nano presence for "
+        + expected.name);
     assertTrue(foundEndTime, "time_unix_nano required for " + expected.name);
     assertTrue(foundValue, "value field required for " + expected.name);
     assertEquals(
-        expected.attrs.size(), parsedAttrKeys.size(), "attribute count for " + expected.name);
+        expected.attrs.size(),
+        parsedAttrKeys.size(),
+        "attribute count for " + expected.name);
     for (int i = 0; i < expected.attrs.size(); i++) {
       assertEquals(
           expected.attrs.get(i).key,
@@ -975,44 +1050,64 @@ class OtlpMetricsProtoTest {
     while (!dataPoint.isAtEnd()) {
       int tag = dataPoint.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
-        case 2: // start_time_unix_nano
+        case
+            // start_time_unix_nano
+        2:
           assertEquals(
-              START_EPOCH_NS, dataPoint.readFixed64(), "start_time_unix_nano for " + expected.name);
+              START_EPOCH_NS,
+              dataPoint.readFixed64(),
+              "start_time_unix_nano for " + expected.name);
           foundStartTime = true;
           break;
-        case 3: // time_unix_nano
-          assertEquals(
-              END_EPOCH_NS, dataPoint.readFixed64(), "time_unix_nano for " + expected.name);
+        case
+            // time_unix_nano
+        3:
+          assertEquals(END_EPOCH_NS, dataPoint.readFixed64(), "time_unix_nano for "
+              + expected.name);
           foundEndTime = true;
           break;
-        case 4: // count (fixed64)
+        case
+            // count (fixed64)
+        4:
           assertEquals((long) hp.count, dataPoint.readFixed64(), "histogram count");
           foundCount = true;
           break;
-        case 5: // sum (double via fixed64)
+        case
+            // sum (double via fixed64)
+        5:
           assertEquals(
               Double.doubleToRawLongBits(hp.sum),
               Double.doubleToRawLongBits(dataPoint.readDouble()),
               "histogram sum");
           foundSum = true;
           break;
-        case 6: // bucket_counts (repeated fixed64)
+        case
+            // bucket_counts (repeated fixed64)
+        6:
           parsedBucketCounts.add(dataPoint.readFixed64());
           break;
-        case 7: // explicit_bounds (repeated double)
+        case
+            // explicit_bounds (repeated double)
+        7:
           parsedBounds.add(dataPoint.readDouble());
           break;
-        case 9: // attributes (repeated KeyValue)
+        case
+            // attributes (repeated KeyValue)
+        9:
           parsedAttrKeys.add(readKeyValueKey(dataPoint.readBytes().newCodedInput()));
           break;
-        case 11: // min (double via fixed64)
+        case
+            // min (double via fixed64)
+        11:
           assertEquals(
               Double.doubleToRawLongBits(hp.min),
               Double.doubleToRawLongBits(dataPoint.readDouble()),
               "histogram min");
           foundMin = true;
           break;
-        case 12: // max (double via fixed64)
+        case
+            // max (double via fixed64)
+        12:
           assertEquals(
               Double.doubleToRawLongBits(hp.max),
               Double.doubleToRawLongBits(dataPoint.readDouble()),
@@ -1030,7 +1125,6 @@ class OtlpMetricsProtoTest {
     assertTrue(foundSum, "sum required for histogram " + expected.name);
     assertTrue(foundMin, "min required for histogram " + expected.name);
     assertTrue(foundMax, "max required for histogram " + expected.name);
-
     // Input uses equal counts and boundaries; derive the expected OTLP wire output:
     // - finite boundaries are written as explicit_bounds (+Infinity overflow marker is dropped)
     // - when there is no overflow boundary, one extra zero count is appended so that
@@ -1051,7 +1145,6 @@ class OtlpMetricsProtoTest {
     if (!expectedCounts.isEmpty() && !hasOverflow) {
       expectedCounts.add(0L);
     }
-
     // OTLP spec: bucket_counts.size() == explicit_bounds.size() + 1, or both 0
     if (expectedCounts.isEmpty()) {
       assertEquals(
@@ -1068,14 +1161,15 @@ class OtlpMetricsProtoTest {
           parsedBucketCounts.size(),
           "OTLP spec: bucket_counts must be explicit_bounds + 1 for " + expected.name);
     }
-
     // +Infinity must never appear as an explicit bound on the wire
     assertFalse(
         parsedBounds.stream().anyMatch(b -> Double.isInfinite(b)),
         "+Infinity must not appear in explicit_bounds for " + expected.name);
 
     assertEquals(
-        expectedBounds.size(), parsedBounds.size(), "explicit_bounds size for " + expected.name);
+        expectedBounds.size(),
+        parsedBounds.size(),
+        "explicit_bounds size for " + expected.name);
     for (int i = 0; i < expectedBounds.size(); i++) {
       assertEquals(
           Double.doubleToRawLongBits(expectedBounds.get(i)),

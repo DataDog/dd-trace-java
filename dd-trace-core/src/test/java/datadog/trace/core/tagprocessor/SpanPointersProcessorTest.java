@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.Mockito.mock;
-
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
@@ -20,7 +19,6 @@ import java.util.Map;
 import org.tabletest.junit.TableTest;
 
 class SpanPointersProcessorTest extends DDJavaSpecification {
-
   @TableTest({
     "scenario       | objectKey     | eTag       | expectedHash                    ",
     "basic values   | some-key.data | ab12ef34   | e721375466d4116ab551213fdea08413",
@@ -38,10 +36,8 @@ class SpanPointersProcessorTest extends DDJavaSpecification {
     TagMap unsafeTags = TagMap.fromMap(tagMap);
     DDSpanContext spanContext = mock(DDSpanContext.class);
     List<AgentSpanLink> spanLinks = new ArrayList<>();
-
     // Process the tags; the processor should remove 's3.eTag' and add one link
     processor.processTags(unsafeTags, spanContext, link -> spanLinks.add(link));
-
     // 1. s3.eTag was removed
     assertFalse(unsafeTags.containsKey("s3.eTag"));
     // 2. Exactly one link was added

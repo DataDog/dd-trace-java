@@ -5,7 +5,9 @@ import datadog.trace.instrumentation.servlet.AbstractServletInputStreamWrapper;
 import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
 
-/** Provides additional delegation for servlet 3.1 */
+/**
+ * Provides additional delegation for servlet 3.1
+ */
 public class Servlet31InputStreamWrapper extends AbstractServletInputStreamWrapper {
   public Servlet31InputStreamWrapper(ServletInputStream is, StoredByteBody storedByteBody) {
     super(is, storedByteBody);

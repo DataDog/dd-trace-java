@@ -1,7 +1,6 @@
 package utils;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
@@ -28,7 +27,8 @@ public class TestHelper {
     try {
       Field field = target.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);
-      field.set(target, value); // TODO: JEP 500 - avoid mutating final fields
+      // TODO: JEP 500 - avoid mutating final fields
+      field.set(target, value);
     } catch (Throwable e) {
       e.printStackTrace();
     }

@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
-
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
@@ -79,8 +78,9 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
 
     @Override
     public LongCounter build() {
-      return new OtelLongCounter(
-          meter.registerStorage(builder, OtelMetricStorage::newLongSumStorage));
+      return new OtelLongCounter(meter.registerStorage(
+          builder,
+          OtelMetricStorage::newLongSumStorage));
     }
 
     @Override

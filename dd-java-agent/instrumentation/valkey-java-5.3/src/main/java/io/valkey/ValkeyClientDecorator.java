@@ -7,7 +7,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.DBTypeProcessingDatabas
 
 public class ValkeyClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Connection> {
   public static final ValkeyClientDecorator DECORATE = new ValkeyClientDecorator();
-
   private static final String VALKEY = "valkey";
   public static final CharSequence OPERATION_NAME =
       UTF8BytesString.create(SpanNaming.instance().namingSchema().cache().operation(VALKEY));

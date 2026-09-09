@@ -2,7 +2,6 @@ package datadog.trace.civisibility.writer.ddintake;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
@@ -33,19 +32,16 @@ import org.msgpack.jackson.dataformat.MessagePackFactory;
 
 @SuppressWarnings("unchecked")
 public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
-
   private static final ObjectMapper objectMapper = new ObjectMapper(new MessagePackFactory());
 
   @Test
   void testWritesMessage() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8})))));
+    List<DDSpan> trace = givenTrace(
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8})))));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -58,20 +54,21 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> files = (List<Map<String, Object>>) coverage.get("files");
     assertEquals(1, files.size());
     assertFile(
-        files.get(0), "source", new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
+        files.get(0),
+        "source",
+        new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
   }
 
   @Test
   void testWritesMessageWithMultipleFilesAndMultipleLines() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {3, 5, 8})),
-                    new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {1, 255, 7})))));
+    List<DDSpan> trace = givenTrace(
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(
+                new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {3, 5, 8})),
+                new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {1, 255, 7})))));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -84,27 +81,30 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> files = (List<Map<String, Object>>) coverage.get("files");
     assertEquals(2, files.size());
     assertFile(
-        files.get(0), "sourceA", new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
+        files.get(0),
+        "sourceA",
+        new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
     assertFile(
-        files.get(1), "sourceB", new byte[] {1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 7});
+        files.get(1),
+        "sourceB",
+        new byte[] {1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 7});
   }
 
   @Test
   void testWritesMessageWithMultipleReports() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {2, 17, 41})))),
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                4L,
-                Arrays.asList(
-                    new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {11, 13, 55})))));
+    List<DDSpan> trace = givenTrace(
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(
+                new TestReportFileEntry("sourceA", BitSet.valueOf(new long[] {2, 17, 41})))),
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            4L,
+            Arrays.asList(
+                new TestReportFileEntry("sourceB", BitSet.valueOf(new long[] {11, 13, 55})))));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -116,7 +116,9 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> files0 = (List<Map<String, Object>>) coverage0.get("files");
     assertEquals(1, files0.size());
     assertFile(
-        files0.get(0), "sourceA", new byte[] {2, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 41});
+        files0.get(0),
+        "sourceA",
+        new byte[] {2, 0, 0, 0, 0, 0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 41});
 
     Map<String, Object> coverage1 = coverages.get(1);
     assertCoverage(coverage1, 1, 2, 4);
@@ -130,16 +132,15 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
 
   @Test
   void skipsSpansThatHaveNoReports() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            null,
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("source", BitSet.valueOf(new long[] {83, 25, 48})))),
-            null);
+    List<DDSpan> trace = givenTrace(
+        null,
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(
+                new TestReportFileEntry("source", BitSet.valueOf(new long[] {83, 25, 48})))),
+        null);
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -152,20 +153,21 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> files = (List<Map<String, Object>>) coverage.get("files");
     assertEquals(1, files.size());
     assertFile(
-        files.get(0), "source", new byte[] {83, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 48});
+        files.get(0),
+        "source",
+        new byte[] {83, 0, 0, 0, 0, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 48});
   }
 
   @Test
   void skipsEmptyReports() throws Exception {
-    List<DDSpan> trace =
-        givenTrace(
-            new TestReport(
-                DDTraceId.from(1),
-                2L,
-                3L,
-                Arrays.asList(
-                    new TestReportFileEntry("source", BitSet.valueOf(new long[] {33, 53, 87})))),
-            new TestReport(DDTraceId.from(1), 2L, 4L, Collections.emptyList()));
+    List<DDSpan> trace = givenTrace(
+        new TestReport(
+            DDTraceId.from(1),
+            2L,
+            3L,
+            Arrays.asList(
+                new TestReportFileEntry("source", BitSet.valueOf(new long[] {33, 53, 87})))),
+        new TestReport(DDTraceId.from(1), 2L, 4L, Collections.emptyList()));
 
     Map<String, Object> message = getMappedMessage(trace);
 
@@ -178,18 +180,19 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> files = (List<Map<String, Object>>) coverage.get("files");
     assertEquals(1, files.size());
     assertFile(
-        files.get(0), "source", new byte[] {33, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 0, 0, 0, 0, 0, 87});
+        files.get(0),
+        "source",
+        new byte[] {33, 0, 0, 0, 0, 0, 0, 0, 53, 0, 0, 0, 0, 0, 0, 0, 87});
   }
 
   @Test
   void skipsDuplicateReports() throws Exception {
     List<DDSpan> trace = new ArrayList<>();
-    TestReport report =
-        new TestReport(
-            DDTraceId.from(1),
-            2L,
-            3L,
-            Arrays.asList(new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8}))));
+    TestReport report = new TestReport(
+        DDTraceId.from(1),
+        2L,
+        3L,
+        Arrays.asList(new TestReportFileEntry("source", BitSet.valueOf(new long[] {3, 5, 8}))));
 
     trace.add(
         buildSpan(
@@ -219,7 +222,9 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
     List<Map<String, Object>> files = (List<Map<String, Object>>) coverage.get("files");
     assertEquals(1, files.size());
     assertFile(
-        files.get(0), "source", new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
+        files.get(0),
+        "source",
+        new byte[] {3, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 8});
   }
 
   private List<DDSpan> givenTrace(TestReport... testReports) {
@@ -250,13 +255,13 @@ public class CiTestCovMapperV2Test extends DDCoreJavaSpecification {
   }
 
   private List<Map<String, Object>> assertVersionAndGetCoverages(
-      Map<String, Object> message, int version) {
+      Map<String, Object> message,
+      int version) {
     assertEquals(version, message.get("version"));
     return (List<Map<String, Object>>) message.get("coverages");
   }
 
-  private void assertCoverage(
-      Map<String, Object> coverage, int sessionId, int suiteId, int spanId) {
+  private void assertCoverage(Map<String, Object> coverage, int sessionId, int suiteId, int spanId) {
     assertEquals(sessionId, coverage.get("test_session_id"));
     assertEquals(suiteId, coverage.get("test_suite_id"));
     assertEquals(spanId, coverage.get("span_id"));

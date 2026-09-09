@@ -5,13 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.AbstractMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class EntryReadingHelperTest {
-
   @Test
   void setTagValueExposesIntValue() {
     EntryReadingHelper helper = new EntryReadingHelper();

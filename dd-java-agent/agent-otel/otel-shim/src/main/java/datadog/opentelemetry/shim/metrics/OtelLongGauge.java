@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.metrics;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
-
 import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
@@ -59,8 +58,9 @@ final class OtelLongGauge extends OtelInstrument implements LongGauge {
 
     @Override
     public LongGauge build() {
-      return new OtelLongGauge(
-          meter.registerStorage(builder, OtelMetricStorage::newLongValueStorage));
+      return new OtelLongGauge(meter.registerStorage(
+          builder,
+          OtelMetricStorage::newLongValueStorage));
     }
 
     @Override

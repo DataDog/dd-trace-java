@@ -4,8 +4,8 @@ import com.squareup.moshi.Json;
 import javax.annotation.Nullable;
 
 public final class PageInfo {
-
-  private PageInfo() {}
+  private PageInfo() {
+  }
 
   public static final class Request {
     @Json(name = "page_state")
@@ -20,7 +20,6 @@ public final class PageInfo {
   public static final class Response {
     public final String cursor;
     public final int size;
-
     @Json(name = "has_next")
     public final boolean hasNext;
 

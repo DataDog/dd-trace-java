@@ -10,7 +10,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
-
 import com.google.auto.service.AutoService;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
@@ -23,8 +22,8 @@ import org.apache.synapse.transport.passthru.TargetResponse;
 
 @AutoService(InstrumenterModule.class)
 public final class SynapseClientWorkerInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   public SynapseClientWorkerInstrumentation() {
     super("synapse3-client", "synapse3");
   }
@@ -36,16 +35,14 @@ public final class SynapseClientWorkerInstrumentation extends InstrumenterModule
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".SynapseClientDecorator",
-    };
+    return new String[] {packageName + ".SynapseClientDecorator"};
   }
 
   @Override
   public void methodAdvice(final MethodTransformer transformer) {
     transformer.applyAdvice(
         isConstructor()
-            .and(takesArgument(2, named("org.apache.synapse.transport.passthru.TargetResponse"))),
+          .and(takesArgument(2, named("org.apache.synapse.transport.passthru.TargetResponse"))),
         getClass().getName() + "$NewClientWorkerAdvice");
     transformer.applyAdvice(
         isMethod().and(named("run")).and(takesNoArguments()),

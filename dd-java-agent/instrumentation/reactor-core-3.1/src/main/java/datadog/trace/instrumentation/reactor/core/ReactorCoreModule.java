@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.reactor.core;
 
 import static java.util.Arrays.asList;
-
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -26,7 +25,8 @@ public final class ReactorCoreModule extends InstrumenterModule.ContextTracking
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".ReactorAsyncResultExtension", packageName + ".ReactorContextBridge",
+        packageName + ".ReactorAsyncResultExtension",
+        packageName + ".ReactorContextBridge"
     };
   }
 

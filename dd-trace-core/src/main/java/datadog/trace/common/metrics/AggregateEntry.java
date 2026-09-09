@@ -16,12 +16,9 @@ import javax.annotation.Nullable;
  * per-entry accessors.
  */
 public final class AggregateEntry extends Hashtable.Entry {
-
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
-
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
-
   final UTF8BytesString resource;
   final UTF8BytesString service;
   final UTF8BytesString operationName;
@@ -38,20 +35,17 @@ public final class AggregateEntry extends Hashtable.Entry {
   final boolean synthetic;
   final boolean traceRoot;
   final List<UTF8BytesString> peerTags;
-
   // Schema-ordered "key:value" strings; "key:" prefix makes packing unambiguous without null slots.
   final UTF8BytesString[] additionalTags;
-
   // Recording state (this field through errorDuration below) is thread-confined: the entry is
   // mutated only on the aggregator thread, so these fields are intentionally unsynchronized and not
   // thread-safe. Producers hand off immutable SpanSnapshots; only the aggregator thread records
   // into the entry.
   private final Histogram okLatencies;
-
   // Null until first error; SerializingMetricWriter writes empty histogram form when null. Not
   // thread-safe as well.
-  @Nullable private Histogram errorLatencies;
-
+  @Nullable
+  private Histogram errorLatencies;
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
@@ -239,7 +233,6 @@ public final class AggregateEntry extends Hashtable.Entry {
   }
 
   // ----- recording state accessors -----
-
   public int getHitCount() {
     return hitCount;
   }
@@ -282,7 +275,9 @@ public final class AggregateEntry extends Hashtable.Entry {
     return errorLatencies;
   }
 
-  /** Lazy-allocates {@link #errorLatencies} on the first error. */
+  /**
+   * Lazy-allocates {@link #errorLatencies} on the first error.
+   */
   private Histogram errorLatenciesForWrite() {
     Histogram h = errorLatencies;
     if (h == null) {
@@ -351,7 +346,6 @@ public final class AggregateEntry extends Hashtable.Entry {
     short httpStatusCode;
     boolean synthetic;
     boolean traceRoot;
-
     /**
      * Reusable buffer of canonicalized peer-tag UTF8 forms. Cleared and refilled in {@link
      * #populate}; on miss, {@link #createEntry} copies it into an immutable list for the entry to
@@ -359,15 +353,15 @@ public final class AggregateEntry extends Hashtable.Entry {
      * schema grows.
      */
     UTF8BytesString[] peerTagsBuffer = EMPTY_TAGS;
-
     int peerTagsSize = 0;
-
-    /** Core per-field cardinality handlers; owned by the enclosing {@link AggregateTable}. */
+    /**
+     * Core per-field cardinality handlers; owned by the enclosing {@link AggregateTable}.
+     */
     final CoreHandlers handlers;
-
-    /** Schema + per-key blocked sentinels for additional metric tags. Immutable. */
+    /**
+     * Schema + per-key blocked sentinels for additional metric tags. Immutable.
+     */
     final AdditionalTagsSchema additionalTagsSchema;
-
     /**
      * Reusable scratch for canonicalized additional-tag values, sized to the schema. Present values
      * are packed at the front in schema order (alphabetical by key); {@link #additionalTagsSize}
@@ -377,9 +371,7 @@ public final class AggregateEntry extends Hashtable.Entry {
      * the new entry.
      */
     final UTF8BytesString[] additionalTagsBuffer;
-
     int additionalTagsSize;
-
     long keyHash;
 
     Canonical(CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
@@ -388,7 +380,9 @@ public final class AggregateEntry extends Hashtable.Entry {
       this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
     }
 
-    /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
+    /**
+     * Canonicalize all fields from {@code s} through the handlers into this buffer.
+     */
     void populateFrom(SpanSnapshot s) {
       this.resource = handlers.resource.register(s.resourceName);
       this.service = handlers.service.register(s.serviceName);
@@ -504,9 +498,10 @@ public final class AggregateEntry extends Hashtable.Entry {
           && additionalTagsEqual(additionalTagsBuffer, additionalTagsSize, e.additionalTags);
     }
 
-    /** Compact compare: first {@code aSize} slots of {@code a} against the entry's packed array. */
-    private static boolean additionalTagsEqual(
-        UTF8BytesString[] a, int aSize, UTF8BytesString[] b) {
+    /**
+     * Compact compare: first {@code aSize} slots of {@code a} against the entry's packed array.
+     */
+    private static boolean additionalTagsEqual(UTF8BytesString[] a, int aSize, UTF8BytesString[] b) {
       if (aSize != b.length) {
         return false;
       }
@@ -547,8 +542,8 @@ public final class AggregateEntry extends Hashtable.Entry {
       }
       UTF8BytesString[] snapshottedAdditionalTags =
           additionalTagsSize == 0
-              ? EMPTY_TAGS
-              : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
+          ? EMPTY_TAGS
+          : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
       return new AggregateEntry(
           keyHash,
           resource,
@@ -569,8 +564,9 @@ public final class AggregateEntry extends Hashtable.Entry {
   }
 
   // ----- helpers -----
-
-  /** Direct {@link UTF8BytesString} creation that bypasses the cardinality handlers. */
+  /**
+   * Direct {@link UTF8BytesString} creation that bypasses the cardinality handlers.
+   */
   static UTF8BytesString createUtf8(CharSequence cs) {
     if (cs == null) {
       return UTF8BytesString.EMPTY;

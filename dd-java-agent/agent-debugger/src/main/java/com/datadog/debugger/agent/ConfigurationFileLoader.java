@@ -5,7 +5,6 @@ import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserialize
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanDecorationProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeTriggerProbe;
-
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
@@ -41,9 +40,8 @@ public class ConfigurationFileLoader {
       } while (bytesRead > -1);
       byte[] configContent = outputStream.toByteArray();
       JsonAdapter<List<ProbeDefinition>> adapter = new ProbeFileAdapter();
-      List<ProbeDefinition> probeDefinitions =
-          adapter.fromJson(
-              JsonReader.of(Okio.buffer(Okio.source(new ByteArrayInputStream(configContent)))));
+      List<ProbeDefinition> probeDefinitions = adapter.fromJson(JsonReader.of(Okio.buffer(Okio.source(
+          new ByteArrayInputStream(configContent)))));
       return new Configuration(null, probeDefinitions);
     } catch (IOException ex) {
       LOGGER.error("Unable to load config file {}: {}", probeFilePath, ex);
@@ -52,7 +50,6 @@ public class ConfigurationFileLoader {
   }
 
   private static class ProbeFileAdapter extends JsonAdapter<List<ProbeDefinition>> {
-
     @Override
     public List<ProbeDefinition> fromJson(JsonReader reader) throws IOException {
       List<ProbeDefinition> probeDefinitions = new ArrayList<>();

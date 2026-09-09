@@ -9,7 +9,6 @@ import static datadog.instrument.asm.Opcodes.ICONST_1;
 import static datadog.instrument.asm.Opcodes.INVOKEINTERFACE;
 import static datadog.instrument.asm.Opcodes.POP;
 import static datadog.instrument.asm.Opcodes.POP2;
-
 import datadog.instrument.asm.ClassReader;
 import datadog.instrument.asm.ClassVisitor;
 import datadog.instrument.asm.ClassWriter;
@@ -34,9 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 final class TraceApiTransformer implements ClassFileTransformer {
   private static final ClassLoader SYSTEM_CLASS_LOADER = ClassLoader.getSystemClassLoader();
-
   static final String TRACE_INTERCEPTOR = "datadog/trace/api/interceptor/TraceInterceptor";
-
   static final String PLACEHOLDER_TRACE_INTERCEPTOR =
       "datadog/trace/bootstrap/aot/PlaceholderTraceInterceptor";
 
@@ -47,7 +44,6 @@ final class TraceApiTransformer implements ClassFileTransformer {
       Class<?> classBeingRedefined,
       ProtectionDomain pd,
       byte[] bytecode) {
-
     // workaround only needed in the system class-loader
     if (loader == SYSTEM_CLASS_LOADER) {
       try {
@@ -63,7 +59,8 @@ final class TraceApiTransformer implements ClassFileTransformer {
         // skip this class
       }
     }
-    return null; // tells the JVM to keep the original bytecode
+    // tells the JVM to keep the original bytecode
+    return null;
   }
 
   /**
@@ -84,7 +81,11 @@ final class TraceApiTransformer implements ClassFileTransformer {
 
     @Override
     public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
+        int access,
+        String name,
+        String descriptor,
+        String signature,
+        String[] exceptions) {
       MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
       if ((access & (ACC_ABSTRACT | ACC_NATIVE)) == 0) {
         if (descriptor.endsWith(")L" + TRACE_INTERCEPTOR + ";")) {
@@ -92,12 +93,15 @@ final class TraceApiTransformer implements ClassFileTransformer {
         }
         return new InvokePatch(mv, modified);
       } else {
-        return mv; // no need to patch abstract/native methods
+        // no need to patch abstract/native methods
+        return mv;
       }
     }
   }
 
-  /** Removes direct calls to {@code Tracer.addTraceInterceptor()}. */
+  /**
+   * Removes direct calls to {@code Tracer.addTraceInterceptor()}.
+   */
   static final class InvokePatch extends MethodVisitor {
     private final AtomicBoolean modified;
 
@@ -108,7 +112,11 @@ final class TraceApiTransformer implements ClassFileTransformer {
 
     @Override
     public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
+        int opcode,
+        String owner,
+        String name,
+        String descriptor,
+        boolean isInterface) {
       if (INVOKEINTERFACE == opcode
           && "datadog/trace/api/Tracer".equals(owner)
           && "addTraceInterceptor".equals(name)
@@ -125,7 +133,9 @@ final class TraceApiTransformer implements ClassFileTransformer {
     }
   }
 
-  /** Replaces custom {@code TraceInterceptor} return values with placeholders. */
+  /**
+   * Replaces custom {@code TraceInterceptor} return values with placeholders.
+   */
   static final class ReturnPatch extends MethodVisitor {
     private final AtomicBoolean modified;
 

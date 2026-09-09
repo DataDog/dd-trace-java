@@ -28,47 +28,34 @@ import org.scalatest.events.TestStarting;
 import org.scalatest.events.TestSucceeded;
 
 public class DatadogReporter {
-
   private static final String TEST_FRAMEWORK = "scalatest";
   private static final String TEST_FRAMEWORK_VERSION = ScalatestUtils.getScalatestVersion();
 
   public static void handle(Event event) {
     if (event instanceof RunStarting) {
       start(event);
-
     } else if (event instanceof RunCompleted) {
       stop(event);
-
     } else if (event instanceof RunAborted) {
       stop(event);
-
     } else if (event instanceof RunStopped) {
       stop(event);
-
     } else if (event instanceof SuiteStarting) {
       onSuiteStart((SuiteStarting) event);
-
     } else if (event instanceof SuiteCompleted) {
       onSuiteFinish((SuiteCompleted) event);
-
     } else if (event instanceof SuiteAborted) {
       onSuiteAbort((SuiteAborted) event);
-
     } else if (event instanceof TestStarting) {
       onTestStart((TestStarting) event);
-
     } else if (event instanceof TestSucceeded) {
       onTestSuccess((TestSucceeded) event);
-
     } else if (event instanceof TestFailed) {
       onTestFailure((TestFailed) event);
-
     } else if (event instanceof TestIgnored) {
       onTestIgnore((TestIgnored) event);
-
     } else if (event instanceof TestCanceled) {
       onTestCancel((TestCanceled) event);
-
     } else if (event instanceof TestPending) {
       onTestPending((TestPending) event);
     }

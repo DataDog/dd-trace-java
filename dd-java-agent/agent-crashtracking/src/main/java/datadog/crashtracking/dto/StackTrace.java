@@ -11,7 +11,6 @@ public final class StackTrace {
   private static final JsonAdapter<StackTrace> ADAPTER =
       new Moshi.Builder().build().adapter(StackTrace.class);
   private static final String FORMAT = "CrashTrackerV1";
-
   public final String format = FORMAT;
   public final StackFrame[] frames;
 

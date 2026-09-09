@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.DECORATE;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.TIBCO_PROCESS_OPERATION;
-
 import com.google.auto.service.AutoService;
 import com.tibco.pe.plugin.ProcessContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -17,7 +16,8 @@ import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
 public class JobInstrumentation extends AbstractTibcoInstrumentation
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+    Instrumenter.HasMethodAdvice {
   @Override
   public String instrumentedType() {
     return "com.tibco.pe.core.Job";
@@ -31,8 +31,8 @@ public class JobInstrumentation extends AbstractTibcoInstrumentation
   public static class JobCallAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
-        @Advice.This ProcessContext processContext, @Advice.Argument(value = 0) String wId) {
-
+        @Advice.This ProcessContext processContext,
+        @Advice.Argument(value = 0) String wId) {
       String workflowName = wId;
       int suffixIdx = workflowName.indexOf(".process");
       if (suffixIdx > 0) {
@@ -41,9 +41,9 @@ public class JobInstrumentation extends AbstractTibcoInstrumentation
       AgentSpan span = startSpan("tibco_bw", TIBCO_PROCESS_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onProcessStart(span, workflowName);
-      Map<String, AgentSpan> map =
-          InstrumentationContext.get(ProcessContext.class, Map.class)
-              .getOrCreate(processContext, HashMap::new);
+      Map<String, AgentSpan> map = InstrumentationContext
+        .get(ProcessContext.class, Map.class)
+        .getOrCreate(processContext, HashMap::new);
       map.put(wId, span);
     }
   }

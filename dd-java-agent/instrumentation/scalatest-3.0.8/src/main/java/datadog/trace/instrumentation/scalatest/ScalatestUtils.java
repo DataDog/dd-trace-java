@@ -13,23 +13,20 @@ import org.slf4j.LoggerFactory;
 import scala.Option;
 
 public abstract class ScalatestUtils {
-
   private static final Logger log = LoggerFactory.getLogger(ScalatestUtils.class);
-
   private static final ClassLoader CLASS_LOADER = Reporter.class.getClassLoader();
+  public static final List<LibraryCapability> CAPABILITIES = Arrays.asList(
+      LibraryCapability.TIA,
+      LibraryCapability.EFD,
+      LibraryCapability.ATR,
+      LibraryCapability.IMPACTED,
+      LibraryCapability.FTR,
+      LibraryCapability.QUARANTINE,
+      LibraryCapability.DISABLED,
+      LibraryCapability.ATTEMPT_TO_FIX);
 
-  public static final List<LibraryCapability> CAPABILITIES =
-      Arrays.asList(
-          LibraryCapability.TIA,
-          LibraryCapability.EFD,
-          LibraryCapability.ATR,
-          LibraryCapability.IMPACTED,
-          LibraryCapability.FTR,
-          LibraryCapability.QUARANTINE,
-          LibraryCapability.DISABLED,
-          LibraryCapability.ATTEMPT_TO_FIX);
-
-  private ScalatestUtils() {}
+  private ScalatestUtils() {
+  }
 
   public static @Nullable String getScalatestVersion() {
     try {
@@ -47,7 +44,6 @@ public abstract class ScalatestUtils {
         manifestProperties.load(manifestStream);
         return manifestProperties.getProperty("Bundle-Version");
       }
-
     } catch (Exception e) {
       return null;
     }

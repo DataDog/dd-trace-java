@@ -31,9 +31,7 @@ import org.slf4j.LoggerFactory;
  * <p>Enforcement never runs when the local OPM is unknown (the agent has not yet reported one).
  */
 final class OrgGuardEnforcer {
-
   private static final Logger log = LoggerFactory.getLogger(OrgGuardEnforcer.class);
-
   private final boolean strict;
   private final Set<String> trustedOpms;
   private final Supplier<String> localOpmSupplier;
@@ -100,7 +98,10 @@ final class OrgGuardEnforcer {
   }
 
   private ExtractedContext strip(
-      ExtractedContext ctx, OrgGuard.Reason reason, String localOpm, String inboundOpm) {
+      ExtractedContext ctx,
+      OrgGuard.Reason reason,
+      String localOpm,
+      String inboundOpm) {
     log.debug(
         "OPG enforcement: dropping dd context (reason={}, inbound={}, local={})",
         reason.tag(),

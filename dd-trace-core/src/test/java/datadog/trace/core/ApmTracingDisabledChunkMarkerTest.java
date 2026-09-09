@@ -4,7 +4,6 @@ import static datadog.trace.api.DDTags.APM_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.util.List;
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test;
  */
 @WithConfig(key = "apm.tracing.enabled", value = "false")
 class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
-
   private ListWriter writer;
   private CoreTracer tracer;
 
@@ -49,19 +47,19 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
   @Test
   void everyExportedChunkCarriesApmDisabledMarker() throws InterruptedException, TimeoutException {
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
-    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
+    DDSpan child = (DDSpan) tracer
+      .buildSpan("test", "child")
+      .asChildOf(root.spanContext())
+      .start();
 
     PendingTrace trace = (PendingTrace) root.spanContext().getTraceCollector();
-
     // Root finishes while the child is still running -> root is buffered, not yet written.
     root.finish();
     assertTrue(writer.isEmpty());
-
     // Write the buffered root out on its own chunk. This sets rootSpanWritten=true and is exactly
     // what the PendingTraceBuffer worker does when a buffered root ages out (SEND_DELAY_NS).
     trace.write();
     writer.waitForTraces(1);
-
     // The long-lived child finishes later. Because the root was already written, it flushes alone.
     child.finish();
     trace.write();
@@ -73,11 +71,9 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     assertEquals(1, childChunk.size(), "expected the child to flush alone in the second chunk");
     assertEquals(root, rootChunk.get(0), "first chunk should be the local root");
     assertEquals(child, childChunk.get(0), "second chunk should be the delayed child");
-
     // Sanity: the child really is a child of the local root (a local, non-remote parent) — this is
     // exactly the case that stamping the marker only on the local root span would miss.
     assertEquals(root.getSpanId(), child.getParentId());
-
     // Both chunks must carry the billing marker. The delayed child chunk is load-bearing: without
     // the marker the intake would bill APM host usage for this otherwise-unmarked chunk.
     assertAllSpansMarked(rootChunk, "root chunk");
@@ -89,7 +85,10 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     // Positive control: when the whole trace is exported as a single chunk (child finishes before
     // the root, so nothing is written until the root closes), the marker is present on every span.
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
-    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
+    DDSpan child = (DDSpan) tracer
+      .buildSpan("test", "child")
+      .asChildOf(root.spanContext())
+      .start();
 
     child.finish();
     assertTrue(writer.isEmpty(), "trace must not be written while the root is still open");
@@ -114,14 +113,12 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
         (DDSpan) tracer.buildSpan("test", "grandchild").asChildOf(childA.spanContext()).start();
 
     PendingTrace trace = (PendingTrace) root.spanContext().getTraceCollector();
-
     // Flush the root on its own first (rootSpanWritten=true), so the descendants can only export in
     // a later, root-less chunk.
     root.finish();
     trace.write();
     writer.waitForTraces(1);
     assertEquals(1, writer.get(0).size(), "expected the root to flush alone in the first chunk");
-
     // Both descendants finish, then flush together in a single root-less chunk.
     childA.finish();
     grandchild.finish();
@@ -132,7 +129,6 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     assertEquals(2, chunk.size(), "expected childA and grandchild in one root-less chunk");
     assertTrue(chunk.contains(childA) && chunk.contains(grandchild), "chunk must hold both spans");
     assertTrue(!chunk.contains(root), "the local root must not be part of this chunk");
-
     // Every span in the root-less chunk carries the marker, including the inner grandchild whose
     // parent is present in the chunk.
     assertAllSpansMarked(chunk, "root-less descendant chunk");
@@ -146,7 +142,10 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
     // stamped on any span. Guards against a regression that marks unconditionally, ignoring the
     // apm.tracing.enabled flag.
     DDSpan root = (DDSpan) tracer.buildSpan("test", "root").start();
-    DDSpan child = (DDSpan) tracer.buildSpan("test", "child").asChildOf(root.spanContext()).start();
+    DDSpan child = (DDSpan) tracer
+      .buildSpan("test", "child")
+      .asChildOf(root.spanContext())
+      .start();
 
     child.finish();
     root.finish();
@@ -158,12 +157,14 @@ class ApmTracingDisabledChunkMarkerTest extends DDCoreJavaSpecification {
       assertNull(
           span.getTag(APM_ENABLED),
           "span '"
-              + span.getOperationName()
-              + "' must not carry _dd.apm.enabled when APM tracing is enabled");
+          + span.getOperationName()
+          + "' must not carry _dd.apm.enabled when APM tracing is enabled");
     }
   }
 
-  /** Every span of an exported chunk must carry the numeric {@code _dd.apm.enabled:0} marker. */
+  /**
+   * Every span of an exported chunk must carry the numeric {@code _dd.apm.enabled:0} marker.
+   */
   private static void assertAllSpansMarked(List<DDSpan> chunk, String description) {
     for (DDSpan span : chunk) {
       assertEquals(

@@ -6,7 +6,6 @@ import static datadog.trace.bootstrap.instrumentation.websocket.HandlersExtracto
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CHANNEL_ID;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.WEBSOCKET_RECEIVER_HANDLER_CONTEXT;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.WEBSOCKET_SENDER_HANDLER_CONTEXT;
-
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
@@ -27,7 +26,6 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
 
   @Override
   public void channelRead(ChannelHandlerContext ctx, Object frame) {
-
     if (frame instanceof WebSocketFrame) {
       Channel channel = ctx.channel();
       HandlerContext.Receiver receiverContext =
@@ -48,7 +46,9 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
 
           final AgentSpan span =
               DECORATE.startInboundFrameSpan(
-                  receiverContext, textFrame.text(), textFrame.isFinalFragment());
+                  receiverContext,
+                  textFrame.text(),
+                  textFrame.isFinalFragment());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.fireChannelRead(textFrame);
             // WebSocket Read Text Start
@@ -64,11 +64,10 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
         if (frame instanceof BinaryWebSocketFrame) {
           // WebSocket Read Binary Start
           BinaryWebSocketFrame binaryFrame = (BinaryWebSocketFrame) frame;
-          final AgentSpan span =
-              DECORATE.startInboundFrameSpan(
-                  receiverContext,
-                  binaryFrame.content().nioBuffer(),
-                  binaryFrame.isFinalFragment());
+          final AgentSpan span = DECORATE.startInboundFrameSpan(
+              receiverContext,
+              binaryFrame.content().nioBuffer(),
+              binaryFrame.isFinalFragment());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.fireChannelRead(binaryFrame);
           } finally {
@@ -85,13 +84,12 @@ public class WebSocketServerRequestTracingHandler extends ChannelInboundHandlerA
         if (frame instanceof ContinuationWebSocketFrame) {
           ContinuationWebSocketFrame continuationWebSocketFrame =
               (ContinuationWebSocketFrame) frame;
-          final AgentSpan span =
-              DECORATE.startInboundFrameSpan(
-                  receiverContext,
-                  MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
-                      ? continuationWebSocketFrame.text()
-                      : continuationWebSocketFrame.content().nioBuffer(),
-                  continuationWebSocketFrame.isFinalFragment());
+          final AgentSpan span = DECORATE.startInboundFrameSpan(
+              receiverContext,
+              MESSAGE_TYPE_TEXT.equals(receiverContext.getMessageType())
+              ? continuationWebSocketFrame.text()
+              : continuationWebSocketFrame.content().nioBuffer(),
+              continuationWebSocketFrame.isFinalFragment());
           try (final ContextScope scope = activateSpan(span)) {
             ctx.fireChannelRead(continuationWebSocketFrame);
           } finally {

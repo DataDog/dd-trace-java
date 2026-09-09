@@ -11,7 +11,6 @@ import com.sun.jna.Pointer;
 public class Request {
   static final int OP_CODE_SIZE = 1;
   static final int REQUEST_BUFFER_SIZE = OP_CODE_SIZE + 256;
-
   Pointer pointer;
 
   public Request(byte opCode) {
