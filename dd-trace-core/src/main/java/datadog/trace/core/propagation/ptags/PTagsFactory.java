@@ -405,7 +405,7 @@ public class PTagsFactory implements PropagationTags.Factory {
               toTagValue(parentAgentName),
               toTagValue(parentId));
       // Re-injecting the same context onto the same span is the common case; don't invalidate.
-      if (!updated.sameAs(llmObsTags)) {
+      if (!updated.equals(llmObsTags)) {
         clearCachedHeaders();
         llmObsTags = updated;
       }

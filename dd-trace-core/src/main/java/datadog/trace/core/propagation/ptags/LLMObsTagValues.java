@@ -49,17 +49,24 @@ final class LLMObsTagValues {
     this.parentId = parentId;
   }
 
-  /**
-   * Whether {@code other} carries the same five values. Used to skip cache invalidation when an
-   * injection re-stages tags a span already has; not {@code equals} because these are never used as
-   * map keys and identity equality is the useful default elsewhere in this package.
-   */
-  boolean sameAs(LLMObsTagValues other) {
-    return this == other
-        || (Objects.equals(mlApp, other.mlApp)
-            && Objects.equals(sessionId, other.sessionId)
-            && Objects.equals(parentAgentSpanId, other.parentAgentSpanId)
-            && Objects.equals(parentAgentName, other.parentAgentName)
-            && Objects.equals(parentId, other.parentId));
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof LLMObsTagValues)) {
+      return false;
+    }
+    LLMObsTagValues other = (LLMObsTagValues) o;
+    return Objects.equals(mlApp, other.mlApp)
+        && Objects.equals(sessionId, other.sessionId)
+        && Objects.equals(parentAgentSpanId, other.parentAgentSpanId)
+        && Objects.equals(parentAgentName, other.parentAgentName)
+        && Objects.equals(parentId, other.parentId);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
   }
 }
