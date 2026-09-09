@@ -91,6 +91,44 @@ class DebuggingAdviceTransformerTest {
   }
 
   @Test
+  void doesNotAttributeDownstreamRuntimeFailureToAdvice() {
+    RuntimeException failure = new IllegalStateException("custom visitor failed");
+    MethodVisitor downstream =
+        new MethodVisitor(ASM_API) {
+          @Override
+          public void visitCode() {
+            throw failure;
+          }
+        };
+
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitCode());
+
+    assertSame(failure, thrown);
+  }
+
+  @Test
+  void doesNotAttributeDownstreamLinkageFailureToAdvice() {
+    LinkageError failure = new NoClassDefFoundError("missing.CustomVisitorDependency");
+    MethodVisitor downstream =
+        new MethodVisitor(ASM_API) {
+          @Override
+          public void visitCode() {
+            throw failure;
+          }
+        };
+
+    LinkageError thrown =
+        assertThrows(
+            LinkageError.class,
+            () -> wrapTargetMethod(forwardingVisitor(), downstream).visitCode());
+
+    assertSame(failure, thrown);
+  }
+
+  @Test
   void logsInvalidArgumentWithFullTransformationContext() {
     AgentBuilder.Transformer.ForAdvice transformer =
         debuggingTransformer(InvalidArgumentAdvice.class);
@@ -168,16 +206,27 @@ class DebuggingAdviceTransformerTest {
 
   private MethodVisitor wrapTargetMethod(
       AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate) {
+    return wrapTargetMethod(delegate, null);
+  }
+
+  private MethodVisitor wrapTargetMethod(
+      AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper delegate,
+      MethodVisitor methodVisitor) {
     return DebuggingAdviceTransformer.wrap(
             delegate, "test.Instrumentation", InvalidArgumentAdvice.class.getName())
         .wrap(
             new TypeDescription.ForLoadedType(Target.class),
             new MethodDescription.ForLoadedMethod(getTargetMethod()),
-            null,
+            methodVisitor,
             null,
             null,
             0,
             0);
+  }
+
+  private AsmVisitorWrapper.ForDeclaredMethods.MethodVisitorWrapper forwardingVisitor() {
+    return (type, method, visitor, context, typePool, writerFlags, readerFlags) ->
+        new MethodVisitor(ASM_API, visitor) {};
   }
 
   private Method getTargetMethod() {

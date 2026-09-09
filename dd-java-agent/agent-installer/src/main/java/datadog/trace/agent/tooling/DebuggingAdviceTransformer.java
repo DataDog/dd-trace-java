@@ -121,12 +121,13 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
         TypePool typePool,
         int writerFlags,
         int readerFlags) {
+      DownstreamMethodVisitor downstreamVisitor = new DownstreamMethodVisitor(methodVisitor);
       try {
         MethodVisitor adviceVisitor =
             delegate.wrap(
                 instrumentedType,
                 instrumentedMethod,
-                methodVisitor,
+                downstreamVisitor,
                 implementationContext,
                 typePool,
                 writerFlags,
@@ -138,11 +139,59 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
                 instrumentationClass,
                 adviceClass,
                 instrumentedType,
-                instrumentedMethod);
+                instrumentedMethod,
+                downstreamVisitor);
       } catch (RuntimeException | LinkageError failure) {
-        throw AdviceTransformationException.wrap(
-            instrumentationClass, adviceClass, instrumentedType, instrumentedMethod, failure);
+        throw recordAdviceFailure(
+            instrumentationClass,
+            adviceClass,
+            instrumentedType,
+            instrumentedMethod,
+            downstreamVisitor,
+            failure);
       }
+    }
+  }
+
+  private static RuntimeException recordAdviceFailure(
+      String instrumentationClass,
+      String adviceClass,
+      TypeDescription instrumentedType,
+      MethodDescription instrumentedMethod,
+      DownstreamMethodVisitor downstreamVisitor,
+      Throwable failure) {
+    if (downstreamVisitor.clear(failure)) {
+      return propagate(failure);
+    }
+    return AdviceTransformationException.wrap(
+        instrumentationClass, adviceClass, instrumentedType, instrumentedMethod, failure);
+  }
+
+  private static RuntimeException propagate(Throwable failure) {
+    if (failure instanceof RuntimeException) {
+      return (RuntimeException) failure;
+    }
+    throw (LinkageError) failure;
+  }
+
+  /** Marks failures crossing the visitor boundary below advice so they keep their attribution. */
+  private static final class DownstreamMethodVisitor extends FailureTrackingMethodVisitor {
+    private Throwable failure;
+
+    private DownstreamMethodVisitor(MethodVisitor delegate) {
+      super(delegate);
+    }
+
+    @Override
+    RuntimeException record(Throwable failure) {
+      this.failure = failure;
+      return propagate(failure);
+    }
+
+    private boolean clear(Throwable failure) {
+      Throwable downstreamFailure = this.failure;
+      this.failure = null;
+      return downstreamFailure == failure;
     }
   }
 
@@ -150,29 +199,47 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
    * Advice binding is triggered by the first code event after the exception table. Forwarding all
    * code events here attributes failures thrown during that binding to the exact target method.
    */
-  private static final class DebuggingMethodVisitor extends MethodVisitor {
+  private static final class DebuggingMethodVisitor extends FailureTrackingMethodVisitor {
     private final String instrumentationClass;
     private final String adviceClass;
     private final TypeDescription instrumentedType;
     private final MethodDescription instrumentedMethod;
+    private final DownstreamMethodVisitor downstreamVisitor;
 
     private DebuggingMethodVisitor(
         MethodVisitor delegate,
         String instrumentationClass,
         String adviceClass,
         TypeDescription instrumentedType,
-        MethodDescription instrumentedMethod) {
-      super(ASM_API, delegate);
+        MethodDescription instrumentedMethod,
+        DownstreamMethodVisitor downstreamVisitor) {
+      super(delegate);
       this.instrumentationClass = instrumentationClass;
       this.adviceClass = adviceClass;
       this.instrumentedType = instrumentedType;
       this.instrumentedMethod = instrumentedMethod;
+      this.downstreamVisitor = downstreamVisitor;
     }
 
-    private RuntimeException record(Throwable failure) {
-      return AdviceTransformationException.wrap(
-          instrumentationClass, adviceClass, instrumentedType, instrumentedMethod, failure);
+    @Override
+    RuntimeException record(Throwable failure) {
+      return recordAdviceFailure(
+          instrumentationClass,
+          adviceClass,
+          instrumentedType,
+          instrumentedMethod,
+          downstreamVisitor,
+          failure);
     }
+  }
+
+  private abstract static class FailureTrackingMethodVisitor extends MethodVisitor {
+
+    private FailureTrackingMethodVisitor(MethodVisitor delegate) {
+      super(ASM_API, delegate);
+    }
+
+    abstract RuntimeException record(Throwable failure);
 
     @Override
     public void visitCode() {
