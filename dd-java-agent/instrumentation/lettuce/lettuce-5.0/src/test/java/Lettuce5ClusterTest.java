@@ -121,7 +121,11 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     connection.setReadFrom(ReadFrom.SLAVE);
     new PollingConditions(30)
         .delay(0.5)
-        .eventually(() -> assertEquals(TEST_SET_VALUE, connection.sync().get(TEST_SET_KEY)));
+        .eventually(
+            () -> {
+              redisClient.reloadPartitions();
+              assertEquals(TEST_SET_VALUE, connection.sync().get(TEST_SET_KEY));
+            });
 
     blockUntilTracesMatch(traces -> !findCommandSpans(traces, "GET").isEmpty());
     tracer.flush();
