@@ -1,10 +1,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 
-@SuppressWarnings("deprecation")
-public final class NoopContinuation implements AgentScope.Continuation {
+public final class NoopContinuation implements ContextContinuation {
   public static final NoopContinuation INSTANCE = new NoopContinuation();
 
   private NoopContinuation() {}
@@ -26,12 +26,4 @@ public final class NoopContinuation implements AgentScope.Continuation {
 
   @Override
   public void release() {}
-
-  @Override
-  public AgentScope activate() {
-    return NoopScope.INSTANCE;
-  }
-
-  @Override
-  public void cancel() {}
 }
