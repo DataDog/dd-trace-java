@@ -1,6 +1,7 @@
 package datadog.metrics.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CountDownLatch;
@@ -199,13 +200,20 @@ class AccumulatorTest {
     counters.add(Counters.BAR, 5L);
 
     Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
-    assertEquals(Counters.values().length, drained.keys().length);
+    assertEquals(Counters.values().length, drained.keys().size());
 
     long total = 0L;
     for (Counters c : drained.keys()) {
       total += drained.get(c);
     }
     assertEquals(6L, total);
+  }
+
+  @Test
+  void keysIsUnmodifiable() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    assertThrows(UnsupportedOperationException.class, () -> drained.keys().set(0, Counters.BAZ));
   }
 
   @Test

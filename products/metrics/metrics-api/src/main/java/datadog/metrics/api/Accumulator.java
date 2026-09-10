@@ -1,6 +1,9 @@
 package datadog.metrics.api;
 
 import datadog.environment.ThreadSupport;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLongArray;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -140,10 +143,13 @@ public final class Accumulator<E extends Enum<E>> {
     /**
      * The enum constants this {@link Counts} is keyed by, in declaration order -- for a caller that
      * wants to iterate every counter (e.g. reporting each one) without separately having to pass
-     * {@code E.values()} alongside this object.
+     * {@code E.values()} alongside this object. An unmodifiable view over the same backing array
+     * every {@link Counts} from the same {@link Accumulator} shares -- no copy, but a caller can't
+     * corrupt that shared array's ordering for every other snapshot the way a raw array reference
+     * would let it.
      */
-    public E[] keys() {
-      return keys;
+    public List<E> keys() {
+      return Collections.unmodifiableList(Arrays.asList(keys));
     }
 
     /**
@@ -199,7 +205,11 @@ public final class Accumulator<E extends Enum<E>> {
 
     /**
      * Wraps {@code accumulator}, seeding the running total from a drain of whatever it currently
-     * holds (typically nothing, for a freshly constructed {@code accumulator}).
+     * holds. That seed becomes visible through {@link #live}, but -- being folded in at
+     * construction, before any caller can observe it -- it is never returned by a later {@link
+     * #drain}. A caller that reports each {@link #drain} delta (e.g. to statsd) would therefore
+     * silently never report pre-existing counts. Always construct this from a freshly created
+     * {@code accumulator} (as every current caller does) so there is nothing to seed.
      */
     public static <E extends Enum<E>> RunningTotal<E> of(Accumulator<E> accumulator) {
       return new RunningTotal<>(accumulator);

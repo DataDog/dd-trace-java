@@ -1,6 +1,7 @@
 package datadog.metrics.api.statsd;
 
 import datadog.metrics.api.Accumulator;
+import java.util.List;
 import java.util.function.ToLongFunction;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
@@ -85,9 +86,9 @@ public final class StatsDCountReporter<E extends Enum<E> & StatsDCounterKey> {
    *     holding whatever wasn't attempted or confirmed sent
    */
   private Accumulator.Counts<E> report(Accumulator.Counts<E> counts) {
-    E[] keys = counts.keys();
-    for (int i = 0; i < keys.length; i++) {
-      E key = keys[i];
+    List<E> keys = counts.keys();
+    for (int i = 0; i < keys.size(); i++) {
+      E key = keys.get(i);
       long delta = counts.get(key);
       if (delta != 0) {
         try {
@@ -96,7 +97,7 @@ public final class StatsDCountReporter<E extends Enum<E> & StatsDCounterKey> {
           log.debug(
               "Failed to report {}, compensating {} undelivered counter(s)",
               key,
-              keys.length - i,
+              keys.size() - i,
               e);
           return counts.from(i);
         }
