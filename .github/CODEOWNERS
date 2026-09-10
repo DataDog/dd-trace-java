@@ -151,6 +151,7 @@
 /dd-trace-core/src/*/*/datadog/trace/core/scopemanager          @DataDog/apm-sdk-capabilities-java
 /dd-trace-core/src/*/*/opentelemetry/proto/                     @DataDog/apm-sdk-capabilities-java
 /dd-trace-ot/                                                   @DataDog/apm-sdk-capabilities-java
+/dd-trace-api/src/*/*/datadog/trace/api/metrics                 @DataDog/apm-sdk-capabilities-java
 /dd-trace-api/src/*/*/datadog/trace/api/sampling                @DataDog/apm-sdk-capabilities-java
 /internal-api/src/*/*/datadog/trace/bootstrap                   @DataDog/apm-sdk-capabilities-java
 /internal-api/src/*/*/datadog/trace/api/propagation/            @DataDog/apm-sdk-capabilities-java
