@@ -37,27 +37,27 @@ public final class Accumulator<E extends Enum<E>> {
 
   private final AtomicLongArray[] data;
   private final int width;
-  private final E[] values;
+  private final E[] keys;
 
-  private Accumulator(AtomicLongArray[] data, int width, E[] values) {
+  private Accumulator(AtomicLongArray[] data, int width, E[] keys) {
     this.data = data;
     this.width = width;
-    this.values = values;
+    this.keys = keys;
   }
 
   /**
    * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
    */
   public static <E extends Enum<E>> Accumulator<E> of(Class<E> enumType) {
-    E[] values = enumType.getEnumConstants();
-    int width = values.length;
+    E[] keys = enumType.getEnumConstants();
+    int width = keys.length;
     int paddedWidth = paddedWidth(width);
     int stripes = stripeCount();
     AtomicLongArray[] data = new AtomicLongArray[stripes];
     for (int i = 0; i < stripes; i++) {
       data[i] = new AtomicLongArray(paddedWidth);
     }
-    return new Accumulator<>(data, width, values);
+    return new Accumulator<>(data, width, keys);
   }
 
   /** Increments the counter named by {@code key} in the calling thread's stripe by one. */
@@ -84,7 +84,7 @@ public final class Accumulator<E extends Enum<E>> {
         acc[i] += stripe.getAndSet(i, 0L);
       }
     }
-    return new Counts<>(acc, values);
+    return new Counts<>(acc, keys);
   }
 
   /**
@@ -101,7 +101,7 @@ public final class Accumulator<E extends Enum<E>> {
         acc[i] += stripe.get(i);
       }
     }
-    return new Counts<>(acc, values);
+    return new Counts<>(acc, keys);
   }
 
   /**
@@ -111,11 +111,11 @@ public final class Accumulator<E extends Enum<E>> {
    */
   public static final class Counts<E extends Enum<E>> {
     private final long[] counts;
-    private final E[] values;
+    private final E[] keys;
 
-    private Counts(long[] counts, E[] values) {
+    private Counts(long[] counts, E[] keys) {
       this.counts = counts;
-      this.values = values;
+      this.keys = keys;
     }
 
     /**
@@ -126,8 +126,8 @@ public final class Accumulator<E extends Enum<E>> {
      * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
      */
     public static <E extends Enum<E>> Counts<E> zero(Class<E> enumType) {
-      E[] values = enumType.getEnumConstants();
-      return new Counts<>(new long[values.length], values);
+      E[] keys = enumType.getEnumConstants();
+      return new Counts<>(new long[keys.length], keys);
     }
 
     /** The counter named by {@code key}. */
@@ -141,7 +141,7 @@ public final class Accumulator<E extends Enum<E>> {
      * {@code E.values()} alongside this object.
      */
     public E[] keys() {
-      return values;
+      return keys;
     }
 
     /**
@@ -154,7 +154,7 @@ public final class Accumulator<E extends Enum<E>> {
       for (int i = 0; i < combined.length; i++) {
         combined[i] += other.counts[i];
       }
-      return new Counts<>(combined, values);
+      return new Counts<>(combined, keys);
     }
   }
 
