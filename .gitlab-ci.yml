@@ -988,13 +988,26 @@ test_base_arm64:
 
 test_inst:
   extends: .test_job_amd64_with_test_agent
+  tags: [ "arch:amd64" ]
   needs: *needs_build_tests_inst
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
+    GRADLE_PARAMS: "-PskipFlakyTests -PtestcontainersMode=exclude"
     CACHE_TYPE: "inst"
   parallel:
     matrix: *test_matrix_8
+
+test_inst_testcontainers:
+  extends: .test_job_amd64_with_test_agent
+  needs: *needs_build_tests_inst
+  variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: ":instrumentationTest"
+    GRADLE_PARAMS: "-PskipFlakyTests -PtestcontainersMode=only"
+    CACHE_TYPE: "inst"
+  parallel:
+    matrix: *test_matrix
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
@@ -1006,6 +1019,30 @@ test_inst_arm64:
     matrix: *test_matrix_8
 
 test_inst_latest:
+  extends: .test_job_amd64_with_test_agent
+  tags: [ "arch:amd64" ]
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":instrumentationLatestDepTest"
+            CACHE_TYPE: "latestdep"
+  variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+    GRADLE_PARAMS: "-PskipFlakyTests -PtestcontainersMode=exclude"
+    CACHE_TYPE: "latestdep"
+  parallel:
+    matrix:
+      - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+
+test_inst_latest_testcontainers:
   extends: .test_job_amd64_with_test_agent
   # needs:parallel:matrix limits this job to a specific build_tests combination.
   # Keep matrix vars exact and in build_tests declaration order:
@@ -1019,13 +1056,12 @@ test_inst_latest:
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationLatestDepTest"
+    GRADLE_PARAMS: "-PskipFlakyTests -PtestcontainersMode=only"
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
       - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
-        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
-        # This emulates "parallel" by including it in the matrix
-        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+        CI_SPLIT: ["1/1"]
 
 test_inst_latest_arm64:
   extends: .test_job_arm64_with_test_agent

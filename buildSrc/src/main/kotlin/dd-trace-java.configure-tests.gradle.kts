@@ -1,3 +1,5 @@
+import org.gradle.api.GradleException
+import org.gradle.api.internal.TaskInternal
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -35,11 +37,29 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
+val testcontainersModeProvider = rootProject.providers.gradleProperty("testcontainersMode").orElse("all")
+
+fun Test.matchesTestcontainersMode(): Boolean =
+  when (val mode = testcontainersModeProvider.get()) {
+    "all" -> true
+    "exclude", "only" -> {
+      val testcontainersLimit =
+        project.gradle.sharedServices.registrations.getByName("testcontainersLimit").service
+      val usesTestcontainers =
+        (this as TaskInternal).requiredServices.isServiceRequired(testcontainersLimit)
+      usesTestcontainers == (mode == "only")
+    }
+    else ->
+      throw GradleException(
+        "Invalid testcontainersMode '$mode'; expected one of: all, exclude, only"
+      )
+  }
 
 // Go through the Test tasks and configure them
 tasks.withType<Test>().configureEach {
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
+  onlyIf("test task matches testcontainersMode") { matchesTestcontainersMode() }
 
   // Enable force rerun of tests with -Prerun.tests.${project.name}
   outputs.upToDateWhen {
@@ -83,16 +103,22 @@ tasks.withType<Test>().configureEach {
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
 // This is used when we only want to run the 'main' test sets.
 tasks.register("allTests") {
-  dependsOn(tasks.withType<Test>().matching { testTask ->
-    !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
+  dependsOn(providers.provider {
+    tasks.withType<Test>().filter { testTask ->
+      !testTask.name.contains("latest", ignoreCase = true) &&
+        testTask.name != "traceAgentTest" &&
+        testTask.matchesTestcontainersMode()
+    }
   })
 }
 
 // Register a task "allLatestDepTests" that depends on all Test tasks whose names include 'latest'.
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
-  dependsOn(tasks.withType<Test>().matching { testTask ->
-    testTask.name.contains("latest", ignoreCase = true)
+  dependsOn(providers.provider {
+    tasks.withType<Test>().filter { testTask ->
+      testTask.name.contains("latest", ignoreCase = true) && testTask.matchesTestcontainersMode()
+    }
   })
 }
 

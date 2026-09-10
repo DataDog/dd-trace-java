@@ -72,3 +72,7 @@ dependencies {
 
   latestDepTestImplementation group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.7+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

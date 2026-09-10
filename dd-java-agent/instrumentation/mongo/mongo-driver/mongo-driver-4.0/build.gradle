@@ -62,3 +62,7 @@ dependencies {
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-reactivestreams', version: '+'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver-sync', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}

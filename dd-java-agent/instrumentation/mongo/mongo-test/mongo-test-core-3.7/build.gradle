@@ -28,3 +28,7 @@ dependencies {
   testImplementation group: 'org.mongodb', name: 'mongodb-driver', version: '3.7.0'
   latestDepTestImplementation group: 'org.mongodb', name: 'mongodb-driver', version: '3.+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
