@@ -450,24 +450,35 @@ public class DDEvaluatorTest {
    */
   @Test
   public void probeAcceptsTheBootstrapOnTheClasspath() {
-    assertTrue(DDEvaluator.serialIdSupported(Split.class, ExposureEvent.class));
+    assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
+    assertTrue(DDEvaluator.exposureSerialIdSupported(ExposureEvent.class));
+    assertTrue(DDEvaluator.SPLIT_SERIAL_ID_SUPPORTED.get());
     assertFalse(DDEvaluator.USE_LEGACY_EXPOSURE_API.get());
   }
 
   @Test
   public void probeRejectsAnAgentWhoseSplitHasNoSerialId() {
-    assertFalse(DDEvaluator.serialIdSupported(SplitWithoutSerialId.class, ExposureEvent.class));
+    assertFalse(DDEvaluator.splitSerialIdSupported(SplitWithoutSerialId.class));
   }
 
   @Test
   public void probeRejectsAnAgentWhoseSerialIdIsNotAnInteger() {
-    assertFalse(
-        DDEvaluator.serialIdSupported(SplitWithWrongSerialIdType.class, ExposureEvent.class));
+    assertFalse(DDEvaluator.splitSerialIdSupported(SplitWithWrongSerialIdType.class));
   }
 
   @Test
   public void probeRejectsAnAgentWithoutTheSerialIdConstructor() {
-    assertFalse(DDEvaluator.serialIdSupported(Split.class, LegacyExposureEvent.class));
+    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
+  }
+
+  /**
+   * Agents 1.65 and 1.66 carry Split.serialId but only the five-argument event constructor. Span
+   * enrichment works on those agents, so only the exposure path may fall back.
+   */
+  @Test
+  public void probeKeepsSplitSupportWhenOnlyTheEventConstructorIsMissing() {
+    assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
+    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
   }
 
   /**
