@@ -3,6 +3,7 @@ package datadog.trace.bootstrap;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -181,13 +183,47 @@ class DatadogClassLoaderTest {
                 + " which leaves the space unencoded and on Windows produces a malformed URL.");
   }
 
+  @Test
+  void getResourceAsStreamFallsBackForResourcesExcludedFromTheIndex() throws Exception {
+    String manifestName = "META-INF/MANIFEST.MF";
+    try (URLClassLoader parent = new URLClassLoader(new URL[] {testJarLocation}, null)) {
+      DatadogClassLoader ddLoader = new DatadogClassLoader(testJarLocation, parent);
+
+      assertNull(
+          ddLoader.findResource(manifestName),
+          "the manifest should remain excluded from the agent jar index");
+      assertArrayEquals(
+          readFully(parent, manifestName),
+          readFully(ddLoader, manifestName),
+          "resources excluded from the index should retain the existing delegation path");
+    }
+  }
+
+  @Test
+  void getResourceAsStreamPrefersIndexedAgentResourceOverParent(
+      @org.junit.jupiter.api.io.TempDir File tempDir) throws Exception {
+    byte[] parentContents = "the parent's a/A.class".getBytes(StandardCharsets.UTF_8);
+    File parentJar = new File(tempDir, "parent.jar");
+    writeJarEntry(parentJar, "a/A.class", parentContents);
+
+    try (URLClassLoader parent = new URLClassLoader(new URL[] {parentJar.toURI().toURL()}, null)) {
+      DatadogClassLoader ddLoader = new DatadogClassLoader(testJarLocation, parent);
+
+      assertArrayEquals(parentContents, readFully(parent, "a/A.class"));
+      assertArrayEquals(
+          originalEntryBytes(),
+          readFully(ddLoader, "a/A.class"),
+          "indexed agent resources should take precedence over delegated resources");
+    }
+  }
+
   /**
-   * Regression test for APPSEC-69906. Deployments that upgrade the agent replace its jar on disk
-   * while the JVM keeps running. Class loading survives that, because it reads through the {@link
-   * java.util.jar.JarFile} handle opened at construction time, but resource loading used to go
-   * through a {@code jar:} URL that can no longer be opened — and {@link
-   * ClassLoader#getResourceAsStream} turns the resulting {@link java.io.IOException} into a silent
-   * {@code null}. AppSec surfaced that as a bogus "Resource default_config.json not found".
+   * Regression coverage for agent jar removal. Class loading survives an on-disk replacement,
+   * because it reads through the {@link java.util.jar.JarFile} handle opened at construction time,
+   * but resource loading used to go through a {@code jar:} URL that can no longer be opened — and
+   * {@link ClassLoader#getResourceAsStream} turns the resulting {@link java.io.IOException} into a
+   * silent {@code null}. APPSEC-69906 reported the same externally visible "Resource
+   * default_config.json not found" symptom, although its underlying cause is unconfirmed.
    */
   @Test
   void getResourceAsStreamSurvivesAgentJarRemoval(@org.junit.jupiter.api.io.TempDir File tempDir)
@@ -235,11 +271,7 @@ class DatadogClassLoaderTest {
     // an upgrade swaps in a different build holding a different copy of the same entry
     byte[] replacementContents = "a different build of a/A.class".getBytes(StandardCharsets.UTF_8);
     File replacement = new File(tempDir, "replacement");
-    try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(replacement.toPath()))) {
-      out.putNextEntry(new JarEntry("parent/a/A.classdata"));
-      out.write(replacementContents);
-      out.closeEntry();
-    }
+    writeJarEntry(replacement, "parent/a/A.classdata", replacementContents);
     // REPLACE_EXISTING alone: combining it with ATOMIC_MOVE is not portable, and the move must
     // swap the pathname rather than write through it, so the handle keeps seeing the old jar
     Files.move(replacement.toPath(), jar.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -256,6 +288,14 @@ class DatadogClassLoaderTest {
       try (InputStream is = jarFile.getInputStream(new JarEntry("parent/a/A.classdata"))) {
         return readAllBytes(is);
       }
+    }
+  }
+
+  private static void writeJarEntry(File jar, String entryName, byte[] contents) throws Exception {
+    try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar.toPath()))) {
+      out.putNextEntry(new JarEntry(entryName));
+      out.write(contents);
+      out.closeEntry();
     }
   }
 

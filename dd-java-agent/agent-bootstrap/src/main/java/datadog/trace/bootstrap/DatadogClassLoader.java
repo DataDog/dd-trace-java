@@ -76,48 +76,47 @@ public final class DatadogClassLoader extends SecureClassLoader {
     // deployment has replaced or removed that jar the read either fails - and
     // ClassLoader.getResourceAsStream() turns the IOException into a silent null, see
     // APPSEC-69906 - or silently serves content belonging to a different build of the agent.
-    InputStream is = findResourceAsStream(name);
-    if (null == is) {
-      is = super.getResourceAsStream(name);
+    JarEntry jarEntry = findResourceEntry(name);
+    if (null == jarEntry) {
+      return super.getResourceAsStream(name);
     }
-    return is;
+    try {
+      return agentJarFile.getInputStream(jarEntry);
+    } catch (IOException e) {
+      // The retained jar owns this resource, so do not fall back to a pathname-based lookup that
+      // could serve the same entry from a replacement jar.
+      log.warn("Problem reading resource data at {}", jarEntry, e);
+      return null;
+    }
   }
 
   /**
-   * Reads a resource we ship from the agent jar, or returns {@code null} if the agent jar does not
-   * contain it. Note {@link BootstrapProxy} is backed by the very same jar, so consulting this
-   * before delegating cannot shadow a different resource of the same name.
+   * Finds a resource we ship in the retained agent jar. Indexed agent resources intentionally take
+   * precedence over delegated resources so their contents stay consistent with classes loaded from
+   * this handle. Resources not owned by this jar, including the manifest which is excluded from the
+   * index, continue through the existing delegation path. In production {@link BootstrapProxy} is
+   * initially registered with the same agent jar URL, but it can hold additional URLs.
    */
-  private InputStream findResourceAsStream(String name) {
+  private JarEntry findResourceEntry(String name) {
     if (null == agentJarFile) {
       return null;
     }
     String entryName = agentJarIndex.resourceEntryName(name);
     if (null != entryName) {
-      JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
-      if (null != jarEntry) {
-        try {
-          return agentJarFile.getInputStream(jarEntry);
-        } catch (IOException e) {
-          log.warn("Problem reading resource data at {}", jarEntry, e);
-        }
-      }
+      return agentJarFile.getJarEntry(entryName);
     }
     return null;
   }
 
   @Override
   protected URL findResource(String name) {
-    String entryName = agentJarIndex.resourceEntryName(name);
-    if (null != entryName) {
-      JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
-      if (null != jarEntry) {
-        String location = agentResourcePrefix + entryName;
-        try {
-          return new URL(location);
-        } catch (Exception e) {
-          log.warn("Malformed location {}", location);
-        }
+    JarEntry jarEntry = findResourceEntry(name);
+    if (null != jarEntry) {
+      String location = agentResourcePrefix + jarEntry.getName();
+      try {
+        return new URL(location);
+      } catch (Exception e) {
+        log.warn("Malformed location {}", location);
       }
     }
     return null;
