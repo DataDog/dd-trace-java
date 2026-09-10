@@ -6,6 +6,7 @@ import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.llmobs.GenAiApmTags;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.llmobs.LLMObsSampler;
@@ -690,6 +691,13 @@ public class DDLLMObsSpan implements LLMObsSpan {
   public void finish() {
     if (finished) {
       return;
+    }
+    // Ahead of span.finish() while the span is still mutable, and in its own try/catch so a
+    // failure here cannot cost the LLM Observability event.
+    try {
+      GenAiApmTags.apply(span);
+    } catch (Throwable t) {
+      LOGGER.debug("failed to set gen_ai APM tags", t);
     }
     span.finish();
     if (standaloneApmScope != null) {
