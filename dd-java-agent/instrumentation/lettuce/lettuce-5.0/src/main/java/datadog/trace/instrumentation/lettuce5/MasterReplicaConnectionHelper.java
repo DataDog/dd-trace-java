@@ -8,7 +8,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulConnection;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 
 public final class MasterReplicaConnectionHelper {
 
@@ -32,22 +31,22 @@ public final class MasterReplicaConnectionHelper {
     }
   }
 
-  public static BiConsumer<StatefulConnection, Throwable> onConnectionComplete(
-      final AgentSpan span, final ContextStore<StatefulConnection, RedisURI> contextStore) {
-    return (connection, _throwable) -> onConnection(span, connection, contextStore);
-  }
-
-  public static void onConnectionFuture(
+  public static <T extends StatefulConnection> CompletableFuture<T> onConnectionFuture(
       final AgentSpan span,
-      final CompletableFuture<? extends StatefulConnection> connectionFuture,
+      final CompletableFuture<T> connectionFuture,
       final ContextStore<StatefulConnection, RedisURI> contextStore) {
-    if (connectionFuture.isDone()
-        && !connectionFuture.isCompletedExceptionally()
-        && !connectionFuture.isCancelled()) {
-      onConnection(span, connectionFuture.getNow(null), contextStore);
-      return;
+    if (connectionFuture.isDone()) {
+      if (!connectionFuture.isCompletedExceptionally() && !connectionFuture.isCancelled()) {
+        onConnection(span, connectionFuture.getNow(null), contextStore);
+      }
+      return connectionFuture;
     }
 
-    connectionFuture.whenComplete(onConnectionComplete(span, contextStore));
+    return connectionFuture.whenComplete(
+        (connection, throwable) -> {
+          if (throwable == null) {
+            onConnection(span, connection, contextStore);
+          }
+        });
   }
 }
