@@ -112,12 +112,22 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
 
   static Stream<Arguments> defaultOrConfiguredServiceNameCanBeRemappedWithoutSettingTagArguments() {
     return Stream.of(
-        // spotless:off
-        arguments(DEFAULT_SERVICE_NAME, DEFAULT_SERVICE_NAME, singletonMap("other-service-name", "other-service")),
-        arguments(DEFAULT_SERVICE_NAME, "new-service",        singletonMap(DEFAULT_SERVICE_NAME, "new-service")),
-        arguments("other-service-name", "other-service",      singletonMap("other-service-name", "other-service"))
-        // spotless:on
-        );
+        arguments(
+            DEFAULT_SERVICE_NAME,
+            DEFAULT_SERVICE_NAME,
+            singletonMap("other-service-name", "other-service")
+        ),
+        arguments(
+            DEFAULT_SERVICE_NAME,
+            "new-service",
+            singletonMap(DEFAULT_SERVICE_NAME, "new-service")
+        ),
+        arguments(
+            "other-service-name",
+            "other-service",
+            singletonMap("other-service-name", "other-service")
+        )
+    );
   }
 
   @TableTest({
@@ -700,11 +710,9 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
 
   static Stream<Arguments> urlAsResourceNameRuleSetsTheResourceNameArguments() {
     return Stream.of(
-        // spotless:off
-          arguments("/not-found", singletonMap(HTTP_STATUS, "404"), "404"),
-          arguments("/with-method", singletonMap(HTTP_METHOD, "Post"), "POST /with-method")
-        // spotless:on
-        );
+        arguments("/not-found", singletonMap(HTTP_STATUS, "404"), "404"),
+        arguments("/with-method", singletonMap(HTTP_METHOD, "Post"), "POST /with-method")
+    );
   }
 
   @Test
