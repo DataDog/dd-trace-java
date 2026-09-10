@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -30,6 +31,7 @@ public class OutputThreads implements Closeable {
     this(new ThreadGroup("smoke-output"));
   }
 
+  @VisibleForTesting
   OutputThreads(ThreadGroup tg) {
     this.tg = tg;
   }
