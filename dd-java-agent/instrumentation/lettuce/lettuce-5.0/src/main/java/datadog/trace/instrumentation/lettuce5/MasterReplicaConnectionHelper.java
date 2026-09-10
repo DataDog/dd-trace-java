@@ -7,6 +7,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulConnection;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 public final class MasterReplicaConnectionHelper {
@@ -34,5 +35,19 @@ public final class MasterReplicaConnectionHelper {
   public static BiConsumer<StatefulConnection, Throwable> onConnectionComplete(
       final AgentSpan span, final ContextStore<StatefulConnection, RedisURI> contextStore) {
     return (connection, _throwable) -> onConnection(span, connection, contextStore);
+  }
+
+  public static void onConnectionFuture(
+      final AgentSpan span,
+      final CompletableFuture<? extends StatefulConnection> connectionFuture,
+      final ContextStore<StatefulConnection, RedisURI> contextStore) {
+    if (connectionFuture.isDone()
+        && !connectionFuture.isCompletedExceptionally()
+        && !connectionFuture.isCancelled()) {
+      onConnection(span, connectionFuture.getNow(null), contextStore);
+      return;
+    }
+
+    connectionFuture.whenComplete(onConnectionComplete(span, contextStore));
   }
 }
