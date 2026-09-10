@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.ignoreStubs;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -77,7 +78,10 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
 
   private TestAppSecEventTracker tracker;
   private TraceSegment traceSegment;
+  private RequestContext requestContext;
+  private AgentSpan span;
   private CallbackProvider provider;
+  private TracerAPI tracer;
   private BiFunction<RequestContext, String, Flow<Void>> user;
   private TriFunction<RequestContext, LoginEvent, String, Flow<Void>> loginEvent;
 
@@ -104,8 +108,9 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
   @BeforeEach
   void setup() {
     traceSegment = mock(TraceSegment.class);
-    AgentSpan span = mock(AgentSpan.class);
-    when(span.getRequestContext()).thenReturn(mock(RequestContext.class));
+    requestContext = mock(RequestContext.class);
+    span = mock(AgentSpan.class);
+    when(span.getRequestContext()).thenReturn(requestContext);
     user = mock(BiFunction.class);
     loginEvent = mock(TriFunction.class);
     when(user.apply(any(), any())).thenReturn(NoopFlow.INSTANCE);
@@ -115,7 +120,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     when(provider.getCallback(EVENTS.user())).thenReturn(user);
     when(provider.getCallback(EVENTS.loginEvent())).thenReturn(loginEvent);
 
-    TracerAPI tracer = mock(TracerAPI.class);
+    tracer = mock(TracerAPI.class);
     when(tracer.getTraceSegment()).thenReturn(traceSegment);
     when(tracer.activeSpan()).thenReturn(span);
     when(tracer.getCallbackProvider(RequestContextSlot.APPSEC)).thenReturn(provider);
@@ -143,7 +148,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("_dd.p.ts", ASM);
     verify(loginEvent).apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(USER_ID));
     verify(user).apply(isA(RequestContext.class), eq(USER_ID));
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
 
     assertAppSecSdkEvent(LOGIN_SUCCESS, V1);
   }
@@ -162,7 +167,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("_dd.p.ts", ASM);
     verify(loginEvent).apply(isA(RequestContext.class), eq(LOGIN_FAILURE), eq(USER_ID));
     verify(user).apply(isA(RequestContext.class), eq(USER_ID));
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
 
     assertAppSecSdkEvent(LOGIN_FAILURE, V1);
   }
@@ -176,7 +181,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("_dd.appsec.events.myevent.sdk", true, true);
     verify(traceSegment).setTagTop("asm.keep", true);
     verify(traceSegment).setTagTop("_dd.p.ts", ASM);
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
 
     assertAppSecSdkEvent(CUSTOM, V1);
   }
@@ -198,7 +203,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment, times(2)).setTagTop("_dd.p.ts", ASM);
     verify(loginEvent).apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(USER_LOGIN));
     verify(user).apply(isA(RequestContext.class), eq(USER_ID));
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
 
     assertAppSecSdkEvent(LOGIN_SUCCESS, V2);
   }
@@ -215,7 +220,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("asm.keep", true);
     verify(traceSegment).setTagTop("_dd.p.ts", ASM);
     verify(loginEvent).apply(isA(RequestContext.class), eq(LOGIN_FAILURE), eq(USER_LOGIN));
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
 
     assertAppSecSdkEvent(LOGIN_FAILURE, V2);
   }
@@ -229,7 +234,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("_dd.appsec.events.myevent.sdk", true, true);
     verify(traceSegment).setTagTop("asm.keep", true);
     verify(traceSegment).setTagTop("_dd.p.ts", ASM);
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
 
     assertAppSecSdkEvent(CUSTOM, V2);
   }
@@ -244,7 +249,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment).setTagTop("asm.keep", true);
     verify(traceSegment).setTagTop("_dd.p.ts", ASM);
     verify(user).apply(isA(RequestContext.class), eq(USER_ID));
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @Test
@@ -289,7 +294,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       verify(traceSegment).setTagTop("_dd.p.ts", ASM);
       verify(loginEvent).apply(isA(RequestContext.class), eq(SIGN_UP), eq(expectedUserLogin));
     }
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @TableTest({
@@ -317,7 +322,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       verify(traceSegment).setTagTop("_dd.p.ts", ASM);
       verify(loginEvent).apply(isA(RequestContext.class), eq(LOGIN_SUCCESS), eq(expectedUserLogin));
     }
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @TableTest({
@@ -346,7 +351,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       verify(traceSegment).setTagTop("_dd.p.ts", ASM);
       verify(loginEvent).apply(isA(RequestContext.class), eq(LOGIN_FAILURE), eq(expectedUserLogin));
     }
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @TableTest({
@@ -369,7 +374,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       verify(traceSegment).setTagTop("_dd.p.ts", ASM);
       verify(user).apply(isA(RequestContext.class), eq(expectedUserId));
     }
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @TableTest({
@@ -391,7 +396,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
       verify(traceSegment).setTagTop("asm.keep", true);
       verify(traceSegment).setTagTop("_dd.p.ts", ASM);
     }
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   // spotless:off
@@ -468,7 +473,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     // SDK data remains untouched
     verify(traceSegment).getTagTop("_dd.appsec.user.collection_mode");
     verify(traceSegment).setTagTop("_dd.appsec.usr.id", USER_ID);
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @Test
@@ -482,7 +487,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment)
         .setTagTop(
             "_dd.appsec.events.users.login.success.auto.mode", IDENTIFICATION.fullName(), true);
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @Test
@@ -496,7 +501,7 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment)
         .setTagTop(
             "_dd.appsec.events.users.login.failure.auto.mode", IDENTIFICATION.fullName(), true);
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
   }
 
   @Test
@@ -509,7 +514,12 @@ class AppSecEventTrackerTest extends DDJavaSpecification {
     verify(traceSegment)
         .setTagTop(
             "_dd.appsec.events.users.login.failure.auto.mode", IDENTIFICATION.fullName(), true);
-    verifyNoMoreInteractions(traceSegment, user, loginEvent);
+    verifyNoMoreMockInteractions();
+  }
+
+  private void verifyNoMoreMockInteractions() {
+    verifyNoMoreInteractions(traceSegment, requestContext, user, loginEvent);
+    verifyNoMoreInteractions(ignoreStubs(span, provider, tracer));
   }
 
   private static Map<String, String> metadata() {
