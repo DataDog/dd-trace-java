@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanId
@@ -15,8 +16,12 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sfn.SfnClient
 import software.amazon.awssdk.services.sfn.model.SfnException
 import software.amazon.awssdk.services.sfn.model.StartExecutionResponse
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class SfnClientTest extends VersionedNamingTestBase {
   @Shared GenericContainer localStack
   @Shared SfnClient sfnClient

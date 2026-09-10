@@ -11,6 +11,7 @@ import com.openai.models.ChatModel;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
+import datadog.environment.OperatingSystem;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -32,6 +33,8 @@ import org.junit.jupiter.api.Test;
  * singleton initializes, and {@code forkedTest} forks per test class ({@code forkEvery = 1}).
  */
 abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTest {
+
+  private static final int WINDOWS_TRACE_TIMEOUT_SECONDS = 60;
 
   protected static HttpServer mockServer;
   protected static OpenAIClient openAiClient;
@@ -83,6 +86,20 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
         .findFirst()
         .orElse(null);
   }
+
+  /**
+   * A fresh OpenAI test process can take longer than the default 20-second trace timeout on Windows
+   * CI. Allow up to 60 seconds there while retaining the default timeout elsewhere.
+   */
+  protected void waitForTraces(int count) throws Exception {
+    if (OperatingSystem.isWindows()) {
+      if (!writer.waitForTracesMax(count, WINDOWS_TRACE_TIMEOUT_SECONDS)) {
+        throw new AssertionError("Timeout waiting for " + count + " OpenAI trace(s)");
+      }
+    } else {
+      writer.waitForTraces(count);
+    }
+  }
 }
 
 /**
@@ -122,7 +139,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       parentSpan.finish();
     }
 
-    writer.waitForTraces(1);
+    waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(expectedSessionId, openAiSpan.getTag("_ml_obs_tag.session_id"));
@@ -137,7 +154,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       // is already created by the instrumentation advice before this point.
     }
 
-    writer.waitForTraces(1);
+    waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertNull(openAiSpan.getTag("_ml_obs_tag.session_id"));
@@ -162,7 +179,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       parentSpan.finish();
     }
 
-    writer.waitForTraces(1);
+    waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(expectedAgentVersion, openAiSpan.getTag("_ml_obs_tag.agent_version"));
@@ -190,7 +207,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       parentSpan.finish();
     }
 
-    writer.waitForTraces(1);
+    waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
@@ -221,7 +238,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       parentSpan.finish();
     }
 
-    writer.waitForTraces(1);
+    waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
@@ -240,7 +257,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
     // No verdict to inherit, so the span is the root of its own LLMObs trace and decides for
     // itself. The rate of 1.0 retains every trace ID, so the verdict is deterministic without
     // controlling the trace ID.
-    writer.waitForTraces(1);
+    waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(
@@ -272,7 +289,7 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
       staleParent.finish();
     }
 
-    writer.waitForTraces(2);
+    waitForTraces(2);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
 
@@ -309,7 +326,7 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
     } catch (Exception ignored) {
     }
 
-    writer.waitForTraces(1);
+    waitForTraces(1);
     DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
     assertNotNull(openAiSpan, "openai.request span should have been created");
     assertEquals(

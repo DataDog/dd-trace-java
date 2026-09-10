@@ -1,3 +1,4 @@
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -36,6 +37,7 @@ import org.springframework.kafka.test.EmbeddedKafkaBroker
 import org.springframework.kafka.test.EmbeddedKafkaKraftBroker
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import spock.lang.IgnoreIf
 
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
@@ -156,6 +158,9 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     return true
   }
 
+  @IgnoreIf(
+  reason = "Windows scheduling can report the Kafka deliver parent and consume child as separate trace chunks",
+  value = { OperatingSystem.isWindows() })
   def "test kafka produce and consume"() {
     setup:
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())

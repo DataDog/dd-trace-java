@@ -1,6 +1,8 @@
 package datadog.trace.test.util;
 
 import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings;
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostHostname;
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostUrl;
 import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -45,5 +47,38 @@ class PlatformTestUtilsTest {
     assertEquals(
         OperatingSystem.isWindows() ? Arrays.asList("directory/file", "another/file") : values,
         normalizePathSeparators(values));
+  }
+
+  @Test
+  void removesWindowsExecutableSuffixOnlyOnWindows() {
+    assertEquals("java", PlatformTestUtils.normalizeExecutableName("java.exe", true));
+    assertEquals("java", PlatformTestUtils.normalizeExecutableName("java.EXE", true));
+    assertEquals("java", PlatformTestUtils.normalizeExecutableName("java", true));
+    assertEquals("java.exe", PlatformTestUtils.normalizeExecutableName("java.exe", false));
+  }
+
+  @Test
+  void normalizesExactWindowsLocalhostHostnameOnlyOnWindows() {
+    String value = "127.0.0.1";
+
+    assertEquals("localhost", PlatformTestUtils.normalizeLocalhostHostname(value, true));
+    assertEquals("127.0.0.10", PlatformTestUtils.normalizeLocalhostHostname("127.0.0.10", true));
+    assertSame(value, PlatformTestUtils.normalizeLocalhostHostname(value, false));
+    assertEquals(
+        OperatingSystem.isWindows() ? "localhost" : value, normalizeLocalhostHostname(value));
+  }
+
+  @Test
+  void normalizesOnlyTheWindowsUrlHost() {
+    String value = "http://127.0.0.1:8080/a/127.0.0.1?q=127.0.0.1#127.0.0.1";
+    String normalized = "http://localhost:8080/a/127.0.0.1?q=127.0.0.1#127.0.0.1";
+
+    assertEquals(normalized, PlatformTestUtils.normalizeLocalhostUrl(value, true));
+    assertSame(value, PlatformTestUtils.normalizeLocalhostUrl(value, false));
+    assertEquals(OperatingSystem.isWindows() ? normalized : value, normalizeLocalhostUrl(value));
+    assertEquals(
+        "http://127.0.0.10/test",
+        PlatformTestUtils.normalizeLocalhostUrl("http://127.0.0.10/test", true));
+    assertEquals("not a url", PlatformTestUtils.normalizeLocalhostUrl("not a url", true));
   }
 }

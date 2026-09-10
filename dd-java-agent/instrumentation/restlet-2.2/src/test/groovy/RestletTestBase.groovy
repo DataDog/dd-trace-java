@@ -29,8 +29,20 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostHostname
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostUrl
 
 abstract class RestletTestBase extends HttpServerTest<Component> {
+
+  @Override
+  String normalizeServerHostname(String value) {
+    normalizeLocalhostHostname(value)
+  }
+
+  @Override
+  String normalizeServerUrl(String value) {
+    normalizeLocalhostUrl(value)
+  }
 
   class RestletServer implements HttpServer {
     def port = 0

@@ -31,6 +31,7 @@ import com.openai.models.responses.Tool
 import com.openai.models.responses.ToolChoiceCustom
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.environment.OperatingSystem
 import datadog.trace.api.config.LlmObsConfig
 import datadog.trace.core.util.LRUCache
 import java.nio.file.Path
@@ -39,6 +40,8 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 abstract class OpenAiTest extends InstrumentationSpecification {
+
+  private static final int WINDOWS_TRACE_TIMEOUT_SECONDS = 60
 
   // openai token - will use real openai backend and record request/responses to use later in the mock mode
   // empty or null - will use mockOpenAiBackend and read recorded request/responses
@@ -108,6 +111,19 @@ abstract class OpenAiTest extends InstrumentationSpecification {
       clientOptions.credential(BearerTokenCredential.create(OPENAI_TOKEN))
       clientOptions.httpClient(new OpenAiHttpClientForTests(httpClient.build(), RECORDS_DIR))
       openAiClient = createOpenAiClient(clientOptions.build())
+    }
+  }
+
+  /**
+   * A fresh OpenAI test process can take longer than the default 20-second trace timeout on
+   * Windows CI. Allow up to 60 seconds there while retaining the default timeout elsewhere.
+   */
+  void waitForTraces(int count = 1) {
+    if (OperatingSystem.isWindows()) {
+      assert TEST_WRITER.waitForTracesMax(count, WINDOWS_TRACE_TIMEOUT_SECONDS):
+      "Timeout waiting for $count OpenAI trace(s)"
+    } else {
+      TEST_WRITER.waitForTraces(count)
     }
   }
 
