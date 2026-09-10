@@ -22,8 +22,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
-import datadog.trace.api.metrics.CompletableResultCode;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.otlp.common.OtlpHttpSender;

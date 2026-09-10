@@ -1,7 +1,7 @@
-package datadog.trace.api.metrics;
+package datadog.trace.api;
 
-import static datadog.trace.api.metrics.CompletableResultCode.ofFailure;
-import static datadog.trace.api.metrics.CompletableResultCode.ofSuccess;
+import static datadog.trace.api.CompletableResultCode.ofFailure;
+import static datadog.trace.api.CompletableResultCode.ofSuccess;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;

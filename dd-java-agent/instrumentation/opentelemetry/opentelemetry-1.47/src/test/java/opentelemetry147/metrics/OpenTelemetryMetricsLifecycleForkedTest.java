@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
-import datadog.trace.api.metrics.CompletableResultCode;
+import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.metrics.DatadogMeterProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.test.junit.utils.config.WithConfig;

@@ -1,4 +1,4 @@
-package datadog.trace.api.metrics;
+package datadog.trace.api;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 

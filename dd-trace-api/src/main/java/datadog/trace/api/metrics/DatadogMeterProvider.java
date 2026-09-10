@@ -1,5 +1,7 @@
 package datadog.trace.api.metrics;
 
+import datadog.trace.api.CompletableResultCode;
+
 /**
  * Datadog lifecycle controls implemented by the {@code MeterProvider} returned from {@code
  * GlobalOpenTelemetry} when Datadog OpenTelemetry metrics support is enabled.

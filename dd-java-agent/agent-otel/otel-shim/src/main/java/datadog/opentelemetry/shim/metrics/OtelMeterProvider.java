@@ -1,6 +1,6 @@
 package datadog.opentelemetry.shim.metrics;
 
-import datadog.trace.api.metrics.CompletableResultCode;
+import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.metrics.DatadogMeterProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;

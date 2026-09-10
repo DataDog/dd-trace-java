@@ -1,12 +1,13 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-import static datadog.trace.api.metrics.CompletableResultCode.ofSuccess;
+import static datadog.trace.api.CompletableResultCode.ofSuccess;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextListener;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
+import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -23,7 +24,6 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.api.metrics.CompletableResultCode;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;

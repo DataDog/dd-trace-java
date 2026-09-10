@@ -4,9 +4,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPro
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
+import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
-import datadog.trace.api.metrics.CompletableResultCode;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.common.writer.RemoteApi;

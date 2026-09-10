@@ -5,6 +5,7 @@ import static java.lang.reflect.Modifier.isPublic;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.CompletableResultCode;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 
