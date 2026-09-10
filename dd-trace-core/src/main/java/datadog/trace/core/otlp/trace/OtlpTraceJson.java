@@ -25,6 +25,8 @@ import static datadog.trace.core.otlp.trace.OtlpSpanKind.spanKind;
 import datadog.json.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -39,10 +41,23 @@ import java.util.Map;
 /** Provides writers for OpenTelemetry's "trace.proto" JSON encoding. */
 public final class OtlpTraceJson {
 
-  private static final UTF8BytesString SERVICE_NAME = UTF8BytesString.create("service.name");
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
+
+  /*
+   * Same contract as the protobuf encoder: a tag the tracer intercepts into a first-class Metadata
+   * field never reaches the per-entry projection below, so its OpenTelemetry name is resolved off
+   * the registry here instead. Both encoders must agree -- a rename that reached only one of them
+   * would make the emitted attribute name depend on the transport protocol. (http.status_code is
+   * held back in both for the same reason; see OtlpTraceProto.)
+   */
+  private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
+
+  /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
+  private static UTF8BytesString otelKey(long tagId) {
+    return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
+  }
 
   private OtlpTraceJson() {}
 
@@ -85,7 +100,7 @@ public final class OtlpTraceJson {
 
     writer.name("attributes").beginArray();
     if (!Config.get().getServiceName().equals(span.getServiceName())) {
-      writeSpanTag(writer, SERVICE_NAME, span.getServiceName());
+      writeSpanTag(writer, SERVICE_NAME_KEY, span.getServiceName());
     }
     writeSpanTag(writer, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(writer, OPERATION_NAME, span.getOperationName());
@@ -140,20 +155,26 @@ public final class OtlpTraceJson {
   }
 
   private static void writeSpanTag(JsonWriter writer, TagMap.EntryReader tagEntry) {
+    // OTLP is the OpenTelemetry wire format, so ask each entry for its name in that namespace --
+    // the same registry policy the fixed metadata keys above resolve through, with the reader
+    // supplying its own key for a custom tag the registry does not name. This is the straight
+    // rename projection only: suppressing a Datadog-only tag from OpenTelemetry, per-exporter
+    // opt-in, and additional namespaces are deferred to the OpenTelemetry follow-on.
+    String key = tagEntry.openTelemetryTag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(writer, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(writer, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(writer, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(writer, LONG_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(writer, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(writer, DOUBLE_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       default:
-        writeAttribute(writer, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(writer, STRING_ATTRIBUTE, key, tagEntry.stringValue());
     }
   }
 
