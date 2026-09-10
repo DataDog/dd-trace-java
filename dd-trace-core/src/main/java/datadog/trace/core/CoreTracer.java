@@ -145,7 +145,6 @@ import org.slf4j.LoggerFactory;
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
-  private static final long METRICS_FLUSH_TIMEOUT_MILLIS = 2_500;
 
   public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
@@ -1511,6 +1510,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   public CallbackProvider getUniversalCallbackProvider() {
     return universalCallbackProvider;
   }
+
+  private static final long METRICS_FLUSH_TIMEOUT_MILLIS = 2_500;
 
   @Override
   public void close() {

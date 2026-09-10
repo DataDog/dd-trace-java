@@ -19,12 +19,14 @@ import org.slf4j.LoggerFactory;
 /** Periodic service to collect OpenTelemetry metrics and export them over OTLP. */
 public final class OtlpMetricsService {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtlpMetricsService.class);
+
   public static final OtlpMetricsService INSTANCE = new OtlpMetricsService(Config.get());
 
   private final AgentTaskScheduler scheduler;
   private final OtlpMetricsCollector collector;
   private final OtlpSender sender;
   private final int intervalMillis;
+
   private final Object lifecycleLock = new Object();
 
   private AgentTaskScheduler.Scheduled<?> scheduledTask;
@@ -42,6 +44,7 @@ public final class OtlpMetricsService {
               ? new OtlpMetricsJsonCollector(SystemTimeSource.INSTANCE)
               : new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
     }
+
     this.intervalMillis = config.getMetricsOtelInterval();
   }
 
@@ -105,15 +108,17 @@ public final class OtlpMetricsService {
   public CompletableResultCode shutdown() {
     synchronized (lifecycleLock) {
       if (shutdownResult != null) {
-        return shutdownResultView();
+        return shutdownResult.newResultView();
       }
 
       shutdownResult = new CompletableResultCode();
-      cancelScheduledExport();
+      if (scheduledTask != null) {
+        scheduledTask.cancel();
+      }
       if (sender == null) {
         shutdownScheduler();
         shutdownResult.succeed();
-        return shutdownResultView();
+        return shutdownResult.newResultView();
       }
 
       try {
@@ -124,17 +129,7 @@ public final class OtlpMetricsService {
         shutdownScheduler();
         shutdownResult.fail();
       }
-      return shutdownResultView();
-    }
-  }
-
-  private CompletableResultCode shutdownResultView() {
-    return shutdownResult.newResultView();
-  }
-
-  private void cancelScheduledExport() {
-    if (scheduledTask != null) {
-      scheduledTask.cancel();
+      return shutdownResult.newResultView();
     }
   }
 
@@ -166,7 +161,7 @@ public final class OtlpMetricsService {
   }
 
   private boolean export() {
-    boolean attempted = false;
+    boolean attemptedExport = false;
     try {
       OtlpPayload payload = collector.collectMetrics();
       if (payload == OtlpPayload.EMPTY) {
@@ -174,13 +169,13 @@ public final class OtlpMetricsService {
       }
 
       OtlpTelemetry.getInstance().onMetricsExportAttempt();
-      attempted = true;
+      attemptedExport = true;
       RemoteApi.Response response = sender.send(payload);
       boolean success = response != null && response.success();
       OtlpTelemetry.getInstance().onMetricsExportComplete(success);
       return success;
     } catch (Throwable e) {
-      if (attempted) {
+      if (attemptedExport) {
         OtlpTelemetry.getInstance().onMetricsExportComplete(false);
       }
       LOGGER.debug("Failed to export OTLP metrics", e);
