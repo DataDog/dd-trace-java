@@ -115,22 +115,34 @@ public final class OtlpMetricsService {
       if (scheduledTask != null) {
         scheduledTask.cancel();
       }
+
       if (sender == null) {
         shutdownScheduler();
         shutdownResult.succeed();
         return shutdownResult.newResultView();
       }
 
-      try {
-        scheduler.execute(this::finishShutdown);
-      } catch (Throwable e) {
-        LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
-        closeSender();
-        shutdownScheduler();
-        shutdownResult.fail();
+      if (scheduler.isShutdown()) {
+        // cannot schedule export, treat as failed
+        failShutdown(null);
+      } else {
+        try {
+          scheduler.execute(this::finishShutdown);
+        } catch (Throwable e) {
+          failShutdown(e);
+        }
       }
       return shutdownResult.newResultView();
     }
+  }
+
+  private void failShutdown(Throwable e) {
+    if (e != null) {
+      LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
+    }
+    closeSender();
+    shutdownScheduler();
+    shutdownResult.fail();
   }
 
   private void finishShutdown() {
