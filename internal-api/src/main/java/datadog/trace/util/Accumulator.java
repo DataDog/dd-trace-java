@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * <pre>{@code
  * enum MyCounters { FOO, BAR }
  *
- * Accumulator<MyCounters> counters = Accumulator.of(MyCounters.values());
+ * Accumulator<MyCounters> counters = Accumulator.of(MyCounters.class);
  * counters.inc(MyCounters.FOO);
  * counters.add(MyCounters.BAR, 5L);
  *
@@ -46,9 +46,10 @@ public final class Accumulator<E extends Enum<E>> {
   }
 
   /**
-   * @param values the enum constants naming each counter, e.g. {@code MyCounters.values()}
+   * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
    */
-  public static <E extends Enum<E>> Accumulator<E> of(E[] values) {
+  public static <E extends Enum<E>> Accumulator<E> of(Class<E> enumType) {
+    E[] values = enumType.getEnumConstants();
     int width = values.length;
     int paddedWidth = paddedWidth(width);
     int stripes = stripeCount();
@@ -57,13 +58,6 @@ public final class Accumulator<E extends Enum<E>> {
       data[i] = new AtomicLongArray(paddedWidth);
     }
     return new Accumulator<>(data, width, values);
-  }
-
-  /**
-   * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
-   */
-  public static <E extends Enum<E>> Accumulator<E> of(Class<E> enumType) {
-    return of(enumType.getEnumConstants());
   }
 
   /** Increments the counter named by {@code key} in the calling thread's stripe by one. */
@@ -125,22 +119,15 @@ public final class Accumulator<E extends Enum<E>> {
     }
 
     /**
-     * An all-zero {@link Counts}, sized for {@code values} -- for seeding a running total before
+     * An all-zero {@link Counts}, sized for {@code enumType} -- for seeding a running total before
      * any real drain has happened, without needing a scratch {@link Accumulator} just to call
      * {@link Accumulator#sum()} on it.
      *
-     * @param values the enum constants naming each counter, e.g. {@code MyCounters.values()}
-     */
-    public static <E extends Enum<E>> Counts<E> zero(E[] values) {
-      return new Counts<>(new long[values.length], values);
-    }
-
-    /**
      * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
-     * @see #zero(Enum[])
      */
     public static <E extends Enum<E>> Counts<E> zero(Class<E> enumType) {
-      return zero(enumType.getEnumConstants());
+      E[] values = enumType.getEnumConstants();
+      return new Counts<>(new long[values.length], values);
     }
 
     /** The counter named by {@code key}. */

@@ -44,8 +44,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * lock to one lock shared by every thread -- the degenerate worst case for {@code longAdderGroup},
  * with no thread-based distribution at all. The {@code *8_*} benchmarks fix that: each JMH worker
  * thread is pinned to one of 8 counters for its lifetime (see {@link #threadCounterIndex}), so
- * {@code longAdderGroup8}'s threads split into up to 8 groups each contending their own lock --
- * the topology where distributed locking should actually pay off, forcing {@link Accumulator}'s
+ * {@code longAdderGroup8}'s threads split into up to 8 groups each contending their own lock -- the
+ * topology where distributed locking should actually pay off, forcing {@link Accumulator}'s
  * thread-striped design to earn its write-side win rather than facing a single-counter worst case.
  * Fork(5), 15 samples per benchmark: <code>
  * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention   avgt   15  2.746 ±  0.050  us/op
@@ -66,9 +66,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * AccumulatorBenchmark.longAdderGroupIncrement8_lowContention         avgt   15  0.020 ±  0.001  us/op
  * </code> On the write side, {@link Accumulator} beats {@code longAdderGroup} at high contention by
  * ~255x in the degenerate single-shared-lock case and still by ~46x once counters are fairly spread
- * across 8 locks -- a large, reproducible win either way, on the call that runs on every event.
- * On the drain side, the two designs are close and the comparison is noisy under contention for
- * both: at width 1 {@link Accumulator}'s drain (2.746 us/op) is actually <em>faster</em> than {@code
+ * across 8 locks -- a large, reproducible win either way, on the call that runs on every event. On
+ * the drain side, the two designs are close and the comparison is noisy under contention for both:
+ * at width 1 {@link Accumulator}'s drain (2.746 us/op) is actually <em>faster</em> than {@code
  * longAdderGroup}'s (4.770 ± 1.795 us/op, itself high-variance), and at width 8 it's only ~1.14x
  * slower (6.875 vs 6.025 us/op) -- not the regression an earlier reading of this benchmark
  * suggested. That earlier reading (13.357 us/op at Fork(2)) turned out to be a correlated anomaly
@@ -93,13 +93,14 @@ public class AccumulatorBenchmark {
    * Unlike {@link Counter}, where every thread hits the single {@code HITS} constant (the worst
    * case for {@code longAdderGroup}'s per-counter locking -- one lock shared by every thread,
    * regardless of core count), these benchmarks spread writes across all 8 constants: each JMH
-   * worker thread is pinned to one fixed counter for its lifetime (see {@link #threadCounterIndex}),
-   * so under high contention, threads split into up to 8 groups each contending on their own lock
-   * instead of all threads sharing one. This is the topology where {@code longAdderGroup}'s
-   * distributed locking should actually pay off, and where {@link Accumulator}'s thread-striped
-   * design has to earn its win on the write side rather than facing a single-counter worst case.
-   * {@code accumulateAndReset}/{@code groupAccumulateAnd} also now walk 8 slots per drain instead of
-   * 1, sizing the drain cost closer to {@code TracerHealthMetric}'s 54-constant production shape.
+   * worker thread is pinned to one fixed counter for its lifetime (see {@link
+   * #threadCounterIndex}), so under high contention, threads split into up to 8 groups each
+   * contending on their own lock instead of all threads sharing one. This is the topology where
+   * {@code longAdderGroup}'s distributed locking should actually pay off, and where {@link
+   * Accumulator}'s thread-striped design has to earn its win on the write side rather than facing a
+   * single-counter worst case. {@code accumulateAndReset}/{@code groupAccumulateAnd} also now walk
+   * 8 slots per drain instead of 1, sizing the drain cost closer to {@code TracerHealthMetric}'s
+   * 54-constant production shape.
    */
   enum Counter8 {
     COUNTER_0,
@@ -115,8 +116,8 @@ public class AccumulatorBenchmark {
   private static final Counter8[] COUNTER8_VALUES = Counter8.values();
 
   private final LongAdder adder = new LongAdder();
-  private final Accumulator<Counter> accumulator = Accumulator.of(Counter.values());
-  private final Accumulator<Counter8> accumulator8 = Accumulator.of(Counter8.values());
+  private final Accumulator<Counter> accumulator = Accumulator.of(Counter.class);
+  private final Accumulator<Counter8> accumulator8 = Accumulator.of(Counter8.class);
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
   private final LongAdder[] longAdderGroup = {new LongAdder()};
   private final LongAdder[] longAdderGroup8 = {

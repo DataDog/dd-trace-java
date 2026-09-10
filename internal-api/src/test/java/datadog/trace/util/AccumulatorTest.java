@@ -23,7 +23,7 @@ class AccumulatorTest {
 
   @Test
   void freshAccumulatorSumsToZero() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
     for (Counters c : Counters.values()) {
       assertEquals(0L, drained.get(c));
@@ -32,7 +32,7 @@ class AccumulatorTest {
 
   @Test
   void incIncrementsByOne() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
     counters.inc(Counters.FOO);
     counters.inc(Counters.BAR);
@@ -45,7 +45,7 @@ class AccumulatorTest {
 
   @Test
   void addAppliesArbitraryDelta() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.add(Counters.BAZ, 41L);
     counters.add(Counters.BAZ, 1L);
 
@@ -55,7 +55,7 @@ class AccumulatorTest {
 
   @Test
   void accumulateAndResetsSoASecondDrainIsZero() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
 
     Accumulator.Counts<Counters> first = counters.accumulateAndReset();
@@ -69,7 +69,7 @@ class AccumulatorTest {
 
   @Test
   void concurrentIncrementsAreNotLost() throws InterruptedException {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     int threadCount = 16;
     int incrementsPerThread = 10_000;
 
@@ -105,7 +105,7 @@ class AccumulatorTest {
   @Test
   void concurrentAccumulateAndDuringWritesNeverExceedsWritten()
       throws InterruptedException, ExecutionException, TimeoutException {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     int threadCount = 8;
     int incrementsPerThread = 5_000;
 
@@ -153,7 +153,7 @@ class AccumulatorTest {
 
   @Test
   void sumDoesNotResetStripes() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
 
     Accumulator.Counts<Counters> first = counters.sum();
@@ -170,7 +170,7 @@ class AccumulatorTest {
 
   @Test
   void sumReflectsIncrementsMadeAfterAnEarlierSum() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
     counters.sum();
 
@@ -181,30 +181,20 @@ class AccumulatorTest {
 
   @Test
   void zeroSeedsAnAllZeroCountsWithoutAScratchAccumulator() {
-    Accumulator.Counts<Counters> zero = Accumulator.Counts.zero(Counters.values());
+    Accumulator.Counts<Counters> zero = Accumulator.Counts.zero(Counters.class);
     assertEquals(0L, zero.get(Counters.FOO));
     assertEquals(0L, zero.get(Counters.BAR));
 
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
-    counters.inc(Counters.FOO);
-
-    Accumulator.Counts<Counters> live = zero.plus(counters.sum());
-    assertEquals(1L, live.get(Counters.FOO));
-  }
-
-  @Test
-  void ofAndZeroAcceptAnEnumClassInsteadOfAValuesArray() {
     Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
 
-    Accumulator.Counts<Counters> zero = Accumulator.Counts.zero(Counters.class);
     Accumulator.Counts<Counters> live = zero.plus(counters.sum());
     assertEquals(1L, live.get(Counters.FOO));
   }
 
   @Test
   void countsExposesItsOwnKeysWithoutASeparateValuesArray() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
     counters.add(Counters.BAR, 5L);
 
@@ -220,7 +210,7 @@ class AccumulatorTest {
 
   @Test
   void plusCombinesAStoredRunningTotalWithALiveSumWithoutMutatingEither() {
-    Accumulator<Counters> counters = Accumulator.of(Counters.values());
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
     counters.add(Counters.BAR, 5L);
 

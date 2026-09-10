@@ -68,7 +68,7 @@ class AccumulatorFootprintTest {
   @Test
   void freshFootprint() {
     LongAdder[] adders = freshAdders();
-    Accumulator<Counters> accumulator = Accumulator.of(Counters.values());
+    Accumulator<Counters> accumulator = Accumulator.of(Counters.class);
 
     long adderBytes = bytes((Object) adders);
     long accumulatorBytes = bytes(accumulator);
@@ -123,7 +123,7 @@ class AccumulatorFootprintTest {
     }
 
     long contendedAdderBytes = bytes((Object) adders);
-    Accumulator<Counters> accumulator = Accumulator.of(Counters.values());
+    Accumulator<Counters> accumulator = Accumulator.of(Counters.class);
     long accumulatorBytes = bytes(accumulator);
 
     System.out.printf(
