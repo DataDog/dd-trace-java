@@ -1,7 +1,5 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.CompletableResultCode;
@@ -97,7 +95,7 @@ public final class OtlpMetricsService {
         return;
       }
       try {
-        execute(this::export);
+        scheduler.execute(this::export);
       } catch (Throwable e) {
         LOGGER.debug("OTLP metrics scheduler rejected flush", e);
       }
@@ -119,7 +117,7 @@ public final class OtlpMetricsService {
       }
 
       try {
-        execute(this::finishShutdown);
+        scheduler.execute(this::finishShutdown);
       } catch (Throwable e) {
         LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
         closeSender();
@@ -132,20 +130,6 @@ public final class OtlpMetricsService {
 
   private CompletableResultCode shutdownResultView() {
     return shutdownResult.newResultView();
-  }
-
-  private void execute(Runnable task) {
-    boolean restorePropagation = isAsyncPropagationEnabled();
-    if (restorePropagation) {
-      setAsyncPropagationEnabled(false);
-    }
-    try {
-      scheduler.execute(task);
-    } finally {
-      if (restorePropagation) {
-        setAsyncPropagationEnabled(true);
-      }
-    }
   }
 
   private void cancelScheduledExport() {

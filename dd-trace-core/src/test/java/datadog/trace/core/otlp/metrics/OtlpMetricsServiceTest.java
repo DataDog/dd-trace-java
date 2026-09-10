@@ -14,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -25,7 +24,6 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -40,18 +38,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 
 class OtlpMetricsServiceTest {
   private static final OtlpPayload PAYLOAD =
       new OtlpPayload(ByteBuffer.wrap(new byte[] {1}), OtlpPayload.PROTOBUF_CONTENT_TYPE);
   private final List<AgentTaskScheduler> schedulers = new ArrayList<>();
-  private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
 
   @AfterEach
   void stopSchedulers() {
     schedulers.forEach(scheduler -> scheduler.shutdown(0, MILLISECONDS));
-    AgentTracer.forceRegister(originalTracer);
   }
 
   @Test
@@ -228,28 +223,6 @@ class OtlpMetricsServiceTest {
     assertTrue(repeatedSubmission.isDone());
     assertFalse(repeatedSubmission.isSuccess());
     verify(sender).shutdown();
-  }
-
-  @Test
-  void lifecycleSubmissionsDisableAsyncPropagation() {
-    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
-    when(tracer.isAsyncPropagationEnabled()).thenReturn(true);
-    AgentTracer.forceRegister(tracer);
-    AgentTaskScheduler scheduler = mock(AgentTaskScheduler.class);
-    OtlpMetricsService service =
-        new OtlpMetricsService(
-            scheduler, mock(OtlpMetricsCollector.class), mock(OtlpSender.class), 10_000);
-
-    service.flush();
-    service.shutdown();
-
-    InOrder calls = inOrder(tracer, scheduler);
-    for (int i = 0; i < 2; i++) {
-      calls.verify(tracer).isAsyncPropagationEnabled();
-      calls.verify(tracer).setAsyncPropagationEnabled(false);
-      calls.verify(scheduler).execute(any(Runnable.class));
-      calls.verify(tracer).setAsyncPropagationEnabled(true);
-    }
   }
 
   @Test
