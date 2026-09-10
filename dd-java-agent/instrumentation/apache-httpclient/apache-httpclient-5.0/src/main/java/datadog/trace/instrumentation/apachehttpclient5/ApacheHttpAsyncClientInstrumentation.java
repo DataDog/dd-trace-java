@@ -4,8 +4,8 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.APACHE_HTTP_CLIENT;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
@@ -114,7 +114,7 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(value = 3, readOnly = false) HttpContext context,
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
-      final ContextContinuation parentContinuation = captureActiveSpan();
+      final ContextContinuation parentContinuation = currentContext().capture();
       final AgentSpan clientSpan = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
       final AgentScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);

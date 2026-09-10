@@ -79,7 +79,7 @@ public class PendingTraceTest extends PendingTraceTestBase {
   void traceStillReportedWhenUnfinishedContinuationDiscarded()
       throws InterruptedException, TimeoutException {
     AgentScope scope = tracer.activateSpan(rootSpan);
-    tracer.captureActiveSpan();
+    tracer.capture(rootSpan);
     scope.close();
 
     rootSpan.finish();

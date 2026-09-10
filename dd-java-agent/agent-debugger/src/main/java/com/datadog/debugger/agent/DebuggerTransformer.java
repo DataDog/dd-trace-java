@@ -24,12 +24,12 @@ import com.datadog.debugger.sink.SnapshotSink;
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
-import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.SpringHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -197,7 +197,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
         new DebuggerSink(
             config,
             "",
-            DebuggerMetrics.getInstance(config),
+            DebuggerMetricCollector.get(),
             new ProbeStatusSink(config, config.getFinalDebuggerSnapshotUrl(), false),
             new SnapshotSink(
                 config,
