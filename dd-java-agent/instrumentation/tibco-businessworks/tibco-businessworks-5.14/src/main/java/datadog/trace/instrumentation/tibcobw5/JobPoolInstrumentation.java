@@ -1,9 +1,11 @@
 package datadog.trace.instrumentation.tibcobw5;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.DECORATE;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.TIBCO_PROCESS_OPERATION;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import com.tibco.pe.core.DDJobMate;
@@ -29,9 +31,14 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-
-    transformer.applyAdvice(named("addJob"), getClass().getName() + "$JobStartAdvice");
-    transformer.applyAdvice(named("removeJob"), getClass().getName() + "$JobEndAdvice");
+    transformer.applyAdvice(
+        named("addJob")
+            .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
+        getClass().getName() + "$JobStartAdvice");
+    transformer.applyAdvice(
+        named("removeJob")
+            .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
+        getClass().getName() + "$JobEndAdvice");
   }
 
   public static class JobStartAdvice {
