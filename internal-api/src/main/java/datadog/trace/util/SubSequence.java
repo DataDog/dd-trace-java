@@ -37,6 +37,15 @@ public final class SubSequence implements CharSequence {
   /**
    * SubSequence from <code>beginIndex</code> inclusive to <code>endIndex</code> exclusive of <code>
    * str</code> Equivalent to str.subSequence(str, startIndex, endIndex)
+   *
+   * <p>Unlike {@code String.substring}, this always allocates a view, even when <code>startIndex
+   * == endIndex</code> -- there is no free empty case here, because returning {@link #EMPTY}
+   * instead would mean this factory sometimes returns the singleton and sometimes a fresh
+   * instance, which defeats escape analysis at the call site (see {@link NoEscape}). {@code
+   * String.substring} pays no such cost for an empty range: it returns the interned {@code ""}
+   * literal unconditionally, independent of whether escape analysis succeeds. So on an empty
+   * range specifically, this is a real allocation with no offsetting copy avoided; use {@link
+   * #EMPTY} directly when the range is known to be empty.
    */
   public static final SubSequence of(String str, int startIndex, int endIndex) {
     return new SubSequence(str, startIndex, endIndex);
