@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.source;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -68,9 +69,12 @@ class ByteCodeLinesResolverTest {
 
   @Test
   void testReturnsEmptyMethodLinesWhenClassResourceIsMissing()
-      throws IOException, ClassNotFoundException, NoSuchMethodException {
+      throws IOException, ClassNotFoundException {
     // regression test: Utils.getClassStream() returns null (rather than throwing) for
-    // classes whose bytecode resource cannot be located (e.g. certain generated/proxy classes)
+    // classes whose bytecode resource cannot be located (e.g. certain generated/proxy classes).
+    // Calls ClassMethodLines.parse() directly rather than going through
+    // ByteCodeLinesResolver.getMethodLines() -- that outer method already catches any exception
+    // and returns Lines.EMPTY, so it would pass even without the null-stream guard under test.
     NullResourceClassLoader nullResourceClassLoader = new NullResourceClassLoader();
 
     try (InputStream stream = Utils.getClassStream(NestedClass.class)) {
@@ -84,12 +88,8 @@ class ByteCodeLinesResolverTest {
     }
 
     Class<?> unresolvableClass = nullResourceClassLoader.loadClass(NestedClass.class.getName());
-    Method unresolvableMethod = unresolvableClass.getDeclaredMethod("aTestMethod");
 
-    ByteCodeLinesResolver linesResolver = new ByteCodeLinesResolver();
-    Lines methodLines = linesResolver.getMethodLines(unresolvableMethod);
-
-    assertFalse(methodLines.isValid());
+    assertDoesNotThrow(() -> ByteCodeLinesResolver.ClassMethodLines.parse(unresolvableClass));
   }
 
   @Test

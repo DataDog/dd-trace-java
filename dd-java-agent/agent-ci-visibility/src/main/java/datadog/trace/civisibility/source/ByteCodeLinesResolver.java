@@ -67,6 +67,13 @@ public class ByteCodeLinesResolver implements LinesResolver {
         ClassMethodLines classMethodLines = new ClassMethodLines();
         try (InputStream classStream = Utils.getClassStream(clazz)) {
           if (classStream == null) {
+            // Cached below via computeIfAbsent, as a permanent empty result for this class.
+            // That's correct for the case this guards against -- a generated/proxy class that
+            // will never have a bytecode resource -- but ClassLoader#getResourceAsStream also
+            // swallows IOException and returns null, so in principle a transient failure (I/O
+            // error, OOM while reading the class bytes) could hit this same branch and get
+            // pinned as a permanent negative. Not handling that here; flagging it for whoever
+            // next touches this if transient-failure caching turns out to matter in practice.
             log.debug("Could not get input stream for class {}", clazz.getName());
             return classMethodLines;
           }
