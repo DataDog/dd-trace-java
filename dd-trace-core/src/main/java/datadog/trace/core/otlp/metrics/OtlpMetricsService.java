@@ -30,7 +30,7 @@ public final class OtlpMetricsService {
   private final Object lifecycleLock = new Object();
 
   private AgentTaskScheduler.Scheduled<?> scheduledTask;
-  private CompletableResultCode shutdownResult;
+  private volatile CompletableResultCode shutdownResult;
 
   OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
@@ -83,23 +83,20 @@ public final class OtlpMetricsService {
                         / Math.log(1 - 0.25)),
                 5_000);
 
-    synchronized (lifecycleLock) {
-      if (shutdownResult == null && scheduledTask == null) {
-        scheduledTask =
-            scheduler.scheduleAtFixedRate(
-                this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
-      }
+    if (shutdownResult == null) {
+      scheduledTask =
+          scheduler.scheduleAtFixedRate(
+              this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
     }
   }
 
   public void flush() {
-    synchronized (lifecycleLock) {
-      if (sender != null && shutdownResult == null) {
-        scheduler.execute(this::export);
-      }
+    if (sender != null && shutdownResult == null) {
+      scheduler.execute(this::export);
     }
   }
 
+  /** Performs one last export before shutting down the OTLP metrics exporter. */
   public CompletableResultCode exportThenShutdown() {
     synchronized (lifecycleLock) {
       if (shutdownResult != null) {
@@ -114,7 +111,6 @@ public final class OtlpMetricsService {
       if (sender != null) {
         scheduler.execute(this::waitForExportThenShutdown);
       } else {
-        shutdownScheduler();
         shutdownResult.succeed();
       }
 
@@ -122,6 +118,7 @@ public final class OtlpMetricsService {
     }
   }
 
+  /** Shutdown on JVM exit; avoids I/O and any waiting or joining on threads. */
   public void shutdown() {
     if (scheduledTask != null) {
       scheduledTask.cancel();
@@ -132,33 +129,20 @@ public final class OtlpMetricsService {
   }
 
   private void waitForExportThenShutdown() {
-    boolean result = export();
-    if (!closeSender()) {
-      result = false;
-    }
-    shutdownScheduler();
-    if (result) {
+    boolean success = export();
+    closeSender();
+    if (success) {
       shutdownResult.succeed();
     } else {
       shutdownResult.fail();
     }
   }
 
-  private boolean closeSender() {
+  private void closeSender() {
     try {
       sender.shutdown();
-      return true;
     } catch (Throwable e) {
       LOGGER.debug("Failed to shut down OTLP metrics sender", e);
-      return false;
-    }
-  }
-
-  private void shutdownScheduler() {
-    try {
-      scheduler.shutdown(0, TimeUnit.MILLISECONDS);
-    } catch (Throwable e) {
-      LOGGER.debug("Failed to shut down OTLP metrics scheduler", e);
     }
   }
 

@@ -164,7 +164,6 @@ class OtlpMetricsServiceTest {
     verify(test.collector).collectMetrics();
     verify(test.sender).send(PAYLOAD);
     verify(test.sender).shutdown();
-    assertTrue(test.scheduler.isShutdown());
     test.service.flush();
     verify(test.collector).collectMetrics();
   }
@@ -177,30 +176,27 @@ class OtlpMetricsServiceTest {
     assertFalse(test.service.exportThenShutdown().join(5, SECONDS).isSuccess());
 
     verify(test.sender).shutdown();
-    assertTrue(test.scheduler.isShutdown());
   }
 
   @Test
-  void exportThenShutdownReportsSenderCloseFailure() throws Exception {
+  void exportThenShutdownSwallowsSenderCloseFailure() throws Exception {
     TestService test = service(PAYLOAD);
     when(test.sender.send(PAYLOAD)).thenReturn(success(200));
     doThrow(new IllegalStateException("boom")).when(test.sender).shutdown();
 
-    assertFalse(test.service.exportThenShutdown().join(5, SECONDS).isSuccess());
+    assertTrue(test.service.exportThenShutdown().join(5, SECONDS).isSuccess());
 
     verify(test.sender).shutdown();
-    assertTrue(test.scheduler.isShutdown());
   }
 
   @Test
-  void unavailablePipelineExportThenShutdownSucceedsAndStopsScheduler() {
+  void unavailablePipelineExportThenShutdownSucceeds() {
     AgentTaskScheduler scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
     schedulers.add(scheduler);
     OtlpMetricsService service = new OtlpMetricsService(scheduler, null, null, 10_000);
 
     service.flush();
     assertTrue(service.exportThenShutdown().join(5, SECONDS).isSuccess());
-    assertTrue(scheduler.isShutdown());
   }
 
   @Test
