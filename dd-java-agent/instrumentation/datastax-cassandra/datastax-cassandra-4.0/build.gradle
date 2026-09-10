@@ -33,3 +33,7 @@ dependencies {
 
   latestDepTestImplementation group: 'com.datastax.oss', name: 'java-driver-core', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  usesService(testcontainersLimit)
+}
