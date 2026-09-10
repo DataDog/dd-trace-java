@@ -97,7 +97,7 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class HttpMessageConverterReadAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Return final Object obj,
         @ActiveRequestContext RequestContext reqCtx,

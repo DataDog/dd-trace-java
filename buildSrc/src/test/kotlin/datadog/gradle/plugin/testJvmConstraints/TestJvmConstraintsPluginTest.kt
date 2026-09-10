@@ -22,6 +22,19 @@ class TestJvmConstraintsPluginTest {
   }
 
   @Test
+  fun `plugin is idempotent when applied more than once`() {
+    val project = ProjectBuilder.builder().build()
+
+    project.pluginManager.apply("dd-trace-java.test-jvm-constraints")
+    TestJvmConstraintsPlugin().apply(project)
+
+    val testTask = project.tasks.named("test", GradleTest::class.java).get()
+
+    assertThat(project.extensions.findByName(TEST_JVM_CONSTRAINTS)).isInstanceOf(TestJvmConstraintsExtension::class.java)
+    assertThat(testTask.extensions.findByName(TEST_JVM_CONSTRAINTS)).isInstanceOf(TestJvmConstraintsExtension::class.java)
+  }
+
+  @Test
   fun `jacoco is disabled for additional test jvm when coverage is not checked`() {
     val testTask = testTaskWithJacoco()
 

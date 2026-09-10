@@ -37,7 +37,7 @@ import org.msgpack.value.ValueType;
 public final class V1PayloadReader {
 
   /** msgpack field ids of the top-level payload (header) map, mirroring {@code buildHeader}. */
-  private static final class PayloadField {
+  static final class PayloadField {
     static final int CONTAINER_ID = 2;
     static final int LANGUAGE_NAME = 3;
     static final int LANGUAGE_VERSION = 4;
@@ -53,7 +53,7 @@ public final class V1PayloadReader {
   }
 
   /** msgpack field ids of a trace chunk map, mirroring {@code TraceMapperV1.map} (no field 5). */
-  private static final class ChunkField {
+  static final class ChunkField {
     static final int PRIORITY = 1;
     static final int ORIGIN = 2;
     static final int ATTRIBUTES = 3;
@@ -65,7 +65,7 @@ public final class V1PayloadReader {
   }
 
   /** msgpack field ids of a span map, mirroring {@code encodeSpans} (16 fields). */
-  private static final class SpanField {
+  static final class SpanField {
     static final int SERVICE = 1;
     static final int NAME = 2;
     static final int RESOURCE = 3;
@@ -110,9 +110,44 @@ public final class V1PayloadReader {
 
   /** Decodes the first span of the first chunk of an encoded V1 payload. */
   public static V1Span readFirstSpan(byte[] encoded) throws IOException {
+    V1Chunk chunk = readFirstChunk(encoded);
+    assertEquals(1, chunk.getSpans().size());
+    return chunk.getSpans().get(0);
+  }
+
+  /** Decodes the first chunk of an encoded V1 payload. */
+  public static V1Chunk readFirstChunk(byte[] encoded) throws IOException {
     MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(new ArrayBufferInput(encoded));
     List<String> stringTable = newStringTable();
-    return readFirstSpan(unpacker, stringTable);
+    int payloadFieldCount = unpacker.unpackMapHeader();
+    for (int i = 0; i < payloadFieldCount; i++) {
+      int payloadFieldId = unpacker.unpackInt();
+      if (payloadFieldId != PayloadField.CHUNKS) {
+        skipPayloadField(unpacker, payloadFieldId, stringTable);
+        continue;
+      }
+      int chunkCount = unpacker.unpackArrayHeader();
+      assertEquals(1, chunkCount);
+      int chunkFieldCount = unpacker.unpackMapHeader();
+      List<V1Span> spans = Collections.emptyList();
+      int samplingMechanism = 0;
+      for (int j = 0; j < chunkFieldCount; j++) {
+        int chunkFieldId = unpacker.unpackInt();
+        if (chunkFieldId == ChunkField.SPANS) {
+          int spanCount = unpacker.unpackArrayHeader();
+          spans = new ArrayList<>(spanCount);
+          for (int k = 0; k < spanCount; k++) {
+            spans.add(decodeSpan(unpacker, stringTable));
+          }
+        } else if (chunkFieldId == ChunkField.SAMPLING_MECHANISM) {
+          samplingMechanism = unpacker.unpackInt();
+        } else {
+          skipChunkField(unpacker, chunkFieldId, stringTable);
+        }
+      }
+      return new V1Chunk(spans, samplingMechanism);
+    }
+    throw new AssertionError("Could not find first chunk in v1 payload");
   }
 
   /** Creates a string table seeded with the empty string at index 0, as the writer expects. */
@@ -486,6 +521,24 @@ public final class V1PayloadReader {
 
     public List<V1SpanEvent> getEvents() {
       return events;
+    }
+  }
+
+  public static final class V1Chunk {
+    private final List<V1Span> spans;
+    private final int samplingMechanism;
+
+    private V1Chunk(List<V1Span> spans, int samplingMechanism) {
+      this.spans = spans;
+      this.samplingMechanism = samplingMechanism;
+    }
+
+    public List<V1Span> getSpans() {
+      return spans;
+    }
+
+    public int getSamplingMechanism() {
+      return samplingMechanism;
     }
   }
 

@@ -1,12 +1,13 @@
 package java.util.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static java.util.concurrent.CompletableFuture.ASYNC;
 
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
 import java.util.concurrent.CompletableFuture.UniCompletion;
 import net.bytebuddy.asm.Advice;
@@ -17,11 +18,11 @@ public final class CompletableFutureAdvice {
   public static final class UniConstructor {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This UniCompletion zis) {
-      AgentSpan span = activeSpan();
-      if (zis.isLive() && span != null) {
+      Context context = currentContext();
+      if (zis.isLive() && context != rootContext()) {
         ContextStore<UniCompletion, ConcurrentState> contextStore =
             InstrumentationContext.get(UniCompletion.class, ConcurrentState.class);
-        ConcurrentState.captureContinuation(contextStore, zis, span);
+        ConcurrentState.captureContinuation(contextStore, zis, context);
       }
     }
 

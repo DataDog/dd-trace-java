@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import datadog.context.ContextScope;
 import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.Platform;
 import datadog.trace.bootstrap.ContextStore;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -51,25 +52,15 @@ public final class TPEHelper {
     return useWrapping || task instanceof Wrapper || (task != null && WRAP.get(task.getClass()));
   }
 
-  public static void setPropagate(
-      ContextStore<ThreadPoolExecutor, Boolean> contextStore, ThreadPoolExecutor executor) {
-    if (executor == null || contextStore == null || contextStore.get(executor) != null) {
-      return;
-    }
-    String executorType = executor.getClass().getName();
-    if (excludedClasses.contains(executorType)) {
-      contextStore.put(executor, Boolean.FALSE);
-    } else {
-      contextStore.put(executor, Boolean.TRUE);
-    }
-  }
+  private static final ClassValue<Boolean> PROPAGATE =
+      GenericClassValue.of(input -> !excludedClasses.contains(input.getName()));
 
-  public static boolean shouldPropagate(
-      ContextStore<ThreadPoolExecutor, Boolean> contextStore, ThreadPoolExecutor executor) {
-    if (executor == null || contextStore == null) {
-      return false;
-    }
-    return Boolean.TRUE.equals(contextStore.get(executor));
+  public static boolean shouldPropagate(ThreadPoolExecutor executor) {
+    // avoid tracking threads when building native images as it confuses the scanner
+    // (we still want instrumentation applied, so tracking works in the built image)
+    return !Platform.isNativeImageBuilder()
+        && executor != null
+        && PROPAGATE.get(executor.getClass());
   }
 
   public static void capture(ContextStore<Runnable, State> contextStore, Runnable task) {

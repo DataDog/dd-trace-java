@@ -16,11 +16,12 @@ class MultiPartHelperTest extends Specification {
 
   def "text/plain part is added to body map"() {
     given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getName() >> 'field'
     def bodyPart = Mock(FormDataBodyPart)
     bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
-    bodyPart.getName() >> 'field'
-    bodyPart.getValue() >> 'value'
-    bodyPart.getFormDataContentDisposition() >> null
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('value'.bytes)
+    bodyPart.getFormDataContentDisposition() >> cd
     def map = [:]
 
     when:
@@ -56,11 +57,12 @@ class MultiPartHelperTest extends Specification {
 
   def "multiple values for same field are accumulated"() {
     given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getName() >> 'tag'
     def bodyPart = Mock(FormDataBodyPart)
     bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
-    bodyPart.getName() >> 'tag'
-    bodyPart.getValue() >>> ['a', 'b']
-    bodyPart.getFormDataContentDisposition() >> null
+    bodyPart.getEntityAs(InputStream) >>> [new ByteArrayInputStream('a'.bytes), new ByteArrayInputStream('b'.bytes)]
+    bodyPart.getFormDataContentDisposition() >> cd
     def map = [:]
 
     when:
@@ -69,6 +71,134 @@ class MultiPartHelperTest extends Specification {
 
     then:
     map == [tag: ['a', 'b']]
+  }
+
+  def "text/plain field value longer than MAX_CONTENT_BYTES is truncated"() {
+    given:
+    def longValue = 'a' * (MultiPartHelper.MAX_CONTENT_BYTES + 100)
+    def cd = Mock(FormDataContentDisposition)
+    cd.getName() >> 'field'
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream(longValue.bytes)
+    bodyPart.getFormDataContentDisposition() >> cd
+    def map = [:]
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
+
+    then:
+    map['field'][0] == 'a' * MultiPartHelper.MAX_CONTENT_BYTES
+  }
+
+  def "text/plain part with no declared charset decodes non-ASCII content as UTF-8"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getName() >> 'field'
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('héllo wörld'.getBytes('UTF-8'))
+    bodyPart.getFormDataContentDisposition() >> cd
+    def map = [:]
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
+
+    then:
+    map == [field: ['héllo wörld']]
+  }
+
+  def "text/plain part with explicit non-UTF-8 charset decodes using that charset"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getName() >> 'field'
+    def mediaType = new MediaType('text', 'plain', [charset: 'ISO-8859-1'])
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> mediaType
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('café'.getBytes('ISO-8859-1'))
+    bodyPart.getFormDataContentDisposition() >> cd
+    def map = [:]
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
+
+    then:
+    map == [field: ['café']]
+  }
+
+  def "MAX_FILES_TO_INSPECT limits number of distinct body map field names"() {
+    given:
+    def parts = (1..MultiPartHelper.MAX_FILES_TO_INSPECT + 2).collect { i ->
+      def cd = Mock(FormDataContentDisposition)
+      cd.getName() >> "field${i}"
+      def bp = Mock(FormDataBodyPart)
+      bp.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+      bp.getEntityAs(InputStream) >> new ByteArrayInputStream("value${i}".bytes)
+      bp.getFormDataContentDisposition() >> cd
+      bp
+    }
+    def map = [:]
+
+    when:
+    parts.each { MultiPartHelper.collectBodyPart(it, map, null, null) }
+
+    then:
+    map.size() == MultiPartHelper.MAX_FILES_TO_INSPECT
+  }
+
+  def "MAX_FILES_TO_INSPECT limits total accumulated values, even for a repeated field name"() {
+    given: "the map filled up to the cap with distinct field names"
+    def existing = (1..MultiPartHelper.MAX_FILES_TO_INSPECT).collect { i ->
+      def cd = Mock(FormDataContentDisposition)
+      cd.getName() >> "field${i}"
+      def bp = Mock(FormDataBodyPart)
+      bp.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+      bp.getEntityAs(InputStream) >> { new ByteArrayInputStream("value${i}".bytes) }
+      bp.getFormDataContentDisposition() >> cd
+      bp
+    }
+    def map = [:]
+    existing.each { MultiPartHelper.collectBodyPart(it, map, null, null) }
+
+    and: "a body part reusing an already-collected field name"
+    def repeatCd = Mock(FormDataContentDisposition)
+    repeatCd.getName() >> 'field1'
+    def repeat = Mock(FormDataBodyPart)
+    repeat.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+    repeat.getEntityAs(InputStream) >> new ByteArrayInputStream('extra'.bytes)
+    repeat.getFormDataContentDisposition() >> repeatCd
+
+    and: "a body part with a brand-new field name"
+    def freshCd = Mock(FormDataContentDisposition)
+    freshCd.getName() >> 'brandNew'
+    def fresh = Mock(FormDataBodyPart)
+    fresh.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+    fresh.getEntityAs(InputStream) >> new ByteArrayInputStream('nope'.bytes)
+    fresh.getFormDataContentDisposition() >> freshCd
+
+    when:
+    MultiPartHelper.collectBodyPart(repeat, map, null, null)
+    MultiPartHelper.collectBodyPart(fresh, map, null, null)
+
+    then: "the total value cap rejects both the repeated field's extra value and the brand-new field"
+    map['field1'] == ['value1']
+    map.size() == MultiPartHelper.MAX_FILES_TO_INSPECT
+    !map.containsKey('brandNew')
+  }
+
+  def "malformed Content-Disposition on a text/plain part skips body map gracefully"() {
+    given:
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+    bodyPart.getFormDataContentDisposition() >> { throw new IllegalArgumentException("bad CD") }
+    def map = [:]
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
+
+    then:
+    map.isEmpty()
+    noExceptionThrown()
   }
 
   // collectBodyPart — filenames
@@ -96,7 +226,7 @@ class MultiPartHelperTest extends Specification {
     def bodyPart = Mock(FormDataBodyPart)
     bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
     bodyPart.getName() >> 'f'
-    bodyPart.getValue() >> 'v'
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('v'.bytes)
     bodyPart.getFormDataContentDisposition() >> cd
 
     expect:
@@ -107,10 +237,10 @@ class MultiPartHelperTest extends Specification {
     given:
     def cd = Mock(FormDataContentDisposition)
     cd.getFileName() >> 'upload.txt'
+    cd.getName() >> 'file'
     def bodyPart = Mock(FormDataBodyPart)
     bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
-    bodyPart.getName() >> 'file'
-    bodyPart.getValue() >> 'content'
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('content'.bytes)
     bodyPart.getFormDataContentDisposition() >> cd
     def map = [:]
     def filenames = []

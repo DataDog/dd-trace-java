@@ -37,7 +37,10 @@ public class CiVisibilityCoverageServices {
       CoverageReportUploader coverageReportUploader =
           executionSettings.isCodeCoverageReportUploadEnabled()
               ? new CoverageReportUploader(
-                  services.ciIntake, repoServices.ciTags, services.metricCollector)
+                  services.ciIntake,
+                  repoServices.ciTags,
+                  services.config.getCodeCoverageFlags(),
+                  services.metricCollector)
               : null;
 
       coverageProcessorFactory =

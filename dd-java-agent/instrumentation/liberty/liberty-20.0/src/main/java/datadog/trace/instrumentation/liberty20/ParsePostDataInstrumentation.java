@@ -52,7 +52,7 @@ public class ParsePostDataInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParsePostDataAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return Hashtable<String, String[]> retval,
         @ActiveRequestContext RequestContext reqCtx,

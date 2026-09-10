@@ -10,7 +10,19 @@ import static com.datadog.debugger.instrumentation.ASMHelper.invokeVirtual;
 import static com.datadog.debugger.instrumentation.ASMHelper.isInScope;
 import static com.datadog.debugger.instrumentation.ASMHelper.isStaticField;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
-import static com.datadog.debugger.instrumentation.Types.*;
+import static com.datadog.debugger.instrumentation.Types.ARRAYLIST_TYPE;
+import static com.datadog.debugger.instrumentation.Types.COLLECTION_TYPE;
+import static com.datadog.debugger.instrumentation.Types.DEBUGGER_CONTEXT_TYPE;
+import static com.datadog.debugger.instrumentation.Types.HASHMAP_TYPE;
+import static com.datadog.debugger.instrumentation.Types.HASHSET_TYPE;
+import static com.datadog.debugger.instrumentation.Types.LINKEDHASHMAP_TYPE;
+import static com.datadog.debugger.instrumentation.Types.LINKEDLIST_TYPE;
+import static com.datadog.debugger.instrumentation.Types.LIST_TYPE;
+import static com.datadog.debugger.instrumentation.Types.MAP_TYPE;
+import static com.datadog.debugger.instrumentation.Types.METRICKIND_TYPE;
+import static com.datadog.debugger.instrumentation.Types.OBJECT_TYPE;
+import static com.datadog.debugger.instrumentation.Types.SET_TYPE;
+import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import static datadog.trace.util.Strings.getClassName;
 import static org.objectweb.asm.Type.DOUBLE_TYPE;
 import static org.objectweb.asm.Type.LONG_TYPE;
@@ -112,7 +124,7 @@ public class MetricInstrumenter extends Instrumenter {
       case EXIT:
         {
           Map<AbstractInsnNode, Frame<BasicValue>> frames =
-              computeFrames(classNode.name, methodNode);
+              ASMHelper.computeFrames(classNode.name, methodNode);
           processInstructions(frames);
           addFinallyHandler(returnHandlerLabel);
           installFinallyBlocks();

@@ -34,7 +34,7 @@ public class JavaForkJoinPoolInstrumentation
 
   public static final class ExternalPush {
     @SuppressWarnings("rawtypes")
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> void externalPush(@Advice.Argument(0) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
         ContextStore<ForkJoinTask, State> contextStore =
@@ -43,7 +43,7 @@ public class JavaForkJoinPoolInstrumentation
       }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static <T> void cleanup(
         @Advice.Argument(0) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
       if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {
@@ -53,7 +53,7 @@ public class JavaForkJoinPoolInstrumentation
   }
 
   public static final class PoolSubmit {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> void poolSubmit(@Advice.Argument(1) ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
         ContextStore<ForkJoinTask, State> contextStore =
@@ -62,7 +62,7 @@ public class JavaForkJoinPoolInstrumentation
       }
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static <T> void cleanup(
         @Advice.Argument(1) ForkJoinTask<T> task, @Advice.Thrown Throwable thrown) {
       if (null != thrown && !exclude(FORK_JOIN_TASK, task)) {

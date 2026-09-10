@@ -26,6 +26,8 @@ import org.slf4j.LoggerFactory;
 public class SharedCommunicationObjects {
   private static final Logger log = LoggerFactory.getLogger(SharedCommunicationObjects.class);
 
+  private static final String X_DATADOG_TEST_SESSION_TOKEN = "X-Datadog-Test-Session-Token";
+
   private final List<Runnable> pausedComponents = new ArrayList<>();
   private volatile boolean paused;
 
@@ -90,7 +92,25 @@ public class SharedCommunicationObjects {
       agentHttpClient =
           OkHttpUtils.buildHttpClient(
               OkHttpUtils.isPlainHttp(agentUrl), unixDomainSocket, namedPipe, httpClientTimeout);
+      String testSessionToken = config.getTestAgentSessionToken();
+      if (testSessionToken != null) {
+        agentHttpClient = injectTestAgentSessionHeaderInterceptor(testSessionToken);
+      }
     }
+  }
+
+  private OkHttpClient injectTestAgentSessionHeaderInterceptor(String testSessionToken) {
+    return agentHttpClient
+        .newBuilder()
+        .addInterceptor(
+            chain ->
+                chain.proceed(
+                    chain
+                        .request()
+                        .newBuilder()
+                        .header(X_DATADOG_TEST_SESSION_TOKEN, testSessionToken)
+                        .build()))
+        .build();
   }
 
   /** Registers a callback to be called when remote communications resume. */

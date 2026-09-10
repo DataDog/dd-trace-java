@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import okhttp3.Call;
 import okhttp3.ConnectionPool;
 import okhttp3.ConnectionSpec;
 import okhttp3.Credentials;
@@ -405,19 +406,39 @@ public final class OkHttpUtils {
   public static Response sendWithRetries(
       OkHttpClient httpClient, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
       throws IOException {
+    return sendWithRetries((Call.Factory) httpClient, retryPolicyFactory, request);
+  }
+
+  public static Response sendWithRetries(
+      Call.Factory callFactory, HttpRetryPolicy.Factory retryPolicyFactory, Request request)
+      throws IOException {
+    return sendWithRetries(callFactory, retryPolicyFactory, request, response -> response);
+  }
+
+  public static <T> T sendWithRetries(
+      Call.Factory callFactory,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      Request request,
+      ResponseMapper<T> responseMapper)
+      throws IOException {
     try (HttpRetryPolicy retryPolicy = retryPolicyFactory.create()) {
       while (true) {
+        Response response = null;
         try {
-          Response response = httpClient.newCall(request).execute();
+          response = callFactory.newCall(request).execute();
           if (response.isSuccessful()) {
-            return response;
+            return responseMapper.map(response);
           }
           if (!retryPolicy.shouldRetry(response)) {
-            return response;
+            return responseMapper.map(response);
           } else {
             closeQuietly(response);
+            response = null;
           }
         } catch (Exception ex) {
+          if (response != null) {
+            closeQuietly(response);
+          }
           if (!retryPolicy.shouldRetry(ex)) {
             throw ex;
           }
@@ -426,6 +447,11 @@ public final class OkHttpUtils {
         retryPolicy.backoff();
       }
     }
+  }
+
+  @FunctionalInterface
+  public interface ResponseMapper<T> {
+    T map(Response response) throws IOException;
   }
 
   private static void closeQuietly(Response response) {

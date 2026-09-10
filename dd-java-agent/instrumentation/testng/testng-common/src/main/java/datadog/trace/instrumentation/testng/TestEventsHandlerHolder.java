@@ -15,6 +15,9 @@ public abstract class TestEventsHandlerHolder {
 
   private static ContextStore<ITestResult, DDTest> TEST_STORE;
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Holder class not exposed to application code; locking on its Class is safe")
   public static synchronized void setContextStore(ContextStore<ITestResult, DDTest> testStore) {
     if (TEST_STORE == null) {
       TEST_STORE = testStore;

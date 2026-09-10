@@ -60,22 +60,18 @@ public class InvocationAdvice {
 
     // If we have a scope (i.e. we were the top-level Hazelcast SDK invocation),
     final AgentSpan span = scope.span();
-    try {
-      if (throwable != null) {
-        // There was a synchronous error,
-        // which means we shouldn't wait for a callback to close the span.
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-      } else {
-        future.whenComplete(new SpanFinishingExecutionCallback(span));
-      }
-    } finally {
+    if (throwable != null) {
+      // There was a synchronous error,
+      // which means we shouldn't wait for a callback to close the span.
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
       scope.close();
-      if (throwable != null) {
-        span.finish();
-      }
-      CallDepthThreadLocalMap.reset(ClientInvocation.class); // reset call depth count
+      span.finish();
+    } else {
+      future.whenComplete(new SpanFinishingExecutionCallback(span));
+      scope.close();
     }
+    CallDepthThreadLocalMap.reset(ClientInvocation.class); // reset call depth count
   }
 
   public static void muzzleCheck(

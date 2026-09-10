@@ -129,7 +129,8 @@ public class SymDBEnablement implements ProductListener {
     try {
       classesToExtract =
           Arrays.stream(instrumentation.getAllLoadedClasses())
-              .filter(clazz -> !classNameFilter.isExcluded(clazz.getTypeName()))
+              // getAllLoadedClasses can return null classes (Class Unloading)
+              .filter(clazz -> clazz != null && !classNameFilter.isExcluded(clazz.getTypeName()))
               .filter(instrumentation::isModifiableClass)
               .toArray(Class<?>[]::new);
     } catch (Throwable ex) {

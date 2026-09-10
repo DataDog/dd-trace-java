@@ -60,6 +60,15 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
       )
   }
 
+  protected applicationEndEvent(Long time) {
+    // Constructor of SparkListenerApplicationEnd gained an exitCode parameter starting spark 4.0
+    if (TestSparkComputation.getSparkVersion() < "4") {
+      return new SparkListenerApplicationEnd(time)
+    }
+
+    return new SparkListenerApplicationEnd(time, Option.empty())
+  }
+
   protected jobStartEvent(Integer jobId, Long time, ArrayList<Integer> stageIds) {
     def stageInfos = stageIds.collect { stageId ->
       createStageInfo(stageId)
@@ -214,7 +223,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     listener.onExecutorAdded(executorAddedEvent(3000L, "executor-2", 5))
     listener.onExecutorRemoved(executorRemovedEvent(4000L, "executor-2"))
 
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(5000L))
+    listener.onApplicationEnd(applicationEndEvent(5000L))
 
     expect:
     def expectedExecutorTime = (5000 - 2000) * 4 + (4000 - 3000) * 5
@@ -256,7 +265,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     listener.onStageCompleted(stageCompletedEvent(3, 3100L))
 
     listener.onJobEnd(jobEndEvent(1, 3100L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+    listener.onApplicationEnd(applicationEndEvent(3100L))
 
     expect:
     /*
@@ -339,7 +348,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     listener.onStageCompleted(stageCompletedEvent(2, 3000L))
 
     listener.onJobEnd(jobEndEvent(1, 3000L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(3000L))
+    listener.onApplicationEnd(applicationEndEvent(3000L))
 
     expect:
     assertTraces(1) {
@@ -384,7 +393,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     listener.onTaskEnd(taskEndEvent(1,1900L, 300))
     listener.onStageCompleted(stageCompletedEvent(1, 2200L))
     listener.onJobEnd(jobEndEvent(1, 17200L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+    listener.onApplicationEnd(applicationEndEvent(3100L))
 
     assertTraces(1) {
       trace(3) {
@@ -430,7 +439,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
     listener.onStageCompleted(stageCompletedEvent(2, 17200L))
     listener.onJobEnd(jobEndEvent(1, 17200L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(3100L))
+    listener.onApplicationEnd(applicationEndEvent(3100L))
 
     expect:
     def relativeAccuracy = 1/32D
@@ -480,7 +489,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
     when:
     listener.onApplicationStart(applicationStartEvent(1000L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
 
     then:
     assertTraces(1) {
@@ -500,7 +509,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     listener.onApplicationStart(applicationStartEvent(1000L))
     listener.onJobStart(jobStartEvent(1, 1900L, [1]))
     listener.onJobEnd(jobFailedEvent(1, 2200L, "Job was cancelled by user"))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(2300L))
+    listener.onApplicationEnd(applicationEndEvent(2300L))
 
     expect:
     assertTraces(1) {
@@ -531,7 +540,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     def analysisException = new RuntimeException("[TABLE_OR_VIEW_NOT_FOUND] The table or view `missing_table` cannot be found.")
     listener.onSqlFailure(analysisException)
 
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
 
     expect:
     assertTraces(1) {
@@ -563,7 +572,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     listener.onStageCompleted(stageCompletedEvent(1, 1800L))
     listener.onJobEnd(jobFailedEvent(1, 2000L, "Job aborted due to NullPointerException"))
 
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(3000L))
+    listener.onApplicationEnd(applicationEndEvent(3000L))
 
     expect:
     assertTraces(1) {
@@ -663,7 +672,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     injectSysConfig("dd.tags", ddTags)
     def listener = getTestDatadogSparkListener()
     listener.onApplicationStart(applicationStartEvent(1000L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(5000L))
+    listener.onApplicationEnd(applicationEndEvent(5000L))
 
     expect:
     assertTraces(1) {
@@ -729,7 +738,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
     when:
     listener.onApplicationStart(applicationStartEvent(1000L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
 
     then:
     assertTraces(1) {
@@ -749,7 +758,7 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
 
     when:
     listener.onApplicationStart(applicationStartEvent(1000L))
-    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+    listener.onApplicationEnd(applicationEndEvent(2000L))
 
     then:
     assertTraces(1) {

@@ -61,7 +61,6 @@ import datadog.trace.bootstrap.instrumentation.api.WriterConstants;
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.AgentThreadFactory.AgentThread;
-import datadog.trace.util.JDK9ModuleAccess;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.instrument.Instrumentation;
@@ -135,8 +134,7 @@ public class Agent {
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
     APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
-    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
-    FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
+    LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false);
 
     private final String configKey;
     private final String systemProp;
@@ -234,6 +232,8 @@ public class Agent {
 
     createAgentClassloader(agentJarURL);
 
+    AgentTracer.maybeInstallLegacyContextManager();
+
     if (Platform.isNativeImageBuilder()) {
       // these default services are not used during native-image builds
       remoteConfigEnabled = false;
@@ -283,7 +283,7 @@ public class Agent {
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
     appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
-    featureFlaggingEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAGGING);
+    featureFlaggingEnabled = isFeatureFlaggingEnabled();
 
     // setup writers when llmobs is enabled to accomodate apm and llmobs
     if (llmObsEnabled) {
@@ -337,8 +337,6 @@ public class Agent {
       startCrashTracking();
       StaticEventLogger.end("crashtracking");
     }
-
-    AgentTracer.maybeInstallLegacyContextManager();
 
     startDatadogAgent(initTelemetry, inst);
 
@@ -525,6 +523,11 @@ public class Agent {
     if (profilingEnabled) {
       shutdownProfilingAgent(sync);
     }
+    // Before telemetry: the feature flagging writers queue drop/degradation metrics during their
+    // final flush, and only a still-running telemetry worker can drain and transmit them.
+    if (featureFlaggingEnabled) {
+      shutdownFeatureFlagging(AGENT_CLASSLOADER);
+    }
     if (telemetryEnabled) {
       stopTelemetry();
     }
@@ -537,6 +540,9 @@ public class Agent {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal class; Class lock does not escape to application code")
   public static synchronized Class<?> installAgentCLI() throws Exception {
     if (null == AGENT_CLASSLOADER) {
       // in CLI mode we skip installation of instrumentation because we're not running as an agent
@@ -663,8 +669,6 @@ public class Agent {
       }
 
       installDatadogMeter(initTelemetry);
-      // Must run before installDatadogTracer, which triggers the ddprof profiler load.
-      prepareDatadogProfilerContextStorage(instrumentation);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
       maybeStartIast(instrumentation);
@@ -1287,6 +1291,20 @@ public class Agent {
     }
   }
 
+  static void shutdownFeatureFlagging(final ClassLoader agentClassLoader) {
+    if (agentClassLoader == null) {
+      return;
+    }
+    try {
+      final Class<?> ffSysClass =
+          agentClassLoader.loadClass("com.datadog.featureflag.FeatureFlaggingSystem");
+      final Method stopMethod = ffSysClass.getMethod("stop");
+      stopMethod.invoke(null);
+    } catch (final Throwable e) {
+      log.warn("Unable to stop Feature Flagging subsystem", e);
+    }
+  }
+
   private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
     if (agentlessLogSubmissionEnabled || appLogsCollectionEnabled) {
       StaticEventLogger.begin("Logs Intake");
@@ -1465,33 +1483,6 @@ public class Agent {
             }
           }
         });
-  }
-
-  /**
-   * Exports {@code jdk.internal.misc} to the classloader that loads {@code
-   * com.datadoghq.profiler.*} before the Datadog profiler is loaded.
-   *
-   * <p>On JDK 21+, the profiler scopes its context {@code ThreadContext} storage to the carrier
-   * thread using {@code jdk.internal.misc.CarrierThreadLocal}, so a mounted virtual thread resolves
-   * to its current carrier's record — fixing a virtual-thread context use-after-free. That type
-   * lives in a non-exported package, hence the export. Must run before {@code
-   * installDatadogTracer}, which loads the profiler via {@link
-   * #createProfilingContextIntegration()}.
-   */
-  private static void prepareDatadogProfilerContextStorage(Instrumentation inst) {
-    try {
-      if (inst == null
-          || !Config.get().isProfilingEnabled()
-          || !Config.get().isDatadogProfilerEnabled()
-          || OperatingSystem.isWindows()
-          || !isJavaVersionAtLeast(21)) {
-        return;
-      }
-      JDK9ModuleAccess.exportModuleToUnnamedModule(
-          inst, "java.base", new String[] {"jdk.internal.misc"}, AGENT_CLASSLOADER);
-    } catch (Throwable t) {
-      log.debug("Unable to export jdk.internal.misc for the Datadog profiler", t);
-    }
   }
 
   /**
@@ -1737,6 +1728,45 @@ public class Agent {
       // false unless it's explicitly set to "true"
       return Boolean.parseBoolean(featureEnabled) || "1".equals(featureEnabled);
     }
+  }
+
+  private static boolean isFeatureFlaggingEnabled() {
+    final Boolean providerEnabled =
+        featureFlaggingBooleanSetting(FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED);
+    final String configurationSource =
+        featureFlaggingSetting(FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE);
+    final Boolean legacyProviderEnabled =
+        featureFlaggingBooleanSetting(FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED);
+
+    return FeatureFlaggingConfig.resolveConfiguration(
+            providerEnabled, configurationSource, legacyProviderEnabled)
+        .isEnabled();
+  }
+
+  @SuppressFBWarnings(
+      value = "NP_BOOLEAN_RETURN_NULL",
+      justification = "A null value preserves the distinction between absent and explicitly false")
+  private static Boolean featureFlaggingBooleanSetting(final String configKey) {
+    final String value = featureFlaggingSetting(configKey);
+    if (value == null) {
+      return null;
+    }
+    return Boolean.parseBoolean(value) || "1".equals(value);
+  }
+
+  private static String featureFlaggingSetting(final String configKey) {
+    final String systemProperty = propertyNameToSystemPropertyName(configKey);
+    String value = SystemProperties.get(systemProperty);
+    if (value == null) {
+      value = getStableConfig(FLEET, configKey);
+    }
+    if (value == null) {
+      value = ddGetEnv(systemProperty);
+    }
+    if (value == null) {
+      value = getStableConfig(LOCAL, configKey);
+    }
+    return value;
   }
 
   /**

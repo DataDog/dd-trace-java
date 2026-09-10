@@ -17,6 +17,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.DDSpanTypes;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.Flow;
@@ -26,6 +27,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import java.io.ByteArrayInputStream;
@@ -287,6 +289,34 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
   }
 
   @Test
+  void appSecIsSkippedAndReportedUnsupportedForNonHttpEvent() throws IOException {
+    String eventJson = "{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\"}]}";
+
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    new HandlerStreaming().handleRequest(input, output, newContext());
+
+    assertFalse(appSecStarted);
+    assertNull(capturedMethod);
+    assertNull(capturedPath);
+    assertTrue(capturedHeaders.isEmpty());
+    assertNull(capturedBody);
+    assertFalse(appSecEnded);
+    assertNull(capturedResponseStatus);
+    // Tag matching is exhaustive, so this also asserts the span carries no http.* tag
+    assertTraces(
+        trace(
+            span()
+                .type(DDSpanTypes.SERVERLESS)
+                .error(false)
+                .tags(
+                    defaultTags(),
+                    tag("request_id", is(REQUEST_ID)),
+                    tag("_dd.appsec.unsupported_event_type", is(1)))));
+  }
+
+  @Test
   void responseCallbacksAreInvokedForJsonEncodedResponse() throws IOException {
     String eventJson =
         "{"
@@ -380,7 +410,8 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
     assertTrue(capturedResponseHeaders.isEmpty());
     assertNull(capturedResponseBody);
     assertFalse(responseHeaderDoneCalled);
-    assertTrue(appSecEnded);
+    // AppSec skipped the invocation entirely, so there is no request context to end
+    assertFalse(appSecEnded);
     assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
   }
 
@@ -414,6 +445,48 @@ abstract class LambdaHandlerInstrumentationTest extends AbstractInstrumentationT
 
     assertTrue(appSecEnded);
     assertTraces(trace(span().type(DDSpanTypes.SERVERLESS).error(false)));
+  }
+
+  @Test
+  void invocationSpanCarriesHttpTags() throws IOException {
+    String eventJson =
+        "{"
+            + "\"resource\": \"/api/users/{id}\","
+            + "\"path\": \"/api/users/123\","
+            + "\"httpMethod\": \"GET\","
+            + "\"queryStringParameters\": {\"q\": \"hello\"},"
+            + "\"headers\": {\"Host\": \"api.example.com\","
+            + "              \"User-Agent\": \"test-agent\"},"
+            + "\"requestContext\": {"
+            + "  \"httpMethod\": \"GET\","
+            + "  \"requestId\": \"req-tags\","
+            + "  \"domainName\": \"api.example.com\","
+            + "  \"identity\": {\"sourceIp\": \"127.0.0.1\"}"
+            + "}"
+            + "}";
+
+    ByteArrayInputStream input =
+        new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8));
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    new HandlerStreamingWithApiGwResponse().handleRequest(input, output, newContext());
+
+    assertTraces(
+        trace(
+            span()
+                .type(DDSpanTypes.SERVERLESS)
+                .error(false)
+                .tags(
+                    defaultTags(),
+                    tag("request_id", is(REQUEST_ID)),
+                    tag(Tags.HTTP_METHOD, is("GET")),
+                    // The tracer tags http.url without the query string; QueryObfuscator
+                    // obfuscates http.query.string and re-appends it as the trace is serialised
+                    tag(Tags.HTTP_URL, is("https://api.example.com/api/users/123?q=hello")),
+                    tag(DDTags.HTTP_QUERY, is("q=hello")),
+                    tag(Tags.HTTP_USER_AGENT, is("test-agent")),
+                    tag(Tags.HTTP_ROUTE, is("/api/users/{id}")),
+                    tag(Tags.HTTP_HOSTNAME, is("api.example.com")),
+                    tag(Tags.HTTP_STATUS, is(200)))));
   }
 
   @Test

@@ -8,18 +8,21 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AggregateTableTest {
@@ -30,15 +33,6 @@ class AggregateTableTest {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
     AgentMeter.registerIfAbsent(StatsDClient.NO_OP, monitoring, DDSketchHistograms.FACTORY);
     monitoring.newTimer("test.init");
-  }
-
-  @BeforeEach
-  void resetCardinalityHandlers() {
-    // AggregateEntry's property handlers are static and accumulate state across tests. Some tests
-    // in this class (e.g. backToBackEvictionsAllSucceed) drive 40 distinct services, which exceeds
-    // MetricCardinalityLimits.SERVICE (32) and leaves later tests seeing a shared "blocked"
-    // canonical for "a"/"b"/"c"-style services -- collapsing distinct snapshots into one entry.
-    AggregateEntry.resetCardinalityHandlers();
   }
 
   @Test
@@ -292,6 +286,7 @@ class AggregateTableTest {
         null,
         null,
         null,
+        null,
         0L);
   }
 
@@ -312,7 +307,35 @@ class AggregateTableTest {
         null,
         null,
         null,
+        null,
         0L);
+  }
+
+  @Test
+  void resetCoreHandlersClearsBlockedCountsAndRefreshesCapacity() {
+    // Inject the core handlers via the 3-arg constructor to test resetCoreHandlers() directly.
+    CoreHandlers handlers = new CoreHandlers();
+    AggregateTable table = new AggregateTable(512, handlers, AdditionalTagsSchema.EMPTY);
+
+    // Fill the service cardinality budget and push one value over the limit.
+    for (int i = 0; i < MetricCardinalityLimits.SERVICE; i++) {
+      table.findOrInsert(snapshot("svc-" + i, "op", "client"));
+    }
+    AggregateEntry blocked = table.findOrInsert(snapshot("svc-overflow", "op", "client"));
+    // All overflow services map to the same sentinel bucket.
+    AggregateEntry blocked2 = table.findOrInsert(snapshot("svc-overflow-2", "op", "client"));
+    assertSame(blocked, blocked2);
+
+    HealthMetrics metrics = mock(HealthMetrics.class);
+    table.resetCoreHandlers(metrics, new CardinalityLimitReporter());
+
+    verify(metrics).onTagCardinalityBlocked(new String[] {"collapsed:service"}, 2L);
+    verifyNoMoreInteractions(metrics);
+
+    // After reset, a new service name should land in a fresh bucket, not the sentinel.
+    AggregateEntry afterReset = table.findOrInsert(snapshot("svc-new", "op", "client"));
+    assertNotSame(blocked, afterReset);
+    assertEquals("svc-new", afterReset.getService().toString());
   }
 
   // ---------- helpers ----------
@@ -365,6 +388,7 @@ class AggregateTableTest {
           spanKind,
           peerTagSchema,
           peerTagValues,
+          null,
           null,
           null,
           null,

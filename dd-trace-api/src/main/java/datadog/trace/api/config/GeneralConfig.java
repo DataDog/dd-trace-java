@@ -87,6 +87,7 @@ public final class GeneralConfig {
   public static final String TRACER_METRICS_MAX_PENDING = "trace.tracer.metrics.max.pending";
   public static final String TRACER_METRICS_IGNORED_RESOURCES =
       "trace.tracer.metrics.ignored.resources";
+  public static final String TRACE_STATS_ADDITIONAL_TAGS = "trace.stats.additional.tags";
 
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";

@@ -1,3 +1,10 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
+  id 'groovy'
+  id 'java-test-fixtures'
+}
+
 muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
@@ -33,11 +40,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
-apply plugin: 'groovy'
-apply plugin: 'java-test-fixtures'
 
 testJvmConstraints {
   // Play doesn't work with Java 9+ until 2.6.12

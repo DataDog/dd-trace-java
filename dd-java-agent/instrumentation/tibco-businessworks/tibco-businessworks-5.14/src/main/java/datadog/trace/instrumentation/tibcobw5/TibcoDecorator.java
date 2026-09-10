@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,9 +58,9 @@ public class TibcoDecorator extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(@Nonnull final AgentSpan span) {
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_INTERNAL);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   public void onProcessStart(AgentSpan span, String processName) {

@@ -1,6 +1,12 @@
 ---
 name: techdebt
-description: Analyze branch changes for technical debt, code duplication, and unnecessary complexity
+description: >-
+  Review a code diff / branch / PR for technical debt — code duplication,
+  unnecessary complexity / over-engineering, and redundant or dead code. Use
+  whenever the user wants a tech-debt, cleanup, or refactor review, asks to check
+  a branch or PR for duplication / complexity / dead code before opening a PR, or
+  mentions "techdebt". Refactor-only: it reports issues and offers
+  behavior-preserving fixes; it never changes behavior.
 user-invocable: true
 context: fork
 allowed-tools:

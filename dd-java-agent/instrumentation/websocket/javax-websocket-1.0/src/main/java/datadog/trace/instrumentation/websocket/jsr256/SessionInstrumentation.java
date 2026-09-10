@@ -161,7 +161,7 @@ public class SessionInstrumentation
               handlerContext, reason.getReasonPhrase(), reason.getCloseCode().getCode()));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable thrown,
@@ -188,7 +188,7 @@ public class SessionInstrumentation
       return activateSpan(DECORATE.startOutboundCloseSpan(handlerContext, null, 1000));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Enter final AgentScope scope,
         @Advice.Thrown final Throwable thrown,

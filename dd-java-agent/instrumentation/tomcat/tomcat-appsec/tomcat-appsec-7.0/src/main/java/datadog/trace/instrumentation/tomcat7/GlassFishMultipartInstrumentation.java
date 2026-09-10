@@ -63,7 +63,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
 
   public static class GetPartsAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return(readOnly = false) Collection<?> parts,
         @Advice.Thrown Throwable t,

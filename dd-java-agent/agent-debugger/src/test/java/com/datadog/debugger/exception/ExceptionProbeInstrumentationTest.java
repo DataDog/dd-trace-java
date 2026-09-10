@@ -135,6 +135,9 @@ public class ExceptionProbeInstrumentationTest {
   }
 
   @Test
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Bug in J9: no LocalVariableTable for ClassFileTransformer")
   public void instrumentAndCaptureSnapshots() throws Exception {
     Config config = createConfig();
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
@@ -162,6 +165,8 @@ public class ExceptionProbeInstrumentationTest {
     assertEquals(fingerprint, span.getTags().get(DD_DEBUG_ERROR_EXCEPTION_HASH));
     assertEquals(Boolean.TRUE, span.getTags().get(Tags.ERROR_DEBUG_INFO_CAPTURED));
     assertEquals(snapshot0.getId(), span.getTags().get(String.format(SNAPSHOT_ID_TAG_FMT, 0)));
+    assertTrue(snapshot0.getCaptures().getReturn().getArguments().containsKey("arg"));
+    assertTrue(snapshot0.getCaptures().getReturn().getLocals().containsKey("intLocal"));
     assertEquals(1, probeSampler.getCallCount());
     assertEquals(1, globalSampler.getCallCount());
   }

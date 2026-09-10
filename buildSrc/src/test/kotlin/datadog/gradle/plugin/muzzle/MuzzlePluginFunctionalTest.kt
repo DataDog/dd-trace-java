@@ -89,6 +89,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     assertThat(suite.getAttribute("failures")).isEqualTo("0")
 
     val passCase = findTestCase(report, "muzzle-AssertPass-core-jdk")
+    assertThat(passCase.getAttribute("file")).isEqualTo("dd-java-agent/instrumentation/demo")
     assertThat(passCase.getElementsByTagName("failure").length).isEqualTo(0)
   }
 

@@ -1,7 +1,6 @@
 package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.test.util.DDSpecification
-import spock.lang.Ignore
 
 import static TestAdviceClasses.InstanceofAdvice
 import static TestAdviceClasses.LdcAdvice
@@ -114,8 +113,6 @@ class ReferenceCreatorTest extends DDSpecification {
     references.get('datadog.trace.agent.tooling.muzzle.TestAdviceClasses$MethodBodyAdvice$A') != null
   }
 
-  // TODO: remove ignore when we drop java 7 support.
-  @Ignore
   def "invokedynamic creates references"() {
     setup:
     Map<String, Reference> references = ReferenceCreator.createReferencesFrom(TestAdviceClasses.InDyAdvice.name, this.class.classLoader)

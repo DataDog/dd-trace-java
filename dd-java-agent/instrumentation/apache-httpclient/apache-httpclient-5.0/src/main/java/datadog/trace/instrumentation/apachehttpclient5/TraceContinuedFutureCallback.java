@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -36,7 +36,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation == noopContinuation()) {
+    if (parentContinuation.context() == Context.root()) {
       completeDelegate(result);
     } else {
       try (final ContextScope scope = parentContinuation.resume()) {
@@ -52,7 +52,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation == noopContinuation()) {
+    if (parentContinuation.context() == Context.root()) {
       failDelegate(ex);
     } else {
       try (final ContextScope scope = parentContinuation.resume()) {
@@ -67,7 +67,7 @@ public class TraceContinuedFutureCallback<T> implements FutureCallback<T> {
     DECORATE.beforeFinish(clientSpan);
     clientSpan.finish(); // Finish span before calling delegate
 
-    if (parentContinuation == noopContinuation()) {
+    if (parentContinuation.context() == Context.root()) {
       cancelDelegate();
     } else {
       try (final ContextScope scope = parentContinuation.resume()) {

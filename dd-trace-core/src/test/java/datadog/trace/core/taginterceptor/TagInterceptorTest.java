@@ -390,6 +390,13 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         arguments("asm.keep / 'false'", Tags.ASM_KEEP, "false", null),
         arguments("asm.keep / 'asdf'", Tags.ASM_KEEP, "asdf", null),
         arguments(
+            "ai_guard.keep / true", Tags.AI_GUARD_KEEP, true, (int) PrioritySampling.USER_KEEP),
+        arguments("ai_guard.keep / false", Tags.AI_GUARD_KEEP, false, null),
+        arguments(
+            "ai_guard.keep / 'true'", Tags.AI_GUARD_KEEP, "true", (int) PrioritySampling.USER_KEEP),
+        arguments("ai_guard.keep / 'false'", Tags.AI_GUARD_KEEP, "false", null),
+        arguments("ai_guard.keep / 'asdf'", Tags.AI_GUARD_KEEP, "asdf", null),
+        arguments(
             "sampling.priority / -1", Tags.SAMPLING_PRIORITY, -1, (int) PrioritySampling.USER_DROP),
         arguments(
             "sampling.priority / 0", Tags.SAMPLING_PRIORITY, 0, (int) PrioritySampling.USER_DROP),

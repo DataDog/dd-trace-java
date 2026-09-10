@@ -21,11 +21,11 @@ jobs:
           policy: self.update-gradle-dependencies.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
         with:
           submodules: "recursive"
 
-      - uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -104,7 +104,7 @@ jobs:
 
       - name: Push core changes
         if: steps.check-core-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
+        uses: DataDog/commit-headless@2801f6e08acb3a69b6c4d7b0d5deef27c1a15bc7 # action/v3.3.1
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.core_branch }}"
@@ -164,7 +164,7 @@ jobs:
 
       - name: Push instrumentation changes
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
+        uses: DataDog/commit-headless@2801f6e08acb3a69b6c4d7b0d5deef27c1a15bc7 # action/v3.3.1
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.instrumentation_branch }}"

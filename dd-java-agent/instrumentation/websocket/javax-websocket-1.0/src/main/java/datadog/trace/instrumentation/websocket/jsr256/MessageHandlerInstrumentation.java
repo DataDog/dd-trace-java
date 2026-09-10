@@ -71,7 +71,7 @@ public class MessageHandlerInstrumentation
       return activateSpan(wsSpan);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void onExit(
         @Advice.Enter final AgentScope scope,
         @Advice.Local("handlerContext") HandlerContext.Receiver handlerContext,
@@ -81,18 +81,12 @@ public class MessageHandlerInstrumentation
         return;
       }
       CallDepthThreadLocalMap.reset(MessageHandler.class);
-      try {
-        boolean finishSpan = last == null || last;
-        if (throwable != null) {
-          finishSpan = true;
-          DECORATE.onError(scope, throwable);
-        }
-        if (finishSpan) {
-          DECORATE.onFrameEnd(handlerContext);
-        }
-      } finally {
-        scope.close();
+      DECORATE.onError(scope, throwable);
+      boolean finishSpan = last == null || last || throwable != null;
+      if (finishSpan) {
+        DECORATE.onFrameEnd(handlerContext);
       }
+      scope.close();
     }
   }
 }

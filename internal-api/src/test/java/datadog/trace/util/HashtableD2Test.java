@@ -138,6 +138,13 @@ class HashtableD2Test {
   }
 
   @Test
+  void keyAccessorsExposeConstructionKeys() {
+    PairEntry entry = new PairEntry("a", 1, 100);
+    assertEquals("a", entry.key1());
+    assertEquals(1, entry.key2());
+  }
+
+  @Test
   void entryHashIsConsistentForSameKeys() {
     long h1 = Hashtable.D2.Entry.hash("x", 42);
     long h2 = Hashtable.D2.Entry.hash("x", 42);

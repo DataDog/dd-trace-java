@@ -86,7 +86,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       parentScope = parentContext.attach();
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeParentScope(@Advice.Local("parentScope") ContextScope parentScope) {
       if (parentScope != null) parentScope.close();
     }

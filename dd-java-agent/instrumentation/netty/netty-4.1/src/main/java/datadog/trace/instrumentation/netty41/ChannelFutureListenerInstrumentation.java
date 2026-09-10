@@ -46,6 +46,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".AttributeKeys",
+      packageName + ".ServerRequestContext",
       // client helpers
       packageName + ".client.NettyHttpClientDecorator",
       packageName + ".client.NettyResponseInjectAdapter",
@@ -58,6 +59,7 @@ public class ChannelFutureListenerInstrumentation extends InstrumenterModule.Tra
       packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
       packageName + ".server.BlockingResponseHandler",
       packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+      packageName + ".server.BlockingResponseHandler$PendingBlockResponse",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler"

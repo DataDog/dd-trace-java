@@ -161,12 +161,12 @@ Only tasks required to complete the requested goal are executed.
 
 In a well-organized Gradle project, build logic lives in specific places:
 
-| Location              | Purpose                                                                                                                                       |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
-| `settings.gradle.kts` | Project structure, repository settings, plugin management                                                                                     |
-| `build.gradle.kts`    | Project-specific build configuration                                                                                                          |
+| Location              | Purpose                                                                                                                                                                                 |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `settings.gradle.kts` | Project structure, repository settings, plugin management                                                                                                                               |
+| `build.gradle.kts`    | Project-specific build configuration                                                                                                                                                    |
 | `buildSrc/`           | Build logic automatically included by Gradle; contains convention plugins and shared configuration. It's possible to use different location(s) but it requires explicit declaration(s). |
-| `gradle/`             | Version catalogs and wrapper files and script plugins                                                                                         |
+| `gradle/`             | Version catalogs and wrapper files and script plugins                                                                                                                                   |
 
 > [!CAUTION]
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
@@ -469,15 +469,15 @@ graph LR
 | 🔵 Blue     | Declarable | Where you add dependencies (`api`, `implementation`, `compileOnly`, `runtimeOnly`) |
 | 🟢 Green    | Resolvable | Used by tasks to get files (`compileClasspath`, `runtimeClasspath`)                |
 | 🟡 Yellow   | Consumable | Exposed to consumer projects (`apiElements`, `runtimeElements`)                    |
-| ⬜ Gray      | Tasks      | Gradle tasks that use the configurations                                           |
+| ⬜ Gray     | Tasks      | Gradle tasks that use the configurations                                           |
 
 | Configuration    | Compile Classpath | Runtime Classpath | Exposed to Consumers | Use Case                                                      |
 |------------------|:-----------------:|:-----------------:|:--------------------:|---------------------------------------------------------------|
-| `api`            |         ✅         |         ✅         |          ✅           | Types in your public API (method signatures, return types)    |
-| `implementation` |         ✅         |         ✅         |          ❌           | Internal dependencies not exposed to consumers                |
-| `compileOnly`    |         ✅         |         ❌         |          ❌           | Provided at runtime by the environment (e.g., `servlet-api`)  |
-| `compileOnlyApi` |         ✅         |         ❌         |          ✅           | Compile-only dependency that's part of the public API         |
-| `runtimeOnly`    |         ❌         |         ✅         |          ❌           | Needed only at runtime (e.g., JDBC drivers, logging backends) |
+| `api`            |        ✅         |        ✅         |          ✅          | Types in your public API (method signatures, return types)    |
+| `implementation` |        ✅         |        ✅         |          ❌          | Internal dependencies not exposed to consumers                |
+| `compileOnly`    |        ✅         |        ❌         |          ❌          | Provided at runtime by the environment (e.g., `servlet-api`)  |
+| `compileOnlyApi` |        ✅         |        ❌         |          ✅          | Compile-only dependency that's part of the public API         |
+| `runtimeOnly`    |        ❌         |        ✅         |          ❌          | Needed only at runtime (e.g., JDBC drivers, logging backends) |
 
 > [!NOTE]
 > `compileOnlyApi` flows to `apiElements` (so consumers see it at compile time), i.e. the existing `apiElements` 
@@ -971,13 +971,58 @@ tasks.named<Test>("latestDepTest") {
 ./gradlew allTests -PtestJvm=zulu11
 ```
 
+### JMH Benchmarks (`dd-trace-java.jmh-conventions` Plugin)
+
+The convention uses the JVM selected by the `dd-trace-java.test-jvm-constraints` plugin via `-PtestJvm` as the 
+JMH launcher. It also maps optional `-Pjmh.*` project properties to JMH parameters, allowing an individual run 
+to be adjusted without editing benchmark annotations.
+Explicit settings in a module’s `jmh {}` block take precedence (i.e. the managed property won't apply).
+
+The new properties enable to override the defaults, in other words 
+
+* without `jmh.forks` or `jmh.threads`, forks and threads come from `@Fork` and `@Threads`; otherwise JMH defaults apply,
+* without `jmh.includes`, JMH runs all discovered benchmarks,
+* without `jmh.profilers`, no profiler is attached unless configured elsewhere.
+
+```Gradle Kotlin DSL
+plugins {
+    id("dd-trace-java.jmh-conventions")
+}
+
+jmh {
+    jmhVersion = libs.versions.jmh.get()
+    duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // jvm, fork, profilers are managed by the jmh convention plugin 
+    threads = 10 // Threads is enforced and jmh.threads won't be applied
+}
+```
+
+| Property        | Effect                                                        |
+|-----------------|---------------------------------------------------------------|
+| `jmh.includes`  | Comma-separated benchmark name patterns to run (a subset run) |
+| `jmh.profilers` | Comma-separated JMH profilers to attach (e.g. `stack`, `gc`)  |
+| `jmh.forks`     | Overrides the fork count for a spot-check run                 |
+| `jmh.threads`   | Overrides the thread count for a spot-check run               |
+
+```bash
+./gradlew :dd-trace-core:jmh -Pjmh.includes=SpanCreationBenchmark -Pjmh.forks=1 -Pjmh.threads=1 -PtestJvm=21
+```
+
+**Tips:**
+
+* Keep the benchmark's fork and thread settings aligned with what it measures.
+* Use `-Pjmh.profilers=gc` when investigating allocations.
+
 ### `tracerJava` Extension
 
 Manages multi-version Java source sets, allowing a single project to compile code targeting different JVM versions.
 
 ```Gradle Kotlin DSL
 // In build.gradle.kts
-apply(from = "$rootDir/gradle/java.gradle")
+plugins {
+    id("dd-trace-java.module.internal-library")
+}
 
 tracerJava {
     addSourceSetFor(JavaVersion.VERSION_11) {
@@ -1089,11 +1134,57 @@ tasks.withType<Test>().configureEach {
 Apply it in any subproject:
 
 ```Gradle Kotlin DSL
-// dd-java-agent/instrumentation/some-integration/build.gradle.kts
+// some/build.gradle.kts
 plugins {
     id("dd-trace-java.configure-tests")
 }
 ```
+
+### Module Convention Plugins
+
+Module convention plugins are the preferred entry points for module build files. They are a stable facade over shared
+project setup: consumers use a plugin ID, while the implementation can keep delegating to existing script plugins until
+that build logic is migrated.
+
+Use the most specific module plugin instead of applying `gradle/java.gradle` directly:
+
+| Module kind                       | Plugin ID                                   |
+|-----------------------------------|---------------------------------------------|
+| Product subsystem modules         | `dd-trace-java.module.product-subsystem`    |
+| Annotation processors             | `dd-trace-java.module.annotation-processor` |
+| Bootstrap components              | `dd-trace-java.module.bootstrap-component`  |
+| Published APIs                    | `dd-trace-java.module.distributable.api`    |
+| Instrumentation modules           | `dd-trace-java.module.instrumentation`      |
+| Internal API modules              | `dd-trace-java.module.internal-api`         |
+| Product libraries                 | `dd-trace-java.module.product-library`      |
+| Internal implementation libraries | `dd-trace-java.module.internal-library`     |
+| Platform components               | `dd-trace-java.module.platform-component`   |
+| Smoke-test modules                | `dd-trace-java.module.smoke-test`           |
+| Testing support modules           | `dd-trace-java.module.testing-support`      |
+
+> [!TIP]
+> * Use `internal-api` for internal API surfaces such as product `*-api` modules or `remote-config-api`. 
+> * Use `internal-library` for internal implementation modules such as product `*-lib` modules, `:communication`, 
+>   `:telemetry`, `:utils:*`, and similar shared libraries. 
+> * Use `platform-component` only for platform modules under `:components`; those modules are kept separate 
+>   because they can grow stricter dependency and testing constraints than general internal libraries.
+
+For example:
+
+```Gradle
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+```
+
+Avoid adding new direct uses of:
+
+```Gradle
+apply from: "$rootDir/gradle/java.gradle"
+```
+
+`spotlessCheck` enforces this for Gradle build scripts, with temporary exceptions only for modules that still need to be
+migrated separately.
 
 Other convention plugins in this project include:
 - `dd-trace-java.gradle-debug` - Debugging utilities for build diagnostics
@@ -1133,7 +1224,8 @@ As warned, don't wrtite new ones, use convention plugins instead !
 - **No caching**: Script plugins are re-evaluated on every build
 
 There's an ongoing effort to **migrate all of them to convention plugins** for better 
-maintainability and performance.
+maintainability and performance. For module build files, use a `dd-trace-java.module.*` plugin instead of applying
+`gradle/java.gradle` directly.
 
 ## Gradle Lazy API
 
@@ -1154,7 +1246,7 @@ When you use eager APIs, values are computed immediately during configuration—
 
 ### Eager vs Lazy API Comparison
 
-| Eager (Don't ❌)                 | Lazy (Prefer ✅)                        | Notes                                                                  |
+| Eager (Don't ❌)                | Lazy (Prefer ✅)                       | Notes                                                                  |
 |---------------------------------|----------------------------------------|------------------------------------------------------------------------|
 | `configurations.getByName("x")` | `configurations.named("x")`            | Returns a `NamedDomainObjectProvider` instead of resolving immediately |
 | `tasks.getByName("x")`          | `tasks.named("x")`                     | Avoids triggering task creation/configuration                          |
@@ -1576,4 +1668,3 @@ The report shows exactly which code paths capture disallowed references.
 # Validate build logic without running tasks
 ./gradlew help --scan
 ```
-

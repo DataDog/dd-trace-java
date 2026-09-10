@@ -72,7 +72,7 @@ public class UrlEncodedInstrumentation extends InstrumenterModule.AppSec
       return true;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean relevantCall,
         @Advice.Argument(1) MultiMap<String> map, // this is our map, not the orig arg

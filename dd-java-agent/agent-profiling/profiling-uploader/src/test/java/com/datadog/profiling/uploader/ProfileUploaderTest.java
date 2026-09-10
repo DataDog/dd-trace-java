@@ -644,7 +644,7 @@ public class ProfileUploaderTest {
     // will always fail first on socket timeouts.
     Field fld = ProfileUploader.class.getDeclaredField("uploadTimeout");
     fld.setAccessible(true);
-    fld.set(uploader, Duration.ofSeconds(1));
+    fld.set(uploader, Duration.ofSeconds(1)); // TODO: JEP 500 - avoid mutating final fields
     // ---
 
     server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.STALL_SOCKET_AT_START));

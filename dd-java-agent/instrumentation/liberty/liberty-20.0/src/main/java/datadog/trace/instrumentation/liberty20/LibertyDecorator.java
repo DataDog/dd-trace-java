@@ -8,6 +8,7 @@ import com.ibm.ws.webcontainer.srt.SRTServletResponse;
 import com.ibm.ws.webcontainer.webapp.WebAppErrorReport;
 import com.ibm.wsspi.webcontainer.servlet.IExtendedResponse;
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -30,6 +31,7 @@ public class LibertyDecorator
     extends HttpServerDecorator<
         HttpServletRequest, HttpServletRequest, HttpServletResponse, HttpServletRequest> {
 
+  public static final Logger log = LoggerFactory.getLogger(LibertyDecorator.class);
   public static final CharSequence LIBERTY_SERVER = UTF8BytesString.create("liberty-server");
   public static final LibertyDecorator DECORATE = new LibertyDecorator();
   public static final CharSequence SERVLET_REQUEST =
@@ -94,13 +96,13 @@ public class LibertyDecorator
   }
 
   @Override
-  public void onResponseStatus(AgentSpan span, int status) {
+  protected void doOnResponseStatus(AgentSpan span, int status) {
     Integer currentStatus = (Integer) span.getTag(Tags.HTTP_STATUS);
     // do not set status if the tag is already there and it's an error span
     // we may have the status during response blocking, but in that case
     // the status code is not propagated to the servlet layer
     if (currentStatus == null || !span.isError()) {
-      super.onResponseStatus(span, status);
+      super.doOnResponseStatus(span, status);
     }
   }
 
@@ -126,13 +128,23 @@ public class LibertyDecorator
     return true;
   }
 
-  public void onResponse(AgentSpan span, SRTServletResponse response) {
+  public void onSRTResponse(AgentSpan span, SRTServletResponse response) {
+    try {
+      doOnSRTResponse(span, response);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span on response", t);
+    }
+  }
+
+  private void doOnSRTResponse(AgentSpan span, SRTServletResponse response) {
     HttpServletRequest req = response.getRequest();
 
     if (Config.get().isServletPrincipalEnabled() && req.getUserPrincipal() != null) {
       span.setTag(DDTags.USER_NAME, req.getUserPrincipal().getName());
     }
-    super.onResponse(span, response);
+    doOnResponse(span, response);
 
     Object ex = req.getAttribute("javax.servlet.error.exception");
     Object report;

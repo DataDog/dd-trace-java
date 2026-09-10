@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
@@ -193,6 +194,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final TagMap localRootSpanTags;
 
   private final boolean localRootSpanTagsNeedIntercept;
+
+  /**
+   * When {@code false}, every exported span is stamped with the {@code _dd.apm.enabled:0} billing
+   * marker — see {@link #write(SpanList)}.
+   */
+  private final boolean apmTracingEnabled;
 
   /** A set of tags that are added to every span */
   private final TagMap defaultSpanTags;
@@ -673,6 +680,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.serviceName = serviceName;
 
     this.initialConfig = config;
+    this.apmTracingEnabled = config.isApmTracingEnabled();
     this.initialSampler = sampler;
 
     // Get initial Trace Sampling Rules from config
@@ -1033,13 +1041,41 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   long getTimeWithNanoTicks(long nanoTicks) {
     long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
     if (nanoTicks - lastSyncTicks >= clockSyncPeriod) {
-      long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
-      if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
-        counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
-      }
+      correctCounterDrift(computedNanoTime);
       lastSyncTicks = nanoTicks;
     }
     return computedNanoTime + counterDrift;
+  }
+
+  /**
+   * Computes {@link #counterDrift} corrected against {@code computedNanoTime}, gated by a 1ms
+   * threshold to avoid regressing the clock on {@link SystemTimeSource}'s millisecond precision.
+   */
+  private void correctCounterDrift(long computedNanoTime) {
+    long drift = computedNanoTime - timeSource.getCurrentTimeNanos();
+    if (Math.abs(drift + counterDrift) >= 1_000_000L) { // allow up to 1ms of drift
+      counterDrift = -MILLISECONDS.toNanos(NANOSECONDS.toMillis(drift));
+    }
+  }
+
+  /**
+   * AWS Lambda SnapStart restores a checkpointed JVM, potentially hours or days later, without
+   * {@link System#nanoTime()} accounting for the frozen duration. That can leave the computed time
+   * stale for longer than {@link #getTimeWithNanoTicks}'s periodic self-correction can catch, as
+   * that's gated on ticks elapsed rather than wall-clock time. Called once per Lambda invocation,
+   * before any span for it is created, so it's a cheap no-op outside SnapStart.
+   *
+   * <p>Gated on {@link Config#isLambdaSnapStartClockResyncEnabled()} as an escape hatch.
+   */
+  @VisibleForTesting
+  void maybeResyncClockForLambdaInvocation() {
+    if (!initialConfig.isLambdaSnapStartClockResyncEnabled()) {
+      return;
+    }
+    long nanoTicks = timeSource.getNanoTicks();
+    long computedNanoTime = startTimeNano + Math.max(0, nanoTicks - startNanoTicks);
+    correctCounterDrift(computedNanoTime);
+    lastSyncTicks = nanoTicks;
   }
 
   @Override
@@ -1249,6 +1285,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+    maybeResyncClockForLambdaInvocation();
+
     // Get context from AppSec
     AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
 
@@ -1309,6 +1347,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     spanToSample.forceKeep(forceKeep);
     boolean published = forceKeep || traceCollector.sample(spanToSample);
     if (published) {
+      if (!apmTracingEnabled) {
+        // Stamp the billing marker on every span of each exported chunk so the intake does not bill
+        // APM host usage.
+        for (int i = 0; i < writtenTrace.size(); i++) {
+          writtenTrace.get(i).setTag(APM_ENABLED, 0);
+        }
+      }
       writer.write(writtenTrace);
     } else {
       // with span streaming this won't work - it needs to be changed
@@ -2214,7 +2259,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               propagationTags,
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags,
-              tracer.injectLinksAsTags);
+              tracer.injectLinksAsTags,
+              mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
@@ -2222,7 +2268,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       // `builderTagsPrecedence` enabled, `tagLedger` (the explicit builder tags) moves to last so
       // it wins collisions instead of being overridden by `coreTags`/`rootSpanTags`/
       // `contextualTags` -- see the PR description for the historical context on this ordering.
-      context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
+      //
+      // mergedTracerTags is trace-level shared state and the precedence floor (everything below
+      // overrides it). When it carries no interceptable tags it is attached as a read-through
+      // PARENT at construction (shared by reference, no per-span copy). When it does need
+      // interception, copy its entries in (the interceptor's per-span side-effects can't be
+      // shared by reference).
+      if (mergedTracerTagsNeedsIntercept) {
+        context.setAllTags(mergedTracerTags, true);
+      }
       if (tracer.builderTagsPrecedence) {
         context.setAllTags(coreTags, coreTagsNeedsIntercept);
         context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
@@ -2234,8 +2288,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
         context.setAllTags(contextualTags);
       }
-      // remove version here since will be done later on the postProcessor.
-      // it will allow knowing if it will be set manually or not
+      // Version is added later by the postProcessor (InternalTagsAdder), only if not already set
+      // during the request. Config version is kept out of the trace-level bundle (see
+      // withTracerTags), so this removal now only wipes a version set via the span builder —
+      // keeping the existing semantics where a builder-set version is replaced by the config
+      // version. Under read-through this is a cheap local removal (version isn't in the parent,
+      // so no tombstone).
       context.removeTag(Tags.VERSION);
       return context;
     }
@@ -2466,6 +2524,25 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       Map<String, ?> userSpanTags, Config config, TraceConfig traceConfig) {
     final TagMap result = TagMap.create(userSpanTags.size() + 5);
     result.putAll(userSpanTags);
+    // Version is conditionally managed by InternalTagsAdder (added only when service == DD_SERVICE
+    // and not set during the request), so keep it OUT of the trace-level bundle. This matters under
+    // read-through: the bundle becomes a shared parent, and a per-span removeTag(VERSION) on a key
+    // that lived in the parent would mint a per-span tombstone. With version excluded here, the
+    // per-span removeTag (retained, to wipe a builder-set version) is a cheap local op, never a
+    // tombstone.
+    //
+    // EXCEPTION: when `version` is a split-service tag, the TagInterceptor derives the service name
+    // from it, so it must reach the interceptor. Keeping it in the bundle forces the intercepting
+    // seed path (a split tag makes the bundle needsIntercept=true -> copied, not a read-through
+    // parent), where the retained removeTag(VERSION) still deletes only a local copy -- so the
+    // split
+    // side-effect fires and no per-span tombstone is minted either way.
+    //
+    // Cold path: withTracerTags runs at setup / config-change, not per span (mergedTracerTags is
+    // cached on the config snapshot), so this getSplitByTags() lookup needn't be hoisted.
+    if (config == null || !config.getSplitByTags().contains(Tags.VERSION)) {
+      result.remove(Tags.VERSION);
+    }
     if (null != config) { // static
       if (!config.getEnv().isEmpty()) {
         result.set("env", config.getEnv());

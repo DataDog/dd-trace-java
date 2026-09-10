@@ -28,7 +28,7 @@ public class TestHelper {
     try {
       Field field = target.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);
-      field.set(target, value);
+      field.set(target, value); // TODO: JEP 500 - avoid mutating final fields
     } catch (Throwable e) {
       e.printStackTrace();
     }

@@ -41,35 +41,57 @@ public final class JsonMapper {
       return "{}";
     }
     try (JsonWriter writer = new JsonWriter()) {
-      writer.beginObject();
-      for (Map.Entry<String, ?> entry : map.entrySet()) {
-        writer.name(entry.getKey());
-        Object value = entry.getValue();
-        if (value == null) {
-          writer.nullValue();
-        } else if (value instanceof String) {
-          writer.value((String) value);
-        } else if (value instanceof Double) {
-          writer.value((Double) value);
-        } else if (value instanceof Float) {
-          writer.value((Float) value);
-        } else if (value instanceof Long) {
-          writer.value((Long) value);
-        } else if (value instanceof Integer) {
-          writer.value((Integer) value);
-        } else if (value instanceof Boolean) {
-          writer.value((Boolean) value);
-        } else {
-          writer.value(value.toString());
-        }
-      }
-      writer.endObject();
+      writeMap(writer, map);
       return writer.toString();
     }
   }
 
   /**
-   * Converts a {@code Iterable<String>} to a JSON array.
+   * Writes the map as JSON value to the given mapper.
+   *
+   * @param writer The writer to write the map as value to.
+   * @param map The map to write.
+   */
+  public static void writeAsJsonValue(JsonWriter writer, Map<String, ?> map) {
+    if (writer == null) {
+      throw new NullPointerException("writer cannot be null");
+    }
+    if (map == null) {
+      writer.beginObject();
+      writer.endObject();
+    } else {
+      writeMap(writer, map);
+    }
+  }
+
+  private static void writeMap(JsonWriter writer, Map<String, ?> map) {
+    writer.beginObject();
+    for (Map.Entry<String, ?> entry : map.entrySet()) {
+      writer.name(entry.getKey());
+      Object value = entry.getValue();
+      if (value == null) {
+        writer.nullValue();
+      } else if (value instanceof String) {
+        writer.value((String) value);
+      } else if (value instanceof Double) {
+        writer.value((Double) value);
+      } else if (value instanceof Float) {
+        writer.value((Float) value);
+      } else if (value instanceof Long) {
+        writer.value((Long) value);
+      } else if (value instanceof Integer) {
+        writer.value((Integer) value);
+      } else if (value instanceof Boolean) {
+        writer.value((Boolean) value);
+      } else {
+        writer.value(value.toString());
+      }
+    }
+    writer.endObject();
+  }
+
+  /**
+   * Converts a {@code Collection<String>} to a JSON array.
    *
    * @param items The iterable to convert.
    * @return The converted JSON array as Java string.
@@ -80,13 +102,35 @@ public final class JsonMapper {
       return "[]";
     }
     try (JsonWriter writer = new JsonWriter()) {
-      writer.beginArray();
-      for (String item : items) {
-        writer.value(item);
-      }
-      writer.endArray();
+      writeArray(items, writer);
       return writer.toString();
     }
+  }
+
+  /**
+   * Writes the {@code Collection<String>} as a JSON array to the given writer.
+   *
+   * @param items The collection to write.
+   * @param writer The writer to write the collection as JSON array to.
+   */
+  public static void writeAsJsonValue(Collection<String> items, JsonWriter writer) {
+    if (writer == null) {
+      throw new NullPointerException("writer cannot be null");
+    }
+    if (items == null) {
+      writer.beginArray();
+      writer.endArray();
+    } else {
+      writeArray(items, writer);
+    }
+  }
+
+  private static void writeArray(Iterable<String> items, JsonWriter writer) {
+    writer.beginArray();
+    for (String item : items) {
+      writer.value(item);
+    }
+    writer.endArray();
   }
 
   /**
@@ -101,13 +145,35 @@ public final class JsonMapper {
       return "[]";
     }
     try (JsonWriter writer = new JsonWriter()) {
-      writer.beginArray();
-      for (String item : items) {
-        writer.value(item);
-      }
-      writer.endArray();
+      writeArray(items, writer);
       return writer.toString();
     }
+  }
+
+  /**
+   * Writes the String array as a JSON array to the given writer.
+   *
+   * @param items The array to write.
+   * @param writer The writer to write the array as JSON array to.
+   */
+  public static void writeAsJsonValue(String[] items, JsonWriter writer) {
+    if (writer == null) {
+      throw new NullPointerException("writer cannot be null");
+    }
+    if (items == null) {
+      writer.beginArray();
+      writer.endArray();
+    } else {
+      writeArray(items, writer);
+    }
+  }
+
+  private static void writeArray(String[] items, JsonWriter writer) {
+    writer.beginArray();
+    for (String item : items) {
+      writer.value(item);
+    }
+    writer.endArray();
   }
 
   /**

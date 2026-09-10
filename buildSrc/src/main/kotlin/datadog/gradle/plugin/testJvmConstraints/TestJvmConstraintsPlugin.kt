@@ -13,6 +13,10 @@ import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 class TestJvmConstraintsPlugin : Plugin<Project> {
   override fun apply(project: Project) {
+    if (project.extensions.findByName(TEST_JVM_CONSTRAINTS) != null) {
+      return
+    }
+
     project.pluginManager.apply(JavaPlugin::class.java)
 
     val projectExtension = project.extensions.create<TestJvmConstraintsExtension>(TEST_JVM_CONSTRAINTS)

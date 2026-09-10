@@ -72,7 +72,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
       return exchange.getAttachment(FORM_DATA) == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Enter boolean relevant,
         @Advice.FieldValue("exchange") HttpServerExchange exchange,

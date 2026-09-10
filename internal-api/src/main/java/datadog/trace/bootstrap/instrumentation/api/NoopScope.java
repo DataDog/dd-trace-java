@@ -2,8 +2,8 @@ package datadog.trace.bootstrap.instrumentation.api;
 
 import datadog.trace.context.TraceScope;
 
-final class NoopScope implements AgentScope {
-  static final NoopScope INSTANCE = new NoopScope();
+public final class NoopScope implements AgentScope {
+  public static final NoopScope INSTANCE = new NoopScope();
 
   private NoopScope() {}
 

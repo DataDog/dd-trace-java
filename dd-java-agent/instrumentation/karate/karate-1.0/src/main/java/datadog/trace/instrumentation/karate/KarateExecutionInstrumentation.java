@@ -76,9 +76,13 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   public static class RetryAdvice {
     @Advice.OnMethodEnter
     public static void beforeExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
+      if (KarateTracingHook.skipTracking(scenarioRuntime)) {
+        return;
+      }
+
       ExecutionContext executionContext =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-              .computeIfAbsent(scenarioRuntime.scenario, ExecutionContext::create);
+              .getOrCompute(scenarioRuntime.scenario, ExecutionContext::create);
 
       // Indicate beforehand if the failures should be suppressed. This aligns the ordering with the
       // rest of the frameworks
@@ -91,6 +95,10 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
     @Advice.OnMethodExit
     public static void afterExecute(@Advice.This ScenarioRuntime scenarioRuntime) {
+      if (KarateTracingHook.skipTracking(scenarioRuntime)) {
+        return;
+      }
+
       if (CallDepthThreadLocalMap.incrementCallDepth(ScenarioRuntime.class) > 0) {
         // nested call
         return;

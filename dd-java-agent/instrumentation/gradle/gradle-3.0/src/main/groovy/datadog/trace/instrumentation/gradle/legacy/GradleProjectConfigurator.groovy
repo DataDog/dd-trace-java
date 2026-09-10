@@ -43,6 +43,10 @@ class GradleProjectConfigurator {
   public static final GradleProjectConfigurator INSTANCE = new GradleProjectConfigurator()
 
   private static final String JACOCO_PLUGIN_ID = 'jacoco'
+  private static final String JACOCO_AGENT_CONFIGURATION_NAME = 'jacocoAgent'
+  private static final String JACOCO_ANT_CONFIGURATION_NAME = 'jacocoAnt'
+  private static final String DEPENDENCY_VERIFICATION_WARNING_EMITTED =
+  'datadog.civisibility.dependency-verification-warning-emitted'
 
   void configureTracer(Task task, Map<String, String> propagatedSystemProperties) {
     def config = Config.get()
@@ -130,15 +134,8 @@ class GradleProjectConfigurator {
       def ddJavacPlugin = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin:$compilerPluginVersion"))
       def ddJavacPluginClient = project.configurations.detachedConfiguration(project.dependencies.create("com.datadoghq:dd-javac-plugin-client:$compilerPluginVersion"))
 
-      // if instrumented project does dependency verification,
-      // we need to exclude the two detached configurations that we're adding
-      // as corresponding entries are not in the project's verification-metadata.xml
-      if (ddJavacPlugin.resolutionStrategy.respondsTo("disableDependencyVerification")) {
-        ddJavacPlugin.resolutionStrategy.disableDependencyVerification()
-      }
-      if (ddJavacPluginClient.resolutionStrategy.respondsTo("disableDependencyVerification")) {
-        ddJavacPluginClient.resolutionStrategy.disableDependencyVerification()
-      }
+      disableDependencyVerificationIfConfigured(project, ddJavacPlugin)
+      disableDependencyVerificationIfConfigured(project, ddJavacPluginClient)
 
       task.classpath = (task.classpath ?: project.files([])) + ddJavacPluginClient.asFileTree
 
@@ -199,14 +196,11 @@ class GradleProjectConfigurator {
     project.apply("plugin": JACOCO_PLUGIN_ID)
     project.jacoco.toolVersion = config.ciVisibilityJacocoPluginVersion
 
-    // if instrumented project does dependency verification,
-    // we need to exclude configurations added by Jacoco
-    // as corresponding entries are not in the project's verification-metadata.xml
-    def jacocoConfigurations = project.configurations.findAll { it.name.startsWith("jacoco") }
+    def jacocoConfigurations = project.configurations.findAll {
+      it.name == JACOCO_AGENT_CONFIGURATION_NAME || it.name == JACOCO_ANT_CONFIGURATION_NAME
+    }
     for (def jacocoConfiguration : jacocoConfigurations) {
-      if (jacocoConfiguration.resolutionStrategy.respondsTo("disableDependencyVerification")) {
-        jacocoConfiguration.resolutionStrategy.disableDependencyVerification()
-      }
+      disableDependencyVerificationIfConfigured(project, jacocoConfiguration)
     }
 
     def coverageIncludedPackages = sessionSettings.getCoverageIncludedPackages()
@@ -225,6 +219,28 @@ class GradleProjectConfigurator {
         }
       }
     }
+  }
+
+  private static void disableDependencyVerificationIfConfigured(Project project, def configuration) {
+    if (Config.get().ciVisibilityGradleDependencyVerificationEnabled
+      || !configuration.resolutionStrategy.respondsTo("disableDependencyVerification")) {
+      return
+    }
+
+    if (project.rootProject.file('gradle/verification-metadata.xml').isFile()) {
+      def extraProperties = project.rootProject.extensions.extraProperties
+      if (!extraProperties.has(DEPENDENCY_VERIFICATION_WARNING_EMITTED)) {
+        extraProperties.set(DEPENDENCY_VERIFICATION_WARNING_EMITTED, true)
+        project.logger.warn(
+          "Datadog Test Optimization disabled Gradle dependency verification for dependencies "
+          + "injected into this build. To keep verification enabled, set "
+          + "DD_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED=true and add "
+          + "the Datadog compiler plugin and injected JaCoCo dependencies to "
+          + "gradle/verification-metadata.xml. If the metadata is not updated, Gradle will "
+          + "fail the build while resolving these dependencies.")
+      }
+    }
+    configuration.resolutionStrategy.disableDependencyVerification()
   }
 
   private static void forEveryTestTask(Project project, Closure closure) {

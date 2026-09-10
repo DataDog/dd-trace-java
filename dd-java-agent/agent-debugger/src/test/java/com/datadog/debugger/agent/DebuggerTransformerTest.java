@@ -55,7 +55,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
 import org.mockito.ArgumentCaptor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.InsnList;
+import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.LabelNode;
+import org.objectweb.asm.tree.TableSwitchInsnNode;
 
 public class DebuggerTransformerTest {
   private static final String LANGUAGE = "java";
@@ -350,7 +353,7 @@ public class DebuggerTransformerTest {
             .startsWith(
                 "Instrumentation failed for "
                     + CLASS_NAME
-                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+                    + ": org.objectweb.asm.MethodTooLargeException:"));
     assertTrue(
         strCaptor
             .getAllValues()
@@ -358,7 +361,7 @@ public class DebuggerTransformerTest {
             .startsWith(
                 "Instrumentation failed for "
                     + CLASS_NAME
-                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+                    + ": org.objectweb.asm.MethodTooLargeException:"));
     assertTrue(
         strCaptor
             .getAllValues()
@@ -366,7 +369,7 @@ public class DebuggerTransformerTest {
             .startsWith(
                 "Instrumentation failed for "
                     + CLASS_NAME
-                    + ": java.lang.ArrayIndexOutOfBoundsException:"));
+                    + ": org.objectweb.asm.MethodTooLargeException:"));
   }
 
   @Test
@@ -443,11 +446,19 @@ public class DebuggerTransformerTest {
     @Override
     public InstrumentationResult.Status instrument(
         MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
-      methodInfo
-          .getMethodNode()
-          .instructions
-          .insert(
-              new VarInsnNode(Opcodes.ASTORE, methodInfo.getMethodNode().localVariables.size()));
+      // Build a single TABLESWITCH with enough case entries (4 bytes each) to push the
+      // method's bytecode past the 65535-byte limit, while keeping the ASM tree
+      // instruction *count* tiny so that dataflow analysis (computeFrames) stays cheap
+      // and succeeds; the failure should only manifest when ASM serializes the method.
+      LabelNode target = new LabelNode();
+      int high = 20_000;
+      LabelNode[] labels = new LabelNode[high + 1];
+      Arrays.fill(labels, target);
+      InsnList list = new InsnList();
+      list.add(new InsnNode(Opcodes.ICONST_0));
+      list.add(new TableSwitchInsnNode(0, high, target, labels));
+      list.add(target);
+      methodInfo.getMethodNode().instructions.insert(list);
       return InstrumentationResult.Status.INSTALLED;
     }
 

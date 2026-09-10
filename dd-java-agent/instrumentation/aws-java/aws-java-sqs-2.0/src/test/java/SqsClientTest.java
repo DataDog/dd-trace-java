@@ -452,7 +452,13 @@ abstract class SqsClientTestBase extends AbstractInstrumentationTest {
     assertEquals(awsOperation, tagValue(span, "aws.operation"));
     assertEquals("java-aws-sdk", tagValue(span, "aws.agent"));
     assertEquals(queueUrl, tagValue(span, "aws.queue.url"));
+    assertEquals(queueName(queueUrl), tagValue(span, "aws.queue.name"));
+    assertEquals(queueName(queueUrl), tagValue(span, "queuename"));
     assertEquals(requestId(), tagValue(span, "aws.requestId").trim());
+  }
+
+  private static String queueName(String queueUrl) {
+    return queueUrl.substring(queueUrl.lastIndexOf('/') + 1);
   }
 
   private static String tagValue(DDSpan span, String tagName) {
@@ -702,6 +708,8 @@ abstract class SqsClientReceiveIterationTestBase extends AbstractInstrumentation
     assertEquals(awsOperation, tagValue(span, "aws.operation"));
     assertEquals("java-aws-sdk", tagValue(span, "aws.agent"));
     assertEquals(expectedQueueUrl(), tagValue(span, "aws.queue.url"));
+    assertEquals("somequeue", tagValue(span, "aws.queue.name"));
+    assertEquals("somequeue", tagValue(span, "queuename"));
     assertEquals("00000000-0000-0000-0000-000000000000", tagValue(span, "aws.requestId"));
   }
 

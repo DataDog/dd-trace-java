@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "org.apache.cxf"
@@ -13,8 +17,6 @@ muzzle {
     extraDependency "jakarta.servlet:jakarta.servlet-api:5.0.0"
   }
 }
-
-apply from: "${rootDir}/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 addTestSuiteForDir('cxf3LatestDepTest', 'test')

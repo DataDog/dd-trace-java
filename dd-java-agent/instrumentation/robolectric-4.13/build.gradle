@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   extraRepository('google', 'https://maven.google.com')
   pass {
@@ -10,11 +14,9 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 repositories {
   // Robolectric drags in androidx.test.* transitive dependencies that are published only to
-  // Google's Maven. Declared after java.gradle so Maven Central is tried first
+  // Google's Maven. Declared after the module convention so Maven Central is tried first.
   maven {
     url = 'https://maven.google.com'
     content {

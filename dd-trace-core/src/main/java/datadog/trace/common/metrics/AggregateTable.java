@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
 import java.util.function.BiConsumer;
@@ -26,7 +27,7 @@ final class AggregateTable {
 
   private final Hashtable.Entry[] buckets;
   private final int maxAggregates;
-  private final AggregateEntry.Canonical canonical = new AggregateEntry.Canonical();
+  private final AggregateEntry.Canonical canonical;
   private int size;
 
   /**
@@ -37,8 +38,22 @@ final class AggregateTable {
   private int evictCursor;
 
   AggregateTable(int maxAggregates) {
+    this(maxAggregates, AdditionalTagsSchema.EMPTY);
+  }
+
+  AggregateTable(int maxAggregates, AdditionalTagsSchema additionalTagsSchema) {
+    this(maxAggregates, new CoreHandlers(), additionalTagsSchema);
+  }
+
+  AggregateTable(
+      int maxAggregates, CoreHandlers handlers, AdditionalTagsSchema additionalTagsSchema) {
     this.buckets = Hashtable.Support.create(maxAggregates, Hashtable.Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
+    this.canonical = new AggregateEntry.Canonical(handlers, additionalTagsSchema);
+  }
+
+  void resetCoreHandlers(HealthMetrics healthMetrics, CardinalityLimitReporter reporter) {
+    canonical.handlers.reset(healthMetrics, reporter);
   }
 
   int size() {
@@ -64,6 +79,7 @@ final class AggregateTable {
         return candidate;
       }
     }
+    // Miss path.
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
@@ -83,11 +99,12 @@ final class AggregateTable {
    * {@code onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
    * steady-state working set, so eviction is rare in the common case.
    *
-   * <p>With per-field cardinality limits enabled, over-cap values for a given field collapse into a
-   * shared {@code tracer_blocked_value} bucket, so the table itself rarely reaches {@code
-   * maxAggregates}. Without per-field limits, over-cap values flow to distinct buckets and {@code
-   * maxAggregates} becomes the load-bearing backstop -- the cursor-resumed scan was added
-   * specifically for this regime.
+   * <p>Cardinality limiting (see {@link MetricCardinalityLimits#USE_BLOCKED_SENTINEL}) reduces how
+   * often this fires but doesn't eliminate it. Over-cap values for a single field collapse into the
+   * shared {@code tracer_blocked_value} sentinel, so no one field can fill the table on its own.
+   * But distinct in-budget combinations across fields (resource x service x operation x ...) can
+   * still drive the entry count to {@code maxAggregates}, so this cursor-resumed scan remains the
+   * backstop.
    */
   private boolean evictOneStale() {
     // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The

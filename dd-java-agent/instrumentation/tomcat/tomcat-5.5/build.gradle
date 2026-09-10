@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   // Catalina doesn't reliably depend on coyote, so we use a different dependency that does.
   pass {
@@ -44,8 +48,6 @@ muzzle {
     versions = "[,]"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')

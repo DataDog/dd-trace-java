@@ -3,7 +3,9 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import javax.annotation.ParametersAreNonnullByDefault;
 
+@ParametersAreNonnullByDefault
 public abstract class ClientDecorator extends BaseDecorator {
   // Deliberately not volatile, reading a stale null and creating an extra Entry is safe
   private TagMap.Entry cachedSpanKindEntry = null;
@@ -32,7 +34,7 @@ public abstract class ClientDecorator extends BaseDecorator {
   }
 
   @Override
-  public void afterStart(final AgentSpan span) {
+  protected void doAfterStart(final AgentSpan span) {
     final String service = service();
     if (service != null) {
       span.setServiceName(service, component());
@@ -41,6 +43,6 @@ public abstract class ClientDecorator extends BaseDecorator {
 
     // Generate metrics for all client spans.
     span.setMeasured(true);
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 }

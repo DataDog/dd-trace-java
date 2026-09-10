@@ -95,7 +95,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
-      packageName + ".AvroSchemaExtractor",
     };
   }
 
@@ -228,7 +227,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-          AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       } catch (final IllegalStateException e) {
         // headers must be read-only from reused record. try again with new one.
@@ -247,7 +245,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
           Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
           DataStreamsContext dsmContext = fromTagsWithoutCheckpoint(tags);
           dsmPropagator.inject(span.with(dsmContext), record.headers(), setter);
-          AvroSchemaExtractor.tryExtractProducer(record, span);
         }
       }
       if (TIME_IN_QUEUE_ENABLED) {
@@ -270,7 +267,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         @Advice.Argument(0) ProducerConfig producerConfig) {
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .putIfAbsent(metadata, MetadataState::new);
+              .getOrCreate(metadata, MetadataState::new);
       if (Config.get().isDataStreamsEnabled()) {
         KafkaConfigHelper.storePendingProducerConfig(
             state, KafkaConfigHelper.extractProducerConfig(producerConfig));

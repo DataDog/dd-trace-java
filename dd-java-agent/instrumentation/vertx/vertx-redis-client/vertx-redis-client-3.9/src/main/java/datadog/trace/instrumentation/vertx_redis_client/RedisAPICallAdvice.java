@@ -22,10 +22,9 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 public class RedisAPICallAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static boolean beforeCall(
+  public static AgentScope beforeCall(
       @Advice.Origin final Method currentMethod,
       @Advice.This final RedisAPI self,
-      @Advice.Local("callScope") AgentScope scope,
       @Advice.Argument(
               value = 0,
               readOnly = false,
@@ -62,7 +61,7 @@ public class RedisAPICallAdvice {
     // either), so this seems to be the only way to communicate that we have already wrapped
     // the handler. :(
     if (CallDepthThreadLocalMap.incrementCallDepth(RedisAPI.class) > 0) {
-      return true;
+      return null;
     }
 
     // TODO what is the recreated for every read about in the @Advice.Origin javadoc?
@@ -100,7 +99,7 @@ public class RedisAPICallAdvice {
     }
 
     if (null == handler || handler instanceof ResponseHandlerWrapper) {
-      return true;
+      return null;
     }
 
     final AgentSpan parentSpan = activeSpan();
@@ -112,7 +111,7 @@ public class RedisAPICallAdvice {
     The potential racy condition when the handler may be added to an already finished task is handled
     by RedisAPIImplSendAdvice.
     */
-    scope = activateSpan(clientSpan);
+    AgentScope scope = activateSpan(clientSpan);
     ResponseHandlerWrapper respHandler =
         new ResponseHandlerWrapper(handler, clientSpan, parentContinuation);
     handler = respHandler;
@@ -139,23 +138,24 @@ public class RedisAPICallAdvice {
     Store the response handler in the context so that it can be retrieved in RedisAPIImplSendAdvice
     */
     InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).put(self, respHandler);
-    return true;
+    return scope;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void afterCall(
       @Advice.Thrown final Throwable throwable,
       @Advice.This final RedisAPI self,
-      @Advice.Local("callScope") AgentScope scope,
-      @Advice.Enter final boolean decrement) {
-    if (decrement) {
-      CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+      @Advice.Enter final AgentScope scope) {
+    CallDepthThreadLocalMap.decrementCallDepth(RedisAPI.class);
+
+    if (null == scope) {
+      return;
     }
 
     scope.close();
 
     // Clean the response handler from the context
-    InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).put(self, null);
+    InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).remove(self);
   }
 
   // Only apply this advice for versions that we instrument 3.9.x

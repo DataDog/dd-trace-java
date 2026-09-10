@@ -2,6 +2,7 @@ package datadog.trace.bootstrap.instrumentation.decorator;
 
 import static datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver.hostName;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
@@ -20,8 +21,15 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+@ParametersAreNonnullByDefault
 public abstract class BaseDecorator {
+  private static final Logger log = LoggerFactory.getLogger(BaseDecorator.class);
+
   protected static final int UNSET_PORT = 0;
 
   private static final QualifiedClassNameCache CLASS_NAMES =
@@ -90,7 +98,17 @@ public abstract class BaseDecorator {
     return false;
   }
 
-  public void afterStart(final AgentSpan span) {
+  public final void afterStart(final AgentSpan span) {
+    try {
+      doAfterStart(span);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span after start", t);
+    }
+  }
+
+  protected void doAfterStart(final AgentSpan span) {
     if (spanType() != null) {
       span.setSpanType(spanType());
     }
@@ -106,50 +124,80 @@ public abstract class BaseDecorator {
     span.setMetric(traceAnalyticsEntry);
   }
 
-  public void beforeFinish(final ContextScope scope) {
-    beforeFinish(scope.context());
+  public final void beforeFinish(@Nullable final ContextScope scope) {
+    if (scope != null) {
+      beforeFinish(scope.context());
+    }
   }
 
-  public void beforeFinish(final AgentSpan span) {}
+  public final void beforeFinish(@Nullable final AgentSpan span) {
+    if (span != null) {
+      beforeFinish((Context) span);
+    }
+  }
 
-  public void beforeFinish(final Context context) {}
+  public final void beforeFinish(final Context context) {
+    try {
+      doBeforeFinish(context);
+    } catch (BlockingException e) {
+      throw e;
+    } catch (Throwable t) {
+      log.debug("Failed to decorate span before finish", t);
+    }
+  }
 
-  public void onError(final AgentScope scope, final Throwable throwable) {
+  protected void doBeforeFinish(final Context context) {}
+
+  public final void onError(@Nullable final AgentScope scope, @Nullable final Throwable throwable) {
     if (scope != null) {
       onError(scope.span(), throwable);
     }
   }
 
-  public void onError(final AgentSpan span, final Throwable throwable) {
+  public final void onError(@Nullable final AgentSpan span, @Nullable final Throwable throwable) {
     onError(span, throwable, ErrorPriorities.DEFAULT);
   }
 
-  public void onError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
-    if (throwable != null && span != null) {
-      span.addThrowable(
-          throwable instanceof ExecutionException ? throwable.getCause() : throwable,
-          errorPriority);
+  public final void onError(
+      @Nullable final AgentSpan span, @Nullable final Throwable throwable, byte errorPriority) {
+    if (span != null && throwable != null) {
+      try {
+        doOnError(span, throwable, errorPriority);
+      } catch (BlockingException e) {
+        throw e;
+      } catch (Throwable t) {
+        log.debug("Failed to decorate span on error", t);
+      }
     }
   }
 
-  public void onError(final ContextScope scope, final Throwable throwable) {
+  public final void onError(
+      @Nullable final ContextScope scope, @Nullable final Throwable throwable) {
     if (scope != null) {
       onError(AgentSpan.fromContext(scope.context()), throwable);
     }
   }
 
-  public void onPeerConnection(final AgentSpan span, final InetSocketAddress remoteConnection) {
+  protected void doOnError(final AgentSpan span, final Throwable throwable, byte errorPriority) {
+    span.addThrowable(
+        throwable instanceof ExecutionException ? throwable.getCause() : throwable, errorPriority);
+  }
+
+  public final void onPeerConnection(
+      final AgentSpan span, @Nullable final InetSocketAddress remoteConnection) {
     if (remoteConnection != null) {
       onPeerConnection(span, remoteConnection.getAddress(), !remoteConnection.isUnresolved());
       setPeerPort(span, remoteConnection.getPort());
     }
   }
 
-  public void onPeerConnection(final AgentSpan span, final InetAddress remoteAddress) {
+  public final void onPeerConnection(
+      final AgentSpan span, @Nullable final InetAddress remoteAddress) {
     onPeerConnection(span, remoteAddress, true);
   }
 
-  public void onPeerConnection(AgentSpan span, InetAddress remoteAddress, boolean resolved) {
+  public final void onPeerConnection(
+      AgentSpan span, @Nullable InetAddress remoteAddress, boolean resolved) {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {
@@ -176,9 +224,6 @@ public abstract class BaseDecorator {
   /**
    * This method is used to generate an acceptable span (operation) name based on a given method
    * reference. Anonymous classes are named based on their parent.
-   *
-   * @param method
-   * @return
    */
   public CharSequence spanNameForMethod(final Method method) {
     return spanNameForMethod(method.getDeclaringClass(), method);
@@ -191,7 +236,7 @@ public abstract class BaseDecorator {
    * @param method the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public CharSequence spanNameForMethod(final Class<?> clazz, final Method method) {
+  public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final Method method) {
     if (null == method) {
       return CLASS_NAMES.getClassName(clazz);
     }
@@ -205,16 +250,13 @@ public abstract class BaseDecorator {
    * @param methodName the name of the method to get the name from, nullable
    * @return the span name from the class and method
    */
-  public CharSequence spanNameForMethod(final Class<?> clazz, final String methodName) {
+  public CharSequence spanNameForMethod(final Class<?> clazz, @Nullable final String methodName) {
     return CLASS_NAMES.getQualifiedName(clazz, methodName);
   }
 
   /**
    * This method is used to generate an acceptable span (operation) name based on a given class
    * reference. Anonymous classes are named based on their parent.
-   *
-   * @param clazz
-   * @return
    */
   public CharSequence className(final Class<?> clazz) {
     String simpleName = clazz.getSimpleName();

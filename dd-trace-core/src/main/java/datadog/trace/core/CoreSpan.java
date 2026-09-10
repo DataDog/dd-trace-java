@@ -98,6 +98,10 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   void processTagsAndBaggage(MetadataConsumer consumer);
 
+  default void processTagsAndBaggage(MetadataConsumer consumer, boolean firstInChunk) {
+    processTagsAndBaggage(consumer);
+  }
+
   /**
    * Variant of {@link #processTagsAndBaggage(MetadataConsumer)} for protocols that serialize span
    * links as first-class structured data rather than tags. Baggage tag injection still follows the
@@ -108,6 +112,11 @@ public interface CoreSpan<T extends CoreSpan<T>> {
    */
   default void processTagsAndBaggageWithStructuredLinks(MetadataConsumer consumer) {
     processTagsAndBaggage(consumer);
+  }
+
+  default void processTagsAndBaggageWithStructuredLinks(
+      MetadataConsumer consumer, boolean firstInChunk) {
+    processTagsAndBaggageWithStructuredLinks(consumer);
   }
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);

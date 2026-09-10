@@ -8,12 +8,12 @@ public class InputAttributeInjector {
   private static final String DATADOG_KEY = "_datadog";
 
   public static String buildTraceContext(AgentSpan span) {
-    String tagsJson = JsonMapper.toJson(span.getTags());
     try (JsonWriter writer = new JsonWriter()) {
       writer.beginObject();
       writer.name("x-datadog-trace-id").value(span.getTraceId().toString());
       writer.name("x-datadog-parent-id").value(String.valueOf(span.getSpanId()));
-      writer.name("x-datadog-tags").jsonValue(tagsJson);
+      writer.name("x-datadog-tags");
+      JsonMapper.writeAsJsonValue(writer, span.getTags());
       writer.endObject();
       return writer.toString();
     } catch (Exception e) {

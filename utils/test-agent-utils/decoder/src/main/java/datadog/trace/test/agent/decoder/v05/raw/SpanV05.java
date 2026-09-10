@@ -1,5 +1,7 @@
 package datadog.trace.test.agent.decoder.v05.raw;
 
+import static java.util.Collections.emptyMap;
+
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.io.IOException;
 import java.util.Collections;
@@ -190,7 +192,7 @@ public class SpanV05 implements DecodedSpan {
 
   public Map<String, Object> getMetaStruct() {
     // XXX: meta_struct is not supported in v0.5.
-    return null;
+    return emptyMap();
   }
 
   public Map<String, Number> getMetrics() {

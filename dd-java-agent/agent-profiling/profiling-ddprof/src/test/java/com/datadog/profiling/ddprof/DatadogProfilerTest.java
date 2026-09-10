@@ -118,11 +118,80 @@ class DatadogProfilerTest {
     DatadogProfiler profiler =
         DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
 
-    Path dir = Paths.get("/tmp");
-    Path targetFile = Files.createTempFile(dir, "target_", ".jfr");
-    String cmd = profiler.cmdStartProfiling(targetFile);
+    assertTrue(startCmd(profiler).contains(",fjmethodid=false"));
+  }
 
-    assertTrue(cmd.contains(",fjmethodid=false"), cmd);
+  @Test
+  void testStartCmdNativeMemDisabledByDefault() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.NATIVEMEM));
+
+    assertFalse(startCmd(profiler).contains(",nativemem="));
+  }
+
+  @Test
+  void testStartCmdNativeMemEnabled() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL, "131072");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVEMEM));
+
+    assertTrue(startCmd(profiler).contains(",nativemem=131072"));
+  }
+
+  @Test
+  void testStartCmdNativeSocketDisabledByDefault() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    DatadogProfiler profiler = DatadogProfiler.newInstance(ConfigProvider.getInstance());
+    assertFalse(profiler.enabledModes().contains(ProfilingMode.NATIVESOCKET));
+
+    assertFalse(startCmd(profiler).contains(",natsock"));
+  }
+
+  @Test
+  void testStartCmdNativeSocketEnabledWithoutInterval() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED, "true");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVESOCKET));
+
+    String cmd = startCmd(profiler);
+    assertTrue(cmd.contains(",natsock"));
+    assertFalse(cmd.contains(",natsock="));
+  }
+
+  @Test
+  void testStartCmdNativeSocketEnabledWithInterval() throws Exception {
+    assertDoesNotThrow(
+        () -> DdprofLibraryLoader.jvmAccess().getReasonNotLoaded(), "Profiler not available");
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL, "100us");
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+    assertTrue(profiler.enabledModes().contains(ProfilingMode.NATIVESOCKET));
+
+    assertTrue(startCmd(profiler).contains(",natsock=100us"));
+  }
+
+  private static String startCmd(DatadogProfiler profiler) throws Exception {
+    Path targetFile = Files.createTempFile(Paths.get("/tmp"), "target_", ".jfr");
+    return profiler.cmdStartProfiling(targetFile);
   }
 
   @ParameterizedTest
@@ -455,6 +524,77 @@ class DatadogProfilerTest {
           scope6.close();
         },
         "Acceptance 6: DatadogProfilingScope.close() must not throw even when scopeStack is absent");
+
+    // Guard: a zero span id must not throw and must degrade to a clean clear that still reapplies
+    // app context. The native setTraceContext rejects spanId==0 (IllegalArgumentException); the
+    // bridge routes a zero span to clearTraceContext rather than letting that throw be swallowed
+    // over stale context. Span ids are non-zero by construction, so this only exercises the
+    // defensive path. Note: the clean-clear-vs-stale distinction lives in the trace/span and
+    // operation/resource slots, which this fixture does not expose (operation/resource context
+    // attributes are not configured here, and snapshot() reads only custom app-attribute
+    // encodings); so this locks the observable contract — no throw, app context preserved.
+    profiler.clearSpanContext();
+    profiler.clearContextValue("foo");
+    profiler.clearAppContextSnapshot();
+    fooSetter.set("zero-span-guard");
+    assertNotEquals(
+        0, profiler.snapshot()[fooOffset], "foo must be live before the zero-span activation");
+    assertDoesNotThrow(
+        () -> profiler.setSpanContext(1L, 0L, 0L, 1L),
+        "Guard: a zero span id must not throw (routed to clearTraceContext, not a swallowed IAE)");
+    assertNotEquals(
+        0,
+        profiler.snapshot()[fooOffset],
+        "Guard: zero-span activation must degrade to a clean clear that still reapplies app context");
+    profiler.clearContextValue("foo");
+
+    // Regression: a native setContextValue rejection (e.g. an oversized value, >255 UTF-8 bytes)
+    // clears the native slot; the prior value must be resynced immediately instead of only
+    // reappearing on the next span boundary (a flicker the pre-migration DBB path never had,
+    // since it retained the prior value continuously).
+    fooSetter.set("valid-before-reject");
+    int validEncoding = profiler.snapshot()[fooOffset];
+    assertNotEquals(0, validEncoding, "foo must be live before the rejected write");
+    StringBuilder oversized = new StringBuilder();
+    for (int i = 0; i < 300; i++) {
+      oversized.append('x');
+    }
+    assertFalse(
+        profiler.setContextValue("foo", oversized.toString()),
+        "an oversized (>255 UTF-8 bytes) value must be rejected");
+    assertEquals(
+        validEncoding,
+        profiler.snapshot()[fooOffset],
+        "a rejected write must not blank the slot; the prior value must stay visible immediately");
+    profiler.clearContextValue("foo");
+
+    // Regression: setTraceContext's trailing reapplyAppContext must not clobber the span-derived
+    // value it just wrote natively to operationOffset/resourceOffset, even when that offset is
+    // also app-owned (e.g. profiling.context.attributes names _dd.trace.operation/resource while
+    // span-name/resource-name context is enabled). Reuses the "foo" app-owned offset as a stand-in
+    // operationOffset — the profiler is a process-wide singleton and its context attributes can't
+    // be reconfigured to register the real _dd.trace.operation/resource offsets here.
+    profiler.setContextValue(fooOffset, "span-derived-value");
+    int spanDerivedEncoding = profiler.snapshot()[fooOffset];
+    assertNotEquals(0, spanDerivedEncoding, "fixture sanity: span-derived value must be live");
+    profiler.clearContextValue("foo");
+
+    fooSetter.set("stale-app-value");
+    int appEncoding = profiler.snapshot()[fooOffset];
+    assertNotEquals(0, appEncoding, "foo app value must be recorded before the trace-context call");
+    assertNotEquals(
+        spanDerivedEncoding,
+        appEncoding,
+        "fixture sanity: span-derived and app values must have distinct encodings");
+
+    profiler.setTraceContext(1L, 1L, 0L, 1L, fooOffset, "span-derived-value", -1, null);
+    assertEquals(
+        spanDerivedEncoding,
+        profiler.snapshot()[fooOffset],
+        "setTraceContext's trailing reapplyAppContext must skip operationOffset/resourceOffset so"
+            + " it doesn't overwrite the span-derived value just written to an app-owned offset");
+    profiler.clearSpanContext();
+    profiler.clearContextValue("foo");
   }
 
   private static ConfigProvider configProvider(

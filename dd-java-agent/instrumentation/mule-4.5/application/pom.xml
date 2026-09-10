@@ -7,7 +7,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <app.runtime>4.5.0</app.runtime>
-    <mule.maven.plugin.version>3.8.6</mule.maven.plugin.version>
+    <!-- Pin to 4.0.0 because newer versions generate an AST that Mule 4.5 and 4.6 cannot deploy. -->
+    <mule.maven.plugin.version>4.0.0</mule.maven.plugin.version>
     <datadog.builddir>${project.basedir}</datadog.builddir>
     <datadog.name>mule-test-application</datadog.name>
     <datadog.version>1.0.0-SNAPSHOT</datadog.version>

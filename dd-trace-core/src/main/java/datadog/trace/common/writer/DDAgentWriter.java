@@ -7,6 +7,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
 import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.DroppingPolicy;
 import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProtocolVersion;
@@ -39,7 +40,7 @@ public class DDAgentWriter extends RemoteWriter {
     int flushIntervalMilliseconds = 1000;
     Monitoring monitoring = Monitoring.DISABLED;
     ProtocolVersion protocolVersion = Config.get().getProtocolVersion();
-    boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+    boolean nativeMetricsReportingEnabled = Config.get().isTracerMetricsEnabled();
     boolean metricsIgnoreAgentVersion = Config.get().isTracerMetricsIgnoreAgentVersion();
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
@@ -48,6 +49,7 @@ public class DDAgentWriter extends RemoteWriter {
     private DDAgentApi agentApi;
     private Prioritization prioritization;
     private DDAgentFeaturesDiscovery featureDiscovery;
+    private DroppingPolicy droppingPolicy;
     private SingleSpanSampler singleSpanSampler;
 
     public DDAgentWriterBuilder agentApi(DDAgentApi agentApi) {
@@ -110,8 +112,9 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
-    public DDAgentWriterBuilder metricsReportingEnabled(boolean metricsReportingEnabled) {
-      this.metricsReportingEnabled = metricsReportingEnabled;
+    public DDAgentWriterBuilder nativeMetricsReportingEnabled(
+        boolean nativeMetricsReportingEnabled) {
+      this.nativeMetricsReportingEnabled = nativeMetricsReportingEnabled;
       return this;
     }
 
@@ -122,6 +125,11 @@ public class DDAgentWriter extends RemoteWriter {
 
     public DDAgentWriterBuilder featureDiscovery(DDAgentFeaturesDiscovery featureDiscovery) {
       this.featureDiscovery = featureDiscovery;
+      return this;
+    }
+
+    public DDAgentWriterBuilder droppingPolicy(DroppingPolicy droppingPolicy) {
+      this.droppingPolicy = droppingPolicy;
       return this;
     }
 
@@ -154,12 +162,13 @@ public class DDAgentWriter extends RemoteWriter {
                 monitoring,
                 agentUrl,
                 protocolVersion,
-                metricsReportingEnabled,
+                nativeMetricsReportingEnabled,
                 metricsIgnoreAgentVersion);
       }
       if (null == agentApi) {
         agentApi =
-            new DDAgentApi(client, agentUrl, featureDiscovery, monitoring, metricsReportingEnabled);
+            new DDAgentApi(
+                client, agentUrl, featureDiscovery, monitoring, nativeMetricsReportingEnabled);
       }
 
       final DDAgentMapperDiscovery mapperDiscovery = new DDAgentMapperDiscovery(featureDiscovery);
@@ -170,7 +179,8 @@ public class DDAgentWriter extends RemoteWriter {
               traceBufferSize,
               healthMetrics,
               dispatcher,
-              featureDiscovery,
+              // allow custom dropping policy for OTLP; otherwise fall back to feature discovery
+              droppingPolicy != null ? droppingPolicy : featureDiscovery,
               null == prioritization ? FAST_LANE : prioritization,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,

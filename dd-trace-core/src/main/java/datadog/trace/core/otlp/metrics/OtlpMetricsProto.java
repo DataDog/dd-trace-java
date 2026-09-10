@@ -1,10 +1,5 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA;
-import static datadog.trace.api.config.OtlpConfig.Temporality.LOWMEMORY;
-import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
-import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
-import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
@@ -13,13 +8,15 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentatio
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
+import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.COUNTER_TEMPORALITY;
+import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.HISTOGRAM_TEMPORALITY;
+import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.OBSERVABLE_COUNTER_TEMPORALITY;
+import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY_CUMULATIVE;
+import static datadog.trace.core.otlp.metrics.OtlpMetricsTemporality.TEMPORALITY_DELTA;
 
 import datadog.communication.serialization.GrowableBuffer;
-import datadog.trace.api.Config;
-import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
-import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
@@ -29,13 +26,6 @@ import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 /** Provides optimized writers for OpenTelemetry's "metrics.proto" wire protocol. */
 public final class OtlpMetricsProto {
   private OtlpMetricsProto() {}
-
-  private static final int TEMPORALITY_DELTA = 1;
-  private static final int TEMPORALITY_CUMULATIVE = 2;
-
-  private static final int COUNTER_TEMPORALITY = temporality(COUNTER);
-  private static final int OBSERVABLE_COUNTER_TEMPORALITY = temporality(OBSERVABLE_COUNTER);
-  private static final int HISTOGRAM_TEMPORALITY = temporality(HISTOGRAM);
 
   /** Records a scoped metrics message after its nested metric messages have been recorded. */
   public static int recordScopedMetricsMessage(
@@ -60,6 +50,20 @@ public final class OtlpMetricsProto {
       OtelInstrumentDescriptor descriptor,
       int nestedDataPointBytes,
       OtlpProtoBuffer protobuf) {
+    return recordMetricMessage(buf, descriptor, nestedDataPointBytes, protobuf, false);
+  }
+
+  /**
+   * Records a metric message after its nested data point messages have been recorded. When {@code
+   * forceDelta} is {@code true}, a histogram is encoded as DELTA regardless of the configured
+   * temporality preference (for sources whose data points are inherently per-interval deltas).
+   */
+  public static int recordMetricMessage(
+      GrowableBuffer buf,
+      OtelInstrumentDescriptor descriptor,
+      int nestedDataPointBytes,
+      OtlpProtoBuffer protobuf,
+      boolean forceDelta) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeString(buf, descriptor.getName().getUtf8Bytes());
@@ -107,7 +111,7 @@ public final class OtlpMetricsProto {
         writeTag(buf, 9, LEN_WIRE_TYPE);
         writeVarInt(buf, nestedDataPointBytes + 2);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
-        writeVarInt(buf, HISTOGRAM_TEMPORALITY);
+        writeVarInt(buf, forceDelta ? TEMPORALITY_DELTA : HISTOGRAM_TEMPORALITY);
         break;
       default:
         throw new IllegalArgumentException("Unknown instrument type: " + descriptor.getType());
@@ -157,21 +161,5 @@ public final class OtlpMetricsProto {
     }
 
     return protobuf.recordMessage(buf, 1);
-  }
-
-  private static int temporality(OtelInstrumentType type) {
-    OtlpConfig.Temporality preference = Config.get().getOtlpMetricsTemporalityPreference();
-    if (preference == DELTA) {
-      // gauges and up/down counters stay as cumulative
-      if (type == HISTOGRAM || type == COUNTER || type == OBSERVABLE_COUNTER) {
-        return TEMPORALITY_DELTA;
-      }
-    } else if (preference == LOWMEMORY) {
-      // observable counters, gauges, and up/down counters stay as cumulative
-      if (type == HISTOGRAM || type == COUNTER) {
-        return TEMPORALITY_DELTA;
-      }
-    }
-    return TEMPORALITY_CUMULATIVE;
   }
 }

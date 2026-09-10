@@ -299,7 +299,7 @@ x-request-id: req_6d5873ea010c45b3b89f63b5d8515e0c
   "usage": {
     "input_tokens": 21629,
     "input_tokens_details": {
-      "cached_tokens": 0
+      "cached_tokens": 0, "cache_write_tokens": 0
     },
     "output_tokens": 1760,
     "output_tokens_details": {

@@ -54,7 +54,13 @@ public class HttpRetryPolicy implements AutoCloseable {
   private final double delayFactor;
   private final boolean suppressInterrupts;
 
-  private HttpRetryPolicy(
+  /**
+   * Creates a retry policy.
+   *
+   * <p>Protected so products with a stricter cross-SDK retry contract can reuse the shared HTTP
+   * retry loop while supplying their own response, exception, and backoff rules.
+   */
+  protected HttpRetryPolicy(
       int retriesLeft, long delay, double delayFactor, boolean suppressInterrupts) {
     this.retriesLeft = retriesLeft;
     this.delay = delay;

@@ -1,11 +1,13 @@
 package datadog.opentracing;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpanContext;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
@@ -45,20 +47,11 @@ class TypeConverterTest extends DDJavaSpecification {
   }
 
   @Test
-  void shouldAvoidTheNoopScopeWrapperAllocation() {
-    datadog.trace.bootstrap.instrumentation.api.AgentScope noopScopeInstance = noopScope();
-    assertSame(
-        typeConverter.toScope(noopScopeInstance, true),
-        typeConverter.toScope(noopScopeInstance, true));
-    assertSame(
-        typeConverter.toScope(noopScopeInstance, false),
-        typeConverter.toScope(noopScopeInstance, false));
-    // noop scopes expected to be the same despite the finishSpanOnClose flag
-    assertSame(
-        typeConverter.toScope(noopScopeInstance, true),
-        typeConverter.toScope(noopScopeInstance, false));
-    assertSame(
-        typeConverter.toScope(noopScopeInstance, false),
-        typeConverter.toScope(noopScopeInstance, true));
+  void shouldReuseNoopSpanWrapperViaScope() {
+    AgentScope noopScope = mock(AgentScope.class);
+    when(noopScope.span()).thenReturn(noopSpan());
+    OTSpan noopSpanWrapper = typeConverter.toSpan(noopSpan());
+    assertSame(typeConverter.toScope(noopScope, true).span(), noopSpanWrapper);
+    assertSame(typeConverter.toScope(noopScope, false).span(), noopSpanWrapper);
   }
 }

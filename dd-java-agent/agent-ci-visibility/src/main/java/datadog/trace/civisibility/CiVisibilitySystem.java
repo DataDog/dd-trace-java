@@ -26,7 +26,6 @@ import datadog.trace.civisibility.coverage.file.instrumentation.CoverageInstrume
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.decorator.TestDecoratorImpl;
 import datadog.trace.civisibility.domain.BuildSystemSession;
-import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl;
 import datadog.trace.civisibility.domain.buildsystem.ProxyTestSession;
@@ -39,7 +38,7 @@ import datadog.trace.civisibility.ipc.SignalServer;
 import datadog.trace.civisibility.source.index.RepoIndex;
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl;
 import datadog.trace.civisibility.test.ExecutionStrategy;
-import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
+import datadog.trace.civisibility.utils.StrongMapContextStore;
 import datadog.trace.util.throwable.FatalAgentMisconfigurationError;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.Path;
@@ -190,16 +189,17 @@ public class CiVisibilitySystem {
         @Nullable ContextStore<SuiteKey, DDTestSuite> suiteStore,
         @Nullable ContextStore<TestKey, DDTest> testStore,
         Collection<LibraryCapability> capabilities) {
-      TestFrameworkSession testSession =
-          sessionFactory.startSession(repoServices.moduleName, component, null, capabilities);
-      TestFrameworkModule testModule = testSession.testModuleStart(repoServices.moduleName, null);
-      TestEventsHandlerImpl<SuiteKey, TestKey> handler =
+      boolean eagerSessionStart = !services.processHierarchy.isHeadless();
+      TestEventsHandler<SuiteKey, TestKey> handler =
           new TestEventsHandlerImpl<>(
               services.metricCollector,
-              testSession,
-              testModule,
-              suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
-              testStore != null ? testStore : new ConcurrentHashMapContextStore<>());
+              () ->
+                  sessionFactory.startSession(
+                      repoServices.moduleName, component, null, capabilities),
+              repoServices.moduleName,
+              eagerSessionStart,
+              suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
+              testStore != null ? testStore : new StrongMapContextStore<>());
       handlers.add(handler);
       return handler;
     }

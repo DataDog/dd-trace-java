@@ -24,6 +24,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.context.TraceScope;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -224,31 +225,6 @@ public class AgentTracer {
     return NoopSpanContext.INSTANCE;
   }
 
-  /**
-   * Returns the noop scope instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop scope instance.
-   */
-  public static AgentScope noopScope() {
-    return NoopScope.INSTANCE;
-  }
-
-  /**
-   * Returns the noop continuation instance.
-   *
-   * <p>This instance will always be the same, and can be safely tested using object identity (ie
-   * {@code ==}).
-   *
-   * @return the noop continuation instance.
-   */
-  @SuppressWarnings("deprecation")
-  public static AgentScope.Continuation noopContinuation() {
-    return NoopContinuation.INSTANCE;
-  }
-
   public static final TracerAPI NOOP_TRACER = new NoopTracerAPI();
 
   private static volatile TracerAPI provider = NOOP_TRACER;
@@ -257,12 +233,18 @@ public class AgentTracer {
     return provider != NOOP_TRACER;
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static provider")
   public static synchronized void registerIfAbsent(final TracerAPI tracer) {
     if (tracer != null && tracer != NOOP_TRACER) {
       provider = tracer;
     }
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification = "Agent-internal static holder; class lock guards private static provider")
   public static synchronized void forceRegister(TracerAPI tracer) {
     if (tracer == null) {
       throw new IllegalArgumentException("tracer must not be null, use NOOP_TRACER instead");
@@ -683,7 +665,7 @@ public class AgentTracer {
 
     @Override
     public ContextScope attach(Context context) {
-      return noopScope();
+      return NoopScope.INSTANCE;
     }
 
     @Override
@@ -693,7 +675,7 @@ public class AgentTracer {
 
     @Override
     public ContextContinuation capture(Context context) {
-      return noopContinuation();
+      return NoopContinuation.INSTANCE;
     }
   }
 

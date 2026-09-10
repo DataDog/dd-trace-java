@@ -7,7 +7,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 class RouteMatchesAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   @Source(SourceTypes.REQUEST_PATH_PARAMETER)
   static void after(
       @Advice.Return int ret,
@@ -30,7 +30,7 @@ class RouteMatchesAdvice {
   }
 
   static class BooleanReturnVariant {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     @Source(SourceTypes.REQUEST_PATH_PARAMETER)
     static void after(
         @Advice.Return boolean ret,

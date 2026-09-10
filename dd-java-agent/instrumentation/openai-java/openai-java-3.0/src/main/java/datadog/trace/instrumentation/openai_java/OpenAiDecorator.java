@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
+import datadog.context.Context;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceApiInfo;
@@ -16,6 +19,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -61,14 +65,9 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   public void finishSpan(AgentSpan span, Throwable err) {
-    try {
-      if (err != null) {
-        onError(span, err);
-      }
-      DECORATE.beforeFinish(span);
-    } finally {
-      span.finish();
-    }
+    onError(span, err);
+    beforeFinish(span);
+    span.finish();
   }
 
   @Override
@@ -92,7 +91,7 @@ public class OpenAiDecorator extends ClientDecorator {
   }
 
   @Override
-  public void afterStart(AgentSpan span) {
+  protected void doAfterStart(@Nonnull AgentSpan span) {
     if (llmObsEnabled) {
       // set global dd_tags as base layer so UST and span-level tags can override them
       for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
@@ -109,29 +108,53 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.SOURCE, "integration");
       span.setTag(CommonTags.INTEGRATION, INTEGRATION);
 
+      // Resolve the LLMObs parent context, gated on trace-id consistency: a stale context
+      // from a different trace (e.g. async boundary leakage) must not contribute parent_id,
+      // session_id, or agent_version to this span. Matches DDLLMObsSpan's manual-span gate.
       AgentSpanContext parent = LLMObsContext.current();
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
-      if (parent != null) {
+      if (parent != null && parent.getTraceId() == span.getTraceId()) {
         parentSpanId = String.valueOf(parent.getSpanId());
+
+        // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
+        // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
+        // session_id from the workflow root via context propagation. Without this, the
+        // auto-instrumented openai.request span would not appear under its session in
+        // the LLM Trace Explorer's Sessions view.
+        String sessionId = LLMObsContext.currentSessionId();
+        if (sessionId != null && !sessionId.isEmpty()) {
+          span.setTag(CommonTags.SESSION_ID, sessionId);
+        }
+
+        // Inherit agent_version from the active LLMObs parent.
+        String agentVersion = LLMObsContext.currentAgentVersion();
+        if (agentVersion != null && !agentVersion.isEmpty()) {
+          span.setTag(CommonTags.AGENT_VERSION, agentVersion);
+        }
       }
       span.setTag(CommonTags.PARENT_ID, parentSpanId);
 
-      // Inherit session_id from the active LLMObs parent (e.g. a manual workflow span).
-      // Matches dd-trace-py / dd-trace-js, where auto-instrumented LLM spans inherit
-      // session_id from the workflow root via context propagation. Without this, the
-      // auto-instrumented openai.request span would not appear under its session in
-      // the LLM Trace Explorer's Sessions view.
-      String sessionId = LLMObsContext.currentSessionId();
-      if (sessionId != null && !sessionId.isEmpty()) {
-        span.setTag(CommonTags.SESSION_ID, sessionId);
+      // Inherit agent attribution only when the LLMObs context belongs to the same trace.
+      // Mirrors the gate in DDLLMObsSpan: a stale LLMObsContext from a different async trace
+      // must not stamp its agent ID onto this span.
+      if (parent != null && parent.getTraceId() == span.getTraceId()) {
+        String parentAgentSpanId = LLMObsContext.currentParentAgentSpanId();
+        if (parentAgentSpanId != null) {
+          span.setTag(CommonTags.PAGENT_SPAN_ID, parentAgentSpanId);
+          String parentAgentName = LLMObsContext.currentParentAgentName();
+          if (parentAgentName != null) {
+            span.setTag(CommonTags.PAGENT_NAME, parentAgentName);
+          }
+        }
       }
     }
-    super.afterStart(span);
+    super.doAfterStart(span);
   }
 
   @Override
-  public void beforeFinish(AgentSpan span) {
-    if (llmObsEnabled) {
+  protected void doBeforeFinish(@Nonnull Context context) {
+    AgentSpan span = fromContext(context);
+    if (llmObsEnabled && span != null) {
       span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
       span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
 
@@ -143,7 +166,7 @@ public class OpenAiDecorator extends ClientDecorator {
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     }
-    super.beforeFinish(span);
+    super.doBeforeFinish(context);
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {

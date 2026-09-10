@@ -15,7 +15,7 @@ import ratpack.http.internal.ByteBufBackedTypedData;
 
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class RatpackRequestBodyGetTextCalledAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after(
       @Advice.This ByteBufBackedTypedData thiz,
       @Advice.Return String str,

@@ -1,9 +1,56 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class SpringAsyncTest extends InstrumentationSpecification {
+
+  boolean asyncMeasured() {
+    false
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    if (asyncMeasured()) {
+      injectSysConfig("spring-scheduling.measured.enabled", "true")
+    }
+  }
+
+  def "exception in @async method tags span as errored"() {
+    setup:
+    def context = new AnnotationConfigApplicationContext(AsyncTaskConfig)
+    AsyncTask asyncTask = context.getBean(AsyncTask)
+
+    when:
+    Throwable thrown = null
+    try {
+      asyncTask.asyncThrow().join()
+    } catch (Throwable t) {
+      thrown = t
+    }
+
+    then:
+    thrown != null
+    assertTraces(1) {
+      trace(1) {
+        span {
+          resourceName "AsyncTask.asyncThrow"
+          errored true
+          measured asyncMeasured()
+          tags {
+            "$Tags.COMPONENT" "spring-scheduling"
+            errorTags(RuntimeException, "Datadog async repro")
+            defaultTags()
+          }
+        }
+      }
+    }
+
+    cleanup:
+    context.close()
+  }
 
   def "context propagated through @async annotation"() {
     setup:
@@ -52,5 +99,12 @@ class SpringAsyncTest extends InstrumentationSpecification {
 
     where:
     hasParent << [true, false]
+  }
+}
+
+class SpringAsyncMeasuredForkedTest extends SpringAsyncTest {
+  @Override
+  boolean asyncMeasured() {
+    true
   }
 }

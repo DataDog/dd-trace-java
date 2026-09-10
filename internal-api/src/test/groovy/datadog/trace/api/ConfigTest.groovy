@@ -2,8 +2,12 @@ package datadog.trace.api
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_CLIENT_ERROR_STATUSES
 import static datadog.trace.api.ConfigDefaults.DEFAULT_HTTP_SERVER_ERROR_STATUSES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS
+import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.DDTags.HOST_TAG
@@ -55,6 +59,11 @@ import static datadog.trace.api.config.GeneralConfig.TAGS
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES
 import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.VERSION
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS
+import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.FEATURE_FLAGS_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_CHECK_PERIOD
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_ENABLED
 import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_METRICS_CONFIGS
@@ -117,6 +126,8 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS
 import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
@@ -150,7 +161,7 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL
 import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT
-import static datadog.trace.api.config.OtlpConfig.TRACES_SPAN_METRICS_ENABLED
+import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER
 import datadog.trace.config.inversion.ConfigHelper
@@ -560,7 +571,7 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesProtocol == HTTP_PROTOBUF
     config.otlpTracesTimeout == 10000
 
-    !config.tracesSpanMetricsEnabled
+    !config.otelTracesSpanMetricsEnabled
     !config.traceOtelSemanticsEnabled
     config.traceStatsInterval == 10000
   }
@@ -582,7 +593,7 @@ class ConfigTest extends DDSpecification {
   def "otel generic config via system properties - metrics enabled"() {
     setup:
     System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
-    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment.name=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
     when:
@@ -731,7 +742,7 @@ class ConfigTest extends DDSpecification {
       System.setProperty(PREFIX + METRICS_OTEL_EXPORTER, metricsExporter)
     }
     if (override != null) {
-      System.setProperty(PREFIX + TRACES_SPAN_METRICS_ENABLED, override)
+      System.setProperty(PREFIX + OTEL_TRACES_SPAN_METRICS_ENABLED, override)
     }
 
     when:
@@ -739,8 +750,8 @@ class ConfigTest extends DDSpecification {
 
     then:
     // Unset: emit iff OTLP trace export and OTLP metrics export are both on. An explicit
-    // dd.traces.span.metrics.enabled always wins.
-    config.tracesSpanMetricsEnabled == expected
+    // dd.otel.traces.span.metrics.enabled always wins.
+    config.otelTracesSpanMetricsEnabled == expected
 
     where:
     exporter | metricsEnabled | metricsExporter | override | expected
@@ -994,7 +1005,7 @@ class ConfigTest extends DDSpecification {
     config.otlpTracesTimeout == 5002
 
     config.traceOtelSemanticsEnabled
-    config.tracesSpanMetricsEnabled // tri-state default: OTLP trace export + OTel metrics both on
+    config.otelTracesSpanMetricsEnabled // tri-state default: OTLP trace export + OTel metrics both on
   }
 
   def "specify overrides via env vars"() {
@@ -2253,7 +2264,12 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
 
     then:
-    config.experimentalFeaturesEnabled == ["DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"].toSet()
+    config.experimentalFeaturesEnabled == [
+      "DD_TAGS",
+      "DD_LOGS_INJECTION",
+      "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED",
+      "DD_TRACE_STATS_ADDITIONAL_TAGS"
+    ].toSet()
   }
 
   def "detect if agent is configured using default values"() {
@@ -3114,6 +3130,33 @@ class ConfigTest extends DDSpecification {
     "\$.a,invalid" | "\$.b,invalid" | '[$[\'a\']]'          | '[$[\'b\']]'
   }
 
+  def "baggage limits normalize negative values to zero"() {
+    setup:
+    def prop = new Properties()
+    if (maxItems != null) {
+      prop.setProperty(TRACE_BAGGAGE_MAX_ITEMS, maxItems)
+    }
+    if (maxBytes != null) {
+      prop.setProperty(TRACE_BAGGAGE_MAX_BYTES, maxBytes)
+    }
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.traceBaggageMaxItems == expectedMaxItems
+    config.traceBaggageMaxBytes == expectedMaxBytes
+
+    where:
+    maxItems | maxBytes | expectedMaxItems                  | expectedMaxBytes
+    null     | null     | DEFAULT_TRACE_BAGGAGE_MAX_ITEMS   | DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+    "0"      | "0"      | 0                                 | 0
+    "8"      | "512"    | 8                                 | 512
+    "-1"     | null     | 0                                 | DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+    null     | "-8192"  | DEFAULT_TRACE_BAGGAGE_MAX_ITEMS   | 0
+    "-1"     | "-1"     | 0                                 | 0
+  }
+
   // Subclass for setting Strictness of ConfigHelper when using fake configs
   static class ConfigTestWithFakes extends ConfigTest {
 
@@ -3477,5 +3520,90 @@ class ConfigTest extends DDSpecification {
     "false" | false
     "1"     | true
     "0"     | false
+  }
+
+  def "agentless feature flag timing uses positive configured values"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "60")
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "4")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSourcePollIntervalSeconds == 60
+    config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == 4
+  }
+
+  def "feature flag configuration source normalizes #value to #expected"() {
+    setup:
+    Properties properties = new Properties()
+    if (value != null) {
+      properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE, value)
+    }
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSource == expected
+
+    where:
+    value               | expected
+    null                | "agentless"
+    ""                  | "agentless"
+    "   "               | "agentless"
+    " ReMoTe_ConFiG "   | "remote_config"
+    "not-a-real-source" | "not-a-real-source"
+    " OFFLINE "         | "offline"
+  }
+
+  def "feature flag configuration applies migration precedence"() {
+    setup:
+    Properties properties = new Properties()
+    if (providerEnabled != null) {
+      properties.setProperty(FEATURE_FLAGS_ENABLED, providerEnabled.toString())
+    }
+    if (source != null) {
+      properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE, source)
+    }
+    if (legacyProviderEnabled != null) {
+      properties.setProperty(EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, legacyProviderEnabled.toString())
+    }
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingProviderEnabled == expectedEnabled
+    config.featureFlaggingConfigurationSource == expectedSource
+
+    where:
+    providerEnabled | source          | legacyProviderEnabled | expectedEnabled | expectedSource
+    null            | null            | null                  | true            | "agentless"
+    true            | null            | null                  | true            | "agentless"
+    null            | null            | true                  | true            | "remote_config"
+    null            | null            | false                 | false           | null
+    null            | "agentless"     | true                  | true            | "agentless"
+    null            | "remote_config" | false                 | true            | "remote_config"
+    false           | "agentless"     | true                  | false           | "agentless"
+    true            | null            | false                 | false           | null
+    null            | "not-a-source"  | null                  | false           | "not-a-source"
+    null            | "offline"       | true                  | false           | "offline"
+  }
+
+  def "agentless feature flag timing falls back for non-positive values"() {
+    setup:
+    Properties properties = new Properties()
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_POLL_INTERVAL_SECONDS, "0")
+    properties.setProperty(FEATURE_FLAGS_CONFIGURATION_SOURCE_AGENTLESS_REQUEST_TIMEOUT_SECONDS, "-1")
+
+    when:
+    def config = new Config(ConfigProvider.withPropertiesOverride(properties))
+
+    then:
+    config.featureFlaggingConfigurationSourcePollIntervalSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS
+    config.featureFlaggingConfigurationSourceRequestTimeoutSeconds == DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
   }
 }

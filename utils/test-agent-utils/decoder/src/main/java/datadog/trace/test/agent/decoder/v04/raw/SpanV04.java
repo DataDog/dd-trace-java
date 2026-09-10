@@ -1,9 +1,11 @@
 package datadog.trace.test.agent.decoder.v04.raw;
 
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.unmodifiableMap;
+
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -265,9 +267,9 @@ public class SpanV04 implements DecodedSpan {
     this.start = start;
     this.duration = duration;
     this.error = error;
-    this.meta = Collections.unmodifiableMap(meta);
-    this.metaStruct = metaStruct == null ? null : Collections.unmodifiableMap(metaStruct);
-    this.metrics = Collections.unmodifiableMap(metrics);
+    this.meta = unmodifiableMap(meta);
+    this.metaStruct = metaStruct == null ? emptyMap() : unmodifiableMap(metaStruct);
+    this.metrics = unmodifiableMap(metrics);
     this.type = type;
   }
 

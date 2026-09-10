@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.not;
 
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.bytebuddy.description.ByteCodeElement;
 import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.annotation.AnnotationSource;
@@ -98,6 +99,10 @@ public final class HierarchyMatchers {
     return ElementMatchers.isAnnotatedWith(matcher);
   }
 
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal holder; Class object does not escape to app code and lock only guards one-time supplier registration.")
   public static synchronized void registerIfAbsent(Supplier supplier) {
     if (null == SUPPLIER) {
       SUPPLIER = supplier;

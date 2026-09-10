@@ -13,12 +13,14 @@ import java.util.function.Predicate;
 
 public class TestApplicationHelper {
   // instrumentation is done by main thread
-  private static final String INSTRUMENTATION_DONE_MAIN_THREAD =
-      "[main] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
-  private static final String INSTRUMENTATION_DONE_BCKG_THREAD =
-      "[dd-remote-config] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
-  private static final String INSTRUMENTATION_DONE_TASK_THREAD =
-      "[dd-task-scheduler] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+  private static final String INSTRUMENTATION_DONE =
+      "[%s] DEBUG com.datadog.debugger.agent.DebuggerTransformer - Generating bytecode for class: %s";
+  private static final String THREAD_MAIN = "main";
+  private static final String THREAD_REMOTE_CONFIG = "dd-remote-config";
+  private static final String THREAD_SCHEDULER = "dd-task-scheduler";
+  private static final String THREAD_STARTUP = "dd-agent-startup-datadog-tracer";
+  private static final String[] THREAD_NAMES =
+      new String[] {THREAD_MAIN, THREAD_REMOTE_CONFIG, THREAD_SCHEDULER, THREAD_STARTUP};
   private static final String RENTRANSFORMATION_CLASS =
       "[dd-remote-config] DEBUG com.datadog.debugger.agent.ConfigurationUpdater - Re-transforming class: %s";
   private static final String RETRANSFORMATION_DONE =
@@ -52,17 +54,16 @@ public class TestApplicationHelper {
         fromLine != null ? line -> line.contains(fromLine) : null,
         line -> {
           // when instrumentation is done by main thread, we are good to go
-          if (line.contains(String.format(INSTRUMENTATION_DONE_MAIN_THREAD, className))) {
+          if (line.contains(String.format(INSTRUMENTATION_DONE, THREAD_MAIN, className))) {
             return true;
           }
           if (!generatingByteCode.get()) {
             // instrumentation is done by background thread, need to wait for end of
             // re-transformation
-            if (line.contains(String.format(INSTRUMENTATION_DONE_BCKG_THREAD, className))) {
-              generatingByteCode.set(true);
-            }
-            if (line.contains(String.format(INSTRUMENTATION_DONE_TASK_THREAD, className))) {
-              generatingByteCode.set(true);
+            for (String threadName : THREAD_NAMES) {
+              if (line.contains(String.format(INSTRUMENTATION_DONE, threadName, className))) {
+                generatingByteCode.set(true);
+              }
             }
           } else {
             return line.contains(RETRANSFORMATION_DONE);

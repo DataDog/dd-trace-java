@@ -23,10 +23,12 @@ import java.io.StringWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -451,7 +453,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("databricks_task_run_id", databricksTaskRunId);
 
       AgentSpanContext parentContext =
-          new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
+          new DatabricksParentContext(
+              databricksJobId,
+              databricksJobRunId,
+              databricksTaskRunId,
+              getDatabricksJobRunAttempt(properties));
 
       if (parentContext.getTraceId() != DDTraceId.ZERO) {
         if (withParentContext) {
@@ -1227,6 +1233,68 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     return null;
+  }
+
+  private static final byte[] JOB_RUN_ATTEMPT_NUM_KEY =
+      "jobRunAttemptNum".getBytes(StandardCharsets.UTF_8);
+
+  /**
+   * Returns the Databricks repair attempt index (0 for the original run, 1+ for each repair). It is
+   * not exposed as a first-class Spark property: the only source is the base64 + java-serialized
+   * "unity.scope.data" local property, under the key "jobRunAttemptNum". We extract it best-effort
+   * by looking at the raw serialized bytes right after that key, without a full deserialization of
+   * the stream (e.g. we don't resolve TC_REFERENCE backreferences); on any failure or unexpected
+   * shape we return 0, which reproduces the original (non-repair-aware) trace id so correlation is
+   * never worse than before.
+   */
+  // Package-private for testing.
+  static int getDatabricksJobRunAttempt(Properties properties) {
+    String scopeData = properties.getProperty("unity.scope.data");
+    if (scopeData == null) {
+      return 0;
+    }
+    try {
+      byte[] decoded = Base64.getDecoder().decode(scopeData);
+      int keyIdx = indexOfDatabricksAttemptKey(decoded, JOB_RUN_ATTEMPT_NUM_KEY);
+      if (keyIdx < 0) {
+        return 0;
+      }
+      // The (key, value) tuple is serialized back-to-back with no gap, so the value's type tag sits
+      // immediately after the key's bytes. It's normally TC_STRING (0x74) with a 2-byte big-endian
+      // length prefix, but if this exact attempt string already appeared earlier in the stream
+      // (e.g.
+      // another Databricks tag also has value "1"), Java's serialization writes a TC_REFERENCE
+      // (0x71)
+      // back-pointer instead of repeating the string. We don't resolve backreferences -- rather
+      // than
+      // risk scanning forward and matching an unrelated byte, treat anything other than an
+      // immediate
+      // TC_STRING as unparseable and fall back to attempt 0.
+      int valueStart = keyIdx + JOB_RUN_ATTEMPT_NUM_KEY.length;
+      if (valueStart + 3 > decoded.length || decoded[valueStart] != 0x74) {
+        return 0;
+      }
+      int len = ((decoded[valueStart + 1] & 0xff) << 8) | (decoded[valueStart + 2] & 0xff);
+      if (len > 0 && len <= 9 && valueStart + 3 + len <= decoded.length) {
+        return Integer.parseInt(new String(decoded, valueStart + 3, len, StandardCharsets.UTF_8));
+      }
+    } catch (Exception e) {
+      log.debug("Unable to extract databricks job run attempt from unity.scope.data", e);
+    }
+    return 0;
+  }
+
+  private static int indexOfDatabricksAttemptKey(byte[] haystack, byte[] needle) {
+    outer:
+    for (int i = 0; i <= haystack.length - needle.length; i++) {
+      for (int j = 0; j < needle.length; j++) {
+        if (haystack[i + j] != needle[j]) {
+          continue outer;
+        }
+      }
+      return i;
+    }
+    return -1;
   }
 
   private String stackTraceToString(Throwable e) {

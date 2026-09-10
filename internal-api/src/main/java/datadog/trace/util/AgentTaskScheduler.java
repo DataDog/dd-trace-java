@@ -183,7 +183,10 @@ public class AgentTaskScheduler implements Executor {
     return scheduleWithFixedDelay(RunnableTask.INSTANCE, target, initialDelay, period, unit);
   }
 
-  @SuppressFBWarnings("JLM_JSR166_UTILCONCURRENT_MONITORENTER")
+  @SuppressFBWarnings({
+    "JLM_JSR166_UTILCONCURRENT_MONITORENTER",
+    "USO_UNSAFE_ACCESSIBLE_OBJECT_SYNCHRONIZATION"
+  })
   private <T> void scheduleTarget(
       final Task<T> task,
       final Target<T> target,

@@ -175,7 +175,7 @@ class ReactiveStreamsContextPropagationTest {
     }
 
     @Override
-    public C putIfAbsent(final K key, final C context) {
+    public C getOrPut(final K key, final C context) {
       final C existing = map.get(key);
       if (existing != null) {
         return existing;
@@ -185,18 +185,7 @@ class ReactiveStreamsContextPropagationTest {
     }
 
     @Override
-    public C putIfAbsent(final K key, final Factory<C> contextFactory) {
-      final C existing = map.get(key);
-      if (existing != null) {
-        return existing;
-      }
-      final C created = contextFactory.create();
-      map.put(key, created);
-      return created;
-    }
-
-    @Override
-    public C computeIfAbsent(final K key, final KeyAwareFactory<? super K, C> contextFactory) {
+    public C getOrCompute(final K key, final KeyAwareFactory<? super K, C> contextFactory) {
       final C existing = map.get(key);
       if (existing != null) {
         return existing;

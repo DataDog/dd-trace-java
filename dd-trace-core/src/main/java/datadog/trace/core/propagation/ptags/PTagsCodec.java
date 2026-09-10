@@ -25,6 +25,10 @@ abstract class PTagsCodec {
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
+    return headerValue(codec, ptags, null);
+  }
+
+  static String headerValue(PTagsCodec codec, PTags ptags, CharSequence lastParentIdOverride) {
     int estimate = codec.estimateHeaderSize(ptags);
     if (estimate == 0) {
       return "";
@@ -32,7 +36,7 @@ abstract class PTagsCodec {
 
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
-    int size = codec.appendPrefix(sb, ptags);
+    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride);
     if (!ptags.isPropagationTagsDisabled()) {
       if (ptags.getDecisionMakerTagValue() != null) {
         size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
@@ -173,6 +177,14 @@ abstract class PTagsCodec {
   protected abstract int estimateHeaderSize(PTags pTags);
 
   protected abstract int appendPrefix(StringBuilder sb, PTags ptags);
+
+  /**
+   * Encode the prefix, using {@code lastParentIdOverride} for the W3C {@code p:} when non-null
+   * (inject-time). Codecs without a last-parent-id (e.g. Datadog) ignore the override.
+   */
+  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
+    return appendPrefix(sb, ptags);
+  }
 
   protected abstract int appendTag(StringBuilder sb, TagElement key, TagElement value, int size);
 

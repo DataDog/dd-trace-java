@@ -225,7 +225,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
   public static class DisableAsyncAdvice {
 
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
       if (isAsyncPropagationEnabled()) {
         setAsyncPropagationEnabled(false);
@@ -234,7 +234,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       return false;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter boolean wasDisabled) {
       if (wasDisabled) {
         setAsyncPropagationEnabled(true);

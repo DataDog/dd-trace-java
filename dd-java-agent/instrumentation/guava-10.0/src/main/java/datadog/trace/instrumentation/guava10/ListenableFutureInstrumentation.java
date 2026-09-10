@@ -1,17 +1,18 @@
 package datadog.trace.instrumentation.guava10;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import com.google.common.util.concurrent.AbstractFuture;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExecutorInstrumentationUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.RunnableWrapper;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
@@ -55,16 +56,16 @@ public class ListenableFutureInstrumentation extends InstrumenterModule.ContextT
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static State addListenerEnter(
         @Advice.Argument(value = 0, readOnly = false) Runnable task) {
-      final AgentSpan span = activeSpan();
-      if (null != span) {
+      final Context context = currentContext();
+      if (context != rootContext()) {
         final Runnable newTask = RunnableWrapper.wrapIfNeeded(task);
         // It is important to check potentially wrapped task if we can instrument task in this
         // executor. Some executors do not support wrapped tasks.
-        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, span)) {
+        if (ExecutorInstrumentationUtils.shouldAttachStateToTask(newTask, context)) {
           task = newTask;
           final ContextStore<Runnable, State> contextStore =
               InstrumentationContext.get(Runnable.class, State.class);
-          return ExecutorInstrumentationUtils.setupState(contextStore, newTask, span);
+          return ExecutorInstrumentationUtils.setupState(contextStore, newTask, context);
         }
       }
       return null;

@@ -94,7 +94,7 @@ public class ResponseFinishInstrumentation extends InstrumenterModule.Tracing
           req.setAttribute(DD_CONTEXT_ATTRIBUTE, null);
           AgentSpan span = fromContext(context);
           if (span != null) {
-            DECORATE.onResponse(span, resp);
+            DECORATE.onSRTResponse(span, resp);
           }
         }
       } catch (NullPointerException e) {

@@ -31,6 +31,17 @@ final class PropertyCardinalityHandler {
   private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
 
   final String name;
+
+  /**
+   * Protobuf field name this handler reports under in the {@code collapsed:} health/telemetry tag,
+   * per the approved Cardinality Limits RFC (section 5), which keys collapses by the lowercased
+   * protobuf field name. Usually equal to {@link #name}, but decoupled where the field's
+   * human-facing name differs from its wire name -- e.g. {@code operation} is carried on the wire
+   * as {@code name}, so its telemetry tag is {@code collapsed:name} while the human-facing {@link
+   * CardinalityLimitReporter} still says {@code operation}.
+   */
+  private final String statsDField;
+
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -67,7 +78,13 @@ final class PropertyCardinalityHandler {
   }
 
   PropertyCardinalityHandler(String name, int cardinalityLimit, boolean useBlockedSentinel) {
+    this(name, name, cardinalityLimit, useBlockedSentinel);
+  }
+
+  PropertyCardinalityHandler(
+      String name, String statsDField, int cardinalityLimit, boolean useBlockedSentinel) {
     this.name = name;
+    this.statsDField = statsDField;
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
@@ -159,7 +176,7 @@ final class PropertyCardinalityHandler {
    */
   String[] statsDTag() {
     if (statsDTag == null) {
-      statsDTag = new String[] {"collapsed:" + name};
+      statsDTag = new String[] {"collapsed:" + statsDField};
     }
     return statsDTag;
   }

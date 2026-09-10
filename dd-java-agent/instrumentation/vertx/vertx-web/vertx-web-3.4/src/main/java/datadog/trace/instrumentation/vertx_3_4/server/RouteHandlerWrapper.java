@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.DECORATE;
@@ -62,7 +61,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       }
       setRoute(routingContext);
     }
-    try (final ContextScope scope = span != null ? activateSpan(span) : noopScope()) {
+    try (final ContextScope scope = span != null ? activateSpan(span) : null) {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {

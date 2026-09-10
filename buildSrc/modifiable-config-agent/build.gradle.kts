@@ -1,11 +1,25 @@
 plugins {
   java
+  alias(libs.plugins.spotless)
   alias(libs.plugins.shadow)
 }
 
 java {
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+spotless {
+  java {
+    toggleOffOn()
+    // set explicit target to workaround https://github.com/diffplug/spotless/issues/1163
+    target("src/**/*.java")
+    // ignore embedded test projects
+    targetExclude("src/test/resources/**")
+    removeUnusedImports()
+    forbidWildcardImports()
+    googleJavaFormat(libs.versions.google.java.format.get())
+  }
 }
 
 apply {

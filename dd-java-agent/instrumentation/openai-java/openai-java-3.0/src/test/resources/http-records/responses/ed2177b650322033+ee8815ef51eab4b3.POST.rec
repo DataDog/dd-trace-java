@@ -84,7 +84,7 @@ x-request-id: req_20f6aa9268f74336b7f2e988dbe5c910
   "usage": {
     "input_tokens": 15,
     "input_tokens_details": {
-      "cached_tokens": 0
+      "cached_tokens": 0, "cache_write_tokens": 0
     },
     "output_tokens": 38,
     "output_tokens_details": {

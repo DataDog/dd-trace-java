@@ -64,7 +64,7 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     "space is encoded              | [serverNode: 'DF 28']              | 'serverNode=DF%2028'                                              ",
     "non ASCII value               | [userId: Amélie]                   | 'userId=Am%C3%A9lie'                                              ",
     "parenthesis in key            | ['user!d(me)': false]              | 'user!d%28me%29=false'                                            ",
-    "non ASCII heart symbol        | [abcdefg: 'hijklmnopq♥']          | 'abcdefg=hijklmnopq%E2%99%A5'                                      "
+    "non ASCII heart symbol        | [abcdefg: 'hijklmnopq♥']          | 'abcdefg=hijklmnopq%E2%99%A5'                                     "
   })
   void testBaggagePropagatorContextInjection(Map<String, String> baggageMap, String baggageHeader) {
     this.context = Baggage.create(baggageMap).storeInto(this.context);
@@ -93,7 +93,7 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     "scenario                                | baggage                              | baggageHeader        ",
     "limit not reached                       | [key1: val1, key2: val2]             | 'key1=val1,key2=val2'",
     "third entry exceeds bytes               | [key1: val1, key2: val2, key3: val3] | 'key1=val1,key2=val2'",
-    "single entry exceeds bytes once encoded | [abcdefg: 'hijklmnopq♥']            | ''                    "
+    "single entry exceeds bytes once encoded | [abcdefg: 'hijklmnopq♥']            | ''                   "
   })
   void testBaggageInjectBytesLimit(Map<String, String> baggage, String baggageHeader) {
     // Creating propagator with test bytes limit

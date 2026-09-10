@@ -178,43 +178,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     return true
   }
 
-  def "test extracting avro schema"() {
-    setup:
-    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
-    Producer<String, AvroMock> producer = new KafkaProducer<>(senderProps, new StringSerializer(), new AvroMockSerializer())
-
-    when:
-    AvroMock message = new AvroMock("{\"name\":\"test\"}")
-    runUnderTrace("parent") {
-      producer.send(new ProducerRecord(SHARED_TOPIC, message)) { meta, ex ->
-        assert isAsyncPropagationEnabled()
-        if (ex == null) {
-          runUnderTrace("producer callback") {}
-        } else {
-          runUnderTrace("producer exception: " + ex) {}
-        }
-      }
-      blockUntilChildSpansFinished(2)
-    }
-    if (isDataStreamsEnabled()) {
-      TEST_DATA_STREAMS_WRITER.waitForGroups(1)
-      TEST_DATA_STREAMS_WRITER.waitForBacklogs(1)
-    }
-
-    then:
-    // check that the message was received
-    assertTraces(1, SORT_TRACES_BY_ID) {
-      trace(3) {
-        basicSpan(it, "parent")
-        basicSpan(it, "producer callback", span(0))
-        producerSpan(it, senderProps, span(0), false, false, "{\"name\":\"test\"}")
-      }
-    }
-
-    cleanup:
-    producer.close()
-  }
-
   def "test kafka produce and consume"() {
     setup:
     def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
@@ -1225,8 +1188,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   Map<String, ?> config,
   DDSpan parentSpan = null,
   boolean partitioned = true,
-  boolean tombstone = false,
-  String schema = null
+  boolean tombstone = false
   ) {
     trace.span {
       serviceName service()
@@ -1254,13 +1216,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
-          if (schema != null) {
-            "$DDTags.SCHEMA_DEFINITION" schema
-            "$DDTags.SCHEMA_WEIGHT" 1
-            "$DDTags.SCHEMA_TYPE" "avro"
-            "$DDTags.SCHEMA_OPERATION" "serialization"
-            "$DDTags.SCHEMA_ID" "10810872322569724838"
-          }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         if (isV0) {

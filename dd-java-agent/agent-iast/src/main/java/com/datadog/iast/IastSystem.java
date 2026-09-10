@@ -10,6 +10,7 @@ import com.datadog.iast.propagation.PropagationModuleImpl;
 import com.datadog.iast.propagation.StringModuleImpl;
 import com.datadog.iast.securitycontrol.IastSecurityControlTransformer;
 import com.datadog.iast.sink.ApplicationModuleImpl;
+import com.datadog.iast.sink.CodeInjectionModuleImpl;
 import com.datadog.iast.sink.CommandInjectionModuleImpl;
 import com.datadog.iast.sink.EmailInjectionModuleImpl;
 import com.datadog.iast.sink.HardcodedSecretModuleImpl;
@@ -187,7 +188,8 @@ public class IastSystem {
             InsecureAuthProtocolModuleImpl.class,
             ReflectionInjectionModuleImpl.class,
             UntrustedDeserializationModuleImpl.class,
-            EmailInjectionModuleImpl.class);
+            EmailInjectionModuleImpl.class,
+            CodeInjectionModuleImpl.class);
     if (iast != FULLY_ENABLED) {
       modules = modules.filter(IastSystem::isOptOut);
     }

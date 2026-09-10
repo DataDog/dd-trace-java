@@ -53,21 +53,21 @@ public final class JavaForkJoinTaskInstrumentation
   }
 
   public static final class Exec {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> ContextScope before(@Advice.This ForkJoinTask<T> task) {
       return exclude(FORK_JOIN_TASK, task)
           ? null
           : startTaskScope(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }
 
   public static final class Fork {
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static <T> void fork(@Advice.This ForkJoinTask<T> task) {
       if (!exclude(FORK_JOIN_TASK, task)) {
         capture(InstrumentationContext.get(ForkJoinTask.class, State.class), task);
@@ -76,7 +76,7 @@ public final class JavaForkJoinTaskInstrumentation
   }
 
   public static final class Cancel {
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static <T> void cancel(@Advice.This ForkJoinTask<T> task) {
       State state = InstrumentationContext.get(ForkJoinTask.class, State.class).get(task);
       if (null != state) {

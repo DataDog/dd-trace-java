@@ -2,6 +2,7 @@ import datadog.buildlogic.smoketest.NestedGradleBuild
 
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'dd-trace-java.mass'
 }
 
@@ -32,8 +33,6 @@ repositories {
     }
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   maxJavaVersion = JavaVersion.VERSION_11

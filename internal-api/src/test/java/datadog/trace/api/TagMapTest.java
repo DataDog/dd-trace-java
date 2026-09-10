@@ -109,17 +109,13 @@ public class TagMapTest {
     map.set(BOOL, first);
 
     TagMap.Entry firstEntry = map.getEntry(BOOL);
-    if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.BOOLEAN, firstEntry.rawType);
-    }
+    assertEquals(TagMap.Entry.BOOLEAN, firstEntry.rawType);
 
     assertEquals(first, firstEntry.booleanValue());
     assertEquals(first, map.getBoolean(BOOL));
 
     TagMap.Entry priorEntry = map.getAndSet(BOOL, second);
-    if (map.isOptimized()) {
-      assertSame(priorEntry, firstEntry);
-    }
+    assertSame(priorEntry, firstEntry);
     assertEquals(first, priorEntry.booleanValue());
 
     TagMap.Entry newEntry = map.getEntry(BOOL);
@@ -250,17 +246,13 @@ public class TagMapTest {
     map.set(INT, first);
 
     TagMap.Entry firstEntry = map.getEntry("int");
-    if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.INT, firstEntry.rawType);
-    }
+    assertEquals(TagMap.Entry.INT, firstEntry.rawType);
 
     assertEquals(first, firstEntry.intValue());
     assertEquals(first, map.getInt("int"));
 
     TagMap.Entry priorEntry = map.getAndSet("int", second);
-    if (map.isOptimized()) {
-      assertSame(priorEntry, firstEntry);
-    }
+    assertSame(priorEntry, firstEntry);
     assertEquals(first, priorEntry.intValue());
 
     TagMap.Entry newEntry = map.getEntry("int");
@@ -284,17 +276,13 @@ public class TagMapTest {
     map.set(LONG, first);
 
     TagMap.Entry firstEntry = map.getEntry("long");
-    if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.LONG, firstEntry.rawType);
-    }
+    assertEquals(TagMap.Entry.LONG, firstEntry.rawType);
 
     assertEquals(first, firstEntry.longValue());
     assertEquals(first, map.getLong("long"));
 
     TagMap.Entry priorEntry = map.getAndSet("long", second);
-    if (map.isOptimized()) {
-      assertSame(priorEntry, firstEntry);
-    }
+    assertSame(priorEntry, firstEntry);
     assertEquals(first, priorEntry.longValue());
 
     TagMap.Entry newEntry = map.getEntry("long");
@@ -319,17 +307,13 @@ public class TagMapTest {
     map.set(FLOAT, first);
 
     TagMap.Entry firstEntry = map.getEntry(FLOAT);
-    if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.FLOAT, firstEntry.rawType);
-    }
+    assertEquals(TagMap.Entry.FLOAT, firstEntry.rawType);
 
     assertEquals(first, firstEntry.floatValue());
     assertEquals(first, map.getFloat(FLOAT));
 
     TagMap.Entry priorEntry = map.getAndSet(FLOAT, second);
-    if (map.isOptimized()) {
-      assertSame(priorEntry, firstEntry);
-    }
+    assertSame(priorEntry, firstEntry);
     assertEquals(first, priorEntry.floatValue());
 
     TagMap.Entry newEntry = map.getEntry(FLOAT);
@@ -354,17 +338,13 @@ public class TagMapTest {
     map.set(DOUBLE, Math.PI);
 
     TagMap.Entry firstEntry = map.getEntry(DOUBLE);
-    if (map.isOptimized()) {
-      assertEquals(TagMap.Entry.DOUBLE, firstEntry.rawType);
-    }
+    assertEquals(TagMap.Entry.DOUBLE, firstEntry.rawType);
 
     assertEquals(first, firstEntry.doubleValue());
     assertEquals(first, map.getDouble(DOUBLE));
 
     TagMap.Entry priorEntry = map.getAndSet(DOUBLE, second);
-    if (map.isOptimized()) {
-      assertSame(priorEntry, firstEntry);
-    }
+    assertSame(priorEntry, firstEntry);
     assertEquals(first, priorEntry.doubleValue());
 
     TagMap.Entry newEntry = map.getEntry(DOUBLE);
@@ -944,7 +924,7 @@ public class TagMapTest {
   @ParameterizedTest
   @ValueSource(ints = {0, 5, 25, 125})
   public void _toInternalString(int size) {
-    OptimizedTagMap tagMap = new OptimizedTagMap();
+    TagMap tagMap = new TagMap();
     fillMap(tagMap, size);
 
     String str = tagMap.toInternalString();
@@ -1064,9 +1044,7 @@ public class TagMapTest {
   }
 
   static final void assertSize(int size, TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertEquals(size, ((OptimizedTagMap) map).computeSize());
-    }
+    assertEquals(size, map.computeSize());
     assertEquals(size, map.size());
 
     assertEquals(size, count(map));
@@ -1094,16 +1072,12 @@ public class TagMapTest {
   }
 
   static void assertNotEmpty(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertFalse(((OptimizedTagMap) map).checkIfEmpty());
-    }
+    assertFalse(map.checkIfEmpty());
     assertFalse(map.isEmpty());
   }
 
   static void assertEmpty(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      assertTrue(((OptimizedTagMap) map).checkIfEmpty());
-    }
+    assertTrue(map.checkIfEmpty());
     assertTrue(map.isEmpty());
   }
 
@@ -1128,9 +1102,6 @@ public class TagMapTest {
   }
 
   static void checkIntegrity(TagMap map) {
-    if (map instanceof OptimizedTagMap) {
-      OptimizedTagMap optMap = (OptimizedTagMap) map;
-      optMap.checkIntegrity();
-    }
+    map.checkIntegrity();
   }
 }

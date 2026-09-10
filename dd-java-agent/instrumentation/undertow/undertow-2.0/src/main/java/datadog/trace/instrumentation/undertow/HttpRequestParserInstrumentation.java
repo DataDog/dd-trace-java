@@ -28,6 +28,8 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String hierarchyMarkerType() {
+    // removed in https://github.com/undertow-io/undertow/pull/1949/changes
+    // see RequestParserInstrumentation for the new type
     return "io.undertow.server.protocol.http.HttpRequestParser";
   }
 
@@ -60,7 +62,7 @@ public class HttpRequestParserInstrumentation extends InstrumenterModule.Tracing
   }
 
   public static class RequestParseFailureAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void afterRequestParse(
         @Advice.Argument(2) final HttpServerExchange exchange,
         @Advice.Thrown final Throwable throwable) {

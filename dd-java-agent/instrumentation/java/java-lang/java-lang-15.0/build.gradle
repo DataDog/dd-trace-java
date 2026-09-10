@@ -1,9 +1,8 @@
 plugins {
   id 'idea'
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.call-site-instrumentation'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_15

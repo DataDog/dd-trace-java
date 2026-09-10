@@ -18,7 +18,7 @@ class HomeController @Inject() (cc: ControllerComponents) extends AbstractContro
     implicit request: Request[AnyContent] =>
       error match {
         case Some(x) => throw new RuntimeException("some sync error")
-        case None => {
+        case None    => {
           var workTime = workTimeMS.getOrElse(0L)
           scheduleWork(workTime)
           Ok("Did " + workTime + "ms of work.")

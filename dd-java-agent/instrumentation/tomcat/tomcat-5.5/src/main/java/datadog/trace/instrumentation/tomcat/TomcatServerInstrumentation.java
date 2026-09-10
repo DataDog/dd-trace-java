@@ -131,7 +131,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       }
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("parentScope") ContextScope scope) {
       scope.close();
     }
@@ -165,7 +165,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       req.setAttribute(CorrelationIdentifier.getSpanIdKey(), CorrelationIdentifier.getSpanId());
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void closeScope(@Advice.Local("serverScope") ContextScope serverScope) {
       serverScope.close();
     }

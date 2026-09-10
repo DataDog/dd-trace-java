@@ -24,6 +24,7 @@ final class CachedData {
         filter.exclude(filter.project(':components:environment'))
         filter.exclude(filter.project(':components:json'))
         filter.exclude(filter.project(':products:feature-flagging:feature-flagging-bootstrap'))
+        filter.exclude(filter.project(':products:feature-flagging:feature-flagging-config'))
         filter.exclude(filter.project(':products:metrics:metrics-agent'))
         filter.exclude(filter.project(':products:metrics:metrics-api'))
         filter.exclude(filter.project(':products:metrics:metrics-lib'))
@@ -96,8 +97,8 @@ CachedData.deps.shared = [
   // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
   // transitive dependency.  Since okhttp is declared here and moshi is not, this lead to an incompatible version
   // TODO: Consider migrating away from Moshi, Okio, etc. to more modern JSON libraries with better (de)serialization support
-  libs.okio,
-  libs.okhttp,
+  libs.datadog.okio,
+  libs.datadog.okhttp,
   libs.dogstatsd,
   libs.jnr.unixsocket,
   libs.moshi,

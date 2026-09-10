@@ -63,7 +63,7 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ReadFromAdvice {
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return final MultipartFormDataInput ret,
         @ActiveRequestContext RequestContext reqCtx,

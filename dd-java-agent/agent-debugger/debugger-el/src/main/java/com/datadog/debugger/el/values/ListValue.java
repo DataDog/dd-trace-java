@@ -60,7 +60,11 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
 
   public boolean isEmpty() {
     if (listHolder instanceof Collection) {
-      return ((Collection<?>) listHolder).isEmpty();
+      if (WellKnownClasses.isSafe((Collection<?>) listHolder)) {
+        return ((Collection<?>) listHolder).isEmpty();
+      }
+      throw new UnsupportedOperationException(
+          "Unsupported Collection class: " + listHolder.getClass().getTypeName());
     } else if (listHolder instanceof Value) {
       Value<?> val = (Value<?>) listHolder;
       return val.isNull() || val.isUndefined();

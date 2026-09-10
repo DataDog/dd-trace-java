@@ -50,9 +50,13 @@ final class ResultCollector {
     var targetXml = resultsDir.resolve(aggregatedName);
     System.out.print("- " + toUnixString(sourceXml) + " as " + aggregatedName);
 
-    var sourceFile = sourceFileResolver.resolve(sourceXml);
     var report = JUnitReport.parse(sourceXml);
-    var reportChangedBeforeFinalStatus = report.addFileAttribute(sourceFile);
+    var reportChangedBeforeFinalStatus = false;
+    // Muzzle tests are synthetic and already carry their instrumentation module as the source.
+    if (!isMuzzleResult(sourceXml)) {
+      reportChangedBeforeFinalStatus =
+          report.addFileAttribute(sourceFileResolver.resolve(sourceXml));
+    }
     // Before normalization: retried attempts are matched on raw classname#name (see
     // JUnitReport#tagRetriedAttempts) so distinct tests sharing a normalized name are not collapsed.
     report.tagRetriedAttempts();
@@ -121,6 +125,11 @@ final class ResultCollector {
   private static String fileName(Path path) {
     var fileName = path.getFileName();
     return fileName == null ? "" : fileName.toString();
+  }
+
+  private static boolean isMuzzleResult(Path sourceXml) {
+    var parent = sourceXml.getParent();
+    return parent != null && "muzzle".equals(fileName(parent));
   }
 
   static String toUnixString(Path path) {

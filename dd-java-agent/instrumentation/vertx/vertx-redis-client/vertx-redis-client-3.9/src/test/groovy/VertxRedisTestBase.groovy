@@ -3,6 +3,7 @@ import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import io.vertx.core.AsyncResult
@@ -12,6 +13,7 @@ import io.vertx.core.Vertx
 import io.vertx.core.VertxOptions
 import io.vertx.redis.client.Command
 import io.vertx.redis.client.Redis
+import io.vertx.redis.client.RedisAPI
 import io.vertx.redis.client.Request
 import io.vertx.redis.client.Response
 import org.testcontainers.containers.wait.strategy.Wait
@@ -73,6 +75,10 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
 
   def setup() {
     cleanUpTraces()
+  }
+
+  def cleanup() {
+    assert CallDepthThreadLocalMap.getCallDepth(RedisAPI) == 0
   }
 
   void cleanUpTraces() {

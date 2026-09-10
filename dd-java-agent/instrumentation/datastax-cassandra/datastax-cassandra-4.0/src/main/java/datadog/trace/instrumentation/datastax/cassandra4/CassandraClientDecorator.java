@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Objects;
 import java.util.function.ToIntFunction;
+import javax.annotation.Nonnull;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
   private static final String DB_TYPE = "cassandra";
@@ -99,8 +100,9 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
   }
 
   @Override
-  public void onError(final AgentSpan span, final Throwable throwable) {
-    super.onError(span, throwable);
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+    super.doOnError(span, throwable, errorPriority);
 
     if (throwable instanceof CoordinatorException) {
       onResponse(span, ((CoordinatorException) throwable).getCoordinator(), null);
