@@ -42,7 +42,7 @@ public class LLMObsContextPropagator implements Propagator {
     // inheritance. An LLMObs context leaked across an async boundary must not tag an outbound
     // request that belongs to an unrelated trace.
     AgentSpanContext llmObsContext = LLMObsContext.current();
-    if (llmObsContext == null || llmObsContext.getTraceId() != spanContext.getTraceId()) {
+    if (llmObsContext == null || !llmObsContext.getTraceId().equals(spanContext.getTraceId())) {
       // Reset rather than return. These tags are staged on the root span context's propagation
       // tags, which the whole local trace shares, so anything an earlier injection wrote would
       // otherwise ride along on this one too — shipping a session and an agent attribution that

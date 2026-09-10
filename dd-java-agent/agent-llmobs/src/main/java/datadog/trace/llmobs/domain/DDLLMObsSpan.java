@@ -161,7 +161,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     String resolvedParentAgentName = null;
     boolean inheritedInProcess = false;
     if (null != parent) {
-      if (parent.getTraceId() != span.getTraceId()) {
+      if (!parent.getTraceId().equals(span.getTraceId())) {
         LOGGER.error(
             "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
             parent.getTraceId(),
