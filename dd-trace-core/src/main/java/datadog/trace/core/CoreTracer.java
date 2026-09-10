@@ -1511,8 +1511,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return universalCallbackProvider;
   }
 
-  private static final long METRICS_FLUSH_TIMEOUT_MILLIS = 2_500;
-
   @Override
   public void close() {
     for (Runnable shutdownListener : shutdownListeners) {
@@ -1531,9 +1529,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     RumInjector.shutdownTelemetry();
     AgentMeter.statsDClient().close();
     metricsAggregator.close();
-    CompletableResultCode metricsResult = null;
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      metricsResult = OtlpMetricsService.INSTANCE.shutdown();
+      OtlpMetricsService.INSTANCE.shutdown();
     }
     if (initialConfig.isLogsOtlpExporterEnabled()) {
       OtlpLogsService.INSTANCE.shutdown();
@@ -1541,15 +1538,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     healthMetrics.close();
-
-    if (metricsResult != null) {
-      metricsResult.join(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
-      if (!metricsResult.isDone()) {
-        log.debug("Timed out waiting for OTLP metrics shutdown.");
-      } else if (!metricsResult.isSuccess()) {
-        log.debug("OTLP metrics shutdown failed.");
-      }
-    }
   }
 
   @Override
@@ -1578,7 +1566,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public void flushMetrics() {
     try {
-      metricsAggregator.forceReport().get(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
+      metricsAggregator.forceReport().get(2_500, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
     }
@@ -1591,7 +1579,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public CompletableResultCode shutdownOtelMetrics() {
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      return OtlpMetricsService.INSTANCE.shutdown();
+      return OtlpMetricsService.INSTANCE.exportThenShutdown();
     }
     return ofSuccess();
   }

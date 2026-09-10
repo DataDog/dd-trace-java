@@ -94,18 +94,13 @@ public final class OtlpMetricsService {
 
   public void flush() {
     synchronized (lifecycleLock) {
-      if (sender == null || shutdownResult != null) {
-        return;
-      }
-      try {
+      if (sender != null && shutdownResult == null) {
         scheduler.execute(this::export);
-      } catch (Throwable e) {
-        LOGGER.debug("OTLP metrics scheduler rejected flush", e);
       }
     }
   }
 
-  public CompletableResultCode shutdown() {
+  public CompletableResultCode exportThenShutdown() {
     synchronized (lifecycleLock) {
       if (shutdownResult != null) {
         return shutdownResult.newResultView();
@@ -116,33 +111,27 @@ public final class OtlpMetricsService {
         scheduledTask.cancel();
       }
 
-      if (sender == null) {
-        shutdownScheduler();
-        shutdownResult.succeed();
-      } else if (scheduler.isShutdown()) {
-        // skip final export rather than start a new thread
-        closeSender();
-        shutdownScheduler();
-        shutdownResult.succeed();
+      if (sender != null) {
+        scheduler.execute(this::waitForExportThenShutdown);
       } else {
-        try {
-          scheduler.execute(this::finishShutdown);
-        } catch (Throwable e) {
-          failShutdown(e);
-        }
+        shutdownScheduler();
+        shutdownResult.succeed();
       }
+
       return shutdownResult.newResultView();
     }
   }
 
-  private void failShutdown(Throwable e) {
-    LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
-    closeSender();
-    shutdownScheduler();
-    shutdownResult.fail();
+  public void shutdown() {
+    if (scheduledTask != null) {
+      scheduledTask.cancel();
+    }
+    if (sender != null) {
+      closeSender();
+    }
   }
 
-  private void finishShutdown() {
+  private void waitForExportThenShutdown() {
     boolean result = export();
     if (!closeSender()) {
       result = false;
@@ -166,7 +155,11 @@ public final class OtlpMetricsService {
   }
 
   private void shutdownScheduler() {
-    scheduler.shutdown(0, TimeUnit.MILLISECONDS);
+    try {
+      scheduler.shutdown(0, TimeUnit.MILLISECONDS);
+    } catch (Throwable e) {
+      LOGGER.debug("Failed to shut down OTLP metrics scheduler", e);
+    }
   }
 
   private boolean export() {
