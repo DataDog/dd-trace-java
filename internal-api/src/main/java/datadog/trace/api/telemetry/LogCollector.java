@@ -71,6 +71,12 @@ public class LogCollector {
     // populated. If the bucket is empty, drain() may have detached it before releasing capacity,
     // so continue to the locked capacity check.
     if (isFull(rawLogMessages) && bucketAt(rawLogMessages, bucketIndex) != null) {
+      // Mitigate a race where another writer could claim the bucket before the previous find
+      rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
+      if (rawLogMessage != null) {
+        rawLogMessage.increment();
+        return;
+      }
       // TODO: We could emit a metric for dropped logs.
       return;
     }
