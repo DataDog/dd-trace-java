@@ -138,9 +138,10 @@ final class OtelTraceState {
 
     long threshold = computeThreshold(sampleRate);
     long randomValue = computeRandomValue(traceIdLowOrderBits);
-    if (sampled && randomValue < threshold) {
+    boolean finalSampled = samplingPriority > 0;
+    if (finalSampled && randomValue < threshold) {
       randomValue = threshold;
-    } else if (!sampled && randomValue >= threshold) {
+    } else if (!finalSampled && randomValue >= threshold) {
       randomValue = threshold == 0 ? 0 : threshold - 1;
     }
 
@@ -165,6 +166,13 @@ final class OtelTraceState {
         value,
         originalSize,
         hasLocallyGeneratedRandomValue());
+  }
+
+  OtelTraceState reconcileSamplingDecision(boolean sampled) {
+    if (randomValue == NO_VALUE || threshold == NO_VALUE || sampled == (randomValue >= threshold)) {
+      return this;
+    }
+    return removeThresholdForLimiterDemotion();
   }
 
   String getValue() {

@@ -68,7 +68,7 @@ public abstract class PropagationTags {
   public abstract void forceKeep(int samplingMechanism);
 
   public abstract void updateOtelTraceState(
-      long traceIdLowOrderBits, double sampleRate, boolean sampled, int samplingPriority);
+      long traceIdLowOrderBits, double sampleRate, boolean sampled);
 
   public abstract int getSamplingPriority();
 
@@ -98,11 +98,10 @@ public abstract class PropagationTags {
    */
   public abstract void updateW3CTracestate(String tracestate);
 
-  /**
-   * Enriches these tags with the W3C tracestate from {@code source} and the reconciled sampling
-   * priority.
-   */
-  public abstract void updateW3CTracestateFrom(PropagationTags source, int samplingPriority);
+  /** Updates the original W3C tracestate header from {@code source}. */
+  public void updateW3CTracestateFrom(PropagationTags source) {
+    updateW3CTracestate(source.getW3CTracestate());
+  }
 
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
@@ -119,6 +118,15 @@ public abstract class PropagationTags {
    * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
    */
   public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
+
+  /**
+   * Like {@link #headerValue(HeaderType, CharSequence)}, but resolves W3C sampling state using the
+   * supplied sampling priority.
+   */
+  public String headerValue(
+      HeaderType headerType, CharSequence lastParentIdOverride, int samplingPriority) {
+    return headerValue(headerType, lastParentIdOverride);
+  }
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision

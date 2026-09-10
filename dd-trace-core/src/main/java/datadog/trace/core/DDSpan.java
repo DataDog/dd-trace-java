@@ -656,10 +656,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
       context
           .getPropagationTags()
           .updateOtelTraceState(
-              getTraceId().toLong(),
-              sampleRate,
-              probabilitySamplingResult.booleanValue(),
-              samplingPriority);
+              getTraceId().toLong(), sampleRate, probabilitySamplingResult.booleanValue());
     }
     return this;
   }

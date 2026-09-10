@@ -113,6 +113,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile TagValue orgPropagationMarkerTagValue;
 
     private volatile OtelTraceState otelTraceState;
+    private volatile OtelSamplingDecision otelSamplingDecision;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
@@ -267,17 +268,15 @@ public class PTagsFactory implements PropagationTags.Factory {
         }
         decisionMakerTagValue = null;
       }
-      if (removeOtelProbability && otelTraceState != null) {
-        setOtelTraceState(otelTraceState.removeForNonProbabilityDecision());
+      if (removeOtelProbability) {
+        setOtelSamplingDecision(OtelSamplingDecision.NON_PROBABILITY);
       }
     }
 
     @Override
-    public void updateOtelTraceState(
-        long traceIdLowOrderBits, double sampleRate, boolean sampled, int samplingPriority) {
-      setOtelTraceState(
-          OtelTraceState.updateProbability(
-              otelTraceState, traceIdLowOrderBits, sampleRate, sampled, samplingPriority));
+    public void updateOtelTraceState(long traceIdLowOrderBits, double sampleRate, boolean sampled) {
+      setOtelSamplingDecision(
+          OtelSamplingDecision.probability(traceIdLowOrderBits, sampleRate, sampled));
     }
 
     @Override
@@ -442,7 +441,13 @@ public class PTagsFactory implements PropagationTags.Factory {
     public String headerValue(HeaderType headerType) {
       String header = getCachedHeader(headerType);
       if (header == null) {
-        header = PTagsCodec.headerValue(factory.getDecoderEncoder(headerType), this);
+        header =
+            PTagsCodec.headerValue(
+                factory.getDecoderEncoder(headerType),
+                this,
+                null,
+                resolveOtelTraceState(headerType, samplingPriority),
+                samplingPriority);
         if (header != null) {
           setCachedHeader(headerType, header);
         } else {
@@ -464,7 +469,28 @@ public class PTagsFactory implements PropagationTags.Factory {
       // Inject-time path: encode fresh with the override; do NOT cache — the W3C `p:` is
       // per-injecting-span and these tags may be shared across sibling spans.
       String header =
-          PTagsCodec.headerValue(factory.getDecoderEncoder(headerType), this, lastParentIdOverride);
+          PTagsCodec.headerValue(
+              factory.getDecoderEncoder(headerType),
+              this,
+              lastParentIdOverride,
+              resolveOtelTraceState(headerType, samplingPriority),
+              samplingPriority);
+      return (header == null || header.isEmpty()) ? null : header;
+    }
+
+    @Override
+    public String headerValue(
+        HeaderType headerType, CharSequence lastParentIdOverride, int samplingPriority) {
+      if (lastParentIdOverride == null && samplingPriority == this.samplingPriority) {
+        return headerValue(headerType);
+      }
+      String header =
+          PTagsCodec.headerValue(
+              factory.getDecoderEncoder(headerType),
+              this,
+              lastParentIdOverride,
+              resolveOtelTraceState(headerType, samplingPriority),
+              samplingPriority);
       return (header == null || header.isEmpty()) ? null : header;
     }
 
@@ -560,16 +586,13 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateW3CTracestateFrom(PropagationTags source, int samplingPriority) {
-      String sourceTracestate = source.getW3CTracestate();
-      OtelTraceState sourceOtelTraceState =
-          source instanceof PTags
-              ? ((PTags) source).getOtelTraceState()
-              : W3CPTagsCodec.extractOtelTraceState(sourceTracestate);
-      setW3CTracestate(sourceTracestate, sourceOtelTraceState);
-      if (samplingPriority != PrioritySampling.UNSET) {
-        this.samplingPriority = samplingPriority;
+    public void updateW3CTracestateFrom(PropagationTags source) {
+      if (!(source instanceof PTags)) {
+        super.updateW3CTracestateFrom(source);
+        return;
       }
+      PTags sourcePTags = (PTags) source;
+      setW3CTracestate(sourcePTags.tracestate, sourcePTags.getOtelTraceState());
     }
 
     private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
@@ -585,6 +608,26 @@ public class PTagsFactory implements PropagationTags.Factory {
     void setOtelTraceState(OtelTraceState otelTraceState) {
       if (this.otelTraceState != otelTraceState) {
         this.otelTraceState = otelTraceState;
+        clearCachedHeader(W3C);
+      }
+    }
+
+    private OtelTraceState resolveOtelTraceState(HeaderType headerType, int samplingPriority) {
+      OtelTraceState current = otelTraceState;
+      if (headerType != W3C) {
+        return current;
+      }
+      OtelSamplingDecision decision = otelSamplingDecision;
+      OtelTraceState resolved =
+          decision == null ? current : decision.resolve(current, samplingPriority);
+      return resolved == null || samplingPriority == PrioritySampling.UNSET
+          ? resolved
+          : resolved.reconcileSamplingDecision(samplingPriority > 0);
+    }
+
+    private void setOtelSamplingDecision(OtelSamplingDecision decision) {
+      if (otelSamplingDecision != decision) {
+        otelSamplingDecision = decision;
         clearCachedHeader(W3C);
       }
     }
@@ -616,6 +659,63 @@ public class PTagsFactory implements PropagationTags.Factory {
           return true;
         default:
           return false;
+      }
+    }
+
+    private static final class OtelSamplingDecision {
+      private static final OtelSamplingDecision NON_PROBABILITY =
+          new OtelSamplingDecision(0, 0, false, false);
+
+      private final long traceIdLowOrderBits;
+      private final double sampleRate;
+      private final boolean sampled;
+      private final boolean probability;
+      private volatile Resolution resolution;
+
+      private OtelSamplingDecision(
+          long traceIdLowOrderBits, double sampleRate, boolean sampled, boolean probability) {
+        this.traceIdLowOrderBits = traceIdLowOrderBits;
+        this.sampleRate = sampleRate;
+        this.sampled = sampled;
+        this.probability = probability;
+      }
+
+      private static OtelSamplingDecision probability(
+          long traceIdLowOrderBits, double sampleRate, boolean sampled) {
+        return new OtelSamplingDecision(traceIdLowOrderBits, sampleRate, sampled, true);
+      }
+
+      private OtelTraceState resolve(OtelTraceState current, int samplingPriority) {
+        Resolution cached = resolution;
+        if (cached != null
+            && cached.source == current
+            && cached.samplingPriority == samplingPriority) {
+          return cached.resolved;
+        }
+        OtelTraceState resolved;
+        if (!probability) {
+          resolved = current == null ? null : current.removeForNonProbabilityDecision();
+        } else if (current != null) {
+          resolved = current;
+        } else {
+          resolved =
+              OtelTraceState.updateProbability(
+                  null, traceIdLowOrderBits, sampleRate, sampled, samplingPriority);
+        }
+        resolution = new Resolution(current, samplingPriority, resolved);
+        return resolved;
+      }
+
+      private static final class Resolution {
+        private final OtelTraceState source;
+        private final int samplingPriority;
+        private final OtelTraceState resolved;
+
+        private Resolution(OtelTraceState source, int samplingPriority, OtelTraceState resolved) {
+          this.source = source;
+          this.samplingPriority = samplingPriority;
+          this.resolved = resolved;
+        }
       }
     }
   }

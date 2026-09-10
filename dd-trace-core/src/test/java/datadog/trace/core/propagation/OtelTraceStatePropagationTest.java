@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.LOCAL_USER_RULE;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
@@ -75,21 +76,17 @@ class OtelTraceStatePropagationTest {
   }
 
   @Test
-  void movesLocallyGeneratedMemberImmediatelyAfterDatadog() {
+  void preservesInheritedMemberWhenLocalProbabilitySamplingIsAttempted() {
     PropagationTags propagationTags =
         PropagationTags.factory()
             .fromHeaderValue(
                 W3C, "foo=bar,ot=rv:" + RV + ";th:" + TH + ";future:value,other=state");
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true);
 
     assertEquals(
-        "dd=s:2;t.dm:-3,ot=rv:"
-            + GENERATED_RV
-            + ";th:"
-            + THRESHOLD_0_5
-            + ";future:value,foo=bar,other=state",
+        "dd=s:2;t.dm:-3,foo=bar,ot=rv:" + RV + ";th:" + TH + ";future:value,other=state",
         propagationTags.headerValue(W3C));
   }
 
@@ -111,7 +108,7 @@ class OtelTraceStatePropagationTest {
   void manualKeepRemovesLocallyGeneratedRandomness() {
     PropagationTags propagationTags = PropagationTags.factory().empty();
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true);
 
     propagationTags.forceKeep(MANUAL);
 
@@ -124,6 +121,14 @@ class OtelTraceStatePropagationTest {
         PropagationTags.factory().fromHeaderValue(W3C, "dd=s:1,foo=bar");
 
     assertEquals("dd=s:1,foo=bar", propagationTags.headerValue(W3C));
+  }
+
+  @Test
+  void serializesSamplingStateFromOnePrioritySnapshot() {
+    PropagationTags propagationTags =
+        PropagationTags.factory().fromHeaderValue(W3C, "dd=s:2,ot=rv:" + RV + ";th:" + TH);
+
+    assertEquals("dd=s:0,ot=rv:" + RV, propagationTags.headerValue(W3C, null, SAMPLER_DROP));
   }
 
   @Test
@@ -140,7 +145,7 @@ class OtelTraceStatePropagationTest {
   }
 
   @Test
-  void emitsOnlyCompleteOtelFieldsAtMemberSizeLimit() {
+  void preservesInheritedOtelFieldsAtMemberSizeLimit() {
     // W3C limits an individual tracestate member value to 256 characters.
     String unknownField = "x:" + repeat("v", W3C_MEMBER_VALUE_MAX_LENGTH - 2);
     PropagationTags propagationTags =
@@ -149,24 +154,24 @@ class OtelTraceStatePropagationTest {
     assertEquals("ot=" + unknownField, propagationTags.headerValue(W3C));
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true);
 
     String header = propagationTags.headerValue(W3C);
-    assertTrue(header.contains("ot=rv:" + GENERATED_RV + ";th:" + THRESHOLD_0_5));
-    assertFalse(header.contains("x:"));
+    assertTrue(header.contains("ot=" + unknownField));
+    assertFalse(header.contains("ot=rv:"));
   }
 
   @Test
   void generatedOtelMemberHonorsMemberCountLimit() {
-    StringBuilder original = new StringBuilder("ot=rv:").append(RV);
-    for (int i = 0; i < W3C_TRACESTATE_MEMBER_LIMIT - 1; i++) {
+    StringBuilder original = new StringBuilder("v0=state");
+    for (int i = 1; i < W3C_TRACESTATE_MEMBER_LIMIT - 1; i++) {
       original.append(",v").append(i).append("=state");
     }
     PropagationTags propagationTags =
         PropagationTags.factory().fromHeaderValue(W3C, original.toString());
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
-    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true, USER_KEEP);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true);
 
     String header = propagationTags.headerValue(W3C);
     assertEquals(W3C_TRACESTATE_MEMBER_LIMIT, header.split(",").length);

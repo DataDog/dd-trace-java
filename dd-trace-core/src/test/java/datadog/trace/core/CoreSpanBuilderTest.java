@@ -64,6 +64,8 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   private static final String INHERITED_RANDOM_VALUE = "ef284ace7a91e1";
   private static final String OTEL_TRACE_STATE =
       "dd=s:0,ot=rv:" + INHERITED_RANDOM_VALUE + ";th:e6666666666668";
+  private static final String OTEL_TRACE_STATE_WITHOUT_THRESHOLD =
+      "dd=s:0,ot=rv:" + INHERITED_RANDOM_VALUE;
   private static final String OTEL_MEMBER = "ot=";
   private static final String THRESHOLD_0_5 = ";th:8";
   private static final double SAMPLE_RATE_0_5 = 0.5;
@@ -377,9 +379,10 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void extractedContextShouldPreserveOtelTraceState() {
+  void extractedContextShouldPreserveOtelRandomnessAndAlignThreshold() {
     PropagationTags propagationTags =
         PropagationTags.factory().fromHeaderValue(PropagationTags.HeaderType.W3C, OTEL_TRACE_STATE);
+    assertEquals(OTEL_TRACE_STATE, propagationTags.getW3CTracestate());
     ExtractedContext extractedContext =
         new ExtractedContext(
             DDTraceId.ONE,
@@ -397,7 +400,7 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
 
     assertEquals(
-        OTEL_TRACE_STATE,
+        OTEL_TRACE_STATE_WITHOUT_THRESHOLD,
         span.spanContext().getPropagationTags().headerValue(PropagationTags.HeaderType.W3C));
   }
 

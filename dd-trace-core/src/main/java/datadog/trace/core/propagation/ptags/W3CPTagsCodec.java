@@ -229,6 +229,11 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int estimateHeaderSize(PTags pTags) {
+    return estimateHeaderSize(pTags, pTags.getOtelTraceState());
+  }
+
+  @Override
+  protected int estimateHeaderSize(PTags pTags, OtelTraceState otelTraceState) {
     int size = EMPTY_SIZE + 1; // 'dd=' and delimiter;
     // Yes, this is a bit much, but better safe than sorry
     size += pTags.getXDatadogTagsSize();
@@ -252,7 +257,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       size += pTags.tracestate.length();
       includesOriginalTracestate = true;
     }
-    OtelTraceState otelTraceState = pTags.getOtelTraceState();
     if (otelTraceState != null) {
       size -= includesOriginalTracestate ? otelTraceState.getOriginalSize() : 0;
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
@@ -267,11 +271,17 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
+    return appendPrefix(sb, ptags, lastParentIdOverride, ptags.getSamplingPriority());
+  }
+
+  @Override
+  protected int appendPrefix(
+      StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride, int samplingPriority) {
     sb.append(DATADOG_MEMBER_KEY);
     // Append sampling priority (s)
-    if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
+    if (samplingPriority != PrioritySampling.UNSET) {
       sb.append("s:");
-      sb.append(ptags.getSamplingPriority());
+      sb.append(samplingPriority);
     }
     // Append origin (o)
     CharSequence origin = ptags.getOrigin();
@@ -310,6 +320,12 @@ public class W3CPTagsCodec extends PTagsCodec {
 
   @Override
   protected int appendSuffix(StringBuilder sb, PTags ptags, int size) {
+    return appendSuffix(sb, ptags, size, ptags.getOtelTraceState());
+  }
+
+  @Override
+  protected int appendSuffix(
+      StringBuilder sb, PTags ptags, int size, OtelTraceState otelTraceState) {
     // If there is room for appending unknown from W3CPTags
     if (size < MAX_HEADER_SIZE && ptags instanceof W3CPTags) {
       W3CPTags w3cPTags = (W3CPTags) ptags;
@@ -322,7 +338,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       size = 0;
     }
     // Append the managed OTel member and all other non-Datadog list-members
-    if (appendOtelAndVendorMembers(sb, ptags, size != 0)) {
+    if (appendOtelAndVendorMembers(sb, ptags, otelTraceState, size != 0)) {
       // We don't care about the total size in bytes here, but only the fact that we added something
       // that should be returned
       size = Math.max(size, EMPTY_SIZE + 1);
@@ -729,9 +745,8 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static boolean appendOtelAndVendorMembers(
-      StringBuilder sb, PTags ptags, boolean hasDatadogMember) {
+      StringBuilder sb, PTags ptags, OtelTraceState otelTraceState, boolean hasDatadogMember) {
     String original = ptags.tracestate;
-    OtelTraceState otelTraceState = ptags.getOtelTraceState();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     int otherMemberPosition = 0;
     boolean otelTraceStateAppended = false;
