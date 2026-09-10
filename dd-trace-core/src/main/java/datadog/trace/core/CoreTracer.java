@@ -1530,14 +1530,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     RumInjector.shutdownTelemetry();
     AgentMeter.statsDClient().close();
     metricsAggregator.close();
+    CompletableResultCode metricsResult = null;
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
-      CompletableResultCode result =
-          OtlpMetricsService.INSTANCE.shutdown().join(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
-      if (!result.isDone()) {
-        log.debug("Timed out waiting for OTLP metrics shutdown.");
-      } else if (!result.isSuccess()) {
-        log.debug("OTLP metrics shutdown failed.");
-      }
+      metricsResult = OtlpMetricsService.INSTANCE.shutdown();
     }
     if (initialConfig.isLogsOtlpExporterEnabled()) {
       OtlpLogsService.INSTANCE.shutdown();
@@ -1545,6 +1540,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     healthMetrics.close();
+
+    if (metricsResult != null) {
+      metricsResult.join(METRICS_FLUSH_TIMEOUT_MILLIS, MILLISECONDS);
+      if (!metricsResult.isDone()) {
+        log.debug("Timed out waiting for OTLP metrics shutdown.");
+      } else if (!metricsResult.isSuccess()) {
+        log.debug("OTLP metrics shutdown failed.");
+      }
+    }
   }
 
   @Override
