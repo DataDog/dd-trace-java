@@ -39,6 +39,11 @@ import java.lang.annotation.Target;
  * or static) declared with a {@code @NoEscape} type has a reason to be there. The discipline it
  * names is <b>not yet enforced</b>; hold to it by hand until the checker lands.
  *
+ * <p>Retention is {@link RetentionPolicy#CLASS}, not {@code SOURCE}: a checker that only has the
+ * compiled classfiles of a module defining a {@code @NoEscape} type (as opposed to its source)
+ * still needs to see the annotation when checking a <em>different</em>, dependent module's fields.
+ * {@code CLASS} keeps it there without exposing it to runtime reflection, which nothing needs.
+ *
  * <p><b>On a type</b> ({@link ElementType#TYPE}): instances of this type should not be stored in a
  * field or collection. Returning one, passing it to a callback, or chaining further calls on it is
  * fine -- what needs a reason is anything that keeps it alive past the operation using it.
@@ -68,6 +73,6 @@ import java.lang.annotation.Target;
  * </ul>
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.TYPE)
 public @interface NoEscape {}

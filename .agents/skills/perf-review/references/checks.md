@@ -25,6 +25,7 @@ Format: **pattern** — *expensive when (the interprocedural condition to trace)
 5. **Polymorphic dispatch on a hot path** — *a hot call site becomes polymorphic enough to defeat the runtime's inlining/devirtualization (real for JIT runtimes — JVM/.NET/V8; AOT/interpreted differ)* — **flag-as-measure** ("may defeat devirtualization; verify on the target runtime") — SEV-2/3 — fix: keep hot call sites mono/bi-morphic; specialize.
 6. **FFI / native-boundary crossing on a hot path** *(central to the shared-core effort)* — *a native crossing per-span/per-item (not batched), or transporting strings/objects rather than primitives/IDs* — flag-with-confidence (boundary cost is mechanism-determined; runtime-specific pinning → addendum) — SEV-1/2 (SEV-1 if it blocks/pins under concurrency) — fix: batch (one per flush, not per item); transport interned IDs not strings; keep crossings off the hot/concurrency path.
 7. **Escape / allocation-elision defeated** *(Java/Go/.NET/V8 all have a version)* — *a refactor makes a previously-local object escape (stored, returned, captured by a closure, passed to a virtual/non-inlined call) → silent heap allocation on a hot path* — **flag-as-measure** ("may now escape and allocate; verify with an allocation profiler") — SEV-2/3 — fix: keep it local; avoid the escaping store/capture.
+8. **`@NoEscape` field-storage violation** — *a field (instance or static, directly or as a generic type argument) declared with an `@NoEscape`-annotated type (`datadog.trace.api.function.NoEscape`), with no comment at the declaration justifying the retention* — the annotation's own javadoc carries a self-contained "Checker contract" section (trigger / not-a-trigger / violation example / compliant example) written so this can be checked from the diff alone, with no other context needed. The underlying rule is "should", not "must" (RFC-2119 sense): a trigger is a presumptive finding, not an automatic failure — a field with a `// Retained on purpose: <reason>`-style comment is compliant. **flag-with-confidence** — SEV-2/3 (SEV-1 if the annotated type shares backing storage with something large, per its own javadoc). Current wearers: `SubSequence`, `Maybe` (see J7 below for `SubSequence`'s specific retention-vs-transient discriminator). **No lint enforces this yet — the AI reviewer is the only check, so this stays here (not under deterministic-lint candidates below) until a checker lands and it can migrate down.**
 
 ## Deterministic-lint candidates (DON'T spend AI budget — make these real lints)
 Fixed-signature, mechanically checkable:
@@ -32,18 +33,7 @@ Fixed-signature, mechanically checkable:
 - boxing in specific hot APIs
 - using a string-API where an id-API exists on a hot decorator
 - the existing convention rules (e.g. don't extract one-shot instrumentation methods to constants)
-- a field (instance or static, directly or as a generic type argument) declared with an
-  `@NoEscape`-annotated type (`datadog.trace.api.function.NoEscape`), with no comment at the
-  declaration justifying the retention — the annotation's own javadoc carries a self-contained
-  "Checker contract" section (trigger / not-a-trigger / violation example / compliant example)
-  written so this can be checked from the diff alone, with no other context needed. The
-  underlying rule is "should", not "must" (RFC-2119 sense): a trigger is a presumptive
-  finding, not an automatic failure — a field with a `// Retained on purpose: <reason>`-style
-  comment is compliant. **flag-with-confidence** — SEV-2/3 (SEV-1 if the annotated type shares
-  backing storage with something large, per its own javadoc). Current wearers: `SubSequence`,
-  `Maybe` (see J7 below for `SubSequence`'s specific retention-vs-transient
-  discriminator).
-- *(grows as patterns prove mechanically checkable — migrate them off the AI as they stabilize)*
+- *(grows as patterns prove mechanically checkable — migrate them off the AI as they stabilize; the `@NoEscape` field-storage check above belongs here once its checker lands)*
 
 ## Java addendum (JVM-specific — mechanism authored with JIT-developer authority; **calibrate production-priority against your own escalation history**)
 Refines the universal checks with JVM mechanics. Quarantined here, for the Java audience that has the substrate.
