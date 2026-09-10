@@ -119,12 +119,11 @@ public final class OtlpMetricsService {
       if (sender == null) {
         shutdownScheduler();
         shutdownResult.succeed();
-        return shutdownResult.newResultView();
-      }
-
-      if (scheduler.isShutdown()) {
-        // cannot schedule export, treat as failed
-        failShutdown(null);
+      } else if (scheduler.isShutdown()) {
+        // skip final export rather than start a new thread
+        closeSender();
+        shutdownScheduler();
+        shutdownResult.succeed();
       } else {
         try {
           scheduler.execute(this::finishShutdown);
@@ -137,9 +136,7 @@ public final class OtlpMetricsService {
   }
 
   private void failShutdown(Throwable e) {
-    if (e != null) {
-      LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
-    }
+    LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
     closeSender();
     shutdownScheduler();
     shutdownResult.fail();
