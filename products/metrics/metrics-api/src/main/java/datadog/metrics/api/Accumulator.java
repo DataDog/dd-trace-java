@@ -40,6 +40,9 @@ public final class Accumulator<E extends Enum<E>> {
   /** One full cache line of {@code long}s (64 bytes), used to pad each stripe row. */
   private static final int CACHE_LINE_LONGS = 8;
 
+  /** Upper bound on {@link #stripeCount()}, regardless of core count. */
+  private static final int MAX_STRIPES = 64;
+
   private final AtomicLongArray[] data;
   private final int width;
   private final E[] keys;
@@ -255,8 +258,9 @@ public final class Accumulator<E extends Enum<E>> {
 
   /**
    * A fixed, power-of-two stripe count deliberately oversized to roughly 2x {@link
-   * Runtime#availableProcessors()} (minimum 4). Not exposed as a per-call override: a mandatory
-   * sizing knob on every caller fails the "print test" of self-explanatory API design.
+   * Runtime#availableProcessors()} (minimum 4, maximum {@link #MAX_STRIPES}). Not exposed as a
+   * per-call override: a mandatory sizing knob on every caller fails the "print test" of
+   * self-explanatory API design.
    *
    * <p>Sizing to exactly the core count leaves stripe collisions likely under real contention
    * (birthday-paradox math: with {@code n} contending threads and {@code m} stripes, expected
@@ -266,10 +270,14 @@ public final class Accumulator<E extends Enum<E>> {
    * cost, at the price of a slightly more expensive (but far rarer) {@link #accumulateAndReset}
    * drain -- the right trade given {@link #inc}/{@link #add} run on every call while {@link
    * #accumulateAndReset} runs on a reporting cadence.
+   *
+   * <p>Capped at {@link #MAX_STRIPES} so a single {@link Accumulator} on a very-high-core-count
+   * host can't grow its fixed table without bound: past that many contending threads, collision
+   * math has already flattened out, so the memory cost of chasing it further isn't worth paying.
    */
   private static int stripeCount() {
     int cpus = Runtime.getRuntime().availableProcessors();
-    return Math.max(4, 2 * Integer.highestOneBit(Math.max(1, cpus)));
+    return Math.min(MAX_STRIPES, Math.max(4, 2 * Integer.highestOneBit(Math.max(1, cpus))));
   }
 
   /** Rounds {@code width} up to a whole number of cache lines, plus one full trailing line. */
