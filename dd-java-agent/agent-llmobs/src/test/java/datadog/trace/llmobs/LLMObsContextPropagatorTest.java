@@ -333,6 +333,34 @@ class LLMObsContextPropagatorTest {
   }
 
   @Test
+  void peerSpanDoesNotInheritAFinishedSpansStagedContext() {
+    try (AgentScope apmScope = startRootApmScope()) {
+      DDLLMObsSpan dispatcher =
+          newSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "dispatcher", "checkout", "sess-42");
+      try {
+        // Stages the five tags on the root span context's propagation tags, which the whole local
+        // trace shares. Nothing clears them when the span finishes.
+        autoInject(AgentTracer.activeSpan());
+      } finally {
+        dispatcher.finish();
+      }
+
+      // A second LLMObs span on the same trace, with no LLMObs parent of its own. Whatever is still
+      // staged belongs to a span that has finished, so it isn't upstream context and must not be
+      // read as such.
+      DDLLMObsSpan peer = newSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "unrelated", "billing", null);
+      try {
+        assertEquals("billing", LLMObsContext.currentMlApp());
+        assertNull(LLMObsContext.currentSessionId());
+        assertNull(LLMObsContext.currentParentAgentSpanId());
+        assertNull(LLMObsContext.currentParentAgentName());
+      } finally {
+        peer.finish();
+      }
+    }
+  }
+
+  @Test
   void workerWithoutUpstreamLlmObsContextInheritsNothing() {
     Map<String, String> messageAttributes;
     try (AgentScope apmScope = startRootApmScope()) {

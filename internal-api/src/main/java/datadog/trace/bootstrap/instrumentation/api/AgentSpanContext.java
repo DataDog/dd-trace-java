@@ -56,41 +56,45 @@ public interface AgentSpanContext {
   default void setIntegrationName(CharSequence componentName) {}
 
   /**
-   * Gets the LLM Observability {@code ml_app} propagated with this trace, or {@code null} if none
-   * is set or this context implementation doesn't have propagation-tags access.
+   * Gets the LLM Observability {@code ml_app} that arrived on the inbound headers, or {@code null}
+   * if none did or this context implementation doesn't have propagation-tags access.
+   *
+   * <p>These five getters describe the caller, so they report only what was extracted — never what
+   * a local injection staged onto the same tags for an outbound call.
    */
   default CharSequence getLLMObsMlApp() {
     return null;
   }
 
   /**
-   * Gets the LLM Observability {@code session_id} propagated with this trace, or {@code null} if
-   * none is set or this context implementation doesn't have propagation-tags access.
+   * Gets the LLM Observability {@code session_id} that arrived on the inbound headers, or {@code
+   * null} if none did or this context implementation doesn't have propagation-tags access.
    */
   default CharSequence getLLMObsSessionId() {
     return null;
   }
 
   /**
-   * Gets the span id of the parent LLM Observability agent span propagated with this trace, or
-   * {@code null} if none is set or this context implementation doesn't have propagation-tags
-   * access.
+   * Gets the span id of the parent LLM Observability agent span that arrived on the inbound
+   * headers, or {@code null} if none did or this context implementation doesn't have
+   * propagation-tags access.
    */
   default CharSequence getLLMObsParentAgentSpanId() {
     return null;
   }
 
   /**
-   * Gets the name of the parent LLM Observability agent span propagated with this trace, or {@code
-   * null} if none is set or this context implementation doesn't have propagation-tags access.
+   * Gets the name of the parent LLM Observability agent span that arrived on the inbound headers,
+   * or {@code null} if none did or this context implementation doesn't have propagation-tags
+   * access.
    */
   default CharSequence getLLMObsParentAgentName() {
     return null;
   }
 
   /**
-   * Gets the span id of the parent LLM Observability span propagated with this trace, or {@code
-   * null} if none is set or this context implementation doesn't have propagation-tags access.
+   * Gets the span id of the parent LLM Observability span that arrived on the inbound headers, or
+   * {@code null} if none did or this context implementation doesn't have propagation-tags access.
    */
   default CharSequence getLLMObsParentId() {
     return null;

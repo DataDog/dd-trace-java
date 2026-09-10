@@ -434,27 +434,38 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public CharSequence getLLMObsMlApp() {
-      return llmObsTags.mlApp;
+      return decoded(extractedLLMObsTags.mlApp);
     }
 
     @Override
     public CharSequence getLLMObsSessionId() {
-      return llmObsTags.sessionId;
+      return decoded(extractedLLMObsTags.sessionId);
     }
 
     @Override
     public CharSequence getLLMObsParentAgentSpanId() {
-      return llmObsTags.parentAgentSpanId;
+      return decoded(extractedLLMObsTags.parentAgentSpanId);
     }
 
     @Override
     public CharSequence getLLMObsParentAgentName() {
-      return llmObsTags.parentAgentName;
+      return decoded(extractedLLMObsTags.parentAgentName);
     }
 
     @Override
     public CharSequence getLLMObsParentId() {
-      return llmObsTags.parentId;
+      return decoded(extractedLLMObsTags.parentId);
+    }
+
+    /**
+     * The value as the application wrote it, undoing the {@code tracestate} substitutions when the
+     * value came in on that carrier. {@link TagValue#toString()} would return it in whichever
+     * encoding it arrived in, so a {@code ml_app} of {@code a=b} would read back as {@code a~b}
+     * after a W3C-only hop. Same conversion {@link PTagsCodec#fillTagMap} applies to every other
+     * {@code _dd.p.*} tag.
+     */
+    private static CharSequence decoded(TagValue value) {
+      return value == null ? null : value.forType(TagElement.Encoding.DATADOG);
     }
 
     LLMObsTagValues getLLMObsTagValues() {
