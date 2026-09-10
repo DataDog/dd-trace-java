@@ -1007,7 +1007,7 @@ test_inst_testcontainers:
     GRADLE_PARAMS: "-PskipFlakyTests -PtestcontainersMode=only"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_2
+    matrix: *test_matrix_4
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
@@ -1061,7 +1061,7 @@ test_inst_latest_testcontainers:
   parallel:
     matrix:
       - testJvm: ["8", "17", "21", "25", "27", "tip"] # Java 27 TODO: remove 27 after GA (tip will move to 27)
-        CI_SPLIT: ["1/2", "2/2"]
+        CI_SPLIT: ["1/4", "2/4", "3/4", "4/4"]
 
 test_inst_latest_arm64:
   extends: .test_job_arm64_with_test_agent
