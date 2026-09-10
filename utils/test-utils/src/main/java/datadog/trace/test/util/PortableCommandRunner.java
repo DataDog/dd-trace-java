@@ -1,6 +1,6 @@
 package datadog.trace.test.util;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.charset.Charset.defaultCharset;
 
 import datadog.trace.api.internal.VisibleForTesting;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -29,7 +29,7 @@ public final class PortableCommandRunner {
     }
     switch (arguments[0]) {
       case "echo":
-        output.write((argument(arguments) + System.lineSeparator()).getBytes(UTF_8));
+        output.write((argument(arguments) + System.lineSeparator()).getBytes(defaultCharset()));
         break;
       case "cat":
         byte[] buffer = new byte[8192];
