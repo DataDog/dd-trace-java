@@ -44,6 +44,13 @@ public final class CompletableResultCode {
     return FAILURE;
   }
 
+  /**
+   * Creates an independent view onto this result's outcome, to hand to a separate caller. A view
+   * observes this result's completion, or may complete first on its own, without either side
+   * holding a reference to the other.
+   *
+   * @return a new view sharing this result's outcome
+   */
   public CompletableResultCode newResultView() {
     return new CompletableResultCode(sharedState, true);
   }
