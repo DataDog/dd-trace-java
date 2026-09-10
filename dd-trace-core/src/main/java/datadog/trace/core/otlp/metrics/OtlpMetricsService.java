@@ -30,7 +30,7 @@ public final class OtlpMetricsService {
   private final Object lifecycleLock = new Object();
 
   private AgentTaskScheduler.Scheduled<?> scheduledTask;
-  private volatile CompletableResultCode shutdownResult;
+  private CompletableResultCode shutdownResult;
 
   OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
@@ -83,16 +83,16 @@ public final class OtlpMetricsService {
                         / Math.log(1 - 0.25)),
                 5_000);
 
-    if (shutdownResult == null) {
-      scheduledTask =
-          scheduler.scheduleAtFixedRate(
-              this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
-    }
+    scheduledTask =
+        scheduler.scheduleAtFixedRate(
+            this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
   }
 
   public void flush() {
-    if (sender != null && shutdownResult == null) {
-      scheduler.execute(this::export);
+    synchronized (lifecycleLock) {
+      if (sender != null && shutdownResult == null) {
+        scheduler.execute(this::export);
+      }
     }
   }
 
