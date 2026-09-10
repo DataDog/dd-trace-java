@@ -22,6 +22,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 @NoEscape
 public final class SubSequence implements CharSequence {
+  // @NoEscape exemption: backed by the interned "" literal, which is already permanently
+  // retained by the JVM -- holding this instance pins nothing beyond what's already immortal.
   public static final SubSequence EMPTY = new SubSequence("", 0, 0);
 
   /**
