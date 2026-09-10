@@ -116,6 +116,14 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void reactiveClusterCommandSpanHasPeerHostname() {
+    String result = connection.reactive().set(TEST_SET_KEY, TEST_SET_VALUE).block();
+
+    assertEquals("OK", result);
+    assertSetSpanHasPeerHostname();
+  }
+
+  @Test
   void clusterReadCommandSpanUsesReplicaPeerWithReadFromReplica() throws Exception {
     assertEquals("OK", connection.sync().set(TEST_SET_KEY, TEST_SET_VALUE));
     connection.setReadFrom(ReadFrom.SLAVE);
