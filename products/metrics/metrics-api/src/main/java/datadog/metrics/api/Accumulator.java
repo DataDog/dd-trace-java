@@ -2,6 +2,7 @@ package datadog.metrics.api;
 
 import datadog.environment.ThreadSupport;
 import java.util.concurrent.atomic.AtomicLongArray;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * A striped, lock-free counter primitive keyed by enum ordinal: {@code LongAdder}'s write
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * unrelated aspects of the same event, not maintaining a cross-counter invariant a reader depends
  * on) or bring their own coordination.
  */
+@ThreadSafe
 public final class Accumulator<E extends Enum<E>> {
   /** One full cache line of {@code long}s (64 bytes), used to pad each stripe row. */
   private static final int CACHE_LINE_LONGS = 8;
@@ -156,6 +158,17 @@ public final class Accumulator<E extends Enum<E>> {
       }
       return new Counts<>(combined, keys);
     }
+
+    /**
+     * A copy of this {@link Counts} with every entry before {@code keys()[fromIndex]} zeroed out --
+     * for a caller that partially delivered a batch downstream and wants to represent "what's left"
+     * to retry, without re-counting the part that already made it.
+     */
+    public Counts<E> from(int fromIndex) {
+      long[] remaining = new long[counts.length];
+      System.arraycopy(counts, fromIndex, remaining, fromIndex, counts.length - fromIndex);
+      return new Counts<>(remaining, keys);
+    }
   }
 
   /**
@@ -171,6 +184,7 @@ public final class Accumulator<E extends Enum<E>> {
    * live-read-only diagnostic, needs no coordination at all), so it's a separate, opt-in type
    * rather than baked into every {@link Accumulator}.
    */
+  @ThreadSafe
   public static final class RunningTotal<E extends Enum<E>> {
     private final Accumulator<E> accumulator;
     private final Object lock = new Object();

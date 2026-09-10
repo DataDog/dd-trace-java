@@ -230,6 +230,24 @@ class AccumulatorTest {
   }
 
   @Test
+  void fromZeroesEveryEntryBeforeTheGivenIndex() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
+    counters.inc(Counters.FOO);
+    counters.add(Counters.BAR, 4L);
+    counters.add(Counters.BAZ, 2L);
+
+    Accumulator.Counts<Counters> drained = counters.accumulateAndReset();
+    Accumulator.Counts<Counters> remaining = drained.from(Counters.BAR.ordinal());
+
+    assertEquals(0L, remaining.get(Counters.FOO));
+    assertEquals(4L, remaining.get(Counters.BAR));
+    assertEquals(2L, remaining.get(Counters.BAZ));
+
+    // the original Counts is untouched by taking a remainder from it
+    assertEquals(1L, drained.get(Counters.FOO));
+  }
+
+  @Test
   void runningTotalSeedsFromTheAccumulatorsCurrentSum() {
     Accumulator<Counters> counters = Accumulator.of(Counters.class);
     counters.inc(Counters.FOO);
