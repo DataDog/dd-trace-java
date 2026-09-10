@@ -60,33 +60,30 @@ class CompletableResultCodeTest {
 
   @Test
   void callbackFailureDoesNotPreventRemainingCallbacks() {
-    CompletableResultCode result = new CompletableResultCode();
-    AtomicInteger callbacks = new AtomicInteger();
-    IllegalStateException failure = new IllegalStateException("boom");
-    result.whenComplete(
+    assertCallbackFailureDoesNotPreventRemainingCallbacks(
+        IllegalStateException.class,
         () -> {
-          throw failure;
+          throw new IllegalStateException("boom");
         });
-    result.whenComplete(callbacks::incrementAndGet);
-
-    assertSame(failure, assertThrows(IllegalStateException.class, result::succeed));
-
-    assertTrue(result.isSuccess());
-    assertEquals(1, callbacks.get());
   }
 
   @Test
   void callbackErrorDoesNotPreventRemainingCallbacks() {
+    assertCallbackFailureDoesNotPreventRemainingCallbacks(
+        AssertionError.class,
+        () -> {
+          throw new AssertionError("boom");
+        });
+  }
+
+  private static void assertCallbackFailureDoesNotPreventRemainingCallbacks(
+      Class<? extends Throwable> failureType, Runnable throwingCallback) {
     CompletableResultCode result = new CompletableResultCode();
     AtomicInteger callbacks = new AtomicInteger();
-    AssertionError failure = new AssertionError("boom");
-    result.whenComplete(
-        () -> {
-          throw failure;
-        });
+    result.whenComplete(throwingCallback);
     result.whenComplete(callbacks::incrementAndGet);
 
-    assertSame(failure, assertThrows(AssertionError.class, result::succeed));
+    assertThrows(failureType, result::succeed);
 
     assertTrue(result.isSuccess());
     assertEquals(1, callbacks.get());

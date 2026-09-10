@@ -33,7 +33,7 @@ public final class CompletableResultCode {
 
   private CompletableResultCode(boolean success) {
     this();
-    sharedState.success = success;
+    complete(success);
   }
 
   public static CompletableResultCode ofSuccess() {

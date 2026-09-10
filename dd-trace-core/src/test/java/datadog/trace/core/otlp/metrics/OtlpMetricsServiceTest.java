@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
 import datadog.trace.api.telemetry.OtlpTelemetry;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -37,6 +38,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.stubbing.Answer;
 
 class OtlpMetricsServiceTest {
   private static final OtlpPayload PAYLOAD =
@@ -105,13 +107,7 @@ class OtlpMetricsServiceTest {
     TestService test = service(PAYLOAD);
     CountDownLatch entered = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
-    when(test.sender.send(PAYLOAD))
-        .thenAnswer(
-            ignored -> {
-              entered.countDown();
-              assertTrue(release.await(5, SECONDS));
-              return success(200);
-            });
+    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(entered, release));
 
     CompletableResultCode result = test.service.exportThenShutdown();
 
@@ -232,13 +228,7 @@ class OtlpMetricsServiceTest {
     TestService test = service(PAYLOAD);
     CountDownLatch entered = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
-    when(test.sender.send(PAYLOAD))
-        .thenAnswer(
-            ignored -> {
-              entered.countDown();
-              assertTrue(release.await(5, SECONDS));
-              return success(200);
-            });
+    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(entered, release));
 
     test.service.flush();
     assertTrue(entered.await(5, SECONDS));
@@ -269,13 +259,7 @@ class OtlpMetricsServiceTest {
     CountDownLatch releaseExport = new CountDownLatch(1);
     CountDownLatch callbackEntered = new CountDownLatch(1);
     CountDownLatch releaseCallback = new CountDownLatch(1);
-    when(test.sender.send(PAYLOAD))
-        .thenAnswer(
-            ignored -> {
-              exportEntered.countDown();
-              assertTrue(releaseExport.await(5, SECONDS));
-              return success(200);
-            });
+    when(test.sender.send(PAYLOAD)).thenAnswer(blockingSend(exportEntered, releaseExport));
 
     CompletableResultCode blocking = test.service.exportThenShutdown();
     blocking.whenComplete(
@@ -298,6 +282,15 @@ class OtlpMetricsServiceTest {
       releaseCallback.countDown();
     }
     assertTrue(blocking.join(5, SECONDS).isSuccess());
+  }
+
+  private static Answer<RemoteApi.Response> blockingSend(
+      CountDownLatch entered, CountDownLatch release) {
+    return ignored -> {
+      entered.countDown();
+      assertTrue(release.await(5, SECONDS));
+      return success(200);
+    };
   }
 
   private TestService service(OtlpPayload payload) {

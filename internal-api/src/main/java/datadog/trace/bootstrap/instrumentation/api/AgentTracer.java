@@ -265,8 +265,6 @@ public class AgentTracer {
   public interface TracerAPI
       extends datadog.trace.api.Tracer, InternalTracer, EndpointCheckpointer {
 
-    CompletableResultCode shutdownOtelMetrics();
-
     /**
      * Create and start a new span.
      *
@@ -396,6 +394,8 @@ public class AgentTracer {
     void updatePreferredServiceName(String serviceName, CharSequence source);
 
     void addShutdownListener(Runnable listener);
+
+    CompletableResultCode shutdownOtelMetrics();
 
     // these methods are only used for legacy context manager migration
 
