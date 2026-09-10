@@ -8,10 +8,16 @@ plugins {
 // we put the test classes in the baseTest test set so that the scala
 // version is not inherited
 addTestSuite('baseTest')
+addForkedTestTask('baseTest')
+
 addTestSuite('latestDepTest')
+addForkedTestTask('latestDepTest')
+
 addTestSuiteForDir('latestPekko10Test', 'latestDepTest')
+addForkedTestTask('latestPekko10Test')
+
 addTestSuite('iastTest')
-addTestSuiteForDir 'latestDepIastTest', 'iastTest'
+addTestSuiteForDir('latestDepIastTest', 'iastTest')
 
 muzzle {
   pass {
