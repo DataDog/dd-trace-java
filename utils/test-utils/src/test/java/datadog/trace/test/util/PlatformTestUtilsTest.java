@@ -1,11 +1,13 @@
 package datadog.trace.test.util;
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeExecutableName;
 import static datadog.trace.test.util.PlatformTestUtils.normalizeLineEndings;
 import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostHostname;
 import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostUrl;
 import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import datadog.environment.OperatingSystem;
@@ -51,10 +53,16 @@ class PlatformTestUtilsTest {
 
   @Test
   void removesWindowsExecutableSuffixOnlyOnWindows() {
-    assertEquals("java", PlatformTestUtils.normalizeExecutableName("java.exe", true));
+    String windowsName = "java.exe";
+
+    assertEquals("java", PlatformTestUtils.normalizeExecutableName(windowsName, true));
     assertEquals("java", PlatformTestUtils.normalizeExecutableName("java.EXE", true));
     assertEquals("java", PlatformTestUtils.normalizeExecutableName("java", true));
-    assertEquals("java.exe", PlatformTestUtils.normalizeExecutableName("java.exe", false));
+    assertEquals("javac", PlatformTestUtils.normalizeExecutableName("javac", true));
+    assertNull(PlatformTestUtils.normalizeExecutableName(null, true));
+    assertSame(windowsName, PlatformTestUtils.normalizeExecutableName(windowsName, false));
+    assertEquals(
+        OperatingSystem.isWindows() ? "java" : windowsName, normalizeExecutableName(windowsName));
   }
 
   @Test
@@ -80,5 +88,9 @@ class PlatformTestUtilsTest {
         "http://127.0.0.10/test",
         PlatformTestUtils.normalizeLocalhostUrl("http://127.0.0.10/test", true));
     assertEquals("not a url", PlatformTestUtils.normalizeLocalhostUrl("not a url", true));
+    assertNull(PlatformTestUtils.normalizeLocalhostUrl(null, true));
+    assertEquals(
+        "http://user:password@localhost:8080/test",
+        PlatformTestUtils.normalizeLocalhostUrl("http://user:password@127.0.0.1:8080/test", true));
   }
 }
