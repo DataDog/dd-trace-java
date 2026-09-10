@@ -23,10 +23,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class SingleSpanSamplerTest extends DDCoreJavaSpecification {
+  @TempDir Path tempDir;
 
   @TableTest({
     "scenario                | rules                                                                                           ",
@@ -239,8 +241,8 @@ class SingleSpanSamplerTest extends DDCoreJavaSpecification {
     assertEquals("SpanSamplingRules can't be null.", exception.getMessage());
   }
 
-  private static String createRulesFile(String rules) throws IOException {
-    Path tempFile = Files.createTempFile("single-span-sampling-rules", ".json");
+  private String createRulesFile(String rules) throws IOException {
+    Path tempFile = tempDir.resolve("single-span-sampling-rules.json");
     Files.write(tempFile, rules.getBytes(StandardCharsets.UTF_8));
     return tempFile.toString();
   }

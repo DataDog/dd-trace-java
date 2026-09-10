@@ -28,7 +28,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
   public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg)
       throws Exception {
     final ChannelTraceContext channelTraceContext =
-        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     AgentSpan parent = channelTraceContext.getClientParentSpan();
     if (parent == null) {
@@ -56,7 +56,7 @@ public class HttpClientResponseTracingHandler extends SimpleChannelUpstreamHandl
   @Override
   public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
     final ChannelTraceContext channelTraceContext =
-        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     AgentSpan parent = channelTraceContext.getClientParentSpan();
     if (parent == null) {

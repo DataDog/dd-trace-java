@@ -27,7 +27,7 @@ public class HttpServerRequestTracingHandler extends SimpleChannelUpstreamHandle
   @Override
   public void messageReceived(final ChannelHandlerContext ctx, final MessageEvent msg) {
     final ChannelTraceContext channelTraceContext =
-        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     if (!(msg.getMessage() instanceof HttpRequest)) {
       final Context storedContext = channelTraceContext.getServerContext();

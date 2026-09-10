@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.StatsMetrics;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
@@ -87,6 +88,7 @@ final class Aggregator implements Runnable {
     aggregates.resetCoreHandlers(healthMetrics, reporter);
   }
 
+  @VisibleForTesting
   AggregateTable aggregates() {
     return aggregates;
   }

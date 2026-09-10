@@ -2,6 +2,7 @@ package datadog.trace.common.metrics;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
 import static datadog.trace.common.metrics.EventListener.EventType.OK;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -98,7 +99,7 @@ class OkHttpSinkTest {
     // one slow response followed by a request
     sink.accept(1, ByteBuffer.allocate(0));
     sink.accept(1, ByteBuffer.allocate(0));
-    latch.await();
+    latch.await(10, SECONDS);
 
     // the second request degrades to async mode
     verify(client, times(2)).newCall(any());

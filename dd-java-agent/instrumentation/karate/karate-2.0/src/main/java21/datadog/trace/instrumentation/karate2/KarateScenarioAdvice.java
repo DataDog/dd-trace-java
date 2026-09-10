@@ -23,7 +23,7 @@ public class KarateScenarioAdvice {
 
       ExecutionContext executionContext =
           InstrumentationContext.get(Scenario.class, ExecutionContext.class)
-              .computeIfAbsent(scenarioRuntime.getScenario(), ExecutionContext::create);
+              .getOrCompute(scenarioRuntime.getScenario(), ExecutionContext::create);
       executionContext.setTestStarted(false);
 
       // Indicate beforehand whether failures should be suppressed. This aligns the ordering with

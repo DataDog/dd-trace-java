@@ -77,3 +77,29 @@ ext.addTestSuiteForDir = { testSuiteName, dirName ->
 ext.addTestSuite = { testSuiteName ->
   ext.addTestSuiteForDir(testSuiteName, testSuiteName)
 }
+
+// Registers a task that runs the '*ForkedTest' classes of a source set, each in its own JVM.
+//
+// The task name ends in 'ForkedTest', which is what makes the test convention plugin restrict it to
+// '**/*ForkedTest*', set forkEvery=1 and apply the shared forked-test concurrency limit. 'check',
+// 'allTests' and 'allLatestDepTests' pick the task up automatically, because they match Test tasks
+// by type rather than by name.
+//
+// Modules whose tests live in the default 'test' source set get 'forkedTest' registered for them by
+// java_no_deps.gradle. Modules that use their own suites instead - for example to compile the same
+// tests against several Scala versions - have no 'test' sources, so their forked tests never run
+// unless they opt in:
+//
+//   addTestSuite('baseTest')
+//   addForkedTestTask('baseTest')  // registers 'baseTestForkedTest'
+//
+// Returns the TaskProvider so callers can configure the task further.
+ext.addForkedTestTask = { String sourceSetName ->
+  def taskName = sourceSetName == 'test' ? 'forkedTest' : "${sourceSetName}ForkedTest"
+  return tasks.register(taskName, Test) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    useJUnitPlatform()
+    testClassesDirs = sourceSets[sourceSetName].output.classesDirs
+    classpath = sourceSets[sourceSetName].runtimeClasspath
+  }
+}

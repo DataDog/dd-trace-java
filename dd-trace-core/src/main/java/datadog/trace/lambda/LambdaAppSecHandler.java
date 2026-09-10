@@ -39,6 +39,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -57,6 +58,12 @@ public class LambdaAppSecHandler {
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
   private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
 
+  /**
+   * Marks an invocation AppSec did not process because the trigger is not HTTP, or if the event is
+   * unreadable (not a {@code ByteArrayInputStream}, empty, oversized, or unparseable).
+   */
+  private static final String UNSUPPORTED_EVENT_TYPE_METRIC = "_dd.appsec.unsupported_event_type";
+
   // Carries the detected trigger type from processRequestStart to processResponseData within the
   // same Lambda invocation. Cleared in processRequestEnd.
   private static final ThreadLocal<LambdaTriggerType> CURRENT_TRIGGER_TYPE = new ThreadLocal<>();
@@ -68,7 +75,8 @@ public class LambdaAppSecHandler {
    *
    * @param event the Lambda event object
    * @return a {@link TagContext} carrying the AppSec request context and the HTTP tags, or null if
-   *     AppSec is disabled, the event is not a parseable payload, or processing fails
+   *     AppSec is disabled, the trigger is not HTTP, the event is not a parseable payload, or
+   *     processing fails
    */
   public static AgentSpanContext processRequestStart(Object event) {
     if (!ActiveSubsystems.APPSEC_ACTIVE) {
@@ -91,6 +99,11 @@ public class LambdaAppSecHandler {
         return null;
       }
       CURRENT_TRIGGER_TYPE.set(eventData.triggerType);
+      if (!eventData.triggerType.isHttp()) {
+        log.debug("Trigger type {} is not HTTP, skipping AppSec processing", eventData.triggerType);
+        // unsupported event metric is added on request end since span doesn't exist yet
+        return null;
+      }
       // v2 payloads carry the request line verbatim; the others expose the path and a decoded
       // parameter map only, so the query string has to be rebuilt from them
       String fullPath = eventData.rawUri;
@@ -100,7 +113,7 @@ public class LambdaAppSecHandler {
       LambdaURIDataAdapter uriAdapter =
           new LambdaURIDataAdapter(fullPath, eventData.headers, eventData.host);
       AgentSpanContext context = processAppSecRequestData(eventData, uriAdapter);
-      if (context instanceof TagContext && eventData.triggerType.isHttp()) {
+      if (context instanceof TagContext) {
         applyHttpTags((TagContext) context, eventData, uriAdapter);
       }
       return context;
@@ -117,9 +130,17 @@ public class LambdaAppSecHandler {
    * @param span the current span
    */
   public static void processRequestEnd(AgentSpan span) {
+    LambdaTriggerType triggerType = CURRENT_TRIGGER_TYPE.get();
     CURRENT_TRIGGER_TYPE.remove();
 
-    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE || span == null || triggerType == null) {
+      return;
+    }
+
+    // A null trigger type means processRequestStart never ran, so the invocation was not analysed
+    // at all, which is not the same as an unsupported trigger.
+    if (!triggerType.isHttp()) {
+      span.setMetric(UNSUPPORTED_EVENT_TYPE_METRIC, 1);
       return;
     }
 
@@ -455,6 +476,20 @@ public class LambdaAppSecHandler {
           bodyCallback.apply(requestContext, eventData.body);
         } else {
           log.debug("requestBodyProcessed callback is null");
+        }
+      }
+
+      // Call requestFilesFilenames. Only the names are reported: the file content shares the
+      // body's UTF-8 decode, so for anything that is not text it is already lossy.
+      if (!eventData.filenames.isEmpty()) {
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+            tracer
+                .getCallbackProvider(RequestContextSlot.APPSEC)
+                .getCallback(EVENTS.requestFilesFilenames());
+        if (filenamesCallback != null) {
+          filenamesCallback.apply(requestContext, eventData.filenames);
+        } else {
+          log.debug("requestFilesFilenames callback is null");
         }
       }
     }

@@ -69,6 +69,9 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] APM_TRACE_ID = "apm_trace_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PARENT_ID = "parent_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SESSION_ID = "session_id".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SAMPLE_RATE = "sample_rate".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] SAMPLING_DECISION =
+      "sampling_decision".getBytes(StandardCharsets.UTF_8);
   private static final byte[] NAME = "name".getBytes(StandardCharsets.UTF_8);
   private static final byte[] DURATION = "duration".getBytes(StandardCharsets.UTF_8);
   private static final byte[] START_NS = "start_ns".getBytes(StandardCharsets.UTF_8);
@@ -79,7 +82,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final byte[] ERROR_STACK = "stack".getBytes(StandardCharsets.UTF_8);
 
   private static final byte[] META = "meta".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] AGENT_ATTRIBUTION =
+      "agent_attribution".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] PAGENT_NAME = "pagent_name".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] PAGENT_SPAN_ID = "pagent_span_id".getBytes(StandardCharsets.UTF_8);
   private static final byte[] METADATA = "metadata".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] AGENT_MANIFEST_KEY =
+      "agent_manifest".getBytes(StandardCharsets.UTF_8);
   private static final byte[] PROMPT = "prompt".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPAN_KIND = "span.kind".getBytes(StandardCharsets.UTF_8);
   private static final byte[] SPANS = "spans".getBytes(StandardCharsets.UTF_8);
@@ -105,6 +114,39 @@ public class LLMObsSpanMapper implements RemoteMapper {
   private static final String PARENT_ID_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "parent_id";
   private static final String SESSION_ID_TAG_INTERNAL_FULL =
       LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
+  private static final String SAMPLE_RATE_TAG_INTERNAL_FULL = LLMOBS_TAG_PREFIX + "sample_rate";
+  private static final String SAMPLING_DECISION_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + "sampling_decision";
+
+  /**
+   * Fallback pair meaning "retain", used if a span reaches the mapper without a stamped decision.
+   */
+  private static final String SAMPLING_DECISION_SAMPLED = "1";
+
+  private static final String SAMPLE_RATE_ALL = "1";
+
+  /**
+   * Internal tags serialized as dedicated top-level fields, which must therefore not also be
+   * emitted into the {@code tags} array.
+   *
+   * <p>These are skipped while writing rather than removed from the span. {@link
+   * datadog.communication.serialization.msgpack.MsgPackWriter#format} re-invokes {@code map} on the
+   * same span instances after a buffer overflow, so a span mutated on the first pass serializes
+   * differently on the retry — a dropped span would lose its verdict and be re-emitted as retained.
+   */
+  private static final Set<String> TAGS_WRITTEN_AS_TOP_LEVEL_FIELDS =
+      Collections.unmodifiableSet(
+          new HashSet<>(
+              Arrays.asList(
+                  PARENT_ID_TAG_INTERNAL_FULL,
+                  SAMPLING_DECISION_TAG_INTERNAL_FULL,
+                  SAMPLE_RATE_TAG_INTERNAL_FULL,
+                  SPAN_KIND_TAG_KEY)));
+
+  private static final String PAGENT_SPAN_ID_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_SPAN_ID;
+  private static final String PAGENT_NAME_TAG_INTERNAL_FULL =
+      LLMOBS_TAG_PREFIX + LLMObsTags.PAGENT_NAME;
 
   private final MetaWriter metaWriter = new MetaWriter();
   private final int size;
@@ -165,6 +207,13 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
       boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
 
+      // Fallback to set default sampling tags when the fields are absent.
+      Object rawSamplingDecision = span.getTag(SAMPLING_DECISION_TAG_INTERNAL_FULL);
+      Object rawSampleRate = span.getTag(SAMPLE_RATE_TAG_INTERNAL_FULL);
+      boolean stamped = rawSamplingDecision instanceof String && rawSampleRate instanceof String;
+      String samplingDecision = stamped ? (String) rawSamplingDecision : SAMPLING_DECISION_SAMPLED;
+      String sampleRate = stamped ? (String) rawSampleRate : SAMPLE_RATE_ALL;
+
       writable.startMap(hasSessionId ? 12 : 11);
       // 1
       writable.writeUTF8(SPAN_ID);
@@ -177,7 +226,6 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // 3
       writable.writeUTF8(PARENT_ID);
       writable.writeString(span.getTag(PARENT_ID_TAG_INTERNAL_FULL), null);
-      span.removeTag(PARENT_ID_TAG_INTERNAL_FULL);
 
       // 4
       writable.writeUTF8(NAME);
@@ -197,13 +245,17 @@ public class LLMObsSpanMapper implements RemoteMapper {
 
       // 8
       writable.writeUTF8(DD);
-      writable.startMap(3);
+      writable.startMap(5);
       writable.writeUTF8(SPAN_ID);
       writable.writeString(String.valueOf(span.getSpanId()), null);
       writable.writeUTF8(TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
       writable.writeUTF8(APM_TRACE_ID);
       writable.writeString(span.getTraceId().toHexString(), null);
+      writable.writeUTF8(SAMPLING_DECISION);
+      writable.writeString(samplingDecision, null);
+      writable.writeUTF8(SAMPLE_RATE);
+      writable.writeString(sampleRate, null);
 
       // 9 — optional top-level session_id field. Required by the LLMObs HTTP intake schema
       // and by the LLM Trace Explorer's Sessions filter, which keys off this field.
@@ -345,7 +397,10 @@ public class LLMObsSpanMapper implements RemoteMapper {
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_PROVIDER,
                     LLMOBS_TAG_PREFIX + LLMObsTags.MODEL_VERSION,
                     LLMOBS_TAG_PREFIX + LLMObsTags.TOOL_DEFINITIONS,
-                    LLMOBS_TAG_PREFIX + LLMObsTags.METADATA)));
+                    LLMOBS_TAG_PREFIX + LLMObsTags.METADATA,
+                    LLMOBS_TAG_PREFIX + LLMObsTags.AGENT_MANIFEST,
+                    PAGENT_SPAN_ID_TAG_INTERNAL_FULL,
+                    PAGENT_NAME_TAG_INTERNAL_FULL)));
 
     MetaWriter withWritable(Writable writable, Map<String, String> errorInfo) {
       this.writable = writable;
@@ -362,6 +417,8 @@ public class LLMObsSpanMapper implements RemoteMapper {
         String key = tag.getKey();
         if (key.equals(SPAN_KIND_TAG_KEY)) {
           spanKind = String.valueOf(tag.getValue());
+        } else if (TAGS_WRITTEN_AS_TOP_LEVEL_FIELDS.contains(key)) {
+          // Already written as a dedicated field; not counted here so it stays out of the array.
         } else if (TAGS_FOR_REMAPPING.contains(key)) {
           tagsToRemapToMeta.put(key, tag.getValue());
         } else if (key.startsWith(LLMOBS_METRIC_PREFIX) && tag.getValue() instanceof Number) {
@@ -378,9 +435,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
         }
       }
 
-      if (!spanKind.equals("unknown")) {
-        metadata.getTags().remove(SPAN_KIND_TAG_KEY);
-      } else {
+      if (spanKind.equals("unknown")) {
         LOGGER.warn("missing span kind");
       }
 
@@ -388,6 +443,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
       String inputPromptTag = LLMOBS_TAG_PREFIX + INPUT_PROMPT;
       boolean hasInput = tagsToRemapToMeta.containsKey(inputTag);
       boolean hasInputPrompt = tagsToRemapToMeta.containsKey(inputPromptTag);
+      Object parentAgentSpanIdVal = tagsToRemapToMeta.get(PAGENT_SPAN_ID_TAG_INTERNAL_FULL);
+      boolean hasAgentAttribution =
+          parentAgentSpanIdVal instanceof String && !((String) parentAgentSpanIdVal).isEmpty();
+      boolean hasAgentAttributionName =
+          tagsToRemapToMeta.containsKey(PAGENT_NAME_TAG_INTERNAL_FULL);
       Object inputPrompt = null;
       if (hasInputPrompt) {
         if (spanKind.equals(Tags.LLMOBS_LLM_SPAN_KIND)) {
@@ -416,18 +476,28 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
         String key = tag.getKey();
         Object value = tag.getValue();
-        if (!tagsToRemapToMeta.containsKey(key) && key.startsWith(LLMOBS_TAG_PREFIX)) {
+        if (!tagsToRemapToMeta.containsKey(key)
+            && !TAGS_WRITTEN_AS_TOP_LEVEL_FIELDS.contains(key)
+            && key.startsWith(LLMOBS_TAG_PREFIX)) {
           writable.writeObject(key.substring(LLMOBS_TAG_PREFIX.length()) + ":" + value, null);
         }
       }
 
       // write meta (11)
+      // pagent_name is always emitted inside agent_attribution (never standalone), so subtract 1
+      // whenever it is in the map regardless of whether pagent_span_id is also present.
+      // When pagent_span_id exists but is invalid (non-string or empty), the whole
+      // agent_attribution block is skipped; subtract 1 for that entry too.
+      boolean hasInvalidParentAgentSpanId =
+          tagsToRemapToMeta.containsKey(PAGENT_SPAN_ID_TAG_INTERNAL_FULL) && !hasAgentAttribution;
       int metaSize =
           tagsToRemapToMeta.size()
               - (hasInputPrompt ? 1 : 0)
               + (inputPrompt != null && !hasInput ? 1 : 0)
               + 1
-              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0);
+              + (null != errorInfo && !errorInfo.isEmpty() ? 1 : 0)
+              - (hasAgentAttributionName ? 1 : 0)
+              - (hasInvalidParentAgentSpanId ? 1 : 0);
       writable.writeUTF8(META);
       writable.startMap(metaSize);
       writable.writeUTF8(SPAN_KIND);
@@ -458,7 +528,28 @@ public class LLMObsSpanMapper implements RemoteMapper {
       for (Map.Entry<String, Object> tag : tagsToRemapToMeta.entrySet()) {
         String key = tag.getKey().substring(LLMOBS_TAG_PREFIX.length());
         Object val = tag.getValue();
-        if (key.equals(INPUT) || key.equals(OUTPUT)) {
+        if (key.equals("pagent_name")) {
+          // Emitted inside the agent_attribution block below; skip standalone entry.
+          continue;
+        } else if (key.equals("pagent_span_id")) {
+          if (!hasAgentAttribution) {
+            // Value was invalid (non-string or empty); skip — subtracted from metaSize above.
+            continue;
+          }
+          // Emit the structured agent_attribution map.
+          writable.writeUTF8(AGENT_ATTRIBUTION);
+          writable.startMap(2);
+          writable.writeUTF8(PAGENT_NAME);
+          Object nameVal = tagsToRemapToMeta.get(PAGENT_NAME_TAG_INTERNAL_FULL);
+          if (nameVal instanceof String) {
+            writable.writeString((String) nameVal, null);
+          } else {
+            writable.writeNull();
+          }
+          writable.writeUTF8(PAGENT_SPAN_ID);
+          writable.writeString((String) parentAgentSpanIdVal, null);
+          continue;
+        } else if (key.equals(INPUT) || key.equals(OUTPUT)) {
           boolean isDocumentIO =
               (spanKind.equals(Tags.LLMOBS_EMBEDDING_SPAN_KIND) && key.equals(INPUT))
                   || (spanKind.equals(Tags.LLMOBS_RETRIEVAL_SPAN_KIND) && key.equals(OUTPUT));
@@ -525,6 +616,14 @@ public class LLMObsSpanMapper implements RemoteMapper {
           writable.startMap(metadataMap.size());
           for (Map.Entry<String, Object> entry : metadataMap.entrySet()) {
             writable.writeString(entry.getKey(), null);
+            writable.writeObject(entry.getValue(), null);
+          }
+        } else if (key.equals(LLMObsTags.AGENT_MANIFEST) && val instanceof Map) {
+          Map<?, ?> manifestMap = (Map<?, ?>) val;
+          writable.writeUTF8(AGENT_MANIFEST_KEY);
+          writable.startMap(manifestMap.size());
+          for (Map.Entry<?, ?> entry : manifestMap.entrySet()) {
+            writable.writeString(String.valueOf(entry.getKey()), null);
             writable.writeObject(entry.getValue(), null);
           }
         } else {

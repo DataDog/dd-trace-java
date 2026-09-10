@@ -126,7 +126,6 @@ public class HttpServerResponseTracingHandler extends ChannelOutboundHandlerAdap
       final Future<?> future) {
     if (!future.isSuccess()) {
       DECORATE.onError(span, future.cause());
-      span.setHttpStatusCode(500);
     }
     finishSpan(serverContext, storedContext, span);
   }
