@@ -71,6 +71,14 @@ class DDLLMObsSpanMlAppTest {
       } finally {
         child.finish();
       }
+
+      // An empty ml_app is not a value, so it inherits the same way a null one does.
+      DDLLMObsSpan blank = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool2", "");
+      try {
+        assertEquals("research-bot", spanOf(blank).getTag(ML_APP_TAG));
+      } finally {
+        blank.finish();
+      }
     } finally {
       agent.finish();
     }
@@ -94,21 +102,6 @@ class DDLLMObsSpanMlAppTest {
       }
     } finally {
       outer.finish();
-    }
-  }
-
-  @Test
-  void emptyMlAppIsTreatedAsAbsent() {
-    DDLLMObsSpan agent = llmObsSpan(Tags.LLMOBS_AGENT_SPAN_KIND, "agent1", "research-bot");
-    try (AgentScope ignored = AgentTracer.activateSpan(spanOf(agent))) {
-      DDLLMObsSpan child = llmObsSpan(Tags.LLMOBS_TOOL_SPAN_KIND, "tool1", "");
-      try {
-        assertEquals("research-bot", spanOf(child).getTag(ML_APP_TAG));
-      } finally {
-        child.finish();
-      }
-    } finally {
-      agent.finish();
     }
   }
 
