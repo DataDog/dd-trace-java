@@ -54,20 +54,19 @@ class TelemetryRunnableTest {
             telemetryService, asList(metricAction, periodicAction), sleeper, timeSource);
     thread = new Thread(runnable);
 
-    // initial iteration before the first sleep (metrics and heartbeat)
+    // when initial iteration before the first sleep (metrics and heartbeat)
     when(telemetryService.sendAppStartedEvent()).thenReturn(false, false, true);
     when(timeSource.getCurrentTimeMillis()).thenReturn(60L * 1000, 60L * 1000 + 1);
     when(metricCollector.drain()).thenReturn(asList());
     when(metricCollector.drainDistributionSeries()).thenReturn(asList());
     when(telemetryService.sendTelemetryEvents()).thenReturn(true, true, false);
-
     thread.start();
     sleeper.sleeped.await(10, TimeUnit.SECONDS);
 
-    // two unsuccessful attempts to send app-started with the following successful attempt
+    // then two unsuccessful attempts to send app-started with the following successful attempt
     verify(telemetryService, times(3)).sendAppStartedEvent();
     verify(timeSource, times(2)).getCurrentTimeMillis();
-    // two partial and one final telemetry data requests
+    // then two partial and one final telemetry data requests
     verify(metricCollector, times(1)).prepareMetrics();
     verify(metricCollector, times(1)).drain();
     verify(metricCollector, times(1)).drainDistributionSeries();
@@ -79,12 +78,12 @@ class TelemetryRunnableTest {
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
-    // second iteration (10 seconds, metrics)
+    // when second iteration (10 seconds, metrics)
     when(timeSource.getCurrentTimeMillis()).thenReturn(70L * 1000, 70L * 1000 + 2);
-
     sleeper.go.await(10, TimeUnit.SECONDS);
     sleeper.sleeped.await(10, TimeUnit.SECONDS);
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9998);
@@ -92,12 +91,12 @@ class TelemetryRunnableTest {
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
-    // third iteration (20 seconds, metrics)
+    // when third iteration (20 seconds, metrics)
     when(timeSource.getCurrentTimeMillis()).thenReturn(80L * 1000, 80L * 1000 + 3);
-
     sleeper.go.await(10, TimeUnit.SECONDS);
     sleeper.sleeped.await(10, TimeUnit.SECONDS);
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9997);
@@ -105,12 +104,12 @@ class TelemetryRunnableTest {
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
-    // fourth iteration (30 seconds, metrics)
+    // when fourth iteration (30 seconds, metrics)
     when(timeSource.getCurrentTimeMillis()).thenReturn(90L * 1000, 90L * 1000 + 4);
-
     sleeper.go.await(10, TimeUnit.SECONDS);
     sleeper.sleeped.await(10, TimeUnit.SECONDS);
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9996);
@@ -118,12 +117,12 @@ class TelemetryRunnableTest {
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
-    // fifth iteration (40 seconds, metrics)
+    // when fifth iteration (40 seconds, metrics)
     when(timeSource.getCurrentTimeMillis()).thenReturn(100L * 1000, 100L * 1000 + 5);
-
     sleeper.go.await(10, TimeUnit.SECONDS);
     sleeper.sleeped.await(10, TimeUnit.SECONDS);
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9995);
@@ -131,12 +130,12 @@ class TelemetryRunnableTest {
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
-    // sixth iteration (50 seconds, metrics)
+    // when sixth iteration (50 seconds, metrics)
     when(timeSource.getCurrentTimeMillis()).thenReturn(110L * 1000, 110L * 1000 + 6);
-
     sleeper.go.await(10, TimeUnit.SECONDS);
     sleeper.sleeped.await(10, TimeUnit.SECONDS);
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9994);
@@ -144,12 +143,12 @@ class TelemetryRunnableTest {
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
-    // seventh iteration (60 seconds, metrics, heartbeat)
+    // when seventh iteration (60 seconds, metrics, heartbeat)
     when(timeSource.getCurrentTimeMillis()).thenReturn(120L * 1000, 120L * 1000 + 7);
-
     sleeper.go.await(10, TimeUnit.SECONDS);
     sleeper.sleeped.await(10, TimeUnit.SECONDS);
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(metricCollector, times(1)).drain();
@@ -159,12 +158,12 @@ class TelemetryRunnableTest {
     verify(sleeperMock, times(1)).sleep(9993);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
-    // eighth iteration (65 seconds, extended-heartbeat)
+    // when eighth iteration (65 seconds, extended-heartbeat)
     when(timeSource.getCurrentTimeMillis()).thenReturn(125L * 1000, 125L * 1000 + 8);
-
     sleeper.go.await(5, TimeUnit.SECONDS);
     sleeper.sleeped.await(5, TimeUnit.SECONDS);
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(telemetryService, times(1)).sendExtendedHeartbeat();
     verify(sleeperMock, times(1)).sleep(4992);
@@ -172,9 +171,11 @@ class TelemetryRunnableTest {
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
 
+    // when
     thread.interrupt();
     thread.join();
 
+    // then
     // flush pending data before shutdown
     verify(metricCollector, times(1)).prepareMetrics();
     verify(metricCollector, times(1)).drain();
