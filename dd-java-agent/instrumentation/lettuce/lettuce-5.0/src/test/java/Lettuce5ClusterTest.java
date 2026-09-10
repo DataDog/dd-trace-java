@@ -137,23 +137,14 @@ class Lettuce5ClusterTest extends AbstractInstrumentationTest {
     assertGetSpanHasReplicaPeer();
   }
 
-  private void assertSetSpanHasPeerHostname() throws Exception {
-    writer.waitForTraces(1);
+  private void assertSetSpanHasPeerHostname() {
+    blockUntilTracesMatch(traces -> !findCommandSpans(traces, "SET").isEmpty());
 
     RedisClusterNode expectedNode =
         connection.getPartitions().getPartitionBySlot(SlotHash.getSlot(TEST_SET_KEY));
     assertNotNull(expectedNode, "expected a cluster node for the command key slot");
 
-    List<DDSpan> setSpans = new ArrayList<>();
-    for (List<DDSpan> trace : writer) {
-      for (DDSpan span : trace) {
-        if ("SET".contentEquals(span.getResourceName())
-            && "redis-client".equals(String.valueOf(span.getTag(Tags.COMPONENT)))) {
-          setSpans.add(span);
-        }
-      }
-    }
-
+    List<DDSpan> setSpans = findCommandSpans(writer, "SET");
     assertFalse(setSpans.isEmpty(), "expected at least one SET command span");
     for (DDSpan span : setSpans) {
       assertEquals("SET", String.valueOf(span.getResourceName()));
