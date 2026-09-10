@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.LongAdder;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -26,14 +27,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * counter guarded by a per-counter lock (the "just fix it with LongAdder" natural migration target
  * -- {@code longAdderGroup*}), and the {@code ConcurrentHashMap.computeIfAbsent(key, k -> new
  * AtomicLong())} anti-pattern ({@code chmAtomicLongIncrement*}) that {@link Accumulator} exists to
- * avoid. The CHM variant allocates its counter under the bucket's bin lock the first time its one
- * constant key is seen, but since the map is a {@code @State(Scope.Benchmark)} field shared across
- * the whole run, that allocation happens exactly once; every sampled op after it hits the warmed,
- * already-present fast path. So this measures steady-state {@code computeIfAbsent} lookup overhead
- * on an already-populated map, not the one-time allocation-under-lock cost -- still a useful number
- * (a fixed, small key set that's allocated once and hit for the life of the process, as {@code
- * WafMetricCollector}-style CHM counters are, spends nearly all its time in this same warmed path),
- * just not the pathology the name of this benchmark might suggest.
+ * avoid, and an unstriped {@code AtomicLongArray} ({@code atomicLongArray*}) -- one shared array,
+ * no per-thread distribution, isolating the cost of striping itself from the cost of correctness
+ * (see {@link #arrayAccumulateAndReset}). The CHM variant allocates its counter under the bucket's
+ * bin lock the first time its one constant key is seen, but since the map is a
+ * {@code @State(Scope.Benchmark)} field shared across the whole run, that allocation happens
+ * exactly once; every sampled op after it hits the warmed, already-present fast path. So this
+ * measures steady-state {@code computeIfAbsent} lookup overhead on an already-populated map, not
+ * the one-time allocation-under-lock cost -- still a useful number (a fixed, small key set that's
+ * allocated once and hit for the life of the process, as {@code WafMetricCollector}-style CHM
+ * counters are, spends nearly all its time in this same warmed path), just not the pathology the
+ * name of this benchmark might suggest.
  *
  * <p><b>{@code longAdderGroup*}: is a "just fix it with LongAdder" helper actually cheaper?</b>
  * {@code groupInc}/{@code groupAccumulateAnd} are the natural correct fix using {@code LongAdder}
@@ -119,6 +123,8 @@ public class AccumulatorBenchmark {
   private final Accumulator<Counter> accumulator = Accumulator.of(Counter.class);
   private final Accumulator<Counter8> accumulator8 = Accumulator.of(Counter8.class);
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
+  private final AtomicLongArray atomicLongArray = new AtomicLongArray(1);
+  private final AtomicLongArray atomicLongArray8 = new AtomicLongArray(8);
   private final LongAdder[] longAdderGroup = {new LongAdder()};
   private final LongAdder[] longAdderGroup8 = {
     new LongAdder(),
@@ -166,6 +172,21 @@ public class AccumulatorBenchmark {
       synchronized (counter) {
         acc[i] = counter.sumThenReset();
       }
+    }
+    return acc;
+  }
+
+  /**
+   * The unstriped baseline: a single shared {@code AtomicLongArray}, one slot per counter, with no
+   * per-thread distribution at all -- isolates the cost of {@link Accumulator}'s thread-striping
+   * itself from the cost of correctness (unlike {@code longAdderGroup}, this has no lock: {@code
+   * getAndAdd} and {@code getAndSet} are each already atomic per-slot, so no coordination is needed
+   * to give the same "no increment lost across a drain" guarantee).
+   */
+  private static long[] arrayAccumulateAndReset(AtomicLongArray array) {
+    long[] acc = new long[array.length()];
+    for (int i = 0; i < array.length(); i++) {
+      acc[i] = array.getAndSet(i, 0L);
     }
     return acc;
   }
@@ -288,6 +309,58 @@ public class AccumulatorBenchmark {
   public void longAdderGroupAccumulateAnd_highContention(Blackhole blackhole) {
     groupInc(longAdderGroup, Counter.HITS.ordinal());
     blackhole.consume(groupAccumulateAnd(longAdderGroup));
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void atomicLongArrayIncrement_lowContention() {
+    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void atomicLongArrayIncrement_highContention() {
+    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void atomicLongArrayAccumulateAndReset_lowContention(Blackhole blackhole) {
+    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+    blackhole.consume(arrayAccumulateAndReset(atomicLongArray));
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void atomicLongArrayAccumulateAndReset_highContention(Blackhole blackhole) {
+    atomicLongArray.getAndAdd(Counter.HITS.ordinal(), 1L);
+    blackhole.consume(arrayAccumulateAndReset(atomicLongArray));
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void atomicLongArrayIncrement8_lowContention() {
+    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void atomicLongArrayIncrement8_highContention() {
+    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void atomicLongArrayAccumulateAndReset8_lowContention(Blackhole blackhole) {
+    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+    blackhole.consume(arrayAccumulateAndReset(atomicLongArray8));
+  }
+
+  @Benchmark
+  @Threads(Threads.MAX)
+  public void atomicLongArrayAccumulateAndReset8_highContention(Blackhole blackhole) {
+    atomicLongArray8.getAndAdd(threadCounterIndex.get(), 1L);
+    blackhole.consume(arrayAccumulateAndReset(atomicLongArray8));
   }
 
   @Benchmark
