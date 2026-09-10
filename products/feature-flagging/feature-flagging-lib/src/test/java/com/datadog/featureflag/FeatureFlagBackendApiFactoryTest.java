@@ -32,7 +32,7 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertSame(proxyApi, selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
   @Test
@@ -45,7 +45,7 @@ class FeatureFlagBackendApiFactoryTest {
 
     assertNull(selected);
     verify(backendApiFactory).createEvpProxyApi(Intake.EVENT_PLATFORM, true);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true, false);
   }
 
   @Test
@@ -55,7 +55,7 @@ class FeatureFlagBackendApiFactoryTest {
     when(backendApiFactory.createEvpProxyApi(
             Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
         .thenReturn(mock(BackendApi.class));
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenReturn(mock(BackendApi.class));
 
     final BackendApi selected =
@@ -64,7 +64,7 @@ class FeatureFlagBackendApiFactoryTest {
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
     verify(backendApiFactory)
         .createEvpProxyApi(Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
   @Test
@@ -72,7 +72,7 @@ class FeatureFlagBackendApiFactoryTest {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
     final BackendApi directApi = mock(BackendApi.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenReturn(directApi);
 
     final BackendApi selected =
@@ -92,7 +92,7 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertSame(proxyApi, selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
   @Test
@@ -115,7 +115,7 @@ class FeatureFlagBackendApiFactoryTest {
         new FeatureFlagBackendApiFactory(config, backendApiFactory, EXPOSURE).create();
 
     assertNull(selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, true, false);
   }
 
   @Test
@@ -126,21 +126,21 @@ class FeatureFlagBackendApiFactoryTest {
     when(backendApiFactory.createEvpProxyApi(
             Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY))
         .thenReturn(proxyApi);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
         new FeatureFlagBackendApiFactory(config, backendApiFactory, FLAG_EVALUATION).create();
 
     assertInstanceOf(AgentlessFeatureFlagBackendApi.class, selected);
-    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false);
+    verify(backendApiFactory, never()).createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false);
   }
 
   @Test
   void agentlessDisablesDeliveryWhenDirectUrlIsInvalidAndLocalRouteIsUnavailable() {
     final Config config = config(CONFIGURATION_SOURCE_AGENTLESS, "api-key");
     final BackendApiFactory backendApiFactory = mock(BackendApiFactory.class);
-    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false))
+    when(backendApiFactory.createDirectIntakeApi(Intake.EVENT_PLATFORM, false, false))
         .thenThrow(new IllegalArgumentException("invalid URL"));
 
     final BackendApi selected =
