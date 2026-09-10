@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-@SuppressFBWarnings(
-    value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
-    justification = "Not a singleton")
+/** Replacement for java.util.concurrent.CompletableFuture without the FJP side effects. */
 public final class CompletableResultCode {
   private static final CompletableResultCode SUCCESS = new CompletableResultCode(true);
   private static final CompletableResultCode FAILURE = new CompletableResultCode(false);
@@ -18,9 +16,12 @@ public final class CompletableResultCode {
   private final SharedState sharedState;
   private final boolean resultView;
 
-  private Boolean resultViewSuccess;
+  private volatile Boolean resultViewSuccess;
   private List<Runnable> callbacks;
 
+  @SuppressFBWarnings(
+      value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
+      justification = "Not a singleton")
   public CompletableResultCode() {
     this(new SharedState(), false);
   }
@@ -56,15 +57,11 @@ public final class CompletableResultCode {
   }
 
   public boolean isSuccess() {
-    synchronized (sharedState) {
-      return Boolean.TRUE.equals(outcome());
-    }
+    return Boolean.TRUE.equals(outcome());
   }
 
   public boolean isDone() {
-    synchronized (sharedState) {
-      return outcome() != null;
-    }
+    return outcome() != null;
   }
 
   /**
@@ -77,17 +74,19 @@ public final class CompletableResultCode {
    */
   public CompletableResultCode whenComplete(Runnable callback) {
     Objects.requireNonNull(callback, "callback");
-    synchronized (sharedState) {
-      if (outcome() == null) {
-        if (callbacks == null) {
-          callbacks = new ArrayList<>();
-          if (sharedState.callbackResults == null) {
-            sharedState.callbackResults = new ArrayList<>();
+    if (outcome() == null) {
+      synchronized (sharedState) {
+        if (outcome() == null) {
+          if (callbacks == null) {
+            callbacks = new ArrayList<>();
+            if (sharedState.callbackResults == null) {
+              sharedState.callbackResults = new ArrayList<>();
+            }
+            sharedState.callbackResults.add(this);
           }
-          sharedState.callbackResults.add(this);
+          callbacks.add(callback);
+          return this;
         }
-        callbacks.add(callback);
-        return this;
       }
     }
     callback.run();
@@ -103,21 +102,21 @@ public final class CompletableResultCode {
    * @return this result, which may still be incomplete after the timeout
    */
   public CompletableResultCode join(long timeout, TimeUnit unit) {
-    synchronized (sharedState) {
-      if (outcome() != null) {
-        return this;
-      }
-
-      long remainingNanos = Objects.requireNonNull(unit, "unit").toNanos(timeout);
-      while (outcome() == null && remainingNanos > 0) {
-        long start = System.nanoTime();
-        try {
-          NANOSECONDS.timedWait(sharedState, remainingNanos);
-        } catch (InterruptedException ignored) {
-          Thread.currentThread().interrupt();
-          break;
+    if (outcome() == null) {
+      synchronized (sharedState) {
+        if (outcome() == null) {
+          long remainingNanos = Objects.requireNonNull(unit, "unit").toNanos(timeout);
+          while (outcome() == null && remainingNanos > 0) {
+            long start = System.nanoTime();
+            try {
+              NANOSECONDS.timedWait(sharedState, remainingNanos);
+            } catch (InterruptedException ignored) {
+              Thread.currentThread().interrupt();
+              break;
+            }
+            remainingNanos -= Math.max(1, System.nanoTime() - start);
+          }
         }
-        remainingNanos -= Math.max(1, System.nanoTime() - start);
       }
     }
     return this;
@@ -125,6 +124,9 @@ public final class CompletableResultCode {
 
   private CompletableResultCode complete(boolean succeeded) {
     List<Runnable> completionCallbacks;
+    if (outcome() != null) {
+      return this;
+    }
     synchronized (sharedState) {
       if (outcome() != null) {
         return this;
@@ -190,7 +192,7 @@ public final class CompletableResultCode {
   }
 
   private static final class SharedState {
-    private Boolean success;
+    private volatile Boolean success;
     private List<CompletableResultCode> callbackResults;
   }
 }
