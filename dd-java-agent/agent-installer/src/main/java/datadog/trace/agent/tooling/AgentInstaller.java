@@ -469,7 +469,6 @@ public class AgentInstaller {
               failure.getCause());
         } else {
           log.debug(
-              EXCLUDE_TELEMETRY,
               "Transformation failed - instrumentation.target.class={} instrumentation.target.loaded={} instrumentation.target.classloader={}",
               typeName,
               loaded,
