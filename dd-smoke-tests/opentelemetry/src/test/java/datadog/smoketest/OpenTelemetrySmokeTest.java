@@ -2,6 +2,7 @@ package datadog.smoketest;
 
 import static datadog.smoketest.backend.AgentBackend.testAgent;
 import static datadog.smoketest.trace.SmokeTraceAssertions.UNORDERED;
+import static datadog.smoketest.trace.SpanLinkMatcher.toIndex;
 import static datadog.smoketest.trace.SpanMatcher.span;
 import static datadog.smoketest.trace.TraceMatcher.trace;
 import static datadog.trace.test.junit.utils.assertions.Matchers.validates;
@@ -13,8 +14,6 @@ import datadog.smoketest.trace.TraceMatcher.Options;
 import datadog.trace.test.agent.decoder.DecodedSpan;
 import java.io.File;
 import java.util.function.UnaryOperator;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -22,15 +21,6 @@ class OpenTelemetrySmokeTest {
   private static final UnaryOperator<Options> SORT_BY_RESOURCE_NAME =
       options -> options.sort(comparing(DecodedSpan::getResource));
   private static final int TIMEOUT_SECONDS = 30;
-  private static final int SHARD_COUNT = 3;
-  private static final String SPAN_LINKS_TAG = "_dd.span_links";
-
-  /**
-   * The span id of a serialized span link, e.g. {@code "span_id":"5d64d8cd8b229416"}. Matching the
-   * id alone keeps this independent of how the rest of the link is laid out.
-   */
-  private static final Pattern SPAN_LINK_ID = Pattern.compile("\"span_id\":\"[0-9a-f]+\"");
-
   private static final File WORKING_DIRECTORY =
       new File(System.getProperty("datadog.smoketest.builddir"));
   private static final String APPLICATION_JAR =
@@ -84,30 +74,12 @@ class OpenTelemetrySmokeTest {
                     .operationName("internal")
                     .resourceName("batch-merge")
                     .childOfIndex(2)
-                    .tag(SPAN_LINKS_TAG, validates(OpenTelemetrySmokeTest::linksOnePerShard)),
+                    .links(toIndex(4), toIndex(5), toIndex(6)),
                 // 4 to 6: the shards, fanned out over the pool but all children of batch-job
                 shard(0),
                 shard(1),
                 shard(2)));
     app.assertCompletesWithValue(TIMEOUT_SECONDS, SECONDS, 0);
-  }
-
-  /**
-   * Checks a span-links tag holds exactly one well-formed link per shard merged.
-   *
-   * @param links The serialized {@value #SPAN_LINKS_TAG} tag value.
-   * @return {@code true} if the tag holds one link per shard, {@code false} otherwise.
-   */
-  private static boolean linksOnePerShard(String links) {
-    if (links == null) {
-      return false;
-    }
-    Matcher link = SPAN_LINK_ID.matcher(links);
-    int linkCount = 0;
-    while (link.find()) {
-      linkCount++;
-    }
-    return linkCount == SHARD_COUNT;
   }
 
   private static SpanMatcher shard(int shard) {
