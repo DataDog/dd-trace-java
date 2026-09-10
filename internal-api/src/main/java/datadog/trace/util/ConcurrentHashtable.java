@@ -151,7 +151,7 @@ public final class ConcurrentHashtable {
     @Nonnull
     public static <K, TEntry extends D1.Entry<K>> D1<K, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return new D1<>(State.createBounded(entryClass, maxCapacity));
+      return new D1<>(ConcurrentHashtable.createBounded(entryClass, maxCapacity));
     }
 
     public int size() {
@@ -414,7 +414,7 @@ public final class ConcurrentHashtable {
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2>> D2<K1, K2, TEntry> createBounded(
         @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return new D2<>(State.createBounded(entryClass, maxCapacity));
+      return new D2<>(ConcurrentHashtable.createBounded(entryClass, maxCapacity));
     }
 
     public int size() {
@@ -812,25 +812,30 @@ public final class ConcurrentHashtable {
   /**
    * Bucket array and occupancy manager for a caller-defined capped table. Keep them paired and
    * prefer the {@code State}-accepting helpers so structural changes update the count consistently.
+   *
+   * <p>{@code sizeManager} is intentionally package-private: callers outside this class must go
+   * through the {@code State}-accepting static helpers ({@link #estimateSize}, {@link #isFull},
+   * {@link #tryReserve}, {@link #tryReserveOrEvict}, {@link #evictOne}, {@link #evictAll}) rather
+   * than reach into the manager directly.
    */
   public static final class State<TEntry extends Entry> {
     public final AtomicReferenceArray<TEntry> buckets;
-    public final SizeManager sizeManager;
+    final SizeManager sizeManager;
 
     private State(AtomicReferenceArray<TEntry> buckets, int maxCapacity) {
       this.buckets = buckets;
       this.sizeManager = new SizeManager(maxCapacity);
     }
+  }
 
-    /**
-     * Creates a bucket array for {@code maxCapacity} entries and pairs it with a manager enforcing
-     * that cap. {@code entryClass} is used only to infer {@code TEntry}.
-     */
-    @Nonnull
-    public static <TEntry extends Entry> State<TEntry> createBounded(
-        @Nonnull Class<TEntry> entryClass, int maxCapacity) {
-      return new State<>(createFixedBuckets(entryClass, maxCapacity), maxCapacity);
-    }
+  /**
+   * Creates a bucket array for {@code maxCapacity} entries and pairs it with a manager enforcing
+   * that cap. {@code entryClass} is used only to infer {@code TEntry}.
+   */
+  @Nonnull
+  public static <TEntry extends Entry> State<TEntry> createBounded(
+      @Nonnull Class<TEntry> entryClass, int maxCapacity) {
+    return new State<>(createFixedBuckets(entryClass, maxCapacity), maxCapacity);
   }
 
   /** Live entries in {@code state}; see {@link SizeManager#estimateSize()}. Lock-free. */
@@ -843,6 +848,18 @@ public final class ConcurrentHashtable {
    */
   public static boolean isFull(@Nonnull State<?> state) {
     return state.sizeManager.isFull();
+  }
+
+  /**
+   * Reserves one slot in {@code state} without evicting; see {@link SizeManager#tryReserve()}.
+   * Lock-free — does not acquire the table write lock. Returns {@code false} with the table
+   * unchanged when it is full.
+   *
+   * <p>Build the entry before reserving: there is no cancellation operation, so abandoning a
+   * successful reservation permanently consumes capacity. Complete it with {@link #insertReserved}.
+   */
+  public static <TEntry extends Entry> boolean tryReserve(@Nonnull State<TEntry> state) {
+    return state.sizeManager.tryReserve();
   }
 
   /**
