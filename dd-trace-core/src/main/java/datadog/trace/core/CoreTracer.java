@@ -2218,14 +2218,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
-      // everything overrides them). The remaining contributors are applied last-wins.
-      //
-      // Historically the builder/`tagLedger` tags were applied 2nd, so `coreTags` (inbound header
-      // tags), `rootSpanTags` and `contextualTags` would silently OVERRIDE explicit per-span tags
-      // set via the builder -- the long-standing "maybe the builder tags should come last" wart.
-      // With `builderTagsPrecedence` enabled, the ledger is applied LAST so explicit builder tags
-      // win, which is the logical precedence. Gated + default-off so it can be rolled out
-      // gradually.
+      // everything overrides them). The remaining contributors are applied last-wins; with
+      // `builderTagsPrecedence` enabled, `tagLedger` (the explicit builder tags) moves to last so
+      // it wins collisions instead of being overridden by `coreTags`/`rootSpanTags`/
+      // `contextualTags` -- see the PR description for the historical context on this ordering.
       context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
       if (tracer.builderTagsPrecedence) {
         context.setAllTags(coreTags, coreTagsNeedsIntercept);
