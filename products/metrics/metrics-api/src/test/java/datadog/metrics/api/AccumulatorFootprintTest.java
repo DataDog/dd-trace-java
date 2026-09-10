@@ -1,4 +1,4 @@
-package datadog.trace.util;
+package datadog.metrics.api;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;

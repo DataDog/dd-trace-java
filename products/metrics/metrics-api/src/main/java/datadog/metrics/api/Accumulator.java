@@ -1,4 +1,4 @@
-package datadog.trace.util;
+package datadog.metrics.api;
 
 import datadog.environment.ThreadSupport;
 import java.util.concurrent.atomic.AtomicLongArray;
