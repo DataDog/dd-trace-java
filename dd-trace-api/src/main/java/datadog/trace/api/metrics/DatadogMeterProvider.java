@@ -14,6 +14,9 @@ public interface DatadogMeterProvider {
    *
    * <p>A timed join bounds only the caller and does not cancel shutdown.
    *
+   * <p>No guarantees are made if this is called from a JVM shutdown hook: the final export may race
+   * with other shutdown hooks and never complete.
+   *
    * @return the shutdown result; an unavailable or disabled pipeline succeeds as a no-op
    */
   CompletableResultCode shutdown();
