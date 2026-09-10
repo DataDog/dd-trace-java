@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -421,6 +422,52 @@ public class DDEvaluatorTest {
     } finally {
       DDEvaluator.USE_LEGACY_EXPOSURE_API.set(previous);
     }
+  }
+
+  // ---- old-agent bootstrap probe ----
+
+  /** A Split from an agent that predates the serial id: the field does not exist. */
+  static final class SplitWithoutSerialId {}
+
+  /** A Split whose serialId is not the Integer the dispatch site reads. */
+  static final class SplitWithWrongSerialIdType {
+    public long serialId;
+  }
+
+  /** An ExposureEvent from an agent that predates the serial id: only the five-arg constructor. */
+  static final class LegacyExposureEvent {
+    LegacyExposureEvent(
+        final long timestamp,
+        final datadog.trace.api.featureflag.exposure.Allocation allocation,
+        final datadog.trace.api.featureflag.exposure.Flag flag,
+        final datadog.trace.api.featureflag.exposure.Variant variant,
+        final datadog.trace.api.featureflag.exposure.Subject subject) {}
+  }
+
+  /**
+   * Positive control. The probe must agree with the bootstrap actually on the classpath, or the
+   * negative cases below would pass for the wrong reason and the feature would ship switched off.
+   */
+  @Test
+  public void probeAcceptsTheBootstrapOnTheClasspath() {
+    assertTrue(DDEvaluator.serialIdSupported(Split.class, ExposureEvent.class));
+    assertFalse(DDEvaluator.USE_LEGACY_EXPOSURE_API.get());
+  }
+
+  @Test
+  public void probeRejectsAnAgentWhoseSplitHasNoSerialId() {
+    assertFalse(DDEvaluator.serialIdSupported(SplitWithoutSerialId.class, ExposureEvent.class));
+  }
+
+  @Test
+  public void probeRejectsAnAgentWhoseSerialIdIsNotAnInteger() {
+    assertFalse(
+        DDEvaluator.serialIdSupported(SplitWithWrongSerialIdType.class, ExposureEvent.class));
+  }
+
+  @Test
+  public void probeRejectsAnAgentWithoutTheSerialIdConstructor() {
+    assertFalse(DDEvaluator.serialIdSupported(Split.class, LegacyExposureEvent.class));
   }
 
   /**

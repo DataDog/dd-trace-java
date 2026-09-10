@@ -55,7 +55,35 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final Logger log = LoggerFactory.getLogger(DDEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
-  static final AtomicBoolean USE_LEGACY_EXPOSURE_API = new AtomicBoolean();
+
+  static final AtomicBoolean USE_LEGACY_EXPOSURE_API =
+      new AtomicBoolean(!serialIdSupported(Split.class, ExposureEvent.class));
+
+  static boolean serialIdSupported(final Class<?> splitClass, final Class<?> eventClass) {
+    try {
+      if (splitClass.getField("serialId").getType() != Integer.class) {
+        return false;
+      }
+      eventClass.getConstructor(
+          long.class,
+          datadog.trace.api.featureflag.exposure.Allocation.class,
+          datadog.trace.api.featureflag.exposure.Flag.class,
+          datadog.trace.api.featureflag.exposure.Variant.class,
+          Subject.class,
+          Integer.class);
+      return true;
+    } catch (final NoSuchFieldException
+        | NoSuchMethodException
+        | LinkageError
+        | RuntimeException e) {
+      log.warn(
+          "Feature flag exposure serial ID reporting is unavailable with the installed "
+              + "Datadog Java agent. Exposures are still reported, without the serial id. "
+              + "Upgrade dd-java-agent to enable holdout attribution.",
+          e);
+      return false;
+    }
+  }
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
@@ -562,7 +590,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
     // subject.
     if (SPAN_ENRICHMENT_ENABLED) {
-      if (split.serialId != null) {
+      if (!USE_LEGACY_EXPOSURE_API.get() && split.serialId != null) {
         metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
       }
       metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
@@ -672,24 +700,11 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         new datadog.trace.api.featureflag.exposure.Variant(variantKey);
     final Subject subject = new Subject(context.getTargetingKey(), flattenContext(context));
 
-    ExposureEvent event = null;
-    if (!USE_LEGACY_EXPOSURE_API.get()) {
-      try {
-        event =
-            new ExposureEvent(
+    final ExposureEvent event =
+        USE_LEGACY_EXPOSURE_API.get()
+            ? new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject)
+            : new ExposureEvent(
                 timestamp, allocation, exposureFlag, variant, subject, split.serialId);
-      } catch (NoSuchFieldError | NoSuchMethodError ignored) {
-        if (USE_LEGACY_EXPOSURE_API.compareAndSet(false, true)) {
-          log.warn(
-              "Feature flag exposure serial ID reporting is unavailable with the installed "
-                  + "Datadog Java agent. Legacy exposures will continue; upgrade dd-java-agent "
-                  + "to enable holdout attribution.");
-        }
-      }
-    }
-    if (event == null) {
-      event = new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject);
-    }
     FeatureFlaggingGateway.dispatch(event);
   }
 
