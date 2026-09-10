@@ -12,11 +12,7 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
-import datadog.trace.util.AgentThreadFactory;
-import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
+import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -27,18 +23,17 @@ public final class OtlpMetricsService {
   private static final Logger LOGGER = LoggerFactory.getLogger(OtlpMetricsService.class);
   public static final OtlpMetricsService INSTANCE = new OtlpMetricsService(Config.get());
 
-  private final ScheduledExecutorService executor;
+  private final AgentTaskScheduler scheduler;
   private final OtlpMetricsCollector collector;
   private final OtlpSender sender;
   private final int intervalMillis;
   private final Object lifecycleLock = new Object();
 
-  private ScheduledFuture<?> scheduledTask;
+  private AgentTaskScheduler.Scheduled<?> scheduledTask;
   private CompletableResultCode shutdownResult;
 
   OtlpMetricsService(Config config) {
-    this.executor =
-        Executors.newSingleThreadScheduledExecutor(new AgentThreadFactory(OTLP_METRICS_EXPORTER));
+    this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
     this.sender = OtlpMetricsSenderFactory.create(config);
     if (this.sender == null) {
       LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
@@ -53,11 +48,11 @@ public final class OtlpMetricsService {
   }
 
   OtlpMetricsService(
-      ScheduledExecutorService executor,
+      AgentTaskScheduler scheduler,
       OtlpMetricsCollector collector,
       OtlpSender sender,
       int intervalMillis) {
-    this.executor = executor;
+    this.scheduler = scheduler;
     this.collector = collector;
     this.sender = sender;
     this.intervalMillis = intervalMillis;
@@ -90,7 +85,7 @@ public final class OtlpMetricsService {
     synchronized (lifecycleLock) {
       if (shutdownResult == null && scheduledTask == null) {
         scheduledTask =
-            executor.scheduleAtFixedRate(
+            scheduler.scheduleAtFixedRate(
                 this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
       }
     }
@@ -103,8 +98,8 @@ public final class OtlpMetricsService {
       }
       try {
         execute(this::export);
-      } catch (RejectedExecutionException e) {
-        LOGGER.debug("OTLP metrics executor rejected flush", e);
+      } catch (Throwable e) {
+        LOGGER.debug("OTLP metrics scheduler rejected flush", e);
       }
     }
   }
@@ -116,23 +111,19 @@ public final class OtlpMetricsService {
       }
 
       shutdownResult = new CompletableResultCode();
-      boolean cancellationSucceeded = cancelScheduledExport();
+      cancelScheduledExport();
       if (sender == null) {
-        boolean executorShutdown = shutdownExecutor();
-        if (cancellationSucceeded && executorShutdown) {
-          shutdownResult.succeed();
-        } else {
-          shutdownResult.fail();
-        }
+        shutdownScheduler();
+        shutdownResult.succeed();
         return shutdownResultView();
       }
 
       try {
-        execute(() -> finishShutdown(cancellationSucceeded));
+        execute(this::finishShutdown);
       } catch (Throwable e) {
         LOGGER.debug("Failed to submit OTLP metrics shutdown", e);
         closeSender();
-        shutdownExecutor();
+        shutdownScheduler();
         shutdownResult.fail();
       }
       return shutdownResultView();
@@ -149,7 +140,7 @@ public final class OtlpMetricsService {
       setAsyncPropagationEnabled(false);
     }
     try {
-      executor.execute(task);
+      scheduler.execute(task);
     } finally {
       if (restorePropagation) {
         setAsyncPropagationEnabled(true);
@@ -157,30 +148,18 @@ public final class OtlpMetricsService {
     }
   }
 
-  private boolean cancelScheduledExport() {
-    if (scheduledTask == null) {
-      return true;
-    }
-    try {
-      scheduledTask.cancel(false);
-      return true;
-    } catch (Throwable e) {
-      LOGGER.debug("Failed to cancel scheduled OTLP metrics export", e);
-      return false;
+  private void cancelScheduledExport() {
+    if (scheduledTask != null) {
+      scheduledTask.cancel();
     }
   }
 
-  private void finishShutdown(boolean cancellationSucceeded) {
+  private void finishShutdown() {
     boolean result = export();
-    if (!cancellationSucceeded) {
-      result = false;
-    }
     if (!closeSender()) {
       result = false;
     }
-    if (!shutdownExecutor()) {
-      result = false;
-    }
+    shutdownScheduler();
     if (result) {
       shutdownResult.succeed();
     } else {
@@ -198,14 +177,8 @@ public final class OtlpMetricsService {
     }
   }
 
-  private boolean shutdownExecutor() {
-    try {
-      executor.shutdown();
-      return true;
-    } catch (Throwable e) {
-      LOGGER.debug("Failed to shut down OTLP metrics executor", e);
-      return false;
-    }
+  private void shutdownScheduler() {
+    scheduler.shutdown(0, TimeUnit.MILLISECONDS);
   }
 
   private boolean export() {

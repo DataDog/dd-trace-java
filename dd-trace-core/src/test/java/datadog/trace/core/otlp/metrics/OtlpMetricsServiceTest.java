@@ -4,6 +4,8 @@ import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.common.writer.RemoteApi.Response.failed;
 import static datadog.trace.common.writer.RemoteApi.Response.success;
+import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,9 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -30,6 +29,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
+import datadog.trace.util.AgentTaskScheduler;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,10 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -49,12 +45,12 @@ import org.mockito.InOrder;
 class OtlpMetricsServiceTest {
   private static final OtlpPayload PAYLOAD =
       new OtlpPayload(ByteBuffer.wrap(new byte[] {1}), OtlpPayload.PROTOBUF_CONTENT_TYPE);
-  private final List<ScheduledExecutorService> executors = new ArrayList<>();
+  private final List<AgentTaskScheduler> schedulers = new ArrayList<>();
   private final AgentTracer.TracerAPI originalTracer = AgentTracer.get();
 
   @AfterEach
-  void stopExecutors() {
-    executors.forEach(ScheduledExecutorService::shutdownNow);
+  void stopSchedulers() {
+    schedulers.forEach(scheduler -> scheduler.shutdown(0, MILLISECONDS));
     AgentTracer.forceRegister(originalTracer);
   }
 
@@ -174,8 +170,7 @@ class OtlpMetricsServiceTest {
     verify(test.collector).collectMetrics();
     verify(test.sender).send(PAYLOAD);
     verify(test.sender).shutdown();
-    assertTrue(test.executor.isShutdown());
-    assertTrue(test.executor.awaitTermination(5, SECONDS));
+    assertTrue(test.scheduler.isShutdown());
     test.service.flush();
     verify(test.collector).collectMetrics();
   }
@@ -188,8 +183,7 @@ class OtlpMetricsServiceTest {
     assertFalse(test.service.shutdown().join(5, SECONDS).isSuccess());
 
     verify(test.sender).shutdown();
-    assertTrue(test.executor.isShutdown());
-    assertTrue(test.executor.awaitTermination(5, SECONDS));
+    assertTrue(test.scheduler.isShutdown());
   }
 
   @Test
@@ -201,24 +195,27 @@ class OtlpMetricsServiceTest {
     assertFalse(test.service.shutdown().join(5, SECONDS).isSuccess());
 
     verify(test.sender).shutdown();
-    assertTrue(test.executor.awaitTermination(5, SECONDS));
+    assertTrue(test.scheduler.isShutdown());
   }
 
   @Test
   void rejectedLifecycleOperationsFailAndCloseSender() {
-    TestService test = service(PAYLOAD);
-    test.executor.shutdown();
+    AgentTaskScheduler scheduler = mock(AgentTaskScheduler.class);
+    doThrow(new IllegalStateException("boom")).when(scheduler).execute(any(Runnable.class));
+    OtlpMetricsCollector collector = mock(OtlpMetricsCollector.class);
+    OtlpSender sender = mock(OtlpSender.class);
+    OtlpMetricsService service = new OtlpMetricsService(scheduler, collector, sender, 10_000);
 
-    test.service.flush();
-    assertFalse(test.service.shutdown().join(5, SECONDS).isSuccess());
+    service.flush();
+    assertFalse(service.shutdown().join(5, SECONDS).isSuccess());
 
-    verify(test.collector, never()).collectMetrics();
-    verify(test.sender).shutdown();
+    verify(collector, never()).collectMetrics();
+    verify(sender).shutdown();
   }
 
   @Test
   void executorFailuresCompleteShutdownResult() {
-    ScheduledExecutorService submissionFailure = mock(ScheduledExecutorService.class);
+    AgentTaskScheduler submissionFailure = mock(AgentTaskScheduler.class);
     OtlpSender sender = mock(OtlpSender.class);
     doThrow(new IllegalStateException("boom")).when(submissionFailure).execute(any(Runnable.class));
     OtlpMetricsService service =
@@ -231,51 +228,6 @@ class OtlpMetricsServiceTest {
     assertTrue(repeatedSubmission.isDone());
     assertFalse(repeatedSubmission.isSuccess());
     verify(sender).shutdown();
-    verify(submissionFailure).shutdown();
-
-    ScheduledExecutorService cleanupFailure = mock(ScheduledExecutorService.class);
-    doThrow(new SecurityException("boom")).when(cleanupFailure).shutdown();
-    OtlpMetricsService unavailable = new OtlpMetricsService(cleanupFailure, null, null, 10_000);
-
-    CompletableResultCode failedCleanup = unavailable.shutdown();
-    CompletableResultCode repeatedCleanup = unavailable.shutdown();
-    assertTrue(failedCleanup.isDone());
-    assertFalse(failedCleanup.isSuccess());
-    assertTrue(repeatedCleanup.isDone());
-    assertFalse(repeatedCleanup.isSuccess());
-  }
-
-  @Test
-  void scheduledExportCancellationFailureCompletesShutdownResult() {
-    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
-    ScheduledFuture<?> scheduledExport = mock(ScheduledFuture.class);
-    OtlpMetricsCollector collector = mock(OtlpMetricsCollector.class);
-    OtlpSender sender = mock(OtlpSender.class);
-    doReturn(scheduledExport)
-        .when(executor)
-        .scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class));
-    when(collector.collectMetrics()).thenReturn(OtlpPayload.EMPTY);
-    doAnswer(
-            invocation -> {
-              ((Runnable) invocation.getArgument(0)).run();
-              return null;
-            })
-        .when(executor)
-        .execute(any(Runnable.class));
-    doThrow(new IllegalStateException("boom")).when(scheduledExport).cancel(false);
-    OtlpMetricsService service = new OtlpMetricsService(executor, collector, sender, 10_000);
-    service.start();
-
-    CompletableResultCode failedCancellation = service.shutdown();
-    CompletableResultCode repeatedCancellation = service.shutdown();
-
-    assertTrue(failedCancellation.isDone());
-    assertFalse(failedCancellation.isSuccess());
-    assertTrue(repeatedCancellation.isDone());
-    assertFalse(repeatedCancellation.isSuccess());
-    verify(collector).collectMetrics();
-    verify(sender).shutdown();
-    verify(executor).shutdown();
   }
 
   @Test
@@ -283,32 +235,32 @@ class OtlpMetricsServiceTest {
     AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
     when(tracer.isAsyncPropagationEnabled()).thenReturn(true);
     AgentTracer.forceRegister(tracer);
-    ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+    AgentTaskScheduler scheduler = mock(AgentTaskScheduler.class);
     OtlpMetricsService service =
         new OtlpMetricsService(
-            executor, mock(OtlpMetricsCollector.class), mock(OtlpSender.class), 10_000);
+            scheduler, mock(OtlpMetricsCollector.class), mock(OtlpSender.class), 10_000);
 
     service.flush();
     service.shutdown();
 
-    InOrder calls = inOrder(tracer, executor);
+    InOrder calls = inOrder(tracer, scheduler);
     for (int i = 0; i < 2; i++) {
       calls.verify(tracer).isAsyncPropagationEnabled();
       calls.verify(tracer).setAsyncPropagationEnabled(false);
-      calls.verify(executor).execute(any(Runnable.class));
+      calls.verify(scheduler).execute(any(Runnable.class));
       calls.verify(tracer).setAsyncPropagationEnabled(true);
     }
   }
 
   @Test
-  void unavailablePipelineTreatsShutdownAsSuccessfulNoopAndStopsExecutor() throws Exception {
-    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    executors.add(executor);
-    OtlpMetricsService service = new OtlpMetricsService(executor, null, null, 10_000);
+  void unavailablePipelineTreatsShutdownAsSuccessfulNoopAndStopsScheduler() {
+    AgentTaskScheduler scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
+    schedulers.add(scheduler);
+    OtlpMetricsService service = new OtlpMetricsService(scheduler, null, null, 10_000);
 
     service.flush();
     assertTrue(service.shutdown().join(5, SECONDS).isSuccess());
-    assertTrue(executor.awaitTermination(5, SECONDS));
+    assertTrue(scheduler.isShutdown());
   }
 
   @Test
@@ -385,13 +337,13 @@ class OtlpMetricsServiceTest {
   }
 
   private TestService service(OtlpPayload payload) {
-    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-    executors.add(executor);
+    AgentTaskScheduler scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
+    schedulers.add(scheduler);
     OtlpMetricsCollector collector = mock(OtlpMetricsCollector.class);
     OtlpSender sender = mock(OtlpSender.class);
     when(collector.collectMetrics()).thenReturn(payload);
     return new TestService(
-        new OtlpMetricsService(executor, collector, sender, 10_000), executor, collector, sender);
+        new OtlpMetricsService(scheduler, collector, sender, 10_000), scheduler, collector, sender);
   }
 
   private static Map<String, OtlpTelemetry.OtlpMetric> drainMetricsTelemetry() {
@@ -407,17 +359,17 @@ class OtlpMetricsServiceTest {
 
   private static final class TestService {
     private final OtlpMetricsService service;
-    private final ScheduledExecutorService executor;
+    private final AgentTaskScheduler scheduler;
     private final OtlpMetricsCollector collector;
     private final OtlpSender sender;
 
     private TestService(
         OtlpMetricsService service,
-        ScheduledExecutorService executor,
+        AgentTaskScheduler scheduler,
         OtlpMetricsCollector collector,
         OtlpSender sender) {
       this.service = service;
-      this.executor = executor;
+      this.scheduler = scheduler;
       this.collector = collector;
       this.sender = sender;
     }
