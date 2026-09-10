@@ -228,4 +228,43 @@ class AccumulatorTest {
     assertEquals(1L, storedTotal.get(Counters.FOO));
     assertEquals(1L, counters.sum().get(Counters.FOO));
   }
+
+  @Test
+  void runningTotalSeedsFromTheAccumulatorsCurrentSum() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
+    counters.inc(Counters.FOO);
+
+    Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+    assertEquals(1L, runningTotal.live().get(Counters.FOO));
+  }
+
+  @Test
+  void runningTotalDrainReturnsTheDeltaAndFoldsItIntoTheTotal() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
+    Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+
+    counters.inc(Counters.FOO);
+    Accumulator.Counts<Counters> delta = runningTotal.drain();
+    assertEquals(1L, delta.get(Counters.FOO));
+    assertEquals(1L, runningTotal.live().get(Counters.FOO));
+
+    counters.inc(Counters.FOO);
+    Accumulator.Counts<Counters> secondDelta = runningTotal.drain();
+    assertEquals(1L, secondDelta.get(Counters.FOO));
+    assertEquals(2L, runningTotal.live().get(Counters.FOO));
+  }
+
+  @Test
+  void runningTotalLiveReflectsActivitySinceTheLastDrainWithoutDraining() {
+    Accumulator<Counters> counters = Accumulator.of(Counters.class);
+    Accumulator.RunningTotal<Counters> runningTotal = Accumulator.RunningTotal.of(counters);
+
+    counters.inc(Counters.FOO);
+    runningTotal.drain();
+
+    counters.inc(Counters.FOO);
+    assertEquals(2L, runningTotal.live().get(Counters.FOO));
+    // live() didn't drain anything, so a real drain afterwards still sees the pending increment
+    assertEquals(1L, runningTotal.drain().get(Counters.FOO));
+  }
 }

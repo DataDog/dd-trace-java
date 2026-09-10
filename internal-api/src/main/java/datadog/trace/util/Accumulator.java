@@ -159,6 +159,65 @@ public final class Accumulator<E extends Enum<E>> {
   }
 
   /**
+   * An opt-in, safe-by-default composition for the one recurring shape {@link Accumulator} itself
+   * deliberately doesn't try to make safe on its own: a periodic destructive drain for reporting
+   * (e.g. to statsd) alongside a separate, non-destructive live read for diagnostics (e.g. a {@code
+   * summary()} or {@code toString()}). Read independently, {@link #drain} and {@link #live} are
+   * each individually correct -- the hazard is between them: a {@link #live} call landing between a
+   * {@link #drain}'s reset and its caller publishing the delta into a running total would combine
+   * the pre-publish total with the post-drain (zeroed) {@link #sum}, silently under-reporting by
+   * the just-drained delta. {@code RunningTotal} closes that gap with one lock shared by {@link
+   * #drain} and {@link #live} -- most callers don't need this (a plain drain-only reporter, or a
+   * live-read-only diagnostic, needs no coordination at all), so it's a separate, opt-in type
+   * rather than baked into every {@link Accumulator}.
+   */
+  public static final class RunningTotal<E extends Enum<E>> {
+    private final Accumulator<E> accumulator;
+    private final Object lock = new Object();
+    private Counts<E> total;
+
+    private RunningTotal(Accumulator<E> accumulator) {
+      this.accumulator = accumulator;
+      // accumulateAndReset(), not sum() -- sum() doesn't reset, so seeding from it would double
+      // count whatever's already there once a later live() adds a fresh sum() on top of it.
+      this.total = accumulator.accumulateAndReset();
+    }
+
+    /**
+     * Wraps {@code accumulator}, seeding the running total from a drain of whatever it currently
+     * holds (typically nothing, for a freshly constructed {@code accumulator}).
+     */
+    public static <E extends Enum<E>> RunningTotal<E> of(Accumulator<E> accumulator) {
+      return new RunningTotal<>(accumulator);
+    }
+
+    /**
+     * Atomically drains the accumulator and folds the delta into the running total -- call this
+     * right before reporting the delta to a downstream sink on a reporting cadence.
+     *
+     * @return the delta just drained
+     */
+    public Counts<E> drain() {
+      synchronized (lock) {
+        Counts<E> delta = accumulator.accumulateAndReset();
+        total = total.plus(delta);
+        return delta;
+      }
+    }
+
+    /**
+     * The live total: the running total as of the last {@link #drain}, folded with whatever's
+     * accumulated since -- never resets anything, safe to call at any time without perturbing a
+     * concurrent {@link #drain}.
+     */
+    public Counts<E> live() {
+      synchronized (lock) {
+        return total.plus(accumulator.sum());
+      }
+    }
+  }
+
+  /**
    * The calling thread's stripe: cheap masking, no allocation, no map lookup.
    *
    * <p>Multiple threads can map to the same stripe (this is masking, not a bijection); each
