@@ -26,6 +26,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
@@ -170,5 +171,10 @@ public class TelemetrySystem {
         log.warn("Telemetry thread join was not completed");
       }
     }
+  }
+
+  @VisibleForTesting
+  static Thread getTelemetryThread() {
+    return TELEMETRY_THREAD;
   }
 }
