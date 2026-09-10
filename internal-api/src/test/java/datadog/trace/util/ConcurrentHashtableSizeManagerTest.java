@@ -420,12 +420,17 @@ class ConcurrentHashtableSizeManagerTest {
   }
 
   /** Entry with a caller-controlled {@code keyHash} so tests can place it in an exact bucket. */
-  private static final class TestEntry extends ConcurrentHashtable.Entry {
+  private static final class TestEntry extends ConcurrentHashtable.Entry<TestEntry> {
     final String label;
 
     TestEntry(long keyHash, String label) {
       super(keyHash);
       this.label = label;
+    }
+
+    @Override
+    public boolean matches(TestEntry other) {
+      return label.equals(other.label);
     }
   }
 }

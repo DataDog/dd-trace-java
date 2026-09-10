@@ -464,7 +464,7 @@ class ConcurrentHashtableD1Test {
     assertNull(table.get("new"));
   }
 
-  private static final class StringEntry extends ConcurrentHashtable.D1.Entry<String> {
+  private static final class StringEntry extends ConcurrentHashtable.D1.Entry<String, StringEntry> {
     final int value;
 
     StringEntry(String key, int value) {
@@ -498,7 +498,8 @@ class ConcurrentHashtableD1Test {
     }
   }
 
-  private static final class CollidingEntry extends ConcurrentHashtable.D1.Entry<CollidingKey> {
+  private static final class CollidingEntry
+      extends ConcurrentHashtable.D1.Entry<CollidingKey, CollidingEntry> {
     CollidingEntry(CollidingKey key) {
       super(key);
     }

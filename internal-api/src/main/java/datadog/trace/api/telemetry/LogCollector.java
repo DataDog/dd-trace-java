@@ -1,16 +1,15 @@
 package datadog.trace.api.telemetry;
 
+import datadog.trace.util.ConcurrentHashtable;
 import datadog.trace.util.HashingUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
@@ -20,8 +19,7 @@ public class LogCollector {
   public static final Marker EXCLUDE_TELEMETRY = MarkerFactory.getMarker("EXCLUDE_TELEMETRY");
   private static final int DEFAULT_MAX_CAPACITY = 10;
   private static final LogCollector INSTANCE = new LogCollector();
-  private final Map<RawLogMessage, AtomicInteger> rawLogMessages;
-  private final int maxCapacity;
+  private final ConcurrentHashtable.State<RawLogMessage> rawLogMessages;
 
   public static LogCollector get() {
     return INSTANCE;
@@ -35,8 +33,7 @@ public class LogCollector {
       value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
       justification = "Usage in tests")
   LogCollector(int maxCapacity) {
-    this.maxCapacity = maxCapacity;
-    this.rawLogMessages = new ConcurrentHashMap<>(maxCapacity);
+    this.rawLogMessages = ConcurrentHashtable.createBounded(RawLogMessage.class, maxCapacity);
   }
 
   public void addLogMessage(String logLevel, String message, @Nullable Throwable throwable) {
@@ -54,57 +51,62 @@ public class LogCollector {
    */
   public void addLogMessage(
       String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
-    if (rawLogMessages.size() >= maxCapacity) {
-      // TODO: We could emit a metric for dropped logs.
-      return;
+    long keyHash = RawLogMessage.hash(logLevel, message, throwable);
+
+    // Lock-free scan first: most calls are re-observations of an already-seen message, so this
+    // avoids paying for a reservation and a RawLogMessage allocation on the common path.
+    for (RawLogMessage existing = ConcurrentHashtable.bucketFor(rawLogMessages, keyHash);
+        existing != null;
+        existing = existing.next()) {
+      if (existing.keyHash == keyHash && existing.matchesKey(logLevel, message, throwable)) {
+        existing.count.incrementAndGet();
+        return;
+      }
     }
-    RawLogMessage rawLogMessage =
-        new RawLogMessage(logLevel, message, throwable, tags, System.currentTimeMillis() / 1000);
-    AtomicInteger count = rawLogMessages.computeIfAbsent(rawLogMessage, k -> new AtomicInteger());
-    count.incrementAndGet();
+
+    try (ConcurrentHashtable.Reservation<RawLogMessage> reservation =
+        ConcurrentHashtable.reserve(rawLogMessages)) {
+      // TODO: We could emit a metric for dropped logs when the reservation is empty (table full).
+      RawLogMessage rawLogMessage =
+          reservation.tryGetOrInsertOrNull(RawLogMessage::new, logLevel, message, throwable, tags);
+      if (rawLogMessage != null) {
+        rawLogMessage.count.incrementAndGet();
+      }
+    }
   }
 
   public Collection<RawLogMessage> drain() {
-    if (rawLogMessages.isEmpty()) {
+    if (ConcurrentHashtable.estimateSize(rawLogMessages) == 0) {
       return Collections.emptyList();
     }
 
-    List<RawLogMessage> list = new ArrayList<>(rawLogMessages.size());
-    Iterator<Map.Entry<RawLogMessage, AtomicInteger>> iterator =
-        rawLogMessages.entrySet().iterator();
-
-    while (iterator.hasNext()) {
-      Map.Entry<RawLogMessage, AtomicInteger> entry = iterator.next();
-      RawLogMessage logMessage = entry.getKey();
-      // XXX: There might be lost writers to the counters under concurrency if another thread
-      // increments it
-      //      while we are reading it here. At the moment, we are not overdoing this to prevent some
-      // counter losses.
-      logMessage.count = entry.getValue().get();
-      iterator.remove();
-      list.add(logMessage);
-    }
-
+    List<RawLogMessage> list = new ArrayList<>(ConcurrentHashtable.estimateSize(rawLogMessages));
+    ConcurrentHashtable.drain(rawLogMessages, list::add);
     return list;
   }
 
-  public static final class RawLogMessage {
+  public static final class RawLogMessage extends ConcurrentHashtable.Entry<RawLogMessage> {
     public final String message;
     public final String logLevel;
     public final Throwable throwable;
     public final String tags;
     public final long timestamp;
-    public int count;
+    public final AtomicInteger count = new AtomicInteger();
 
     private StackTraceElement[] cachedStackTrace = null;
 
     public RawLogMessage(
-        String logLevel, String message, Throwable throwable, String tags, long timestamp) {
+        String logLevel, String message, Throwable throwable, @Nullable String tags) {
+      super(hash(logLevel, message, throwable));
       this.logLevel = logLevel;
       this.message = message;
       this.throwable = throwable;
       this.tags = tags;
-      this.timestamp = timestamp;
+      this.timestamp = System.currentTimeMillis() / 1000;
+    }
+
+    static long hash(String logLevel, String message, @Nullable Throwable throwable) {
+      return HashingUtils.hash(logLevel, message, throwable == null ? null : throwable.getClass());
     }
 
     public StackTraceElement[] stackTrace() {
@@ -122,25 +124,20 @@ public class LogCollector {
       return stackTrace;
     }
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      RawLogMessage that = (RawLogMessage) o;
+    private boolean matchesKey(String logLevel, String message, @Nullable Throwable throwable) {
+      if (!Objects.equals(this.logLevel, logLevel)) return false;
+      if (!Objects.equals(this.message, message)) return false;
 
-      if (!Objects.equals(logLevel, that.logLevel)) return false;
-      if (!Objects.equals(message, that.message)) return false;
-
-      if (throwable == that.throwable) {
+      if (this.throwable == throwable) {
         // DQH - While this path may seem unlikely, it does happen if the JVM fast
         // throws optimization kicks-in (for NPE, etc), so this case is worth optimizing.
 
         // This also covers the case where both throwables are null
         return true;
-      } else if (throwable != null && that.throwable != null) {
+      } else if (this.throwable != null && throwable != null) {
         // Both have a throwable perform a deeper comparison
-        return throwable.getClass().equals(that.throwable.getClass())
-            && Objects.deepEquals(stackTrace(), that.stackTrace());
+        return this.throwable.getClass().equals(throwable.getClass())
+            && Objects.deepEquals(stackTrace(), throwable.getStackTrace());
       } else {
         // One has an exception & the other doesn't, not equal
         return false;
@@ -148,8 +145,18 @@ public class LogCollector {
     }
 
     @Override
-    public int hashCode() {
-      return HashingUtils.hash(logLevel, message, throwable == null ? null : throwable.getClass());
+    public boolean matches(@Nonnull RawLogMessage other) {
+      if (!Objects.equals(logLevel, other.logLevel)) return false;
+      if (!Objects.equals(message, other.message)) return false;
+
+      if (throwable == other.throwable) {
+        return true;
+      } else if (throwable != null && other.throwable != null) {
+        return throwable.getClass().equals(other.throwable.getClass())
+            && Objects.deepEquals(stackTrace(), other.stackTrace());
+      } else {
+        return false;
+      }
     }
   }
 }

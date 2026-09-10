@@ -83,7 +83,7 @@ public class ThreadSafeMapD1Benchmark {
     }
   }
 
-  static final class D1Entry extends ConcurrentHashtable.D1.Entry<String> {
+  static final class D1Entry extends ConcurrentHashtable.D1.Entry<String, D1Entry> {
     final long value;
 
     D1Entry(String key) {

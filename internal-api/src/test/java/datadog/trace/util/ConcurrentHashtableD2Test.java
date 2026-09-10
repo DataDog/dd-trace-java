@@ -391,7 +391,8 @@ class ConcurrentHashtableD2Test {
     assertNull(table.get("new", 2));
   }
 
-  private static final class PairEntry extends ConcurrentHashtable.D2.Entry<String, Integer> {
+  private static final class PairEntry
+      extends ConcurrentHashtable.D2.Entry<String, Integer, PairEntry> {
     PairEntry(String key1, Integer key2) {
       super(key1, key2);
     }

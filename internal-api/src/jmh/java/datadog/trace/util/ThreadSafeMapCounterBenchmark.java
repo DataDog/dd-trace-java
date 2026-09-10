@@ -73,7 +73,7 @@ public class ThreadSafeMapCounterBenchmark {
     }
   }
 
-  static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String> {
+  static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String, CounterEntry> {
     private static final AtomicLongFieldUpdater<CounterEntry> COUNT =
         AtomicLongFieldUpdater.newUpdater(CounterEntry.class, "count");
 

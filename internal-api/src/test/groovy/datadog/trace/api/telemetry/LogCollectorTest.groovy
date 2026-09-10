@@ -1,6 +1,7 @@
 package datadog.trace.api.telemetry
 
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.ConcurrentHashtable
 
 class LogCollectorTest extends DDSpecification {
 
@@ -30,7 +31,7 @@ class LogCollectorTest extends DDSpecification {
     logCollector.addLogMessage("ERROR", "Message 4", null)
 
     then:
-    logCollector.rawLogMessages.size() == 3
+    ConcurrentHashtable.estimateSize(logCollector.rawLogMessages) == 3
   }
 
   void "grouping messages in LogCollector"() {
@@ -57,7 +58,7 @@ class LogCollectorTest extends DDSpecification {
 
   boolean listContains(Collection<LogCollector.RawLogMessage> list, String logLevel, String message, Throwable t, int count) {
     for (final def logMsg in list) {
-      if (logMsg.logLevel == logLevel && logMsg.message == message && logMsg.throwable == t && logMsg.count == count) {
+      if (logMsg.logLevel == logLevel && logMsg.message == message && logMsg.throwable == t && logMsg.count.get() == count) {
         return true
       }
     }
