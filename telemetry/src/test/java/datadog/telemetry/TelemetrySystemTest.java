@@ -33,15 +33,16 @@ class TelemetrySystemTest {
     Instrumentation instrumentation = mock(Instrumentation.class);
 
     DependencyService dependencyService = TelemetrySystem.createDependencyService(instrumentation);
-
-    ArgumentCaptor<ClassFileTransformer> transformerCaptor =
-        ArgumentCaptor.forClass(ClassFileTransformer.class);
-    verify(instrumentation, times(1)).addTransformer(transformerCaptor.capture());
-    assertEquals(
-        "datadog.telemetry.dependency.LocationsCollectingTransformer",
-        transformerCaptor.getValue().getClass().getName());
-
-    dependencyService.stop();
+    try {
+      ArgumentCaptor<ClassFileTransformer> transformerCaptor =
+          ArgumentCaptor.forClass(ClassFileTransformer.class);
+      verify(instrumentation, times(1)).addTransformer(transformerCaptor.capture());
+      assertEquals(
+          "datadog.telemetry.dependency.LocationsCollectingTransformer",
+          transformerCaptor.getValue().getClass().getName());
+    } finally {
+      dependencyService.stop();
+    }
   }
 
   @Test

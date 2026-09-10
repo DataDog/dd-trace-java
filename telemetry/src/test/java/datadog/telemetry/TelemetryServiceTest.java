@@ -3,6 +3,19 @@ package datadog.telemetry;
 import static datadog.telemetry.TelemetryClient.Result.FAILURE;
 import static datadog.telemetry.TelemetryClient.Result.NOT_FOUND;
 import static datadog.telemetry.TelemetryClient.Result.SUCCESS;
+import static datadog.telemetry.api.RequestType.APP_DEPENDENCIES_LOADED;
+import static datadog.telemetry.api.RequestType.APP_ENDPOINTS;
+import static datadog.telemetry.api.RequestType.APP_EXTENDED_HEARTBEAT;
+import static datadog.telemetry.api.RequestType.APP_HEARTBEAT;
+import static datadog.telemetry.api.RequestType.APP_INTEGRATIONS_CHANGE;
+import static datadog.telemetry.api.RequestType.APP_PRODUCT_CHANGE;
+import static datadog.telemetry.api.RequestType.APP_STARTED;
+import static datadog.telemetry.api.RequestType.DISTRIBUTIONS;
+import static datadog.telemetry.api.RequestType.GENERATE_METRICS;
+import static datadog.telemetry.api.RequestType.LOGS;
+import static datadog.telemetry.api.RequestType.MESSAGE_BATCH;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.spy;
@@ -41,7 +54,7 @@ class TelemetryServiceTest {
   private final ConfigSetting confKeyValue =
       ConfigSetting.of("confkey", "confvalue", confKeyOrigin);
   private final Map<ConfigOrigin, Map<String, ConfigSetting>> configuration =
-      Collections.singletonMap(confKeyOrigin, Collections.singletonMap("confkey", confKeyValue));
+      singletonMap(confKeyOrigin, singletonMap("confkey", confKeyValue));
   private final Integration integration = new Integration("integration", true);
   private final Dependency dependency = new Dependency("dependency", "1.0.0", "src", "hash");
   private final Metric metric =
@@ -75,10 +88,10 @@ class TelemetryServiceTest {
           .operation("http.request")
           .resource("GET /test")
           .path("/test")
-          .requestBodyType(Collections.singletonList("application/json"))
-          .responseBodyType(Collections.singletonList("application/json"))
-          .responseCode(Collections.singletonList(200))
-          .authentication(Collections.singletonList("JWT"));
+          .requestBodyType(singletonList("application/json"))
+          .responseBodyType(singletonList("application/json"))
+          .responseCode(singletonList(200))
+          .authentication(singletonList("JWT"));
 
   @Test
   void happyPathWithoutData() throws IOException {
@@ -90,7 +103,7 @@ class TelemetryServiceTest {
     telemetryService.sendAppStartedEvent();
 
     // app-started
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products();
+    testHttpClient.assertRequestBody(APP_STARTED).assertPayload().products();
     testHttpClient.assertNoMoreRequests();
 
     // second iteration
@@ -98,7 +111,7 @@ class TelemetryServiceTest {
     telemetryService.sendTelemetryEvents();
 
     // app-heartbeat only
-    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT);
+    testHttpClient.assertRequestBody(APP_HEARTBEAT);
     testHttpClient.assertNoMoreRequests();
 
     // third iteration
@@ -106,7 +119,7 @@ class TelemetryServiceTest {
     telemetryService.sendTelemetryEvents();
 
     // app-heartbeat only
-    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT);
+    testHttpClient.assertRequestBody(APP_HEARTBEAT);
     testHttpClient.assertNoMoreRequests();
   }
 
@@ -130,41 +143,41 @@ class TelemetryServiceTest {
     telemetryService.sendAppStartedEvent();
 
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products()
-        .configuration(Collections.singletonList(confKeyValue));
+        .configuration(singletonList(confKeyValue));
 
     testHttpClient.expectRequest(SUCCESS);
     telemetryService.sendTelemetryEvents();
 
     testHttpClient
-        .assertRequestBody(RequestType.MESSAGE_BATCH)
+        .assertRequestBody(MESSAGE_BATCH)
         .assertBatch(8)
-        .assertFirstMessage(RequestType.APP_HEARTBEAT)
+        .assertFirstMessage(APP_HEARTBEAT)
         .hasNoPayload()
         // no configuration here as it has already been sent with the app-started event
-        .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE)
+        .assertNextMessage(APP_INTEGRATIONS_CHANGE)
         .hasPayload()
-        .integrations(Collections.singletonList(integration))
-        .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED)
+        .integrations(singletonList(integration))
+        .assertNextMessage(APP_DEPENDENCIES_LOADED)
         .hasPayload()
-        .dependencies(Collections.singletonList(dependency))
-        .assertNextMessage(RequestType.GENERATE_METRICS)
-        .hasPayload()
-        .namespace("tracers")
-        .metrics(Collections.singletonList(metric))
-        .assertNextMessage(RequestType.DISTRIBUTIONS)
+        .dependencies(singletonList(dependency))
+        .assertNextMessage(GENERATE_METRICS)
         .hasPayload()
         .namespace("tracers")
-        .distributionSeries(Collections.singletonList(distribution))
-        .assertNextMessage(RequestType.LOGS)
+        .metrics(singletonList(metric))
+        .assertNextMessage(DISTRIBUTIONS)
         .hasPayload()
-        .logs(Collections.singletonList(logMessage))
-        .assertNextMessage(RequestType.APP_PRODUCT_CHANGE)
+        .namespace("tracers")
+        .distributionSeries(singletonList(distribution))
+        .assertNextMessage(LOGS)
+        .hasPayload()
+        .logs(singletonList(logMessage))
+        .assertNextMessage(APP_PRODUCT_CHANGE)
         .hasPayload()
         .productChange(productChange)
-        .assertNextMessage(RequestType.APP_ENDPOINTS)
+        .assertNextMessage(APP_ENDPOINTS)
         .hasPayload()
         .endpoint(endpoint)
         .assertNoMoreMessages();
@@ -174,7 +187,7 @@ class TelemetryServiceTest {
     testHttpClient.expectRequest(SUCCESS);
     telemetryService.sendTelemetryEvents();
 
-    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload();
+    testHttpClient.assertRequestBody(APP_HEARTBEAT).assertNoPayload();
     testHttpClient.assertNoMoreRequests();
 
     // third iteration metrics data
@@ -183,14 +196,14 @@ class TelemetryServiceTest {
     telemetryService.sendTelemetryEvents();
 
     testHttpClient
-        .assertRequestBody(RequestType.MESSAGE_BATCH)
+        .assertRequestBody(MESSAGE_BATCH)
         .assertBatch(2)
-        .assertFirstMessage(RequestType.APP_HEARTBEAT)
+        .assertFirstMessage(APP_HEARTBEAT)
         .hasNoPayload()
-        .assertNextMessage(RequestType.GENERATE_METRICS)
+        .assertNextMessage(GENERATE_METRICS)
         .hasPayload()
         .namespace("tracers")
-        .metrics(Collections.singletonList(metric))
+        .metrics(singletonList(metric))
         .assertNoMoreMessages();
     testHttpClient.assertNoMoreRequests();
   }
@@ -204,7 +217,7 @@ class TelemetryServiceTest {
     testHttpClient.expectRequest(SUCCESS);
     telemetryService.sendAppStartedEvent();
 
-    testHttpClient.assertRequestBody(RequestType.APP_STARTED).assertPayload().products();
+    testHttpClient.assertRequestBody(APP_STARTED).assertPayload().products();
     testHttpClient.assertNoMoreRequests();
 
     // add data after first iteration
@@ -222,34 +235,34 @@ class TelemetryServiceTest {
     telemetryService.sendTelemetryEvents();
 
     testHttpClient
-        .assertRequestBody(RequestType.MESSAGE_BATCH)
+        .assertRequestBody(MESSAGE_BATCH)
         .assertBatch(9)
-        .assertFirstMessage(RequestType.APP_HEARTBEAT)
+        .assertFirstMessage(APP_HEARTBEAT)
         .hasNoPayload()
         .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
         .hasPayload()
-        .configuration(Collections.singletonList(confKeyValue))
-        .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE)
+        .configuration(singletonList(confKeyValue))
+        .assertNextMessage(APP_INTEGRATIONS_CHANGE)
         .hasPayload()
-        .integrations(Collections.singletonList(integration))
-        .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED)
+        .integrations(singletonList(integration))
+        .assertNextMessage(APP_DEPENDENCIES_LOADED)
         .hasPayload()
-        .dependencies(Collections.singletonList(dependency))
-        .assertNextMessage(RequestType.GENERATE_METRICS)
-        .hasPayload()
-        .namespace("tracers")
-        .metrics(Collections.singletonList(metric))
-        .assertNextMessage(RequestType.DISTRIBUTIONS)
+        .dependencies(singletonList(dependency))
+        .assertNextMessage(GENERATE_METRICS)
         .hasPayload()
         .namespace("tracers")
-        .distributionSeries(Collections.singletonList(distribution))
-        .assertNextMessage(RequestType.LOGS)
+        .metrics(singletonList(metric))
+        .assertNextMessage(DISTRIBUTIONS)
         .hasPayload()
-        .logs(Collections.singletonList(logMessage))
-        .assertNextMessage(RequestType.APP_PRODUCT_CHANGE)
+        .namespace("tracers")
+        .distributionSeries(singletonList(distribution))
+        .assertNextMessage(LOGS)
+        .hasPayload()
+        .logs(singletonList(logMessage))
+        .assertNextMessage(APP_PRODUCT_CHANGE)
         .hasPayload()
         .productChange(productChange)
-        .assertNextMessage(RequestType.APP_ENDPOINTS)
+        .assertNextMessage(APP_ENDPOINTS)
         .hasPayload()
         .endpoint(endpoint)
         .assertNoMoreMessages();
@@ -268,10 +281,10 @@ class TelemetryServiceTest {
 
     // app-started is attempted
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products()
-        .configuration(Collections.singletonList(confKeyValue));
+        .configuration(singletonList(confKeyValue));
     testHttpClient.assertNoMoreRequests();
 
     // attempt with 500 error
@@ -280,10 +293,10 @@ class TelemetryServiceTest {
 
     // app-started is attempted
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products()
-        .configuration(Collections.singletonList(confKeyValue));
+        .configuration(singletonList(confKeyValue));
     testHttpClient.assertNoMoreRequests();
 
     // attempt with unexpected FAILURE (not valid)
@@ -292,10 +305,10 @@ class TelemetryServiceTest {
 
     // app-started is attempted
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products()
-        .configuration(Collections.singletonList(confKeyValue));
+        .configuration(singletonList(confKeyValue));
     testHttpClient.assertNoMoreRequests();
 
     // attempt with success
@@ -304,10 +317,10 @@ class TelemetryServiceTest {
 
     // app-started is attempted
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products()
-        .configuration(Collections.singletonList(confKeyValue));
+        .configuration(singletonList(confKeyValue));
     testHttpClient.assertNoMoreRequests();
   }
 
@@ -331,10 +344,10 @@ class TelemetryServiceTest {
 
     // app-started attempted with config
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products()
-        .configuration(Collections.singletonList(confKeyValue));
+        .configuration(singletonList(confKeyValue));
     testHttpClient.assertNoMoreRequests();
 
     // successful app-started attempt
@@ -343,10 +356,10 @@ class TelemetryServiceTest {
 
     // attempt app-started with SUCCESS
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products()
-        .configuration(Collections.singletonList(confKeyValue));
+        .configuration(singletonList(confKeyValue));
 
     // successful batch attempt
     testHttpClient.expectRequest(SUCCESS);
@@ -354,32 +367,32 @@ class TelemetryServiceTest {
 
     // attempt batch with SUCCESS
     testHttpClient
-        .assertRequestBody(RequestType.MESSAGE_BATCH)
+        .assertRequestBody(MESSAGE_BATCH)
         .assertBatch(8)
-        .assertFirstMessage(RequestType.APP_HEARTBEAT)
+        .assertFirstMessage(APP_HEARTBEAT)
         .hasNoPayload()
         // no configuration here as it has already been sent with the app-started event
-        .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE)
+        .assertNextMessage(APP_INTEGRATIONS_CHANGE)
         .hasPayload()
-        .integrations(Collections.singletonList(integration))
-        .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED)
+        .integrations(singletonList(integration))
+        .assertNextMessage(APP_DEPENDENCIES_LOADED)
         .hasPayload()
-        .dependencies(Collections.singletonList(dependency))
-        .assertNextMessage(RequestType.GENERATE_METRICS)
-        .hasPayload()
-        .namespace("tracers")
-        .metrics(Collections.singletonList(metric))
-        .assertNextMessage(RequestType.DISTRIBUTIONS)
+        .dependencies(singletonList(dependency))
+        .assertNextMessage(GENERATE_METRICS)
         .hasPayload()
         .namespace("tracers")
-        .distributionSeries(Collections.singletonList(distribution))
-        .assertNextMessage(RequestType.LOGS)
+        .metrics(singletonList(metric))
+        .assertNextMessage(DISTRIBUTIONS)
         .hasPayload()
-        .logs(Collections.singletonList(logMessage))
-        .assertNextMessage(RequestType.APP_PRODUCT_CHANGE)
+        .namespace("tracers")
+        .distributionSeries(singletonList(distribution))
+        .assertNextMessage(LOGS)
+        .hasPayload()
+        .logs(singletonList(logMessage))
+        .assertNextMessage(APP_PRODUCT_CHANGE)
         .hasPayload()
         .productChange(productChange)
-        .assertNextMessage(RequestType.APP_ENDPOINTS)
+        .assertNextMessage(APP_ENDPOINTS)
         .hasPayload()
         .endpoint(endpoint)
         .assertNoMoreMessages();
@@ -390,7 +403,7 @@ class TelemetryServiceTest {
     telemetryService.sendTelemetryEvents();
 
     // message-batch attempted with heartbeat
-    testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).assertNoPayload();
+    testHttpClient.assertRequestBody(APP_HEARTBEAT).assertNoPayload();
     testHttpClient.assertNoMoreRequests();
   }
 
@@ -440,7 +453,7 @@ class TelemetryServiceTest {
     telemetryService.sendTelemetryEvents();
 
     // get body size
-    int bodySize = testHttpClient.assertRequestBody(RequestType.APP_HEARTBEAT).bodySize();
+    int bodySize = testHttpClient.assertRequestBody(APP_HEARTBEAT).bodySize();
     assertTrue(bodySize > 0);
 
     // sending first part of data
@@ -460,23 +473,23 @@ class TelemetryServiceTest {
 
     // attempt with SUCCESS
     testHttpClient
-        .assertRequestBody(RequestType.MESSAGE_BATCH)
+        .assertRequestBody(MESSAGE_BATCH)
         .assertBatch(5)
-        .assertFirstMessage(RequestType.APP_HEARTBEAT)
+        .assertFirstMessage(APP_HEARTBEAT)
         .hasNoPayload()
         .assertNextMessage(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
         .hasPayload()
-        .configuration(Collections.singletonList(confKeyValue))
-        .assertNextMessage(RequestType.APP_INTEGRATIONS_CHANGE)
+        .configuration(singletonList(confKeyValue))
+        .assertNextMessage(APP_INTEGRATIONS_CHANGE)
         .hasPayload()
-        .integrations(Collections.singletonList(integration))
-        .assertNextMessage(RequestType.APP_DEPENDENCIES_LOADED)
+        .integrations(singletonList(integration))
+        .assertNextMessage(APP_DEPENDENCIES_LOADED)
         .hasPayload()
-        .dependencies(Collections.singletonList(dependency))
-        .assertNextMessage(RequestType.GENERATE_METRICS)
+        .dependencies(singletonList(dependency))
+        .assertNextMessage(GENERATE_METRICS)
         .hasPayload()
         .namespace("tracers")
-        .metrics(Collections.singletonList(metric))
+        .metrics(singletonList(metric))
         // no more data fit this message is sent in the next message
         .assertNoMoreMessages();
 
@@ -485,21 +498,21 @@ class TelemetryServiceTest {
     assertFalse(telemetryService.sendTelemetryEvents());
 
     testHttpClient
-        .assertRequestBody(RequestType.MESSAGE_BATCH)
+        .assertRequestBody(MESSAGE_BATCH)
         .assertBatch(5)
-        .assertFirstMessage(RequestType.APP_HEARTBEAT)
+        .assertFirstMessage(APP_HEARTBEAT)
         .hasNoPayload()
-        .assertNextMessage(RequestType.DISTRIBUTIONS)
+        .assertNextMessage(DISTRIBUTIONS)
         .hasPayload()
         .namespace("tracers")
-        .distributionSeries(Collections.singletonList(distribution))
-        .assertNextMessage(RequestType.LOGS)
+        .distributionSeries(singletonList(distribution))
+        .assertNextMessage(LOGS)
         .hasPayload()
-        .logs(Collections.singletonList(logMessage))
-        .assertNextMessage(RequestType.APP_PRODUCT_CHANGE)
+        .logs(singletonList(logMessage))
+        .assertNextMessage(APP_PRODUCT_CHANGE)
         .hasPayload()
         .productChange(productChange)
-        .assertNextMessage(RequestType.APP_ENDPOINTS)
+        .assertNextMessage(APP_ENDPOINTS)
         .hasPayload()
         .endpoint(endpoint)
         .assertNoMoreMessages();
@@ -519,11 +532,11 @@ class TelemetryServiceTest {
     telemetryService.sendExtendedHeartbeat();
 
     testHttpClient
-        .assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+        .assertRequestBody(APP_EXTENDED_HEARTBEAT)
         .assertPayload()
-        .configuration(Collections.singletonList(confKeyValue))
-        .integrations(Collections.singletonList(integration))
-        .dependencies(Collections.singletonList(dependency));
+        .configuration(singletonList(confKeyValue))
+        .integrations(singletonList(integration))
+        .dependencies(singletonList(dependency));
     testHttpClient.assertNoMoreRequests();
 
     telemetryService.addConfiguration(configuration);
@@ -534,7 +547,7 @@ class TelemetryServiceTest {
     telemetryService.sendExtendedHeartbeat();
 
     testHttpClient
-        .assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+        .assertRequestBody(APP_EXTENDED_HEARTBEAT)
         .assertPayload()
         .configuration(Arrays.asList(confKeyValue, confKeyValue))
         .integrations(Arrays.asList(integration, integration))
@@ -561,17 +574,17 @@ class TelemetryServiceTest {
     testHttpClient.expectRequest(TelemetryClient.Result.valueOf(resultCode));
     telemetryService.sendTelemetryEvents();
 
-    testHttpClient.assertRequestBody(RequestType.MESSAGE_BATCH);
+    testHttpClient.assertRequestBody(MESSAGE_BATCH);
 
     testHttpClient.expectRequest(SUCCESS);
     telemetryService.sendExtendedHeartbeat();
 
     testHttpClient
-        .assertRequestBody(RequestType.APP_EXTENDED_HEARTBEAT)
+        .assertRequestBody(APP_EXTENDED_HEARTBEAT)
         .assertPayload()
-        .configuration(Collections.singletonList(confKeyValue))
-        .integrations(Collections.singletonList(integration))
-        .dependencies(Collections.singletonList(dependency));
+        .configuration(singletonList(confKeyValue))
+        .integrations(singletonList(integration))
+        .dependencies(singletonList(dependency));
     testHttpClient.assertNoMoreRequests();
   }
 
@@ -586,20 +599,17 @@ class TelemetryServiceTest {
     TestTelemetryRouter testHttpClient = new TestTelemetryRouter();
     TelemetryService telemetryService = new TelemetryService(testHttpClient, 10000, false);
     Map<String, ConfigSetting> configMap =
-        Collections.singletonMap(
+        singletonMap(
             instrumentationConfigIdKey,
             ConfigSetting.of(instrumentationConfigIdKey, id, ConfigOrigin.ENV));
-    telemetryService.addConfiguration(Collections.singletonMap(ConfigOrigin.ENV, configMap));
+    telemetryService.addConfiguration(singletonMap(ConfigOrigin.ENV, configMap));
 
     // first iteration
     testHttpClient.expectRequest(SUCCESS);
     telemetryService.sendAppStartedEvent();
 
     // app-started
-    testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
-        .assertPayload()
-        .instrumentationConfigId(id);
+    testHttpClient.assertRequestBody(APP_STARTED).assertPayload().instrumentationConfigId(id);
     testHttpClient.assertNoMoreRequests();
   }
 
@@ -629,7 +639,7 @@ class TelemetryServiceTest {
 
     // app-started
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .installSignature(installId, installType, installTime);
     testHttpClient.assertNoMoreRequests();
@@ -668,7 +678,7 @@ class TelemetryServiceTest {
 
     // app-started
     testHttpClient
-        .assertRequestBody(RequestType.APP_STARTED)
+        .assertRequestBody(APP_STARTED)
         .assertPayload()
         .products(appsecEnabled, profilingEnabled, dynInstrEnabled);
     testHttpClient.assertNoMoreRequests();

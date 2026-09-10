@@ -44,13 +44,17 @@ class ExtendedHeartbeatDataTest {
   void returnAllCollectedData() {
     ExtendedHeartbeatData extHeartbeatData = new ExtendedHeartbeatData();
 
+    // when
     EventSource emptySnapshot = extHeartbeatData.snapshot();
+    // then
     assertTrue(emptySnapshot.isEmpty());
 
+    // when
     extHeartbeatData.pushDependency(dependency);
     extHeartbeatData.pushConfigSetting(configSetting);
     extHeartbeatData.pushIntegration(integration);
 
+    // then
     EventSource snapshot = extHeartbeatData.snapshot();
 
     assertFalse(snapshot.isEmpty());
@@ -73,9 +77,10 @@ class ExtendedHeartbeatDataTest {
 
     assertTrue(snapshot.isEmpty());
 
-    // another snapshot includes all data
+    // when another snapshot includes all data
     EventSource anotherSnapshot = extHeartbeatData.snapshot();
 
+    // then
     assertFalse(anotherSnapshot.isEmpty());
     assertTrue(anotherSnapshot.hasDependencyEvent());
     assertTrue(anotherSnapshot.hasConfigChangeEvent());

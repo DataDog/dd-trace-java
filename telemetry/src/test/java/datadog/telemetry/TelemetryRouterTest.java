@@ -1,5 +1,6 @@
 package datadog.telemetry;
 
+import static datadog.communication.http.HttpRetryPolicy.Factory.NEVER_RETRY;
 import static datadog.telemetry.TelemetryClient.Result.FAILURE;
 import static datadog.telemetry.TelemetryClient.Result.SUCCESS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,7 +16,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.http.HttpRetryPolicy;
 import datadog.telemetry.api.RequestType;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -50,58 +50,11 @@ class TelemetryRouterTest {
 
   @BeforeEach
   void setup() {
-    agentTelemetryClient =
-        TelemetryClient.buildAgentClient(
-            okHttpClient, AGENT_URL, HttpRetryPolicy.Factory.NEVER_RETRY);
-    intakeTelemetryClient =
-        new TelemetryClient(okHttpClient, HttpRetryPolicy.Factory.NEVER_RETRY, INTAKE_URL, API_KEY);
+    agentTelemetryClient = TelemetryClient.buildAgentClient(okHttpClient, AGENT_URL, NEVER_RETRY);
+    intakeTelemetryClient = new TelemetryClient(okHttpClient, NEVER_RETRY, INTAKE_URL, API_KEY);
     router =
         new TelemetryRouter(
             ddAgentFeaturesDiscovery, agentTelemetryClient, intakeTelemetryClient, false);
-  }
-
-  private TelemetryRequest dummyRequest() {
-    return new TelemetryRequest(
-        mock(EventSource.class), mock(EventSink.class), 1000, RequestType.APP_STARTED, false);
-  }
-
-  private static Call mockCall(int code) throws IOException {
-    Call call = mock(Call.class);
-    when(call.execute())
-        .thenReturn(
-            new Response.Builder()
-                .request(new Request.Builder().url(HttpUrl.get("https://example.com")).build())
-                .protocol(Protocol.HTTP_1_1)
-                .message("OK")
-                .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
-                .code(code)
-                .build());
-    return call;
-  }
-
-  // stubs newCall() via doAnswer rather than when().thenAnswer() so that re-stubbing across
-  // multiple stages of the same test does not trigger a previously configured throwing answer
-  private void stubNewCallReturning(int code) {
-    doAnswer(invocation -> mockCall(code)).when(okHttpClient).newCall(any());
-  }
-
-  private void stubNewCallCapturingRequest(Request[] capturedRequest, int code) {
-    doAnswer(
-            invocation -> {
-              capturedRequest[0] = invocation.getArgument(0);
-              return mockCall(code);
-            })
-        .when(okHttpClient)
-        .newCall(any());
-  }
-
-  private void stubNewCallThrowing(IOException exception) {
-    doAnswer(
-            invocation -> {
-              throw exception;
-            })
-        .when(okHttpClient)
-        .newCall(any());
   }
 
   @TableTest({
@@ -523,5 +476,49 @@ class TelemetryRouterTest {
     verify(okHttpClient, times(1)).newCall(any());
     assertEquals(AGENT_TELEMETRY_URL, capturedRequest[0].url());
     assertNull(capturedRequest[0].header(API_KEY_HEADER));
+  }
+
+  private TelemetryRequest dummyRequest() {
+    return new TelemetryRequest(
+        mock(EventSource.class), mock(EventSink.class), 1000, RequestType.APP_STARTED, false);
+  }
+
+  private static Call mockCall(int code) throws IOException {
+    Call call = mock(Call.class);
+    when(call.execute())
+        .thenReturn(
+            new Response.Builder()
+                .request(new Request.Builder().url(HttpUrl.get("https://example.com")).build())
+                .protocol(Protocol.HTTP_1_1)
+                .message("OK")
+                .body(ResponseBody.create(MediaType.get("text/plain"), "OK"))
+                .code(code)
+                .build());
+    return call;
+  }
+
+  // stubs newCall() via doAnswer rather than when().thenAnswer() so that re-stubbing across
+  // multiple stages of the same test does not trigger a previously configured throwing answer
+  private void stubNewCallReturning(int code) {
+    doAnswer(invocation -> mockCall(code)).when(okHttpClient).newCall(any());
+  }
+
+  private void stubNewCallCapturingRequest(Request[] capturedRequest, int code) {
+    doAnswer(
+            invocation -> {
+              capturedRequest[0] = invocation.getArgument(0);
+              return mockCall(code);
+            })
+        .when(okHttpClient)
+        .newCall(any());
+  }
+
+  private void stubNewCallThrowing(IOException exception) {
+    doAnswer(
+            invocation -> {
+              throw exception;
+            })
+        .when(okHttpClient)
+        .newCall(any());
   }
 }

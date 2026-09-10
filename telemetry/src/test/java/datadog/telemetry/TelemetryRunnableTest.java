@@ -88,7 +88,6 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9998);
-    verify(telemetryService, atLeast(0)).addConfiguration(any());
     verifyNoMoreInteractions(
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
@@ -102,7 +101,6 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9997);
-    verify(telemetryService, atLeast(0)).addConfiguration(any());
     verifyNoMoreInteractions(
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
@@ -116,7 +114,6 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9996);
-    verify(telemetryService, atLeast(0)).addConfiguration(any());
     verifyNoMoreInteractions(
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
@@ -130,7 +127,6 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9995);
-    verify(telemetryService, atLeast(0)).addConfiguration(any());
     verifyNoMoreInteractions(
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
@@ -144,7 +140,6 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(metricCollector, times(1)).prepareMetrics();
     verify(sleeperMock, times(1)).sleep(9994);
-    verify(telemetryService, atLeast(0)).addConfiguration(any());
     verifyNoMoreInteractions(
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
@@ -173,7 +168,6 @@ class TelemetryRunnableTest {
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(telemetryService, times(1)).sendExtendedHeartbeat();
     verify(sleeperMock, times(1)).sleep(4992);
-    verify(telemetryService, atLeast(0)).addConfiguration(any());
     verifyNoMoreInteractions(
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
     clearInvocations(telemetryService, timeSource, metricCollector, periodicAction, sleeperMock);
@@ -188,7 +182,6 @@ class TelemetryRunnableTest {
     verify(periodicAction, times(1)).doIteration(telemetryService);
     verify(telemetryService, times(1)).sendTelemetryEvents();
     verify(telemetryService, times(1)).sendAppClosingEvent();
-    verify(telemetryService, atLeast(0)).addConfiguration(any());
     verifyNoMoreInteractions(
         telemetryService, timeSource, sleeperMock, metricCollector, periodicAction);
   }
@@ -284,45 +277,45 @@ class TelemetryRunnableTest {
     TelemetryRunnable.Scheduler scheduler =
         new TelemetryRunnable.Scheduler(timeSource, sleeper, 60 * 1000, 10 * 1000, 0);
 
-    // first iteration: run everything
+    // first iteration
     when(timeSource.getCurrentTimeMillis()).thenReturn(0L);
-
     scheduler.init();
 
+    // run everything
     assertTrue(scheduler.shouldRunMetrics());
     assertTrue(scheduler.shouldRunHeartbeat());
     verify(timeSource, times(1)).getCurrentTimeMillis();
     verifyNoMoreInteractions(timeSource, sleeper);
     clearInvocations(timeSource, sleeper);
 
+    // when
     when(timeSource.getCurrentTimeMillis()).thenReturn(1L, 10L * 1000);
-
     scheduler.sleepUntilNextIteration();
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(sleeper, times(1)).sleep(10 * 1000 - 1);
     verifyNoMoreInteractions(timeSource, sleeper);
     clearInvocations(timeSource, sleeper);
 
-    // heartbeat interval is exceeded
+    // when heartbeat interval is exceeded
     assertTrue(scheduler.shouldRunMetrics());
     assertFalse(scheduler.shouldRunHeartbeat());
-
     when(timeSource.getCurrentTimeMillis()).thenReturn(70L * 1000);
-
     scheduler.sleepUntilNextIteration();
 
+    // then
     verify(timeSource, times(1)).getCurrentTimeMillis();
     verifyNoMoreInteractions(timeSource, sleeper);
     assertTrue(scheduler.shouldRunMetrics());
     assertTrue(scheduler.shouldRunHeartbeat());
     clearInvocations(timeSource, sleeper);
 
-    // metrics interval has been adjusted
+    // when metrics interval has been adjusted
     when(timeSource.getCurrentTimeMillis()).thenReturn(70L * 1000 + 1, 80L * 1000);
-
     scheduler.sleepUntilNextIteration();
 
+    // then
     verify(timeSource, times(2)).getCurrentTimeMillis();
     verify(sleeper, times(1)).sleep(10 * 1000 - 1);
     verifyNoMoreInteractions(timeSource, sleeper);
