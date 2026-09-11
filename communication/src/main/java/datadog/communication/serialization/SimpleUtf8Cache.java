@@ -1,5 +1,6 @@
 package datadog.communication.serialization;
 
+import datadog.trace.api.function.BackgroundOnly;
 import java.nio.charset.StandardCharsets;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -13,6 +14,11 @@ import javax.annotation.concurrent.ThreadSafe;
  * String#getBytes(java.nio.charset.Charset)}.
  *
  * <p>The cache is thread safe.
+ *
+ * <p>{@link BackgroundOnly}: the bookkeeping (hit counting, LFU eviction scan) costs more than the
+ * {@code getBytes} call it replaces, so the saving only shows up as reduced allocation/GC pressure
+ * on the thread that pays it -- confine it to the background serializer thread, not an application
+ * thread.
  */
 /*
  * Thread safety is achieved through using CacheEntry objects where the key data
