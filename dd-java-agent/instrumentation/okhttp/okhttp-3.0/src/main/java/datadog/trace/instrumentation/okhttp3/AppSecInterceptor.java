@@ -45,23 +45,33 @@ public class AppSecInterceptor implements Interceptor {
 
   @Override
   public Response intercept(final Chain chain) throws IOException {
+    Request request = chain.request();
+    final AgentSpan span = AgentTracer.activeSpan();
+    final RequestContext ctx = span == null ? null : span.getRequestContext();
+    if (ctx == null) {
+      return chain.proceed(request);
+    }
+    boolean sampled = false;
     try {
-      final AgentSpan span = AgentTracer.activeSpan();
-      final RequestContext ctx = span == null ? null : span.getRequestContext();
-      if (ctx == null) {
-        return chain.proceed(chain.request());
-      }
       final long requestId = span.getSpanId();
-      final boolean sampled = sampleRequest(ctx, requestId);
-      final String url = span.getTag(Tags.HTTP_URL).toString();
-      final Request request = onRequest(span, sampled, url, chain.request());
-      final Response response = chain.proceed(request);
+      sampled = sampleRequest(ctx, requestId);
+      final Object urlTag = span.getTag(Tags.HTTP_URL);
+      final String url = urlTag == null ? null : urlTag.toString();
+      request = onRequest(span, sampled, url, request);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
+      LOGGER.debug("Failed to run AppSec request hooks", e);
+    }
+    // let real connection/IO failures propagate rather than swallowing and retrying the request
+    final Response response = chain.proceed(request);
+    try {
       return onResponse(span, sampled, response);
     } catch (final BlockingException e) {
       throw e;
     } catch (final Exception e) {
-      LOGGER.debug("Failed to intercept request", e);
-      return chain.proceed(chain.request());
+      LOGGER.debug("Failed to run AppSec response hooks", e);
+      return response;
     }
   }
 
@@ -142,7 +152,16 @@ public class AppSecInterceptor implements Interceptor {
       }
     }
 
-    publish(ctx, clientResponse, responseCb);
+    try {
+      publish(ctx, clientResponse, responseCb);
+    } catch (final BlockingException e) {
+      throw e;
+    } catch (final Exception e) {
+      // don't let a failure in the response hook discard the rebuilt response above --
+      // its body has already been drained/closed, so falling back to the original response
+      // (as the caller in intercept() does) would hand back an empty/closed body
+      LOGGER.debug("Failed to publish AppSec response event", e);
+    }
     return result;
   }
 
