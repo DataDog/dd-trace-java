@@ -183,10 +183,34 @@ test-base-windows:
         - workspace/**/build/test-results/**/*.xml
         - buildSrc/build/test-results/**/*.xml
 
-# Keep the instrumentation rollout opt-in on every ref. Unlike the Linux
-# instrumentation jobs, these intentionally do not enable the APM Test Agent sidecar:
-# the tests still assert against their in-memory writer, while cross-container
-# Test Agent connectivity can be added as a separate step.
+# Keep the smoke and instrumentation rollout opt-in on every ref. Unlike their Linux
+# counterparts, these jobs intentionally do not enable the APM Test Agent sidecar;
+# cross-container Test Agent connectivity can be added as a separate step.
+test-smoke-windows:
+  extends: test-base-windows
+  variables:
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    CACHE_TYPE: "smoke"
+  parallel:
+    matrix:
+      - testJvm: [ "21" ]
+        CI_SPLIT: [ "1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: manual
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - when: manual
+      allow_failure: true
+
 test-inst-windows:
   extends: test-base-windows
   variables:

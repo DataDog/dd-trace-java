@@ -58,8 +58,11 @@ try {
     & .\gradlew.bat --version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    $gradleArguments = @(
-        $env:GRADLE_TARGET,
+    # Some suites need prerequisite aggregate tasks (for example, smoke tests
+    # stage the agent distribution before running), so preserve each target as
+    # a separate Gradle argument.
+    $gradleArguments = @(($env:GRADLE_TARGET -split '\s+') | Where-Object { $_ })
+    $gradleArguments += @(
         "-Dscan.capture-resource-usage=false",
         # Formatting is validated by the dedicated GitLab Spotless job.
         "-x",

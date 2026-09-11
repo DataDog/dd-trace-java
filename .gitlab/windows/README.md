@@ -4,9 +4,10 @@ This directory contains an experimental Windows test job and its repo-local CI i
 The image contains MinGit and the Temurin 8, 11, 17, 21, and 25 JDK toolchains used by
 the Gradle build. JDK 21 is the default daemon and test JVM. The base test scope runs
 `:baseTest` on Java 21, split into the same four partitions as the existing `test_base`
-job. Two fully manual scopes run `:instrumentationTest` on Java 21 in eight partitions
-and `:instrumentationLatestDepTest` on Java 21 in six partitions. Together they validate
-the execution model before moving the image to `dd-trace-java-docker-build`.
+job. Three fully manual scopes run `stageMainDist :smokeTest` and `:instrumentationTest`
+on Java 21 in eight partitions, plus `:instrumentationLatestDepTest` on Java 21 in six
+partitions. Together they validate the execution model before moving the image to
+`dd-trace-java-docker-build`.
 
 ## Running the prototype
 
@@ -15,9 +16,11 @@ the execution model before moving the image to `dd-trace-java-docker-build`.
 3. Wait for the image to be pushed to
    `registry.ddbuild.io/ci/dd-trace-java/dd-trace-java-windows-docker-build:prototype-alexeyk-gitlab-windows-tests`.
 4. Run or retry the four `test-base-windows` matrix jobs.
-5. Trigger the desired `test-inst-windows` partitions manually. Starting with `1/8`
+5. Trigger the desired `test-smoke-windows` partitions manually. Starting with `1/8`
    provides a small plumbing check before running the other seven partitions.
-6. Trigger the desired `test-inst-latest-windows` partitions manually. Starting with
+6. Trigger the desired `test-inst-windows` partitions manually. Starting with `1/8`
+   provides a small plumbing check before running the other seven partitions.
+7. Trigger the desired `test-inst-latest-windows` partitions manually. Starting with
    `1/6` provides the equivalent plumbing check before running the other five partitions.
 
 The image producer always overwrites this single mutable prototype tag and uses the
@@ -25,8 +28,8 @@ previous image as its Docker layer cache. Test jobs explicitly pull the tag befo
 so a long-lived Windows runner does not reuse a stale local copy.
 
 The base test job is manual and non-blocking on feature branches. It runs automatically
-but remains non-blocking on merge-queue branches and `master`. Instrumentation jobs are
-manual and non-blocking on every ref during the initial rollout.
+but remains non-blocking on merge-queue branches and `master`. Smoke and instrumentation
+jobs are manual and non-blocking on every ref during the initial rollout.
 
 ## Updating the image
 
@@ -51,7 +54,7 @@ of resolving everything separately in every partition.
 - Temurin publishes no JDK 21 newer than `21.0.12+8` for `windowsservercore-ltsc2025`,
   while 8, 11, 17, and 25 are current. Expect some failures on the Java 21 matrix to be
   JDK-version artifacts rather than Windows-specific.
-- The initial instrumentation jobs do not set `CI_USE_TEST_AGENT`. The Linux Test Agent
-  sidecar is not reachable from the explicitly launched Windows test container without
-  additional networking support; instrumentation tests still use their in-memory writer
-  for their primary assertions.
+- The initial smoke and instrumentation jobs do not set `CI_USE_TEST_AGENT`. The Linux
+  Test Agent sidecar is not reachable from the explicitly launched Windows test container
+  without additional networking support; instrumentation tests still use their in-memory
+  writer for their primary assertions.
