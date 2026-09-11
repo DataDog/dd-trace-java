@@ -46,6 +46,12 @@ class ExcludeFilterTest extends DDSpecification {
     type << ExcludeFilter.ExcludeType.values()
   }
 
+  def "exclude OkHttp TaskRunner worker from Runnable propagation"() {
+    expect:
+    ExcludeFilter.exclude(RUNNABLE, 'okhttp3.internal.concurrent.TaskRunner$runnable$1')
+    !ExcludeFilter.exclude(EXECUTOR, 'okhttp3.internal.concurrent.TaskRunner$runnable$1')
+  }
+
   static class One {}
 
   static class Another {}
