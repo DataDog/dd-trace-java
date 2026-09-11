@@ -1,0 +1,16 @@
+muzzle {
+  pass {
+    group = 'io.r2dbc'
+    module = 'r2dbc-spi'
+    versions = "[1.0.0.RELEASE,)"
+    assertInverse = false
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
+
+  testImplementation group: 'io.r2dbc', name: 'r2dbc-spi', version: '1.0.0.RELEASE'
+}
