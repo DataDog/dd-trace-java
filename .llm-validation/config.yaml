@@ -7,6 +7,7 @@ instruction_files:
   - .agents/skills/dd-apm-sdk-review/reviewers/correctness.md
   - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
   - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
+  - .agents/skills/dd-apm-sdk-review/review-without-harness.md
   - .agents/skills/dd-apm-sdk-review/reviewers/coherence.md
   - .agents/skills/dd-apm-sdk-review/reviewers/security.md
   - .agents/skills/dd-apm-sdk-review/reviewers/design.md
