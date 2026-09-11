@@ -11,9 +11,10 @@ import java.util.Locale;
  * <p>Message bodies (input, output, tool definitions, retrieval documents) are deliberately left
  * off the APM span and keep coming from the LLM Observability track.
  *
- * <p>Values are read back from the {@code _ml_obs_tag.} / {@code _ml_obs_metric.} tags rather than
- * passed in, because they are stamped by several decorators over a span's lifetime and are only all
- * present at finish time.
+ * <p>{@link #apply} reads the values back from the {@code _ml_obs_tag.} / {@code _ml_obs_metric.}
+ * tags rather than taking them as arguments, because they are stamped by several decorators over a
+ * span's lifetime and are only all present at finish time. {@link #applyWithoutLlmObs} covers the
+ * instrumentation that still traces with LLM Observability off, where those tags do not exist.
  */
 public final class GenAiApmTags {
   public static final String OPERATION_NAME = "gen_ai.operation.name";
@@ -64,14 +65,56 @@ public final class GenAiApmTags {
     if (spanKind == null) {
       return;
     }
-    span.setTag(OPERATION_NAME, spanKind);
+    setScalars(
+        span,
+        spanKind,
+        stringTag(span, MODEL_NAME_TAG),
+        stringTag(span, MODEL_PROVIDER_TAG),
+        stringTag(span, ML_APP_TAG),
+        stringTag(span, SESSION_ID_TAG));
 
-    String modelName = stringTag(span, MODEL_NAME_TAG);
-    String modelProvider = stringTag(span, MODEL_PROVIDER_TAG);
-    boolean modelBacked =
-        Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)
-            || Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(spanKind);
-    if (modelBacked) {
+    // Other span kinds carry unrelated metrics that would be misleading under a gen_ai.usage.* key.
+    if (isModelBacked(spanKind)) {
+      for (String[] metric : TOKEN_METRICS) {
+        Object value = span.getTag(metric[0]);
+        if (value instanceof Number) {
+          span.setMetric(metric[1], ((Number) value).doubleValue());
+        }
+      }
+    }
+  }
+
+  /**
+   * Writes the subset of {@code gen_ai.*} attributes that instrumentation can supply with LLM
+   * Observability disabled. Token usage and conversation id are left out: neither is computed on
+   * that path, so there is nothing to report.
+   *
+   * @param operationName the LLM Observability span kind this operation maps to
+   */
+  public static void applyWithoutLlmObs(
+      AgentSpan span, String operationName, String modelName, String modelProvider, String mlApp) {
+    if (span == null || operationName == null) {
+      return;
+    }
+    setScalars(
+        span,
+        operationName,
+        emptyToNull(modelName),
+        emptyToNull(modelProvider),
+        emptyToNull(mlApp),
+        null);
+  }
+
+  private static void setScalars(
+      AgentSpan span,
+      String operationName,
+      String modelName,
+      String modelProvider,
+      String mlApp,
+      String sessionId) {
+    span.setTag(OPERATION_NAME, operationName);
+
+    if (isModelBacked(operationName)) {
       span.setTag(REQUEST_MODEL, modelName == null ? DEFAULT_MODEL : modelName);
       span.setTag(
           PROVIDER_NAME,
@@ -85,24 +128,21 @@ public final class GenAiApmTags {
       }
     }
 
-    String mlApp = stringTag(span, ML_APP_TAG);
     if (mlApp != null) {
       span.setTag(APPLICATION_NAME, mlApp);
     }
-    String sessionId = stringTag(span, SESSION_ID_TAG);
     if (sessionId != null) {
       span.setTag(CONVERSATION_ID, sessionId);
     }
+  }
 
-    // Other span kinds carry unrelated metrics that would be misleading under a gen_ai.usage.* key.
-    if (modelBacked) {
-      for (String[] metric : TOKEN_METRICS) {
-        Object value = span.getTag(metric[0]);
-        if (value instanceof Number) {
-          span.setMetric(metric[1], ((Number) value).doubleValue());
-        }
-      }
-    }
+  private static boolean isModelBacked(String spanKind) {
+    return Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)
+        || Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(spanKind);
+  }
+
+  private static String emptyToNull(String value) {
+    return value == null || value.isEmpty() ? null : value;
   }
 
   private static String stringTag(AgentSpan span, String key) {
