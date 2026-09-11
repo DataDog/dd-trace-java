@@ -22,6 +22,7 @@ import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
 import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.Arguments;
@@ -394,6 +395,20 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
 
     assertEquals(expectedHeaderValue, propagationTags.headerValue(W3C));
     assertEquals(tags, propagationTags.createTagMap());
+  }
+
+  @Test
+  void llmObsGettersDecodeTheTracestateSubstitutions() {
+    PropagationTags propagationTags =
+        factory()
+            .fromHeaderValue(
+                W3C, "dd=t.llmobs_ml_app:app~v1;t.llmobs_sid:sess~1;t.llmobs_pagent_name:planner");
+
+    // '=' travels as '~' in tracestate; the getters have to undo that, the way createTagMap does.
+    assertEquals("app=v1", propagationTags.getLLMObsMlApp().toString());
+    assertEquals("sess=1", propagationTags.getLLMObsSessionId().toString());
+    assertEquals("planner", propagationTags.getLLMObsParentAgentName().toString());
+    assertNull(propagationTags.getLLMObsParentId());
   }
 
   private static String buildHeader(int memberCount) {

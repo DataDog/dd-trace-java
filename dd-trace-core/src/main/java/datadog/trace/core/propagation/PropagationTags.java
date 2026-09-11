@@ -169,6 +169,58 @@ public abstract class PropagationTags {
    */
   public abstract void updateOrgPropagationMarker(CharSequence opm);
 
+  /**
+   * Returns the LLM Observability {@code ml_app} that arrived on the inbound headers as {@code
+   * _dd.p.llmobs_ml_app}, or {@code null} if none did.
+   *
+   * <p>These five getters read what was <em>extracted</em>, never what a local injection staged
+   * over it. The two live in the same object — an extracted context's tags become the local root's
+   * — but only the extracted half is a statement about the caller. A local LLMObs span's tags stay
+   * staged until the next injection resets them, so a sibling span opened in that window would
+   * otherwise read a finished span's attribution as if it had come from upstream.
+   */
+  public abstract CharSequence getLLMObsMlApp();
+
+  /**
+   * Returns the LLM Observability {@code session_id} that arrived on the inbound headers as {@code
+   * _dd.p.llmobs_sid}, or {@code null} if none did. See {@link #getLLMObsMlApp()}.
+   */
+  public abstract CharSequence getLLMObsSessionId();
+
+  /**
+   * Returns the span id of the parent LLM Observability agent span that arrived on the inbound
+   * headers as {@code _dd.p.llmobs_pagent_span_id}, or {@code null} if none did. See {@link
+   * #getLLMObsMlApp()}.
+   */
+  public abstract CharSequence getLLMObsParentAgentSpanId();
+
+  /**
+   * Returns the name of the parent LLM Observability agent span that arrived on the inbound headers
+   * as {@code _dd.p.llmobs_pagent_name}, or {@code null} if none did. See {@link
+   * #getLLMObsMlApp()}.
+   */
+  public abstract CharSequence getLLMObsParentAgentName();
+
+  /**
+   * Returns the span id of the parent LLM Observability span that arrived on the inbound headers as
+   * {@code _dd.p.llmobs_parent_id}, or {@code null} if none did. See {@link #getLLMObsMlApp()}.
+   */
+  public abstract CharSequence getLLMObsParentId();
+
+  /** Sets the whole LLM Observability tag set to propagate with this trace. */
+  public abstract void updateLLMObsContext(
+      CharSequence mlApp,
+      CharSequence sessionId,
+      CharSequence parentAgentSpanId,
+      CharSequence parentAgentName,
+      CharSequence parentId);
+
+  /**
+   * Discards anything locally staged by {@link #updateLLMObsContext}, restoring the LLM
+   * Observability tag set that was extracted from the inbound headers.
+   */
+  public abstract void resetLLMObsContext();
+
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();
     fillTagMap(result);

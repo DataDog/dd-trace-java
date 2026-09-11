@@ -19,6 +19,7 @@ public final class LLMObsContext {
   }
 
   private static final ContextKey<AgentSpanContext> CONTEXT_KEY = ContextKey.named("llmobs_span");
+  private static final ContextKey<String> ML_APP_KEY = ContextKey.named("llmobs_ml_app");
   private static final ContextKey<String> SESSION_ID_KEY = ContextKey.named("llmobs_session_id");
   private static final ContextKey<String> AGENT_VERSION_KEY =
       ContextKey.named("llmobs_agent_version");
@@ -67,14 +68,17 @@ public final class LLMObsContext {
   }
 
   /**
-   * Attach an LLMObs span context, propagating a session_id, an agent_version, a sampling decision,
-   * and agent attribution to descendant LLMObs spans. See {@link #attach(AgentSpanContext, String,
-   * String)} — the same clears-if-null-or-empty semantics apply to every value, so callers are
-   * expected to pass already-resolved effective values.
+   * Attach an LLMObs span context, propagating an ml_app, a session_id, an agent_version, a
+   * sampling decision, and agent attribution to descendant LLMObs spans. See {@link
+   * #attach(AgentSpanContext, String, String)} — the same clears-if-null-or-empty semantics apply
+   * to every value, so callers are expected to pass already-resolved effective values.
    *
    * <p>This overload carries every propagated value at once because a span's scope is attached
-   * exactly once: three independent mechanisms (session, sampling, attribution) share one context,
-   * so they cannot be attached by separate calls without nesting redundant scopes.
+   * exactly once: four independent mechanisms (application, session, sampling, attribution) share
+   * one context, so they cannot be attached by separate calls without nesting redundant scopes.
+   *
+   * <p>ml_app is stored here so that distributed propagation can read the innermost active LLMObs
+   * span's ml_app when injecting, without needing a reference to the span itself.
    *
    * <p>The sampling decision is computed once at the root of an LLMObs trace and inherited
    * unchanged by every descendant, so that a trace is retained or dropped as a whole. Both sampling
@@ -102,6 +106,7 @@ public final class LLMObsContext {
    */
   public static ContextScope attach(
       AgentSpanContext ctx,
+      String mlApp,
       String sessionId,
       String agentVersion,
       String sampleRate,
@@ -111,6 +116,7 @@ public final class LLMObsContext {
     String decision = emptyToNull(samplingDecision);
     return Context.current()
         .with(CONTEXT_KEY, ctx)
+        .with(ML_APP_KEY, emptyToNull(mlApp))
         .with(SESSION_ID_KEY, emptyToNull(sessionId))
         .with(AGENT_VERSION_KEY, emptyToNull(agentVersion))
         .with(SAMPLING_DECISION_KEY, decision)
@@ -122,6 +128,11 @@ public final class LLMObsContext {
 
   public static AgentSpanContext current() {
     return Context.current().get(CONTEXT_KEY);
+  }
+
+  /** Return the ml_app of the innermost active LLMObs span, or null if none is active. */
+  public static String currentMlApp() {
+    return Context.current().get(ML_APP_KEY);
   }
 
   /**

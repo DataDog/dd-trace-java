@@ -1492,6 +1492,47 @@ public class DDSpanContext
     return getRootSpanContextOrThis().propagationTags;
   }
 
+  @Override
+  public CharSequence getLLMObsMlApp() {
+    return getPropagationTags().getLLMObsMlApp();
+  }
+
+  @Override
+  public CharSequence getLLMObsSessionId() {
+    return getPropagationTags().getLLMObsSessionId();
+  }
+
+  @Override
+  public CharSequence getLLMObsParentAgentSpanId() {
+    return getPropagationTags().getLLMObsParentAgentSpanId();
+  }
+
+  @Override
+  public CharSequence getLLMObsParentAgentName() {
+    return getPropagationTags().getLLMObsParentAgentName();
+  }
+
+  @Override
+  public CharSequence getLLMObsParentId() {
+    return getPropagationTags().getLLMObsParentId();
+  }
+
+  @Override
+  public void updateLLMObsContext(
+      CharSequence mlApp,
+      CharSequence sessionId,
+      CharSequence parentAgentSpanId,
+      CharSequence parentAgentName,
+      CharSequence parentId) {
+    getPropagationTags()
+        .updateLLMObsContext(mlApp, sessionId, parentAgentSpanId, parentAgentName, parentId);
+  }
+
+  @Override
+  public void resetLLMObsContext() {
+    getPropagationTags().resetLLMObsContext();
+  }
+
   /** TraceSegment Implementation */
   @Override
   public void setTagTop(String key, Object value, boolean sanitize) {

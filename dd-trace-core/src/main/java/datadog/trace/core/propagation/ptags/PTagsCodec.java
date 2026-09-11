@@ -23,6 +23,11 @@ abstract class PTagsCodec {
   protected static final String PROPAGATION_ERROR_MALFORMED_TID = "malformed_tid ";
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
+  protected static final TagKey LLMOBS_ML_APP_TAG = TagKey.from("llmobs_ml_app");
+  protected static final TagKey LLMOBS_SESSION_ID_TAG = TagKey.from("llmobs_sid");
+  protected static final TagKey LLMOBS_PAGENT_SPAN_ID_TAG = TagKey.from("llmobs_pagent_span_id");
+  protected static final TagKey LLMOBS_PAGENT_NAME_TAG = TagKey.from("llmobs_pagent_name");
+  protected static final TagKey LLMOBS_PARENT_ID_TAG = TagKey.from("llmobs_parent_id");
 
   static String headerValue(PTagsCodec codec, PTags ptags) {
     return headerValue(codec, ptags, null);
@@ -64,6 +69,22 @@ abstract class PTagsCodec {
         size =
             codec.appendTag(
                 sb, ORG_PROPAGATION_MARKER_TAG, ptags.getOrgPropagationMarkerTagValue(), size);
+      }
+      LLMObsTagValues llmObsTags = ptags.getLLMObsTagValues();
+      if (llmObsTags.mlApp != null) {
+        size = codec.appendTag(sb, LLMOBS_ML_APP_TAG, llmObsTags.mlApp, size);
+      }
+      if (llmObsTags.sessionId != null) {
+        size = codec.appendTag(sb, LLMOBS_SESSION_ID_TAG, llmObsTags.sessionId, size);
+      }
+      if (llmObsTags.parentAgentSpanId != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_SPAN_ID_TAG, llmObsTags.parentAgentSpanId, size);
+      }
+      if (llmObsTags.parentAgentName != null) {
+        size = codec.appendTag(sb, LLMOBS_PAGENT_NAME_TAG, llmObsTags.parentAgentName, size);
+      }
+      if (llmObsTags.parentId != null) {
+        size = codec.appendTag(sb, LLMOBS_PARENT_ID_TAG, llmObsTags.parentId, size);
       }
       Iterator<TagElement> it = ptags.getTagPairs().iterator();
       while (it.hasNext() && !codec.isTooLarge(sb, size)) {
@@ -136,6 +157,32 @@ abstract class PTagsCodec {
               .getTraceIdHighOrderBitsHexTagValue()
               .forType(Encoding.DATADOG)
               .toString());
+    }
+    LLMObsTagValues llmObsTags = propagationTags.getLLMObsTagValues();
+    if (llmObsTags.mlApp != null) {
+      tagMap.put(
+          LLMOBS_ML_APP_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.mlApp.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.sessionId != null) {
+      tagMap.put(
+          LLMOBS_SESSION_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.sessionId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentAgentSpanId != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_SPAN_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentAgentSpanId.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentAgentName != null) {
+      tagMap.put(
+          LLMOBS_PAGENT_NAME_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentAgentName.forType(Encoding.DATADOG).toString());
+    }
+    if (llmObsTags.parentId != null) {
+      tagMap.put(
+          LLMOBS_PARENT_ID_TAG.forType(Encoding.DATADOG).toString(),
+          llmObsTags.parentId.forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getError() != null) {
       tagMap.put(PROPAGATION_ERROR_TAG_KEY, propagationTags.getError());

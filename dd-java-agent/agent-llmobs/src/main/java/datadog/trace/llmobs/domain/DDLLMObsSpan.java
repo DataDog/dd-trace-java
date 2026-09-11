@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +85,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
-      @Nonnull String mlApp,
+      @Nullable String mlApp,
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags) {
@@ -94,7 +95,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   public DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
-      @Nonnull String mlApp,
+      @Nullable String mlApp,
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags,
@@ -113,7 +114,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
   DDLLMObsSpan(
       @Nonnull String kind,
       String spanName,
-      @Nonnull String mlApp,
+      @Nullable String mlApp,
       String sessionId,
       @Nonnull String serviceName,
       WellKnownTags wellKnownTags,
@@ -145,22 +146,22 @@ public class DDLLMObsSpan implements LLMObsSpan {
 
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
-    this.mlApp = mlApp;
-    span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    // Resolve effective parent_id, session_id, agent_version, agent attribution and sampling
-    // decision from the LLMObs context, all gated on trace-id consistency. A stale context from a
-    // different trace (e.g. async boundary leakage) must not contribute any of them. Every
-    // inherited value is read inside the one same-trace branch below, so a newly propagated tag
-    // cannot ship with a weaker gate of its own.
+    // Resolve effective ml_app, parent_id, session_id, agent_version, agent attribution and
+    // sampling decision from the LLMObs context, all gated on trace-id consistency. A stale
+    // context from a different trace (e.g. async boundary leakage) must not contribute any of
+    // them. Every inherited value is read inside the one same-trace branch below, so a newly
+    // propagated tag cannot ship with a weaker gate of its own.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
+    String resolvedMlApp = mlApp;
     String resolvedAgentVersion = agentVersion;
     String sampleRate = null;
     String samplingDecision = null;
     String resolvedParentAgentSpanId = null;
     String resolvedParentAgentName = null;
+    boolean inheritedInProcess = false;
     if (null != parent) {
-      if (parent.getTraceId() != span.getTraceId()) {
+      if (!parent.getTraceId().equals(span.getTraceId())) {
         LOGGER.error(
             "trace ID mismatch, retrieved parent from context trace_id={}, span_id={}, started span trace_id={}, span_id={}",
             parent.getTraceId(),
@@ -168,7 +169,17 @@ public class DDLLMObsSpan implements LLMObsSpan {
             span.getTraceId(),
             span.getSpanId());
       } else {
+        inheritedInProcess = true;
         parentSpanID = String.valueOf(parent.getSpanId());
+        // Inherit ml_app from the enclosing LLMObs span, if this span doesn't name its own, so a
+        // whole agent subtree stays in one application rather than each nested span falling back
+        // to the service default.
+        if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
+          String inherited = LLMObsContext.currentMlApp();
+          if (inherited != null && !inherited.isEmpty()) {
+            resolvedMlApp = inherited;
+          }
+        }
         // Inherit session_id from parent context only when it belongs to the same trace.
         // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
         // span; descendants inherit transitively via context propagation.
@@ -196,6 +207,37 @@ public class DDLLMObsSpan implements LLMObsSpan {
         resolvedParentAgentName = LLMObsContext.currentParentAgentName();
       }
     }
+
+    if (!inheritedInProcess) {
+      // No usable in-process LLMObs parent, so fall back to what arrived from another service on
+      // the span context's propagation tags.
+      String propagatedParentId = asString(span.spanContext().getLLMObsParentId());
+      if (propagatedParentId != null) {
+        parentSpanID = propagatedParentId;
+      }
+      if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
+        resolvedMlApp = asString(span.spanContext().getLLMObsMlApp());
+      }
+      if (sessionId == null || sessionId.isEmpty()) {
+        sessionId = asString(span.spanContext().getLLMObsSessionId());
+      }
+      resolvedParentAgentSpanId = asString(span.spanContext().getLLMObsParentAgentSpanId());
+      if (resolvedParentAgentSpanId != null) {
+        resolvedParentAgentName = asString(span.spanContext().getLLMObsParentAgentName());
+      }
+    }
+
+    // The service default goes last, once the explicit, in-process and propagated values have all
+    // had their chance — applying it any earlier is indistinguishable from the caller naming the
+    // service explicitly, which is what would silently discard an upstream ml_app. Config already
+    // resolves this to DD_LLMOBS_ML_APP or DD_SERVICE, so the full order is
+    // explicit > in-process parent > propagated > DD_LLMOBS_ML_APP > DD_SERVICE, matching
+    // dd-trace-py's documented precedence.
+    if (resolvedMlApp == null || resolvedMlApp.isEmpty()) {
+      resolvedMlApp = Config.get().getLlmObsMlApp();
+    }
+    this.mlApp = resolvedMlApp;
+    span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, resolvedMlApp);
 
     // An agent span is its own descendants' nearest agent ancestor, replacing anything inherited.
     // Use the span name as the initial pagent name; annotateAgentManifest() will update it to the
@@ -231,11 +273,12 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
 
-    // Propagate the effective sessionId, agent_version, sampling decision and agent attribution
-    // to descendant LLMObs spans via the context.
+    // Propagate the effective mlApp, sessionId, agent_version, sampling decision and agent
+    // attribution to descendant LLMObs spans via the context.
     scope =
         LLMObsContext.attach(
             span.spanContext(),
+            resolvedMlApp,
             sessionId,
             resolvedAgentVersion,
             sampleRate,
@@ -716,5 +759,10 @@ public class DDLLMObsSpan implements LLMObsSpan {
   @Override
   public long getSpanId() {
     return span.getSpanId();
+  }
+
+  /** Narrow a propagated tag value to a non-empty String, or null. */
+  private static String asString(CharSequence value) {
+    return value == null || value.length() == 0 ? null : value.toString();
   }
 }
