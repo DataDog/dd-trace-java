@@ -434,7 +434,7 @@ class WebsocketTest extends InstrumentationSpecification {
     }
   }
 
-  def "test close and receive on same handshake trace"() {
+  def "test all messages and close on same handshake trace"() {
     setup:
     injectSysConfig(TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, "false")
     when:
@@ -449,14 +449,19 @@ class WebsocketTest extends InstrumentationSpecification {
       session.close()
     }
     then:
-    // in reality we have 3 traces but since the handshake finishes soon, the trace structure writer is collecting 5 chunks
-    assertTraces(5, {
+    // In reality we have 3 traces, but finished handshake traces are reported in separate chunks.
+    assertTraces(7, {
       DDSpan serverHandshake, clientHandshake
       trace(1) {
         basicSpan(it, "http.request", "GET /test", null, null, handshakeTags(url))
         clientHandshake = span(0)
       }
-
+      trace(1) {
+        websocketSendSpan(it, clientHandshake, "text", 5, 1, clientHandshake)
+      }
+      trace(1) {
+        websocketCloseSpan(it, clientHandshake, true, 1000, null, clientHandshake)
+      }
       trace(1) {
         basicSpan(it, "servlet.request", "GET /test", null, null, handshakeTags(url))
         serverHandshake = span(0)
@@ -467,11 +472,8 @@ class WebsocketTest extends InstrumentationSpecification {
       trace(1) {
         websocketCloseSpan(it, serverHandshake, false, 1000, { it == null || it == 'no reason given' }, serverHandshake)
       }
-      trace(3) {
-        sortSpansByStart()
+      trace(1) {
         basicSpan(it, "parent")
-        websocketSendSpan(it, clientHandshake, "text", 5, 1, span(0))
-        websocketCloseSpan(it, clientHandshake, true, 1000, null, span(0))
       }
     })
   }
