@@ -288,7 +288,9 @@ public class MavenUtilsTest extends AbstractMavenTest {
     MavenSession session = executionEvent.getSession();
     String effectiveJvm = MavenUtils.getEffectiveJvmFallback(session, mojoExecution);
     assertNotNull(effectiveJvm);
-    assertTrue(effectiveJvm.endsWith("/my-jdk-home/bin/java"));
+    assertTrue(
+        normalizeExecutableName(normalizePathSeparators(effectiveJvm))
+            .endsWith("/my-jdk-home/bin/java"));
     return true;
   }
 

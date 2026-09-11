@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
  */
 abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTest {
 
-  private static final int WINDOWS_TRACE_TIMEOUT_SECONDS = 60;
+  private static final int WINDOWS_TRACE_TIMEOUT_SECONDS = 90;
 
   protected static HttpServer mockServer;
   protected static OpenAIClient openAiClient;
@@ -89,7 +89,7 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
 
   /**
    * A fresh OpenAI test process can take longer than the default 20-second trace timeout on Windows
-   * CI. Allow up to 60 seconds there while retaining the default timeout elsewhere.
+   * CI. Allow up to 90 seconds there while retaining the default timeout elsewhere.
    */
   protected void waitForTraces(int count) throws Exception {
     if (OperatingSystem.isWindows()) {

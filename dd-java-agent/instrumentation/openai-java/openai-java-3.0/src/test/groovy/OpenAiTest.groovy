@@ -41,7 +41,7 @@ import spock.lang.Shared
 
 abstract class OpenAiTest extends InstrumentationSpecification {
 
-  private static final int WINDOWS_TRACE_TIMEOUT_SECONDS = 60
+  private static final int WINDOWS_TRACE_TIMEOUT_SECONDS = 90
 
   // openai token - will use real openai backend and record request/responses to use later in the mock mode
   // empty or null - will use mockOpenAiBackend and read recorded request/responses
@@ -116,7 +116,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
 
   /**
    * A fresh OpenAI test process can take longer than the default 20-second trace timeout on
-   * Windows CI. Allow up to 60 seconds there while retaining the default timeout elsewhere.
+   * Windows CI. Allow up to 90 seconds there while retaining the default timeout elsewhere.
    */
   void waitForTraces(int count = 1) {
     if (OperatingSystem.isWindows()) {

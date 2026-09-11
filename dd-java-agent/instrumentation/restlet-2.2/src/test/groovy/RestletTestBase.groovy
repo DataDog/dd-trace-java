@@ -141,7 +141,9 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    return [ (Tags.PEER_HOSTNAME): "localhost" ]
+    return [(Tags.PEER_HOSTNAME): {
+        normalizeLocalhostHostname(it as String) == "localhost"
+      }]
   }
 
   String capitalize(String word) {
