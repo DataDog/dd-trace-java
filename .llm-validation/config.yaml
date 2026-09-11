@@ -34,6 +34,8 @@ presets:
       - java-correctness-span-events-list-only
       - java-correctness-mapper-state-leak
       - java-perf-foreground-calls-background-only-001
+      - java-perf-foreground-calls-unannotated-002
+      - java-perf-foreground-calls-method-override-003
     runs: 2
   minimum:
     cases: ["java-perf-lens-wrong-collection-001"]

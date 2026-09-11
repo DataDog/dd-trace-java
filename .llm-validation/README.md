@@ -56,7 +56,7 @@ docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
 docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
   --repo /repo --base-sha master --level full --runs 1
 
-# CI-shaped set (9 cases)
+# CI-shaped set (11 cases)
 docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
   --repo /repo --base-sha master --level gate --runs 1
 
@@ -110,7 +110,7 @@ that level already selected.
 | Level | Cases | Default runs | Use |
 |---|---|---|---|
 | `minimum` | **1** (`java-perf-lens-wrong-collection-001`) | 2 | First smoke |
-| `gate` (default) | **8** listed in `config.yaml` | 2 | CI-shaped |
+| `gate` (default) | **11** listed in `config.yaml` | 2 | CI-shaped |
 | `full` | **every** case in `suites/` | 2 | Broader pass |
 
 So this command runs **one** case once, not the whole suite:

@@ -425,3 +425,99 @@ cases:
       - "Assumes the cache is safe to call from advice because it is described as a \"cache\" without checking the annotation."
       - "Misses that `onExit` runs on the application/foreground thread, not the serializer thread."
       - "Dismisses or downgrades the contract violation itself (e.g. calls it optional, stylistic, or something to fix \"eventually\") instead of treating a proven `@BackgroundOnly` crossing as a real, actionable finding regardless of which P-level it lands on."
+
+  - id: java-perf-foreground-calls-unannotated-002
+    files:
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
+    input: |
+      Apply this repo's performance-review criteria (specifically the J16 declared-contract
+      addendum in .agents/dd-apm-sdk-review-overrides/reviewers/performance.md, plus
+      reviewers/_common.md) to the following change. No git checkout available — this diff is
+      the entire change to review.
+
+      `LookupCache` carries neither `@ForegroundSafe` nor `@BackgroundOnly` — it predates both
+      annotations and has never been classified. `HttpUrlConnectionAdvice.onExit` is Byte Buddy
+      advice, which always runs synchronously on the calling application thread — for every
+      instrumented `HttpURLConnection` request.
+
+      ```java
+      // datadog/communication/serialization/LookupCache.java (existing, unchanged, unannotated)
+      public final class LookupCache implements EncodingCache {
+        public static final LookupCache SHARED = new LookupCache();
+
+        public byte[] getUtf8(String value) { /* ... */ }
+      }
+      ```
+
+      ```diff
+      diff --git a/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java b/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java
+      @@ -95,6 +95,11 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing {
+           public static class HttpUrlConnectionAdvice {
+      +      private static final String INTEGRATION_NAME = "http-url-connection";
+      +
+      +      // PR #99998: pre-encode the integration name once so debug logging doesn't re-encode it.
+      +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+      +      public static void onExit(@Advice.This final HttpURLConnection thiz) {
+      +        byte[] utf8 = LookupCache.SHARED.getUtf8(INTEGRATION_NAME);
+      +        log.debug("traced {} bytes via {}", utf8.length, thiz);
+      +      }
+      ```
+    expected_criteria:
+      - "Does not raise a J16 declared-contract finding for this call — `LookupCache` carries neither marker annotation, and J16 is explicit that the absence of an annotation on the callee is not itself a finding."
+      - "If the response mentions `LookupCache` at all, it either says plainly that it is unclassified/unannotated and out of J16's scope, or raises a *different*, independently-justified finding (e.g. an ordinary per-call-allocation or hot-path concern under another addendum) rather than treating this as a `@BackgroundOnly` contract violation."
+    bad_signals:
+      - "Flags this as a `@BackgroundOnly` (or `@ForegroundSafe`) contract violation despite `LookupCache` carrying no such annotation."
+      - "Assumes `LookupCache` is background-only by analogy to `SimpleUtf8Cache` (same shape, similar name) rather than checking for the actual annotation."
+      - "Treats the mere presence of a cache-like class called from advice as sufficient grounds for a declared-contract finding, independent of whether any marker annotation is actually present."
+
+  - id: java-perf-foreground-calls-method-override-003
+    files:
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
+    input: |
+      Apply this repo's performance-review criteria (specifically the J16 declared-contract
+      addendum in .agents/dd-apm-sdk-review-overrides/reviewers/performance.md, plus
+      reviewers/_common.md) to the following change. No git checkout available — this diff is
+      the entire change to review.
+
+      `StatsCache` is declared `@BackgroundOnly` at the class level, but its `sizeHint()` method
+      carries its own method-level `@ForegroundSafe`, which overrides the type-level marker for
+      that method specifically per J16 (a method-level annotation always wins over the
+      enclosing type's). `HttpUrlConnectionAdvice.onExit` is Byte Buddy advice, which always runs
+      synchronously on the calling application thread — for every instrumented
+      `HttpURLConnection` request — and calls only `sizeHint()`, never any other method on
+      `StatsCache`.
+
+      ```java
+      // datadog/communication/serialization/StatsCache.java (existing, unchanged)
+      @BackgroundOnly
+      public final class StatsCache {
+        public static final StatsCache SHARED = new StatsCache();
+
+        @ForegroundSafe
+        public int sizeHint() { /* O(1) volatile field read, no allocation */ }
+
+        public void recordSample(long value) { /* background bookkeeping */ }
+      }
+      ```
+
+      ```diff
+      diff --git a/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java b/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java
+      @@ -95,6 +95,10 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing {
+           public static class HttpUrlConnectionAdvice {
+      +      // PR #99997: size the debug-log buffer up front using the cache's current size hint.
+      +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+      +      public static void onExit(@Advice.This final HttpURLConnection thiz) {
+      +        log.debug("cache sizeHint={} via {}", StatsCache.SHARED.sizeHint(), thiz);
+      +      }
+      ```
+    expected_criteria:
+      - "Does not raise a J16 declared-contract finding for this call — `sizeHint()` carries its own method-level `@ForegroundSafe`, which per J16 overrides the enclosing type's `@BackgroundOnly` for that method specifically, so calling it from foreground advice is compliant, not a violation."
+      - "If it discusses the annotations at all, correctly states that method-level markers win over type-level ones, and that this is exactly the compliant case, not merely an unclassified or borderline one."
+    bad_signals:
+      - "Flags this as a `@BackgroundOnly` violation by looking only at the class-level annotation on `StatsCache` and ignoring the method-level `@ForegroundSafe` on `sizeHint()`."
+      - "Treats the presence of `@BackgroundOnly` anywhere on the type as disqualifying every method on it, contradicting J16's explicit method-overrides-type rule."
+      - "Recommends removing or moving the `sizeHint()` call as if it were a real contract crossing."
