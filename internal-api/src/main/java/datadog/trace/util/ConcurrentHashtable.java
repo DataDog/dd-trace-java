@@ -1733,17 +1733,12 @@ public final class ConcurrentHashtable {
    * {@link #removeIf(AtomicReferenceArray, AtomicInteger, Predicate)} variant for callers tracking
    * occupancy with a {@link State} instead of a bare counter — used by {@link D1#removeIf} and
    * {@link D2#removeIf}.
-   *
-   * <p>TODO: no current caller holds the lock across a full sweep the way {@code drain(State, ...)}
-   * used to before this PR moved it to a per-bucket lock (see that method's Javadoc for the
-   * tradeoff). If a future caller puts {@code removeIf} on a contended path, revisit whether the
-   * same per-bucket restructuring is worth it here — note it would drop the "predicate sees a
-   * stable table" guarantee documented above, so benchmark and weigh that against `drain`'s
-   * measured writer-throughput win before making the change.
    */
   @StrategyConsumer
   public static <TEntry extends Entry<TEntry>> boolean removeIf(
       @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> predicate) {
+    // TODO: no caller contends on this lock today; if one does, consider the same per-bucket
+    // locking drain() uses, trading the "predicate sees a stable table" guarantee for throughput.
     AtomicReferenceArray<TEntry> buckets = state.buckets;
     ReentrantLock lock = getTableWriteLock(state);
     lock.lock();

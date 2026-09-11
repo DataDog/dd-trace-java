@@ -62,11 +62,7 @@ public class LogCollector {
       return;
     }
 
-    // Slow path after a miss: tryReserve holds the table write lock for the reservation's whole
-    // lifetime, so concurrent reservations for the same logical duplicate are serialized with each
-    // other, with drain(), and with the locked find-or-insert inside Reservation#finish() -- a
-    // losing reservation cancels immediately instead of transiently inflating size and starving a
-    // genuinely distinct concurrent insert. finish() does its own locked comparison, so there's no
+    // Slow path after a miss: tryGetOrInsertOrNull does its own locked comparison, so there's no
     // need to repeat find() here first.
     try (Reservation<RawLogMessage> reservation = ConcurrentHashtable.tryReserve(rawLogMessages)) {
       if (!reservation.isReserved()) {
