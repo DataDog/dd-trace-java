@@ -25,15 +25,6 @@ public class CassandraClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".CassandraClientDecorator",
-      packageName + ".TracingSession",
-      packageName + ".ContactPointsUtil",
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
