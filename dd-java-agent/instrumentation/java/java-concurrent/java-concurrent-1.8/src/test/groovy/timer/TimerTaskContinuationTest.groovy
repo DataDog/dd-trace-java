@@ -29,6 +29,12 @@ class TimerTaskContinuationTest extends InstrumentationSpecification {
   @Override
   def setup() {
     timerTask = new TimerTask() {
+        // The test agent starts after TimerTask is loaded, so expose cancel on the subclass.
+        @Override
+        boolean cancel() {
+          super.cancel()
+        }
+
         @Override
         void run() {
           AgentSpan span = startSpan("test", "child")
