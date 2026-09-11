@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.config.TracerConfig.REQUEST_HEADER_TAGS_COMMA_ALLOWED;
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY;
@@ -10,6 +11,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.otBaggageHeaders;
 import static datadog.trace.test.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,8 +33,12 @@ import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
@@ -322,6 +328,33 @@ class DatadogHttpExtractorTest extends AbstractHttpExtractorTest {
       assertEquals(expectedBaggage, context.getBaggage());
     } else {
       assertNull(context);
+    }
+  }
+
+  @Test
+  @WithConfig(key = TRACE_BAGGAGE_MAX_ITEMS, value = "1")
+  void extractMappedBaggageIsSubjectToTheItemLimit() {
+    // mapped baggage shares the item budget with the baggage read off the wire, so the wire item
+    // is dropped once the mapped header has claimed the only slot
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue");
+    headers.put(OT_BAGGAGE_PREFIX + "wireKey", "wireValue");
+
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
+
+    assertEquals(singletonMap(SOME_BAGGAGE, "mappedBaggageValue"), context.getBaggage());
+  }
+
+  @Nested
+  class BaggageLimits extends AbstractOTBaggageTest {
+    @Override
+    protected HttpCodec.Extractor extractor() {
+      return DatadogHttpExtractorTest.this.extractor;
+    }
+
+    @Override
+    protected Map<String, String> baggageHeaders(List<Entry<String, String>> items) {
+      return otBaggageHeaders(OT_BAGGAGE_PREFIX, items);
     }
   }
 

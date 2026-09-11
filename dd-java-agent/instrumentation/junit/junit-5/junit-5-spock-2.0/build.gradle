@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.instrumentation.testing-framework-tests'
+  id 'dd-trace-java.module.instrumentation'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 def spockGroovyVersion = '3.0'
 

@@ -1,6 +1,11 @@
 package com.datadog.debugger.probe;
 
-import static datadog.trace.api.DDTags.*;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_FILE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_LINE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_METHOD;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_SIGNATURE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_FRAME_TYPE;
+import static datadog.trace.api.DDTags.DD_CODE_ORIGIN_TYPE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 

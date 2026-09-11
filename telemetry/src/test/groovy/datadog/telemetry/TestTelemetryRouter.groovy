@@ -250,7 +250,7 @@ class TestTelemetryRouter extends TelemetryRouter {
       def expected = configuration == null ? null : []
       if (configuration != null) {
         for (ConfigSetting cs : configuration) {
-          def item = [name: cs.normalizedKey(), value: cs.stringValue(), origin: cs.origin.value, 'seq_id': cs.seqId]
+          def item = [name: cs.key, value: cs.stringValue(), origin: cs.origin.value, 'seq_id': cs.seqId]
           expected.add(item)
         }
       }

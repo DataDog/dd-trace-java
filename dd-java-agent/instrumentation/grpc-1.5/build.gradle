@@ -1,5 +1,7 @@
 plugins {
   id 'com.google.protobuf' version '0.10.0'
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
 }
 
 muzzle {
@@ -9,9 +11,6 @@ muzzle {
     versions = "[1.5.0,)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
 
 // First version with Mac M1 support
 def grpcVersion = '1.42.2'

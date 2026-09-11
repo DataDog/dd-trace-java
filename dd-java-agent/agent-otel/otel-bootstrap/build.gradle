@@ -2,13 +2,12 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.bootstrap-component'
+  id 'dd-trace-java.build-time-instrumentation'
 }
 
 def otelApiVersion = '1.38.0'
 def otelInstrumentationApiVersion = '2.4.0'
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'dd-trace-java.build-time-instrumentation'
 
 configurations {
   def ec = register('embeddedClasspath') {

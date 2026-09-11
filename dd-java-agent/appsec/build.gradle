@@ -4,9 +4,9 @@ plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.jmh-conventions'
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.product-subsystem'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/tries.gradle"
 
 dependencies {

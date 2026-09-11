@@ -3,9 +3,12 @@ package datadog.trace.test.agent.decoder.v05.raw;
 import static java.util.Collections.emptyMap;
 
 import datadog.trace.test.agent.decoder.DecodedSpan;
+import datadog.trace.test.agent.decoder.DecodedSpanLink;
+import datadog.trace.test.agent.decoder.DecodedSpanLinks;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.msgpack.core.MessageIntegerOverflowException;
 import org.msgpack.core.MessageUnpacker;
@@ -68,9 +71,11 @@ public class SpanV05 implements DecodedSpan {
       }
       String type = unpackString(unpacker, dictionary); // index into dictionary
 
+      List<DecodedSpanLink> links = DecodedSpanLinks.fromMeta(meta);
+
       return new SpanV05(
           service, name, resource, traceId, spanId, parentId, start, duration, error, meta, metrics,
-          type);
+          type, links);
     } catch (Throwable t) {
       if (t instanceof RuntimeException) {
         throw (RuntimeException) t;
@@ -122,6 +127,7 @@ public class SpanV05 implements DecodedSpan {
   private final Map<String, String> meta; // index -> index
   private final Map<String, Number> metrics; // index -> metric
   private final String type; // index into dictionary
+  private final List<DecodedSpanLink> links;
 
   public SpanV05(
       String service,
@@ -135,7 +141,8 @@ public class SpanV05 implements DecodedSpan {
       int error,
       Map<String, String> meta,
       Map<String, Number> metrics,
-      String type) {
+      String type,
+      List<DecodedSpanLink> links) {
     this.service = service;
     this.name = name;
     this.resource = resource;
@@ -148,6 +155,7 @@ public class SpanV05 implements DecodedSpan {
     this.meta = Collections.unmodifiableMap(meta);
     this.metrics = Collections.unmodifiableMap(metrics);
     this.type = type;
+    this.links = links;
   }
 
   public String getService() {
@@ -204,6 +212,11 @@ public class SpanV05 implements DecodedSpan {
   }
 
   @Override
+  public List<DecodedSpanLink> getLinks() {
+    return links;
+  }
+
+  @Override
   public String toString() {
     return "SpanV05{"
         + "service='"
@@ -233,7 +246,8 @@ public class SpanV05 implements DecodedSpan {
         + metrics
         + ", type='"
         + type
-        + '\''
+        + "', links="
+        + links
         + '}';
   }
 }

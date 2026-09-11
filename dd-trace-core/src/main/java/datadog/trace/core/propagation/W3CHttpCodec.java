@@ -24,7 +24,6 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -194,13 +193,7 @@ class W3CHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case OT_BAGGAGE:
-                {
-                  if (baggage.isEmpty()) {
-                    baggage = new TreeMap<>();
-                  }
-                  baggage.put(
-                      lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
-                }
+                addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
                 break;
               default:
             }

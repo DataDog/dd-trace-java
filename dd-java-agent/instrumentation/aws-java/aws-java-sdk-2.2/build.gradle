@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "software.amazon.awssdk"
@@ -8,19 +12,17 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 addTestSuiteForDir('latestDepTest', 'test')
 // Broken: at some point S3 moved the bucket name to the hostname resulting in host not found somebucket.localhost on all S3 tests
 // addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 addTestSuite('dsmTest')
-addTestSuiteExtendingForDir('dsmForkedTest', 'dsmTest', 'dsmTest')
+addForkedTestTask('dsmTest')
 addTestSuiteForDir('latestDsmTest', 'dsmTest')
 addTestSuiteExtendingForDir('latestDsmForkedTest', 'latestDsmTest', 'dsmTest')
 
 addTestSuite('payloadTaggingTest')
-addTestSuiteExtendingForDir('payloadTaggingForkedTest', 'payloadTaggingTest', 'payloadTaggingTest')
+addForkedTestTask('payloadTaggingTest')
 addTestSuiteForDir('latestPayloadTaggingTest', 'payloadTaggingTest')
 addTestSuiteExtendingForDir('latestPayloadTaggingForkedTest', 'latestPayloadTaggingTest', 'payloadTaggingTest')
 

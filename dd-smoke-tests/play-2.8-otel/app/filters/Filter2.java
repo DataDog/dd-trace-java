@@ -1,7 +1,8 @@
 package filters;
 
 import akka.stream.Materializer;
-import javax.inject.*;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import play.libs.concurrent.HttpExecutionContext;
 
 @Singleton

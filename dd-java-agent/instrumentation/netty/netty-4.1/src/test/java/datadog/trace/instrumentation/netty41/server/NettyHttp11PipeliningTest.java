@@ -186,6 +186,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -221,6 +223,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           handler.inboundException,
           "additional pipelined requests should be swallowed by the existing blocking handler");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -248,6 +252,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -282,6 +288,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -310,6 +318,9 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(
+        SORT_BY_START_TIME, serverTrace("HEAD", FIRST_PATH), serverTrace("GET", SECOND_PATH));
   }
 
   @Test
@@ -329,6 +340,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           "first response should be the interim response");
       assertEquals("response " + FIRST_PATH, readHttpResponseBody(socket.getInputStream()));
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH));
   }
 
   @Test
@@ -359,6 +372,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   @Test
@@ -387,6 +402,8 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
           readHeaders(socket.getInputStream()).startsWith("HTTP/1.1 403 "),
           "second response should be the deferred blocking response");
     }
+
+    assertTraces(SORT_BY_START_TIME, serverTrace(FIRST_PATH), serverTrace(SECOND_PATH));
   }
 
   private static String pipelinedRequests() {
@@ -453,11 +470,15 @@ public class NettyHttp11PipeliningTest extends NettyHttpServerTestSupport {
   }
 
   private static TraceMatcher serverTrace(String path) {
+    return serverTrace("GET", path);
+  }
+
+  private static TraceMatcher serverTrace(String method, String path) {
     return trace(
         span()
             .root()
             .operationName(Pattern.compile("netty\\.request"))
-            .resourceName(Pattern.compile("GET " + Pattern.quote(path)))
+            .resourceName(Pattern.compile(Pattern.quote(method + " " + path)))
             .type("web"));
   }
 

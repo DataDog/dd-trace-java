@@ -1,4 +1,7 @@
-import filters.*;
+import filters.Filter1;
+import filters.Filter2;
+import filters.Filter3;
+import filters.Filter4;
 import javax.inject.Inject;
 import play.http.DefaultHttpFilters;
 

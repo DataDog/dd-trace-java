@@ -48,6 +48,7 @@ class MuzzleEndTaskTest {
 
     val task = project.tasks.register<MuzzleEndTask>("muzzle-end").get().apply {
       startTimeMs.set(System.currentTimeMillis() - 1_000)
+      sourceFile.set("lettuce-5.0")
       muzzleResultFiles.from(passReportPath.toFile(), failReportPath.toFile())
     }
 
@@ -74,6 +75,14 @@ class MuzzleEndTaskTest {
     assertThat(suite.getAttribute("failures")).isEqualTo("1")
     assertThat(suite.getAttribute("errors")).isEqualTo("0")
     assertThat(suite.getAttribute("skipped")).isEqualTo("0")
+  }
+
+  @Test
+  fun `junit testcases contain project source path`() {
+    assertThat(findTestCaseByName(junitDoc, "muzzle-pass").getAttribute("file"))
+      .isEqualTo("lettuce-5.0")
+    assertThat(findTestCaseByName(junitDoc, "muzzle-fail").getAttribute("file"))
+      .isEqualTo("lettuce-5.0")
   }
 
   @Test

@@ -46,7 +46,7 @@ pattern before writing new code. Use it as a template.
 1. Create directory: `dd-java-agent/instrumentation/$framework/$framework-$minVersion/`
 2. Under it, create the standard Maven source layout:
    - `src/main/java/` — instrumentation code
-   - `src/test/groovy/` — Groovy/Spock instrumentation tests (see Step 9.1)
+   - `src/test/groovy/` (default) or `src/test/java/` if the module's master version and version-siblings are already on the Java/JUnit DSL — check them before creating this directory (see Step 9.1)
 3. Create `build.gradle` with:
    - `compileOnly` dependencies for the target framework
    - `testImplementation` dependencies for tests
@@ -93,7 +93,7 @@ Cover all mandatory test types:
 
 ### 1. Instrumentation test (mandatory)
 
-**Read [Writing Tests](references/tests.md).** Instrumentation tests are Groovy/Spock (`src/test/groovy/`) — add the `tag: override groovy enforcement` label to suppress the `Enforce Groovy Migration` CI check (which blocks new `.groovy` files by default — instrumentation tests are intentionally Groovy/Spock). Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include sibling version modules as `testImplementation` dependencies for mutual-exclusion tests.
+**Read [Writing Tests](references/tests.md).** Groovy/Spock (`src/test/groovy/`) is the default for instrumentation tests — add the `tag: override groovy enforcement` label to suppress the `Enforce Groovy Migration` CI check (which blocks new `.groovy` files by default). **Match the sibling module's test DSL is the deciding factor: write your tests in `src/test/groovy/` to match the master module and its version-siblings, UNLESS that family is already on the Java/JUnit DSL — do NOT introduce a `src/test/java/**` JUnit suite into a Groovy family, and do NOT copy the Java `AbstractInstrumentationTest` examples in `references/tests.md` (they illustrate style rules for modules already on the Java DSL, they are not a license to migrate a Groovy family to Java).** Must cover error/exception scenarios. When adding new integration names, register them per [Supported Configurations](references/supported-configurations.md). When `compileOnly` and `testImplementation` use different versions, comment the specific class that requires the higher version. Include sibling version modules as `testImplementation` dependencies for mutual-exclusion tests.
 
 ### 2. Muzzle directives (mandatory)
 

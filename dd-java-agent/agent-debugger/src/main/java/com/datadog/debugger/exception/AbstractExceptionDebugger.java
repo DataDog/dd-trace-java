@@ -55,11 +55,10 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
   public void handleException(Throwable t, AgentSpan span) {
     if (!shouldHandleException(t, span)) {
       if (LOGGER.isDebugEnabled()) {
-        LOGGER.debug("Skip handling error: {}", t.toString());
+        LOGGER.debug("Skip handling exception: {}", t.getClass().getTypeName());
       }
       return;
     }
-
     String fingerprint = Fingerprinter.fingerprint(t, classNameFiltering);
     if (fingerprint == null) {
       LOGGER.debug("Unable to fingerprint exception", t);
@@ -76,11 +75,18 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       ExceptionProbeManager.ThrowableState state =
           exceptionProbeManager.getStateByThrowable(innerMostException);
       if (state == null) {
-        LOGGER.debug("Unable to find state for throwable: {}", innerMostException.toString());
+        LOGGER.debug(
+            "Unable to find state for throwable: {}", innerMostException.getClass().getTypeName());
         return;
       }
       processSnapshotsAndSetTags(
-          t, span, state, chainedExceptionsList, fingerprint, maxCapturedFrames);
+          t,
+          innerMostException,
+          span,
+          state,
+          chainedExceptionsList,
+          fingerprint,
+          maxCapturedFrames);
       exceptionProbeManager.updateLastCapture(fingerprint);
     } else {
       // climb up the exception chain to find the first exception that has instrumented frames
@@ -126,6 +132,7 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
 
   private void processSnapshotsAndSetTags(
       Throwable t,
+      Throwable innerMostException,
       AgentSpan span,
       ExceptionProbeManager.ThrowableState state,
       List<Throwable> chainedExceptions,
@@ -190,6 +197,9 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
           state.getExceptionId());
       span.setTag(Tags.ERROR_DEBUG_INFO_CAPTURED, true);
       span.setTag(DD_DEBUG_ERROR_EXCEPTION_HASH, fingerprint);
+      // Remove ThrowableState to avoid growing indefinitely for singleton exception instances
+      // like ones generated for FastThrow optimization (OmitStackTraceInFastThrow)
+      exceptionProbeManager.removeThrowableState(innerMostException);
     }
   }
 

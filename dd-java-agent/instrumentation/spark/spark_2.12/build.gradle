@@ -1,5 +1,6 @@
 plugins {
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.instrumentation'
 }
 
 def sparkVersion = '2.4.0'
@@ -13,7 +14,6 @@ muzzle {
     assertInverse = true
   }
 }
-apply from: "$rootDir/gradle/java.gradle"
 
 configurations.configureEach {
   resolutionStrategy.deactivateDependencyLocking()
