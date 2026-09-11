@@ -69,17 +69,54 @@ public final class DatadogClassLoader extends SecureClassLoader {
   }
 
   @Override
-  protected URL findResource(String name) {
+  public InputStream getResourceAsStream(final String name) {
+    // Resources we ship are read straight from the jar handle opened at construction time, the
+    // same source class loading reads from. Going through the "jar:" URL returned by
+    // findResource() instead would resolve the agent jar by pathname on every read: once a
+    // deployment has replaced or removed that jar the read either fails - and
+    // ClassLoader.getResourceAsStream() turns the IOException into a silent null, see
+    // APPSEC-69906 - or silently serves content belonging to a different build of the agent.
+    JarEntry jarEntry = findResourceEntry(name);
+    if (null == jarEntry) {
+      return super.getResourceAsStream(name);
+    }
+    try {
+      return agentJarFile.getInputStream(jarEntry);
+    } catch (IOException e) {
+      // The retained jar owns this resource, so do not fall back to a pathname-based lookup that
+      // could serve the same entry from a replacement jar.
+      log.warn("Problem reading resource data at {}", jarEntry, e);
+      return null;
+    }
+  }
+
+  /**
+   * Finds a resource we ship in the retained agent jar. Indexed agent resources intentionally take
+   * precedence over delegated resources so their contents stay consistent with classes loaded from
+   * this handle. Resources not owned by this jar, including the manifest which is excluded from the
+   * index, continue through the existing delegation path. In production {@link BootstrapProxy} is
+   * initially registered with the same agent jar URL, but it can hold additional URLs.
+   */
+  private JarEntry findResourceEntry(String name) {
+    if (null == agentJarFile) {
+      return null;
+    }
     String entryName = agentJarIndex.resourceEntryName(name);
     if (null != entryName) {
-      JarEntry jarEntry = agentJarFile.getJarEntry(entryName);
-      if (null != jarEntry) {
-        String location = agentResourcePrefix + entryName;
-        try {
-          return new URL(location);
-        } catch (Exception e) {
-          log.warn("Malformed location {}", location);
-        }
+      return agentJarFile.getJarEntry(entryName);
+    }
+    return null;
+  }
+
+  @Override
+  protected URL findResource(String name) {
+    JarEntry jarEntry = findResourceEntry(name);
+    if (null != jarEntry) {
+      String location = agentResourcePrefix + jarEntry.getName();
+      try {
+        return new URL(location);
+      } catch (Exception e) {
+        log.warn("Malformed location {}", location);
       }
     }
     return null;

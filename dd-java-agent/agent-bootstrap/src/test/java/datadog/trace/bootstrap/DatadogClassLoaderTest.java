@@ -1,19 +1,33 @@
 package datadog.trace.bootstrap;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -167,5 +181,138 @@ class DatadogClassLoaderTest {
                 + expectedPrefix
                 + ") — pre-fix code derives the prefix from JarFile.getName(),"
                 + " which leaves the space unencoded and on Windows produces a malformed URL.");
+  }
+
+  @Test
+  void getResourceAsStreamFallsBackForResourcesExcludedFromTheIndex() throws Exception {
+    String manifestName = "META-INF/MANIFEST.MF";
+    try (URLClassLoader parent = new URLClassLoader(new URL[] {testJarLocation}, null)) {
+      DatadogClassLoader ddLoader = new DatadogClassLoader(testJarLocation, parent);
+
+      assertNull(
+          ddLoader.findResource(manifestName),
+          "the manifest should remain excluded from the agent jar index");
+      assertArrayEquals(
+          readFully(parent, manifestName),
+          readFully(ddLoader, manifestName),
+          "resources excluded from the index should retain the existing delegation path");
+    }
+  }
+
+  @Test
+  void getResourceAsStreamPrefersIndexedAgentResourceOverParent(
+      @org.junit.jupiter.api.io.TempDir File tempDir) throws Exception {
+    byte[] parentContents = "the parent's a/A.class".getBytes(StandardCharsets.UTF_8);
+    File parentJar = new File(tempDir, "parent.jar");
+    writeJarEntry(parentJar, "a/A.class", parentContents);
+
+    try (URLClassLoader parent = new URLClassLoader(new URL[] {parentJar.toURI().toURL()}, null)) {
+      DatadogClassLoader ddLoader = new DatadogClassLoader(testJarLocation, parent);
+
+      assertArrayEquals(parentContents, readFully(parent, "a/A.class"));
+      assertArrayEquals(
+          originalEntryBytes(),
+          readFully(ddLoader, "a/A.class"),
+          "indexed agent resources should take precedence over delegated resources");
+    }
+  }
+
+  /**
+   * Regression coverage for agent jar removal. Class loading survives an on-disk replacement,
+   * because it reads through the {@link java.util.jar.JarFile} handle opened at construction time,
+   * but resource loading used to go through a {@code jar:} URL that can no longer be opened — and
+   * {@link ClassLoader#getResourceAsStream} turns the resulting {@link java.io.IOException} into a
+   * silent {@code null}. APPSEC-69906 reported the same externally visible "Resource
+   * default_config.json not found" symptom, although its underlying cause is unconfirmed.
+   */
+  @Test
+  void getResourceAsStreamSurvivesAgentJarRemoval(@org.junit.jupiter.api.io.TempDir File tempDir)
+      throws Exception {
+    // deleting a file that is still open is rejected on Windows, so the scenario cannot arise there
+    assumeFalse(System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win"));
+
+    File jar = new File(tempDir, "testjar-jdk8");
+    Files.copy(
+        new File("src/test/resources/classloader-test-jar/testjar-jdk8").toPath(), jar.toPath());
+    DatadogClassLoader ddLoader = new DatadogClassLoader(jar.toURI().toURL(), null);
+
+    // the jar goes away from under the running JVM; the handle opened above still refers to it
+    Files.delete(jar.toPath());
+
+    // the URL is still resolved, but is now unreadable — this is what used to yield a silent null
+    URL resource = ddLoader.findResource("a/A.class");
+    assertNotNull(resource, "findResource should still resolve a/A.class from the jar index");
+    assertThrows(IOException.class, resource::openStream);
+
+    assertArrayEquals(
+        originalEntryBytes(),
+        readFully(ddLoader, "a/A.class"),
+        "getResourceAsStream should read through the retained jar handle");
+  }
+
+  /**
+   * Companion to {@link #getResourceAsStreamSurvivesAgentJarRemoval}, covering what an agent
+   * upgrade actually does: the pathname is replaced by a <em>readable</em> jar of a different
+   * build. Opening the {@code jar:} URL would then succeed and hand back the new jar's copy of the
+   * resource, while classes keep coming from the retained handle — mixing two builds. Resources
+   * must come from the same jar the classes do.
+   */
+  @Test
+  void getResourceAsStreamIgnoresAJarThatReplacedTheAgentJar(
+      @org.junit.jupiter.api.io.TempDir File tempDir) throws Exception {
+    // replacing a file that is still open is rejected on Windows, so the scenario cannot arise
+    assumeFalse(System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win"));
+
+    File jar = new File(tempDir, "testjar-jdk8");
+    Files.copy(
+        new File("src/test/resources/classloader-test-jar/testjar-jdk8").toPath(), jar.toPath());
+    DatadogClassLoader ddLoader = new DatadogClassLoader(jar.toURI().toURL(), null);
+
+    // an upgrade swaps in a different build holding a different copy of the same entry
+    byte[] replacementContents = "a different build of a/A.class".getBytes(StandardCharsets.UTF_8);
+    File replacement = new File(tempDir, "replacement");
+    writeJarEntry(replacement, "parent/a/A.classdata", replacementContents);
+    // REPLACE_EXISTING alone: combining it with ATOMIC_MOVE is not portable, and the move must
+    // swap the pathname rather than write through it, so the handle keeps seeing the old jar
+    Files.move(replacement.toPath(), jar.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+    assertArrayEquals(
+        originalEntryBytes(),
+        readFully(ddLoader, "a/A.class"),
+        "getResourceAsStream should serve the jar the loader was built on, not its replacement");
+  }
+
+  private static byte[] originalEntryBytes() throws Exception {
+    try (JarFile jarFile =
+        new JarFile(new File("src/test/resources/classloader-test-jar/testjar-jdk8"))) {
+      try (InputStream is = jarFile.getInputStream(new JarEntry("parent/a/A.classdata"))) {
+        return readAllBytes(is);
+      }
+    }
+  }
+
+  private static void writeJarEntry(File jar, String entryName, byte[] contents) throws Exception {
+    try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar.toPath()))) {
+      out.putNextEntry(new JarEntry(entryName));
+      out.write(contents);
+      out.closeEntry();
+    }
+  }
+
+  private static byte[] readFully(ClassLoader loader, String name) throws Exception {
+    try (InputStream is = loader.getResourceAsStream(name)) {
+      assertNotNull(is, () -> "getResourceAsStream should have found " + name);
+      return readAllBytes(is);
+    }
+  }
+
+  private static byte[] readAllBytes(InputStream is) throws Exception {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    byte[] buf = new byte[4096];
+    int read;
+    while ((read = is.read(buf)) != -1) {
+      out.write(buf, 0, read);
+    }
+    return out.toByteArray();
   }
 }
