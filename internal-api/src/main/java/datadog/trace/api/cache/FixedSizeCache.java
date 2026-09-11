@@ -17,9 +17,13 @@ import java.util.function.Function;
  * computeIfAbsent</code> is idempotent, or otherwise you might not get back the value you expect
  * from a cache lookup.
  *
- * <p>{@link ForegroundSafe}: {@code computeIfAbsent} always does a small, bounded number of probes
- * against a fixed-size array -- no growth, no eviction sweep -- cheap enough to call from an
- * application thread.
+ * <p>{@link ForegroundSafe}: the cache's own bookkeeping -- {@code computeIfAbsent}'s probing,
+ * {@code clear()}, {@code visit()}'s traversal -- always does a small, bounded amount of work
+ * against a fixed-size array: no growth, no eviction sweep. This guarantee covers only that
+ * bookkeeping, not the caller-supplied {@code producer} passed to {@code computeIfAbsent} or the
+ * {@code consumer} passed to {@code visit()} -- their cost is the caller's responsibility, exactly
+ * as with any higher-order method; a slow or blocking producer/consumer is not made safe by this
+ * annotation.
  *
  * @param <K> key type
  * @param <V> value type
