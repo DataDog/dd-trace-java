@@ -57,6 +57,14 @@ import org.openjdk.jmh.annotations.Warmup;
  * to run) -- {@link Counter}'s one shared lock serializes every calling thread, while {@link
  * Accumulator}'s per-thread striping doesn't. This is the expected result for a counter hit from
  * many concurrent threads, and it's why the Rule of thumb above exists.
+ *
+ * <p><b>What this does and doesn't measure.</b> {@link LockingStatsDClient} is a conservative
+ * synthetic lower bound on {@link Counter}'s real cost, not a measurement of exact production
+ * overhead -- a real {@code StatsDClient} also encodes the metric line and offers it to a queue (or
+ * blocks on socket I/O) under that same lock/queue, work this stand-in skips entirely. That means
+ * the true gap between {@link Counter} and {@link Accumulator} at high contention in production is
+ * at least as large as the ~173x shown here, quite possibly larger; this benchmark establishes a
+ * floor, not a ceiling, on the win.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
