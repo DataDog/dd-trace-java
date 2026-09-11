@@ -113,6 +113,20 @@ public final class ScopeDiagnosticsReport {
     return countWith(scopeFailures, Failure.CLOSE_WRONG_THREAD);
   }
 
+  public int deferredCleanupScopeCount() {
+    int count = 0;
+    for (ScopeRecord scope : scopes) {
+      if (scope.deferredCleanup() && !scope.closed()) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  boolean hasIncompleteLifecycles() {
+    return leakCount() > 0 || neverClosedScopeCount() > 0;
+  }
+
   private static <K> int countWith(Map<K, EnumSet<Failure>> findings, Failure failure) {
     int n = 0;
     for (EnumSet<Failure> f : findings.values()) {
@@ -153,6 +167,8 @@ public final class ScopeDiagnosticsReport {
         .append(" activate-after-resolve | scopes: ")
         .append(neverClosedScopeCount())
         .append(" never-closed, ")
+        .append(deferredCleanupScopeCount())
+        .append(" deferred, ")
         .append(closeWrongThreadCount())
         .append(" wrong-thread)\n");
   }
@@ -314,6 +330,9 @@ public final class ScopeDiagnosticsReport {
     }
     if (scope.threadHandoff()) {
       sb.append(" [handoff]");
+    }
+    if (scope.deferredCleanup() && !scope.closed()) {
+      sb.append(" [deferred-cleanup]");
     }
     if (!failures.isEmpty()) {
       sb.append(' ').append(failures);

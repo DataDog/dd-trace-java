@@ -134,6 +134,16 @@ public final class ScopeContinuationProbe {
     }
   }
 
+  public static void onDeferredScopeCleanup(Object scope) {
+    if (!recording) {
+      return;
+    }
+    try {
+      ScopeDiagnostics.recordDeferredScopeCleanup(scope);
+    } catch (Throwable ignored) {
+    }
+  }
+
   /** Records an out-of-order close when the internal stack can be inspected. */
   public static void onScopeClosing(Object scope) {
     if (!recording) {
