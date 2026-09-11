@@ -60,4 +60,47 @@ public class LogCollectorBenchmark {
   static void unsupportedOperation() {
     throw new UnsupportedOperationException();
   }
+
+  /**
+   * Exercises the near-capacity path the other benchmarks skip: capacity is well below the number
+   * of distinct keys in play, so once warmed up the table stays full and most calls miss {@code
+   * find()}'s lock-free scan and fall through to {@code tryReserveFor} -- including its locked
+   * recheck for a concurrent duplicate. {@link #duplicateWithoutException} and friends only ever
+   * hit the lock-free fast path, so they don't touch that code at all.
+   */
+  @State(Scope.Benchmark)
+  public static class ContendedCollectorState {
+    static final int N_KEYS = 32;
+    static final String[] MESSAGES = new String[N_KEYS];
+
+    static {
+      for (int i = 0; i < N_KEYS; i++) {
+        MESSAGES[i] = "message-" + i;
+      }
+    }
+
+    LogCollector collector;
+
+    @Setup(Level.Iteration)
+    public void setup() {
+      // Capacity well below N_KEYS keeps the table full/near-full once warmed up.
+      collector = new LogCollector(8);
+    }
+  }
+
+  @State(Scope.Thread)
+  public static class KeyCursorState {
+    int cursor;
+
+    int next() {
+      int i = cursor;
+      cursor = (i + 1) % ContendedCollectorState.N_KEYS;
+      return i;
+    }
+  }
+
+  @Benchmark
+  public void variedKeysNearCapacity(ContendedCollectorState state, KeyCursorState cursor) {
+    state.collector.addLogMessage("error", ContendedCollectorState.MESSAGES[cursor.next()], null);
+  }
 }
