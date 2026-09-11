@@ -150,8 +150,11 @@ After `updateAgentJarIntegrationsGoldenFile` runs, commit the updated `metadata/
 
 **If `checkDecoratorAnalyticsConfigurations` fails:** a name returned by the decorator's `instrumentationNames()` is missing `DD_TRACE_<NAME>_ANALYTICS_ENABLED` / `DD_TRACE_<NAME>_ANALYTICS_SAMPLE_RATE` entries in `metadata/supported-configurations.json` — add them per [Supported Configurations](references/supported-configurations.md).
 
-**If tests fail:** verify span lifecycle order (start → activate → error → close → finish), helper registration,
-and `contextStore()` map entries match actual usage.
+**If tests fail:** verify span lifecycle order (start → activate → error → close → finish), helper
+registration, and `contextStore()` map entries match actual usage. If the output contains
+`Scope/continuation timeline`, read and follow
+`.agents/skills/fix-continuation-leakage/SKILL.md`; fix the broken ownership edge rather than
+adding `strictTraceWrites(false)` or disabling the diagnostic.
 
 ## Step 11 – Checklist before finishing
 
