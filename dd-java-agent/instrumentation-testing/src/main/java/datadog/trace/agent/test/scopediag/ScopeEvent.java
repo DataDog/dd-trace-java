@@ -1,10 +1,6 @@
 package datadog.trace.agent.test.scopediag;
 
-/**
- * A single observed point in a continuation's lifecycle. Time, thread, and stack are captured by
- * the recorder on the event's own thread (notifications are synchronous), so they reflect the
- * thread that actually captured/activated/resolved the continuation.
- */
+/** A timestamped scope or continuation lifecycle event with its thread and call site. */
 public final class ScopeEvent {
   public enum Type {
     CAPTURE,
@@ -13,9 +9,7 @@ public final class ScopeEvent {
     ACTIVATE_FAILED,
     RESOLVE_FINISH,
     RESOLVE_CANCEL,
-    /** A scope became active (first activation). */
     SCOPE_OPEN,
-    /** A scope was popped from its thread's stack. */
     SCOPE_CLOSE,
     /** A scope was closed while not on top of its thread's stack. */
     SCOPE_CLOSE_WRONG_THREAD
