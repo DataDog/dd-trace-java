@@ -240,6 +240,7 @@ public final class FlatHashtable {
      * and {@code key} is absent (the caller supplies the overflow default). A hit is always
      * returned even at capacity — the cap blocks only creation, not lookup.
      */
+    @StrategyConsumer
     @Nullable
     public TEntry getOrCreate(@Nullable K key, @Nonnull CreateStrategy<TEntry, K> createStrat) {
       final TEntry existing = get(key);
@@ -428,6 +429,7 @@ public final class FlatHashtable {
      * Two-key analogue of {@link D1#getOrCreate}: growable never returns {@code null}; fixed
      * returns {@code null} when full and {@code (key1, key2)} is absent.
      */
+    @StrategyConsumer
     @Nullable
     public TEntry getOrCreate(
         @Nullable K1 key1,
@@ -1025,6 +1027,8 @@ public final class FlatHashtable {
 
   /** General iterator: strategy held in a field, so {@code hashOf} stays a virtual call. */
   private static final class StrategyHashIterator<E> extends HashIterator<E> {
+    @Strategy.DynamicDispatch(
+        "general iterator fallback partner to EntryHashIterator; stays on dynamic dispatch on purpose")
     private final HashStrategy<E> hashStrat;
 
     StrategyHashIterator(E[] table, long hash, HashStrategy<E> hashStrat) {
