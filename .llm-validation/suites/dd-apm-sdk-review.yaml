@@ -417,9 +417,10 @@ cases:
       ```
     expected_criteria:
       - "Flags that `onExit` — Byte Buddy advice running on the application thread for every instrumented `HttpURLConnection` call — reaches `SimpleUtf8Cache.getUtf8(...)`, a class declared `@BackgroundOnly`, per J16's declared-contract check."
-      - "Classifies this as SEV-1 / P0, not a soft nudge or generic allocation note."
+      - "Escalates severity toward SEV-1/2 (mapping to P1, absent OOM/SLA evidence) because the call site is a hot per-request path (every instrumented HttpURLConnection call), per J16's graduated severity guidance and the core SEV→P mapping — not a hardcoded top severity independent of call-site frequency."
       - "Recommends removing the call from advice or moving the work to the background/serializer thread that legitimately owns `SimpleUtf8Cache`, rather than caching the value differently in place."
     bad_signals:
       - "Treats this as an ordinary allocation or contention finding without naming the declared `@BackgroundOnly` contract violation."
       - "Assumes the cache is safe to call from advice because it is described as a \"cache\" without checking the annotation."
       - "Misses that `onExit` runs on the application/foreground thread, not the serializer thread."
+      - "Dismisses or downgrades the contract violation itself (e.g. calls it optional, stylistic, or something to fix \"eventually\") instead of treating a proven `@BackgroundOnly` crossing as a real, actionable finding regardless of which P-level it lands on."
