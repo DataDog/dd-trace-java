@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.telemetry.tag.SkipReason
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.config.TestManagementSettings
+import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector
 import datadog.trace.civisibility.execution.AttemptToFix
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
@@ -126,7 +127,8 @@ class ExecutionStrategyTest extends Specification {
       config,
       executionSettings,
       resolver,
-      linesResolver
+      linesResolver,
+      NoOpMetricCollector.INSTANCE
       )
   }
 }

@@ -265,6 +265,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_BUCKETS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
@@ -1214,6 +1216,8 @@ public class Config {
   private final boolean ciVisibilityFlakyRetryOnlyKnownFlakes;
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
+  private final boolean ciVisibilityDynamicAtrEnabled;
+  private final String ciVisibilityDynamicAtrBuckets;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilitySessionName;
@@ -2866,6 +2870,9 @@ public class Config {
     ciVisibilityFlakyRetryCount = configProvider.getInteger(CIVISIBILITY_FLAKY_RETRY_COUNT, 5);
     ciVisibilityTotalFlakyRetryCount =
         configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
+    ciVisibilityDynamicAtrEnabled =
+        configProvider.getBoolean(CIVISIBILITY_DYNAMIC_ATR_ENABLED, false);
+    ciVisibilityDynamicAtrBuckets = configProvider.getString(CIVISIBILITY_DYNAMIC_ATR_BUCKETS);
     ciVisibilitySessionName = configProvider.getString(TEST_SESSION_NAME);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTestCommand = configProvider.getString(CIVISIBILITY_TEST_COMMAND);
@@ -4768,6 +4775,14 @@ public class Config {
 
   public int getCiVisibilityTotalFlakyRetryCount() {
     return ciVisibilityTotalFlakyRetryCount;
+  }
+
+  public boolean isCiVisibilityDynamicAtrEnabled() {
+    return ciVisibilityDynamicAtrEnabled;
+  }
+
+  public String getCiVisibilityDynamicAtrBuckets() {
+    return ciVisibilityDynamicAtrBuckets;
   }
 
   public String getCiVisibilitySessionName() {
@@ -7078,6 +7093,11 @@ public class Config {
         + otlpTracesTimeout
         + ", ciVisibilityGradleDependencyVerificationEnabled="
         + ciVisibilityGradleDependencyVerificationEnabled
+        + ", ciVisibilityDynamicAtrEnabled="
+        + ciVisibilityDynamicAtrEnabled
+        + ", ciVisibilityDynamicAtrBuckets='"
+        + ciVisibilityDynamicAtrBuckets
+        + '\''
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
         + ", sfnInjectDatadogAttributeEnabled="

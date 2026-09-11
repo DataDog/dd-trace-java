@@ -69,6 +69,10 @@ public final class CiVisibilityConfig {
   public static final String CIVISIBILITY_FLAKY_RETRY_COUNT = "civisibility.flaky.retry.count";
   public static final String CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT =
       "civisibility.total.flaky.retry.count";
+  public static final String CIVISIBILITY_DYNAMIC_ATR_ENABLED =
+      "civisibility.dynamic.atr.enabled";
+  public static final String CIVISIBILITY_DYNAMIC_ATR_BUCKETS =
+      "civisibility.dynamic.atr.buckets";
   public static final String CIVISIBILITY_MODULE_NAME = "civisibility.module.name";
   public static final String CIVISIBILITY_TEST_COMMAND = "civisibility.test.command";
   public static final String CIVISIBILITY_TELEMETRY_ENABLED = "civisibility.telemetry.enabled";
