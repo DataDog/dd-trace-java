@@ -4,12 +4,12 @@ import static datadog.trace.util.ConcurrentHashtable.bucketAt;
 import static datadog.trace.util.ConcurrentHashtable.bucketIndex;
 import static datadog.trace.util.ConcurrentHashtable.estimateSize;
 import static datadog.trace.util.ConcurrentHashtable.getTableWriteLock;
-import static datadog.trace.util.ConcurrentHashtable.insertReserved;
 import static datadog.trace.util.ConcurrentHashtable.isFull;
 import static datadog.trace.util.LongHashingUtils.hash;
 
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.ConcurrentHashtable;
+import datadog.trace.util.ConcurrentHashtable.Reservation;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,7 +40,7 @@ public class LogCollector {
       value = "SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR",
       justification = "Usage in tests")
   LogCollector(int maxCapacity) {
-    this.rawLogMessages = ConcurrentHashtable.State.createBounded(RawLogMessage.class, maxCapacity);
+    this.rawLogMessages = ConcurrentHashtable.createBounded(RawLogMessage.class, maxCapacity);
   }
 
   public void addLogMessage(String logLevel, String message, @Nullable Throwable throwable) {
@@ -81,26 +81,28 @@ public class LogCollector {
       return;
     }
 
-    // Slow path after a miss: repeat the lookup and capacity checks under the table write lock
-    // because another writer or drain() may have changed the table.
+    // Slow path after a miss: repeat the lookup under the table write lock because another writer
+    // or drain() may have changed the table. Taking the reservation under this same lock, rather
+    // than lock-free ahead of it, keeps the whole find-or-insert decision serialized with other
+    // writers and with drain() -- a writer here genuinely waits for an in-progress drain instead
+    // of being told, incorrectly, that the table is full because of a duplicate reservation that
+    // hasn't cancelled yet. Serialized this way, the reservation can never lose a race to insert,
+    // so there's no existing-vs-new distinction to make: it always inserts fresh.
     synchronized (getTableWriteLock(rawLogMessages)) {
       rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
       if (rawLogMessage != null) {
         rawLogMessage.increment();
         return;
       }
-      // Capacity may have been released by drain() or consumed by another writer while waiting.
-      if (isFull(rawLogMessages)) {
-        return;
-      }
-
-      // Allocate before reserving because a reservation cannot
-      // be rolled back if construction fails.
-      rawLogMessage =
-          new RawLogMessage(logLevel, message, throwable, tags, System.currentTimeMillis() / 1000);
-      // Reserve before linking so every published entry is included in the capacity count.
-      if (rawLogMessages.sizeManager.tryReserve()) {
-        insertReserved(rawLogMessages, keyHash, rawLogMessage);
+      try (Reservation<RawLogMessage> reservation =
+          ConcurrentHashtable.tryReserve(rawLogMessages)) {
+        if (reservation.isReserved()) {
+          // Allocate only after the reservation succeeds.
+          reservation.tryGetOrInsertOrNull(
+              new RawLogMessage(
+                  logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
+        }
+        // TODO: We could emit a metric for dropped logs.
       }
     }
   }
@@ -190,7 +192,7 @@ public class LogCollector {
    * match. The first message supplies the tags and timestamp; later messages only increment the
    * occurrence count.
    */
-  public static final class RawLogMessage extends ConcurrentHashtable.Entry {
+  public static final class RawLogMessage extends ConcurrentHashtable.Entry<RawLogMessage> {
     private static final AtomicIntegerFieldUpdater<RawLogMessage> LIVE_OCCURRENCE_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(RawLogMessage.class, "liveOccurrenceCount");
 
@@ -237,6 +239,11 @@ public class LogCollector {
     /** Snapshot this log's live occurrence count */
     private void snapshotCount() {
       count = LIVE_OCCURRENCE_COUNT_UPDATER.get(this);
+    }
+
+    @Override
+    public boolean matches(RawLogMessage that) {
+      return equals(that);
     }
 
     @Override
