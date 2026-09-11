@@ -42,6 +42,14 @@ public class LLMObsSystem {
       return;
     }
 
+    // LLM Observability spans are backed by tracer spans, so without a tracer there is nothing to
+    // build them on: AgentTracer.get().buildSpan() returns null on the no-op tracer. Leave the
+    // no-op SDK implementations in place so the public API stays safe to call.
+    if (!config.isTraceEnabled()) {
+      LOGGER.debug("LLM Observability is disabled: tracing is disabled");
+      return;
+    }
+
     sco.createRemaining(config);
 
     String mlApp = config.getLlmObsMlApp();

@@ -4,10 +4,12 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_SCA_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.APM_TRACING_ENABLED;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
+import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING;
 import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -65,6 +67,23 @@ class SamplerTest extends DDJavaSpecification {
     Sampler sampler = Sampler.Builder.forConfig(config, null);
 
     assertFalse(sampler instanceof AsmStandaloneSampler);
+  }
+
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  @Test
+  void apmTracesDroppedWhenApmTracingDisabledAndNoOtherProductEnabled() {
+    assertApmTracesDropped();
+  }
+
+  /**
+   * LLM Observability rides the tracer but ships its spans to the LLM Observability intake, so
+   * disabling APM tracing must drop the APM traces without disabling the tracer.
+   */
+  @WithConfig(key = APM_TRACING_ENABLED, value = "false")
+  @WithConfig(key = LLMOBS_ENABLED, value = "true")
+  @Test
+  void apmTracesDroppedWhenApmTracingDisabledAndLlmObsEnabled() {
+    assertApmTracesDropped();
   }
 
   @Test
@@ -159,6 +178,24 @@ class SamplerTest extends DDJavaSpecification {
 
       assertNotNull(span.getSamplingPriority());
       assertEquals(SAMPLER_KEEP, (int) span.getSamplingPriority());
+
+      span.finish();
+    } finally {
+      tracer.close();
+    }
+  }
+
+  private static void assertApmTracesDropped() {
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
+
+    assertInstanceOf(ForcePrioritySampler.class, sampler);
+
+    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).sampler(sampler).build();
+    try {
+      DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
+      ((PrioritySampler) sampler).setSamplingPriority(span);
+
+      assertEquals(SAMPLER_DROP, (int) span.getSamplingPriority());
 
       span.finish();
     } finally {
