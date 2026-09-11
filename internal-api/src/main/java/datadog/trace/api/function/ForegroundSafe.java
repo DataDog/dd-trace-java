@@ -29,6 +29,11 @@ import java.lang.annotation.Target;
  * <p><b>On a method</b> ({@link ElementType#METHOD}): this method specifically is foreground-safe,
  * regardless of what the enclosing type declares -- a method-level marker always wins over the
  * type-level one.
+ *
+ * <p><b>Checker contract.</b> This annotation is not itself a trigger -- it is what makes a call
+ * site <em>not</em> suspect. See {@link BackgroundOnly}'s checker contract for the actual rule:
+ * code marked {@code @ForegroundSafe} (or carrying no marker) is exactly the caller side of the
+ * violation that contract flags when it reaches a {@code @BackgroundOnly} symbol.
  */
 @Documented
 @Retention(RetentionPolicy.SOURCE)
