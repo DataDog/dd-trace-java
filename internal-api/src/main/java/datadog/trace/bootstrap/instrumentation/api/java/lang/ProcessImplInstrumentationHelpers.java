@@ -1,7 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api.java.lang;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static java.lang.invoke.MethodType.methodType;
 
 import datadog.appsec.api.blocking.BlockingException;
@@ -172,7 +171,7 @@ public class ProcessImplInstrumentationHelpers {
         }
       }
 
-      final ContextContinuation continuation = captureActiveSpan();
+      final ContextContinuation continuation = Context.current().capture();
       future.whenComplete(
           (process, thr) -> {
             if (thr != null) {
@@ -183,7 +182,7 @@ public class ProcessImplInstrumentationHelpers {
             finishSpan(continuation, span);
           });
     } else if (EXECUTOR != null) {
-      final ContextContinuation continuation = captureActiveSpan();
+      final ContextContinuation continuation = Context.current().capture();
       EXECUTOR.execute(
           () -> {
             try {

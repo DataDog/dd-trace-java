@@ -33,7 +33,11 @@ public final class SfnClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".SfnInterceptor", packageName + ".InputAttributeInjector"};
+    return new String[] {
+      packageName + ".SfnInterceptor",
+      packageName + ".InputAttributeInjector",
+      packageName + ".TextMapInjectAdapter"
+    };
   }
 
   public static class AwsSfnBuilderAdvice {

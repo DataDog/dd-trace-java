@@ -4,6 +4,7 @@ import static com.datadog.debugger.el.expressions.ExpressionHelper.checkTimeout;
 
 import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.Visitor;
@@ -38,6 +39,8 @@ public class ComparisonExpression implements BooleanExpression {
       boolean result = operator.apply(leftValue, rightValue);
       checkTimeout(evalContext.getTimeoutChecker(), this);
       return result;
+    } catch (EvaluationTimeOutException e) {
+      throw new EvaluationTimeOutException(e.getMessage(), PrettyPrintVisitor.print(this));
     } catch (EvaluationException e) {
       throw new EvaluationException(e.getMessage(), PrettyPrintVisitor.print(this));
     }
