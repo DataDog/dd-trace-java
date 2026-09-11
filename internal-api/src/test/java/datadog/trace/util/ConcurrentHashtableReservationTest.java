@@ -34,7 +34,7 @@ class ConcurrentHashtableReservationTest {
 
     TestEntry first;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      assertTrue(r.isPresent());
+      assertTrue(r.isReserved());
       first = r.tryGetOrInsertOrNull(1, TestEntry::new);
     }
     assertEquals(1, first.value);
@@ -62,7 +62,7 @@ class ConcurrentHashtableReservationTest {
     AtomicInteger factoryCalls = new AtomicInteger();
     TestEntry result;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      assertFalse(r.isPresent());
+      assertFalse(r.isReserved());
       result =
           r.tryGetOrInsertOrNull(
               2,
@@ -81,7 +81,7 @@ class ConcurrentHashtableReservationTest {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 1);
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      assertTrue(r.isPresent());
+      assertTrue(r.isReserved());
       // Deliberately not consuming the reservation.
     }
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
@@ -113,7 +113,7 @@ class ConcurrentHashtableReservationTest {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 0);
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      assertFalse(r.isPresent());
+      assertFalse(r.isReserved());
     }
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
   }

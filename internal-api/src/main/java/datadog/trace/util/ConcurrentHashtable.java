@@ -951,8 +951,9 @@ public final class ConcurrentHashtable {
    * already visible lock-free.
    *
    * <p>Always returns a non-null handle — even when the table is full — so the caller must check
-   * {@link Reservation#isPresent()} (or simply call {@link Reservation#tryGetOrInsertOrNull}, which
-   * returns {@code null} on an absent reservation) rather than assume every reservation is real.
+   * {@link Reservation#isReserved()} (or simply call {@link Reservation#tryGetOrInsertOrNull},
+   * which returns {@code null} on an absent reservation) rather than assume every reservation is
+   * real.
    */
   @Nonnull
   public static <TEntry extends Entry<TEntry>> Reservation<TEntry> tryReserve(
@@ -982,8 +983,29 @@ public final class ConcurrentHashtable {
     }
 
     /** {@code true} if this is a real, claimed reservation rather than an empty one. */
-    public boolean isPresent() {
+    public boolean isReserved() {
       return state != null;
+    }
+
+    /**
+     * Escape hatch for a caller that already built {@code newEntry} itself -- e.g. more than 4 key
+     * components, or components the caller wants to keep as primitives rather than boxing them into
+     * a {@code Function}'s type argument:
+     *
+     * <pre>{@code
+     * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state)) {
+     *   if (!r.isReserved()) {
+     *     return null;
+     *   }
+     *   return r.tryGetOrInsertOrNull(new TEntry(longComponent1, longComponent2));
+     * }
+     * }</pre>
+     *
+     * See {@link #tryGetOrInsertOrNull(Object, Object, BiFunction)} for the general contract.
+     */
+    @Nullable
+    public TEntry tryGetOrInsertOrNull(@Nonnull TEntry newEntry) {
+      return state == null ? null : finish(newEntry);
     }
 
     /**
@@ -1041,6 +1063,12 @@ public final class ConcurrentHashtable {
         @Strategy @Nonnull
             Function4<? super A, ? super B, ? super C, ? super D, ? extends TEntry> factory) {
       return state == null ? null : finish(factory.apply(a, b, c, d));
+    }
+
+    /** {@link Maybe}-wrapping counterpart of {@link #tryGetOrInsertOrNull(Entry)}. */
+    @Nonnull
+    public Maybe<TEntry> tryGetOrInsert(@Nonnull TEntry newEntry) {
+      return Maybe.of(tryGetOrInsertOrNull(newEntry));
     }
 
     /**
