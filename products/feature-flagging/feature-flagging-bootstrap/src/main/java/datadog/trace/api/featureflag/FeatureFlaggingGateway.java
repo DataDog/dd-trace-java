@@ -4,11 +4,17 @@ import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 public abstract class FeatureFlaggingGateway {
+
+  public enum RuntimeMode {
+    AGENT,
+    STANDALONE
+  }
 
   public interface ConfigListener extends Consumer<ServerConfiguration> {}
 
@@ -28,6 +34,8 @@ public abstract class FeatureFlaggingGateway {
 
   private static final AtomicReference<ServerConfiguration> CURRENT_CONFIG =
       new AtomicReference<>();
+
+  private static final AtomicReference<RuntimeMode> ACTIVE_RUNTIME = new AtomicReference<>();
 
   /**
    * The active EVP flagevaluation writer. Registered by {@code FlagEvaluationWriterImpl.start()}
@@ -70,6 +78,28 @@ public abstract class FeatureFlaggingGateway {
   /** Signals that application code initialized the Datadog OpenFeature provider. */
   public static void activate() {
     ACTIVATION_LISTENERS.forEach(ActivationListener::activate);
+  }
+
+  /**
+   * Claims process-wide ownership of Feature Flagging configuration and event delivery.
+   *
+   * <p>The claim is idempotent for the current owner. A different runtime must not start while an
+   * owner is active because doing so would create duplicate configuration pollers and duplicate
+   * exposure or evaluation delivery.
+   */
+  public static boolean claimRuntime(final RuntimeMode runtime) {
+    Objects.requireNonNull(runtime, "runtime");
+    return ACTIVE_RUNTIME.compareAndSet(null, runtime) || ACTIVE_RUNTIME.get() == runtime;
+  }
+
+  /** Releases process-wide ownership when {@code runtime} is the current owner. */
+  public static void releaseRuntime(final RuntimeMode runtime) {
+    ACTIVE_RUNTIME.compareAndSet(runtime, null);
+  }
+
+  /** Returns the runtime currently responsible for configuration and event delivery. */
+  public static RuntimeMode activeRuntime() {
+    return ACTIVE_RUNTIME.get();
   }
 
   public static void addExposureListener(final ExposureListener listener) {
