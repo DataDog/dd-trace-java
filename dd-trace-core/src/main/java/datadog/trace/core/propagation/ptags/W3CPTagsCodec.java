@@ -50,73 +50,55 @@ public class W3CPTagsCodec extends PTagsCodec {
     int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
     int memberIndex = 0;
     int ddMemberIndex = -1;
-    int otelMemberStart = -1;
-    int otelMemberValueStart = -1;
-    int otelMemberValueEnd = -1;
-    int otelMemberEnd = -1;
-    int otelMemberPosition = 0;
+    OtelTraceState otelTraceState = null;
     int otherMemberPosition = 0;
     while (memberStart < len) {
-      int currentMemberStart = memberStart;
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
         // TODO should we try to pick up the `dd` member anyway?
         return tagsFactory.empty();
       }
-      boolean datadogMember = value.startsWith(DATADOG_MEMBER_KEY, currentMemberStart);
-      if (ddMemberIndex == -1 && datadogMember) {
-        ddMemberStart = currentMemberStart;
-        ddMemberIndex = memberIndex;
-      }
       // Validate the member key
-      int pos = validateMemberKey(value, currentMemberStart);
-      if (pos < 0) {
+      int memberValueStart = validateMemberKey(value, memberStart);
+      if (memberValueStart < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
-      if (ddMemberValueStart == -1 && ddMemberIndex != -1) {
-        ddMemberValueStart = pos;
-      }
-      int memberValueStart = pos;
-      pos = validateMemberValue(value, pos);
-      if (pos < 0) {
+      int memberValueEnd = validateMemberValue(value, memberValueStart);
+      if (memberValueEnd < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
-      if (ddMemberValueEnd == -1 && ddMemberIndex != -1) {
-        ddMemberValueEnd = pos;
+
+      boolean datadogMember =
+          ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean otelMember =
+          !datadogMember
+              && otelTraceState == null
+              && value.startsWith(OTEL_MEMBER_KEY, memberStart);
+      if (datadogMember) {
+        ddMemberStart = memberStart;
+        ddMemberValueStart = memberValueStart;
+        ddMemberIndex = memberIndex;
+        ddMemberValueEnd = memberValueEnd;
+      } else if (otelMember) {
+        otelTraceState =
+            OtelTraceState.parse(
+                value.substring(
+                    memberValueStart, stripTrailingOWC(value, memberValueStart, memberValueEnd)),
+                otherMemberPosition,
+                memberContributionSize(value, firstMemberStart, memberStart, memberValueEnd));
+      } else {
+        otherMemberPosition++;
       }
-      memberStart = findNextMember(value, pos);
+
+      memberIndex++;
+      memberStart = findNextMember(value, memberValueEnd);
       if (memberStart < 0) {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
-      memberIndex++;
-      if (otelMemberValueStart != -1) {
-        continue;
-      }
-      if (datadogMember) {
-        continue;
-      }
-      boolean otelMember = value.startsWith(OTEL_MEMBER_KEY, currentMemberStart);
-      if (otelMember) {
-        otelMemberStart = currentMemberStart;
-        otelMemberValueStart = memberValueStart;
-        otelMemberValueEnd = stripTrailingOWC(value, memberValueStart, pos);
-        otelMemberEnd = pos;
-        otelMemberPosition = otherMemberPosition;
-      } else {
-        otherMemberPosition++;
-      }
     }
-
-    OtelTraceState otelTraceState =
-        otelMemberValueStart < 0
-            ? null
-            : OtelTraceState.parse(
-                value.substring(otelMemberValueStart, otelMemberValueEnd),
-                otelMemberPosition,
-                memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberEnd));
 
     if (ddMemberIndex == -1) {
       // There was no dd member, so create an empty one with the _suffix_
