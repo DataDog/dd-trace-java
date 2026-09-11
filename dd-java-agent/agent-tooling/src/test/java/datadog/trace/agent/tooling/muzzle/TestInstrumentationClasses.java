@@ -9,8 +9,7 @@ public abstract class TestInstrumentationClasses {
 
   static {
     Map<String, Reference> references =
-        ReferenceCreator.createReferencesFrom(
-            SomeAdvice.class.getName(), SomeAdvice.class.getClassLoader());
+        ReferenceCreatorTestSupport.referencesFrom(SomeAdvice.class);
     SOME_ADVICE_REFS = references.values().toArray(new Reference[0]);
   }
 
