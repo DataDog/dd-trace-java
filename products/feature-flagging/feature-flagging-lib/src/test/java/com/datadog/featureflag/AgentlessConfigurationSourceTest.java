@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -892,7 +894,7 @@ class AgentlessConfigurationSourceTest {
   }
 
   @Test
-  void initCompletesFirstPollAndCloseCancelsScheduledFuture() throws Exception {
+  void initSchedulesFirstPollAndCloseCancelsScheduledFuture() throws Exception {
     final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
     final AgentlessConfigurationSource service =
         new AgentlessConfigurationSource(
@@ -903,16 +905,19 @@ class AgentlessConfigurationSourceTest {
             Executors.newSingleThreadScheduledExecutor());
     FeatureFlaggingGateway.addConfigListener(listener);
 
-    service.init();
-    assertEquals(1, client.calls.get());
-    service.close();
+    try {
+      service.init();
 
-    verify(listener).accept(any(ServerConfiguration.class));
+      verify(listener, timeout(1_000)).accept(any(ServerConfiguration.class));
+      assertEquals(1, client.calls.get());
+    } finally {
+      service.close();
+    }
   }
 
   @Test
-  void initCompletesInitialRetryCycleBeforeReturning() throws Exception {
-    final List<okhttp3.Request> requests = new ArrayList<>();
+  void initSchedulesInitialRetryCycle() throws Exception {
+    final List<okhttp3.Request> requests = new CopyOnWriteArrayList<>();
     final AgentlessConfigurationSource.OkHttpUfcHttpClient client =
         scriptedClient(
             requests,
@@ -932,10 +937,30 @@ class AgentlessConfigurationSourceTest {
     try {
       service.init();
 
+      verify(listener, timeout(1_000)).accept(any(ServerConfiguration.class));
       assertEquals(2, requests.size());
-      verify(listener).accept(any(ServerConfiguration.class));
     } finally {
       service.close();
+    }
+  }
+
+  @Test
+  void initReturnsWhileInitialRequestIsInFlight() throws Exception {
+    final CountDownLatch requestStarted = new CountDownLatch(1);
+    final CountDownLatch releaseRequest = new CountDownLatch(1);
+    final FakeClient client = new FakeClient(response(200, "etag-a", emptyConfig()));
+    client.block(requestStarted, releaseRequest);
+    final AgentlessConfigurationSource service = service(client);
+    final ExecutorService runner = Executors.newSingleThreadExecutor();
+
+    try {
+      final Future<?> initialization = runner.submit(service::init);
+      initialization.get(250, TimeUnit.MILLISECONDS);
+      assertTrue(requestStarted.await(1, TimeUnit.SECONDS));
+    } finally {
+      releaseRequest.countDown();
+      service.close();
+      runner.shutdownNow();
     }
   }
 
@@ -1058,19 +1083,17 @@ class AgentlessConfigurationSourceTest {
     final AgentlessConfigurationSource service =
         new AgentlessConfigurationSource(
             HttpUrl.get("http://localhost" + CONFIG_PATH), config(), 30_000, client, executor);
-    final ExecutorService runner = Executors.newSingleThreadExecutor();
 
     try {
-      final Future<?> initialization = runner.submit(service::init);
+      service.init();
       assertTrue(backoffStarted.await(1, TimeUnit.SECONDS));
 
       service.close();
 
-      initialization.get(1, TimeUnit.SECONDS);
       assertTrue(executor.awaitTermination(1, TimeUnit.SECONDS));
       assertEquals(1, requests.size());
     } finally {
-      runner.shutdownNow();
+      service.close();
     }
   }
 

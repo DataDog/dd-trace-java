@@ -123,19 +123,13 @@ final class AgentlessConfigurationSource implements ConfigurationSourceService {
       started = true;
     }
 
-    // Complete the first poll cycle on the activation thread. This lets OpenFeature provider
-    // initialization observe a successful retry before it checks whether configuration is ready.
-    // No request occurs before application code activates the provider.
-    pollOnceSafely();
-
     synchronized (lifecycleLock) {
       if (!closed) {
+        // Start the first poll immediately on the configuration executor. Network time and retry
+        // delays must not run before the OpenFeature provider starts its initialization timeout.
         scheduledPoll =
             executor.scheduleWithFixedDelay(
-                this::pollOnceSafely,
-                pollIntervalMillis,
-                pollIntervalMillis,
-                TimeUnit.MILLISECONDS);
+                this::pollOnceSafely, 0, pollIntervalMillis, TimeUnit.MILLISECONDS);
       }
     }
   }
