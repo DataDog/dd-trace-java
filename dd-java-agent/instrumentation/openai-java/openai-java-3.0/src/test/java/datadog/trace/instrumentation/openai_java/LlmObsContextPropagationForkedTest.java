@@ -9,6 +9,8 @@ import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.credential.BearerTokenCredential;
 import com.openai.models.ChatModel;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.embeddings.EmbeddingCreateParams;
+import com.openai.models.embeddings.EmbeddingModel;
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -73,6 +75,13 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
         .model(ChatModel.GPT_4O_MINI)
         .addSystemMessage("")
         .addUserMessage("")
+        .build();
+  }
+
+  protected static EmbeddingCreateParams buildMinimalEmbeddingParams() {
+    return EmbeddingCreateParams.builder()
+        .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
+        .input("")
         .build();
   }
 
@@ -316,5 +325,59 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
         LLMObsContext.SAMPLING_DECISION_DROPPED,
         openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
     assertEquals("0", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+  }
+}
+
+/**
+ * Verifies the gen_ai.* attributes an openai.request span carries with LLM Observability disabled.
+ * The instrumentation still traces on that path, so operation, model, provider and application are
+ * resolvable, while token usage and conversation id are never computed and must stay absent.
+ */
+@WithConfig(key = "llmobs.enabled", value = "false")
+class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
+
+  @Test
+  void chatCompletionEmitsTheGenAiAttributesAvailableWithoutLlmObs() throws Exception {
+    try {
+      openAiClient.chat().completions().create(buildMinimalChatParams());
+    } catch (Exception ignored) {
+      // Mock server returns no body — the SDK may throw on parse. The span is already created.
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+
+    assertEquals("llm", openAiSpan.getTag("gen_ai.operation.name"));
+    // The mock returns no body, so there is no response model and the request model stands in.
+    assertEquals(
+        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
+    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
+    assertNotNull(openAiSpan.getTag("gen_ai.application.name"));
+
+    assertNull(openAiSpan.getTag("gen_ai.conversation.id"));
+    assertNull(openAiSpan.getTag("gen_ai.usage.input_tokens"));
+    assertNull(openAiSpan.getTag("gen_ai.usage.output_tokens"));
+    assertNull(openAiSpan.getTag("gen_ai.usage.total_tokens"));
+
+    assertNull(openAiSpan.getTag("_ml_obs_tag.span.kind"));
+  }
+
+  @Test
+  void embeddingMapsToTheEmbeddingOperation() throws Exception {
+    try {
+      openAiClient.embeddings().create(buildMinimalEmbeddingParams());
+    } catch (Exception ignored) {
+      // Mock server returns no body — the SDK may throw on parse. The span is already created.
+    }
+
+    writer.waitForTraces(1);
+    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
+    assertNotNull(openAiSpan, "openai.request span should have been created");
+
+    assertEquals("embedding", openAiSpan.getTag("gen_ai.operation.name"));
+    assertEquals(
+        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
+    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
   }
 }
