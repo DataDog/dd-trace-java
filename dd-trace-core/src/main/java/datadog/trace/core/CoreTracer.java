@@ -253,6 +253,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final boolean SPAN_BUILDER_REUSE_ENABLED =
       Config.get().isSpanBuilderReuseEnabled();
 
+  // Instance field (not static final) so it honors per-tracer config, e.g. an embedded tracer
+  // built via CoreTracerBuilder#withProperties/#config rather than the global Config.get()
+  // singleton. See the tag-ordering block in buildSpanContext.
+  private final boolean builderTagsPrecedence;
+
   // Cache used by buildSpan - instance so it can capture the CoreTracer
   private final ReusableSingleSpanBuilderThreadLocalCache spanBuilderThreadLocalCache =
       SPAN_BUILDER_REUSE_ENABLED ? new ReusableSingleSpanBuilderThreadLocalCache(this) : null;
@@ -837,6 +842,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
     propagationTagsFactory = PropagationTags.factory(config);
+
+    builderTagsPrecedence = config.isTraceBuilderTagsPrecedenceEnabled();
 
     // Register context propagators
     HttpCodec.Extractor baseExtractor =
@@ -2245,8 +2252,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               mergedTracerTagsNeedsIntercept ? null : mergedTracerTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
-      // the builder. This is the order that the tags were added previously, but maybe the `tags`
-      // set in the builder should come last, so that they override other tags.
+      // the builder. The `mergedTracerTags` are always applied first (the precedence floor:
+      // everything overrides them). The remaining contributors are applied last-wins; with
+      // `builderTagsPrecedence` enabled, `tagLedger` (the explicit builder tags) moves to last so
+      // it wins collisions instead of being overridden by `coreTags`/`rootSpanTags`/
+      // `contextualTags` -- see the PR description for the historical context on this ordering.
       //
       // mergedTracerTags is trace-level shared state and the precedence floor (everything below
       // overrides it). When it carries no interceptable tags it is attached as a read-through
@@ -2256,16 +2266,23 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       if (mergedTracerTagsNeedsIntercept) {
         context.setAllTags(mergedTracerTags, true);
       }
-      context.setAllTags(tagLedger);
-      context.setAllTags(coreTags, coreTagsNeedsIntercept);
-      context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
-      context.setAllTags(contextualTags);
+      if (tracer.builderTagsPrecedence) {
+        context.setAllTags(coreTags, coreTagsNeedsIntercept);
+        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        context.setAllTags(contextualTags);
+        context.setAllTags(tagLedger);
+      } else {
+        context.setAllTags(tagLedger);
+        context.setAllTags(coreTags, coreTagsNeedsIntercept);
+        context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
+        context.setAllTags(contextualTags);
+      }
       // Version is added later by the postProcessor (InternalTagsAdder), only if not already set
       // during the request. Config version is kept out of the trace-level bundle (see
       // withTracerTags), so this removal now only wipes a version set via the span builder —
-      // keeping
-      // the existing semantics where a builder-set version is replaced by the config version. Under
-      // read-through this is a cheap local removal (version isn't in the parent, so no tombstone).
+      // keeping the existing semantics where a builder-set version is replaced by the config
+      // version. Under read-through this is a cheap local removal (version isn't in the parent,
+      // so no tombstone).
       context.removeTag(Tags.VERSION);
       return context;
     }
