@@ -49,6 +49,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * a LFU: least frequently used eviction policy is used to free up a slot.
  */
 @ThreadSafe
+@BackgroundOnly
 public final class SimpleUtf8Cache implements EncodingCache {
   static final int MAX_CAPACITY = 1024;
 

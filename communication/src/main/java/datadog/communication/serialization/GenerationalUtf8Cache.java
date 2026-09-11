@@ -70,6 +70,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * provide better cache utilization.
  */
 @ThreadSafe
+@BackgroundOnly
 @SuppressFBWarnings(
     value = "IS2_INCONSISTENT_SYNC",
     justification =
