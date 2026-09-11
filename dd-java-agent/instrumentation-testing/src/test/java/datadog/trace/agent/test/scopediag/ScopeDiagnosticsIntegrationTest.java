@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.context.Context;
 import datadog.context.ContextContinuation;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -12,6 +13,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -115,6 +118,74 @@ class ScopeDiagnosticsIntegrationTest {
     assertEquals(0, report.neverClosedScopeCount());
     assertEquals(1, report.records().size());
     assertEquals(Long.valueOf(report.records().get(0).seq), linked.continuationSeq);
+  }
+
+  @Test
+  void swappedContextDoesNotCreateCloseOwnedScope() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    Context previous = tracer.swap(span);
+    previous.swap();
+    span.finish();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+
+    assertEquals(0, report.neverClosedScopeCount());
+    assertTrue(report.scopeRecords().isEmpty(), "stack swaps do not own scope closure");
+  }
+
+  @Test
+  void rootIterationScopeDelegatesCleanup() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "iteration");
+    tracer.activateNext(span);
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertEquals(1, report.deferredCleanupScopeCount());
+    assertEquals(0, report.neverClosedScopeCount());
+    assertFalse(report.hasProblems());
+
+    tracer.closePrevious(true);
+  }
+
+  @Test
+  void waitsForAsynchronousScopeCleanup() throws Exception {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    ContextContinuation continuation = tracer.capture(span);
+    CountDownLatch scopeOpened = new CountDownLatch(1);
+    CountDownLatch closeScope = new CountDownLatch(1);
+    Thread worker =
+        new Thread(
+            () -> {
+              try (ContextScope ignored = continuation.resume()) {
+                scopeOpened.countDown();
+                closeScope.await();
+              } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+              }
+            });
+    worker.start();
+
+    assertTrue(scopeOpened.await(5, TimeUnit.SECONDS));
+    assertTrue(ScopeDiagnostics.report().hasIncompleteLifecycles());
+    closeScope.countDown();
+    ScopeDiagnostics.awaitQuiescence();
+    worker.join();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+    assertFalse(report.hasIncompleteLifecycles());
+    assertFalse(report.hasProblems());
+    span.finish();
   }
 
   @Test

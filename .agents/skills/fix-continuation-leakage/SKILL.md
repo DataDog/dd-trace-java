@@ -38,6 +38,9 @@ resolution, scope, thread, timing, and callsite data needed to find the missing 
    - `DOUBLE_FINISH`: find two owners of the same cleanup.
    - `ACTIVATE_AFTER_RESOLVE`: find work scheduled after ownership ended.
    - `LATE_FINISH` / `CLOSE_WRONG_THREAD`: advisory evidence; verify whether ordering is valid.
+   - `[deferred-cleanup]`: a root iteration scope transferred cleanup to the bounded iteration
+     cleaner. It may remain open at the test boundary and is not a leak. Do not generalize this to
+     other `ITERATION` scopes; an unregistered iteration scope must still close normally.
 4. Fix ownership where it breaks. Prefer one owner and `try/finally` cleanup across every exit.
 5. Rerun the failing test, then its module.
 
