@@ -6340,6 +6340,22 @@
         "aliases": ["DD_INTEGRATION_GRPC_SERVER_MATCHING_SHORTCUT_ENABLED"]
       }
     ],
+    "DD_TRACE_GSON_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_GSON_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GSON_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_GSON_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
     "DD_TRACE_GSON_ENABLED": [
       {
         "version": "A",
