@@ -28,6 +28,7 @@ class ScopeRecordTest {
         "op",
         (byte) 0,
         continuationSeq,
+        false,
         event(ScopeEvent.Type.SCOPE_OPEN, openThread, nanos));
   }
 
@@ -61,6 +62,18 @@ class ScopeRecordTest {
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.neverClosedScopeCount());
     assertTrue(report.hasProblems());
+  }
+
+  @Test
+  void deferredCleanupIsNotALeak() {
+    ScopeRecord s = scope(0, null, "main", 1000);
+    s.markDeferredCleanup();
+
+    ScopeDiagnosticsReport report = report(s);
+    assertFalse(s.failures().contains(Failure.NEVER_CLOSED));
+    assertEquals(1, report.deferredCleanupScopeCount());
+    assertEquals(0, report.neverClosedScopeCount());
+    assertFalse(report.hasProblems());
   }
 
   @Test
