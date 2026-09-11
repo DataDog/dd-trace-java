@@ -1,10 +1,6 @@
 package datadog.trace.agent.test.scopediag;
 
-/**
- * A derived failure classification. Shared by {@link ContinuationRecord} (continuation-lifetime
- * failures) and {@link ScopeRecord} (scope-lifetime failures). See {@link
- * ScopeDiagnosticsReport#hasProblems()} for which of these fail a test versus are report-only.
- */
+/** A derived scope or continuation lifecycle finding. */
 public enum Failure {
   /** Continuation captured but never resolved within the window. */
   LEAKED,
