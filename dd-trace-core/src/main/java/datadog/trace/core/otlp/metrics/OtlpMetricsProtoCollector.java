@@ -13,6 +13,7 @@ import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordDataPointMe
 import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordMetricMessage;
 import static datadog.trace.core.otlp.metrics.OtlpMetricsProto.recordScopedMetricsMessage;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -24,7 +25,6 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
 import datadog.trace.core.otlp.common.OtlpCommonProto;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import java.util.function.Consumer;
 

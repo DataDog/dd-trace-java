@@ -1,9 +1,10 @@
 package datadog.trace.common.writer;
 
+import datadog.communication.otlp.OtlpPayload;
+import datadog.communication.otlp.OtlpResponse;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.otlp.common.OtlpPayload;
-import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
 import java.util.Collection;
 import java.util.Collections;
@@ -39,7 +40,7 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
       OtlpPayload payload = collector.collectTraces();
       if (payload != OtlpPayload.EMPTY) {
         OtlpTelemetry.getInstance().onTracesExportAttempt();
-        RemoteApi.Response response = sender.send(payload);
+        OtlpResponse response = sender.send(payload);
         OtlpTelemetry.getInstance().onTracesExportComplete(response.success());
       }
     } catch (RuntimeException e) { // don't catch severe Errors

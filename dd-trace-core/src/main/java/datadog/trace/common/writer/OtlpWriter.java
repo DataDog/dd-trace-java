@@ -6,13 +6,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
 
 import datadog.communication.ddagent.DroppingPolicy;
+import datadog.communication.otlp.OtlpGrpcSender;
+import datadog.communication.otlp.OtlpHttpSender;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.Prioritization;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.otlp.common.OtlpGrpcSender;
-import datadog.trace.core.otlp.common.OtlpHttpSender;
-import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
 import datadog.trace.core.otlp.trace.OtlpTraceJsonCollector;
 import datadog.trace.core.otlp.trace.OtlpTraceProtoCollector;

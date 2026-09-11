@@ -1,9 +1,9 @@
 package datadog.trace.core.otlp.metrics;
 
+import datadog.communication.otlp.OtlpGrpcSender;
+import datadog.communication.otlp.OtlpHttpSender;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.Config;
-import datadog.trace.core.otlp.common.OtlpGrpcSender;
-import datadog.trace.core.otlp.common.OtlpHttpSender;
-import datadog.trace.core.otlp.common.OtlpSender;
 import javax.annotation.Nullable;
 
 /**

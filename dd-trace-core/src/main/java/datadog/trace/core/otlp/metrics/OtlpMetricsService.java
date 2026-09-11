@@ -2,13 +2,13 @@ package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
+import datadog.communication.otlp.OtlpPayload;
+import datadog.communication.otlp.OtlpResponse;
+import datadog.communication.otlp.OtlpSender;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.api.telemetry.OtlpTelemetry;
 import datadog.trace.api.time.SystemTimeSource;
-import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.otlp.common.OtlpPayload;
-import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -93,7 +93,7 @@ public final class OtlpMetricsService {
     OtlpPayload payload = collector.collectMetrics();
     if (payload != OtlpPayload.EMPTY) {
       OtlpTelemetry.getInstance().onMetricsExportAttempt();
-      RemoteApi.Response response = sender.send(payload);
+      OtlpResponse response = sender.send(payload);
       OtlpTelemetry.getInstance().onMetricsExportComplete(response.success());
     }
   }
