@@ -24,13 +24,13 @@ import net.bytebuddy.matcher.ElementMatcher;
  * and cluster ID, in the context store for later use.
  */
 @AutoService(InstrumenterModule.class)
-public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForTypeHierarchy,
         Instrumenter.HasMethodAdvice,
         Instrumenter.WithTypeStructure {
 
   public KafkaConsumerInfoInstrumentation() {
-    super("kafka", "kafka-3.8");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override
@@ -82,6 +82,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.Utils",
     };
   }
 

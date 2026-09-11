@@ -27,11 +27,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 @AutoService(InstrumenterModule.class)
-public final class KafkaConsumerInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaConsumerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaConsumerInstrumentation() {
-    super("kafka", "kafka-0.11");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override

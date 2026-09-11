@@ -44,11 +44,11 @@ import org.apache.kafka.common.errors.WakeupException;
  * and cluster ID, in the context store for later use.
  */
 @AutoService(InstrumenterModule.class)
-public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaConsumerInfoInstrumentation() {
-    super("kafka", "kafka-0.11");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override
@@ -91,6 +91,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.Utils",
     };
   }
 
@@ -252,7 +253,10 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
         }
       }
 
-      if (traceConfig().isDataStreamsEnabled()) {
+      if (traceConfig().isDataStreamsEnabled() && KafkaDecorator.TRACING_ENABLED) {
+        // DSM-only mode (tracing disabled) never creates a real poll span: TracingIterator
+        // carries its pathway context on a lightweight, never-collected span shim instead, so
+        // there's nothing here that needs wrapping/protecting from being force-dropped.
         final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
         return activateSpan(span);
       }

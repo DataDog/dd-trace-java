@@ -16,11 +16,11 @@ import java.util.Map;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public final class KafkaProducerInstrumentation extends InstrumenterModule.Tracing
+public final class KafkaProducerInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KafkaProducerInstrumentation() {
-    super("kafka", "kafka-3.8");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override

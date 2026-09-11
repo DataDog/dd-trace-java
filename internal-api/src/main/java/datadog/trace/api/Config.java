@@ -53,7 +53,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_ENA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_BUCKET_DURATION;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_STREAMS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
@@ -384,7 +383,6 @@ import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_ENABL
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_OPENLINEAGE_TIMEOUT_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_PARSE_SPARK_PLAN_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_BUCKET_DURATION_SECONDS;
-import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_STREAMS_TRANSACTION_EXTRACTORS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_ARGS;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_HOST;
@@ -1374,7 +1372,6 @@ public class Config {
   private final boolean dataJobsParseSparkPlanEnabled;
   private final boolean dataJobsExperimentalFeaturesEnabled;
 
-  private final boolean dataStreamsEnabled;
   private final float dataStreamsBucketDurationSeconds;
   private final String dataStreamsTransactionExtractors;
 
@@ -3219,8 +3216,6 @@ public class Config {
             DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED,
             DEFAULT_DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED);
 
-    dataStreamsEnabled =
-        configProvider.getBoolean(DATA_STREAMS_ENABLED, DEFAULT_DATA_STREAMS_ENABLED);
     dataStreamsBucketDurationSeconds =
         configProvider.getFloat(
             DATA_STREAMS_BUCKET_DURATION_SECONDS, DEFAULT_DATA_STREAMS_BUCKET_DURATION);
@@ -5218,7 +5213,7 @@ public class Config {
   }
 
   public boolean isDataStreamsEnabled() {
-    return dataStreamsEnabled;
+    return instrumenterConfig.isDataStreamsEnabled();
   }
 
   public float getDataStreamsBucketDurationSeconds() {
