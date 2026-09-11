@@ -64,6 +64,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       extendsClass(named("java.net.http.HttpClient"));
   private static final String LETTUCE_HANDSHAKE_HANDLER =
       "io.lettuce.core.protocol.RedisHandshakeHandler";
+  private static final String PEKKO_HTTP_STREAM_STAGE =
+      "org.apache.pekko.http.impl.util.StreamUtils$$anon$4$$anon$5";
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -101,6 +103,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask",
       "jdk.internal.net.http.HttpClientImpl",
       LETTUCE_HANDSHAKE_HANDLER,
+      PEKKO_HTTP_STREAM_STAGE,
       "io.netty.util.concurrent.GlobalEventExecutor",
       "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
       "com.linecorp.armeria.client.HttpClientFactory",
@@ -213,6 +216,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
     transformer.applyAdvice(
         named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
+    transformer.applyAdvice(
+        named("preStart").and(isDeclaredBy(named(PEKKO_HTTP_STREAM_STAGE))), advice);
     // armeria runs its own codec/pipeline, so the active request span captured during connection
     // pool creation and channel connect will have no consumers.
     transformer.applyAdvice(
