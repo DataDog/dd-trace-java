@@ -118,6 +118,22 @@ class ConcurrentHashtableReservationTest {
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
   }
 
+  private static final class TwoPartEntry extends ConcurrentHashtable.Entry<TwoPartEntry> {
+    final String a;
+    final String b;
+
+    TwoPartEntry(String a, String b) {
+      super(HashingUtils.hash(a, b));
+      this.a = a;
+      this.b = b;
+    }
+
+    @Override
+    public boolean matches(@Nonnull TwoPartEntry other) {
+      return a.equals(other.a) && b.equals(other.b);
+    }
+  }
+
   private static final class ThreePartEntry extends ConcurrentHashtable.Entry<ThreePartEntry> {
     final String a;
     final String b;
@@ -180,5 +196,87 @@ class ConcurrentHashtableReservationTest {
     assertEquals("x", four.b);
     assertEquals("y", four.c);
     assertEquals("z", four.d);
+  }
+
+  @Test
+  void tryGetOrInsertOrNullSupportsTwoComponents() {
+    ConcurrentHashtable.State<TwoPartEntry> state =
+        ConcurrentHashtable.createBounded(TwoPartEntry.class, 2);
+    TwoPartEntry two;
+    try (ConcurrentHashtable.Reservation<TwoPartEntry> r = ConcurrentHashtable.tryReserve(state)) {
+      two = r.tryGetOrInsertOrNull("x", "y", TwoPartEntry::new);
+    }
+    assertEquals("x", two.a);
+    assertEquals("y", two.b);
+  }
+
+  @Test
+  void tryGetOrInsertOrNullOnPrebuiltEntry() {
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.createBounded(TestEntry.class, 1);
+    TestEntry inserted;
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+      inserted = r.tryGetOrInsertOrNull(new TestEntry(1));
+    }
+    assertEquals(1, inserted.value);
+    assertEquals(1, ConcurrentHashtable.estimateSize(state));
+  }
+
+  @Test
+  void tryGetOrInsertOnPrebuiltEntryWrapsResultInMaybe() {
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.createBounded(TestEntry.class, 1);
+
+    Maybe<TestEntry> present;
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+      present = r.tryGetOrInsert(new TestEntry(1));
+    }
+    assertTrue(present.isPresent());
+    assertEquals(1, present.getOrNull().value);
+
+    Maybe<TestEntry> absent;
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+      absent = r.tryGetOrInsert(new TestEntry(2));
+    }
+    assertFalse(absent.isPresent());
+    assertNull(absent.getOrNull());
+  }
+
+  @Test
+  void tryGetOrInsertWrapsResultInMaybeForTwoThreeAndFourComponents() {
+    ConcurrentHashtable.State<TwoPartEntry> state2 =
+        ConcurrentHashtable.createBounded(TwoPartEntry.class, 2);
+    Maybe<TwoPartEntry> two;
+    try (ConcurrentHashtable.Reservation<TwoPartEntry> r = ConcurrentHashtable.tryReserve(state2)) {
+      two = r.tryGetOrInsert("x", "y", TwoPartEntry::new);
+    }
+    assertTrue(two.isPresent());
+    assertEquals("x", two.getOrNull().a);
+    assertEquals("y", two.getOrNull().b);
+
+    ConcurrentHashtable.State<ThreePartEntry> state3 =
+        ConcurrentHashtable.createBounded(ThreePartEntry.class, 2);
+    Maybe<ThreePartEntry> three;
+    try (ConcurrentHashtable.Reservation<ThreePartEntry> r =
+        ConcurrentHashtable.tryReserve(state3)) {
+      three = r.tryGetOrInsert("x", "y", "z", ThreePartEntry::new);
+    }
+    assertTrue(three.isPresent());
+    assertEquals("x", three.getOrNull().a);
+    assertEquals("y", three.getOrNull().b);
+    assertEquals("z", three.getOrNull().c);
+
+    ConcurrentHashtable.State<FourPartEntry> state4 =
+        ConcurrentHashtable.createBounded(FourPartEntry.class, 2);
+    Maybe<FourPartEntry> four;
+    try (ConcurrentHashtable.Reservation<FourPartEntry> r =
+        ConcurrentHashtable.tryReserve(state4)) {
+      four = r.tryGetOrInsert("w", "x", "y", "z", FourPartEntry::new);
+    }
+    assertTrue(four.isPresent());
+    assertEquals("w", four.getOrNull().a);
+    assertEquals("x", four.getOrNull().b);
+    assertEquals("y", four.getOrNull().c);
+    assertEquals("z", four.getOrNull().d);
   }
 }
