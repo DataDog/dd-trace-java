@@ -3,7 +3,6 @@ package datadog.trace.agent.tooling;
 import static datadog.trace.agent.tooling.ExtensionFinder.findExtensions;
 import static datadog.trace.agent.tooling.ExtensionLoader.loadExtensions;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnoresMatcher.globalIgnoresMatcher;
-import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
@@ -423,12 +422,7 @@ public class AgentInstaller {
         final Throwable throwable,
         final List<Class<?>> types) {
       if (DEBUG) {
-        log.debug(
-            EXCLUDE_TELEMETRY,
-            "Exception while retransforming {} classes: {}",
-            batch.size(),
-            batch,
-            throwable);
+        log.debug("Exception while retransforming {} classes: {}", batch.size(), batch, throwable);
       }
       return Collections.emptyList();
     }
