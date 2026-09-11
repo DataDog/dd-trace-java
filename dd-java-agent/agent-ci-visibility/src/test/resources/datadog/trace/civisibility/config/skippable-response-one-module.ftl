@@ -12,7 +12,7 @@
         "suite": "suite-a",
         "name": "name-a",
         "parameters": "parameters-a",
-        "_missing_line_code_coverage": true
+        "_is_missing_line_code_coverage": true
       }
     },
     {
@@ -26,7 +26,7 @@
         },
         "suite": "suite-b",
         "name": "name-b",
-        "_missing_line_code_coverage": true
+        "_is_missing_line_code_coverage": true
       }
     }
   ],
