@@ -15,7 +15,7 @@ addTestSuiteForDir("latestDepTest", "test")
 
 dependencies {
   compileOnly group: 'javax.websocket', name: 'javax.websocket-api', version: '1.0-rc1'
+  testRuntimeOnly project(":dd-java-agent:instrumentation:java:java-lang:java-lang-1.8")
   testImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '1.3.1'
   latestDepTestImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '1.+'
 }
-
