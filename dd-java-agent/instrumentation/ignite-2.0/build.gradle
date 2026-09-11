@@ -44,7 +44,7 @@ dependencies {
 
 for (taskName in ['compileLatestDepTestGroovy', 'compileLatestDepForkedTestGroovy']) {
   tasks.named(taskName, GroovyCompile) {
-    configureCompiler(it, 11)
+    configureCompiler(it, 25, JavaVersion.VERSION_11)
   }
 }
 

@@ -11,11 +11,11 @@ addTestSuiteForDir('latestDepTest', 'test')
 final springBootVersion = '3.0.0'
 
 tasks.withType(AbstractCompile).configureEach {
-  configureCompiler(it, 17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 dependencies {

@@ -31,8 +31,8 @@ excludedClassesCoverage += ['com.datadog.profiling.controller.jfr.JdkTypeIDs']
 
 // Shared JFR implementation. The earliest Java version JFR is working on is Java 8
 tasks.named("compileTestJava", JavaCompile) {
-  // tests should be compiled in Java 8 compatible way
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+  // These tests run only on Java 11+, so this can target Java 11 and restore --release.
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8, "Uses jdk.jfr API (Java 11+) at Java 8 bytecode")
   // Disable '-processing' because some annotations are not claimed.
   // Disable '-options' because we are compiling for java8 without specifying bootstrap - intentionally.
   // Disable '-path' because we do not have some of the paths seem to be missing.

@@ -16,10 +16,10 @@ addTestSuiteForDir('java11Test', 'java11Test')
 ext.java11TestMinJavaVersionForTests = JavaVersion.VERSION_11
 
 tasks.named("compileJava11TestJava", JavaCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, 25, JavaVersion.VERSION_11)
 }
 tasks.named("compileJava11TestGroovy", GroovyCompile) {
-  configureCompiler(it, 11)
+  configureCompiler(it, 25, JavaVersion.VERSION_11)
 }
 
 dependencies {

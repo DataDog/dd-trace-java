@@ -19,7 +19,7 @@ tracerJava {
 addTestSuiteForDir('latestDepTest', 'test')
 
 tasks.named("compileMain_java17Java", JavaCompile) {
-  configureCompiler(it, 17, JavaVersion.VERSION_17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 configurations.matching { it.name.startsWith('test') || it.name.startsWith('latestDepTest') }.configureEach {

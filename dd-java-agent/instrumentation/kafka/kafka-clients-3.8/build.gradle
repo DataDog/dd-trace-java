@@ -21,18 +21,13 @@ tracerJava {
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
-["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
-  tasks.named(it, JavaCompile) {
-    configureCompiler(it, 17, JavaVersion.VERSION_1_8)
-  }
-}
-
-tasks.withType(JavaCompile).configureEach {
-  configureCompiler(it, 17, JavaVersion.VERSION_1_8)
+// Java 8 bytecode — override addSourceSetFor(17)'s Java 17 default
+tasks.named("compileMain_java17Java", JavaCompile) {
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8)
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 dependencies {

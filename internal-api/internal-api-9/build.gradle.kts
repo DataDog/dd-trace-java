@@ -1,4 +1,4 @@
-import groovy.lang.Closure
+import datadog.gradle.configureCompiler
 
 plugins {
   `java-library`
@@ -26,13 +26,11 @@ tasks.withType<Javadoc>().configureEach {
   javadocTool = javaToolchains.javadocToolFor(java.toolchain)
 }
 
-fun AbstractCompile.configureCompiler(javaVersionInteger: Int, compatibilityVersion: JavaVersion? = null, unsetReleaseFlagReason: String? = null) {
-  (project.extra["configureCompiler"] as Closure<*>).call(this, javaVersionInteger, compatibilityVersion, unsetReleaseFlagReason)
-}
-
 listOf(JavaCompile::class.java, GroovyCompile::class.java).forEach { compileTaskType ->
   tasks.withType(compileTaskType).configureEach {
-    configureCompiler(11, JavaVersion.VERSION_1_8)
+    // These implementations are selected only on Java 9+, so they can target Java 9 and restore
+    // --release after confirming no project output must be loaded during Java 8 discovery.
+    configureCompiler(25, JavaVersion.VERSION_1_8, "Uses Java 9+ APIs (StackWalker, ProcessHandle, Module) at Java 8 bytecode")
   }
 }
 

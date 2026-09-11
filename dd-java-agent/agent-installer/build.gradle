@@ -34,13 +34,14 @@ dependencies {
 }
 
 tasks.named("compileMain_java11Java", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8,
-    "Java 11 sourceset for JPMS-aware ClassFileTransformer, compiled with Java 11 but targeting Java 8 bytecode.")
+  // Loaded reflectively only on Java 9+, so this can target Java 9 and restore --release.
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8, "Uses the ClassFileTransformer Module overload (Java 9+) at Java 8 bytecode")
 }
 
 tasks.named("compileMain_java25Java", JavaCompile) {
-  configureCompiler(it, 25, JavaVersion.VERSION_1_8,
-    "Java 25 sourceset for Foreign Function & Memory API, compiled with Java 25 but targeting Java 8 bytecode.")
+  // Loaded reflectively only on Java 22+, so this can target Java 22 and restore --release
+  // after confirming the implementation uses only the Java 22 FFM surface.
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8, "Uses Foreign Function & Memory API (java.lang.foreign, Java 22+) at Java 8 bytecode")
 }
 
 dependencies {

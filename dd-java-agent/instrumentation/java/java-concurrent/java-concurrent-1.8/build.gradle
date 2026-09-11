@@ -9,7 +9,7 @@ muzzle {
 }
 
 tasks.named("compileJava") {
-  configureCompiler(it, 8)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Needs JDK 8 package-private CompletableFuture internals")
 }
 
 addTestSuiteForDir('latestDepTest', 'test')

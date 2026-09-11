@@ -53,11 +53,11 @@ sourceSets {
 }
 
 def java6CompileTask = tasks.named("compileMain_java6Java") {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_6)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_6, "Java 6 premain pre-check must load on any JVM")
 }
 
 def java11CompileTask = tasks.named("compileMain_java11Java") {
-  configureCompiler(it, 11)
+  configureCompiler(it, 25, JavaVersion.VERSION_11)
 }
 
 tasks.named("compileJava") {
