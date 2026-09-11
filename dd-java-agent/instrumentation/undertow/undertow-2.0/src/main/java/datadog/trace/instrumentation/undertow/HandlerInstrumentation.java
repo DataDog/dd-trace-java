@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.undertow;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.undertow.UndertowBlockingHandler.REQUEST_BLOCKING_DATA;
@@ -127,7 +126,7 @@ public final class HandlerInstrumentation extends InstrumenterModule.Tracing
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, exchange, exchange, parentContext);
 
-      exchange.putAttachment(DATADOG_UNDERTOW_CONTINUATION, captureSpan(span));
+      exchange.putAttachment(DATADOG_UNDERTOW_CONTINUATION, span.captureWithContext());
 
       exchange.addExchangeCompleteListener(ExchangeEndSpanListener.INSTANCE);
 

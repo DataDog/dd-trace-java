@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SPAN_KEY;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
@@ -210,6 +211,7 @@ public interface AgentSpan
 
   AgentSpan setSamplingPriority(final int newPriority, int samplingMechanism);
 
+  @Nonnull
   TraceConfig traceConfig();
 
   void addLink(AgentSpanLink link);
@@ -217,6 +219,46 @@ public interface AgentSpan
   AgentSpan setMetaStruct(final String field, final Object value);
 
   boolean isOutbound();
+
+  /**
+   * Applies a {@link SpanPrototype} as fallback defaults: stamps its span type, constant tags, and
+   * integration name only where this span has not already set them. Prototype values are the lowest
+   * precedence -- anything explicitly set wins -- so {@code apply} never clobbers, is
+   * order-independent, and self-neutralizes once construction has already seeded the same
+   * prototype.
+   *
+   * <p>This is the single seam through which a prototype's constant initial state is applied,
+   * shared by the construction path (buildSpan/startSpan) and decorator {@code afterStart}. Core
+   * spans override to route straight to the context, which owns the tag map and will host the
+   * eventual fast path (bulk share / identity short-circuit); this default is the best-effort
+   * fallback for other span implementations.
+   */
+  default void apply(@Nonnull final SpanPrototype prototype) {
+    if (getSpanType() == null) {
+      final CharSequence spanType = prototype.spanType();
+      if (spanType != null) {
+        setSpanType(spanType);
+      }
+    }
+
+    // Prototype tags are fallback defaults: only fill keys this span has not already set.
+    prototype
+        .tags()
+        .forEach(
+            (tag, value) -> {
+              if (getTag(tag) == null) {
+                setTag(tag, value);
+              }
+            });
+
+    // Never-clobber: only stamp the integration name when the context reports none.
+    if (spanContext().getIntegrationName() == null) {
+      final CharSequence integrationName = prototype.integrationName();
+      if (integrationName != null) {
+        spanContext().setIntegrationName(integrationName);
+      }
+    }
+  }
 
   default AgentSpan asAgentSpan() {
     return this;
@@ -262,6 +304,35 @@ public interface AgentSpan
    */
   default ContextScope attachWithContext() {
     return storeInto(Context.current()).attach();
+  }
+
+  /**
+   * Captures a continuation of just the span so it can be resumed in another execution unit. Use
+   * this when you want to temporarily suppress any surrounding custom context during the span's
+   * continuation.
+   *
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing only this span; no-op continuation if async propagation
+   *     disabled
+   */
+  @Override
+  default ContextContinuation capture() {
+    return Context.super.capture();
+  }
+
+  /**
+   * Captures a continuation combining the span with the current context so it can be resumed in
+   * another execution unit. Use this when you want to maintain any surrounding custom context
+   * during the span's continuation
+   *
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing this span and any custom context; no-op continuation if async
+   *     propagation disabled
+   */
+  default ContextContinuation captureWithContext() {
+    return storeInto(Context.current()).capture();
   }
 
   /**
