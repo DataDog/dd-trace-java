@@ -1,6 +1,7 @@
 package datadog.trace.api.cache;
 
 import datadog.trace.api.Pair;
+import datadog.trace.api.function.ForegroundSafe;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -16,9 +17,14 @@ import java.util.function.Function;
  * computeIfAbsent</code> is idempotent, or otherwise you might not get back the value you expect
  * from a cache lookup.
  *
+ * <p>{@link ForegroundSafe}: {@code computeIfAbsent} always does a small, bounded number of probes
+ * against a fixed-size array -- no growth, no eviction sweep -- cheap enough to call from an
+ * application thread.
+ *
  * @param <K> key type
  * @param <V> value type
  */
+@ForegroundSafe
 abstract class FixedSizeCache<K, V> implements DDCache<K, V> {
 
   static final int MAXIMUM_CAPACITY = 1 << 30;
