@@ -41,7 +41,7 @@ public class HttpClientRequestTracingHandler extends SimpleChannelDownstreamHand
     }
 
     final ChannelTraceContext channelTraceContext =
-        contextStore.putIfAbsent(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
+        contextStore.getOrCreate(ctx.getChannel(), ChannelTraceContext.Factory.INSTANCE);
 
     ContextScope parentScope = null;
     final ContextContinuation continuation = channelTraceContext.getConnectionContinuation();

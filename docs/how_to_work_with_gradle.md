@@ -172,6 +172,22 @@ In a well-organized Gradle project, build logic lives in specific places:
 > Script plugins are not recommended. The best practice for developing our build logic in plugins is 
 > to create _convention plugins_ or _binary plugins_.
 
+### Running Build Logic Tests
+
+Running `buildSrc/` tests within IntelliJ IDEA works without special treatment because the build
+detects the injected `idea.active` system property.
+
+However, via the command line, `buildSrc/` tests are disabled unless opted in with
+`-PrunBuildSrcTests`:
+
+```shell
+./gradlew -p buildSrc :test -PrunBuildSrcTests            # whole suite
+./gradlew -p buildSrc :test -PrunBuildSrcTests --tests '*MuzzlePluginFunctionalTest'
+```
+
+Repository proxies configured through `MAVEN_REPOSITORY_PROXY` or `GRADLE_PLUGIN_PROXY` are
+propagated to TestKit builds through `repository-proxy.init.gradle.kts`.
+
 ### How Gradle Compiles Build Scripts
 
 During the **Configuration phase**, Gradle doesn't simply execute build scripts top-to-bottom. Instead, it first extracts and processes certain special blocks before compiling the rest of the script. This is necessary because Gradle needs to know which plugins to apply before it can understand the DSL extensions they provide.
@@ -597,11 +613,12 @@ Each test suite (like `test`, `integrationTest`) gets its own set of configurati
 
 In this project, the `gradle/test-suites.gradle` script provides helpers to create test suites with proper configuration inheritance:
 
-| Helper                                                 | Description                                                                    |
-|--------------------------------------------------------|--------------------------------------------------------------------------------|
-| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`             |
-| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`              |
-| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/` |
+| Helper                                                 | Description                                                                           |
+|--------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `addTestSuite('name')`                                 | Creates `name` test suite extending `test`, sources in `src/name/`                    |
+| `addTestSuiteForDir('name', 'dir')`                    | Creates `name` test suite extending `test`, sources in `src/dir/`                    |
+| `addTestSuiteExtendingForDir('name', 'parent', 'dir')` | Creates `name` test suite extending `parent` test suite, sources in `src/dir/`        |
+| `addForkedTestTask('name')`                            | Creates `nameForkedTest`, reusing the `name` source set output and runtime classpath |
 
 For example:
 
@@ -609,8 +626,8 @@ For example:
 // Creates 'latestDepTest' suite extending 'test', sources in src/latestDepTest/
 addTestSuite('latestDepTest')
 
-// Creates 'latestDepForkedTest' suite extending 'latestDepTest', sources in src/latestDepTest/
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
+// Creates 'latestDepTestForkedTest' using the compiled latestDepTest classes and dependencies
+addForkedTestTask('latestDepTest')
 ```
 
 ```mermaid
@@ -627,14 +644,13 @@ graph LR
         latestDepTestImplementation
     end
 
-    subgraph latestDepForkedTest
-        latestDepForkedTestImplementation
-    end
-
-    implementation --> testImplementation --> latestDepTestImplementation --> latestDepForkedTestImplementation
+    implementation --> testImplementation --> latestDepTestImplementation
 ```
 
 *Similar inheritance applies to `compileOnly`, `runtimeOnly`, and `annotationProcessor` configurations.*
+
+Use a separate suite only when forked tests need different sources or dependencies. When they run
+the same source set and classpath, prefer `addForkedTestTask` to avoid compiling those sources twice.
 
 ### Creating Custom Configurations
 

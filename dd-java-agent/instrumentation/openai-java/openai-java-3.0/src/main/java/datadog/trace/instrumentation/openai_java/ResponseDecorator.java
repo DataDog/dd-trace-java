@@ -279,7 +279,7 @@ public class ResponseDecorator {
     Optional<ResponseInputItem.FunctionCallOutput> functionCallOutput = item.functionCallOutput();
     if (functionCallOutput.isPresent()) {
       ResponseInputItem.FunctionCallOutput output = functionCallOutput.get();
-      String callId = output.callId();
+      String callId = FunctionCallOutputExtractor.getCallIdAsString(output);
       String result = FunctionCallOutputExtractor.getOutputAsString(output);
       LLMObs.ToolResult toolResult =
           LLMObs.ToolResult.from("", "function_call_output", callId, result);
