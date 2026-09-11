@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kotlin.coroutines;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import kotlin.coroutines.CoroutineContext;
@@ -11,6 +12,11 @@ import kotlinx.coroutines.ThreadContextElement;
 
 /** Manages the Datadog context for coroutines, switching contexts as coroutines switch threads. */
 public final class DatadogThreadContextElement implements ThreadContextElement<Context> {
+  private static final AtomicReferenceFieldUpdater<DatadogThreadContextElement, ContextContinuation>
+      CONTINUATION =
+          AtomicReferenceFieldUpdater.newUpdater(
+              DatadogThreadContextElement.class, ContextContinuation.class, "continuation");
+
   private static final CoroutineContext.Key<DatadogThreadContextElement> DATADOG_KEY =
       new CoroutineContext.Key<DatadogThreadContextElement>() {};
 
@@ -22,7 +28,7 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
   }
 
   private Context context;
-  private ContextContinuation continuation;
+  private volatile ContextContinuation continuation;
 
   @Nonnull
   @Override
@@ -42,9 +48,11 @@ public final class DatadogThreadContextElement implements ThreadContextElement<C
 
   public static void cancelDatadogContext(@Nonnull AbstractCoroutine<?> coroutine) {
     DatadogThreadContextElement datadog = coroutine.getContext().get(DATADOG_KEY);
-    if (datadog != null && datadog.continuation != null) {
+    ContextContinuation continuation =
+        datadog == null ? null : CONTINUATION.getAndSet(datadog, null);
+    if (continuation != null) {
       // release enclosing trace now the coroutine has completed
-      datadog.continuation.release();
+      continuation.release();
     }
   }
 
