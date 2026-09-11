@@ -50,8 +50,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
     int memberIndex = 0;
     int ddMemberIndex = -1;
-    OtelTraceState otelTraceState = null;
-    int otherMemberPosition = 0;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
@@ -82,14 +80,15 @@ public class W3CPTagsCodec extends PTagsCodec {
         ddMemberIndex = memberIndex;
         ddMemberValueEnd = memberValueEnd;
       } else if (otelMember) {
+        // Position to retain for this member (if left unchanged)
+        // Indexing after an eventual dd= member which will be placed first
+        int memberPosition = memberIndex - (ddMemberStart >= 0 ? 1 : 0);
         otelTraceState =
             OtelTraceState.parse(
                 value.substring(
                     memberValueStart, stripTrailingOWC(value, memberValueStart, memberValueEnd)),
-                otherMemberPosition,
+                memberPosition,
                 memberContributionSize(value, firstMemberStart, memberStart, memberValueEnd));
-      } else {
-        otherMemberPosition++;
       }
 
       memberIndex++;

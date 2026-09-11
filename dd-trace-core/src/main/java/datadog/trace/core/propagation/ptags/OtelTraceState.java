@@ -11,8 +11,7 @@ final class OtelTraceState {
     this.originalSize = originalSize;
   }
 
-  static OtelTraceState parse(
-      String raw, int originalPosition, int originalSize) {
+  static OtelTraceState parse(String raw, int originalPosition, int originalSize) {
     if (raw == null || raw.isEmpty()) {
       return null;
     }
