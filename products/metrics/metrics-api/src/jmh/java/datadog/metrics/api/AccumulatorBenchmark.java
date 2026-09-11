@@ -51,34 +51,34 @@ import org.openjdk.jmh.infra.Blackhole;
  * {@code longAdderGroup8}'s threads split into up to 8 groups each contending their own lock -- the
  * topology where distributed locking should actually pay off, forcing {@link Accumulator}'s
  * thread-striped design to earn its write-side win rather than facing a single-counter worst case.
- * Fork(5), 15 samples per benchmark: <code>
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention   avgt   15  2.746 ±  0.050  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention    avgt   15  0.056 ±  0.001  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset8_highContention  avgt   15  6.875 ±  0.422  us/op
- * AccumulatorBenchmark.accumulatorAccumulateAndReset8_lowContention   avgt   15  0.363 ±  0.003  us/op
+ * Fork(5), 15 samples per benchmark, Apple M1 Max, 10 CPUs - macOS/aarch64 - JDK 25 (Zulu): <code>
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_highContention   avgt   15  2.760 ±  0.052  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention    avgt   15  0.049 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset8_highContention  avgt   15  6.939 ±  0.303  us/op
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset8_lowContention   avgt   15  0.364 ±  0.003  us/op
  * AccumulatorBenchmark.accumulatorIncrement_highContention            avgt   15  0.009 ±  0.001  us/op
  * AccumulatorBenchmark.accumulatorIncrement_lowContention             avgt   15  0.007 ±  0.001  us/op
- * AccumulatorBenchmark.accumulatorIncrement8_highContention           avgt   15  0.017 ±  0.009  us/op
+ * AccumulatorBenchmark.accumulatorIncrement8_highContention           avgt   15  0.016 ±  0.006  us/op
  * AccumulatorBenchmark.accumulatorIncrement8_lowContention            avgt   15  0.007 ±  0.001  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention     avgt   15  4.770 ±  1.795  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd_lowContention      avgt   15  0.061 ±  0.007  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd8_highContention    avgt   15  6.025 ±  0.712  us/op
- * AccumulatorBenchmark.longAdderGroupAccumulateAnd8_lowContention     avgt   15  0.085 ±  0.004  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement_highContention         avgt   15  2.294 ±  0.101  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement_lowContention          avgt   15  0.019 ±  0.001  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement8_highContention        avgt   15  0.786 ±  0.078  us/op
- * AccumulatorBenchmark.longAdderGroupIncrement8_lowContention         avgt   15  0.020 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_highContention     avgt   15  1.703 ±  1.785  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd_lowContention      avgt   15  0.024 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd8_highContention    avgt   15  5.989 ±  0.241  us/op
+ * AccumulatorBenchmark.longAdderGroupAccumulateAnd8_lowContention     avgt   15  0.074 ±  0.008  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_highContention         avgt   15  2.775 ±  0.531  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement_lowContention          avgt   15  0.012 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement8_highContention        avgt   15  0.513 ±  0.094  us/op
+ * AccumulatorBenchmark.longAdderGroupIncrement8_lowContention         avgt   15  0.012 ±  0.001  us/op
  * </code> On the write side, {@link Accumulator} beats {@code longAdderGroup} at high contention by
- * ~255x in the degenerate single-shared-lock case and still by ~46x once counters are fairly spread
+ * ~310x in the degenerate single-shared-lock case and still by ~32x once counters are fairly spread
  * across 8 locks -- a large, reproducible win either way, on the call that runs on every event. On
- * the drain side, the two designs are close and the comparison is noisy under contention for both:
- * at width 1 {@link Accumulator}'s drain (2.746 us/op) is actually <em>faster</em> than {@code
- * longAdderGroup}'s (4.770 ± 1.795 us/op, itself high-variance), and at width 8 it's only ~1.14x
- * slower (6.875 vs 6.025 us/op) -- not the regression an earlier reading of this benchmark
- * suggested. That earlier reading (13.357 us/op at Fork(2)) turned out to be a correlated anomaly
- * across two independent low-sample runs, not a reproducible result; escalating to Fork(5) (15
- * samples) settled it. Net: a large, robust win on the call that fires on every event, and no
- * confirmed cost on the call that fires once per reporting cycle.
+ * the drain side, the two designs remain close and the comparison stays noisy under contention for
+ * both: at width 1 {@link Accumulator}'s drain (2.760 us/op) reads slower than {@code
+ * longAdderGroup}'s (1.703 ± 1.785 us/op), but that error bar spans {@link Accumulator}'s own
+ * result, so the two aren't distinguishable at this sample size; at width 8 it's ~1.16x slower
+ * (6.939 vs 5.989 us/op), consistent with the earlier ~1.14x reading. Reproduced on a second,
+ * independent Fork(5) run after the stripe-count cap ({@code MAX_STRIPES = 64}) landed: a large,
+ * robust win on the call that fires on every event, and no confirmed cost on the call that fires
+ * once per reporting cycle.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
