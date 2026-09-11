@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -442,15 +443,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Snapshot snapshot1 = snapshots.get(1);
     assertCaptureArgs(snapshot1.getCaptures().getEntry(), "value", "int", "31");
     assertCaptureReturnValue(snapshot1.getCaptures().getReturn(), "int", "31");
-  }
-
-  private List<Snapshot> assertSnapshots(
-      TestSnapshotListener listener, int expectedCount, ProbeId... probeIds) {
-    assertEquals(expectedCount, listener.snapshots.size());
-    for (int i = 0; i < probeIds.length; i++) {
-      assertEquals(probeIds[i].getId(), listener.snapshots.get(i).getProbe().getId());
-    }
-    return listener.snapshots;
   }
 
   @Test
@@ -908,9 +900,14 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void fieldExtractorDuplicateUnionDepth() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
-    LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
-    LogProbe probe1 = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
-    LogProbe probe2 = builder.capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "createSimpleData", "()")
+            .capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT)
+            .build();
+    LogProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "createSimpleData", "()")
+            .capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT)
+            .build();
     TestSnapshotListener listener = installProbes(probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
@@ -2330,7 +2327,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
     final String ENUM_CLASS = CLASS_NAME + "$MyEnum";
     TestSnapshotListener listener =
-        installProbes(createMethodProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
+        installProbes(
+            createProbeBuilder(PROBE_ID, ENUM_CLASS, "<init>", null).sampling(10).build());
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(2, result);
