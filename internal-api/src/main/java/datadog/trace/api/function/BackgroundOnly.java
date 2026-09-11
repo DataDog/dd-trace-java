@@ -20,12 +20,41 @@ import java.lang.annotation.Target;
  * <p>The two markers are <b>not symmetric</b> -- see {@link ForegroundSafe} for why it, not this
  * one, is the strictly stronger guarantee.
  *
+ * <p>Orthogonal to {@code @ThreadSafe} (JSR-305): that annotation says concurrent calls from
+ * multiple callers are safe; this one says which category of caller is valid at all -- background
+ * threads (there may be more than one), never the foreground/application thread. A class can, and
+ * often will, carry both.
+ *
  * <p><b>On a type</b> ({@link ElementType#TYPE}): every method of this type is background-only
  * unless a method-level {@link ForegroundSafe} widens it.
  *
  * <p><b>On a method</b> ({@link ElementType#METHOD}): this method specifically is background-only,
  * regardless of what the enclosing type declares -- a method-level marker always wins over the
  * type-level one.
+ *
+ * <p><b>Checker contract.</b> The rule below is written to be machine-checkable -- by a future
+ * static checker, or in the meantime by an AI reviewer (see the {@code dd-apm-sdk-review} skill's
+ * performance override, addendum J16) -- without needing to read this class's prose above.
+ *
+ * <ul>
+ *   <li><b>Trigger:</b> a call site in code that is unannotated or {@link ForegroundSafe} and is
+ *       reachable from an application/foreground call site (a span lifecycle method, an
+ *       instrumentation advice body, anything on the app thread), into a symbol (type or method)
+ *       annotated {@code @BackgroundOnly}.
+ *   <li><b>Not a trigger:</b> a call from code that is itself {@code @BackgroundOnly} -- calls
+ *       between background-only code are fine, only the foreground-to-background crossing is the
+ *       violation. Also not a trigger: a call into a symbol that carries neither marker -- the
+ *       absence of an annotation is not itself a finding, only a call that provably crosses a
+ *       declared {@code @BackgroundOnly} boundary counts.
+ *   <li><b>Violation example:</b> a span-lifecycle method or advice body calling {@code
+ *       sharedUtf8Cache.getUtf8(value)} where {@code sharedUtf8Cache}'s declared type is annotated
+ *       {@code @BackgroundOnly}.
+ *   <li><b>Compliant example:</b> the same call made only from the background serializer thread
+ *       that owns the cache, or from a method itself marked {@code @BackgroundOnly}.
+ *   <li><b>Out of scope (v1):</b> resolution is grep-only today (there is no APT-generated manifest
+ *       yet -- {@code APMLP-1645}), so a callee outside the diff costs a grep per unfamiliar symbol
+ *       rather than a lookup; reflection and dynamic-proxy call sites are not resolved at all.
+ * </ul>
  */
 @Documented
 @Retention(RetentionPolicy.SOURCE)
