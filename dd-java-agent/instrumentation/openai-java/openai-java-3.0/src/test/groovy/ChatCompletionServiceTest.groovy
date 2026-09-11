@@ -406,6 +406,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "gen_ai.provider.name" "openai"
             "gen_ai.application.name" String
             if (!isStreaming) {
+              // streamed completions missing usage data
               "gen_ai.usage.input_tokens" Double
               "gen_ai.usage.output_tokens" Double
               "gen_ai.usage.total_tokens" Double

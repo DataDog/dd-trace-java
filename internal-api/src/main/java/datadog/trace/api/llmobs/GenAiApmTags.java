@@ -46,28 +46,50 @@ public final class GenAiApmTags {
     {LLMOBS_METRIC_PREFIX + "reasoning_output_tokens", USAGE_REASONING_OUTPUT_TOKENS},
   };
 
-  /**
-   * Writes the attributes onto a span that is not yet finished, reading them back from its {@code
-   * _ml_obs_tag.} / {@code _ml_obs_metric.} tags. No-op for a span with no LLM Observability kind.
-   */
   public static void apply(AgentSpan span) {
+    apply(span, null, null, null);
+  }
+
+  /**
+   * Writes the attributes onto a span that is not yet finished, reading them from its {@code
+   * _ml_obs_tag.} / {@code _ml_obs_metric.} tags. The arguments take precedence over those tags and
+   * cover instrumentation that traces with LLM Observability disabled, where they are not all set.
+   * No-op for a span with no resolvable operation.
+   */
+  public static void apply(AgentSpan span, String operationName, String modelName, String mlApp) {
     if (span == null) {
       return;
     }
-    String spanKind = stringTag(span, SPAN_KIND_TAG);
-    if (spanKind == null) {
+    String operation = firstNonEmpty(operationName, stringTag(span, SPAN_KIND_TAG));
+    if (operation == null) {
       return;
     }
-    setScalars(
-        span,
-        spanKind,
-        stringTag(span, MODEL_NAME_TAG),
-        stringTag(span, MODEL_PROVIDER_TAG),
-        stringTag(span, ML_APP_TAG),
-        stringTag(span, SESSION_ID_TAG));
+    span.setTag(OPERATION_NAME, operation);
+
+    boolean modelBacked =
+        Tags.LLMOBS_LLM_SPAN_KIND.equals(operation)
+            || Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(operation);
+
+    String model = firstNonEmpty(modelName, stringTag(span, MODEL_NAME_TAG));
+    if (model != null || modelBacked) {
+      span.setTag(REQUEST_MODEL, model == null ? DEFAULT_MODEL : model);
+    }
+    String provider = stringTag(span, MODEL_PROVIDER_TAG);
+    if (provider != null || modelBacked) {
+      span.setTag(
+          PROVIDER_NAME, (provider == null ? DEFAULT_MODEL : provider).toLowerCase(Locale.ROOT));
+    }
+    String application = firstNonEmpty(mlApp, stringTag(span, ML_APP_TAG));
+    if (application != null) {
+      span.setTag(APPLICATION_NAME, application);
+    }
+    String sessionId = stringTag(span, SESSION_ID_TAG);
+    if (sessionId != null) {
+      span.setTag(CONVERSATION_ID, sessionId);
+    }
 
     // Other kinds carry unrelated metrics that a gen_ai.usage.* key would misrepresent.
-    if (isModelBacked(spanKind)) {
+    if (modelBacked) {
       for (String[] metric : TOKEN_METRICS) {
         Object value = span.getTag(metric[0]);
         if (value instanceof Number) {
@@ -77,71 +99,18 @@ public final class GenAiApmTags {
     }
   }
 
-  /**
-   * Writes the subset available with LLM Observability disabled. Token usage and conversation id
-   * are never computed on that path, so they are left out.
-   */
-  public static void applyWithoutLlmObs(
-      AgentSpan span, String operationName, String modelName, String modelProvider, String mlApp) {
-    if (span == null || operationName == null) {
-      return;
-    }
-    setScalars(
-        span,
-        operationName,
-        emptyToNull(modelName),
-        emptyToNull(modelProvider),
-        emptyToNull(mlApp),
-        null);
-  }
-
-  private static void setScalars(
-      AgentSpan span,
-      String operationName,
-      String modelName,
-      String modelProvider,
-      String mlApp,
-      String sessionId) {
-    span.setTag(OPERATION_NAME, operationName);
-
-    if (isModelBacked(operationName)) {
-      span.setTag(REQUEST_MODEL, modelName == null ? DEFAULT_MODEL : modelName);
-      span.setTag(
-          PROVIDER_NAME,
-          (modelProvider == null ? DEFAULT_MODEL : modelProvider).toLowerCase(Locale.ROOT));
-    } else {
-      if (modelName != null) {
-        span.setTag(REQUEST_MODEL, modelName);
-      }
-      if (modelProvider != null) {
-        span.setTag(PROVIDER_NAME, modelProvider.toLowerCase(Locale.ROOT));
-      }
-    }
-
-    if (mlApp != null) {
-      span.setTag(APPLICATION_NAME, mlApp);
-    }
-    if (sessionId != null) {
-      span.setTag(CONVERSATION_ID, sessionId);
-    }
-  }
-
-  private static boolean isModelBacked(String spanKind) {
-    return Tags.LLMOBS_LLM_SPAN_KIND.equals(spanKind)
-        || Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(spanKind);
-  }
-
-  private static String emptyToNull(String value) {
-    return value == null || value.isEmpty() ? null : value;
-  }
-
-  private static String stringTag(AgentSpan span, String key) {
+  /** The value of {@code key} as a non-empty string, or null. */
+  public static String stringTag(AgentSpan span, String key) {
     Object value = span.getTag(key);
     if (value == null) {
       return null;
     }
     String string = String.valueOf(value);
     return string.isEmpty() ? null : string;
+  }
+
+  private static String firstNonEmpty(String preferred, String fallback) {
+    return preferred == null || preferred.isEmpty() ? fallback : preferred;
   }
 
   private GenAiApmTags() {}

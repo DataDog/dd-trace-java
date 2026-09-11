@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.openai_java;
 
+import static datadog.trace.api.llmobs.GenAiApmTags.stringTag;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
 
 import com.openai.core.ClientOptions;
@@ -193,13 +194,9 @@ public class OpenAiDecorator extends ClientDecorator {
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     } else if (span != null) {
-      // Tracing still runs with LLM Observability off, where these four remain resolvable.
-      GenAiApmTags.applyWithoutLlmObs(
-          span,
-          operationName(span),
-          requestedModel(span),
-          stringTag(span, CommonTags.MODEL_PROVIDER),
-          Config.get().getLlmObsMlApp());
+      // Tracing still runs with LLM Observability off, where these remain resolvable.
+      GenAiApmTags.apply(
+          span, operationName(span), requestedModel(span), Config.get().getLlmObsMlApp());
     }
     super.doBeforeFinish(context);
   }
@@ -218,15 +215,6 @@ public class OpenAiDecorator extends ClientDecorator {
   private static String requestedModel(AgentSpan span) {
     String model = stringTag(span, CommonTags.OPENAI_RESPONSE_MODEL);
     return model != null ? model : stringTag(span, CommonTags.OPENAI_REQUEST_MODEL);
-  }
-
-  private static String stringTag(AgentSpan span, String key) {
-    Object value = span.getTag(key);
-    if (value == null) {
-      return null;
-    }
-    String string = value.toString();
-    return string.isEmpty() ? null : string;
   }
 
   public void withHttpResponse(AgentSpan span, Headers headers) {

@@ -152,11 +152,14 @@ class GenAiApmTagsTest {
   @Test
   void nullSpanIsANoOp() {
     GenAiApmTags.apply(null);
+    GenAiApmTags.apply(null, Tags.LLMOBS_LLM_SPAN_KIND, "gpt-4", "app");
   }
 
   @Test
-  void withoutLlmObsEmitsScalarsButNoUsageOrConversation() {
-    GenAiApmTags.applyWithoutLlmObs(span, Tags.LLMOBS_LLM_SPAN_KIND, "gpt-4", "OpenAI", "my-app");
+  void argumentsStandInForMissingLlmObsTags() {
+    llmObsTag(LLMObsTags.MODEL_PROVIDER, "OpenAI");
+
+    GenAiApmTags.apply(span, Tags.LLMOBS_LLM_SPAN_KIND, "gpt-4", "my-app");
 
     assertEquals(Tags.LLMOBS_LLM_SPAN_KIND, tags.get(GenAiApmTags.OPERATION_NAME));
     assertEquals("gpt-4", tags.get(GenAiApmTags.REQUEST_MODEL));
@@ -167,23 +170,31 @@ class GenAiApmTagsTest {
   }
 
   @Test
-  void withoutLlmObsFallsBackToCustomForModelBackedKinds() {
-    GenAiApmTags.applyWithoutLlmObs(span, Tags.LLMOBS_EMBEDDING_SPAN_KIND, null, "", "app");
+  void argumentsTakePrecedenceOverLlmObsTags() {
+    llmObsTag(Tags.SPAN_KIND, Tags.LLMOBS_WORKFLOW_SPAN_KIND);
+    llmObsTag(LLMObsTags.MODEL_NAME, "gpt-3.5");
+    llmObsTag(LLMObsTags.ML_APP, "tagged-app");
+
+    GenAiApmTags.apply(span, Tags.LLMOBS_LLM_SPAN_KIND, "gpt-4", "my-app");
+
+    assertEquals(Tags.LLMOBS_LLM_SPAN_KIND, tags.get(GenAiApmTags.OPERATION_NAME));
+    assertEquals("gpt-4", tags.get(GenAiApmTags.REQUEST_MODEL));
+    assertEquals("my-app", tags.get(GenAiApmTags.APPLICATION_NAME));
+  }
+
+  @Test
+  void modelBackedArgumentsFallBackToCustom() {
+    GenAiApmTags.apply(span, Tags.LLMOBS_EMBEDDING_SPAN_KIND, null, "app");
 
     assertEquals("custom", tags.get(GenAiApmTags.REQUEST_MODEL));
     assertEquals("custom", tags.get(GenAiApmTags.PROVIDER_NAME));
   }
 
   @Test
-  void withoutLlmObsIgnoresSpanWithNoOperationName() {
-    GenAiApmTags.applyWithoutLlmObs(span, null, "gpt-4", "openai", "my-app");
+  void spanWithNoResolvableOperationEmitsNothing() {
+    GenAiApmTags.apply(span, null, "gpt-4", "my-app");
 
     assertTrue(tags.keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")));
-  }
-
-  @Test
-  void withoutLlmObsNullSpanIsANoOp() {
-    GenAiApmTags.applyWithoutLlmObs(null, Tags.LLMOBS_LLM_SPAN_KIND, "gpt-4", "openai", "app");
   }
 
   private void llmObsTag(String key, String value) {
