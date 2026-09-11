@@ -383,9 +383,11 @@ cases:
       `SimpleUtf8Cache` is declared `@BackgroundOnly` at the class level (see its Javadoc
       below) — its bookkeeping only pays off when it is only ever called from the single
       background serializer thread that owns it. `HttpUrlConnectionAdvice.onExit` is Byte
-      Buddy advice that runs synchronously on the calling application thread for every
-      instrumented `HttpURLConnection` request (a foreground/app-thread call site, not
-      annotated `@BackgroundOnly` or `@ForegroundSafe`).
+      Buddy advice, which always runs synchronously on the calling application thread — for
+      every instrumented `HttpURLConnection` request, not annotated `@BackgroundOnly` or
+      `@ForegroundSafe`. The value passed to the cache here is a fixed, non-sensitive
+      instrumentation-internal string (the integration name) — the violation is purely about
+      which thread reaches `@BackgroundOnly` code, not what data flows through it.
 
       ```java
       // datadog/communication/serialization/SimpleUtf8Cache.java (existing, unchanged)
@@ -403,16 +405,15 @@ cases:
 
       ```diff
       diff --git a/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java b/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java
-      @@ -95,6 +95,12 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing {
+      @@ -95,6 +95,11 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing {
            public static class HttpUrlConnectionAdvice {
-      +      // PR #99999: tag the outgoing request's first header value for a new debug flag.
+      +      private static final String INTEGRATION_NAME = "http-url-connection";
+      +
+      +      // PR #99999: pre-encode the integration name once so debug logging doesn't re-encode it.
       +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-      +      public static void onExit(
-      +          @Advice.This final HttpURLConnection thiz,
-      +          @Advice.FieldValue("connected") final boolean connected,
-      +          @Advice.Local("headerValue") final String headerValue) {
-      +        byte[] utf8 = SimpleUtf8Cache.SHARED.getUtf8(headerValue);
-      +        thiz.setRequestProperty("X-Debug-Header-Bytes-Len", Integer.toString(utf8.length));
+      +      public static void onExit(@Advice.This final HttpURLConnection thiz) {
+      +        byte[] utf8 = SimpleUtf8Cache.SHARED.getUtf8(INTEGRATION_NAME);
+      +        log.debug("traced {} bytes via {}", utf8.length, thiz);
       +      }
       ```
     expected_criteria:
