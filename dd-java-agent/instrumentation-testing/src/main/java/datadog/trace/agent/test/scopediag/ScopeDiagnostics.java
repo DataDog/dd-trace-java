@@ -12,6 +12,7 @@ import java.util.Set;
 /** Records test-time scope and continuation lifecycles and reports leaks. */
 public final class ScopeDiagnostics {
   private static final int DEFAULT_MAX_FRAMES = 6;
+  private static final long DEFAULT_QUIESCENCE_TIMEOUT_MILLIS = 250;
 
   private static final ScopeDiagnostics INSTANCE = new ScopeDiagnostics();
 
@@ -20,6 +21,8 @@ public final class ScopeDiagnostics {
 
   private final Map<ContextContinuation, ContinuationRecord> records = new IdentityHashMap<>();
   private final Map<Object, ScopeRecord> scopeRecords = new IdentityHashMap<>();
+  private final Set<Object> deferredCleanupScopes =
+      Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
   private final Map<DDTraceId, Long> rootWrittenNanos = new HashMap<>();
   private final Set<ContextContinuation> resolved =
       Collections.newSetFromMap(new IdentityHashMap<ContextContinuation, Boolean>());
@@ -71,10 +74,28 @@ public final class ScopeDiagnostics {
   /** Returns an immutable snapshot of the events recorded so far. */
   public static ScopeDiagnosticsReport report() {
     synchronized (INSTANCE.lifecycleLock) {
-      return new ScopeDiagnosticsReport(
-          new ArrayList<>(INSTANCE.records.values()),
-          new ArrayList<>(INSTANCE.scopeRecords.values()),
-          new HashMap<>(INSTANCE.rootWrittenNanos));
+      return INSTANCE.snapshot();
+    }
+  }
+
+  /** Gives asynchronous cleanup a bounded opportunity to resolve lifecycles still in flight. */
+  public static void awaitQuiescence() {
+    long deadline = System.nanoTime() + DEFAULT_QUIESCENCE_TIMEOUT_MILLIS * 1_000_000L;
+    synchronized (INSTANCE.lifecycleLock) {
+      while (INSTANCE.recording && INSTANCE.snapshot().hasIncompleteLifecycles()) {
+        long remaining = deadline - System.nanoTime();
+        if (remaining <= 0) {
+          return;
+        }
+        try {
+          long millis = remaining / 1_000_000L;
+          int nanos = (int) (remaining % 1_000_000L);
+          INSTANCE.lifecycleLock.wait(millis, nanos);
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+          return;
+        }
+      }
     }
   }
 
@@ -109,10 +130,18 @@ public final class ScopeDiagnostics {
   private void clear() {
     records.clear();
     scopeRecords.clear();
+    deferredCleanupScopes.clear();
     rootWrittenNanos.clear();
     resolved.clear();
     seq = 0;
     scopeSeq = 0;
+  }
+
+  private ScopeDiagnosticsReport snapshot() {
+    return new ScopeDiagnosticsReport(
+        new ArrayList<>(records.values()),
+        new ArrayList<>(scopeRecords.values()),
+        new HashMap<>(rootWrittenNanos));
   }
 
   private static final StackTraceElement[] NO_STACK = new StackTraceElement[0];
@@ -127,7 +156,9 @@ public final class ScopeDiagnostics {
     StackFilter filter = stackFilter;
     StackTraceElement[] stack =
         filter.maxFrames() <= 0 ? NO_STACK : filter.filter(new Throwable().getStackTrace());
-    return new ScopeEvent(type, Thread.currentThread().getName(), nanos, stack);
+    ScopeEvent event = new ScopeEvent(type, Thread.currentThread().getName(), nanos, stack);
+    lifecycleLock.notifyAll();
+    return event;
   }
 
   static void recordCapture(
@@ -204,6 +235,14 @@ public final class ScopeDiagnostics {
     synchronized (INSTANCE.lifecycleLock) {
       if (INSTANCE.recording) {
         INSTANCE.listener.onScopeCloseWrongThread(scope);
+      }
+    }
+  }
+
+  static void recordDeferredScopeCleanup(Object scope) {
+    synchronized (INSTANCE.lifecycleLock) {
+      if (INSTANCE.recording) {
+        INSTANCE.listener.onDeferredScopeCleanup(scope);
       }
     }
   }
@@ -287,6 +326,7 @@ public final class ScopeDiagnostics {
                 spanName,
                 source,
                 continuationSeq,
+                deferredCleanupScopes.remove(scope),
                 event(ScopeEvent.Type.SCOPE_OPEN)));
         if (owner != null) {
           owner.linkScope(s);
@@ -310,6 +350,18 @@ public final class ScopeDiagnostics {
         ScopeRecord record = scopeRecords.get(scope);
         if (record != null) {
           record.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD));
+        }
+      } catch (Throwable ignored) {
+      }
+    }
+
+    void onDeferredScopeCleanup(Object scope) {
+      try {
+        ScopeRecord record = scopeRecords.get(scope);
+        if (record != null) {
+          record.markDeferredCleanup();
+        } else {
+          deferredCleanupScopes.add(scope);
         }
       } catch (Throwable ignored) {
       }
