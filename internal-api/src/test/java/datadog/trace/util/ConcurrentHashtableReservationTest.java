@@ -279,4 +279,90 @@ class ConcurrentHashtableReservationTest {
     assertEquals("y", four.getOrNull().c);
     assertEquals("z", four.getOrNull().d);
   }
+
+  @Test
+  void tryReserveForSkipsTheLockWhenTheTargetBucketIsDefinitelyEmpty() {
+    // capacity 3 rounds up to 4 buckets, so one bucket stays empty once the table is full.
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.createBounded(TestEntry.class, 3);
+    for (int keyHash = 1; keyHash <= 3; keyHash++) {
+      try (ConcurrentHashtable.Reservation<TestEntry> r =
+          ConcurrentHashtable.tryReserveFor(state, keyHash)) {
+        r.tryGetOrInsertOrNull(keyHash, TestEntry::new);
+      }
+    }
+    assertTrue(ConcurrentHashtable.isFull(state));
+
+    AtomicInteger factoryCalls = new AtomicInteger();
+    TestEntry result;
+    try (ConcurrentHashtable.Reservation<TestEntry> r =
+        ConcurrentHashtable.tryReserveFor(state, 4)) {
+      assertFalse(r.isReserved());
+      result =
+          r.tryGetOrInsertOrNull(
+              4,
+              v -> {
+                factoryCalls.incrementAndGet();
+                return new TestEntry(v);
+              });
+    }
+    assertNull(result);
+    assertEquals(0, factoryCalls.get());
+    assertEquals(3, ConcurrentHashtable.estimateSize(state));
+  }
+
+  @Test
+  void tryReserveForFindsAConcurrentDuplicateEvenWhenTheTableLooksFull() {
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.createBounded(TestEntry.class, 3);
+    TestEntry existing;
+    try (ConcurrentHashtable.Reservation<TestEntry> r =
+        ConcurrentHashtable.tryReserveFor(state, 1)) {
+      existing = r.tryGetOrInsertOrNull(1, TestEntry::new);
+    }
+    try (ConcurrentHashtable.Reservation<TestEntry> r =
+        ConcurrentHashtable.tryReserveFor(state, 2)) {
+      r.tryGetOrInsertOrNull(2, TestEntry::new);
+    }
+    try (ConcurrentHashtable.Reservation<TestEntry> r =
+        ConcurrentHashtable.tryReserveFor(state, 3)) {
+      r.tryGetOrInsertOrNull(3, TestEntry::new);
+    }
+    assertTrue(ConcurrentHashtable.isFull(state));
+
+    // Reserving for the same keyHash again simulates a concurrent duplicate insert landing just
+    // before the caller's own reservation attempt.
+    TestEntry match;
+    try (ConcurrentHashtable.Reservation<TestEntry> r =
+        ConcurrentHashtable.tryReserveFor(state, 1)) {
+      assertTrue(r.isReserved());
+      match = r.tryGetOrInsertOrNull(new TestEntry(1));
+    }
+    assertSame(existing, match);
+    assertEquals(3, ConcurrentHashtable.estimateSize(state));
+  }
+
+  @Test
+  void tryReserveForReturnsNullWithoutOvercountingWhenGenuinelyFull() {
+    // capacity 3 rounds up to 4 buckets; keyHash 1 and 5 collide on the same bucket (index 1) but
+    // are logically distinct keys (TestEntry.matches compares by value).
+    ConcurrentHashtable.State<TestEntry> state =
+        ConcurrentHashtable.createBounded(TestEntry.class, 3);
+    for (int keyHash = 1; keyHash <= 3; keyHash++) {
+      try (ConcurrentHashtable.Reservation<TestEntry> r =
+          ConcurrentHashtable.tryReserveFor(state, keyHash)) {
+        r.tryGetOrInsertOrNull(keyHash, TestEntry::new);
+      }
+    }
+    assertTrue(ConcurrentHashtable.isFull(state));
+
+    TestEntry result;
+    try (ConcurrentHashtable.Reservation<TestEntry> r =
+        ConcurrentHashtable.tryReserveFor(state, 5)) {
+      assertTrue(r.isReserved());
+      result = r.tryGetOrInsertOrNull(new TestEntry(5));
+    }
+    assertNull(result);
+    assertEquals(3, ConcurrentHashtable.estimateSize(state));
+  }
 }

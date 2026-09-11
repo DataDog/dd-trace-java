@@ -62,19 +62,21 @@ public class LogCollector {
       return;
     }
 
-    // Slow path after a miss: tryGetOrInsertOrNull does its own locked comparison, so there's no
-    // need to repeat find() here first.
-    try (Reservation<RawLogMessage> reservation = ConcurrentHashtable.tryReserve(rawLogMessages)) {
-      if (!reservation.isReserved()) {
-        // TODO: We could emit a metric for dropped logs.
-        return;
-      }
+    // Slow path after a miss: tryGetOrInsertOrNull does its own locked comparison -- including,
+    // via tryReserveFor, a recheck against a concurrent duplicate even when the table looks full --
+    // so there's no need to repeat find() here first.
+    try (Reservation<RawLogMessage> reservation =
+        ConcurrentHashtable.tryReserveFor(rawLogMessages, keyHash)) {
       // Built zeroed, so this occurrence can be counted uniformly below whether or not
       // tryGetOrInsertOrNull ends up returning this instance or an existing match.
       rawLogMessage =
           reservation.tryGetOrInsertOrNull(
               new RawLogMessage(
                   logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
+      if (rawLogMessage == null) {
+        // TODO: We could emit a metric for dropped logs.
+        return;
+      }
       rawLogMessage.increment();
     }
   }
