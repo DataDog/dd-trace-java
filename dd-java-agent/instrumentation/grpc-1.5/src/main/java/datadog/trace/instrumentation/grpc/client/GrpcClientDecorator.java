@@ -46,7 +46,6 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   private static final ClassValue<UTF8BytesString> MESSAGE_TYPES =
       GenericClassValue.of(
-          // Uses inner class for predictable name for Instrumenter.Default.helperClassNames()
           new Function<Class<?>, UTF8BytesString>() {
             @Override
             public UTF8BytesString apply(Class<?> input) {
@@ -93,15 +92,12 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   public <ReqT, RespT> AgentSpan startCall(MethodDescriptor<ReqT, RespT> method) {
     if (IGNORED_METHODS.contains(method.getFullMethodName())) {
-      // if the method is ignored we want to preserve the old behaviour and not make injection
-      // happen
       return AgentTracer.blackholeSpan();
     }
     AgentSpan span =
         startSpan(COMPONENT_NAME.toString(), OPERATION_NAME)
             .setTag("request.type", requestMessageType(method))
             .setTag("response.type", responseMessageType(method))
-            // method.getServiceName() may not be available on some grpc versions
             .setTag(
                 Tags.RPC_SERVICE,
                 RPC_SERVICE_CACHE.computeIfAbsent(
@@ -124,7 +120,6 @@ public class GrpcClientDecorator extends ClientDecorator {
     span.setTag(InstrumentationTags.GRPC_STATUS_CODE, status.getCode().value());
     span.setTag("status.description", status.getDescription());
 
-    // TODO why is there a mismatch between client / server for calling the onError method?
     onError(span, status.getCause());
     span.setError(CLIENT_ERROR_STATUSES.get(status.getCode().value()));
   }
