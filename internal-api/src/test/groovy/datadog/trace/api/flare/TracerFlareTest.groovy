@@ -51,6 +51,34 @@ class TracerFlareTest extends DDSpecification {
       /^(java.lang.IllegalStateException: (bin|txt) \(expected\)\n){2}$/
   }
 
+  def "test getReporter finds reporter by class name"() {
+    setup:
+    def reporter1 = Mock(Reporter1)
+    def reporter2 = Mock(Reporter2)
+    TracerFlare.addReporter(reporter1)
+    TracerFlare.addReporter(reporter2)
+
+    when:
+    def found1 = TracerFlare.getReporter(reporter1.getClass().getName())
+    def found2 = TracerFlare.getReporter(reporter2.getClass().getName())
+
+    then:
+    found1 == reporter1
+    found2 == reporter2
+  }
+
+  def "test getReporter returns null for non-existent reporter"() {
+    setup:
+    def reporter = Mock(Reporter1)
+    TracerFlare.addReporter(reporter)
+
+    when:
+    def found = TracerFlare.getReporter("com.example.NonExistentReporter")
+
+    then:
+    found == null
+  }
+
   def buildAndExtractZip() {
     TracerFlare.prepareForFlare()
     def out = new ByteArrayOutputStream()
