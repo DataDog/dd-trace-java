@@ -1,7 +1,6 @@
 package datadog.trace.api.telemetry;
 
 import static datadog.trace.util.ConcurrentHashtable.estimateSize;
-import static datadog.trace.util.ConcurrentHashtable.getTableWriteLock;
 import static datadog.trace.util.ConcurrentHashtable.hashIterable;
 import static datadog.trace.util.LongHashingUtils.hash;
 
@@ -64,27 +63,24 @@ public class LogCollector {
       return;
     }
 
-    // Slow path after a miss: take the reservation under the table write lock, rather than
-    // lock-free ahead of it, so concurrent reservations for the same logical duplicate are
-    // serialized with each other, with drain(), and with the locked find-or-insert inside
-    // Reservation#finish() -- a losing reservation cancels immediately instead of transiently
-    // inflating size and starving a genuinely distinct concurrent insert. finish() does its own
-    // locked comparison, so there's no need to repeat find() here first.
-    synchronized (getTableWriteLock(rawLogMessages)) {
-      try (Reservation<RawLogMessage> reservation =
-          ConcurrentHashtable.tryReserve(rawLogMessages)) {
-        if (!reservation.isReserved()) {
-          // TODO: We could emit a metric for dropped logs.
-          return;
-        }
-        // Built zeroed, so this occurrence can be counted uniformly below whether or not
-        // tryGetOrInsertOrNull ends up returning this instance or an existing match.
-        rawLogMessage =
-            reservation.tryGetOrInsertOrNull(
-                new RawLogMessage(
-                    logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
-        rawLogMessage.increment();
+    // Slow path after a miss: tryReserve holds the table write lock for the reservation's whole
+    // lifetime, so concurrent reservations for the same logical duplicate are serialized with each
+    // other, with drain(), and with the locked find-or-insert inside Reservation#finish() -- a
+    // losing reservation cancels immediately instead of transiently inflating size and starving a
+    // genuinely distinct concurrent insert. finish() does its own locked comparison, so there's no
+    // need to repeat find() here first.
+    try (Reservation<RawLogMessage> reservation = ConcurrentHashtable.tryReserve(rawLogMessages)) {
+      if (!reservation.isReserved()) {
+        // TODO: We could emit a metric for dropped logs.
+        return;
       }
+      // Built zeroed, so this occurrence can be counted uniformly below whether or not
+      // tryGetOrInsertOrNull ends up returning this instance or an existing match.
+      rawLogMessage =
+          reservation.tryGetOrInsertOrNull(
+              new RawLogMessage(
+                  logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
+      rawLogMessage.increment();
     }
   }
 

@@ -83,35 +83,33 @@ public class ThreadSafeMapD1Benchmark {
     }
   }
 
+  static final class D1Entry extends ConcurrentHashtable.D1.Entry<String> {
+    volatile long value;
+
+    D1Entry(String key) {
+      super(key);
+    }
+  }
+
   /**
    * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
    * a shared instrumentation cache.
    */
-  static final class LongEntry extends ConcurrentHashtable.D1.Entry<String> {
-    final long value;
-
-    LongEntry(String key, long value) {
-      super(key);
-      this.value = value;
-    }
-  }
-
   @State(Scope.Benchmark)
   public static class SharedState {
-    ConcurrentHashtable.D1<String, LongEntry> table;
+    ConcurrentHashtable.D1<String, D1Entry> table;
     ConcurrentHashMap<String, Long> concurrentHashMap;
     ConcurrentSkipListMap<String, Long> skipListMap;
     Map<String, Long> synchronizedHashMap;
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = ConcurrentHashtable.D1.createBounded(LongEntry.class, CAPACITY);
+      table = ConcurrentHashtable.D1.createBounded(D1Entry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
       for (int i = 0; i < N_KEYS; ++i) {
-        long value = i;
-        table.tryGetOrCreateOrNull(KEYS[i], k -> new LongEntry(k, value));
+        table.tryGetOrCreateOrNull(KEYS[i], D1Entry::new).value = i;
         concurrentHashMap.put(KEYS[i], (long) i);
         skipListMap.put(KEYS[i], (long) i);
         synchronizedHashMap.put(KEYS[i], (long) i);
@@ -132,7 +130,7 @@ public class ThreadSafeMapD1Benchmark {
   }
 
   @Benchmark
-  public LongEntry get_concurrentHashtable(SharedState s, ThreadState t) {
+  public D1Entry get_concurrentHashtable(SharedState s, ThreadState t) {
     return s.table.get(KEYS[t.next()]);
   }
 
@@ -152,8 +150,8 @@ public class ThreadSafeMapD1Benchmark {
   }
 
   @Benchmark
-  public LongEntry getOrCreate_concurrentHashtable(SharedState s, ThreadState t) {
-    return s.table.tryGetOrCreateOrNull(KEYS[t.next()], k -> new LongEntry(k, 0L));
+  public D1Entry getOrCreate_concurrentHashtable(SharedState s, ThreadState t) {
+    return s.table.tryGetOrCreateOrNull(KEYS[t.next()], D1Entry::new);
   }
 
   /**

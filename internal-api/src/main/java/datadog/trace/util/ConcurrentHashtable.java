@@ -8,6 +8,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -269,7 +270,9 @@ public final class ConcurrentHashtable {
           return cast(curEntry);
         }
       }
-      synchronized (getTableWriteLock(state)) {
+      ReentrantLock lock = getTableWriteLock(state);
+      lock.lock();
+      try {
         for (Entry<K> curEntry = bucketAt(state, index);
             curEntry != null;
             curEntry = curEntry.next()) {
@@ -288,6 +291,8 @@ public final class ConcurrentHashtable {
         insertHeadEntryAt(state, index, newEntry);
         state.sizeManager.increment();
         return newEntry;
+      } finally {
+        lock.unlock();
       }
     }
 
@@ -327,7 +332,9 @@ public final class ConcurrentHashtable {
           return cast(curEntry);
         }
       }
-      synchronized (getTableWriteLock(state)) {
+      ReentrantLock lock = getTableWriteLock(state);
+      lock.lock();
+      try {
         for (Entry<K> curEntry = bucketAt(state, index);
             curEntry != null;
             curEntry = curEntry.next()) {
@@ -343,6 +350,8 @@ public final class ConcurrentHashtable {
         insertHeadEntryAt(state, index, newEntry);
         state.sizeManager.increment();
         return newEntry;
+      } finally {
+        lock.unlock();
       }
     }
 
@@ -355,7 +364,9 @@ public final class ConcurrentHashtable {
     public TEntry remove(@Nullable K key) {
       long keyHash = D1.Entry.hash(key);
       int index = bucketIndex(state.buckets, keyHash);
-      synchronized (getTableWriteLock(state)) {
+      ReentrantLock lock = getTableWriteLock(state);
+      lock.lock();
+      try {
         Entry<K> prev = null;
         for (Entry<K> curEntry = bucketAt(state, index);
             curEntry != null;
@@ -367,6 +378,8 @@ public final class ConcurrentHashtable {
           }
         }
         return null;
+      } finally {
+        lock.unlock();
       }
     }
 
@@ -597,7 +610,9 @@ public final class ConcurrentHashtable {
           return cast(curEntry);
         }
       }
-      synchronized (getTableWriteLock(state)) {
+      ReentrantLock lock = getTableWriteLock(state);
+      lock.lock();
+      try {
         for (Entry<K1, K2> curEntry = bucketAt(state, index);
             curEntry != null;
             curEntry = curEntry.next()) {
@@ -616,6 +631,8 @@ public final class ConcurrentHashtable {
         insertHeadEntryAt(state, index, newEntry);
         state.sizeManager.increment();
         return newEntry;
+      } finally {
+        lock.unlock();
       }
     }
 
@@ -657,7 +674,9 @@ public final class ConcurrentHashtable {
           return cast(curEntry);
         }
       }
-      synchronized (getTableWriteLock(state)) {
+      ReentrantLock lock = getTableWriteLock(state);
+      lock.lock();
+      try {
         for (Entry<K1, K2> curEntry = bucketAt(state, index);
             curEntry != null;
             curEntry = curEntry.next()) {
@@ -673,6 +692,8 @@ public final class ConcurrentHashtable {
         insertHeadEntryAt(state, index, newEntry);
         state.sizeManager.increment();
         return newEntry;
+      } finally {
+        lock.unlock();
       }
     }
 
@@ -685,7 +706,9 @@ public final class ConcurrentHashtable {
     public TEntry remove(@Nullable K1 key1, @Nullable K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
       int index = bucketIndex(state.buckets, keyHash);
-      synchronized (getTableWriteLock(state)) {
+      ReentrantLock lock = getTableWriteLock(state);
+      lock.lock();
+      try {
         Entry<K1, K2> prev = null;
         for (Entry<K1, K2> curEntry = bucketAt(state, index);
             curEntry != null;
@@ -697,6 +720,8 @@ public final class ConcurrentHashtable {
           }
         }
         return null;
+      } finally {
+        lock.unlock();
       }
     }
 
@@ -780,7 +805,7 @@ public final class ConcurrentHashtable {
      * Bucket index the last eviction removed from. The next scan resumes here, so a sustained
      * eviction stream doesn't repeatedly re-walk the same hot entries clustered near bucket 0.
      */
-    @GuardedBy("getTableWriteLock(buckets)")
+    @GuardedBy("the corresponding State's getTableWriteLock(state)")
     private int evictionCursor;
 
     public SizeManager(int capacity) {
@@ -847,7 +872,7 @@ public final class ConcurrentHashtable {
      * <p>The reservation survives concurrent drain and clear operations. The caller must fill it;
      * an abandoned reservation permanently consumes capacity.
      */
-    @GuardedBy("getTableWriteLock(buckets)")
+    @GuardedBy("the corresponding State's getTableWriteLock(state)")
     public <TEntry extends Entry<TEntry>> boolean tryReserveOrEvict(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
         @Strategy @Nonnull Predicate<? super TEntry> evictable) {
@@ -876,12 +901,12 @@ public final class ConcurrentHashtable {
      * Releases {@code removed} slots after a sweep and resets the {@code evictionCursor}.
      * Outstanding reservations remain counted.
      */
-    @GuardedBy("getTableWriteLock(buckets)")
+    @GuardedBy("the corresponding State's getTableWriteLock(state)")
     @SuppressFBWarnings(
         value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
         justification =
-            "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
-                + " cannot model that dynamic guard")
+            "evictionCursor is read and written only while the corresponding State's write lock is"
+                + " held; SpotBugs cannot model that dynamic guard")
     public void release(int removed) {
       if (removed != 0) {
         size.addAndGet(-removed);
@@ -897,7 +922,7 @@ public final class ConcurrentHashtable {
      * <p>This operation may inspect every live entry while holding the table write lock, so the
      * predicate should be quick.
      */
-    @GuardedBy("getTableWriteLock(buckets)")
+    @GuardedBy("the corresponding State's getTableWriteLock(state)")
     @Nullable
     public <TEntry extends Entry<TEntry>> TEntry evictOne(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
@@ -917,12 +942,12 @@ public final class ConcurrentHashtable {
       return null;
     }
 
-    @GuardedBy("getTableWriteLock(buckets)")
+    @GuardedBy("the corresponding State's getTableWriteLock(state)")
     @SuppressFBWarnings(
         value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
         justification =
-            "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
-                + " cannot model that dynamic guard")
+            "evictionCursor is read and written only while the corresponding State's write lock is"
+                + " held; SpotBugs cannot model that dynamic guard")
     @StrategyConsumer
     @Nullable
     private <TEntry extends Entry<TEntry>> TEntry evictOneInRange(
@@ -934,7 +959,7 @@ public final class ConcurrentHashtable {
         TEntry prev = null;
         for (TEntry e = buckets.get(i); e != null; e = e.next()) {
           if (evictable.test(e)) {
-            unlink(buckets, i, prev, e);
+            unlinkUnchecked(buckets, i, prev, e);
             evictionCursor = i;
             return e;
           }
@@ -949,12 +974,12 @@ public final class ConcurrentHashtable {
      * each, and returns how many were removed. Resets the scan position, since a full pass leaves
      * nothing later to resume from.
      */
-    @GuardedBy("getTableWriteLock(buckets)")
+    @GuardedBy("the corresponding State's getTableWriteLock(state)")
     @SuppressFBWarnings(
         value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
         justification =
-            "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
-                + " cannot model that dynamic guard")
+            "evictionCursor is read and written only while the corresponding State's write lock is"
+                + " held; SpotBugs cannot model that dynamic guard")
     @StrategyConsumer
     public <TEntry extends Entry<TEntry>> int evictAll(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
@@ -964,7 +989,7 @@ public final class ConcurrentHashtable {
         TEntry prev = null;
         for (TEntry e = buckets.get(i); e != null; e = e.next()) {
           if (evictable.test(e)) {
-            unlink(buckets, i, prev, e);
+            unlinkUnchecked(buckets, i, prev, e);
             size.decrementAndGet();
             count++;
           } else {
@@ -989,6 +1014,14 @@ public final class ConcurrentHashtable {
   public static final class State<TEntry extends Entry<TEntry>> {
     public final AtomicReferenceArray<TEntry> buckets;
     final SizeManager sizeManager;
+
+    /**
+     * The table's write lock. Unlike the bare-array helpers' opaque {@code synchronized} monitor,
+     * this is a real {@link ReentrantLock} so a {@link Reservation} can acquire it in {@link
+     * #tryReserve} and release it later in {@link Reservation#finish}/{@link Reservation#close},
+     * across separate calls -- something a lexically-scoped {@code synchronized} block cannot do.
+     */
+    final ReentrantLock writeLock = new ReentrantLock();
 
     private State(AtomicReferenceArray<TEntry> buckets, int maxCapacity) {
       this.buckets = buckets;
@@ -1033,8 +1066,8 @@ public final class ConcurrentHashtable {
 
   /**
    * Claims one slot in {@code state} and returns a handle for completing the find-or-insert
-   * protocol, or an empty handle if the table is full. Lock-free — does not acquire the table write
-   * lock. Never returns {@code null}, so this always composes with try-with-resources:
+   * protocol, or an empty handle if the table is full. Never returns {@code null}, so this always
+   * composes with try-with-resources:
    *
    * <pre>{@code
    * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state)) {
@@ -1048,6 +1081,17 @@ public final class ConcurrentHashtable {
    * are the source of truth), it just avoids paying for a lock and a factory call when a hit was
    * already visible lock-free.
    *
+   * <p>Checks {@link SizeManager#isFull()} lock-free first and returns an empty reservation
+   * immediately if the table already looks full, without touching the write lock. Otherwise it
+   * acquires the write lock, re-checks (the lock-free peek may be stale), and either reserves the
+   * slot -- returning a real reservation that <em>holds the lock open</em> across this call, to be
+   * released later by {@link Reservation#finish}/{@link Reservation#close} -- or releases the lock
+   * and returns empty. Holding the lock for the reservation's whole lifetime (rather than just
+   * across this call, the way {@link SizeManager#tryReserve()} does) is what lets {@link
+   * Reservation#tryGetOrInsertOrNull} skip a second, separately-locked comparison pass: the
+   * reserve-then-insert-or-discard sequence is one uninterrupted critical section, so no concurrent
+   * reservation for the same logical duplicate can slip in between.
+   *
    * <p>Always returns a non-null handle — even when the table is full — so the caller must check
    * {@link Reservation#isReserved()} (or simply call {@link Reservation#tryGetOrInsertOrNull},
    * which returns {@code null} on an absent reservation) rather than assume every reservation is
@@ -1056,7 +1100,17 @@ public final class ConcurrentHashtable {
   @Nonnull
   public static <TEntry extends Entry<TEntry>> Reservation<TEntry> tryReserve(
       @Nonnull State<TEntry> state) {
-    return new Reservation<>(state.sizeManager.tryReserve() ? state : null);
+    if (state.sizeManager.isFull()) {
+      return new Reservation<>(null);
+    }
+    ReentrantLock lock = state.writeLock;
+    lock.lock();
+    if (state.sizeManager.isFull()) {
+      lock.unlock();
+      return new Reservation<>(null);
+    }
+    state.sizeManager.increment();
+    return new Reservation<>(state);
   }
 
   /**
@@ -1068,6 +1122,13 @@ public final class ConcurrentHashtable {
    * {@link #tryGetOrInsertOrNull(Object, Object, Object, Object, Function4)}) so a non-capturing
    * method reference can build the entry directly from its natural constructor arguments, without
    * an intermediate holder object or a capturing lambda.
+   *
+   * <p>A real (non-empty) reservation holds the table's write lock from the moment {@link
+   * #tryReserve} returns until {@link #finish} or {@link #close} releases it -- unlike a
+   * lexically-scoped {@code synchronized} block, whose acquisition and release can't span two
+   * separate calls. Keep a reservation's lifetime short: nothing else can write to the table while
+   * one is open, and (having deliberately dropped the CAS-based fast path that would let two
+   * threads race for the same slot) nothing else can even reserve.
    *
    * @param <TEntry> the table's entry type, itself self-bound (see {@link
    *     ConcurrentHashtable.Entry})
@@ -1210,27 +1271,38 @@ public final class ConcurrentHashtable {
       return Maybe.of(tryGetOrInsertOrNull(a, b, c, d, factory));
     }
 
+    /**
+     * Runs the locked comparison/link decision. The write lock is already held -- acquired by
+     * {@link #tryReserve} and not yet released -- so this needs no {@code synchronized}/{@code
+     * lock()} of its own.
+     */
     private TEntry finish(@Nonnull TEntry newEntry) {
-      synchronized (getTableWriteLock(state)) {
-        int index = bucketIndex(state.buckets, newEntry.keyHash);
-        for (TEntry curEntry = bucketAt(state, index);
-            curEntry != null;
-            curEntry = curEntry.next()) {
-          if (curEntry.keyHash == newEntry.keyHash && curEntry.matches(newEntry)) {
-            return curEntry;
-          }
+      int index = bucketIndex(state.buckets, newEntry.keyHash);
+      for (TEntry curEntry = bucketAt(state, index); curEntry != null; curEntry = curEntry.next()) {
+        if (curEntry.keyHash == newEntry.keyHash && curEntry.matches(newEntry)) {
+          return curEntry;
         }
-        insertHeadEntryAt(state, index, newEntry);
-        consumed = true;
-        return newEntry;
       }
+      insertHeadEntryAt(state, index, newEntry);
+      consumed = true;
+      return newEntry;
     }
 
-    /** Gives back an unconsumed reservation's slot; a no-op on an empty reservation. */
+    /**
+     * Releases the write lock {@link #tryReserve} acquired, giving back the slot first if it was
+     * never consumed. A no-op on an empty reservation, which never acquired the lock.
+     */
     @Override
     public void close() {
-      if (state != null && !consumed) {
-        state.sizeManager.cancelReservation();
+      if (state == null) {
+        return;
+      }
+      try {
+        if (!consumed) {
+          state.sizeManager.decrement();
+        }
+      } finally {
+        state.writeLock.unlock();
       }
     }
   }
@@ -1259,8 +1331,12 @@ public final class ConcurrentHashtable {
    */
   public static <TEntry extends Entry<TEntry>> boolean tryReserveOrEvict(
       @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> evictable) {
-    synchronized (getTableWriteLock(state)) {
+    ReentrantLock lock = getTableWriteLock(state);
+    lock.lock();
+    try {
       return state.sizeManager.tryReserveOrEvict(state.buckets, evictable);
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -1272,8 +1348,12 @@ public final class ConcurrentHashtable {
   @Nullable
   public static <TEntry extends Entry<TEntry>> TEntry evictOne(
       @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> evictable) {
-    synchronized (getTableWriteLock(state)) {
+    ReentrantLock lock = getTableWriteLock(state);
+    lock.lock();
+    try {
       return state.sizeManager.evictOne(state.buckets, evictable);
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -1283,8 +1363,12 @@ public final class ConcurrentHashtable {
    */
   public static <TEntry extends Entry<TEntry>> int evictAll(
       @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> evictable) {
-    synchronized (getTableWriteLock(state)) {
+    ReentrantLock lock = getTableWriteLock(state);
+    lock.lock();
+    try {
       return state.sizeManager.evictAll(state.buckets, evictable);
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -1345,10 +1429,15 @@ public final class ConcurrentHashtable {
     return getWriteLockAt(buckets, bucketIndex(buckets, keyHash));
   }
 
-  /** {@link #getWriteLock(AtomicReferenceArray, long)} over a {@link State}. */
+  /**
+   * Returns the {@link State}'s {@link ReentrantLock}, held for the same keyed scan-and-mutate
+   * operations as {@link #getWriteLock(AtomicReferenceArray, long)}. Unlike the bare-array
+   * overload's opaque {@code synchronized} monitor, this lock can be acquired in one call and
+   * released in a later one -- see {@link Reservation}.
+   */
   @Nonnull
-  public static Object getWriteLock(@Nonnull State<?> state, long keyHash) {
-    return getWriteLock(state.buckets, keyHash);
+  public static ReentrantLock getWriteLock(@Nonnull State<?> state, long keyHash) {
+    return state.writeLock;
   }
 
   /**
@@ -1362,10 +1451,10 @@ public final class ConcurrentHashtable {
     return buckets;
   }
 
-  /** {@link #getWriteLockAt(AtomicReferenceArray, int)} over a {@link State}. */
+  /** {@link #getWriteLock(State, long)}, for a bucket index that has already been computed. */
   @Nonnull
-  public static Object getWriteLockAt(@Nonnull State<?> state, int bucketIndex) {
-    return getWriteLockAt(state.buckets, bucketIndex);
+  public static ReentrantLock getWriteLockAt(@Nonnull State<?> state, int bucketIndex) {
+    return state.writeLock;
   }
 
   /**
@@ -1377,10 +1466,14 @@ public final class ConcurrentHashtable {
     return buckets;
   }
 
-  /** {@link #getTableWriteLock(AtomicReferenceArray)} over a {@link State}. */
+  /**
+   * Returns the {@link State}'s {@link ReentrantLock}, guarding operations that span all buckets.
+   * Unlike {@link #getTableWriteLock(AtomicReferenceArray)}'s opaque {@code synchronized} monitor,
+   * this lock can be acquired in one call and released in a later one -- see {@link Reservation}.
+   */
   @Nonnull
-  public static Object getTableWriteLock(@Nonnull State<?> state) {
-    return getTableWriteLock(state.buckets);
+  public static ReentrantLock getTableWriteLock(@Nonnull State<?> state) {
+    return state.writeLock;
   }
 
   public static int bucketIndex(@Nonnull AtomicReferenceArray<?> buckets, long keyHash) {
@@ -1513,19 +1606,27 @@ public final class ConcurrentHashtable {
       @Nonnull AtomicReferenceArray<TEntry> buckets, int index, @Nonnull TEntry entry) {
     assert Thread.holdsLock(getWriteLockAt(buckets, index))
         : "insertHeadEntryAt called without holding getWriteLockAt(buckets, index)";
-    assert entry.next() == null
-        : "Entry already linked -- inserting the same Entry instance twice corrupts the chain"
-            + " (unlink() deliberately leaves a removed entry's next intact for in-flight"
-            + " readers, so a removed entry must never be reinserted)";
-    entry.setNext(buckets.get(index));
-    buckets.set(index, entry);
+    insertHeadEntryAtUnchecked(buckets, index, entry);
   }
 
   /** {@link #insertHeadEntryAt(AtomicReferenceArray, int, Entry)} over a {@link State}. */
   @GuardedBy("getWriteLockAt(state, index)")
   public static <TEntry extends Entry<TEntry>> void insertHeadEntryAt(
       @Nonnull State<TEntry> state, int index, @Nonnull TEntry entry) {
-    insertHeadEntryAt(state.buckets, index, entry);
+    assert getWriteLockAt(state, index).isHeldByCurrentThread()
+        : "insertHeadEntryAt called without holding getWriteLockAt(state, index)";
+    insertHeadEntryAtUnchecked(state.buckets, index, entry);
+  }
+
+  /** Splicing logic shared by both {@link #insertHeadEntryAt} overloads, without their assert. */
+  private static <TEntry extends Entry<TEntry>> void insertHeadEntryAtUnchecked(
+      @Nonnull AtomicReferenceArray<TEntry> buckets, int index, @Nonnull TEntry entry) {
+    assert entry.next() == null
+        : "Entry already linked -- inserting the same Entry instance twice corrupts the chain"
+            + " (unlink() deliberately leaves a removed entry's next intact for in-flight"
+            + " readers, so a removed entry must never be reinserted)";
+    entry.setNext(buckets.get(index));
+    buckets.set(index, entry);
   }
 
   /**
@@ -1550,7 +1651,9 @@ public final class ConcurrentHashtable {
   @GuardedBy("getTableWriteLock(state)")
   public static <TEntry extends Entry<TEntry>> void insertReserved(
       @Nonnull State<TEntry> state, long keyHash, @Nonnull TEntry entry) {
-    insertHeadEntryFor(state.buckets, keyHash, entry);
+    assert getTableWriteLock(state).isHeldByCurrentThread()
+        : "insertReserved called without holding getTableWriteLock(state)";
+    insertHeadEntryAtUnchecked(state.buckets, bucketIndex(state.buckets, keyHash), entry);
   }
 
   /**
@@ -1570,19 +1673,30 @@ public final class ConcurrentHashtable {
       @Nonnull TEntry entry) {
     assert Thread.holdsLock(getWriteLockAt(buckets, index))
         : "unlink called without holding getWriteLockAt(buckets, index)";
-    TEntry next = entry.next();
-    if (prev == null) {
-      buckets.set(index, next);
-    } else {
-      prev.setNext(next);
-    }
+    unlinkUnchecked(buckets, index, prev, entry);
   }
 
   /** {@link #unlink(AtomicReferenceArray, int, Entry, Entry)} over a {@link State}. */
   @GuardedBy("getWriteLockAt(state, index)")
   public static <TEntry extends Entry<TEntry>> void unlink(
       @Nonnull State<TEntry> state, int index, @Nullable TEntry prev, @Nonnull TEntry entry) {
-    unlink(state.buckets, index, prev, entry);
+    assert getWriteLockAt(state, index).isHeldByCurrentThread()
+        : "unlink called without holding getWriteLockAt(state, index)";
+    unlinkUnchecked(state.buckets, index, prev, entry);
+  }
+
+  /** Splicing logic shared by both {@link #unlink} overloads, without their assert. */
+  private static <TEntry extends Entry<TEntry>> void unlinkUnchecked(
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      int index,
+      @Nullable TEntry prev,
+      @Nonnull TEntry entry) {
+    TEntry next = entry.next();
+    if (prev == null) {
+      buckets.set(index, next);
+    } else {
+      prev.setNext(next);
+    }
   }
 
   /**
@@ -1624,13 +1738,15 @@ public final class ConcurrentHashtable {
   public static <TEntry extends Entry<TEntry>> boolean removeIf(
       @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> predicate) {
     AtomicReferenceArray<TEntry> buckets = state.buckets;
-    synchronized (getTableWriteLock(state)) {
+    ReentrantLock lock = getTableWriteLock(state);
+    lock.lock();
+    try {
       boolean removed = false;
       for (int i = 0; i < buckets.length(); i++) {
         TEntry prev = null;
         for (TEntry e = buckets.get(i); e != null; e = e.next()) {
           if (predicate.test(e)) {
-            unlink(buckets, i, prev, e);
+            unlink(state, i, prev, e);
             state.sizeManager.decrement();
             removed = true;
           } else {
@@ -1639,6 +1755,8 @@ public final class ConcurrentHashtable {
         }
       }
       return removed;
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -1736,13 +1854,16 @@ public final class ConcurrentHashtable {
    * Removes all entries from {@code state}, invokes {@code drainedEntryConsumer} for each one, and
    * releases one capacity slot for each removed entry.
    *
-   * <p>The drain holds the table write lock while detaching buckets and invoking the consumer. For
-   * each removed entry, the consumer is invoked synchronously after its bucket is detached.
-   * Capacity for removed entries is released only after all invocations return. Outstanding
-   * reservations remain counted.
+   * <p>The lock is acquired and released bucket by bucket rather than held for the whole sweep, so
+   * a table-level operation (an insert, a reservation, an eviction) can interleave between buckets
+   * instead of waiting out the entire drain. This means the drain is no longer an atomic snapshot:
+   * an entry inserted into a not-yet-visited bucket while the drain is in progress is swept up too,
+   * and each bucket's capacity slot is released immediately before its consumer invocation runs,
+   * rather than once for the whole sweep at the end. Outstanding reservations remain counted.
    *
-   * <p>The consumer should be quick and must not throw; if it throws, removed entries are not
-   * restored and their capacity is not released.
+   * <p>The consumer should be quick and must not throw; if it throws, entries not yet reached are
+   * left in the table with their capacity still counted, but entries already detached keep their
+   * capacity released regardless.
    *
    * @param <TEntry> entry type
    * @param state table state to drain
@@ -1751,8 +1872,29 @@ public final class ConcurrentHashtable {
   public static <TEntry extends Entry<TEntry>> void drain(
       @Nonnull State<TEntry> state,
       @Strategy @Nonnull Consumer<? super TEntry> drainedEntryConsumer) {
-    synchronized (getTableWriteLock(state)) {
-      state.sizeManager.release(drainCounting(state.buckets, drainedEntryConsumer));
+    ReentrantLock lock = getTableWriteLock(state);
+    AtomicReferenceArray<TEntry> buckets = state.buckets;
+    for (int i = 0; i < buckets.length(); i++) {
+      lock.lock();
+      try {
+        TEntry head = buckets.get(i);
+        if (head == null) {
+          continue;
+        }
+        buckets.set(i, null);
+        for (TEntry e = head; e != null; e = e.next()) {
+          state.sizeManager.decrement();
+          drainedEntryConsumer.accept(e);
+        }
+      } finally {
+        lock.unlock();
+      }
+    }
+    lock.lock();
+    try {
+      state.sizeManager.release(0); // full sweep: reset the scan position
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -1760,13 +1902,16 @@ public final class ConcurrentHashtable {
    * Removes all entries from {@code state}, invokes {@code drainedEntryConsumer} with {@code
    * context} and each removed entry, and releases one capacity slot for each removed entry.
    *
-   * <p>The drain holds the table write lock while detaching buckets and invoking the consumer. For
-   * each removed entry, the consumer is invoked synchronously after its bucket is detached.
-   * Capacity for removed entries is released only after all invocations return. Outstanding
-   * reservations remain counted.
+   * <p>The lock is acquired and released bucket by bucket rather than held for the whole sweep, so
+   * a table-level operation (an insert, a reservation, an eviction) can interleave between buckets
+   * instead of waiting out the entire drain. This means the drain is no longer an atomic snapshot:
+   * an entry inserted into a not-yet-visited bucket while the drain is in progress is swept up too,
+   * and each bucket's capacity slot is released immediately before its consumer invocation runs,
+   * rather than once for the whole sweep at the end. Outstanding reservations remain counted.
    *
-   * <p>The consumer should be quick and must not throw; if it throws, removed entries are not
-   * restored and their capacity is not released.
+   * <p>The consumer should be quick and must not throw; if it throws, entries not yet reached are
+   * left in the table with their capacity still counted, but entries already detached keep their
+   * capacity released regardless.
    *
    * @param <C> context type
    * @param <TEntry> entry type
@@ -1778,8 +1923,29 @@ public final class ConcurrentHashtable {
       @Nonnull State<TEntry> state,
       C context,
       @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> drainedEntryConsumer) {
-    synchronized (getTableWriteLock(state)) {
-      state.sizeManager.release(drainCounting(state.buckets, context, drainedEntryConsumer));
+    ReentrantLock lock = getTableWriteLock(state);
+    AtomicReferenceArray<TEntry> buckets = state.buckets;
+    for (int i = 0; i < buckets.length(); i++) {
+      lock.lock();
+      try {
+        TEntry head = buckets.get(i);
+        if (head == null) {
+          continue;
+        }
+        buckets.set(i, null);
+        for (TEntry e = head; e != null; e = e.next()) {
+          state.sizeManager.decrement();
+          drainedEntryConsumer.accept(context, e);
+        }
+      } finally {
+        lock.unlock();
+      }
+    }
+    lock.lock();
+    try {
+      state.sizeManager.release(0); // full sweep: reset the scan position
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -1820,8 +1986,12 @@ public final class ConcurrentHashtable {
    * {@link #clear(AtomicReferenceArray)} over a {@link State}: also resets its {@link SizeManager}.
    */
   public static void clear(@Nonnull State<?> state) {
-    synchronized (getTableWriteLock(state)) {
+    ReentrantLock lock = getTableWriteLock(state);
+    lock.lock();
+    try {
       state.sizeManager.release(clearCounting(state.buckets));
+    } finally {
+      lock.unlock();
     }
   }
 
