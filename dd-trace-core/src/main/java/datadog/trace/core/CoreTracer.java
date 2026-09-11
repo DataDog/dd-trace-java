@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.CompletableResultCode.ofSuccess;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
@@ -34,6 +35,7 @@ import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
+import datadog.trace.api.CompletableResultCode;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -1561,6 +1563,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
       OtlpMetricsService.INSTANCE.flush();
     }
+  }
+
+  @Override
+  public CompletableResultCode shutdownOtelMetrics() {
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      return OtlpMetricsService.INSTANCE.exportThenShutdown();
+    }
+    return ofSuccess();
   }
 
   @Override
