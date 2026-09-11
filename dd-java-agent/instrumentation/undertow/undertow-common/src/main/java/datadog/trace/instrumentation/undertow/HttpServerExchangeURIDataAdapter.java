@@ -17,8 +17,18 @@ final class HttpServerExchangeURIDataAdapter extends URIRawDataAdapter {
   }
 
   @Override
+  @SuppressFBWarnings(
+      value = "DCN_NULLPOINTER_EXCEPTION",
+      justification =
+          "getHostName() NPEs inside Undertow itself, not on a null we could check beforehand"
+              + " (e.g. no Host header and a connection whose local address isn't an"
+              + " InetSocketAddress, such as AJP or a Unix domain socket transport)")
   public String host() {
-    return httpServerExchange.getHostName();
+    try {
+      return httpServerExchange.getHostName();
+    } catch (final NullPointerException e) {
+      return null;
+    }
   }
 
   @Override
