@@ -10,6 +10,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.TestFQN;
+import datadog.trace.api.civisibility.config.TestIdentifier;
+import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
@@ -245,6 +249,27 @@ class DynamicAutoTestRetryTest {
     Config config = mockConfig(true, "not,enough,values", true);
     newStrategy(config, executionSettings(true, efdSettings(10, 2, 3, 4)), collector);
 
+    assertTrue(collector.recordedDynamicAtrWithoutCustomBuckets);
+    assertFalse(collector.recordedDynamicAtrWithCustomBuckets);
+  }
+
+  @Test
+  void testExecutionStrategyTrailingCommaBucketsFallbackToEfdWithoutCustomBucketTelemetry() {
+    TestMetricCollector collector = new TestMetricCollector();
+    Config config = mockConfig(true, "3,1,1,1,1,", true);
+    ExecutionStrategy strategy =
+        newStrategy(config, executionSettings(true, efdSettings(1, 2, 3, 4)), collector);
+
+    TestExecutionPolicy policy =
+        strategy.executionPolicy(
+            new TestIdentifier(new TestFQN("suite", "name"), null),
+            TestSourceData.UNKNOWN,
+            Collections.emptyList());
+    policy.registerExecution(TestStatus.fail, 1_000);
+    assertTrue(policy.applicable());
+    policy.registerExecution(TestStatus.fail, 1_000);
+
+    assertFalse(policy.applicable());
     assertTrue(collector.recordedDynamicAtrWithoutCustomBuckets);
     assertFalse(collector.recordedDynamicAtrWithCustomBuckets);
   }

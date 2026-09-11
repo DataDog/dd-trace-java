@@ -284,7 +284,7 @@ public class ExecutionStrategy {
     if (rawBuckets == null || rawBuckets.isEmpty()) {
       return null;
     }
-    String[] parts = rawBuckets.split(",");
+    String[] parts = rawBuckets.split(",", -1);
     if (parts.length != RETRY_BUCKET_COUNT) {
       LOGGER.warn(
           "Invalid {} value '{}'; expected five comma-separated integers in [1, {}]",
