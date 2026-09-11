@@ -5,10 +5,13 @@ import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.opentest4j.AssertionFailedError;
@@ -31,6 +34,13 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   private static final String JAVA_HOME = buildJavaHome();
 
   @TempDir static Path gradleUserHome;
+
+  private TestInfo testInfo;
+
+  @BeforeEach
+  void captureTestInfo(TestInfo testInfo) {
+    this.testInfo = testInfo;
+  }
 
   @TableTest({
     "scenario                 | gradleVersion | gradleDaemonCmdLineParams         ",
@@ -133,7 +143,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       }
     }
     throw new AssertionError(
-        "Tried " + GRADLE_WRAPPER_RETRIES + " times to execute gradle wrapper command and failed");
+        "Tried " + GRADLE_WRAPPER_RETRIES + " times to execute gradle wrapper command and failed.");
   }
 
   private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams)
@@ -166,7 +176,12 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
           IOUtils::readFully, command.toArray(new String[0]));
     } catch (Exception e) {
       System.out.println("==============================================================");
-      System.out.println("Gradle Launcher execution failed with exception:\n " + e.getMessage());
+      System.out.println(
+          new Date()
+              + ": "
+              + testInfo.getDisplayName()
+              + " - Gradle Launcher execution failed with exception:\n "
+              + e.getMessage());
       System.out.println("==============================================================");
       throw e;
     }
