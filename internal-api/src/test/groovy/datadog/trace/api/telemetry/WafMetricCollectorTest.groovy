@@ -1,6 +1,9 @@
 package datadog.trace.api.telemetry
 
 import static datadog.trace.api.aiguard.AIGuard.Action.ABORT
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction.APPLIED
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction.DISABLED
+import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardRedaction.NOT_APPLIED
 import static datadog.trace.api.aiguard.AIGuard.Action.ALLOW
 import static datadog.trace.api.aiguard.AIGuard.Action.DENY
 import static datadog.trace.api.telemetry.WafMetricCollector.AIGuardTruncationType.CONTENT
@@ -533,19 +536,19 @@ class WafMetricCollectorTest extends DDSpecification {
     final collector = WafMetricCollector.get()
 
     when:
-    collector.aiGuardRequest(action, block)
+    collector.aiGuardRequest(action, block, NOT_APPLIED)
 
     then:
     collector.prepareMetrics()
     final metrics = collector.drain()
-    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.requests' }
+    final configErrorMetrics = metrics.findAll { it.metricName == 'requests' }
 
     final metric = configErrorMetrics[0]
     metric.type == 'count'
-    metric.metricName == 'ai_guard.requests'
-    metric.namespace == 'appsec'
+    metric.metricName == 'requests'
+    metric.namespace == 'ai_guard'
     metric.value == 1
-    metric.tags.toSet() == ["action:${action.name()}", "block:${block}", 'error:false'].toSet()
+    metric.tags.toSet() == ["action:${action.name()}", "block:${block}", 'error:false', 'redacted:false'].toSet()
 
     where:
     action | block
@@ -555,6 +558,26 @@ class WafMetricCollectorTest extends DDSpecification {
     DENY   | false
     ABORT  | true
     ABORT  | false
+  }
+
+  void 'test ai guard redaction telemetry tag'() {
+    given:
+    final collector = WafMetricCollector.get()
+
+    when:
+    collector.aiGuardRequest(ALLOW, false, redaction)
+
+    then:
+    collector.prepareMetrics()
+    final metric = collector.drain().find { it.metricName == 'requests' }
+    metric.tags.toSet() == expectedTags.toSet()
+
+    where:
+    redaction   | expectedTags
+    APPLIED     | ['action:ALLOW', 'block:false', 'error:false', 'redacted:true']
+    NOT_APPLIED | ['action:ALLOW', 'block:false', 'error:false', 'redacted:false']
+    // the kill switch reports no redacted tag at all
+    DISABLED    | ['action:ALLOW', 'block:false', 'error:false']
   }
 
   void 'test ai guard error'() {
@@ -567,12 +590,12 @@ class WafMetricCollectorTest extends DDSpecification {
     then:
     collector.prepareMetrics()
     final metrics = collector.drain()
-    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.requests' }
+    final configErrorMetrics = metrics.findAll { it.metricName == 'requests' }
 
     final metric = configErrorMetrics[0]
     metric.type == 'count'
-    metric.metricName == 'ai_guard.requests'
-    metric.namespace == 'appsec'
+    metric.metricName == 'requests'
+    metric.namespace == 'ai_guard'
     metric.value == 1
     metric.tags.toSet() == ['error:true'].toSet()
   }
@@ -587,12 +610,12 @@ class WafMetricCollectorTest extends DDSpecification {
     then:
     collector.prepareMetrics()
     final metrics = collector.drain()
-    final configErrorMetrics = metrics.findAll { it.metricName == 'ai_guard.truncated' }
+    final configErrorMetrics = metrics.findAll { it.metricName == 'truncated' }
 
     final metric = configErrorMetrics[0]
     metric.type == 'count'
-    metric.metricName == 'ai_guard.truncated'
-    metric.namespace == 'appsec'
+    metric.metricName == 'truncated'
+    metric.namespace == 'ai_guard'
     metric.value == 1
     metric.tags.toSet() == ["type:${type.tagValue}"].toSet()
 

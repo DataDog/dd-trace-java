@@ -14,6 +14,13 @@ public final class NoOpEvaluator implements Evaluator {
 
   @Override
   public Evaluation evaluate(final List<Message> messages, final Options options) {
-    return new Evaluation(ALLOW, "AI Guard is not enabled", emptyList(), emptyMap(), emptyList());
+    return new Evaluation(
+        ALLOW,
+        "AI Guard is not enabled",
+        emptyList(),
+        emptyMap(),
+        emptyList(),
+        messages,
+        emptyList());
   }
 }
