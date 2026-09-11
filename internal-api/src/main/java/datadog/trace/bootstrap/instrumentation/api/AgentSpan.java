@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.api;
 import static datadog.trace.bootstrap.instrumentation.api.InternalContextKeys.SPAN_KEY;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.context.ImplicitContextKeyed;
@@ -262,6 +263,35 @@ public interface AgentSpan
    */
   default ContextScope attachWithContext() {
     return storeInto(Context.current()).attach();
+  }
+
+  /**
+   * Captures a continuation of just the span so it can be resumed in another execution unit. Use
+   * this when you want to temporarily suppress any surrounding custom context during the span's
+   * continuation.
+   *
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing only this span; no-op continuation if async propagation
+   *     disabled
+   */
+  @Override
+  default ContextContinuation capture() {
+    return Context.super.capture();
+  }
+
+  /**
+   * Captures a continuation combining the span with the current context so it can be resumed in
+   * another execution unit. Use this when you want to maintain any surrounding custom context
+   * during the span's continuation
+   *
+   * <p>If async propagation is disabled nothing is captured and a no-op continuation is returned.
+   *
+   * @return a continuation capturing this span and any custom context; no-op continuation if async
+   *     propagation disabled
+   */
+  default ContextContinuation captureWithContext() {
+    return storeInto(Context.current()).capture();
   }
 
   /**

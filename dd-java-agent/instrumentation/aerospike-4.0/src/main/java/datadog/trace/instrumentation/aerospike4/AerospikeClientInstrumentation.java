@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.aerospike4;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.instrumentation.aerospike4.AerospikeClientDecorator.DECORATE;
 import static net.bytebuddy.implementation.bytecode.assign.Assigner.Typing.DYNAMIC;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -58,7 +57,7 @@ public final class AerospikeClientInstrumentation
       AgentSpan clientSpan = DECORATE.startAerospikeSpan(methodName);
       AgentScope scope = activateSpan(clientSpan);
       // always want to wrap even when there's no listener so we get the true async time
-      listener = new TracingListener(clientSpan, captureSpan(clientSpan), listener);
+      listener = new TracingListener(clientSpan, clientSpan.captureWithContext(), listener);
       return scope;
     }
 
