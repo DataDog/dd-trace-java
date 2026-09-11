@@ -30,12 +30,19 @@ import java.lang.annotation.Target;
  * regardless of what the enclosing type declares -- a method-level marker always wins over the
  * type-level one.
  *
+ * <p><b>Inheritance direction:</b> an override may narrow a {@link BackgroundOnly} supertype/
+ * interface method to {@code @ForegroundSafe} (a cheaper override can't surprise a caller who
+ * already assumed the worse case) but may never widen a {@code @ForegroundSafe} or unannotated
+ * supertype method to {@link BackgroundOnly} -- see {@link BackgroundOnly}'s "Inheritance
+ * direction" for the full rule and why the reverse direction is a declaration-site violation on its
+ * own.
+ *
  * <p><b>Checker contract.</b> This annotation is not itself a trigger -- it is what makes a call
  * site <em>not</em> suspect. See {@link BackgroundOnly}'s checker contract for the actual rule:
  * code marked {@code @ForegroundSafe} (or carrying no marker) is exactly the caller side of the
  * violation that contract flags when it reaches a {@code @BackgroundOnly} symbol.
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface ForegroundSafe {}

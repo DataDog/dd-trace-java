@@ -380,17 +380,10 @@ cases:
       reviewers/_common.md) to the following change. No git checkout available — this diff is
       the entire change to review.
 
-      `SimpleUtf8Cache` is declared `@BackgroundOnly` at the class level (see its Javadoc
-      below) — its bookkeeping only pays off when it is only ever called from the single
-      background serializer thread that owns it. `HttpUrlConnectionAdvice.onExit` is Byte
-      Buddy advice, which always runs synchronously on the calling application thread — for
-      every instrumented `HttpURLConnection` request, not annotated `@BackgroundOnly` or
-      `@ForegroundSafe`. The value passed to the cache here is a fixed, non-sensitive
-      instrumentation-internal string (the integration name) — the violation is purely about
-      which thread reaches `@BackgroundOnly` code, not what data flows through it.
-
       ```java
-      // datadog/communication/serialization/SimpleUtf8Cache.java (existing, unchanged)
+      // datadog/communication/serialization/SimpleUtf8Cache.java (hypothetical shape, for
+      // illustration — annotation and bookkeeping rationale match the real class; the no-arg
+      // constructor and SHARED field below are simplified for this example)
       /**
        * {@link BackgroundOnly}: bookkeeping to reuse the encoded byte[] only pays off when this
        * is confined to the single background serializer thread that owns it.
@@ -413,7 +406,7 @@ cases:
       +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
       +      public static void onExit(@Advice.This final HttpURLConnection thiz) {
       +        byte[] utf8 = SimpleUtf8Cache.SHARED.getUtf8(INTEGRATION_NAME);
-      +        log.debug("traced {} bytes via {}", utf8.length, thiz);
+      +        log.debug("traced {} bytes via connection", utf8.length);
       +      }
       ```
     expected_criteria:
@@ -437,13 +430,8 @@ cases:
       reviewers/_common.md) to the following change. No git checkout available — this diff is
       the entire change to review.
 
-      `LookupCache` carries neither `@ForegroundSafe` nor `@BackgroundOnly` — it predates both
-      annotations and has never been classified. `HttpUrlConnectionAdvice.onExit` is Byte Buddy
-      advice, which always runs synchronously on the calling application thread — for every
-      instrumented `HttpURLConnection` request.
-
       ```java
-      // datadog/communication/serialization/LookupCache.java (existing, unchanged, unannotated)
+      // datadog/communication/serialization/LookupCache.java (hypothetical, for illustration)
       public final class LookupCache implements EncodingCache {
         public static final LookupCache SHARED = new LookupCache();
 
@@ -461,7 +449,7 @@ cases:
       +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
       +      public static void onExit(@Advice.This final HttpURLConnection thiz) {
       +        byte[] utf8 = LookupCache.SHARED.getUtf8(INTEGRATION_NAME);
-      +        log.debug("traced {} bytes via {}", utf8.length, thiz);
+      +        log.debug("traced {} bytes via connection", utf8.length);
       +      }
       ```
     expected_criteria:
@@ -483,16 +471,12 @@ cases:
       reviewers/_common.md) to the following change. No git checkout available — this diff is
       the entire change to review.
 
-      `StatsCache` is declared `@BackgroundOnly` at the class level, but its `sizeHint()` method
-      carries its own method-level `@ForegroundSafe`, which overrides the type-level marker for
-      that method specifically per J16 (a method-level annotation always wins over the
-      enclosing type's). `HttpUrlConnectionAdvice.onExit` is Byte Buddy advice, which always runs
-      synchronously on the calling application thread — for every instrumented
-      `HttpURLConnection` request — and calls only `sizeHint()`, never any other method on
-      `StatsCache`.
+      `HttpUrlConnectionAdvice.onExit` is Byte Buddy advice, which always runs synchronously on
+      the calling application thread — for every instrumented `HttpURLConnection` request — and
+      calls only `sizeHint()`, never any other method on `StatsCache`.
 
       ```java
-      // datadog/communication/serialization/StatsCache.java (existing, unchanged)
+      // datadog/communication/serialization/StatsCache.java (hypothetical, for illustration)
       @BackgroundOnly
       public final class StatsCache {
         public static final StatsCache SHARED = new StatsCache();
@@ -511,7 +495,7 @@ cases:
       +      // PR #99997: size the debug-log buffer up front using the cache's current size hint.
       +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
       +      public static void onExit(@Advice.This final HttpURLConnection thiz) {
-      +        log.debug("cache sizeHint={} via {}", StatsCache.SHARED.sizeHint(), thiz);
+      +        log.debug("cache sizeHint={}", StatsCache.SHARED.sizeHint());
       +      }
       ```
     expected_criteria:
@@ -521,3 +505,97 @@ cases:
       - "Flags this as a `@BackgroundOnly` violation by looking only at the class-level annotation on `StatsCache` and ignoring the method-level `@ForegroundSafe` on `sizeHint()`."
       - "Treats the presence of `@BackgroundOnly` anywhere on the type as disqualifying every method on it, contradicting J16's explicit method-overrides-type rule."
       - "Recommends removing or moving the `sizeHint()` call as if it were a real contract crossing."
+
+  - id: java-perf-foreground-calls-interface-hop-004
+    files:
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
+    input: |
+      Apply this repo's performance-review criteria (specifically the J16 declared-contract
+      addendum in .agents/dd-apm-sdk-review-overrides/reviewers/performance.md, plus
+      reviewers/_common.md) to the following change. No git checkout available — this diff is
+      the entire change to review.
+
+      ```java
+      // datadog/communication/serialization/TagCache.java (hypothetical, for illustration)
+      public interface TagCache {
+        byte[] encode(String s);
+      }
+      ```
+
+      ```java
+      // datadog/communication/serialization/StatsTagCache.java (hypothetical, for illustration)
+      @BackgroundOnly
+      public final class StatsTagCache implements TagCache {
+        public static final StatsTagCache SHARED = new StatsTagCache();
+
+        @Override
+        public byte[] encode(String s) { /* background-only bookkeeping */ }
+      }
+      ```
+
+      ```diff
+      diff --git a/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java b/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java
+      @@ -95,6 +95,11 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing {
+           public static class HttpUrlConnectionAdvice {
+      +      private static final String INTEGRATION_NAME = "http-url-connection";
+      +      // PR #99996: cache is referenced through its interface type here, not the concrete class.
+      +      private static final TagCache CACHE = StatsTagCache.SHARED;
+      +
+      +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+      +      public static void onExit() {
+      +        byte[] utf8 = CACHE.encode(INTEGRATION_NAME);
+      +      }
+      ```
+    expected_criteria:
+      - "Flags this as a J16 declared-contract violation even though the call site (`CACHE.encode(...)`) is typed to the unannotated interface `TagCache`, not the `@BackgroundOnly` concrete class `StatsTagCache` — by reading `StatsTagCache`'s `implements TagCache` clause and matching its `@Override encode(String)` against `TagCache.encode(String)`, per J16's concrete-to-interface, method-scoped propagation hop."
+      - "Identifies the `onExit` advice body as the foreground call site, since Byte Buddy advice always runs synchronously on the application thread."
+    bad_signals:
+      - "Stays silent because the declared type of `CACHE` (`TagCache`) carries no annotation, without checking whether a `@BackgroundOnly` implementer of that interface is present in the same files."
+      - "Treats this as unresolvable because the call site isn't textually adjacent to the `@BackgroundOnly` annotation, instead of applying the one-hop concrete-to-interface propagation J16 describes."
+      - "Over-generalizes by claiming every method on `TagCache` is now background-only, rather than propagating the flag only to the specific `encode(String)` signature `StatsTagCache` overrides."
+
+  - id: java-perf-inheritance-widen-violation-005
+    files:
+      - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
+      - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
+    input: |
+      Apply this repo's performance-review criteria (specifically the J16 declared-contract
+      addendum in .agents/dd-apm-sdk-review-overrides/reviewers/performance.md, plus
+      reviewers/_common.md) to the following change. No git checkout available — this diff is
+      the entire change to review. There is no foreground call site to this new override anywhere
+      in this diff or elsewhere in the codebase yet.
+
+      ```java
+      // datadog/communication/serialization/TagCache.java (hypothetical, for illustration)
+      public interface TagCache {
+        @ForegroundSafe
+        byte[] encode(String s);
+      }
+      ```
+
+      ```diff
+      diff --git a/datadog/communication/serialization/HeavyTagCache.java b/datadog/communication/serialization/HeavyTagCache.java
+      new file mode 100644
+      @@ -0,0 +1,10 @@
+      +package datadog.communication.serialization;
+      +
+      +public final class HeavyTagCache implements TagCache {
+      +
+      +  @Override
+      +  @BackgroundOnly
+      +  public byte[] encode(String s) {
+      +    // heavy bookkeeping, safe only from the background serializer thread
+      +    return null;
+      +  }
+      +}
+      ```
+    expected_criteria:
+      - "Flags this as a J16 declared-contract violation at the declaration site itself — `HeavyTagCache.encode` overrides `TagCache.encode`, which is `@ForegroundSafe`, and marks the override `@BackgroundOnly`, which widens the contract rather than narrowing it."
+      - "States plainly that this finding does not require any current foreground call site to exist — every existing and future caller holding a `TagCache`-typed reference already assumed the `@ForegroundSafe` guarantee and would be broken by this override, per J16's inheritance-direction rule."
+    bad_signals:
+      - "Stays silent because no foreground call site reaches `HeavyTagCache.encode` yet, treating the declaration-site rule as if it only applied once a call path exists."
+      - "Approves this as a normal narrowing override (confusing the direction), missing that narrowing only goes the other way: `@BackgroundOnly` supertype to `@ForegroundSafe` override is fine, the reverse is not."
+      - "Flags a different, unrelated concern (e.g. plain per-call allocation) without ever naming the inheritance-direction violation that J16 specifically calls out."

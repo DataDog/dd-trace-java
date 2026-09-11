@@ -32,6 +32,17 @@ import java.lang.annotation.Target;
  * regardless of what the enclosing type declares -- a method-level marker always wins over the
  * type-level one.
  *
+ * <p><b>Inheritance direction.</b> An override may only narrow a supertype's declared cost, never
+ * widen it -- the same variance rule as a covariant return type, applied to a cost contract instead
+ * of a value type. A method overriding a {@code @BackgroundOnly} supertype/interface method may
+ * itself be marked {@link ForegroundSafe} if that override happens to be cheap: every caller
+ * holding a reference typed to the supertype already assumed the worse (background-only) case, so a
+ * cheaper override can't surprise them. The reverse can't be done safely: overriding a {@link
+ * ForegroundSafe} or unannotated supertype method and marking the override {@code @BackgroundOnly}
+ * breaks the promise for every existing caller holding a supertype-typed reference, without their
+ * code changing at all -- this is a violation at the declaration site itself, independent of
+ * whether any foreground call site currently exists in the diff.
+ *
  * <p><b>Checker contract.</b> The rule below is written to be machine-checkable -- by a future
  * static checker, or in the meantime by an AI reviewer (see the {@code dd-apm-sdk-review} skill's
  * performance override, addendum J16) -- without needing to read this class's prose above.
@@ -51,12 +62,21 @@ import java.lang.annotation.Target;
  *       {@code @BackgroundOnly}.
  *   <li><b>Compliant example:</b> the same call made only from the background serializer thread
  *       that owns the cache, or from a method itself marked {@code @BackgroundOnly}.
+ *   <li><b>Also a trigger, at the declaration site:</b> a method overriding a {@link
+ *       ForegroundSafe} or unannotated supertype/interface method that marks the override
+ *       {@code @BackgroundOnly} -- see "Inheritance direction" above. Flag this the moment it
+ *       appears; it does not require a foreground call site to exist yet.
  *   <li><b>Out of scope (v1):</b> resolution is grep-only today (there is no APT-generated manifest
  *       yet -- {@code APMLP-1645}), so a callee outside the diff costs a grep per unfamiliar symbol
  *       rather than a lookup; reflection and dynamic-proxy call sites are not resolved at all.
+ *   <li><b>Propagation across an interface boundary</b> (concrete implementation to the interface
+ *       method it implements, and one hop further into a default method that calls it) is a bounded
+ *       extension of the direct-call trigger above, not a separate rule -- see the {@code
+ *       dd-apm-sdk-review} skill's performance override, addendum {@code background-only-contract},
+ *       for its exact two-hop scope.
  * </ul>
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 @Target({ElementType.TYPE, ElementType.METHOD})
 public @interface BackgroundOnly {}
