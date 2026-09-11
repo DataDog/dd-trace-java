@@ -8,11 +8,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 
-/**
- * Guards the production names/constants that {@link ScopeContinuationProbe} relies on reflectively
- * or mirrors. If any of these are renamed/changed in the tracer, these assertions fail loudly
- * instead of the diagnostic silently going dark.
- */
+/** Verifies the tracer internals used by {@link ScopeContinuationProbe}. */
 class ScopeContinuationProbeTest {
 
   @Test
@@ -31,14 +27,12 @@ class ScopeContinuationProbeTest {
   @Test
   void continuationHooksExist() throws Exception {
     Class<?> scopeContinuation = Class.forName("datadog.trace.core.scopemanager.ScopeContinuation");
-    // methods woven by ScopeContinuationTransformer (matched by name)
     assertNotNull(scopeContinuation.getDeclaredMethod("register"), "register() (capture)");
     assertNotNull(scopeContinuation.getDeclaredMethod("resume"), "resume()");
     assertNotNull(scopeContinuation.getDeclaredMethod("release"), "release() (resolve)");
     assertNotNull(
         scopeContinuation.getDeclaredMethod("cancelFromContinuedScopeClose"),
         "cancelFromContinuedScopeClose() (resolve)");
-    // fields read by the Cancel advice (@Advice.FieldValue) and the probe (reflection)
     assertNotNull(findField(scopeContinuation, "count"), "ScopeContinuation.count");
     assertNotNull(findField(scopeContinuation, "source"), "ScopeContinuation.source");
   }
@@ -46,7 +40,6 @@ class ScopeContinuationProbeTest {
   @Test
   void rootWrittenHookExists() throws Exception {
     Class<?> pendingTrace = Class.forName("datadog.trace.core.PendingTrace");
-    // PendingTraceAdvice matches write(boolean) and reads these fields via @Advice.FieldValue
     assertNotNull(
         pendingTrace.getDeclaredMethod("write", boolean.class), "PendingTrace.write(boolean)");
     assertNotNull(findField(pendingTrace, "rootSpanWritten"), "PendingTrace.rootSpanWritten");
@@ -59,7 +52,6 @@ class ScopeContinuationProbeTest {
     assertNotNull(scope.getDeclaredMethod("afterActivated"), "afterActivated() (scope open)");
     assertNotNull(scope.getDeclaredMethod("onProperClose"), "onProperClose() (scope close)");
     assertNotNull(scope.getDeclaredMethod("close"), "close() (wrong-thread check)");
-    // source byte read reflectively in the probe
     assertNotNull(findField(scope, "source"), "ContinuableScope.source");
 
     Class<?> continuing = Class.forName("datadog.trace.core.scopemanager.ContinuingScope");
@@ -82,7 +74,6 @@ class ScopeContinuationProbeTest {
       try {
         return c.getDeclaredField(name);
       } catch (NoSuchFieldException ignored) {
-        // keep walking
       }
     }
     return null;

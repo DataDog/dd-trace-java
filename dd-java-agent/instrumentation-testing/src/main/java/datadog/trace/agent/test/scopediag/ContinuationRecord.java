@@ -5,15 +5,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-/**
- * The correlated <em>continuation</em> lifecycle: its capture, every resume (activation), any
- * failed activation, and its terminal resolution (finish/cancel). Scope activation lifetimes are
- * modelled separately by {@link ScopeRecord}; the scopes a continuation spawned are linked here by
- * their seq ids ({@link #scopeRecordSeqs()}).
- *
- * <p>Built incrementally as events arrive on different threads, so all mutating access is
- * synchronized on the instance.
- */
+/** Records a continuation's capture, activations, scopes, and resolution. */
 public final class ContinuationRecord {
   public final long seq;
   public final DDTraceId traceId;
@@ -47,8 +39,6 @@ public final class ContinuationRecord {
     this.orphan = orphan;
     this.capture = capture;
   }
-
-  // ---- mutation ------------------------------------------------------------
 
   synchronized void addResume(ScopeEvent event) {
     resumes.add(event);
@@ -95,8 +85,6 @@ public final class ContinuationRecord {
     return copy;
   }
 
-  // ---- accessors -----------------------------------------------------------
-
   public synchronized ScopeEvent capture() {
     return capture;
   }
@@ -121,15 +109,9 @@ public final class ContinuationRecord {
     return new ArrayList<>(scopeRecordSeqs);
   }
 
-  public synchronized boolean isResumed() {
-    return !resumes.isEmpty();
-  }
-
   public synchronized boolean isResolved() {
     return terminal != null;
   }
-
-  // ---- derived -------------------------------------------------------------
 
   public synchronized ContinuationStatus status() {
     if (terminal != null) {
@@ -140,9 +122,7 @@ public final class ContinuationRecord {
     return ContinuationStatus.LEAKED;
   }
 
-  /**
-   * Derives the failure set for this continuation. {@code rootWrittenNanos} may be {@code null}.
-   */
+  /** Derives failures, including events after {@code rootWrittenNanos} when provided. */
   public synchronized EnumSet<Failure> failures(Long rootWrittenNanos) {
     EnumSet<Failure> failures = EnumSet.noneOf(Failure.class);
     if (terminal == null) {
