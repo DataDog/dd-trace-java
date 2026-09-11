@@ -6,19 +6,19 @@ import datadog.gradle.plugin.ci.testAggregate
 plugins {
   kotlin("jvm") version libs.versions.kotlin.plugin apply false
 
-  id("dd-trace-java.gradle-debug")
-  id("dd-trace-java.dependency-locking")
-  id("dd-trace-java.tracer-version")
-  id("dd-trace-java.dump-hanged-test")
-  id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
+  id("dd-trace-java.config-inversion-linter")
+  id("dd-trace-java.dependency-locking")
+  id("dd-trace-java.dump-hanged-test")
+  id("dd-trace-java.gradle-debug")
+  id("dd-trace-java.tracer-version")
 
+  alias(libs.plugins.shadow) apply false
   alias(libs.plugins.spotless)
-  id("me.champeau.gradle.japicmp") version "0.4.3"
-  id("com.github.spotbugs") version "6.5.10"
+  id("com.github.spotbugs") version "6.5.11"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
-  alias(libs.plugins.shadow) apply false
+  id("me.champeau.gradle.japicmp") version "0.4.3"
   id("me.champeau.jmh") version "0.7.3" apply false
   id("org.gradle.playframework") version "0.16.0" apply false
 }
