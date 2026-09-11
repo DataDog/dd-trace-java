@@ -12,9 +12,11 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -26,6 +28,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -392,6 +395,114 @@ public class DDEvaluatorTest {
     assertThat(
         details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
         equalTo(false));
+  }
+
+  // ---- exposure events carry the split's serial id ----
+
+  @Test
+  public void exposureCarriesTheSplitSerialId() {
+    assertEquals(Integer.valueOf(340132), exposureFor(340132).serial_id);
+  }
+
+  @Test
+  public void exposureCarriesSerialIdZero() {
+    assertEquals(Integer.valueOf(0), exposureFor(0).serial_id);
+  }
+
+  @Test
+  public void exposureOmitsSerialIdWhenTheSplitHasNone() {
+    assertNull(exposureFor(null).serial_id);
+  }
+
+  @Test
+  public void legacyExposureApiDispatchesAnExposureWithoutSerialId() {
+    final boolean previous = DDEvaluator.USE_LEGACY_EXPOSURE_API.getAndSet(true);
+    try {
+      assertNull(exposureFor(7).serial_id);
+    } finally {
+      DDEvaluator.USE_LEGACY_EXPOSURE_API.set(previous);
+    }
+  }
+
+  // ---- old-agent bootstrap probe ----
+
+  /** A Split from an agent that predates the serial id: the field does not exist. */
+  static final class SplitWithoutSerialId {}
+
+  /** A Split whose serialId is not the Integer the dispatch site reads. */
+  static final class SplitWithWrongSerialIdType {
+    public long serialId;
+  }
+
+  /** An ExposureEvent from an agent that predates the serial id: only the five-arg constructor. */
+  static final class LegacyExposureEvent {
+    LegacyExposureEvent(
+        final long timestamp,
+        final datadog.trace.api.featureflag.exposure.Allocation allocation,
+        final datadog.trace.api.featureflag.exposure.Flag flag,
+        final datadog.trace.api.featureflag.exposure.Variant variant,
+        final datadog.trace.api.featureflag.exposure.Subject subject) {}
+  }
+
+  /**
+   * Positive control. The probe must agree with the bootstrap actually on the classpath, or the
+   * negative cases below would pass for the wrong reason and the feature would ship switched off.
+   */
+  @Test
+  public void probeAcceptsTheBootstrapOnTheClasspath() {
+    assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
+    assertTrue(DDEvaluator.exposureSerialIdSupported(ExposureEvent.class));
+    assertTrue(DDEvaluator.SPLIT_SERIAL_ID_SUPPORTED.get());
+    assertFalse(DDEvaluator.USE_LEGACY_EXPOSURE_API.get());
+  }
+
+  @Test
+  public void probeRejectsAnAgentWhoseSplitHasNoSerialId() {
+    assertFalse(DDEvaluator.splitSerialIdSupported(SplitWithoutSerialId.class));
+  }
+
+  @Test
+  public void probeRejectsAnAgentWhoseSerialIdIsNotAnInteger() {
+    assertFalse(DDEvaluator.splitSerialIdSupported(SplitWithWrongSerialIdType.class));
+  }
+
+  @Test
+  public void probeRejectsAnAgentWithoutTheSerialIdConstructor() {
+    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
+  }
+
+  /**
+   * Agents 1.65 and 1.66 carry Split.serialId but only the five-argument event constructor. Span
+   * enrichment works on those agents, so only the exposure path may fall back.
+   */
+  @Test
+  public void probeKeepsSplitSupportWhenOnlyTheEventConstructorIsMissing() {
+    assertTrue(DDEvaluator.splitSerialIdSupported(Split.class));
+    assertFalse(DDEvaluator.exposureSerialIdSupported(LegacyExposureEvent.class));
+  }
+
+  /**
+   * Evaluates a logging allocation whose split carries the given serial id and returns the single
+   * dispatched exposure. Span enrichment is off here, as it is by default, so this also pins that
+   * the serial id does not travel via the enrichment-gated evaluation metadata.
+   */
+  private static ExposureEvent exposureFor(final Integer serialId) {
+    final List<ExposureEvent> dispatched = new ArrayList<>();
+    final FeatureFlaggingGateway.ExposureListener listener = dispatched::add;
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      final Map<String, Variant> variations = new HashMap<>();
+      variations.put("on", new Variant("on", 1));
+      final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
+      final Allocation allocation =
+          new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.TRUE);
+      evaluateFlag(
+          new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)), true);
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+    }
+    assertEquals(1, dispatched.size());
+    return dispatched.get(0);
   }
 
   // Builds a flag that reaches resolveVariant: enabled, one allocation with no rules, one split

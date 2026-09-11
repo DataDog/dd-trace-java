@@ -41,6 +41,8 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -117,6 +119,122 @@ class RemoteConfigServiceImplTest {
     assertFalse(config.flags.containsKey("malformed-flag"));
     assertTrue(config.flags.containsKey("valid-flag"));
     assertEquals("expected", config.flags.get("valid-flag").variations.get("expected").value);
+  }
+
+  @Test
+  void parsesSplitSerialId() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId("340132"));
+
+    assertNotNull(config);
+    assertEquals(Integer.valueOf(340132), serialIdOf(config));
+  }
+
+  @Test
+  void parsesSplitSerialIdZero() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId("0"));
+
+    assertNotNull(config);
+    assertEquals(Integer.valueOf(0), serialIdOf(config));
+  }
+
+  @Test
+  void parsesAbsentSplitSerialIdAsNull() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId(null));
+
+    assertNotNull(config);
+    assertNull(serialIdOf(config));
+  }
+
+  @Test
+  void parsesNullSplitSerialIdAsNull() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId("null"));
+
+    assertNotNull(config);
+    assertNull(serialIdOf(config));
+  }
+
+  @Test
+  void skipsFlagWithUncoercibleSerialIdAndKeepsSiblingFlag() throws Exception {
+    final ServerConfiguration config = deserialize(configWithSiblingSerialIds("true"));
+
+    assertNotNull(config);
+    assertFalse(config.flags.containsKey("malformed-flag"));
+    assertEquals("invalid_flag", config.invalidFlags.get("malformed-flag"));
+    assertTrue(config.flags.containsKey("valid-flag"));
+    assertEquals(Integer.valueOf(7), serialIdOf(config));
+  }
+
+  /**
+   * Records how leniently the per-flag value reader coerces a serial id, so a future change to the
+   * parse path is visible here. The values come from the compiler-validated UFC, so the SDK adds no
+   * validation of its own; what matters is that a bad one never rejects the sibling flag.
+   */
+  @ParameterizedTest
+  @CsvSource({"\"340132\", 340132", "1.5, 1", "-1, -1", "2147483648, 2147483647"})
+  void coercesSerialIdWithoutRejectingTheFlag(final String wireValue, final int expected)
+      throws Exception {
+    final ServerConfiguration config = deserialize(configWithSerialId(wireValue));
+
+    assertNotNull(config);
+    assertEquals(Integer.valueOf(expected), serialIdOf(config));
+  }
+
+  private static Integer serialIdOf(final ServerConfiguration config) {
+    return config.flags.get("valid-flag").allocations.get(0).splits.get(0).serialId;
+  }
+
+  private static String configWithSerialId(final String serialIdJson) {
+    return configWithFlags(flagWithSerialId("valid-flag", "expected", serialIdJson));
+  }
+
+  /** A malformed serial id must bind to its own flag and leave the sibling flag intact. */
+  private static String configWithSiblingSerialIds(final String malformedSerialIdJson) {
+    return configWithFlags(
+        flagWithSerialId("malformed-flag", "on", malformedSerialIdJson)
+            + ","
+            + flagWithSerialId("valid-flag", "expected", "7"));
+  }
+
+  private static String configWithFlags(final String flagsJson) {
+    return "{"
+        + "\"createdAt\":\"2024-04-17T19:40:53.716Z\","
+        + "\"format\":\"SERVER\","
+        + "\"environment\":{\"name\":\"Test\"},"
+        + "\"flags\":{"
+        + flagsJson
+        + "}"
+        + "}";
+  }
+
+  /** A single enabled string flag with one logging allocation. A null serial id omits the key. */
+  private static String flagWithSerialId(
+      final String flagKey, final String variationKey, final String serialIdJson) {
+    return "\""
+        + flagKey
+        + "\":{"
+        + "\"key\":\""
+        + flagKey
+        + "\","
+        + "\"enabled\":true,"
+        + "\"variationType\":\"STRING\","
+        + "\"variations\":{\""
+        + variationKey
+        + "\":{\"key\":\""
+        + variationKey
+        + "\",\"value\":\""
+        + variationKey
+        + "\"}},"
+        + "\"allocations\":[{"
+        + "\"key\":\"default-allocation\","
+        + "\"rules\":[],"
+        + "\"splits\":[{\"variationKey\":\""
+        + variationKey
+        + "\",\"shards\":[]"
+        + (serialIdJson == null ? "" : ",\"serialId\":" + serialIdJson)
+        + "}],"
+        + "\"doLog\":true"
+        + "}]"
+        + "}";
   }
 
   @Test

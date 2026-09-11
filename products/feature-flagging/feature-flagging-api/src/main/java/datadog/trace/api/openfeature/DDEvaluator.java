@@ -43,14 +43,59 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
+  private static final Logger log = LoggerFactory.getLogger(DDEvaluator.class);
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
+
+  static final AtomicBoolean SPLIT_SERIAL_ID_SUPPORTED =
+      new AtomicBoolean(splitSerialIdSupported(Split.class));
+
+  static final AtomicBoolean USE_LEGACY_EXPOSURE_API =
+      new AtomicBoolean(
+          !(SPLIT_SERIAL_ID_SUPPORTED.get() && exposureSerialIdSupported(ExposureEvent.class)));
+
+  static boolean splitSerialIdSupported(final Class<?> splitClass) {
+    try {
+      return splitClass.getField("serialId").getType() == Integer.class;
+    } catch (final NoSuchFieldException | LinkageError | RuntimeException e) {
+      log.warn(
+          "Feature flag serial ID reporting is unavailable with the installed Datadog Java "
+              + "agent, which does not carry a serial id on the flag configuration. Upgrade "
+              + "dd-java-agent to enable holdout attribution.",
+          e);
+      return false;
+    }
+  }
+
+  static boolean exposureSerialIdSupported(final Class<?> eventClass) {
+    try {
+      eventClass.getConstructor(
+          long.class,
+          datadog.trace.api.featureflag.exposure.Allocation.class,
+          datadog.trace.api.featureflag.exposure.Flag.class,
+          datadog.trace.api.featureflag.exposure.Variant.class,
+          Subject.class,
+          Integer.class);
+      return true;
+    } catch (final NoSuchMethodException | LinkageError | RuntimeException e) {
+      log.warn(
+          "Feature flag exposure serial ID reporting is unavailable with the installed "
+              + "Datadog Java agent. Exposures are still reported, without the serial id, and "
+              + "span enrichment is unaffected. Upgrade dd-java-agent to enable holdout "
+              + "attribution on exposures.",
+          e);
+      return false;
+    }
+  }
 
   /**
    * Maximum evaluation-context nesting depth captured on the hot path. Recursion runs on the
@@ -557,7 +602,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
     // subject.
     if (SPAN_ENRICHMENT_ENABLED) {
-      if (split.serialId != null) {
+      if (SPLIT_SERIAL_ID_SUPPORTED.get() && split.serialId != null) {
         metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
       }
       metadataBuilder.addBoolean(METADATA_DO_LOG, allocation.doLog != null && allocation.doLog);
@@ -576,7 +621,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .build();
     final boolean doLog = allocation.doLog != null && allocation.doLog;
     if (doLog) {
-      dispatchExposure(key, result, context);
+      dispatchExposure(key, result, context, split);
     }
     return result;
   }
@@ -649,20 +694,29 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static <T> void dispatchExposure(
-      final String flag, final ProviderEvaluation<T> evaluation, final EvaluationContext context) {
+      final String flag,
+      final ProviderEvaluation<T> evaluation,
+      final EvaluationContext context,
+      final Split split) {
     final String allocationKey = allocationKey(evaluation);
     final String variantKey = evaluation.getVariant();
     if (allocationKey == null || variantKey == null) {
       return;
     }
-    final ExposureEvent event =
-        new ExposureEvent(
-            System.currentTimeMillis(),
-            new datadog.trace.api.featureflag.exposure.Allocation(allocationKey),
-            new datadog.trace.api.featureflag.exposure.Flag(flag),
-            new datadog.trace.api.featureflag.exposure.Variant(variantKey),
-            new Subject(context.getTargetingKey(), flattenContext(context)));
+    final long timestamp = System.currentTimeMillis();
+    final datadog.trace.api.featureflag.exposure.Allocation allocation =
+        new datadog.trace.api.featureflag.exposure.Allocation(allocationKey);
+    final datadog.trace.api.featureflag.exposure.Flag exposureFlag =
+        new datadog.trace.api.featureflag.exposure.Flag(flag);
+    final datadog.trace.api.featureflag.exposure.Variant variant =
+        new datadog.trace.api.featureflag.exposure.Variant(variantKey);
+    final Subject subject = new Subject(context.getTargetingKey(), flattenContext(context));
 
+    final ExposureEvent event =
+        USE_LEGACY_EXPOSURE_API.get()
+            ? new ExposureEvent(timestamp, allocation, exposureFlag, variant, subject)
+            : new ExposureEvent(
+                timestamp, allocation, exposureFlag, variant, subject, split.serialId);
     FeatureFlaggingGateway.dispatch(event);
   }
 
