@@ -421,7 +421,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .iterator()
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
-    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+    INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), false, this)
 
     // check for instrumentation issues during installation
     assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
