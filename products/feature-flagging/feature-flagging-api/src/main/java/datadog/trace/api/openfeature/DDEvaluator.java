@@ -3,6 +3,7 @@ package datadog.trace.api.openfeature;
 import static java.util.Arrays.asList;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.FeatureFlaggingGateway.ConfigSnapshot;
 import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.exposure.Subject;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
@@ -43,7 +44,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -111,11 +111,17 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   private static final boolean SPAN_ENRICHMENT_ENABLED = SpanEnrichmentGate.isEnabled();
 
   private final Runnable configCallback;
-  private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
+  private final boolean telemetryEnabled;
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
+  private long lastConfigVersion;
 
-  public DDEvaluator(final Runnable configCallback) {
+  DDEvaluator(final Runnable configCallback) {
+    this(configCallback, true);
+  }
+
+  public DDEvaluator(final Runnable configCallback, final boolean telemetryEnabled) {
     this.configCallback = configCallback;
+    this.telemetryEnabled = telemetryEnabled;
   }
 
   @Override
@@ -128,7 +134,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   @Override
   public boolean hasConfiguration() {
-    return configuration.get() != null;
+    return FeatureFlaggingGateway.getConfigSnapshot().getConfig() != null;
   }
 
   @Override
@@ -137,8 +143,15 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   @Override
-  public void accept(final ServerConfiguration config) {
-    configuration.set(config);
+  public synchronized void accept(final ServerConfiguration ignored) {
+    // Listener callbacks are notifications only. Always read the process-wide snapshot so a stale
+    // register-and-replay callback cannot restore an older configuration in this evaluator.
+    final ConfigSnapshot snapshot = FeatureFlaggingGateway.getConfigSnapshot();
+    if (snapshot.getVersion() <= lastConfigVersion) {
+      return;
+    }
+    lastConfigVersion = snapshot.getVersion();
+    final ServerConfiguration config = snapshot.getConfig();
     if (config != null) {
       initializationLatch.countDown();
       configCallback.run();
@@ -156,7 +169,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     // Snapshot the config once and thread observeFullEvaluationData through every
     // ProviderEvaluation returned, so the hook's consent decision is pinned to this evaluation's
     // config and cannot drift on a concurrent Remote Config swap.
-    final ServerConfiguration config = configuration.get();
+    final ConfigSnapshot snapshot = FeatureFlaggingGateway.getConfigSnapshot();
+    final ServerConfiguration config = snapshot.getConfig();
     // Boolean.TRUE.equals covers both null (privacy-preserving default) and Boolean.FALSE without
     // an NPE — the field is boxed so a malformed UFC message doesn't abort the whole parse.
     final boolean observeFullEvaluationData =
@@ -495,7 +509,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
   }
 
-  private static <T> ProviderEvaluation<T> resolveVariant(
+  private <T> ProviderEvaluation<T> resolveVariant(
       final Class<T> target,
       final String key,
       final T defaultValue,
@@ -552,11 +566,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addLong("__dd_eval_timestamp_ms", evalTimestampMs)
             .addBoolean(METADATA_OBSERVE_FULL_EVALUATION_DATA, observeFullEvaluationData);
     // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment —
-    // only when span enrichment is on, so a provider without enrichment pays nothing extra.
+    // only when telemetry and span enrichment are on, so a provider without enrichment pays
+    // nothing extra.
     // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
     // present (when enrichment is on) so the span-enrichment hook can decide whether to record the
     // subject.
-    if (SPAN_ENRICHMENT_ENABLED) {
+    if (telemetryEnabled && SPAN_ENRICHMENT_ENABLED) {
       if (split.serialId != null) {
         metadataBuilder.addInteger(METADATA_SPLIT_SERIAL_ID, split.serialId);
       }
@@ -575,7 +590,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .flagMetadata(metadataBuilder.build())
             .build();
     final boolean doLog = allocation.doLog != null && allocation.doLog;
-    if (doLog) {
+    if (telemetryEnabled && doLog) {
       dispatchExposure(key, result, context);
     }
     return result;

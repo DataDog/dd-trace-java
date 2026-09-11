@@ -13,6 +13,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ import com.squareup.moshi.JsonWriter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.ufc.v1.Allocation;
 import datadog.trace.api.featureflag.ufc.v1.ConditionConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.ConditionOperator;
@@ -56,11 +58,15 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -85,6 +91,12 @@ public class DDEvaluatorTest {
   private static final ThreadLocal<Map<String, String>> INVALID_FLAGS_HOLDER =
       ThreadLocal.withInitial(HashMap::new);
   private static final long MAX_UNSIGNED_INT = 0xffff_ffffL;
+
+  @BeforeEach
+  @AfterEach
+  void clearCurrentConfiguration() {
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+  }
 
   @Test
   public void testInitializeSignalsApplicationProviderActivation() throws Exception {
@@ -173,7 +185,7 @@ public class DDEvaluatorTest {
   public void testInitializeTimesOutWithoutConfig() throws Exception {
     final Runnable configCallback = mock(Runnable.class);
     final DDEvaluator evaluator = new DDEvaluator(configCallback);
-    evaluator.accept(null);
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
     try {
       assertThat(
           evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)), equalTo(false));
@@ -191,10 +203,10 @@ public class DDEvaluatorTest {
       final Future<Boolean> initialized =
           executor.submit(() -> evaluator.initialize(1, SECONDS, mock(EvaluationContext.class)));
 
-      evaluator.accept(null);
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
       assertThat(initialized.isDone(), equalTo(false));
 
-      evaluator.accept(mock(ServerConfiguration.class));
+      FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
       assertThat(initialized.get(1, SECONDS), equalTo(true));
     } finally {
       executor.shutdownNow();
@@ -203,9 +215,108 @@ public class DDEvaluatorTest {
   }
 
   @Test
+  public void testConcurrentRegistrationCannotRestoreStaleConfiguration() throws Exception {
+    final ServerConfiguration firstConfiguration =
+        new ServerConfiguration("first", "", false, null, emptyMap());
+    final ServerConfiguration secondConfiguration =
+        new ServerConfiguration("second", "", true, null, emptyMap());
+    final CountDownLatch staleReplayStarted = new CountDownLatch(1);
+    final CountDownLatch allowStaleReplay = new CountDownLatch(1);
+    final DDEvaluator evaluator =
+        new DDEvaluator(mock(Runnable.class)) {
+          @Override
+          public void accept(final ServerConfiguration configuration) {
+            if (configuration == firstConfiguration) {
+              staleReplayStarted.countDown();
+              try {
+                if (!allowStaleReplay.await(5, SECONDS)) {
+                  throw new AssertionError(
+                      "Timed out waiting to resume stale configuration replay");
+                }
+              } catch (final InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(
+                    "Interrupted while waiting to replay stale configuration", e);
+              }
+            }
+            super.accept(configuration);
+          }
+        };
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    FeatureFlaggingGateway.dispatch(firstConfiguration);
+    try {
+      final Future<?> registration =
+          executor.submit(() -> FeatureFlaggingGateway.addConfigListener(evaluator));
+
+      assertThat(staleReplayStarted.await(5, SECONDS), equalTo(true));
+      FeatureFlaggingGateway.dispatch(secondConfiguration);
+      allowStaleReplay.countDown();
+      registration.get(5, SECONDS);
+
+      final ProviderEvaluation<?> details =
+          evaluator.evaluate(Integer.class, "missing", 23, mock(EvaluationContext.class));
+
+      assertThat(
+          details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
+          equalTo(true));
+    } finally {
+      allowStaleReplay.countDown();
+      evaluator.shutdown();
+      FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
+  public void testEvaluatorsReadSameProcessWideConfiguration() {
+    final DDEvaluator firstEvaluator = new DDEvaluator(mock(Runnable.class));
+    final DDEvaluator secondEvaluator = new DDEvaluator(mock(Runnable.class));
+
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("first", "", false, null, emptyMap()));
+    assertThat(observeFullEvaluationData(firstEvaluator), equalTo(false));
+    assertThat(observeFullEvaluationData(secondEvaluator), equalTo(false));
+
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("second", "", true, null, emptyMap()));
+    assertThat(observeFullEvaluationData(firstEvaluator), equalTo(true));
+    assertThat(observeFullEvaluationData(secondEvaluator), equalTo(true));
+  }
+
+  @Test
+  public void testUnavailableConfigurationIsVisibleToAllEvaluators() {
+    final DDEvaluator firstEvaluator = new DDEvaluator(mock(Runnable.class));
+    final DDEvaluator secondEvaluator = new DDEvaluator(mock(Runnable.class));
+    final EvaluationContext context = mock(EvaluationContext.class);
+
+    FeatureFlaggingGateway.dispatch(
+        new ServerConfiguration("available", "", false, null, emptyMap()));
+    assertThat(
+        firstEvaluator.evaluate(Integer.class, "missing", 23, context).getErrorCode(),
+        equalTo(ErrorCode.FLAG_NOT_FOUND));
+    assertThat(
+        secondEvaluator.evaluate(Integer.class, "missing", 23, context).getErrorCode(),
+        equalTo(ErrorCode.FLAG_NOT_FOUND));
+
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    assertThat(
+        firstEvaluator.evaluate(Integer.class, "missing", 23, context).getErrorCode(),
+        equalTo(ErrorCode.PROVIDER_NOT_READY));
+    assertThat(
+        secondEvaluator.evaluate(Integer.class, "missing", 23, context).getErrorCode(),
+        equalTo(ErrorCode.PROVIDER_NOT_READY));
+  }
+
+  private static Boolean observeFullEvaluationData(final DDEvaluator evaluator) {
+    return evaluator
+        .evaluate(Integer.class, "missing", 23, mock(EvaluationContext.class))
+        .getFlagMetadata()
+        .getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA);
+  }
+
+  @Test
   public void testEvaluateNoContext() {
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(mock(ServerConfiguration.class));
+    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "test", 23, null);
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo(ERROR.name()));
@@ -218,7 +329,7 @@ public class DDEvaluatorTest {
     flags.put("null-allocation", new Flag("target", true, null, null, null));
     flags.put("empty-allocation", new Flag("target", true, null, null, emptyList()));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("", "", false, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("allocation");
 
@@ -252,7 +363,7 @@ public class DDEvaluatorTest {
         "target",
         new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", false, null, flags));
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("", "", false, null, flags));
 
     final EvaluationContext context =
         new MutableContext("target").setTargetingKey("high-shard-user");
@@ -296,6 +407,30 @@ public class DDEvaluatorTest {
     assertThat(
         details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_OBSERVE_FULL_EVALUATION_DATA),
         equalTo(false));
+  }
+
+  @Test
+  public void telemetryDisabledSuppressesExposures() {
+    final AtomicReference<ExposureEvent> exposure = new AtomicReference<>();
+    final FeatureFlaggingGateway.ExposureListener listener = exposure::set;
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      evaluateMatchingFlag(false, true, false);
+      assertNull(exposure.get());
+
+      evaluateMatchingFlag(false, true, true);
+      assertNotNull(exposure.get());
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+    }
+  }
+
+  @Test
+  public void telemetryDisabledOmitsSpanEnrichmentMetadata() {
+    final ProviderEvaluation<?> details = evaluateMatchingFlag(false, true, false, 17);
+
+    assertNull(details.getFlagMetadata().getInteger(DDEvaluator.METADATA_SPLIT_SERIAL_ID));
+    assertNull(details.getFlagMetadata().getBoolean(DDEvaluator.METADATA_DO_LOG));
   }
 
   // -- DISABLED path: flag.enabled=false --
@@ -351,7 +486,7 @@ public class DDEvaluatorTest {
     // Was previously named "…OnSuccess" but actually exercises the error() helper's stamp via
     // FLAG_NOT_FOUND — kept for that stamp site, correctly named.
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", true, null, new HashMap<>()));
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("", "", true, null, new HashMap<>()));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
     final ProviderEvaluation<?> details =
@@ -382,7 +517,7 @@ public class DDEvaluatorTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("target", new Flag("target", true, ValueType.INTEGER, emptyMap(), emptyList()));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("", "", null, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("k");
     final ProviderEvaluation<?> details = evaluator.evaluate(Integer.class, "target", 23, ctx);
@@ -399,14 +534,35 @@ public class DDEvaluatorTest {
   // and a single "on" variant whose value maps to the requested Integer type.
   private static ProviderEvaluation<?> evaluateMatchingFlag(
       final boolean observeFullEvaluationData) {
+    return evaluateMatchingFlag(observeFullEvaluationData, false);
+  }
+
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData, final boolean doLog) {
+    return evaluateMatchingFlag(observeFullEvaluationData, doLog, true);
+  }
+
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData,
+      final boolean doLog,
+      final boolean telemetryEnabled) {
+    return evaluateMatchingFlag(observeFullEvaluationData, doLog, telemetryEnabled, null);
+  }
+
+  private static ProviderEvaluation<?> evaluateMatchingFlag(
+      final boolean observeFullEvaluationData,
+      final boolean doLog,
+      final boolean telemetryEnabled,
+      final Integer serialId) {
     final Map<String, Variant> variations = new HashMap<>();
     variations.put("on", new Variant("on", 1));
-    final Split split = new Split(emptyList(), "on", emptyMap(), null);
+    final Split split = new Split(emptyList(), "on", emptyMap(), serialId);
     final Allocation allocation =
-        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.FALSE);
+        new Allocation("alloc-1", null, null, null, singletonList(split), doLog);
     return evaluateFlag(
         new Flag("target", true, ValueType.INTEGER, variations, singletonList(allocation)),
-        observeFullEvaluationData);
+        observeFullEvaluationData,
+        telemetryEnabled);
   }
 
   private static ProviderEvaluation<?> evaluateDisabledFlag(
@@ -428,10 +584,16 @@ public class DDEvaluatorTest {
 
   private static ProviderEvaluation<?> evaluateFlag(
       final Flag flag, final boolean observeFullEvaluationData) {
+    return evaluateFlag(flag, observeFullEvaluationData, true);
+  }
+
+  private static ProviderEvaluation<?> evaluateFlag(
+      final Flag flag, final boolean observeFullEvaluationData, final boolean telemetryEnabled) {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("target", flag);
-    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class), telemetryEnabled);
+    FeatureFlaggingGateway.dispatch(
+        new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
 
     final EvaluationContext ctx = new MutableContext("target").setTargetingKey("user-1");
     return evaluator.evaluate(Integer.class, "target", 23, ctx);
@@ -492,7 +654,8 @@ public class DDEvaluatorTest {
         "num-rule",
         new Flag("num-rule", true, ValueType.INTEGER, emptyMap(), singletonList(allocation)));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
+    FeatureFlaggingGateway.dispatch(
+        new ServerConfiguration("", "", observeFullEvaluationData, null, flags));
 
     final EvaluationContext ctx = new MutableContext(targetingKey);
     return evaluator.evaluate(Integer.class, "num-rule", 23, ctx);
@@ -607,7 +770,7 @@ public class DDEvaluatorTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("test-flag", semverFlag(operator, comparand));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("", "", null, null, flags));
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(attribute));
@@ -626,7 +789,7 @@ public class DDEvaluatorTest {
     final Map<String, Flag> flags = new HashMap<>();
     flags.put("test-flag", semverFlag(ConditionOperator.SEMVER_EQ, "1.2.3"));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(new ServerConfiguration("", "", null, null, flags));
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("", "", null, null, flags));
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "test-flag", false, semverContext(null));
@@ -645,7 +808,7 @@ public class DDEvaluatorTest {
     final ServerConfiguration config = new ServerConfiguration("", "", null, null, flags);
     config.invalidFlags = invalidFlags;
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(config);
+    FeatureFlaggingGateway.dispatch(config);
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "invalid-semver", false, semverContext("1.2.3"));
@@ -663,7 +826,7 @@ public class DDEvaluatorTest {
     final ServerConfiguration config = new ServerConfiguration("", "", null, null, flags);
     config.invalidFlags = invalidFlags;
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(config);
+    FeatureFlaggingGateway.dispatch(config);
 
     final ProviderEvaluation<Boolean> details =
         evaluator.evaluate(Boolean.class, "malformed-flag", false, new MutableContext());
@@ -875,7 +1038,7 @@ public class DDEvaluatorTest {
   @ParameterizedTest(name = "{0}")
   public void testEvaluateCanonicalFixture(final FixtureCase testCase) throws IOException {
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
-    evaluator.accept(loadCanonicalConfiguration());
+    FeatureFlaggingGateway.dispatch(loadCanonicalConfiguration());
 
     final Class<?> targetType = targetType(testCase.variationType);
     final Object defaultValue = mapFixtureValue(targetType, testCase.defaultValue);

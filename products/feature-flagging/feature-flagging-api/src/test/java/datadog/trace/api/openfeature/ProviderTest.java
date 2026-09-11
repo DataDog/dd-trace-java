@@ -1,11 +1,16 @@
 package datadog.trace.api.openfeature;
 
 import static datadog.trace.api.openfeature.Provider.METADATA;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,9 +22,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
+import datadog.trace.api.featureflag.exposure.ExposureEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
 import datadog.trace.api.featureflag.flagevaluation.FlagEvaluationWriter;
+import datadog.trace.api.featureflag.ufc.v1.Allocation;
+import datadog.trace.api.featureflag.ufc.v1.Flag;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
+import datadog.trace.api.featureflag.ufc.v1.Split;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
+import datadog.trace.api.featureflag.ufc.v1.Variant;
 import datadog.trace.api.openfeature.Provider.Options;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.ErrorCode;
@@ -38,7 +49,8 @@ import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Field;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -320,14 +332,30 @@ public class ProviderTest {
   }
 
   @Test
-  public void testGetProviderHooksReturnsFlagEvalMetricsHook() {
-    Provider provider =
+  public void testMissingAgentMethodReportsCompatibilityError() throws Exception {
+    final Evaluator evaluator = mock(Evaluator.class);
+    when(evaluator.initialize(eq(30L), eq(SECONDS), any()))
+        .thenThrow(new NoSuchMethodError("FeatureFlaggingGateway.getConfigSnapshot"));
+    final Provider provider = new Provider(new Options(), evaluator);
+
+    final FatalError error = assertThrows(FatalError.class, () -> provider.initialize(null));
+
+    assertThat(
+        error.getMessage(),
+        equalTo(
+            "Failed to initialize provider: a required Datadog agent class or method is missing."
+                + " The Datadog Java agent is likely absent, or older than this dd-openfeature"
+                + " release."));
+    assertTrue(error.getCause() instanceof NoSuchMethodError);
+  }
+
+  @Test
+  public void testGetProviderHooksReturnsTelemetryHooks() {
+    final Provider provider =
         new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
-    List<Hook> hooks = provider.getProviderHooks();
-    // Two hooks: OTel FlagEvalMetricsHook (index 0) + FlagEvalLoggingHook (index 1)
-    assertThat(hooks.size(), equalTo(2));
-    assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
-    assertThat(hooks.get(1) instanceof FlagEvalLoggingHook, equalTo(true));
+
+    assertHasHook(provider, FlagEvalMetricsHook.class);
+    assertHasHook(provider, FlagEvalLoggingHook.class);
   }
 
   @Test
@@ -340,10 +368,75 @@ public class ProviderTest {
           }
         };
 
-    List<Hook> hooks = provider.getProviderHooks();
+    assertHasHook(provider, FlagEvalMetricsHook.class);
+    assertFalse(
+        provider.getProviderHooks().stream().anyMatch(FlagEvalLoggingHook.class::isInstance));
+  }
 
-    assertThat(hooks.size(), equalTo(1));
-    assertThat(hooks.get(0) instanceof FlagEvalMetricsHook, equalTo(true));
+  @Test
+  public void testTelemetryDisabledProviderHasNoHooks() {
+    final Provider provider =
+        new Provider(new Options().telemetryEnabled(false), mock(Evaluator.class), Boolean.TRUE);
+
+    assertTrue(provider.getProviderHooks().isEmpty());
+    assertNull(provider.spanEnrichmentHook());
+  }
+
+  @Test
+  public void testTelemetryDisabledDomainSuppressesExposuresThroughReflectiveEvaluator()
+      throws Exception {
+    final Map<String, Variant> variations = new HashMap<>();
+    variations.put("on", new Variant("on", true));
+    final Split split = new Split(emptyList(), "on", emptyMap(), null);
+    final Allocation allocation =
+        new Allocation("alloc-1", null, null, null, singletonList(split), Boolean.TRUE);
+    final Map<String, Flag> flags = new HashMap<>();
+    flags.put(
+        "logged-flag",
+        new Flag("logged-flag", true, ValueType.BOOLEAN, variations, singletonList(allocation)));
+    FeatureFlaggingGateway.dispatch(new ServerConfiguration("", "", false, null, flags));
+
+    final AtomicReference<ExposureEvent> exposure = new AtomicReference<>();
+    final FeatureFlaggingGateway.ExposureListener listener = exposure::set;
+    FeatureFlaggingGateway.addExposureListener(listener);
+    try {
+      final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+      api.setProviderAndWait("live", new Provider());
+      api.setProviderAndWait("peek", new Provider(new Options().telemetryEnabled(false)));
+      final MutableContext context = new MutableContext("user-1");
+
+      assertTrue(api.getClient("peek").getBooleanValue("logged-flag", false, context));
+      assertNull(exposure.get(), "the peek domain must not record an exposure");
+
+      assertTrue(api.getClient("live").getBooleanValue("logged-flag", false, context));
+      assertNotNull(exposure.get(), "the live domain must record an exposure");
+    } finally {
+      FeatureFlaggingGateway.removeExposureListener(listener);
+    }
+  }
+
+  @Test
+  public void testOptionsRetainDefaultTimeoutWhenOnlyTelemetryIsConfigured() {
+    final Options options = new Options().telemetryEnabled(false);
+
+    assertThat(options.getTimeout(), equalTo(30L));
+    assertThat(options.getUnit(), equalTo(SECONDS));
+    assertFalse(options.isTelemetryEnabled());
+  }
+
+  @Test
+  public void testProviderSnapshotsOptionsAtConstruction() throws Exception {
+    final Options options = new Options().initTimeout(10, MILLISECONDS);
+    final Evaluator evaluator = mock(Evaluator.class);
+    when(evaluator.initialize(eq(10L), eq(MILLISECONDS), any())).thenReturn(true);
+    when(evaluator.hasConfiguration()).thenReturn(true);
+    final Provider provider = new Provider(options, evaluator, Boolean.FALSE);
+
+    options.initTimeout(20, SECONDS).telemetryEnabled(false);
+    provider.initialize(null);
+
+    verify(evaluator).initialize(eq(10L), eq(MILLISECONDS), any());
+    assertHasHook(provider, FlagEvalLoggingHook.class);
   }
 
   @Test
@@ -409,14 +502,20 @@ public class ProviderTest {
     provider.shutdown();
 
     verify(evaluator).shutdown();
-    // After shutdown, getProviderHooks still returns a list with both OTel + logging hooks
-    assertThat(provider.getProviderHooks().size(), equalTo(2));
+    assertHasHook(provider, FlagEvalMetricsHook.class);
+    assertHasHook(provider, FlagEvalLoggingHook.class);
   }
 
   private static void assertHasFlagEvalMetricsHook(final Provider provider) {
-    assertTrue(
-        provider.getProviderHooks().stream().anyMatch(FlagEvalMetricsHook.class::isInstance),
-        "flag evaluation metrics hook should be registered");
+    assertHasHook(provider, FlagEvalMetricsHook.class);
+  }
+
+  private static void assertHasHook(
+      final Provider provider, final Class<? extends Hook> hookClass) {
+    assertThat(
+        hookClass.getSimpleName() + " should be registered exactly once",
+        provider.getProviderHooks().stream().filter(hookClass::isInstance).count(),
+        equalTo(1L));
   }
 
   public interface EvaluateMethod<E> {
