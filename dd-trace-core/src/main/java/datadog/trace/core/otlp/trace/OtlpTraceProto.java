@@ -91,7 +91,9 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, span.getSpanId());
 
-    String tracestate = propagationTags.getW3CTracestate();
+    int samplingPriority = span.samplingPriority();
+    // TODO Cache the effective tracestate once per trace.
+    String tracestate = propagationTags.getW3CTracestate(samplingPriority);
     if (tracestate != null) {
       writeTag(buf, 3, LEN_WIRE_TYPE);
       writeString(buf, tracestate);
@@ -103,7 +105,7 @@ public final class OtlpTraceProto {
     }
 
     int traceFlags = NO_TRACE_FLAGS;
-    if (span.samplingPriority() > 0) {
+    if (samplingPriority > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
     if (span.spanContext().isRemote()) {

@@ -338,7 +338,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       size = 0;
     }
     // Append the managed OTel member and all other non-Datadog list-members
-    if (appendOtelAndVendorMembers(sb, ptags, otelTraceState, size != 0)) {
+    if (appendOtelAndVendorMembers(sb, ptags, otelTraceState, size != 0, false)) {
       // We don't care about the total size in bytes here, but only the fact that we added something
       // that should be returned
       size = Math.max(size, EMPTY_SIZE + 1);
@@ -745,7 +745,11 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static boolean appendOtelAndVendorMembers(
-      StringBuilder sb, PTags ptags, OtelTraceState otelTraceState, boolean hasDatadogMember) {
+      StringBuilder sb,
+      PTags ptags,
+      OtelTraceState otelTraceState,
+      boolean hasDatadogMember,
+      boolean preserveDatadogMember) {
     String original = ptags.tracestate;
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     int otherMemberPosition = 0;
@@ -759,10 +763,14 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (memberEnd < 0) {
         memberEnd = len;
       }
-      boolean managedMember =
-          original.startsWith(DATADOG_MEMBER_KEY, memberStart)
-              || original.startsWith(OTEL_MEMBER_KEY, memberStart);
-      if (!managedMember) {
+      boolean datadogMember = original.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean otelMember = original.startsWith(OTEL_MEMBER_KEY, memberStart);
+      if (datadogMember && preserveDatadogMember) {
+        int end = stripTrailingOWC(original, memberStart, memberEnd);
+        appendMember(sb, original, memberStart, end);
+        remainingMembers--;
+        memberAppended = true;
+      } else if (!datadogMember && !otelMember) {
         if (otelTraceState != null
             && !otelTraceStateAppended
             && otelTraceState.getOriginalPosition() == otherMemberPosition) {
@@ -790,6 +798,17 @@ public class W3CPTagsCodec extends PTagsCodec {
       memberAppended = true;
     }
     return memberAppended;
+  }
+
+  static String updateOtelTraceState(PTags ptags, OtelTraceState otelTraceState) {
+    String original = ptags.tracestate;
+    int capacity = original == null ? 0 : original.length();
+    if (otelTraceState != null) {
+      capacity += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
+    }
+    StringBuilder updated = new StringBuilder(capacity);
+    appendOtelAndVendorMembers(updated, ptags, otelTraceState, false, true);
+    return updated.length() == 0 ? null : updated.toString();
   }
 
   private static void appendMember(StringBuilder sb, String member, int start, int end) {

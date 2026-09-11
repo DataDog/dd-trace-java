@@ -234,8 +234,12 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     private void doUpdateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {
+      boolean initialUnknownPriority =
+          this.samplingPriority == PrioritySampling.UNSET
+              && samplingMechanism == SamplingMechanism.UNKNOWN;
       boolean removeOtelProbability =
-          samplingMechanism != SamplingMechanism.EXTERNAL_OVERRIDE
+          !initialUnknownPriority
+              && samplingMechanism != SamplingMechanism.EXTERNAL_OVERRIDE
               && !isProbabilitySamplingMechanism(samplingMechanism);
       if (this.samplingPriority != samplingPriority) {
         // This should invalidate any cached w3c header
@@ -578,6 +582,16 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public String getW3CTracestate() {
       return this.tracestate;
+    }
+
+    @Override
+    public String getW3CTracestate(int samplingPriority) {
+      OtelTraceState current = otelTraceState;
+      OtelTraceState resolved = resolveOtelTraceState(W3C, samplingPriority);
+      if (current == resolved) {
+        return tracestate;
+      }
+      return W3CPTagsCodec.updateOtelTraceState(this, resolved);
     }
 
     @Override

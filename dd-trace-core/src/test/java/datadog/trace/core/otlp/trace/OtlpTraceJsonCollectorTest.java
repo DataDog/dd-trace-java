@@ -2,6 +2,7 @@ package datadog.trace.core.otlp.trace;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
+import static datadog.trace.common.sampling.RuleBasedTraceSampler.SAMPLING_RULE_RATE;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexSpanId;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.hexTraceId;
@@ -151,6 +152,30 @@ class OtlpTraceJsonCollectorTest {
     Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
 
     assertEquals("vendor=state", parsedSpan.get("traceState"));
+  }
+
+  @Test
+  void spanTraceStateIncludesLocalOtelSamplingState() throws IOException {
+    AgentSpan agentSpan = TRACER.startSpan("test", "op.otel-tracestate");
+    agentSpan.setResourceName("op.otel-tracestate");
+    ((DDSpan) agentSpan)
+        .setSamplingPriority(
+            PrioritySampling.USER_KEEP,
+            SAMPLING_RULE_RATE,
+            0.5,
+            SamplingMechanism.LOCAL_USER_RULE,
+            true);
+    agentSpan.finish();
+
+    OtlpTraceJsonCollector collector = new OtlpTraceJsonCollector();
+    collector.addTrace(asList((CoreSpan<?>) agentSpan));
+    Map<String, Object> parsedSpan = onlySpan(collector.collectTraces());
+
+    String traceState = (String) parsedSpan.get("traceState");
+    assertTrue(traceState.startsWith("ot=rv:"));
+    assertTrue(traceState.contains(";th:8"));
+    assertFalse(traceState.contains("dd="));
+    assertEquals(SAMPLED_TRACE_FLAG, ((Number) parsedSpan.get("flags")).intValue());
   }
 
   @Test

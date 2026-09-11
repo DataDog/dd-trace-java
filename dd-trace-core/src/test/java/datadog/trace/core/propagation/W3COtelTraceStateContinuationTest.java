@@ -10,7 +10,6 @@ import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -65,12 +64,18 @@ class W3COtelTraceStateContinuationTest extends DDCoreJavaSpecification {
   }
 
   @ParameterizedTest
-  @CsvSource({"0, 01, ef284ace7a91e1, 00", "2, 00, 00000000000000, 01"})
+  @CsvSource({
+    "0, 01, ef284ace7a91e1, 00, false",
+    "2, 00, 00000000000000, 01, false",
+    "0, 00, 00000000000000, 00, true",
+    "2, 01, ef284ace7a91e1, 01, true"
+  })
   void alignsOtelStateWithSampledFlagAfterCompoundExtraction(
       int datadogSamplingPriority,
       String inboundTraceFlags,
       String otelRandomValue,
-      String outboundTraceFlags) {
+      String outboundTraceFlags,
+      boolean thresholdExpected) {
     String inboundTracestate = DD_MEMBER + ",ot=rv:" + otelRandomValue + ";th:" + OTEL_THRESHOLD;
     String traceParent = TRACE_PARENT.substring(0, TRACE_PARENT.length() - 2) + inboundTraceFlags;
     Map<String, String> inboundHeaders =
@@ -108,7 +113,7 @@ class W3COtelTraceStateContinuationTest extends DDCoreJavaSpecification {
       String outboundTracestate = outboundHeaders.get(TRACE_STATE_KEY);
       assertTrue(outboundTracestate.startsWith("dd=s:" + datadogSamplingPriority));
       assertTrue(outboundTracestate.contains("ot=rv:" + otelRandomValue));
-      assertFalse(outboundTracestate.contains("th:" + OTEL_THRESHOLD));
+      assertEquals(thresholdExpected, outboundTracestate.contains("th:" + OTEL_THRESHOLD));
     } finally {
       tracer.close();
     }

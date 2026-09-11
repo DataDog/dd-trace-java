@@ -4,6 +4,7 @@ import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.LOCAL_USER_RULE;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
+import static datadog.trace.api.sampling.SamplingMechanism.UNKNOWN;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -100,7 +101,23 @@ class OtelTraceStatePropagationTest {
     propagationTags.forceKeep(MANUAL);
 
     assertEquals(
+        "foo=bar,ot=rv:" + RV + ";th:" + TH + ";future:value,other=state",
+        propagationTags.getW3CTracestate());
+    assertEquals(
         "dd=s:2;t.dm:-4,ot=rv:" + RV + ";future:value,foo=bar,other=state",
+        propagationTags.headerValue(W3C));
+  }
+
+  @Test
+  void initialUnknownPriorityDoesNotOverrideInheritedProbabilityDecision() {
+    PropagationTags propagationTags =
+        PropagationTags.factory()
+            .fromHeaderValue(W3C, "foo=bar,ot=rv:" + RV + ";th:" + TH + ";future:value");
+
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, UNKNOWN);
+
+    assertEquals(
+        "dd=s:2,foo=bar,ot=rv:" + RV + ";th:" + TH + ";future:value",
         propagationTags.headerValue(W3C));
   }
 
@@ -129,6 +146,28 @@ class OtelTraceStatePropagationTest {
         PropagationTags.factory().fromHeaderValue(W3C, "dd=s:2,ot=rv:" + RV + ";th:" + TH);
 
     assertEquals("dd=s:0,ot=rv:" + RV, propagationTags.headerValue(W3C, null, SAMPLER_DROP));
+  }
+
+  @Test
+  void effectiveTracestateOnlyUpdatesOtelMember() {
+    PropagationTags propagationTags =
+        PropagationTags.factory()
+            .fromHeaderValue(W3C, "dd=s:1;t.dm:-3,vendor=state,ot=rv:" + RV + ";th:" + TH);
+
+    assertEquals(
+        "dd=s:1;t.dm:-3,ot=rv:" + RV + ",vendor=state",
+        propagationTags.getW3CTracestate(SAMPLER_DROP));
+  }
+
+  @Test
+  void effectiveTracestateAddsOnlyLocallyGeneratedOtelMember() {
+    PropagationTags propagationTags = PropagationTags.factory().empty();
+    propagationTags.updateTraceSamplingPriority(USER_KEEP, LOCAL_USER_RULE);
+    propagationTags.updateOtelTraceState(TRACE_ID, SAMPLE_RATE_0_5, true);
+
+    assertEquals(
+        "ot=rv:" + GENERATED_RV + ";th:" + THRESHOLD_0_5,
+        propagationTags.getW3CTracestate(USER_KEEP));
   }
 
   @Test

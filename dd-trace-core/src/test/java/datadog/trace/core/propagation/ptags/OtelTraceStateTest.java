@@ -124,7 +124,7 @@ class OtelTraceStateTest {
     state = OtelTraceState.updateProbability(state, TRACE_ID, SAMPLE_RATE_0_5, true, SAMPLER_DROP);
 
     assertEquals("rv:" + LOCAL_RANDOM_VALUE + ";" + UNKNOWN_FIELD, state.getValue());
-    assertEquals(0, state.getInheritedPosition());
+    assertEquals(0, state.getOriginalPosition());
   }
 
   @Test
@@ -144,7 +144,7 @@ class OtelTraceStateTest {
     state = OtelTraceState.updateProbability(state, TRACE_ID, SAMPLE_RATE_0_5, true, SAMPLER_DROP);
 
     assertEquals("rv:" + INHERITED_RANDOM_VALUE + ";" + UNKNOWN_FIELD, state.getValue());
-    assertEquals(0, state.getInheritedPosition());
+    assertEquals(0, state.getOriginalPosition());
   }
 
   @Test
@@ -158,7 +158,7 @@ class OtelTraceStateTest {
     state = state.removeForNonProbabilityDecision();
 
     assertEquals("rv:" + INHERITED_RANDOM_VALUE + ";" + UNKNOWN_FIELD, state.getValue());
-    assertEquals(0, state.getInheritedPosition());
+    assertEquals(0, state.getOriginalPosition());
   }
 
   private static String traceState(String randomValue, String threshold) {

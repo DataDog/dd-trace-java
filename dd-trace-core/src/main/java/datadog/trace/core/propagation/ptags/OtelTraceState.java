@@ -160,12 +160,7 @@ final class OtelTraceState {
     if (threshold == NO_VALUE) {
       return this;
     }
-    return create(
-        randomValue,
-        NO_VALUE,
-        value,
-        originalSize,
-        hasLocallyGeneratedRandomValue());
+    return create(randomValue, NO_VALUE, value, originalSize, hasLocallyGeneratedRandomValue());
   }
 
   OtelTraceState reconcileSamplingDecision(boolean sampled) {

@@ -57,7 +57,9 @@ public final class OtlpTraceJson {
     writer.name("traceId").value(hexTraceId(span.getTraceId()));
     writer.name("spanId").value(hexSpanId(span.getSpanId()));
 
-    String tracestate = propagationTags.getW3CTracestate();
+    int samplingPriority = span.samplingPriority();
+    // TODO Cache the effective tracestate once per trace.
+    String tracestate = propagationTags.getW3CTracestate(samplingPriority);
     if (tracestate != null) {
       writer.name("traceState").value(tracestate);
     }
@@ -67,7 +69,7 @@ public final class OtlpTraceJson {
     }
 
     int traceFlags = NO_TRACE_FLAGS;
-    if (span.samplingPriority() > 0) {
+    if (samplingPriority > 0) {
       traceFlags |= SAMPLED_TRACE_FLAG;
     }
     if (span.spanContext().isRemote()) {

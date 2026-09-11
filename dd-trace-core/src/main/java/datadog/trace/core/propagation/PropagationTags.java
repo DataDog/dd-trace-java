@@ -90,6 +90,11 @@ public abstract class PropagationTags {
    */
   public abstract String getW3CTracestate();
 
+  /** Gets the W3C tracestate with OTel sampling state resolved for the supplied priority. */
+  public String getW3CTracestate(int samplingPriority) {
+    return getW3CTracestate();
+  }
+
   /**
    * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
    * tracestate header</a> value.
