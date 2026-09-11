@@ -9,12 +9,7 @@ import org.junit.platform.commons.support.AnnotationSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * JUnit5 extension that enables {@link ScopeDiagnostics} for every test extending {@code
- * AbstractInstrumentationTest}. {@link TrackScopeContinuations} can override or disable it.
- *
- * <p>Per test: resets and starts recording before; after, logs findings and asserts no leaks.
- */
+/** Runs {@link ScopeDiagnostics} around each JUnit instrumentation test. */
 public final class ScopeDiagnosticsExtension implements BeforeEachCallback, AfterEachCallback {
   private static final Logger log = LoggerFactory.getLogger(ScopeDiagnosticsExtension.class);
 
@@ -44,7 +39,7 @@ public final class ScopeDiagnosticsExtension implements BeforeEachCallback, Afte
     }
   }
 
-  /** Method-level annotation wins; otherwise the test class (incl. inherited). */
+  /** Resolves method configuration before inherited class configuration. */
   private static TrackScopeContinuations resolve(ExtensionContext context) {
     Optional<AnnotatedElement> element = context.getElement();
     if (element.isPresent()) {

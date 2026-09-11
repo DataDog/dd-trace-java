@@ -9,27 +9,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Test-time engine that records scope/continuation lifecycle events and renders leak reports.
- *
- * <p>It models two correlated lifecycles separately: continuations ({@link ContinuationRecord} —
- * captured/resumed/finished) and scopes ({@link ScopeRecord} — opened/closed). While recording,
- * {@link ScopeContinuationProbe} (test-only bytecode advice) feeds it events, which it correlates
- * by identity (an {@link IdentityHashMap}, never {@code equals}/{@code hashCode}) — continuations
- * by their {@code ContextContinuation} instance, scopes by their scope instance. It assumes a
- * single test runs at a time per JVM (true for instrumentation tests); {@link #reset()} isolates
- * one test from the next.
- *
- * <p>Usage:
- *
- * <pre>
- *   ScopeDiagnostics.startRecording();
- *   ... exercise code under test ...
- *   System.out.println(ScopeDiagnostics.report().renderSummary());
- *   ScopeDiagnostics.assertNoLeaks();   // optional
- *   ScopeDiagnostics.stop();
- * </pre>
- */
+/** Records test-time scope and continuation lifecycles and reports leaks. */
 public final class ScopeDiagnostics {
   private static final int DEFAULT_MAX_FRAMES = 6;
 
@@ -51,8 +31,6 @@ public final class ScopeDiagnostics {
   private final Listener listener = new Listener();
 
   private ScopeDiagnostics() {}
-
-  // ---- public static facade ------------------------------------------------
 
   /** Clears any prior data and starts recording with the default stack depth. */
   public static void startRecording() {
@@ -90,7 +68,7 @@ public final class ScopeDiagnostics {
     }
   }
 
-  /** Builds an immutable snapshot report of everything recorded so far. */
+  /** Returns an immutable snapshot of the events recorded so far. */
   public static ScopeDiagnosticsReport report() {
     synchronized (INSTANCE.lifecycleLock) {
       return new ScopeDiagnosticsReport(
@@ -116,7 +94,7 @@ public final class ScopeDiagnostics {
     }
   }
 
-  /** Resolves the default-on policy and rejects undocumented opt-outs. */
+  /** Resolves the default-on policy and rejects opt-outs without a reason. */
   public static boolean isEnabled(TrackScopeContinuations config) {
     if (config == null || config.enabled()) {
       return true;
@@ -137,26 +115,20 @@ public final class ScopeDiagnostics {
     scopeSeq = 0;
   }
 
-  // ---- listener implementation ---------------------------------------------
-
   private static final StackTraceElement[] NO_STACK = new StackTraceElement[0];
 
   private ScopeEvent event(ScopeEvent.Type type) {
     return event(type, System.nanoTime());
   }
 
-  /** Builds an event with an explicit timestamp (thread and stack are still captured now). */
+  /** Uses the supplied event time while capturing the thread and stack at the call site. */
   private ScopeEvent event(ScopeEvent.Type type, long nanos) {
-    // Capturing a stack per event is the dominant cost and perturbs the very timings we record;
-    // skip it entirely when callsites are disabled (maxFrames <= 0) rather than walking then
-    // trimming.
+    // Avoid stack walking when call sites are disabled because it perturbs recorded timings.
     StackFilter filter = stackFilter;
     StackTraceElement[] stack =
         filter.maxFrames() <= 0 ? NO_STACK : filter.filter(new Throwable().getStackTrace());
     return new ScopeEvent(type, Thread.currentThread().getName(), nanos, stack);
   }
-
-  // ---- static forwarders called by ScopeContinuationProbe ------------------
 
   static void recordCapture(
       ContextContinuation id, DDTraceId traceId, long spanId, String spanName, byte source) {

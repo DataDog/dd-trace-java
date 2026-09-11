@@ -3,21 +3,14 @@ package datadog.trace.agent.test.scopediag;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Trims a raw stack trace down to the frames that point at <em>where</em> a continuation was
- * captured/activated/resolved: it drops the diagnostic plumbing, the scope-manager internals, and
- * the executor/reflection scaffolding, keeping the top {@code maxFrames} meaningful frames.
- */
+/** Removes diagnostic and runtime plumbing from captured call stacks. */
 final class StackFilter {
   private static final String[] DROP_PREFIXES = {
-    // diagnostic harness itself
     "datadog.trace.agent.test.scopediag.",
-    // tracer scope/continuation machinery and the capture/activate plumbing it sits behind
     "datadog.trace.core.",
     "datadog.trace.bootstrap.instrumentation.java.concurrent.",
     "datadog.trace.bootstrap.instrumentation.api.",
     "datadog.trace.bootstrap.InstrumentationContext",
-    // JDK executor/reflection scaffolding between the caller and the capture
     "java.lang.Thread.getStackTrace",
     "java.util.concurrent.ThreadPoolExecutor",
     "java.util.concurrent.ScheduledThreadPoolExecutor",
@@ -29,7 +22,6 @@ final class StackFilter {
     "jdk.internal.reflect.",
     "java.lang.reflect.",
     "sun.reflect.",
-    // Spock/Groovy/ByteBuddy mock & dynamic-dispatch scaffolding (test harness, not a callsite)
     "org.spockframework.mock.",
     "org.codehaus.groovy.",
     "groovy.lang.",
