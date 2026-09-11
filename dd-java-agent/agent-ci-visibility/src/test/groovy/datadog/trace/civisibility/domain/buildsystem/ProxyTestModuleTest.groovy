@@ -9,6 +9,7 @@ import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.coverage.report.child.ChildProcessCoverageReporter
@@ -30,7 +31,7 @@ class ProxyTestModuleTest extends DDSpecification {
     config.getCiVisibilityFlakyRetryCount() >> 2 // this counts all executions of a test case (first attempt is counted too)
     config.getCiVisibilityTotalFlakyRetryCount() >> 2 // this counts retries across all tests (first attempt is not a retry, so it is not counted)
 
-    def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
+    def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver), NoOpMetricCollector.INSTANCE)
 
     def traceId = Stub(DDTraceId)
     traceId.toLong() >> 123

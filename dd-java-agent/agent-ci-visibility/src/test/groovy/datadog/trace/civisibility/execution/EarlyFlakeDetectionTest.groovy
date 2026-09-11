@@ -3,6 +3,7 @@ package datadog.trace.civisibility.execution
 import datadog.trace.api.civisibility.execution.ExecutionAggregation
 import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.civisibility.config.ExecutionsByDuration
 import spock.lang.Specification
 
@@ -10,7 +11,8 @@ class EarlyFlakeDetectionTest extends Specification {
 
   def "test EFD exits on flake"() {
     setup:
-    def executionPolicy = new EarlyFlakeDetection([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false)
+    def efdSettings = new EarlyFlakeDetectionSettings(false, [new ExecutionsByDuration(Long.MAX_VALUE, 3)], -1)
+    def executionPolicy = new EarlyFlakeDetection(efdSettings, false)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -35,7 +37,8 @@ class EarlyFlakeDetectionTest extends Specification {
 
   def "test EFD failed all executions"() {
     setup:
-    def executionPolicy = new EarlyFlakeDetection([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false)
+    def efdSettings = new EarlyFlakeDetectionSettings(false, [new ExecutionsByDuration(Long.MAX_VALUE, 3)], -1)
+    def executionPolicy = new EarlyFlakeDetection(efdSettings, false)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -70,7 +73,8 @@ class EarlyFlakeDetectionTest extends Specification {
 
   def "test EFD succeeded all executions"() {
     setup:
-    def executionPolicy = new EarlyFlakeDetection([new ExecutionsByDuration(Long.MAX_VALUE, 3)], false)
+    def efdSettings = new EarlyFlakeDetectionSettings(false, [new ExecutionsByDuration(Long.MAX_VALUE, 3)], -1)
+    def executionPolicy = new EarlyFlakeDetection(efdSettings, false)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -105,7 +109,8 @@ class EarlyFlakeDetectionTest extends Specification {
 
   def "test EFD adaptive retry count"() {
     when:
-    def executionPolicy = new EarlyFlakeDetection([new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], false)
+    def efdSettings = new EarlyFlakeDetectionSettings(false, [new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], -1)
+    def executionPolicy = new EarlyFlakeDetection(efdSettings, false)
 
     then:
     !executionPolicy.registerExecution(TestStatus.fail, 0).lastExecution()
@@ -113,7 +118,8 @@ class EarlyFlakeDetectionTest extends Specification {
     executionPolicy.registerExecution(TestStatus.fail, 0).lastExecution()
 
     when:
-    executionPolicy = new EarlyFlakeDetection([new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], false)
+    efdSettings = new EarlyFlakeDetectionSettings(false, [new ExecutionsByDuration(100, 3), new ExecutionsByDuration(Long.MAX_VALUE, 1)], -1)
+    executionPolicy = new EarlyFlakeDetection(efdSettings, false)
 
     then:
     !executionPolicy.registerExecution(TestStatus.fail, 0).lastExecution()
