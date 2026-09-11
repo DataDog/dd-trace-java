@@ -28,6 +28,7 @@ public final class ScopeDiagnosticsExtension implements BeforeEachCallback, Afte
       return;
     }
     try {
+      ScopeDiagnostics.awaitQuiescence();
       ScopeDiagnostics.stop();
       ScopeDiagnosticsReport report = ScopeDiagnostics.report();
       if (report.hasFindings()) {
