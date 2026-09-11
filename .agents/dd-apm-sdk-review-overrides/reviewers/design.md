@@ -20,7 +20,9 @@ Read **docs/add_new_configurations.md** — it owns the registration steps; chec
 
 ## Extension points (instrumentations)
 
-An instrumentation must go through `InstrumenterModule` + the `Instrumenter` type-matching interfaces (`ForSingleType`, `ForKnownTypes`, `ForTypeHierarchy`, `ForBootstrap`) and be discovered via `@AutoService(InstrumenterModule.class)` — see ARCHITECTURE.md § "agent-tooling/" and **docs/add_new_instrumentation.md** / **docs/how_instrumentations_work.md**. A bespoke `ClassFileTransformer` or advice registered outside this mechanism bypasses Muzzle's build-time version-safety checks entirely — that's a P0 shape problem, not a nit, independent of whether the bespoke code works.
+An **auto-instrumentation** under `dd-java-agent/instrumentation/` must go through `InstrumenterModule` + the `Instrumenter` type-matching interfaces (`ForSingleType`, `ForKnownTypes`, `ForTypeHierarchy`, `ForBootstrap`) and be discovered via `@AutoService(InstrumenterModule.class)` — see ARCHITECTURE.md § "agent-tooling/" and **docs/add_new_instrumentation.md** / **docs/how_instrumentations_work.md**. A bespoke `ClassFileTransformer` or advice registered outside this mechanism for an auto-instrumentation bypasses Muzzle's build-time version-safety checks entirely — that's a P0 shape problem, not a nit, independent of whether the bespoke code works.
+
+This rule is scoped to auto-instrumentations. Product subsystems that already register purpose-built transformers outside `InstrumenterModule` (CI Visibility coverage, debugger, IAST, AppSec, telemetry) are not in scope — do not raise a P0 solely because those products use a standalone `ClassFileTransformer`.
 
 ## Lifecycle / bootstrap
 

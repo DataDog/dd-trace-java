@@ -57,6 +57,10 @@ cases:
       inspect — this diff is the entire change set; do not attempt any git commands, go
       straight to running the reviewers on the pasted content below.
 
+      `byResource` is a lookup-by-key cache: callers only `get(resourceName)`. Insertion
+      order is not part of the contract. `describe()` is invoked on the per-span write
+      path (hot).
+
       ```diff
       diff --git a/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java b/dd-trace-core/src/main/java/datadog/trace/core/SpanCache.java
       index 1111111..2222222 100644
