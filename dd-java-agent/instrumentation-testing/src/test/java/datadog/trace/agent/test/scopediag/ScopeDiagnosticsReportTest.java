@@ -38,7 +38,7 @@ class ScopeDiagnosticsReportTest {
     assertEquals(0, report.lateCount());
     assertEquals(0, report.doubleCount());
     assertEquals(ContinuationStatus.FINISHED, r.status());
-    assertTrue(r.threadHandoff()); // captured on main, resolved on pool-1
+    assertTrue(r.threadHandoff());
     assertFalse(report.hasProblems());
   }
 
@@ -52,7 +52,6 @@ class ScopeDiagnosticsReportTest {
     assertEquals(ContinuationStatus.LEAKED, r.status());
     assertTrue(report.hasProblems());
     assertTrue(report.renderSummary().contains("LEAKED"));
-    // the capture callsite is surfaced in the problem summary
     assertTrue(report.renderSummary().contains("Worker.java:42"));
   }
 
@@ -64,12 +63,12 @@ class ScopeDiagnosticsReportTest {
     r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 6000));
 
     Map<DDTraceId, Long> rootWritten = map();
-    rootWritten.put(trace, 4000L); // root written before the activation/resolution
+    rootWritten.put(trace, 4000L);
 
     ScopeDiagnosticsReport report = report(list(r), rootWritten);
 
     assertEquals(1, report.lateCount());
-    assertEquals(0, report.leakCount()); // it is resolved, just late
+    assertEquals(0, report.leakCount());
   }
 
   @Test
@@ -84,7 +83,7 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), rootWritten);
 
     assertEquals(1, report.lateCount());
-    assertFalse(report.hasProblems()); // late-finish is report-only
+    assertFalse(report.hasProblems());
   }
 
   @Test
@@ -104,7 +103,7 @@ class ScopeDiagnosticsReportTest {
   void activationAfterResolveIsFailure() {
     ContinuationRecord r = record(0, DDTraceId.from(14));
     r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_CANCEL, "pool-1", 2000));
-    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-2", 3000)); // resume after cancel
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-2", 3000));
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
@@ -133,18 +132,16 @@ class ScopeDiagnosticsReportTest {
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
-    // a clean run: the summary reports no problems ...
     assertFalse(report.hasProblems());
     assertTrue(report.renderSummary().contains("(none)"));
 
-    // ... but the timeline still dumps the full lineage so a graph/report can be built
     String timeline = report.renderTimeline();
     assertTrue(timeline.contains("#0 FINISHED"));
     assertTrue(timeline.contains("capture"));
     assertTrue(timeline.contains("resume"));
     assertTrue(timeline.contains("finish"));
-    assertTrue(timeline.contains("Worker.java:42")); // callsite preserved
-    assertTrue(timeline.contains("@ pool-1")); // resume/finish thread preserved
+    assertTrue(timeline.contains("Worker.java:42"));
+    assertTrue(timeline.contains("@ pool-1"));
   }
 
   @Test
@@ -157,8 +154,6 @@ class ScopeDiagnosticsReportTest {
     assertEquals(1, report.leakCount());
     assertEquals(ContinuationStatus.LEAKED, report.records().get(0).status());
   }
-
-  // ---- helpers -------------------------------------------------------------
 
   private static ScopeDiagnosticsReport report(
       List<ContinuationRecord> records, Map<DDTraceId, Long> rootWritten) {

@@ -8,54 +8,37 @@ import datadog.trace.bootstrap.instrumentation.api.NoopScope;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-/**
- * Recorder hook that the test-only ByteBuddy advice ({@link ContinuationAdvice}, {@link
- * PendingTraceAdvice}) funnels scope-continuation lifecycle events into. It replaces the former
- * production {@code ContinuationDiagnostics} seam: the advice is woven into {@code
- * datadog.trace.core.scopemanager.ScopeContinuation} and {@code datadog.trace.core.PendingTrace} at
- * test time only, so production tracer code carries no diagnostic footprint at all.
- *
- * <p>Inlined advice runs in the same app classloader as this class at test time, so it can call
- * these statics directly. Every entry point first checks the {@link #recording} flag and is fully
- * wrapped so a diagnostic failure can never propagate back into the tracer.
- */
+/** Forwards test-only Byte Buddy advice events to {@link ScopeDiagnostics}. */
 public final class ScopeContinuationProbe {
   /**
-   * Mirrors {@code ScopeContinuation.CANCELLED} (see {@code
-   * dd-trace-core/.../scopemanager/ScopeContinuation.java}). A continuation is resolved exactly
-   * when its {@code count} field transitions to this sentinel during a cancel call. Kept in sync by
-   * {@code ScopeContinuationProbeTest}.
+   * Mirrors {@code ScopeContinuation.CANCELLED}. Reaching this value marks a resolved continuation;
+   * {@code ScopeContinuationProbeTest} detects drift.
    */
   static final int CANCELLED = Integer.MIN_VALUE >> 1;
 
   private static volatile boolean recording = false;
 
-  /** Cached reflective handle to the package-private {@code ScopeContinuation.source} field. */
   private static volatile Field sourceField;
 
-  // cached reflective handles for scope-lifecycle reads (set-once, best-effort)
-  private static volatile Field scopeSourceField; // ContinuableScope.source
-  private static volatile Field continuationField; // ContinuingScope.continuation
-  private static volatile Field scopeManagerField; // ContinuableScope.scopeManager
-  private static volatile Method scopeStackMethod; // ContinuableScopeManager.scopeStack()
-  private static volatile Method checkTopMethod; // ScopeStack.checkTop(ContinuableScope)
+  private static volatile Field scopeSourceField;
+  private static volatile Field continuationField;
+  private static volatile Field scopeManagerField;
+  private static volatile Method scopeStackMethod;
+  private static volatile Method checkTopMethod;
 
   private ScopeContinuationProbe() {}
 
-  /** Installs the transformer (once per JVM) and opens the cheap advice-side recording gate. */
+  /** Installs the transformer once and starts recording. */
   static synchronized void enable() {
     ScopeContinuationTransformer.install();
     recording = true;
   }
 
-  /** Stops recording. The transformer stays installed (inert while not recording). */
+  /** Stops recording without uninstalling the transformer. */
   static void disable() {
     recording = false;
   }
 
-  // ---- advice entry points (public so inlined advice can reference them) -------------------
-
-  /** {@code ScopeContinuation.register()} exit: the continuation was captured. */
   public static void onCapture(Object self) {
     if (!recording) {
       return;
@@ -68,15 +51,10 @@ public final class ScopeContinuationProbe {
             continuation, span.getTraceId(), span.getSpanId(), spanName(span), sourceOf(self));
       }
     } catch (Throwable ignored) {
-      // diagnostics must never disturb the tracer
+      // Diagnostics must never affect the tracer.
     }
   }
 
-  /**
-   * {@code ScopeContinuation.resume()} exit: a real activation happened. The rollback branch
-   * returns the {@link NoopScope#INSTANCE noop scope} singleton, so a returned noop scope is
-   * skipped — this exactly reproduces the original "success branch only" semantics.
-   */
   public static void onActivate(Object self, Object returnedScope, long activateNanos) {
     if (!recording) {
       return;
@@ -84,8 +62,7 @@ public final class ScopeContinuationProbe {
     try {
       ContextContinuation continuation = (ContextContinuation) self;
       if (returnedScope == NoopScope.INSTANCE) {
-        // activate() returned the noop scope: the continuation was already resolved. This is the
-        // activate-after-resolve signal — the engine records it only if a terminal was seen.
+        // A noop result may indicate activation after resolution.
         ScopeDiagnostics.recordActivateFailed(continuation);
         return;
       }
@@ -103,35 +80,25 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /**
-   * {@code ScopeContinuation.release()} / {@code cancelFromContinuedScopeClose()} exit. The
-   * original production seam fired only from inside the clean resolution branch; here we detect
-   * that branch by observing the {@code count} field transition to {@link #CANCELLED} during this
-   * call. A cancel with outstanding activations leaves {@code count} unchanged (not a resolution).
-   */
   public static void onResolve(
       Object self, String method, int countBefore, int countAfter, long resolveNanos) {
     if (!recording) {
       return;
     }
     if (countAfter != CANCELLED) {
-      return; // not a resolution
+      return;
     }
-    // An explicit cancel() is a discard; cancelFromContinuedScopeClose() is a normal finish once
-    // the continued scope closes. (Caveat: the rare cancelFromContinuedScopeClose slow path
-    // delegates to cancel(), so a multi-activation finish is recorded as a cancel.)
+    // release discards; cancelFromContinuedScopeClose finishes. Its slow path delegates to release,
+    // so a multi-activation finish can appear as a cancellation.
     boolean cancelled = "release".equals(method);
     try {
       ContextContinuation continuation = (ContextContinuation) self;
-      // countBefore == CANCELLED is a genuine second finish/cancel. First transitions are deduped
-      // by the engine under the same lock as stop/reset/report, including nested advice frames.
       ScopeDiagnostics.recordResolve(
           continuation, cancelled, resolveNanos, countBefore == CANCELLED);
     } catch (Throwable ignored) {
     }
   }
 
-  /** {@code PendingTrace.write()} root-written site. */
   public static void onRootWritten(Object traceId) {
     if (!recording) {
       return;
@@ -142,11 +109,6 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /**
-   * {@code ContinuableScope.afterActivated()} exit: a scope became active. Re-activations (parent
-   * restored after a child closes) reach here too; the engine keeps only the first per scope
-   * identity. Links to the spawning continuation when the scope is a {@code ContinuingScope}.
-   */
   public static void onScopeOpen(Object scope) {
     if (!recording) {
       return;
@@ -162,9 +124,6 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /**
-   * {@code ContinuableScope.onProperClose()} exit: the scope was popped from its thread's stack.
-   */
   public static void onScopeClose(Object scope) {
     if (!recording) {
       return;
@@ -175,11 +134,7 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /**
-   * {@code ContinuableScope.close()} entry: if the scope is not on top of its thread's stack, this
-   * is an out-of-order / wrong-thread close. Best-effort — silently does nothing if the internal
-   * stack check cannot be reached reflectively.
-   */
+  /** Records an out-of-order close when the internal stack can be inspected. */
   public static void onScopeClosing(Object scope) {
     if (!recording) {
       return;
@@ -192,7 +147,7 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /** Snapshots the span name as a String (the CharSequence may mutate later), or {@code null}. */
+  /** Copies the possibly mutable span name. */
   private static String spanName(AgentSpan span) {
     try {
       CharSequence name = span.getSpanName();
@@ -202,9 +157,6 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /**
-   * Reads the package-private {@code source} byte field, falling back to the {@code -1} sentinel.
-   */
   private static byte sourceOf(Object self) {
     try {
       Field field = sourceField;
@@ -219,7 +171,6 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /** Reads the {@code source} byte of a scope (declared on {@code ContinuableScope}). */
   private static byte scopeSourceOf(Object scope) {
     try {
       Field field = scopeSourceField;
@@ -233,10 +184,6 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /**
-   * The continuation that spawned a scope, read from {@code ContinuingScope.continuation}; {@code
-   * null} for a plain (non-continuation) scope.
-   */
   private static ContextContinuation continuationOf(Object scope) {
     try {
       Field field = continuationField;
@@ -245,7 +192,7 @@ public final class ScopeContinuationProbe {
         continuationField = field;
       }
       if (field == null || !field.getDeclaringClass().isInstance(scope)) {
-        return null; // not a ContinuingScope
+        return null;
       }
       Object value = field.get(scope);
       return value instanceof ContextContinuation ? (ContextContinuation) value : null;
@@ -254,7 +201,6 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /** Best-effort: {@code true} when the scope is not on top of its thread's scope stack. */
   private static boolean isNotOnTop(Object scope) {
     try {
       Field managerField = scopeManagerField;
@@ -290,7 +236,6 @@ public final class ScopeContinuationProbe {
     }
   }
 
-  /** Finds a named field declared on a class or any superclass, made accessible. */
   private static Field findField(Class<?> cls, String name) {
     for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
       try {
@@ -298,13 +243,11 @@ public final class ScopeContinuationProbe {
         f.setAccessible(true);
         return f;
       } catch (NoSuchFieldException ignored) {
-        // keep walking up
       }
     }
     return null;
   }
 
-  /** Finds a named method with the given parameter count on a class or superclass, accessible. */
   private static Method findMethod(Class<?> cls, String name, int paramCount) {
     for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
       for (Method m : c.getDeclaredMethods()) {

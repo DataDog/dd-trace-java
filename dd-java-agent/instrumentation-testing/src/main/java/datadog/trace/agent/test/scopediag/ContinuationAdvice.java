@@ -2,18 +2,10 @@ package datadog.trace.agent.test.scopediag;
 
 import net.bytebuddy.asm.Advice;
 
-/**
- * Test-only ByteBuddy advice woven into {@code datadog.trace.core.scopemanager.ScopeContinuation}.
- *
- * <p>The target type is package-private and cannot be named here, so {@code this} is typed as
- * {@link Object} and re-cast to the public {@code ContextContinuation} supertype inside {@link
- * ScopeContinuationProbe}. {@link Advice.FieldValue} reads the private {@code count} field — legal
- * because the advice is inlined into the field's own class.
- */
+/** Test-only advice for {@code ScopeContinuation}. */
 public final class ContinuationAdvice {
   private ContinuationAdvice() {}
 
-  /** {@code register()} — the continuation was captured. */
   public static final class Register {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(@Advice.This Object self) {
@@ -21,14 +13,7 @@ public final class ContinuationAdvice {
     }
   }
 
-  /**
-   * {@code resume()} — a (possibly noop) activation; the probe filters the rollback branch.
-   *
-   * <p>The activation timestamp is captured at method <em>entry</em>, not exit: the same-span reuse
-   * optimization ({@code ContinuableScopeManager.continueSpan}) cancels the continuation from
-   * <em>inside</em> {@code resume()} before it returns, so timestamping the resume at exit would
-   * order it after that internal resolution and spuriously flag {@code ACTIVATE_AFTER_RESOLVE}.
-   */
+  /** Timestamps entry because {@code resume()} may resolve the continuation before returning. */
   public static final class Activate {
     @Advice.OnMethodEnter
     public static long enter() {
@@ -42,18 +27,7 @@ public final class ContinuationAdvice {
     }
   }
 
-  /**
-   * Resolution detected via the {@code count} transition. Applied to both {@code release()} and
-   * {@code cancelFromContinuedScopeClose()} — they need identical before/after observation. The
-   * originating method name ({@code #m}) distinguishes an explicit cancel from a normal
-   * finish-on-scope-close.
-   *
-   * <p>The resolve timestamp is captured at method <em>entry</em> (the {@code ddResolveNanos}
-   * local), not at exit: the body itself may call {@code removeContinuation() ->
-   * PendingTrace.write()}, which is exactly where the root-written timestamp is taken. Timestamping
-   * at exit would place the resolution after the root write it triggered, producing a spurious
-   * late-finish.
-   */
+  /** Timestamps entry because resolution may write the trace before the method returns. */
   public static final class Cancel {
     @Advice.OnMethodEnter
     public static int enter(

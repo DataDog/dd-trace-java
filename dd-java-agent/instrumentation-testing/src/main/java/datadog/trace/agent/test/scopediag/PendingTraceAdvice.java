@@ -3,11 +3,7 @@ package datadog.trace.agent.test.scopediag;
 import net.bytebuddy.asm.Advice;
 
 /**
- * Test-only ByteBuddy advice woven into {@code datadog.trace.core.PendingTrace}. Fires the
- * root-written signal after {@code write(boolean)} actually changes {@code rootSpanWritten} from
- * false to true. Observing the completed transition avoids treating an empty write as a root write.
- * The timestamp is conservative: a resolution racing inside {@code write} may be omitted from the
- * late category, but it cannot be falsely classified as late.
+ * Records a root write only after {@code PendingTrace.write(boolean)} sets {@code rootSpanWritten}.
  */
 public final class PendingTraceAdvice {
   private PendingTraceAdvice() {}

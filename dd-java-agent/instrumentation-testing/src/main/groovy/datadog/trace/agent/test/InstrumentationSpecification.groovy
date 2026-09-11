@@ -540,7 +540,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
   }
 
-  /** Resolves the {@link TrackScopeContinuations} annotation from the feature method or spec class. */
   private TrackScopeContinuations scopeDiagConfig() {
     def method = specificationContext?.currentFeature?.featureMethod?.reflection
     def ann = method?.getAnnotation(TrackScopeContinuations)
@@ -554,7 +553,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     return ScopeDiagnostics.isEnabled(scopeDiagConfig())
   }
 
-  /** Captures the diagnostic failure so the rest of Spock cleanup always runs first. */
   private Throwable reportScopeDiagnostics() {
     def config = scopeDiagConfig()
     if (!ScopeDiagnostics.isEnabled(config)) {

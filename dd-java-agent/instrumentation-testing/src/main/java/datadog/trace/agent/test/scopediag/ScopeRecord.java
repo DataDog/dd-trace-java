@@ -5,12 +5,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-/**
- * The <em>scope</em> activation lifecycle: a scope opened (first activation) → closed (popped from
- * its thread's stack). Distinct from the continuation lifecycle ({@link ContinuationRecord}); when
- * a scope was spawned by resuming a continuation, {@link #continuationSeq} links back to that
- * continuation's {@link ContinuationRecord#seq}.
- */
+/** Records a scope's activation and close events. */
 public final class ScopeRecord {
   public final long seq;
   public final DDTraceId traceId;
@@ -18,9 +13,7 @@ public final class ScopeRecord {
   public final String spanName;
   public final byte source;
 
-  /**
-   * The seq of the continuation that spawned this scope, or {@code null} for a plain activation.
-   */
+  /** The continuation that spawned this scope, or {@code null} for a plain activation. */
   public final Long continuationSeq;
 
   private final ScopeEvent open;
@@ -43,8 +36,6 @@ public final class ScopeRecord {
     this.continuationSeq = continuationSeq;
     this.open = open;
   }
-
-  // ---- mutation ------------------------------------------------------------
 
   synchronized void setClose(ScopeEvent event) {
     if (close == null) {
@@ -73,8 +64,6 @@ public final class ScopeRecord {
     return copy;
   }
 
-  // ---- accessors -----------------------------------------------------------
-
   public synchronized ScopeEvent open() {
     return open;
   }
@@ -90,8 +79,6 @@ public final class ScopeRecord {
   public synchronized boolean closed() {
     return close != null;
   }
-
-  // ---- derived -------------------------------------------------------------
 
   /** {@code true} when the scope was opened and closed on different threads. */
   public synchronized boolean threadHandoff() {

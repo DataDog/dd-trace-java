@@ -1,6 +1,8 @@
 package datadog.trace.agent.test.scopediag;
 
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import java.lang.instrument.Instrumentation;
@@ -10,14 +12,8 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.asm.Advice;
 
 /**
- * Installs the test-only diagnostic advice into the tracer's own {@code
- * datadog.trace.core.scopemanager.ScopeContinuation} and {@code datadog.trace.core.PendingTrace}.
- *
- * <p>These classes sit under {@code datadog.trace.core.*}, which the tracer's own {@code
- * AgentBuilder} hard-ignores. We therefore install a <em>separate</em> {@link AgentBuilder} on the
- * raw {@link Instrumentation} with no global-ignore filter, using retransformation so the
- * already-loaded classes are rewoven on install. The advice is schema-preserving, so {@code
- * disableClassFormatChanges()} + {@code REDEFINE} keep it retransform-safe. Installed once per JVM.
+ * Installs test-only advice with a separate {@link AgentBuilder} because the tracer ignores its own
+ * core classes. Retransformation covers classes loaded before the diagnostic starts.
  */
 final class ScopeContinuationTransformer {
   private static volatile ResettableClassFileTransformer transformer;
@@ -38,28 +34,67 @@ final class ScopeContinuationTransformer {
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder
-                        .visit(Advice.to(ContinuationAdvice.Register.class).on(named("register")))
-                        .visit(Advice.to(ContinuationAdvice.Activate.class).on(named("resume")))
+                        .visit(
+                            Advice.to(ContinuationAdvice.Register.class)
+                                .on(
+                                    isMethod()
+                                        .and(named("register"))
+                                        .and(takesArguments(0))
+                                        .and(
+                                            returns(
+                                                named(
+                                                    "datadog.trace.core.scopemanager.ScopeContinuation")))))
+                        .visit(
+                            Advice.to(ContinuationAdvice.Activate.class)
+                                .on(
+                                    isMethod()
+                                        .and(named("resume"))
+                                        .and(takesArguments(0))
+                                        .and(returns(named("datadog.context.ContextScope")))))
                         .visit(
                             Advice.to(ContinuationAdvice.Cancel.class)
-                                .on(named("release").or(named("cancelFromContinuedScopeClose")))))
+                                .on(
+                                    isMethod()
+                                        .and(
+                                            named("release")
+                                                .or(named("cancelFromContinuedScopeClose")))
+                                        .and(takesArguments(0))
+                                        .and(returns(void.class)))))
             .type(named("datadog.trace.core.PendingTrace"))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder.visit(
                         Advice.to(PendingTraceAdvice.Write.class)
-                            .on(named("write").and(takesArguments(boolean.class)))))
+                            .on(
+                                isMethod()
+                                    .and(named("write"))
+                                    .and(takesArguments(boolean.class))
+                                    .and(returns(int.class)))))
             .type(named("datadog.trace.core.scopemanager.ContinuableScope"))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder
                         .visit(
                             Advice.to(ContinuableScopeAdvice.AfterActivated.class)
-                                .on(named("afterActivated")))
+                                .on(
+                                    isMethod()
+                                        .and(named("afterActivated"))
+                                        .and(takesArguments(0))
+                                        .and(returns(void.class))))
                         .visit(
                             Advice.to(ContinuableScopeAdvice.OnProperClose.class)
-                                .on(named("onProperClose")))
-                        .visit(Advice.to(ContinuableScopeAdvice.Close.class).on(named("close"))))
+                                .on(
+                                    isMethod()
+                                        .and(named("onProperClose"))
+                                        .and(takesArguments(0))
+                                        .and(returns(void.class))))
+                        .visit(
+                            Advice.to(ContinuableScopeAdvice.Close.class)
+                                .on(
+                                    isMethod()
+                                        .and(named("close"))
+                                        .and(takesArguments(0))
+                                        .and(returns(void.class)))))
             .installOn(instrumentation);
   }
 }

@@ -1,10 +1,6 @@
 package datadog.trace.agent.test.scopediag;
 
-/**
- * Maps the {@code byte} scope source used by the tracer to a readable name. Mirrors the constants
- * in {@code datadog.trace.core.scopemanager.ContinuableScope} (which are package-private and not
- * visible from here).
- */
+/** Maps package-private {@code ContinuableScope} source values to readable names. */
 final class ScopeSources {
   private ScopeSources() {}
 

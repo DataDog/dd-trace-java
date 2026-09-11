@@ -15,11 +15,7 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Exercises the full path: a real {@link CoreTracer} capturing continuations via {@code
- * captureSpan} drives {@code ScopeContinuation} -> {@code ScopeContinuationProbe} -> {@link
- * ScopeDiagnostics}, and the derived report classifies the leak correctly.
- */
+/** Exercises diagnostics against continuations created by a real {@link CoreTracer}. */
 class ScopeDiagnosticsIntegrationTest {
 
   private CoreTracer tracer;
@@ -40,7 +36,7 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnostics.startRecording();
 
     AgentSpan span = tracer.startSpan("test", "op");
-    ContextContinuation leaked = tracer.capture(span); // captured, never resolved
+    ContextContinuation leaked = tracer.capture(span);
     ContextContinuation resolved = tracer.capture(span);
     resolved.release();
 
@@ -49,7 +45,6 @@ class ScopeDiagnosticsIntegrationTest {
     assertEquals(2, report.records().size(), "both captures recorded");
     assertEquals(1, report.leakCount(), "exactly the un-resolved continuation leaks");
     assertTrue(report.hasProblems());
-    // keep a reference so the leak isn't reclaimed before the assertion
     assertFalse(leaked.toString().isEmpty());
 
     span.finish();
@@ -62,11 +57,8 @@ class ScopeDiagnosticsIntegrationTest {
     ScopeDiagnostics.startRecording();
 
     AgentSpan span = tracer.startSpan("test", "op");
-    AgentScope active = tracer.activateSpan(span); // span becomes the active top scope
-    // Capturing then immediately activating the already-active span hits the continueSpan reuse
-    // optimization: it cancels the continuation from inside activate() before activate() returns.
-    // The resume must be timestamped at activate() entry (not exit) so it does not appear to occur
-    // after that internal resolution and spuriously trip ACTIVATE_AFTER_RESOLVE.
+    AgentScope active = tracer.activateSpan(span);
+    // Same-span reuse resolves the continuation before resume() returns.
     ContextContinuation continuation = tracer.capture(span);
     ContextScope reused = continuation.resume();
     reused.close();
@@ -121,7 +113,6 @@ class ScopeDiagnosticsIntegrationTest {
     assertNotNull(linked.open(), "scope open observed");
     assertTrue(linked.closed(), "scope close observed");
     assertEquals(0, report.neverClosedScopeCount());
-    // the scope links back to its continuation record
     assertEquals(1, report.records().size());
     assertEquals(Long.valueOf(report.records().get(0).seq), linked.continuationSeq);
   }
@@ -134,7 +125,7 @@ class ScopeDiagnosticsIntegrationTest {
 
     AgentSpan span = tracer.startSpan("test", "op");
     ContextContinuation continuation = tracer.capture(span);
-    ContextScope scope = continuation.resume(); // opened, never closed
+    ContextScope scope = continuation.resume();
 
     ScopeDiagnosticsReport report = ScopeDiagnostics.report();
 
@@ -142,7 +133,6 @@ class ScopeDiagnosticsIntegrationTest {
     assertEquals(1, report.leakCount(), "and the continuation it backs also leaks");
     assertTrue(report.hasProblems());
 
-    // clean up so the open scope does not pollute this thread's scope stack for later tests
     scope.close();
     span.finish();
   }
