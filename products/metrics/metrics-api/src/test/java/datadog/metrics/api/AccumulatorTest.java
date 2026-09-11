@@ -181,8 +181,8 @@ class AccumulatorTest {
   }
 
   @Test
-  void zeroSeedsAnAllZeroCountsWithoutAScratchAccumulator() {
-    Accumulator.Counts<Counters> zero = Accumulator.Counts.zero(Counters.class);
+  void createSeedsAnAllZeroCountsWithoutAScratchAccumulator() {
+    Accumulator.Counts<Counters> zero = Accumulator.Counts.create(Counters.class);
     assertEquals(0L, zero.get(Counters.FOO));
     assertEquals(0L, zero.get(Counters.BAR));
 

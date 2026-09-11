@@ -133,7 +133,7 @@ public final class Accumulator<E extends Enum<E>> {
      *
      * @param enumType the enum naming each counter, e.g. {@code MyCounters.class}
      */
-    public static <E extends Enum<E>> Counts<E> zero(Class<E> enumType) {
+    public static <E extends Enum<E>> Counts<E> create(Class<E> enumType) {
       E[] keys = enumType.getEnumConstants();
       return new Counts<>(new long[keys.length], keys);
     }
