@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.communication.serialization.Codec;
 import datadog.communication.serialization.GenerationalUtf8Cache;
@@ -103,7 +104,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
               + 1;
@@ -193,9 +194,9 @@ public final class TraceMapperV0_4 implements TraceMapper {
       }
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(metadata.getHttpStatusCode());
+        writable.writeUTF8(metadata.getHttpStatusCodeString());
       }
       if (null != metadata.getOrigin()) {
         writable.writeUTF8(ORIGIN_KEY);

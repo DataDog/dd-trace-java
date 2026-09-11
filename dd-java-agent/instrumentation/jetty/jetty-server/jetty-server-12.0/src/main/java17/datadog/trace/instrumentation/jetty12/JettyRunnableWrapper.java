@@ -1,6 +1,5 @@
 package datadog.trace.instrumentation.jetty12;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
@@ -29,7 +28,7 @@ public class JettyRunnableWrapper implements Runnable {
     if (task instanceof JettyRunnableWrapper || exclude(RUNNABLE, task)) {
       return task;
     }
-    ContextContinuation continuation = captureActiveSpan();
+    ContextContinuation continuation = Context.current().capture();
     if (continuation.context() != Context.root()) {
       return new JettyRunnableWrapper(task, continuation);
     }
