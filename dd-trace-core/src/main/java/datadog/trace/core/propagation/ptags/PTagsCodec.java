@@ -24,19 +24,20 @@ abstract class PTagsCodec {
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
-  static String headerValue(PTagsCodec codec, PTags ptags) {
-    return headerValue(codec, ptags, null);
-  }
-
-  static String headerValue(PTagsCodec codec, PTags ptags, CharSequence lastParentIdOverride) {
-    int estimate = codec.estimateHeaderSize(ptags);
+  static String headerValue(
+      PTagsCodec codec,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      OtelTraceState otelTraceState,
+      int samplingPriority) {
+    int estimate = codec.estimateHeaderSize(ptags, otelTraceState);
     if (estimate == 0) {
       return "";
     }
 
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
-    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride);
+    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride, samplingPriority);
     if (!ptags.isPropagationTagsDisabled()) {
       if (ptags.getDecisionMakerTagValue() != null) {
         size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
@@ -72,7 +73,7 @@ abstract class PTagsCodec {
         size = codec.appendTag(sb, tagKey, tagValue, size);
       }
     }
-    size = codec.appendSuffix(sb, ptags, size);
+    size = codec.appendSuffix(sb, ptags, size, otelTraceState);
     if (codec.isTooLarge(sb, size)) {
       return null;
     } else {
@@ -176,6 +177,10 @@ abstract class PTagsCodec {
 
   protected abstract int estimateHeaderSize(PTags pTags);
 
+  protected int estimateHeaderSize(PTags pTags, OtelTraceState otelTraceState) {
+    return estimateHeaderSize(pTags);
+  }
+
   protected abstract int appendPrefix(StringBuilder sb, PTags ptags);
 
   /**
@@ -186,9 +191,19 @@ abstract class PTagsCodec {
     return appendPrefix(sb, ptags);
   }
 
+  protected int appendPrefix(
+      StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride, int samplingPriority) {
+    return appendPrefix(sb, ptags, lastParentIdOverride);
+  }
+
   protected abstract int appendTag(StringBuilder sb, TagElement key, TagElement value, int size);
 
   protected abstract int appendSuffix(StringBuilder sb, PTags ptags, int size);
+
+  protected int appendSuffix(
+      StringBuilder sb, PTags ptags, int size, OtelTraceState otelTraceState) {
+    return appendSuffix(sb, ptags, size);
+  }
 
   protected abstract boolean isTooLarge(StringBuilder sb, int size);
 

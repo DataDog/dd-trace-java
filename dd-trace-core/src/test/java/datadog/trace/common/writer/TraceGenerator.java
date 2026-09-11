@@ -409,7 +409,11 @@ public class TraceGenerator {
 
     @Override
     public PojoSpan setSamplingPriority(
-        int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
+        int samplingPriority,
+        CharSequence rate,
+        double sampleRate,
+        int samplingMechanism,
+        Boolean probabilitySamplingResult) {
       return this;
     }
 

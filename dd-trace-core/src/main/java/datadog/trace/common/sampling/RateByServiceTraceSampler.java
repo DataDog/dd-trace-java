@@ -58,20 +58,16 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
     final RateSamplersByEnvAndService rates = serviceRates;
     RateSampler sampler = rates.getSampler(env, serviceName);
+    boolean sampled = sampler.sample(span);
+    int samplingPriority = sampled ? PrioritySampling.SAMPLER_KEEP : PrioritySampling.SAMPLER_DROP;
 
-    if (sampler.sample(span)) {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_KEEP,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
-    } else {
-      span.setSamplingPriority(
-          PrioritySampling.SAMPLER_DROP,
-          SAMPLING_AGENT_RATE,
-          sampler.getSampleRate(),
-          SamplingMechanism.AGENT_RATE);
-    }
+    Boolean probabilitySamplingResult = rates.hasAgentRates() ? sampled : null;
+    span.setSamplingPriority(
+        samplingPriority,
+        SAMPLING_AGENT_RATE,
+        sampler.getSampleRate(),
+        SamplingMechanism.AGENT_RATE,
+        probabilitySamplingResult);
   }
 
   private <T extends CoreSpan<T>> String getSpanEnv(final T span) {
@@ -117,10 +113,12 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
         new TreeMap<>(String::compareToIgnoreCase);
 
     RateSampler fallbackSampler = RateSamplersByEnvAndService.DEFAULT_SAMPLER;
+    boolean hasAgentRates = false;
     for (final Map.Entry<String, Number> entry : newServiceRates.entrySet()) {
       if (entry.getValue() == null) {
         continue;
       }
+      hasAgentRates = true;
       double rate = entry.getValue().doubleValue();
 
       EnvAndService envAndService = EnvAndService.fromString(entry.getKey());
@@ -161,7 +159,8 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
     if (canIncrease && anyCapped) {
       lastCappedNanos = now;
     }
-    serviceRates = new RateSamplersByEnvAndService(updatedEnvServiceRates, fallbackSampler);
+    serviceRates =
+        new RateSamplersByEnvAndService(updatedEnvServiceRates, fallbackSampler, hasAgentRates);
   }
 
   private static RateSampler createRateSampler(final double sampleRate) {
@@ -183,15 +182,24 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
     private final Map<String, TreeMap<String, RateSampler>> envServiceRates;
     private final RateSampler fallbackSampler;
+    // Whether this snapshot contains at least one non-null Agent-provided rate.
+    private final boolean hasAgentRates;
 
     RateSamplersByEnvAndService() {
-      this(Collections.emptyMap(), DEFAULT_SAMPLER);
+      this(Collections.emptyMap(), DEFAULT_SAMPLER, false);
     }
 
     RateSamplersByEnvAndService(
-        Map<String, TreeMap<String, RateSampler>> envServiceRates, RateSampler fallbackSampler) {
+        Map<String, TreeMap<String, RateSampler>> envServiceRates,
+        RateSampler fallbackSampler,
+        boolean hasAgentRates) {
       this.envServiceRates = envServiceRates;
       this.fallbackSampler = fallbackSampler;
+      this.hasAgentRates = hasAgentRates;
+    }
+
+    boolean hasAgentRates() {
+      return hasAgentRates;
     }
 
     RateSampler getFallbackSampler() {

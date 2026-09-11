@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUME
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
+import static datadog.trace.common.sampling.RuleBasedTraceSampler.SAMPLING_RULE_RATE;
 import static datadog.trace.core.otlp.common.OtlpTraceFlags.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
@@ -674,6 +675,59 @@ class OtlpTraceProtoTest {
         asList("first.span", "second.span", "third.span"),
         parseSpanNamesFromPayload(payload),
         "spans must appear in trace order in the payload");
+  }
+
+  @Test
+  void spanTraceStateIncludesLocalOtelSamplingState() throws IOException {
+    AgentSpan agentSpan = TRACER.startSpan("test", "op.otel-tracestate");
+    agentSpan.setResourceName("op.otel-tracestate");
+    ((DDSpan) agentSpan)
+        .setSamplingPriority(
+            PrioritySampling.USER_KEEP,
+            SAMPLING_RULE_RATE,
+            0.5,
+            SamplingMechanism.LOCAL_USER_RULE,
+            true);
+    agentSpan.finish();
+
+    OtlpTraceProtoCollector collector = new OtlpTraceProtoCollector();
+    collector.addTrace(asList((DDSpan) agentSpan));
+
+    String traceState = parseFirstSpanTraceState(collector.collectTraces());
+    assertTrue(traceState.startsWith("ot=rv:"));
+    assertTrue(traceState.contains(";th:8"));
+    assertFalse(traceState.contains("dd="));
+  }
+
+  private static String parseFirstSpanTraceState(OtlpPayload payload) throws IOException {
+    CodedInputStream tracesData = CodedInputStream.newInstance(payload.getContent());
+    tracesData.readTag();
+    CodedInputStream resourceSpans = tracesData.readBytes().newCodedInput();
+
+    while (!resourceSpans.isAtEnd()) {
+      int tag = resourceSpans.readTag();
+      if (WireFormat.getTagFieldNumber(tag) != 2) {
+        resourceSpans.skipField(tag);
+        continue;
+      }
+      CodedInputStream scopeSpans = resourceSpans.readBytes().newCodedInput();
+      while (!scopeSpans.isAtEnd()) {
+        int scopeTag = scopeSpans.readTag();
+        if (WireFormat.getTagFieldNumber(scopeTag) != 2) {
+          scopeSpans.skipField(scopeTag);
+          continue;
+        }
+        CodedInputStream span = scopeSpans.readBytes().newCodedInput();
+        while (!span.isAtEnd()) {
+          int spanTag = span.readTag();
+          if (WireFormat.getTagFieldNumber(spanTag) == 3) {
+            return span.readString();
+          }
+          span.skipField(spanTag);
+        }
+      }
+    }
+    return null;
   }
 
   private static List<String> parseSpanNamesFromPayload(OtlpPayload payload) throws IOException {

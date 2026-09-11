@@ -65,25 +65,28 @@ class W3CHttpCodec {
     @Override
     public <C> void inject(
         final DDSpanContext context, final C carrier, final CarrierSetter<C> setter) {
-      injectTraceParent(context, carrier, setter);
-      injectTraceState(context, carrier, setter);
+      int samplingPriority = context.getSamplingPriority();
+      injectTraceParent(context, carrier, setter, samplingPriority);
+      injectTraceState(context, carrier, setter, samplingPriority);
       injectBaggage(context, carrier, setter);
     }
 
-    private <C> void injectTraceParent(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
+    private <C> void injectTraceParent(
+        DDSpanContext context, C carrier, CarrierSetter<C> setter, int samplingPriority) {
       String traceparent =
-          W3CTraceParent.from(
-              context.getTraceId(), context.getSpanId(), context.getSamplingPriority() > 0);
+          W3CTraceParent.from(context.getTraceId(), context.getSpanId(), samplingPriority > 0);
       setter.set(carrier, TRACE_PARENT_KEY, traceparent);
     }
 
-    private <C> void injectTraceState(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
+    private <C> void injectTraceState(
+        DDSpanContext context, C carrier, CarrierSetter<C> setter, int samplingPriority) {
       PropagationTags propagationTags = context.getPropagationTags();
       // Supply the injecting span's id for the W3C `p:` as a parameter rather than mutating it into
       // the (possibly trace-level, shared) tags — keeps transient per-injection identity out of
       // shared state, so concurrent sibling injects can't race on it.
       String tracestate =
-          propagationTags.headerValue(W3C, DDSpanId.toHexStringPadded(context.getSpanId()));
+          propagationTags.headerValue(
+              W3C, DDSpanId.toHexStringPadded(context.getSpanId()), samplingPriority);
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
