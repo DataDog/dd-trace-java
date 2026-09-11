@@ -5,13 +5,16 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
@@ -296,6 +300,48 @@ public class ProviderTest {
     verify(errorEventHandler, times(1)).accept(any());
     verify(readyEventHandler, times(1)).accept(any());
     verify(configChangedEventHandler, times(1)).accept(any());
+  }
+
+  @Test
+  public void testProviderEventLinkageErrorIsContainedAndReportedOnce() throws Exception {
+    final Evaluator evaluator = mock(Evaluator.class);
+    when(evaluator.initialize(eq(10L), eq(MILLISECONDS), any())).thenReturn(true);
+    when(evaluator.hasConfiguration()).thenReturn(true);
+    final AtomicInteger compatibilityWarnings = new AtomicInteger();
+    final AtomicReference<LinkageError> reportedError = new AtomicReference<>();
+    final Provider provider =
+        spy(
+            new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator, Boolean.FALSE) {
+              @Override
+              void reportOpenFeatureSdkIncompatibility(final LinkageError error) {
+                compatibilityWarnings.incrementAndGet();
+                reportedError.set(error);
+              }
+            });
+    final NoSuchMethodError linkageError =
+        new NoSuchMethodError(
+            "dev.openfeature.sdk.EventProvider.emit(ProviderEvent, ProviderEventDetails)");
+    doThrow(linkageError).when(provider).emit(any(), any());
+    provider.initialize(null);
+
+    assertDoesNotThrow(provider::onConfigurationChange);
+    assertDoesNotThrow(provider::onConfigurationChange);
+
+    verify(provider, times(2)).emit(any(), any());
+    assertThat(compatibilityWarnings.get(), equalTo(1));
+    assertThat(reportedError.get(), equalTo(linkageError));
+  }
+
+  @Test
+  public void testOpenFeatureSdkCompatibilityWarningIsActionable() {
+    final String warning =
+        Provider.openFeatureSdkCompatibilityWarning(
+            new NoSuchMethodError("dev.openfeature.sdk.EventProvider.emit"));
+
+    assertTrue(warning.contains("detected version: 1.20.1"));
+    assertTrue(warning.contains("dev.openfeature:sdk version 1.20.1 or later"));
+    assertTrue(warning.contains("Upgrade the OpenFeature SDK dependency"));
+    assertTrue(warning.contains("dev.openfeature.sdk.EventProvider.emit"));
   }
 
   @Test

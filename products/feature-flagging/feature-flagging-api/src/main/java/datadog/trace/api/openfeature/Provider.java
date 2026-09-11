@@ -15,11 +15,15 @@ import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +33,17 @@ public class Provider extends EventProvider implements Metadata {
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
+  private static final String MINIMUM_OPENFEATURE_SDK_VERSION = "1.20.1";
+  private static final String OPENFEATURE_SDK_POM_PROPERTIES =
+      "/META-INF/maven/dev.openfeature/sdk/pom.properties";
+  private static final String UNKNOWN_VERSION = "unknown";
 
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
+  private final AtomicBoolean openFeatureSdkCompatibilityWarningLogged = new AtomicBoolean();
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalMetricsHook flagEvalMetricsHook;
   // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
@@ -161,17 +170,14 @@ public class Provider extends EventProvider implements Metadata {
     if (state == InitializationState.ERROR
         && initializationState.compareAndSet(
             InitializationState.ERROR, InitializationState.READY)) {
-      emit(
-          ProviderEvent.PROVIDER_READY,
-          ProviderEventDetails.builder().message("Provider ready").build());
+      emitProviderEvent(ProviderEvent.PROVIDER_READY, "Provider ready", null);
       return;
     }
     if (initializationState.get() != InitializationState.READY) {
       return;
     }
-    emit(
-        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
-        ProviderEventDetails.builder().message("New configuration received").build());
+    emitProviderEvent(
+        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, "New configuration received", null);
   }
 
   private void onConfigurationUnavailable() {
@@ -182,12 +188,66 @@ public class Provider extends EventProvider implements Metadata {
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
       return;
     }
-    emit(
-        ProviderEvent.PROVIDER_ERROR,
-        ProviderEventDetails.builder()
-            .message("Configuration unavailable")
-            .errorCode(ErrorCode.PROVIDER_NOT_READY)
-            .build());
+    emitProviderEvent(
+        ProviderEvent.PROVIDER_ERROR, "Configuration unavailable", ErrorCode.PROVIDER_NOT_READY);
+  }
+
+  private void emitProviderEvent(
+      final ProviderEvent event, final String message, final ErrorCode errorCode) {
+    try {
+      if (errorCode == null) {
+        emit(event, ProviderEventDetails.builder().message(message).build());
+      } else {
+        emit(event, ProviderEventDetails.builder().message(message).errorCode(errorCode).build());
+      }
+    } catch (final LinkageError error) {
+      if (openFeatureSdkCompatibilityWarningLogged.compareAndSet(false, true)) {
+        reportOpenFeatureSdkIncompatibility(error);
+      }
+    }
+  }
+
+  void reportOpenFeatureSdkIncompatibility(final LinkageError error) {
+    log.warn(openFeatureSdkCompatibilityWarning(error));
+    log.debug("OpenFeature SDK compatibility failure", error);
+  }
+
+  static String openFeatureSdkCompatibilityWarning(final LinkageError error) {
+    return "Unable to emit OpenFeature provider events because the loaded OpenFeature SDK is "
+        + "incompatible (detected version: "
+        + openFeatureSdkVersion()
+        + "). Datadog requires dev.openfeature:sdk version "
+        + MINIMUM_OPENFEATURE_SDK_VERSION
+        + " or later. Upgrade the OpenFeature SDK dependency. Further provider event emission "
+        + "failures will be suppressed. Cause: "
+        + error;
+  }
+
+  static String openFeatureSdkVersion() {
+    try {
+      final Package sdkPackage = EventProvider.class.getPackage();
+      if (sdkPackage != null && sdkPackage.getImplementationVersion() != null) {
+        return sdkPackage.getImplementationVersion();
+      }
+      try (InputStream input =
+          EventProvider.class.getResourceAsStream(OPENFEATURE_SDK_POM_PROPERTIES)) {
+        if (input != null) {
+          final String version = loadOpenFeatureSdkVersion(input);
+          if (version != null && !version.isEmpty()) {
+            return version;
+          }
+        }
+      }
+    } catch (final IOException | RuntimeException | LinkageError ignored) {
+      // Version detection is best-effort and must not interfere with compatibility handling.
+    }
+    return UNKNOWN_VERSION;
+  }
+
+  private static String loadOpenFeatureSdkVersion(final InputStream input) throws IOException {
+    final Properties properties = new Properties();
+    properties.load(input);
+    return properties.getProperty("version");
   }
 
   private boolean markInitialConfigReceivedReady() {
