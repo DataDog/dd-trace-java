@@ -41,7 +41,11 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
     removeUnusedImports()
     forbidWildcardImports()
 
-    googleJavaFormat(libs.versions.google.java.format.get())
+    princeOfSpace(libs.versions.prince.of.space.get())
+      .indentSize(2)
+      .lineLength(100)
+      .javaLanguageLevel(25)
+    trimTrailingWhitespace()
     tableTestFormatter(libs.versions.tabletest.formatter.get())
   }
   groovyGradle {
