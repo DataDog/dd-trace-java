@@ -173,7 +173,7 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
     if (failure instanceof RuntimeException) {
       return (RuntimeException) failure;
     }
-    throw (LinkageError) failure;
+    throw (Error) failure;
   }
 
   /** Marks failures crossing the visitor boundary below advice so they keep their attribution. */

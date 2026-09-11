@@ -1,10 +1,10 @@
 package datadog.trace.agent.tooling;
 
-import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.utility.OpenedClassReader.ASM_API;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -190,7 +190,7 @@ class DebuggingAdviceTransformerTest {
 
       assertEquals(1, appender.list.size());
       ILoggingEvent event = appender.list.get(0);
-      assertSame(EXCLUDE_TELEMETRY, event.getMarker());
+      assertNull(event.getMarker());
       assertTrue(event.getFormattedMessage().contains("test.Instrumentation"));
       assertTrue(event.getFormattedMessage().contains(InvalidArgumentAdvice.class.getName()));
       assertTrue(event.getFormattedMessage().contains(Target.class.getName()));

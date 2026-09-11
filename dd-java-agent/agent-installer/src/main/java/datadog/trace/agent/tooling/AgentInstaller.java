@@ -8,6 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
 import datadog.instrument.fieldinject.GlobalObjectStore;
+import datadog.trace.agent.tooling.DebuggingAdviceTransformer.AdviceTransformationException;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
@@ -435,9 +436,8 @@ public class AgentInstaller {
         final boolean loaded,
         final Throwable throwable) {
       if (DEBUG) {
-        if (throwable instanceof DebuggingAdviceTransformer.AdviceTransformationException) {
-          DebuggingAdviceTransformer.AdviceTransformationException failure =
-              (DebuggingAdviceTransformer.AdviceTransformationException) throwable;
+        if (throwable instanceof AdviceTransformationException) {
+          AdviceTransformationException failure = (AdviceTransformationException) throwable;
           try {
             InstrumenterFlare.recordTransformationError(
                 "instrumentation.class="
@@ -458,7 +458,6 @@ public class AgentInstaller {
             // Flare collection must not interfere with transformation failure reporting.
           }
           log.debug(
-              EXCLUDE_TELEMETRY,
               "Advice transformation failed - instrumentation.class={} advice.class={} instrumentation.target.class={} instrumentation.target.method={} instrumentation.target.loaded={} instrumentation.target.classloader={}",
               failure.getInstrumentationClass(),
               failure.getAdviceClass(),
