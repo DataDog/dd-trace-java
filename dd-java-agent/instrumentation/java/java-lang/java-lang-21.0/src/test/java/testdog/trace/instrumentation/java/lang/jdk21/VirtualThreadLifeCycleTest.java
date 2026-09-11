@@ -1,5 +1,6 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
+import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
@@ -10,6 +11,7 @@ import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.GlobalTracer;
 import datadog.trace.api.Trace;
+import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +22,12 @@ import org.junit.jupiter.api.Test;
 /** Test context tracking through {@code VirtualThread} lifecycle - park/unpark (remount) cycles. */
 public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(10);
+
+  @DisplayName("test context path selected for runtime")
+  @Test
+  void testContextPathSelectedForRuntime() {
+    assertEquals(isJavaVersion(21), VirtualThreadState.usePerMountContext());
+  }
 
   @DisplayName("test context restored after virtual thread remounts")
   @Test
