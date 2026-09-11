@@ -82,7 +82,7 @@ public final class ConcurrentHashtable {
    */
   public abstract static class Entry<TEntry extends Entry<TEntry>> {
     public final long keyHash;
-    private volatile Entry<?> next = null;
+    private volatile TEntry next = null;
 
     protected Entry(long keyHash) {
       this.keyHash = keyHash;
@@ -91,14 +91,13 @@ public final class ConcurrentHashtable {
     // Package-private: the only writers are the static insert/remove building blocks
     // (insertHeadEntry, unlink) on the enclosing class, which reach it via the Entry bound. Custom
     // tables mutate chains through those helpers, never by touching next directly.
-    final <TNext extends Entry<TNext>> void setNext(TNext next) {
+    final void setNext(TEntry next) {
       this.next = next;
     }
 
-    @SuppressWarnings("unchecked")
     @Nullable
-    public final <TNext extends Entry<TNext>> TNext next() {
-      return (TNext) this.next;
+    public final TEntry next() {
+      return this.next;
     }
 
     /**
