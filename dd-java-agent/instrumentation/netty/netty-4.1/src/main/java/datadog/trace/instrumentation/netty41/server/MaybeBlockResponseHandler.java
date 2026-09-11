@@ -125,6 +125,7 @@ public class MaybeBlockResponseHandler extends ChannelOutboundHandlerAdapter {
         .addListener(
             fut -> {
               if (!fut.isSuccess()) {
+                // known gap: this failure is not reported to AppSec block-failure telemetry
                 log.warn("Write of blocking response failed", fut.cause());
               } else {
                 log.debug("Write of blocking response succeeded");
