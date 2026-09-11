@@ -372,6 +372,7 @@ cases:
   - id: java-perf-foreground-calls-background-only-001
     files:
       - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
+      - .agents/skills/dd-apm-sdk-review/reviewers/performance.md
       - .agents/dd-apm-sdk-review-overrides/reviewers/performance.md
     input: |
       Apply this repo's performance-review criteria (specifically the J16 declared-contract
@@ -379,12 +380,12 @@ cases:
       reviewers/_common.md) to the following change. No git checkout available — this diff is
       the entire change to review.
 
-      `SimpleUtf8Cache.getUtf8(...)` is declared `@BackgroundOnly` (see its Javadoc below) —
-      its bookkeeping only pays off when it is only ever called from the single background
-      serializer thread. `HttpUrlConnectionAdvice.onExit` is Byte Buddy advice that runs
-      synchronously on the calling application thread for every instrumented
-      `HttpURLConnection` request (a foreground/app-thread call site, not annotated
-      `@BackgroundOnly` or `@ForegroundSafe`).
+      `SimpleUtf8Cache` is declared `@BackgroundOnly` at the class level (see its Javadoc
+      below) — its bookkeeping only pays off when it is only ever called from the single
+      background serializer thread that owns it. `HttpUrlConnectionAdvice.onExit` is Byte
+      Buddy advice that runs synchronously on the calling application thread for every
+      instrumented `HttpURLConnection` request (a foreground/app-thread call site, not
+      annotated `@BackgroundOnly` or `@ForegroundSafe`).
 
       ```java
       // datadog/communication/serialization/SimpleUtf8Cache.java (existing, unchanged)
@@ -394,23 +395,28 @@ cases:
        */
       @BackgroundOnly
       public final class SimpleUtf8Cache implements EncodingCache {
+        public static final SimpleUtf8Cache SHARED = new SimpleUtf8Cache();
+
         public byte[] getUtf8(String value) { /* ... */ }
       }
       ```
 
       ```diff
-      diff --git a/dd-java-agent/instrumentation/http-url-connection/src/main/java/datadog/trace/instrumentation/httpurlconnection/HttpUrlConnectionAdvice.java b/dd-java-agent/instrumentation/http-url-connection/src/main/java/datadog/trace/instrumentation/httpurlconnection/HttpUrlConnectionAdvice.java
-      @@ -40,6 +40,11 @@ public class HttpUrlConnectionAdvice {
-      +  // PR #99999: tag the outgoing request's first header value for a new debug flag.
-      +  @Advice.OnMethodExit
-      +  public static void onExit(@Advice.This HttpURLConnection connection,
-      +      @Advice.Argument(0) String headerValue, @Advice.Local("span") AgentSpan span) {
-      +    byte[] utf8 = SHARED_UTF8_CACHE.getUtf8(headerValue);
-      +    span.setTag("debug.header_bytes_len", utf8.length);
-      +  }
+      diff --git a/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java b/dd-java-agent/instrumentation/java/java-net/java-net-1.8/src/main/java/datadog/trace/instrumentation/java/net/HttpUrlConnectionInstrumentation.java
+      @@ -95,6 +95,12 @@ public class HttpUrlConnectionInstrumentation extends InstrumenterModule.Tracing {
+           public static class HttpUrlConnectionAdvice {
+      +      // PR #99999: tag the outgoing request's first header value for a new debug flag.
+      +      @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+      +      public static void onExit(
+      +          @Advice.This final HttpURLConnection thiz,
+      +          @Advice.FieldValue("connected") final boolean connected,
+      +          @Advice.Local("headerValue") final String headerValue) {
+      +        byte[] utf8 = SimpleUtf8Cache.SHARED.getUtf8(headerValue);
+      +        thiz.setRequestProperty("X-Debug-Header-Bytes-Len", Integer.toString(utf8.length));
+      +      }
       ```
     expected_criteria:
-      - "Flags that `onExit` — Byte Buddy advice running on the application thread for every instrumented `HttpURLConnection` call — reaches `SimpleUtf8Cache.getUtf8(...)`, a method declared `@BackgroundOnly`, per J16's declared-contract check."
+      - "Flags that `onExit` — Byte Buddy advice running on the application thread for every instrumented `HttpURLConnection` call — reaches `SimpleUtf8Cache.getUtf8(...)`, a class declared `@BackgroundOnly`, per J16's declared-contract check."
       - "Classifies this as SEV-1 / P0, not a soft nudge or generic allocation note."
       - "Recommends removing the call from advice or moving the work to the background/serializer thread that legitimately owns `SimpleUtf8Cache`, rather than caching the value differently in place."
     bad_signals:

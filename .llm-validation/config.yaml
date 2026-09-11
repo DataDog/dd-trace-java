@@ -33,6 +33,7 @@ presets:
       - java-maintainability-resource-leak-streams
       - java-correctness-span-events-list-only
       - java-correctness-mapper-state-leak
+      - java-perf-foreground-calls-background-only-001
     runs: 2
   minimum:
     cases: ["java-perf-lens-wrong-collection-001"]

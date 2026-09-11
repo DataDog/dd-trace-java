@@ -56,7 +56,7 @@ docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
 docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
   --repo /repo --base-sha master --level full --runs 1
 
-# CI-shaped set (8 cases)
+# CI-shaped set (9 cases)
 docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
   --repo /repo --base-sha master --level gate --runs 1
 
