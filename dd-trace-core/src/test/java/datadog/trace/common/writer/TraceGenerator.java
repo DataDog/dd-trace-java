@@ -238,7 +238,7 @@ public class TraceGenerator {
               samplingPriority,
               measured,
               isTopLevel(),
-              statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
+              statusCode,
               origin,
               0,
               ProcessTags.getTagsForSerialization(),
