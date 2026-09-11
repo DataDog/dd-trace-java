@@ -401,6 +401,17 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.sampling_decision" "1"
             "_ml_obs_tag.sample_rate" "1"
             "_ml_obs_tag.ml_app" String
+            "gen_ai.operation.name" "llm"
+            "gen_ai.request.model" String
+            "gen_ai.provider.name" "openai"
+            "gen_ai.application.name" String
+            if (!isStreaming) {
+              // streamed completions missing usage data
+              "gen_ai.usage.input_tokens" Double
+              "gen_ai.usage.output_tokens" Double
+              "gen_ai.usage.total_tokens" Double
+              "gen_ai.usage.cache_read_input_tokens" Double
+            }
             "_ml_obs_tag.service" String
             "$CommonTags.DDTRACE_VERSION" String
             if (expectToolDefinitions) {
