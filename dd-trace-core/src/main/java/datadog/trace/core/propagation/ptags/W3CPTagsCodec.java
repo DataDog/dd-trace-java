@@ -272,7 +272,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     }
     OtelTraceState otelTraceState = pTags.getOtelTraceState();
     if (otelTraceState != null) {
-      size -= includesOriginalTracestate ? otelTraceState.getOriginalMemberContributionSize() : 0;
+      size -= includesOriginalTracestate ? otelTraceState.getOriginalSize() : 0;
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
     }
     return size;
@@ -768,7 +768,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (!managedMember) {
         if (otelTraceState != null
             && !otelTraceStateAppended
-            && otelTraceState.getInheritedPosition() == otherMemberPosition) {
+            && otelTraceState.getOriginalPosition() == otherMemberPosition) {
           appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.getValue());
           remainingMembers--;
           otelTraceStateAppended = true;
@@ -788,7 +788,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (otelTraceState != null
         && !otelTraceStateAppended
         && remainingMembers > 0
-        && otelTraceState.getInheritedPosition() == otherMemberPosition) {
+        && otelTraceState.getOriginalPosition() == otherMemberPosition) {
       appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.getValue());
       memberAppended = true;
     }

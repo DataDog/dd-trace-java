@@ -2,13 +2,13 @@ package datadog.trace.core.propagation.ptags;
 
 final class OtelTraceState {
   private final String value;
-  private final int inheritedPosition;
-  private final int originalMemberContributionSize;
+  private final int originalPosition;
+  private final int originalSize;
 
   private OtelTraceState(String value, int inheritedPosition, int originalMemberContributionSize) {
     this.value = value;
-    this.inheritedPosition = inheritedPosition;
-    this.originalMemberContributionSize = originalMemberContributionSize;
+    this.originalPosition = inheritedPosition;
+    this.originalSize = originalMemberContributionSize;
   }
 
   static OtelTraceState parse(
@@ -27,11 +27,11 @@ final class OtelTraceState {
     return value.length();
   }
 
-  int getInheritedPosition() {
-    return inheritedPosition;
+  int getOriginalPosition() {
+    return originalPosition;
   }
 
-  int getOriginalMemberContributionSize() {
-    return originalMemberContributionSize;
+  int getOriginalSize() {
+    return originalSize;
   }
 }

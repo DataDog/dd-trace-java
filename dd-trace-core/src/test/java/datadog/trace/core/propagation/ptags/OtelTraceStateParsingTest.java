@@ -25,7 +25,7 @@ class OtelTraceStateParsingTest {
     assertNotNull(state);
     assertEquals(VALUE, state.getValue());
     assertEquals(VALUE.length(), state.length());
-    assertEquals(INHERITED_POSITION, state.getInheritedPosition());
-    assertEquals(ORIGINAL_MEMBER_CONTRIBUTION_SIZE, state.getOriginalMemberContributionSize());
+    assertEquals(INHERITED_POSITION, state.getOriginalPosition());
+    assertEquals(ORIGINAL_MEMBER_CONTRIBUTION_SIZE, state.getOriginalSize());
   }
 }
