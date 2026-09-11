@@ -46,9 +46,9 @@ out/
 ######################
 .vscode
 
-# Cursor #
-##########
-.cursor
+# Cursor (ignore local IDE state; track shared skill links)
+.cursor/*
+!.cursor/skills/
 
 # Claude Code local custom settings #
 #####################################
