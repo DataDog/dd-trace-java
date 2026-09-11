@@ -1,10 +1,8 @@
 package datadog.trace.api.telemetry;
 
-import static datadog.trace.util.ConcurrentHashtable.bucketAt;
-import static datadog.trace.util.ConcurrentHashtable.bucketIndex;
 import static datadog.trace.util.ConcurrentHashtable.estimateSize;
 import static datadog.trace.util.ConcurrentHashtable.getTableWriteLock;
-import static datadog.trace.util.ConcurrentHashtable.isFull;
+import static datadog.trace.util.ConcurrentHashtable.hashIterable;
 import static datadog.trace.util.LongHashingUtils.hash;
 
 import datadog.trace.api.internal.VisibleForTesting;
@@ -59,50 +57,33 @@ public class LogCollector {
   public void addLogMessage(
       String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
     long keyHash = RawLogMessage.computeHash(logLevel, message, throwable);
-    int bucketIndex = bucketIndex(rawLogMessages.buckets, keyHash);
-    // Fast path for duplicates: search the target bucket without locking.
-    RawLogMessage rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
+    // Fast path for duplicates: search lock-free before ever taking the table lock.
+    RawLogMessage rawLogMessage = find(keyHash, logLevel, message, throwable);
     if (rawLogMessage != null) {
       rawLogMessage.increment();
       return;
     }
 
-    // Fast path after a miss for a full table: reject without locking when the target bucket is
-    // populated. If the bucket is empty, drain() may have detached it before releasing capacity,
-    // so continue to the locked capacity check.
-    if (isFull(rawLogMessages) && bucketAt(rawLogMessages, bucketIndex) != null) {
-      // Mitigate a race where another writer could claim the bucket before the previous find
-      rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
-      if (rawLogMessage != null) {
-        rawLogMessage.increment();
-        return;
-      }
-      // TODO: We could emit a metric for dropped logs.
-      return;
-    }
-
-    // Slow path after a miss: repeat the lookup under the table write lock because another writer
-    // or drain() may have changed the table. Taking the reservation under this same lock, rather
-    // than lock-free ahead of it, keeps the whole find-or-insert decision serialized with other
-    // writers and with drain() -- a writer here genuinely waits for an in-progress drain instead
-    // of being told, incorrectly, that the table is full because of a duplicate reservation that
-    // hasn't cancelled yet. Serialized this way, the reservation can never lose a race to insert,
-    // so there's no existing-vs-new distinction to make: it always inserts fresh.
+    // Slow path after a miss: take the reservation under the table write lock, rather than
+    // lock-free ahead of it, so concurrent reservations for the same logical duplicate are
+    // serialized with each other, with drain(), and with the locked find-or-insert inside
+    // Reservation#finish() -- a losing reservation cancels immediately instead of transiently
+    // inflating size and starving a genuinely distinct concurrent insert. finish() does its own
+    // locked comparison, so there's no need to repeat find() here first.
     synchronized (getTableWriteLock(rawLogMessages)) {
-      rawLogMessage = find(bucketIndex, keyHash, logLevel, message, throwable);
-      if (rawLogMessage != null) {
-        rawLogMessage.increment();
-        return;
-      }
       try (Reservation<RawLogMessage> reservation =
           ConcurrentHashtable.tryReserve(rawLogMessages)) {
-        if (reservation.isReserved()) {
-          // Allocate only after the reservation succeeds.
-          reservation.tryGetOrInsertOrNull(
-              new RawLogMessage(
-                  logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
+        if (!reservation.isReserved()) {
+          // TODO: We could emit a metric for dropped logs.
+          return;
         }
-        // TODO: We could emit a metric for dropped logs.
+        // Built zeroed, so this occurrence can be counted uniformly below whether or not
+        // tryGetOrInsertOrNull ends up returning this instance or an existing match.
+        rawLogMessage =
+            reservation.tryGetOrInsertOrNull(
+                new RawLogMessage(
+                    logLevel, message, throwable, tags, System.currentTimeMillis() / 1000));
+        rawLogMessage.increment();
       }
     }
   }
@@ -136,14 +117,13 @@ public class LogCollector {
 
   /**
    * Finds a <em>log group</em> with the same <em>level</em>, <em>message</em>, and
-   * <em>throwable</em> in the selected bucket.
+   * <em>throwable</em> as {@code keyHash}'s candidates.
    *
    * <p>Note, throwables are matched by identity or by class and stack trace.
    *
    * <p>The bucket chain supports lock-free reads. A caller that inserts after a miss must repeat
    * the search under the table write lock.
    *
-   * @param bucketIndex bucket selected for {@code keyHash}
    * @param keyHash precomputed hash of the level, message, and throwable class
    * @param logLevel log level to match
    * @param message message to match
@@ -152,19 +132,10 @@ public class LogCollector {
    */
   @Nullable
   private RawLogMessage find(
-      int bucketIndex,
-      long keyHash,
-      String logLevel,
-      String message,
-      @Nullable Throwable throwable) {
-    // Start searching from given bucket, and follow the entry next links
+      long keyHash, String logLevel, String message, @Nullable Throwable throwable) {
     StackTraceElement[] stackTrace = null;
-    for (RawLogMessage entry = bucketAt(rawLogMessages, bucketIndex);
-        entry != null;
-        entry = entry.next()) {
-      if (entry.keyHash != keyHash
-          || !Objects.equals(logLevel, entry.logLevel)
-          || !Objects.equals(message, entry.message)) {
+    for (RawLogMessage entry : hashIterable(rawLogMessages, keyHash)) {
+      if (!Objects.equals(logLevel, entry.logLevel) || !Objects.equals(message, entry.message)) {
         continue;
       }
       // throwables are more costly to compare, check first the identity
@@ -205,8 +176,12 @@ public class LogCollector {
     /** Number of equivalent log messages captured when this group was drained. */
     public int count;
 
-    /** Live counter equivalent log messages accumulated in this group. */
-    private volatile int liveOccurrenceCount = 1;
+    /**
+     * Live counter equivalent log messages accumulated in this group. Starts zeroed so a caller can
+     * unconditionally {@link #increment()} once after a find-or-insert, whether it landed this
+     * instance or an existing match.
+     */
+    private volatile int liveOccurrenceCount = 0;
 
     private volatile StackTraceElement[] cachedStackTrace = null;
 
