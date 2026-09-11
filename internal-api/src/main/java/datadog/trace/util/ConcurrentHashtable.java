@@ -1079,12 +1079,12 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Claims one slot in {@code state} and returns a handle for completing the find-or-insert
-   * protocol, or an empty handle if the table is full. Never returns {@code null}, so this always
-   * composes with try-with-resources:
+   * Claims one slot in {@code state} for {@code keyHash} and returns a handle for completing the
+   * find-or-insert protocol, or an empty handle if the table is full. Never returns {@code null},
+   * so this always composes with try-with-resources:
    *
    * <pre>{@code
-   * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state)) {
+   * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state, keyHash)) {
    *   return r.tryGetOrInsertOrNull(component1, component2, component3, TEntry::new);
    * }
    * }</pre>
@@ -1095,13 +1095,19 @@ public final class ConcurrentHashtable {
    * are the source of truth), it just avoids paying for a lock and a factory call when a hit was
    * already visible lock-free.
    *
-   * <p>Checks {@link SizeManager#isFull()} lock-free first and returns an empty reservation
-   * immediately if the table already looks full, without touching the write lock. Otherwise it
+   * <p>Checks {@link SizeManager#isFull()} lock-free first. If the table looks full, {@code
+   * keyHash}'s bucket is checked too: if it's empty, nothing could possibly match this key, so this
+   * returns a definitively empty reservation without ever taking the write lock. Otherwise it
    * acquires the write lock, re-checks (the lock-free peek may be stale), and either reserves the
    * slot -- returning a real reservation that <em>holds the lock open</em> across this call, to be
-   * released later by {@link Reservation#finish}/{@link Reservation#close} -- or releases the lock
-   * and returns empty. Holding the lock for the reservation's whole lifetime (rather than just
-   * across this call, the way {@link SizeManager#tryReserve()} does) is what lets {@link
+   * released later by {@link Reservation#finish}/{@link Reservation#close} -- or, if the table is
+   * genuinely still full, keeps the lock open anyway (rather than releasing it immediately) so
+   * {@link Reservation#finish} can still scan {@code keyHash}'s bucket the next time the caller
+   * supplies a candidate entry. That's what closes the race where a concurrent insert for the same
+   * logical duplicate lands in the exact window between this caller's own lock-free scan and its
+   * reservation attempt: without the lock held open here, that concurrent duplicate would go
+   * uncounted. Holding the lock for the reservation's whole lifetime (rather than just across this
+   * call, the way {@link SizeManager#tryReserve()} does) is also what lets {@link
    * Reservation#tryGetOrInsertOrNull} skip a second, separately-locked comparison pass: the
    * reserve-then-insert-or-discard sequence is one uninterrupted critical section, so no concurrent
    * reservation for the same logical duplicate can slip in between.
@@ -1109,46 +1115,15 @@ public final class ConcurrentHashtable {
    * <p>Always returns a non-null handle — even when the table is full — so the caller must check
    * {@link Reservation#isReserved()} (or simply call {@link Reservation#tryGetOrInsertOrNull},
    * which returns {@code null} on an absent reservation) rather than assume every reservation is
-   * real.
-   */
-  @Nonnull
-  public static <TEntry extends Entry<TEntry>> Reservation<TEntry> tryReserve(
-      @Nonnull State<TEntry> state) {
-    if (state.sizeManager.isFull()) {
-      return new Reservation<>(null, false);
-    }
-    ReentrantLock lock = state.writeLock;
-    lock.lock();
-    if (!state.sizeManager.tryReserve()) {
-      lock.unlock();
-      return new Reservation<>(null, false);
-    }
-    return new Reservation<>(state, true);
-  }
-
-  /**
-   * Like {@link #tryReserve}, but lets a rejection on a full table still catch a concurrent
-   * duplicate for {@code keyHash} rather than dropping it outright.
-   *
-   * <p>When the table looks full, {@code keyHash}'s bucket is checked first: if it's empty, nothing
-   * could possibly match this key, so this returns a definitively empty reservation without ever
-   * taking the write lock -- the same fast reject as {@link #tryReserve}. If the bucket is
-   * populated, the write lock is taken and the capacity re-checked; if the table is genuinely still
-   * full, the lock is kept open (rather than released immediately) so {@link Reservation#finish}
-   * can still scan that bucket the next time the caller supplies a candidate entry. This closes the
-   * race where a concurrent insert for the same logical duplicate lands in the exact window between
-   * this caller's own lock-free scan and its reservation attempt -- a race {@link #tryReserve}
-   * can't detect, since it has no key to check the target bucket against.
-   *
-   * <p>The returned reservation still reports {@link Reservation#isReserved()} in the
-   * lock-held-but-full case, but has no slot to insert into: {@code tryGetOrInsertOrNull}/{@code
-   * tryGetOrInsert} either return the concurrent match found under the lock, or {@code null} --
-   * never a newly linked entry.
+   * real. A reservation can also report {@link Reservation#isReserved()} {@code true} while still
+   * having no slot to insert into (the lock-held-but-full case above); either way, {@code
+   * tryGetOrInsertOrNull}/{@code tryGetOrInsert} return the concurrent match found under the lock,
+   * or {@code null} -- never a newly linked entry when no slot was claimed.
    *
    * @param keyHash hash of the key the caller is about to look up or insert
    */
   @Nonnull
-  public static <TEntry extends Entry<TEntry>> Reservation<TEntry> tryReserveFor(
+  public static <TEntry extends Entry<TEntry>> Reservation<TEntry> tryReserve(
       @Nonnull State<TEntry> state, long keyHash) {
     if (state.sizeManager.isFull()
         && bucketAt(state, bucketIndex(state.buckets, keyHash)) == null) {
@@ -1193,11 +1168,11 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * {@code true} unless this reservation is definitively empty -- i.e. {@link #tryReserveFor}
-     * could rule out a match for the target key without even taking the write lock. A {@code true}
-     * reservation may still have no slot to insert into: {@link #tryReserveFor} keeps the lock open
-     * on a full table when the target bucket is populated, purely so {@link #finish} can still scan
-     * it for a concurrent match. Callers should call {@code tryGetOrInsertOrNull}/{@code
+     * {@code true} unless this reservation is definitively empty -- i.e. {@link #tryReserve} could
+     * rule out a match for the target key without even taking the write lock. A {@code true}
+     * reservation may still have no slot to insert into: {@link #tryReserve} keeps the lock open on
+     * a full table when the target bucket is populated, purely so {@link #finish} can still scan it
+     * for a concurrent match. Callers should call {@code tryGetOrInsertOrNull}/{@code
      * tryGetOrInsert} and check its result rather than assume {@code true} means a slot was
      * claimed.
      */
@@ -1211,7 +1186,7 @@ public final class ConcurrentHashtable {
      * a {@code Function}'s type argument:
      *
      * <pre>{@code
-     * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state)) {
+     * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state, keyHash)) {
      *   if (!r.isReserved()) {
      *     return null;
      *   }
@@ -1242,9 +1217,9 @@ public final class ConcurrentHashtable {
      * is definitively empty — see {@link #isReserved()}) and either links the result as a new entry
      * or discards it in favor of an existing match found under the write lock. Returns {@code null}
      * when there is neither a slot to claim nor a match to return -- either because this
-     * reservation is definitively empty, or (see {@link #tryReserveFor}) because the table was
-     * still full even under the lock and no concurrent match was found either; otherwise always
-     * returns a real entry (the newly built one, or the concurrent match).
+     * reservation is definitively empty, or (see {@link #tryReserve}) because the table was still
+     * full even under the lock and no concurrent match was found either; otherwise always returns a
+     * real entry (the newly built one, or the concurrent match).
      *
      * <p>Building the entry here, after the reservation already succeeded, keeps the write lock's
      * critical section limited to the comparison/link/discard decision rather than whatever
@@ -1334,13 +1309,13 @@ public final class ConcurrentHashtable {
 
     /**
      * Runs the locked comparison/link decision. The write lock is already held -- acquired by
-     * {@link #tryReserve}/{@link #tryReserveFor} and not yet released -- so this needs no {@code
-     * synchronized}/{@code lock()} of its own.
+     * {@link #tryReserve} and not yet released -- so this needs no {@code synchronized}/{@code
+     * lock()} of its own.
      *
      * <p>Always scans for a match first, whether or not a slot was actually claimed: a {@link
-     * #tryReserveFor} reservation with no slot still holds the lock specifically so this scan can
-     * run. Only links {@code newEntry} when a slot was claimed; otherwise a miss here means there
-     * really is nothing to return, so this returns {@code null}.
+     * #tryReserve} reservation with no slot still holds the lock specifically so this scan can run.
+     * Only links {@code newEntry} when a slot was claimed; otherwise a miss here means there really
+     * is nothing to return, so this returns {@code null}.
      */
     @Nullable
     private TEntry finish(@Nonnull TEntry newEntry) {
@@ -1359,9 +1334,9 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * Releases the write lock {@link #tryReserve}/{@link #tryReserveFor} acquired, giving back a
-     * claimed slot first if it was never consumed. A no-op on a definitively empty reservation,
-     * which never acquired the lock.
+     * Releases the write lock {@link #tryReserve} acquired, giving back a claimed slot first if it
+     * was never consumed. A no-op on a definitively empty reservation, which never acquired the
+     * lock.
      */
     @Override
     public void close() {

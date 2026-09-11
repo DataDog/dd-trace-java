@@ -64,9 +64,9 @@ public class LogCollectorBenchmark {
   /**
    * Exercises the near-capacity path the other benchmarks skip: capacity is well below the number
    * of distinct keys in play, so once warmed up the table stays full and most calls miss {@code
-   * find()}'s lock-free scan and fall through to {@code tryReserveFor} -- including its locked
-   * recheck for a concurrent duplicate. {@link #duplicateWithoutException} and friends only ever
-   * hit the lock-free fast path, so they don't touch that code at all.
+   * find()}'s lock-free scan and fall through to {@code tryReserve} -- including its locked recheck
+   * for a concurrent duplicate. {@link #duplicateWithoutException} and friends only ever hit the
+   * lock-free fast path, so they don't touch that code at all.
    */
   @State(Scope.Benchmark)
   public static class ContendedCollectorState {

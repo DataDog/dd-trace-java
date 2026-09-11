@@ -63,10 +63,10 @@ public class LogCollector {
     }
 
     // Slow path after a miss: tryGetOrInsertOrNull does its own locked comparison -- including,
-    // via tryReserveFor, a recheck against a concurrent duplicate even when the table looks full --
+    // via tryReserve, a recheck against a concurrent duplicate even when the table looks full --
     // so there's no need to repeat find() here first.
     try (Reservation<RawLogMessage> reservation =
-        ConcurrentHashtable.tryReserveFor(rawLogMessages, keyHash)) {
+        ConcurrentHashtable.tryReserve(rawLogMessages, keyHash)) {
       // Built zeroed, so this occurrence can be counted uniformly below whether or not
       // tryGetOrInsertOrNull ends up returning this instance or an existing match.
       rawLogMessage =

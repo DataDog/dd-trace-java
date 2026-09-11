@@ -135,7 +135,8 @@ public class ConcurrentHashtableDrainBenchmark {
     for (DrainEntry entry : ConcurrentHashtable.hashIterable(table, keyHash)) {
       return; // lock-free hit, mirroring LogCollector.find()
     }
-    try (ConcurrentHashtable.Reservation<DrainEntry> r = ConcurrentHashtable.tryReserve(table)) {
+    try (ConcurrentHashtable.Reservation<DrainEntry> r =
+        ConcurrentHashtable.tryReserve(table, keyHash)) {
       if (r.isReserved()) {
         r.tryGetOrInsertOrNull(new DrainEntry(keyHash));
       }

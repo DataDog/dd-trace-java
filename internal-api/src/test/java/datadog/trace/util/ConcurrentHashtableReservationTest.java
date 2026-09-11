@@ -33,7 +33,7 @@ class ConcurrentHashtableReservationTest {
         ConcurrentHashtable.createBounded(TestEntry.class, 4);
 
     TestEntry first;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       assertTrue(r.isReserved());
       first = r.tryGetOrInsertOrNull(1, TestEntry::new);
     }
@@ -43,7 +43,7 @@ class ConcurrentHashtableReservationTest {
     // Reserving again for a key that already exists should discard the reservation and return the
     // existing entry, not double-insert or leak the claimed slot.
     TestEntry second;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       second = r.tryGetOrInsertOrNull(1, TestEntry::new);
     }
     assertSame(first, second);
@@ -52,20 +52,25 @@ class ConcurrentHashtableReservationTest {
 
   @Test
   void reserveOnFullTableIsAbsentAndSkipsTheFactory() {
+    // capacity 3 rounds up to 4 buckets, so one bucket stays empty once the table is full --
+    // that's what lets tryReserve rule out keyHash 4 without ever taking the write lock.
     ConcurrentHashtable.State<TestEntry> state =
-        ConcurrentHashtable.createBounded(TestEntry.class, 1);
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      r.tryGetOrInsertOrNull(1, TestEntry::new);
+        ConcurrentHashtable.createBounded(TestEntry.class, 3);
+    for (int keyHash = 1; keyHash <= 3; keyHash++) {
+      try (ConcurrentHashtable.Reservation<TestEntry> r =
+          ConcurrentHashtable.tryReserve(state, keyHash)) {
+        r.tryGetOrInsertOrNull(keyHash, TestEntry::new);
+      }
     }
     assertTrue(ConcurrentHashtable.isFull(state));
 
     AtomicInteger factoryCalls = new AtomicInteger();
     TestEntry result;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 4)) {
       assertFalse(r.isReserved());
       result =
           r.tryGetOrInsertOrNull(
-              2,
+              4,
               v -> {
                 factoryCalls.incrementAndGet();
                 return new TestEntry(v);
@@ -73,14 +78,14 @@ class ConcurrentHashtableReservationTest {
     }
     assertNull(result);
     assertEquals(0, factoryCalls.get());
-    assertEquals(1, ConcurrentHashtable.estimateSize(state));
+    assertEquals(3, ConcurrentHashtable.estimateSize(state));
   }
 
   @Test
   void closeCancelsAnUnconsumedReservation() {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 1);
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       assertTrue(r.isReserved());
       // Deliberately not consuming the reservation.
     }
@@ -94,14 +99,14 @@ class ConcurrentHashtableReservationTest {
         ConcurrentHashtable.createBounded(TestEntry.class, 1);
 
     Maybe<TestEntry> present;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       present = r.tryGetOrInsert(1, TestEntry::new);
     }
     assertTrue(present.isPresent());
     assertEquals(1, present.getOrNull().value);
 
     Maybe<TestEntry> absent;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 2)) {
       absent = r.tryGetOrInsert(2, TestEntry::new);
     }
     assertFalse(absent.isPresent());
@@ -112,7 +117,7 @@ class ConcurrentHashtableReservationTest {
   void closeOnAnAbsentReservationIsANoOp() {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 0);
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       assertFalse(r.isReserved());
     }
     assertEquals(0, ConcurrentHashtable.estimateSize(state));
@@ -178,7 +183,7 @@ class ConcurrentHashtableReservationTest {
         ConcurrentHashtable.createBounded(ThreePartEntry.class, 2);
     ThreePartEntry three;
     try (ConcurrentHashtable.Reservation<ThreePartEntry> r =
-        ConcurrentHashtable.tryReserve(state3)) {
+        ConcurrentHashtable.tryReserve(state3, HashingUtils.hash("x", "y", "z"))) {
       three = r.tryGetOrInsertOrNull("x", "y", "z", ThreePartEntry::new);
     }
     assertEquals("x", three.a);
@@ -189,7 +194,7 @@ class ConcurrentHashtableReservationTest {
         ConcurrentHashtable.createBounded(FourPartEntry.class, 2);
     FourPartEntry four;
     try (ConcurrentHashtable.Reservation<FourPartEntry> r =
-        ConcurrentHashtable.tryReserve(state4)) {
+        ConcurrentHashtable.tryReserve(state4, HashingUtils.hash("w", "x", "y", "z"))) {
       four = r.tryGetOrInsertOrNull("w", "x", "y", "z", FourPartEntry::new);
     }
     assertEquals("w", four.a);
@@ -203,7 +208,8 @@ class ConcurrentHashtableReservationTest {
     ConcurrentHashtable.State<TwoPartEntry> state =
         ConcurrentHashtable.createBounded(TwoPartEntry.class, 2);
     TwoPartEntry two;
-    try (ConcurrentHashtable.Reservation<TwoPartEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TwoPartEntry> r =
+        ConcurrentHashtable.tryReserve(state, HashingUtils.hash("x", "y"))) {
       two = r.tryGetOrInsertOrNull("x", "y", TwoPartEntry::new);
     }
     assertEquals("x", two.a);
@@ -215,7 +221,7 @@ class ConcurrentHashtableReservationTest {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 1);
     TestEntry inserted;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       inserted = r.tryGetOrInsertOrNull(new TestEntry(1));
     }
     assertEquals(1, inserted.value);
@@ -228,14 +234,14 @@ class ConcurrentHashtableReservationTest {
         ConcurrentHashtable.createBounded(TestEntry.class, 1);
 
     Maybe<TestEntry> present;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       present = r.tryGetOrInsert(new TestEntry(1));
     }
     assertTrue(present.isPresent());
     assertEquals(1, present.getOrNull().value);
 
     Maybe<TestEntry> absent;
-    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 2)) {
       absent = r.tryGetOrInsert(new TestEntry(2));
     }
     assertFalse(absent.isPresent());
@@ -247,7 +253,8 @@ class ConcurrentHashtableReservationTest {
     ConcurrentHashtable.State<TwoPartEntry> state2 =
         ConcurrentHashtable.createBounded(TwoPartEntry.class, 2);
     Maybe<TwoPartEntry> two;
-    try (ConcurrentHashtable.Reservation<TwoPartEntry> r = ConcurrentHashtable.tryReserve(state2)) {
+    try (ConcurrentHashtable.Reservation<TwoPartEntry> r =
+        ConcurrentHashtable.tryReserve(state2, HashingUtils.hash("x", "y"))) {
       two = r.tryGetOrInsert("x", "y", TwoPartEntry::new);
     }
     assertTrue(two.isPresent());
@@ -258,7 +265,7 @@ class ConcurrentHashtableReservationTest {
         ConcurrentHashtable.createBounded(ThreePartEntry.class, 2);
     Maybe<ThreePartEntry> three;
     try (ConcurrentHashtable.Reservation<ThreePartEntry> r =
-        ConcurrentHashtable.tryReserve(state3)) {
+        ConcurrentHashtable.tryReserve(state3, HashingUtils.hash("x", "y", "z"))) {
       three = r.tryGetOrInsert("x", "y", "z", ThreePartEntry::new);
     }
     assertTrue(three.isPresent());
@@ -270,7 +277,7 @@ class ConcurrentHashtableReservationTest {
         ConcurrentHashtable.createBounded(FourPartEntry.class, 2);
     Maybe<FourPartEntry> four;
     try (ConcurrentHashtable.Reservation<FourPartEntry> r =
-        ConcurrentHashtable.tryReserve(state4)) {
+        ConcurrentHashtable.tryReserve(state4, HashingUtils.hash("w", "x", "y", "z"))) {
       four = r.tryGetOrInsert("w", "x", "y", "z", FourPartEntry::new);
     }
     assertTrue(four.isPresent());
@@ -281,13 +288,13 @@ class ConcurrentHashtableReservationTest {
   }
 
   @Test
-  void tryReserveForSkipsTheLockWhenTheTargetBucketIsDefinitelyEmpty() {
+  void tryReserveSkipsTheLockWhenTheTargetBucketIsDefinitelyEmpty() {
     // capacity 3 rounds up to 4 buckets, so one bucket stays empty once the table is full.
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 3);
     for (int keyHash = 1; keyHash <= 3; keyHash++) {
       try (ConcurrentHashtable.Reservation<TestEntry> r =
-          ConcurrentHashtable.tryReserveFor(state, keyHash)) {
+          ConcurrentHashtable.tryReserve(state, keyHash)) {
         r.tryGetOrInsertOrNull(keyHash, TestEntry::new);
       }
     }
@@ -295,8 +302,7 @@ class ConcurrentHashtableReservationTest {
 
     AtomicInteger factoryCalls = new AtomicInteger();
     TestEntry result;
-    try (ConcurrentHashtable.Reservation<TestEntry> r =
-        ConcurrentHashtable.tryReserveFor(state, 4)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 4)) {
       assertFalse(r.isReserved());
       result =
           r.tryGetOrInsertOrNull(
@@ -312,20 +318,17 @@ class ConcurrentHashtableReservationTest {
   }
 
   @Test
-  void tryReserveForFindsAConcurrentDuplicateEvenWhenTheTableLooksFull() {
+  void tryReserveFindsAConcurrentDuplicateEvenWhenTheTableLooksFull() {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 3);
     TestEntry existing;
-    try (ConcurrentHashtable.Reservation<TestEntry> r =
-        ConcurrentHashtable.tryReserveFor(state, 1)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       existing = r.tryGetOrInsertOrNull(1, TestEntry::new);
     }
-    try (ConcurrentHashtable.Reservation<TestEntry> r =
-        ConcurrentHashtable.tryReserveFor(state, 2)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 2)) {
       r.tryGetOrInsertOrNull(2, TestEntry::new);
     }
-    try (ConcurrentHashtable.Reservation<TestEntry> r =
-        ConcurrentHashtable.tryReserveFor(state, 3)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 3)) {
       r.tryGetOrInsertOrNull(3, TestEntry::new);
     }
     assertTrue(ConcurrentHashtable.isFull(state));
@@ -333,8 +336,7 @@ class ConcurrentHashtableReservationTest {
     // Reserving for the same keyHash again simulates a concurrent duplicate insert landing just
     // before the caller's own reservation attempt.
     TestEntry match;
-    try (ConcurrentHashtable.Reservation<TestEntry> r =
-        ConcurrentHashtable.tryReserveFor(state, 1)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 1)) {
       assertTrue(r.isReserved());
       match = r.tryGetOrInsertOrNull(new TestEntry(1));
     }
@@ -343,22 +345,21 @@ class ConcurrentHashtableReservationTest {
   }
 
   @Test
-  void tryReserveForReturnsNullWithoutOvercountingWhenGenuinelyFull() {
+  void tryReserveReturnsNullWithoutOvercountingWhenGenuinelyFull() {
     // capacity 3 rounds up to 4 buckets; keyHash 1 and 5 collide on the same bucket (index 1) but
     // are logically distinct keys (TestEntry.matches compares by value).
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 3);
     for (int keyHash = 1; keyHash <= 3; keyHash++) {
       try (ConcurrentHashtable.Reservation<TestEntry> r =
-          ConcurrentHashtable.tryReserveFor(state, keyHash)) {
+          ConcurrentHashtable.tryReserve(state, keyHash)) {
         r.tryGetOrInsertOrNull(keyHash, TestEntry::new);
       }
     }
     assertTrue(ConcurrentHashtable.isFull(state));
 
     TestEntry result;
-    try (ConcurrentHashtable.Reservation<TestEntry> r =
-        ConcurrentHashtable.tryReserveFor(state, 5)) {
+    try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state, 5)) {
       assertTrue(r.isReserved());
       result = r.tryGetOrInsertOrNull(new TestEntry(5));
     }

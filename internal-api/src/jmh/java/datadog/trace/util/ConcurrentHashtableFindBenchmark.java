@@ -71,7 +71,8 @@ public class ConcurrentHashtableFindBenchmark {
     public void setUp() {
       table = ConcurrentHashtable.createBounded(FindEntry.class, CAPACITY);
       for (int i = 0; i < N_KEYS; ++i) {
-        ConcurrentHashtable.tryReserve(table).tryGetOrInsertOrNull(new FindEntry(KEY_HASHES[i], i));
+        ConcurrentHashtable.tryReserve(table, KEY_HASHES[i])
+            .tryGetOrInsertOrNull(new FindEntry(KEY_HASHES[i], i));
       }
     }
   }
