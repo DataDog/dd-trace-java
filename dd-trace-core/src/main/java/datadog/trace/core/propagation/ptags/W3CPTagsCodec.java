@@ -50,6 +50,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
     int memberIndex = 0;
     int ddMemberIndex = -1;
+    OtelTraceState otelTraceState = null;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
