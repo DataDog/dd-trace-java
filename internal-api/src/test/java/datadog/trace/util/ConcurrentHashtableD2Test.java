@@ -392,8 +392,7 @@ class ConcurrentHashtableD2Test {
   }
 
   /** Entry with no payload beyond its two key parts, used to exercise the D2 identity/API. */
-  private static final class PairEntry
-      extends ConcurrentHashtable.D2.Entry<String, Integer, PairEntry> {
+  private static final class PairEntry extends ConcurrentHashtable.D2.Entry<String, Integer> {
     PairEntry(String key1, Integer key2) {
       super(key1, key2);
     }

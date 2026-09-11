@@ -126,7 +126,7 @@ public class ThreadSafeMapD2Benchmark {
   }
 
   /** Entry used with {@link ConcurrentHashtable.D2}. */
-  static final class PairEntry extends ConcurrentHashtable.D2.Entry<String, Integer, PairEntry> {
+  static final class PairEntry extends ConcurrentHashtable.D2.Entry<String, Integer> {
     final long value;
 
     PairEntry(String key1, Integer key2, long value) {

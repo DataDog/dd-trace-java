@@ -465,7 +465,7 @@ class ConcurrentHashtableD1Test {
   }
 
   /** Entry holding a key plus one mutable {@code int} payload. */
-  private static final class StringEntry extends ConcurrentHashtable.D1.Entry<String, StringEntry> {
+  private static final class StringEntry extends ConcurrentHashtable.D1.Entry<String> {
     volatile int value;
 
     StringEntry(String key, int value) {
@@ -475,8 +475,7 @@ class ConcurrentHashtableD1Test {
   }
 
   /** Entry with no payload, used for the bucket-chain/collision tests. */
-  private static final class CollidingEntry
-      extends ConcurrentHashtable.D1.Entry<CollidingKey, CollidingEntry> {
+  private static final class CollidingEntry extends ConcurrentHashtable.D1.Entry<CollidingKey> {
     CollidingEntry(CollidingKey key) {
       super(key);
     }

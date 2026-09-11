@@ -76,7 +76,7 @@ public class ThreadSafeMapCounterBenchmark {
    * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
    * a shared instrumentation counter table.
    */
-  static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String, CounterEntry> {
+  static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String> {
     static final AtomicLongFieldUpdater<CounterEntry> COUNT =
         AtomicLongFieldUpdater.newUpdater(CounterEntry.class, "count");
 

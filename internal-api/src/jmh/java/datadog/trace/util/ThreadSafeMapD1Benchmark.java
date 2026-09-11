@@ -87,7 +87,7 @@ public class ThreadSafeMapD1Benchmark {
    * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
    * a shared instrumentation cache.
    */
-  static final class LongEntry extends ConcurrentHashtable.D1.Entry<String, LongEntry> {
+  static final class LongEntry extends ConcurrentHashtable.D1.Entry<String> {
     final long value;
 
     LongEntry(String key, long value) {
