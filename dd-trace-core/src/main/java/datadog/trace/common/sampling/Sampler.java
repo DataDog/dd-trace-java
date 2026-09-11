@@ -36,9 +36,16 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
-        if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
-          log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new AsmStandaloneSampler(Clock.systemUTC());
+        if (!config.isApmTracingEnabled()) {
+          if (isAsmEnabled(config)) {
+            log.debug(
+                "APM tracing is disabled, but ASM is enabled. Only 1 APM trace per minute will be sent.");
+            return new AsmStandaloneSampler(Clock.systemUTC());
+          }
+          // No product needs a continuous APM trace, so drop them all. Products that keep their
+          // own traces (ASM, AI Guard) force-keep them, which this sampler cannot override.
+          log.debug("APM tracing is disabled. APM traces will be dropped.");
+          return new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
