@@ -1,9 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.DDTags
-import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_HOST
@@ -17,23 +14,22 @@ class DatabaseClientDecoratorTest extends ClientDecoratorTest {
   def "test afterStart"() {
     setup:
     def decorator = newDecorator((String) serviceName)
-    def spanContext = Mock(AgentSpanContext)
+    def recordingSpan = new RecordingSpan()
 
     when:
-    decorator.afterStart(span)
+    decorator.afterStart(recordingSpan)
 
     then:
+    def expected = ExpectedSpanState.expected()
+      .spanType("test-type")
+      .component("test-component")
+      .spanKind("client")
+      .measured(true)
+      .analyticsSampleRate(1.0d)
     if (serviceName != null) {
-      1 * span.setServiceName(serviceName, "test-component")
+      expected.serviceName(serviceName, "test-component")
     }
-    1 * span.setMeasured(true)
-    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
-    1 * span.spanContext() >> spanContext
-    1 * spanContext.setIntegrationName("test-component")
-    1 * span.setTag(TagMap.Entry.create(Tags.SPAN_KIND, "client"))
-    1 * span.setSpanType("test-type")
-    1 * span.setMetric(TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, 1.0))
-    0 * _
+    expected.assertAppliedTo(recordingSpan)
 
     where:
     serviceName << ["test-service", "other-service", null]
