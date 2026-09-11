@@ -63,9 +63,6 @@ public class LogCollector {
     for (Iterator<RawLogMessage> it = ConcurrentHashtable.hashIterator(rawLogMessages, keyHash);
         it.hasNext(); ) {
       RawLogMessage existing = it.next();
-      if (existing.keyHash != keyHash) {
-        continue;
-      }
       if (throwable != null && existing.throwable != null && existing.throwable != throwable) {
         if (throwableStackTrace == null) {
           throwableStackTrace = throwable.getStackTrace();

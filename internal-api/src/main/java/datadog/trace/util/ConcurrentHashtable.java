@@ -1305,19 +1305,30 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Returns a lock-free iterator over the bucket chain that {@code keyHash} maps to, starting from
-   * {@link #bucketFor(AtomicReferenceArray, long)}. Each {@link Iterator#next()} call follows
-   * {@link Entry#next()}, so the iterator reflects entries linked at the time each step runs rather
-   * than a point-in-time snapshot -- entries inserted ahead of the iterator's current position
-   * after iteration starts may or may not be observed, and a concurrently removed entry remains
-   * reachable because {@code unlink()} deliberately retains its {@code next} link for in-flight
-   * readers.
+   * Returns a lock-free iterator over the candidates for {@code keyHash}: entries in the bucket
+   * chain that {@code keyHash} maps to (starting from {@link #bucketFor(AtomicReferenceArray,
+   * long)}) whose own {@link Entry#keyHash} equals it, skipping any other entry sharing the same
+   * bucket via hash collision on {@link #bucketIndex}. Callers only need a {@code matches} check
+   * against the entries this yields, not a {@code keyHash} check of their own.
+   *
+   * <p>Each step follows {@link Entry#next()}, so the iterator reflects entries linked at the time
+   * each step runs rather than a point-in-time snapshot -- entries inserted ahead of the iterator's
+   * current position after iteration starts may or may not be observed, and a concurrently removed
+   * entry remains reachable because {@code unlink()} deliberately retains its {@code next} link for
+   * in-flight readers.
    */
   @Nonnull
   public static <TEntry extends Entry<TEntry>> Iterator<TEntry> hashIterator(
       @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash) {
     return new Iterator<TEntry>() {
-      private TEntry next = bucketFor(buckets, keyHash);
+      private TEntry next = advance(bucketFor(buckets, keyHash));
+
+      private TEntry advance(TEntry candidate) {
+        while (candidate != null && candidate.keyHash != keyHash) {
+          candidate = candidate.next();
+        }
+        return candidate;
+      }
 
       @Override
       public boolean hasNext() {
@@ -1330,7 +1341,7 @@ public final class ConcurrentHashtable {
         if (current == null) {
           throw new NoSuchElementException();
         }
-        next = current.next();
+        next = advance(current.next());
         return current;
       }
     };
