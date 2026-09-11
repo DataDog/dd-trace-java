@@ -6,6 +6,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,19 +54,31 @@ public class LogCollector {
       String logLevel, String message, @Nullable Throwable throwable, @Nullable String tags) {
     long keyHash = RawLogMessage.hash(logLevel, message, throwable);
 
+    // Memoized once per call and shared across every candidate below, rather than letting
+    // matchesKey call throwable.getStackTrace() (a defensive-copy allocation) on each comparison.
+    StackTraceElement[] throwableStackTrace = null;
+
     // Lock-free scan first: most calls are re-observations of an already-seen message, so this
     // avoids paying for a reservation and a RawLogMessage allocation on the common path.
-    for (RawLogMessage existing = ConcurrentHashtable.bucketFor(rawLogMessages, keyHash);
-        existing != null;
-        existing = existing.next()) {
-      if (existing.keyHash == keyHash && existing.matchesKey(logLevel, message, throwable)) {
+    for (Iterator<RawLogMessage> it = ConcurrentHashtable.hashIterator(rawLogMessages, keyHash);
+        it.hasNext(); ) {
+      RawLogMessage existing = it.next();
+      if (existing.keyHash != keyHash) {
+        continue;
+      }
+      if (throwable != null && existing.throwable != null && existing.throwable != throwable) {
+        if (throwableStackTrace == null) {
+          throwableStackTrace = throwable.getStackTrace();
+        }
+      }
+      if (existing.matchesKey(logLevel, message, throwable, throwableStackTrace)) {
         existing.count.incrementAndGet();
         return;
       }
     }
 
     try (ConcurrentHashtable.Reservation<RawLogMessage> reservation =
-        ConcurrentHashtable.reserve(rawLogMessages)) {
+        ConcurrentHashtable.tryReserve(rawLogMessages)) {
       // TODO: We could emit a metric for dropped logs when the reservation is empty (table full).
       RawLogMessage rawLogMessage =
           reservation.tryGetOrInsertOrNull(RawLogMessage::new, logLevel, message, throwable, tags);
@@ -76,11 +89,12 @@ public class LogCollector {
   }
 
   public Collection<RawLogMessage> drain() {
-    if (ConcurrentHashtable.estimateSize(rawLogMessages) == 0) {
+    int size = ConcurrentHashtable.estimateSize(rawLogMessages);
+    if (size == 0) {
       return Collections.emptyList();
     }
 
-    List<RawLogMessage> list = new ArrayList<>(ConcurrentHashtable.estimateSize(rawLogMessages));
+    List<RawLogMessage> list = new ArrayList<>(size);
     ConcurrentHashtable.drain(rawLogMessages, list::add);
     return list;
   }
@@ -124,7 +138,17 @@ public class LogCollector {
       return stackTrace;
     }
 
-    private boolean matchesKey(String logLevel, String message, @Nullable Throwable throwable) {
+    /**
+     * @param throwableStackTrace {@code throwable.getStackTrace()}, memoized once by the caller and
+     *     shared across every candidate scanned for a given {@code addLogMessage} call -- avoids
+     *     paying {@code getStackTrace()}'s defensive-copy allocation on each comparison. Only
+     *     non-null when {@code throwable} needs a deep comparison against some candidate.
+     */
+    private boolean matchesKey(
+        String logLevel,
+        String message,
+        @Nullable Throwable throwable,
+        @Nullable StackTraceElement[] throwableStackTrace) {
       if (!Objects.equals(this.logLevel, logLevel)) return false;
       if (!Objects.equals(this.message, message)) return false;
 
@@ -137,7 +161,7 @@ public class LogCollector {
       } else if (this.throwable != null && throwable != null) {
         // Both have a throwable perform a deeper comparison
         return this.throwable.getClass().equals(throwable.getClass())
-            && Objects.deepEquals(stackTrace(), throwable.getStackTrace());
+            && Objects.deepEquals(stackTrace(), throwableStackTrace);
       } else {
         // One has an exception & the other doesn't, not equal
         return false;

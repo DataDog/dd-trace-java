@@ -1,6 +1,10 @@
 package datadog.trace.util;
 
+import datadog.trace.api.function.Strategy;
+import datadog.trace.api.function.StrategyConsumer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -129,7 +133,7 @@ public final class ConcurrentHashtable {
      */
     public abstract static class Entry<K, TEntry extends Entry<K, TEntry>>
         extends ConcurrentHashtable.Entry<TEntry> {
-      final K key;
+      @Nullable final K key;
 
       protected Entry(@Nullable K key) {
         super(hash(key));
@@ -172,8 +176,9 @@ public final class ConcurrentHashtable {
 
     /**
      * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
-     * used only to infer the concrete entry type; entries are created by the functions passed to
-     * the insertion methods. The table does not resize.
+     * used only to allocate the backing array with the right component type; entries themselves are
+     * created by the {@code creator}/{@code evictable} functions passed to the insertion methods.
+     * The table does not resize.
      */
     @Nonnull
     public static <K, TEntry extends D1.Entry<K, TEntry>> D1<K, TEntry> createBounded(
@@ -209,7 +214,7 @@ public final class ConcurrentHashtable {
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(
-        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
+        @Nullable K key, @Strategy @Nonnull Function<? super K, ? extends TEntry> creator) {
       return Maybe.of(tryGetOrCreateOrNull(key, creator));
     }
 
@@ -219,9 +224,10 @@ public final class ConcurrentHashtable {
      * {@code key} was not already present. Re-checks under the lock to avoid duplicate entries
      * under concurrent misses.
      */
+    @StrategyConsumer
     @Nullable
     public TEntry tryGetOrCreateOrNull(
-        @Nullable K key, @Nonnull Function<? super K, ? extends TEntry> creator) {
+        @Nullable K key, @Strategy @Nonnull Function<? super K, ? extends TEntry> creator) {
       long keyHash = D1.Entry.hash(key);
       int index = bucketIndex(state.buckets, keyHash);
       for (TEntry curEntry = bucketAt(state, index); curEntry != null; curEntry = curEntry.next()) {
@@ -260,8 +266,8 @@ public final class ConcurrentHashtable {
     @Nonnull
     public Maybe<TEntry> tryGetOrCreateOrEvict(
         @Nullable K key,
-        @Nonnull Function<? super K, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Strategy @Nonnull Function<? super K, ? extends TEntry> creator,
+        @Strategy @Nonnull Predicate<? super TEntry> evictable) {
       return Maybe.of(tryGetOrCreateOrEvictOrNull(key, creator, evictable));
     }
 
@@ -272,11 +278,12 @@ public final class ConcurrentHashtable {
      * ever leaving a slot double-booked. A creator that throws after a successful eviction simply
      * leaves the table one entry smaller — no corruption, just a wasted eviction.
      */
+    @StrategyConsumer
     @Nullable
     public TEntry tryGetOrCreateOrEvictOrNull(
         @Nullable K key,
-        @Nonnull Function<? super K, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Strategy @Nonnull Function<? super K, ? extends TEntry> creator,
+        @Strategy @Nonnull Predicate<? super TEntry> evictable) {
       long keyHash = D1.Entry.hash(key);
       int index = bucketIndex(state.buckets, keyHash);
       for (TEntry curEntry = bucketAt(state, index); curEntry != null; curEntry = curEntry.next()) {
@@ -332,7 +339,7 @@ public final class ConcurrentHashtable {
      * Holds the table-level lock for the whole sweep, so the predicate sees a stable table and
      * concurrent writers are excluded; lock-free readers continue throughout.
      */
-    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
+    public boolean removeIf(@Strategy @Nonnull Predicate<? super TEntry> predicate) {
       return ConcurrentHashtable.removeIf(state, predicate);
     }
 
@@ -343,7 +350,7 @@ public final class ConcurrentHashtable {
      *
      * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
      */
-    public void drain(@Nonnull Consumer<? super TEntry> sink) {
+    public void drain(@Strategy @Nonnull Consumer<? super TEntry> sink) {
       ConcurrentHashtable.drain(state, sink);
     }
 
@@ -352,7 +359,8 @@ public final class ConcurrentHashtable {
      * a {@code static final}) plus the accumulator as {@code context} (e.g. the target list or
      * event builder) to avoid a capturing-lambda allocation.
      */
-    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    public <C> void drain(
+        C context, @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
       ConcurrentHashtable.drain(state, context, sink);
     }
 
@@ -361,7 +369,7 @@ public final class ConcurrentHashtable {
       ConcurrentHashtable.clear(state);
     }
 
-    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
+    public void forEach(@Strategy @Nonnull Consumer<? super TEntry> consumer) {
       ConcurrentHashtable.forEach(state, consumer);
     }
 
@@ -369,7 +377,8 @@ public final class ConcurrentHashtable {
      * Context-passing forEach. Avoids a capturing-lambda allocation — pass a non-capturing {@link
      * BiConsumer} (typically a {@code static final}) plus whatever side-band state it needs.
      */
-    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+    public <C> void forEach(
+        C context, @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       ConcurrentHashtable.forEach(state, context, consumer);
     }
   }
@@ -388,7 +397,7 @@ public final class ConcurrentHashtable {
 
     /**
      * Abstract base for {@link D2} entries. Subclass to add value fields you wish to mutate in
-     * place.
+     * place after retrieving the entry via {@link D2#get}.
      *
      * @param <K1> first key type
      * @param <K2> second key type
@@ -397,8 +406,8 @@ public final class ConcurrentHashtable {
      */
     public abstract static class Entry<K1, K2, TEntry extends Entry<K1, K2, TEntry>>
         extends ConcurrentHashtable.Entry<TEntry> {
-      final K1 key1;
-      final K2 key2;
+      @Nullable final K1 key1;
+      @Nullable final K2 key2;
 
       protected Entry(@Nullable K1 key1, @Nullable K2 key2) {
         super(hash(key1, key2));
@@ -444,8 +453,9 @@ public final class ConcurrentHashtable {
 
     /**
      * Creates a fixed-size table holding at most {@code maxCapacity} entries. {@code entryClass} is
-     * used only to infer the concrete entry type; entries are created by the functions passed to
-     * the insertion methods. The table does not resize.
+     * used only to allocate the backing array with the right component type; entries themselves are
+     * created by the {@code creator}/{@code evictable} functions passed to the insertion methods.
+     * The table does not resize.
      */
     @Nonnull
     public static <K1, K2, TEntry extends D2.Entry<K1, K2, TEntry>>
@@ -478,15 +488,12 @@ public final class ConcurrentHashtable {
      * Returns the entry for {@code (key1, key2)}, creating one via {@code creator} if absent and
      * the table is under capacity. Lock-free on hit; acquires a table-level lock on miss. Wraps
      * {@link #tryGetOrCreateOrNull} — see that method for the refusal and ordering details.
-     *
-     * <p>The {@code creator} should build an entry whose {@code keyHash} equals {@link
-     * D2.Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
      */
     @Nonnull
     public Maybe<TEntry> tryGetOrCreate(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+        @Strategy @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       return Maybe.of(tryGetOrCreateOrNull(key1, key2, creator));
     }
 
@@ -496,11 +503,12 @@ public final class ConcurrentHashtable {
      * {@code (key1, key2)} was not already present. Re-checks under the lock to avoid duplicate
      * entries under concurrent misses.
      */
+    @StrategyConsumer
     @Nullable
     public TEntry tryGetOrCreateOrNull(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+        @Strategy @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
       long keyHash = D2.Entry.hash(key1, key2);
       int index = bucketIndex(state.buckets, keyHash);
       for (TEntry curEntry = bucketAt(state, index); curEntry != null; curEntry = curEntry.next()) {
@@ -540,8 +548,8 @@ public final class ConcurrentHashtable {
     public Maybe<TEntry> tryGetOrCreateOrEvict(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Strategy @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
+        @Strategy @Nonnull Predicate<? super TEntry> evictable) {
       return Maybe.of(tryGetOrCreateOrEvictOrNull(key1, key2, creator, evictable));
     }
 
@@ -552,12 +560,13 @@ public final class ConcurrentHashtable {
      * ever leaving a slot double-booked. A creator that throws after a successful eviction simply
      * leaves the table one entry smaller — no corruption, just a wasted eviction.
      */
+    @StrategyConsumer
     @Nullable
     public TEntry tryGetOrCreateOrEvictOrNull(
         @Nullable K1 key1,
         @Nullable K2 key2,
-        @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Strategy @Nonnull BiFunction<? super K1, ? super K2, ? extends TEntry> creator,
+        @Strategy @Nonnull Predicate<? super TEntry> evictable) {
       long keyHash = D2.Entry.hash(key1, key2);
       int index = bucketIndex(state.buckets, keyHash);
       for (TEntry curEntry = bucketAt(state, index); curEntry != null; curEntry = curEntry.next()) {
@@ -613,7 +622,7 @@ public final class ConcurrentHashtable {
      * Holds the table-level lock for the whole sweep, so the predicate sees a stable table and
      * concurrent writers are excluded; lock-free readers continue throughout.
      */
-    public boolean removeIf(@Nonnull Predicate<? super TEntry> predicate) {
+    public boolean removeIf(@Strategy @Nonnull Predicate<? super TEntry> predicate) {
       return ConcurrentHashtable.removeIf(state, predicate);
     }
 
@@ -624,7 +633,7 @@ public final class ConcurrentHashtable {
      *
      * <p>Use {@link #drain(Object, BiConsumer)} to avoid a capturing lambda.
      */
-    public void drain(@Nonnull Consumer<? super TEntry> sink) {
+    public void drain(@Strategy @Nonnull Consumer<? super TEntry> sink) {
       ConcurrentHashtable.drain(state, sink);
     }
 
@@ -633,7 +642,8 @@ public final class ConcurrentHashtable {
      * a {@code static final}) plus the accumulator as {@code context} (e.g. the target list or
      * event builder) to avoid a capturing-lambda allocation.
      */
-    public <C> void drain(C context, @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+    public <C> void drain(
+        C context, @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
       ConcurrentHashtable.drain(state, context, sink);
     }
 
@@ -642,7 +652,7 @@ public final class ConcurrentHashtable {
       ConcurrentHashtable.clear(state);
     }
 
-    public void forEach(@Nonnull Consumer<? super TEntry> consumer) {
+    public void forEach(@Strategy @Nonnull Consumer<? super TEntry> consumer) {
       ConcurrentHashtable.forEach(state, consumer);
     }
 
@@ -650,7 +660,8 @@ public final class ConcurrentHashtable {
      * Context-passing forEach. Avoids a capturing-lambda allocation — pass a non-capturing {@link
      * BiConsumer} (typically a {@code static final}) plus whatever side-band state it needs.
      */
-    public <C> void forEach(C context, @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+    public <C> void forEach(
+        C context, @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
       ConcurrentHashtable.forEach(state, context, consumer);
     }
   }
@@ -742,7 +753,7 @@ public final class ConcurrentHashtable {
     @GuardedBy("getTableWriteLock(buckets)")
     public <TEntry extends Entry<TEntry>> boolean tryReserveOrEvict(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Strategy @Nonnull Predicate<? super TEntry> evictable) {
       if (tryReserve()) {
         return true;
       }
@@ -793,7 +804,7 @@ public final class ConcurrentHashtable {
     @Nullable
     public <TEntry extends Entry<TEntry>> TEntry evictOne(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Strategy @Nonnull Predicate<? super TEntry> evictable) {
       TEntry evicted = evictOneInRange(buckets, evictable, evictionCursor, buckets.length());
       if (evicted == null && evictionCursor != 0) {
         evicted = evictOneInRange(buckets, evictable, 0, evictionCursor);
@@ -815,10 +826,11 @@ public final class ConcurrentHashtable {
         justification =
             "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
                 + " cannot model that dynamic guard")
+    @StrategyConsumer
     @Nullable
     private <TEntry extends Entry<TEntry>> TEntry evictOneInRange(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
-        @Nonnull Predicate<? super TEntry> evictable,
+        @Strategy @Nonnull Predicate<? super TEntry> evictable,
         int startBucket,
         int endBucket) {
       for (int i = startBucket; i < endBucket; i++) {
@@ -846,9 +858,10 @@ public final class ConcurrentHashtable {
         justification =
             "evictionCursor is read and written only under synchronized (getTableWriteLock(buckets)); SpotBugs"
                 + " cannot model that dynamic guard")
+    @StrategyConsumer
     public <TEntry extends Entry<TEntry>> int evictAll(
         @Nonnull AtomicReferenceArray<TEntry> buckets,
-        @Nonnull Predicate<? super TEntry> evictable) {
+        @Strategy @Nonnull Predicate<? super TEntry> evictable) {
       int count = 0;
       for (int i = 0; i < buckets.length(); i++) {
         TEntry prev = null;
@@ -913,10 +926,11 @@ public final class ConcurrentHashtable {
    * Lock-free — does not acquire the table write lock. Returns {@code false} with the table
    * unchanged when it is full.
    *
-   * <p>Complete it with {@link #insertReserved}, or prefer {@link #reserve} for a higher-level,
+   * <p>Complete it with {@link #insertReserved}, or prefer {@link #tryReserve} for a higher-level,
    * auto-cancelling handle that also defers entry construction until the reservation succeeds.
    */
-  public static <TEntry extends Entry<TEntry>> boolean tryReserve(@Nonnull State<TEntry> state) {
+  public static <TEntry extends Entry<TEntry>> boolean tryReserveSlot(
+      @Nonnull State<TEntry> state) {
     return state.sizeManager.tryReserve();
   }
 
@@ -926,7 +940,7 @@ public final class ConcurrentHashtable {
    * lock. Never returns {@code null}, so this always composes with try-with-resources:
    *
    * <pre>{@code
-   * try (Reservation<TEntry> r = ConcurrentHashtable.reserve(state)) {
+   * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state)) {
    *   return r.tryGetOrInsertOrNull(TEntry::new, component1, component2, component3);
    * }
    * }</pre>
@@ -936,17 +950,21 @@ public final class ConcurrentHashtable {
    * reservation itself, and the locked comparison inside {@link Reservation#tryGetOrInsertOrNull},
    * are the source of truth), it just avoids paying for a lock and a factory call when a hit was
    * already visible lock-free.
+   *
+   * <p>Always returns a non-null handle — even when the table is full — so the caller must check
+   * {@link Reservation#isPresent()} (or simply call {@link Reservation#tryGetOrInsertOrNull}, which
+   * returns {@code null} on an absent reservation) rather than assume every reservation is real.
    */
   @Nonnull
-  public static <TEntry extends Entry<TEntry>> Reservation<TEntry> reserve(
+  public static <TEntry extends Entry<TEntry>> Reservation<TEntry> tryReserve(
       @Nonnull State<TEntry> state) {
     return new Reservation<>(state.sizeManager.tryReserve() ? state : null);
   }
 
   /**
-   * Handle returned by {@link #reserve}, gating {@link #tryGetOrInsertOrNull} behind a claimed slot
-   * and auto-cancelling it on {@link #close} if it's never consumed. A single {@code Reservation}
-   * must be used for at most one {@code tryGetOrInsertOrNull} call.
+   * Handle returned by {@link #tryReserve}, gating {@link #tryGetOrInsertOrNull} behind a claimed
+   * slot and auto-cancelling it on {@link #close} if it's never consumed. A single {@code
+   * Reservation} must be used for at most one {@code tryGetOrInsertOrNull} call.
    *
    * <p>Overloaded up to 4 key components ({@link #tryGetOrInsertOrNull(Function, Object)} through
    * {@link #tryGetOrInsertOrNull(Function4, Object, Object, Object, Object)}) so a non-capturing
@@ -973,9 +991,10 @@ public final class ConcurrentHashtable {
      * One key component; see {@link #tryGetOrInsertOrNull(BiFunction, Object, Object)} for the
      * general contract.
      */
+    @StrategyConsumer
     @Nullable
     public <A> TEntry tryGetOrInsertOrNull(
-        @Nonnull Function<? super A, ? extends TEntry> factory, A a) {
+        @Strategy @Nonnull Function<? super A, ? extends TEntry> factory, A a) {
       return state == null ? null : finish(factory.apply(a));
     }
 
@@ -991,9 +1010,10 @@ public final class ConcurrentHashtable {
      * construction cost {@code factory} pays. See {@link ConcurrentHashtable.Entry#matches} — the
      * under-lock comparison is entry-to-entry, so it needs {@code newEntry} already built.
      */
+    @StrategyConsumer
     @Nullable
     public <A, B> TEntry tryGetOrInsertOrNull(
-        @Nonnull BiFunction<? super A, ? super B, ? extends TEntry> factory, A a, B b) {
+        @Strategy @Nonnull BiFunction<? super A, ? super B, ? extends TEntry> factory, A a, B b) {
       return state == null ? null : finish(factory.apply(a, b));
     }
 
@@ -1001,6 +1021,7 @@ public final class ConcurrentHashtable {
      * Three key components; see {@link #tryGetOrInsertOrNull(BiFunction, Object, Object)} for the
      * general contract.
      */
+    @StrategyConsumer
     @Nullable
     public <A, B, C> TEntry tryGetOrInsertOrNull(
         @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory,
@@ -1011,6 +1032,7 @@ public final class ConcurrentHashtable {
     }
 
     /** Four key components; see {@link #tryGetOrInsertOrNull(BiFunction, Object, Object)}. */
+    @StrategyConsumer
     @Nullable
     public <A, B, C, D> TEntry tryGetOrInsertOrNull(
         @Nonnull Function4<? super A, ? super B, ? super C, ? super D, ? extends TEntry> factory,
@@ -1019,6 +1041,46 @@ public final class ConcurrentHashtable {
         C c,
         D d) {
       return state == null ? null : finish(factory.apply(a, b, c, d));
+    }
+
+    /**
+     * {@link Maybe}-wrapping counterpart of {@link #tryGetOrInsertOrNull(Function, Object)}, for
+     * callers who'd rather make the "this can fail unlike unbounded collections" outcome visible in
+     * the return type than rely on a {@code null} check — mirrors {@link D1#tryGetOrCreate} /
+     * {@link D2#tryGetOrCreate} wrapping their own {@code ...OrNull} methods.
+     */
+    @Nonnull
+    public <A> Maybe<TEntry> tryGetOrInsert(
+        @Strategy @Nonnull Function<? super A, ? extends TEntry> factory, A a) {
+      return Maybe.of(tryGetOrInsertOrNull(factory, a));
+    }
+
+    /** Two key components; see {@link #tryGetOrInsert(Function, Object)}. */
+    @Nonnull
+    public <A, B> Maybe<TEntry> tryGetOrInsert(
+        @Strategy @Nonnull BiFunction<? super A, ? super B, ? extends TEntry> factory, A a, B b) {
+      return Maybe.of(tryGetOrInsertOrNull(factory, a, b));
+    }
+
+    /** Three key components; see {@link #tryGetOrInsert(Function, Object)}. */
+    @Nonnull
+    public <A, B, C> Maybe<TEntry> tryGetOrInsert(
+        @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory,
+        A a,
+        B b,
+        C c) {
+      return Maybe.of(tryGetOrInsertOrNull(factory, a, b, c));
+    }
+
+    /** Four key components; see {@link #tryGetOrInsert(Function, Object)}. */
+    @Nonnull
+    public <A, B, C, D> Maybe<TEntry> tryGetOrInsert(
+        @Nonnull Function4<? super A, ? super B, ? super C, ? super D, ? extends TEntry> factory,
+        A a,
+        B b,
+        C c,
+        D d) {
+      return Maybe.of(tryGetOrInsertOrNull(factory, a, b, c, d));
     }
 
     private TEntry finish(@Nonnull TEntry newEntry) {
@@ -1047,12 +1109,14 @@ public final class ConcurrentHashtable {
   }
 
   /** Three-argument analogue of {@link java.util.function.BiFunction}. */
+  @Strategy
   @FunctionalInterface
   public interface Function3<A, B, C, R> {
     R apply(A a, B b, C c);
   }
 
   /** Four-argument analogue of {@link java.util.function.BiFunction}. */
+  @Strategy
   @FunctionalInterface
   public interface Function4<A, B, C, D, R> {
     R apply(A a, B b, C c, D d);
@@ -1067,7 +1131,7 @@ public final class ConcurrentHashtable {
    * #insertReserved}; abandoning it permanently consumes capacity.
    */
   public static <TEntry extends Entry<TEntry>> boolean tryReserveOrEvict(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+      @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> evictable) {
     synchronized (getTableWriteLock(state)) {
       return state.sizeManager.tryReserveOrEvict(state.buckets, evictable);
     }
@@ -1080,7 +1144,7 @@ public final class ConcurrentHashtable {
    */
   @Nullable
   public static <TEntry extends Entry<TEntry>> TEntry evictOne(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+      @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> evictable) {
     synchronized (getTableWriteLock(state)) {
       return state.sizeManager.evictOne(state.buckets, evictable);
     }
@@ -1091,7 +1155,7 @@ public final class ConcurrentHashtable {
    * returns how many went. Self-locking.
    */
   public static <TEntry extends Entry<TEntry>> int evictAll(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> evictable) {
+      @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> evictable) {
     synchronized (getTableWriteLock(state)) {
       return state.sizeManager.evictAll(state.buckets, evictable);
     }
@@ -1241,6 +1305,45 @@ public final class ConcurrentHashtable {
   }
 
   /**
+   * Returns a lock-free iterator over the bucket chain that {@code keyHash} maps to, starting from
+   * {@link #bucketFor(AtomicReferenceArray, long)}. Each {@link Iterator#next()} call follows
+   * {@link Entry#next()}, so the iterator reflects entries linked at the time each step runs rather
+   * than a point-in-time snapshot -- entries inserted ahead of the iterator's current position
+   * after iteration starts may or may not be observed, and a concurrently removed entry remains
+   * reachable because {@code unlink()} deliberately retains its {@code next} link for in-flight
+   * readers.
+   */
+  @Nonnull
+  public static <TEntry extends Entry<TEntry>> Iterator<TEntry> hashIterator(
+      @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash) {
+    return new Iterator<TEntry>() {
+      private TEntry next = bucketFor(buckets, keyHash);
+
+      @Override
+      public boolean hasNext() {
+        return next != null;
+      }
+
+      @Override
+      public TEntry next() {
+        TEntry current = next;
+        if (current == null) {
+          throw new NoSuchElementException();
+        }
+        next = current.next();
+        return current;
+      }
+    };
+  }
+
+  /** {@link #hashIterator(AtomicReferenceArray, long)} over a {@link State}. */
+  @Nonnull
+  public static <TEntry extends Entry<TEntry>> Iterator<TEntry> hashIterator(
+      @Nonnull State<TEntry> state, long keyHash) {
+    return hashIterator(state.buckets, keyHash);
+  }
+
+  /**
    * Publishes {@code entry} as the head of bucket {@code index}. The helper writes the entry's
    * {@code next} link before the volatile {@link AtomicReferenceArray#set}; a volatile bucket read
    * that observes the new head also sees the initialized entry and its link. The caller must hold
@@ -1332,10 +1435,11 @@ public final class ConcurrentHashtable {
    * predicate sees a stable table and concurrent writers are excluded; lock-free readers continue
    * throughout.
    */
+  @StrategyConsumer
   public static <TEntry extends Entry<TEntry>> boolean removeIf(
       @Nonnull AtomicReferenceArray<TEntry> buckets,
       @Nonnull AtomicInteger size,
-      @Nonnull Predicate<? super TEntry> predicate) {
+      @Strategy @Nonnull Predicate<? super TEntry> predicate) {
     synchronized (getTableWriteLock(buckets)) {
       boolean removed = false;
       for (int i = 0; i < buckets.length(); i++) {
@@ -1360,8 +1464,9 @@ public final class ConcurrentHashtable {
    * occupancy with a {@link State} instead of a bare counter — used by {@link D1#removeIf} and
    * {@link D2#removeIf}.
    */
+  @StrategyConsumer
   public static <TEntry extends Entry<TEntry>> boolean removeIf(
-      @Nonnull State<TEntry> state, @Nonnull Predicate<? super TEntry> predicate) {
+      @Nonnull State<TEntry> state, @Strategy @Nonnull Predicate<? super TEntry> predicate) {
     AtomicReferenceArray<TEntry> buckets = state.buckets;
     synchronized (getTableWriteLock(state)) {
       boolean removed = false;
@@ -1390,7 +1495,8 @@ public final class ConcurrentHashtable {
    * <p>The sink must not throw. If it does, the partial drain is not rolled back.
    */
   public static <TEntry extends Entry<TEntry>> void drain(
-      @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      @Strategy @Nonnull Consumer<? super TEntry> sink) {
     drainCounting(buckets, sink);
   }
 
@@ -1399,8 +1505,10 @@ public final class ConcurrentHashtable {
    * sink}, so a {@link State} form can subtract exactly that from its {@link SizeManager} instead
    * of zeroing. The count is free here: the sweep already visits every entry.
    */
+  @StrategyConsumer
   private static <TEntry extends Entry<TEntry>> int drainCounting(
-      @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      @Strategy @Nonnull Consumer<? super TEntry> sink) {
     int removed = 0;
     synchronized (getTableWriteLock(buckets)) {
       for (int i = 0; i < buckets.length(); i++) {
@@ -1422,15 +1530,16 @@ public final class ConcurrentHashtable {
   public static <C, TEntry extends Entry<TEntry>> void drain(
       @Nonnull AtomicReferenceArray<TEntry> buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
     drainCounting(buckets, context, sink);
   }
 
   /** {@link #drainCounting(AtomicReferenceArray, Consumer)}, context-passing form. */
+  @StrategyConsumer
   private static <C, TEntry extends Entry<TEntry>> int drainCounting(
       @Nonnull AtomicReferenceArray<TEntry> buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
     int removed = 0;
     synchronized (getTableWriteLock(buckets)) {
       for (int i = 0; i < buckets.length(); i++) {
@@ -1455,7 +1564,7 @@ public final class ConcurrentHashtable {
    * rather than as a pair the caller has to remember.
    */
   public static <TEntry extends Entry<TEntry>> void drain(
-      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> sink) {
+      @Nonnull State<TEntry> state, @Strategy @Nonnull Consumer<? super TEntry> sink) {
     synchronized (getTableWriteLock(state)) {
       state.sizeManager.release(drainCounting(state.buckets, sink));
     }
@@ -1465,7 +1574,7 @@ public final class ConcurrentHashtable {
   public static <C, TEntry extends Entry<TEntry>> void drain(
       @Nonnull State<TEntry> state,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
+      @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> sink) {
     synchronized (getTableWriteLock(state)) {
       state.sizeManager.release(drainCounting(state.buckets, context, sink));
     }
@@ -1513,8 +1622,10 @@ public final class ConcurrentHashtable {
     }
   }
 
+  @StrategyConsumer
   public static <TEntry extends Entry<TEntry>> void forEach(
-      @Nonnull AtomicReferenceArray<TEntry> buckets, @Nonnull Consumer<? super TEntry> consumer) {
+      @Nonnull AtomicReferenceArray<TEntry> buckets,
+      @Strategy @Nonnull Consumer<? super TEntry> consumer) {
     for (int i = 0; i < buckets.length(); i++) {
       for (TEntry curEntry = buckets.get(i); curEntry != null; curEntry = curEntry.next()) {
         consumer.accept(curEntry);
@@ -1522,10 +1633,11 @@ public final class ConcurrentHashtable {
     }
   }
 
+  @StrategyConsumer
   public static <C, TEntry extends Entry<TEntry>> void forEach(
       @Nonnull AtomicReferenceArray<TEntry> buckets,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+      @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
     for (int i = 0; i < buckets.length(); i++) {
       for (TEntry curEntry = buckets.get(i); curEntry != null; curEntry = curEntry.next()) {
         consumer.accept(context, curEntry);
@@ -1535,7 +1647,7 @@ public final class ConcurrentHashtable {
 
   /** {@link #forEach(AtomicReferenceArray, Consumer)} over a {@link State}. */
   public static <TEntry extends Entry<TEntry>> void forEach(
-      @Nonnull State<TEntry> state, @Nonnull Consumer<? super TEntry> consumer) {
+      @Nonnull State<TEntry> state, @Strategy @Nonnull Consumer<? super TEntry> consumer) {
     forEach(state.buckets, consumer);
   }
 
@@ -1543,7 +1655,7 @@ public final class ConcurrentHashtable {
   public static <C, TEntry extends Entry<TEntry>> void forEach(
       @Nonnull State<TEntry> state,
       C context,
-      @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
+      @Strategy @Nonnull BiConsumer<? super C, ? super TEntry> consumer) {
     forEach(state.buckets, context, consumer);
   }
 }

@@ -23,11 +23,10 @@ import org.openjdk.jmh.annotations.Warmup;
  * Measures lookup followed by an atomic counter increment in a shared, pre-populated table. Models
  * per-class or per-method hit counters in the tracer.
  *
- * <p>The {@link ConcurrentHashtable.D1} case embeds a {@code volatile long} in each entry. {@link
- * AtomicLongFieldUpdater} updates that field atomically without allocating an {@link AtomicLong}
- * per key. The map baselines store a separate {@link AtomicLong} or {@link LongAdder}; {@code
- * LongAdder} spreads contention across internal cells at the cost of more memory and a more
- * expensive read.
+ * <p>The {@link ConcurrentHashtable.D1} case embeds a {@code volatile long} counter directly in the
+ * entry and increments it via {@link AtomicLongFieldUpdater}, avoiding a second heap object. The
+ * map baselines store a separate {@link AtomicLong} or {@link LongAdder}; {@code LongAdder} spreads
+ * contention across internal cells at the cost of more memory and a more expensive read.
  *
  * <p>Lookups reuse the key instances installed during setup. {@code Objects.equals} therefore
  * returns on its identity check without dispatching to {@code equals}, so this measures the
@@ -50,8 +49,8 @@ import org.openjdk.jmh.annotations.Warmup;
  *   <li>{@code LongAdder} is marginally faster (79 vs 71 ops/us) because it shards the counter
  *       across cells to reduce CAS contention; the advantage grows with thread count.
  *   <li>{@code ConcurrentHashtable} matches {@code AtomicLong} throughput (69 vs 71 ops/us) while
- *       embedding the counter directly in the entry — one object instead of two, with no throughput
- *       penalty.
+ *       embedding the counter directly in the entry via {@code AtomicLongFieldUpdater} — one object
+ *       instead of two, with no throughput penalty.
  * </ul>
  */
 @Fork(2)
@@ -73,8 +72,12 @@ public class ThreadSafeMapCounterBenchmark {
     }
   }
 
+  /**
+   * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
+   * a shared instrumentation counter table.
+   */
   static final class CounterEntry extends ConcurrentHashtable.D1.Entry<String, CounterEntry> {
-    private static final AtomicLongFieldUpdater<CounterEntry> COUNT =
+    static final AtomicLongFieldUpdater<CounterEntry> COUNT =
         AtomicLongFieldUpdater.newUpdater(CounterEntry.class, "count");
 
     volatile long count;
@@ -82,16 +85,8 @@ public class ThreadSafeMapCounterBenchmark {
     CounterEntry(String key) {
       super(key);
     }
-
-    long increment() {
-      return COUNT.incrementAndGet(this);
-    }
   }
 
-  /**
-   * Shared state ({@link Scope#Benchmark}): one instance of each map across all threads, modelling
-   * a shared instrumentation counter table.
-   */
   @State(Scope.Benchmark)
   public static class SharedState {
     ConcurrentHashtable.D1<String, CounterEntry> table;
@@ -125,7 +120,7 @@ public class ThreadSafeMapCounterBenchmark {
 
   @Benchmark
   public long increment_concurrentHashtable(SharedState s, ThreadState t) {
-    return s.table.get(KEYS[t.next()]).increment();
+    return CounterEntry.COUNT.incrementAndGet(s.table.get(KEYS[t.next()]));
   }
 
   @Benchmark
