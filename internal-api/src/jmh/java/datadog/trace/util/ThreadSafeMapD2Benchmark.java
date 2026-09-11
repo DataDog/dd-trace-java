@@ -95,6 +95,15 @@ public class ThreadSafeMapD2Benchmark {
     }
   }
 
+  static final class D2Entry extends ConcurrentHashtable.D2.Entry<String, Integer> {
+    final long value;
+
+    D2Entry(String k1, Integer k2) {
+      super(k1, k2);
+      this.value = 1L;
+    }
+  }
+
   /**
    * Entry used with the static helpers. Its primitive second key keeps storage and lookup unboxed,
    * independently of {@link Integer} caching or JVM escape analysis.
@@ -122,16 +131,6 @@ public class ThreadSafeMapD2Benchmark {
     @Override
     public boolean matches(SupportEntry other) {
       return matches(other.k1, other.k2);
-    }
-  }
-
-  /** Entry used with {@link ConcurrentHashtable.D2}. */
-  static final class PairEntry extends ConcurrentHashtable.D2.Entry<String, Integer> {
-    final long value;
-
-    PairEntry(String key1, Integer key2, long value) {
-      super(key1, key2);
-      this.value = value;
     }
   }
 
@@ -177,7 +176,7 @@ public class ThreadSafeMapD2Benchmark {
    */
   @State(Scope.Benchmark)
   public static class SharedState {
-    ConcurrentHashtable.D2<String, Integer, PairEntry> table;
+    ConcurrentHashtable.D2<String, Integer, D2Entry> table;
     java.util.concurrent.atomic.AtomicReferenceArray<SupportEntry> supportBuckets;
     ConcurrentHashMap<Key2, Long> concurrentHashMap;
     ConcurrentSkipListMap<Key2, Long> skipListMap;
@@ -185,14 +184,14 @@ public class ThreadSafeMapD2Benchmark {
 
     @Setup(Level.Iteration)
     public void setUp() {
-      table = ConcurrentHashtable.D2.createBounded(PairEntry.class, CAPACITY);
+      table = ConcurrentHashtable.D2.createBounded(D2Entry.class, CAPACITY);
       supportBuckets = ConcurrentHashtable.createFixedBuckets(SupportEntry.class, CAPACITY);
       concurrentHashMap = new ConcurrentHashMap<>(CAPACITY);
       skipListMap = new ConcurrentSkipListMap<>();
       synchronizedHashMap = Collections.synchronizedMap(new HashMap<>(CAPACITY));
       for (int i = 0; i < N_KEYS; ++i) {
         int k2 = SOURCE_K2[i];
-        table.tryGetOrCreateOrNull(SOURCE_K1[i], SOURCE_K2[i], (a, b) -> new PairEntry(a, b, 1L));
+        table.tryGetOrCreateOrNull(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
         // populate support table
         SupportEntry se = new SupportEntry(SOURCE_K1[i], k2);
         synchronized (ConcurrentHashtable.getWriteLock(supportBuckets, se.keyHash)) {
@@ -219,7 +218,7 @@ public class ThreadSafeMapD2Benchmark {
   }
 
   @Benchmark
-  public PairEntry get_concurrentHashtable(SharedState s, ThreadState t) {
+  public D2Entry get_concurrentHashtable(SharedState s, ThreadState t) {
     int i = t.next();
     return s.table.get(SOURCE_K1[i], SOURCE_K2[i]);
   }
@@ -259,10 +258,9 @@ public class ThreadSafeMapD2Benchmark {
   }
 
   @Benchmark
-  public PairEntry getOrCreate_concurrentHashtable(SharedState s, ThreadState t) {
+  public D2Entry getOrCreate_concurrentHashtable(SharedState s, ThreadState t) {
     int i = t.next();
-    return s.table.tryGetOrCreateOrNull(
-        SOURCE_K1[i], SOURCE_K2[i], (k1, k2) -> new PairEntry(k1, k2, 0L));
+    return s.table.tryGetOrCreateOrNull(SOURCE_K1[i], SOURCE_K2[i], D2Entry::new);
   }
 
   @Benchmark
