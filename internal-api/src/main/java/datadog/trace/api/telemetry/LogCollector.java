@@ -1,7 +1,6 @@
 package datadog.trace.api.telemetry;
 
 import static datadog.trace.util.ConcurrentHashtable.estimateSize;
-import static datadog.trace.util.ConcurrentHashtable.hashIterable;
 import static datadog.trace.util.LongHashingUtils.hash;
 
 import datadog.trace.api.internal.VisibleForTesting;
@@ -130,7 +129,7 @@ public class LogCollector {
   private RawLogMessage find(
       long keyHash, String logLevel, String message, @Nullable Throwable throwable) {
     StackTraceElement[] stackTrace = null;
-    for (RawLogMessage entry : hashIterable(rawLogMessages, keyHash)) {
+    for (RawLogMessage entry : ConcurrentHashtable.hashIterable(rawLogMessages, keyHash)) {
       if (!Objects.equals(logLevel, entry.logLevel) || !Objects.equals(message, entry.message)) {
         continue;
       }
