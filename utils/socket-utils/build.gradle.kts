@@ -12,6 +12,7 @@ extensions.getByName("tracerJava").withGroovyBuilder {
 }
 
 dependencies {
+  add("main_java17CompileOnly", project(":components:annotations"))
   implementation(project(":components:environment"))
   implementation(project(":utils:logging-utils"))
   implementation(libs.slf4j)

@@ -2,9 +2,18 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
+import static okhttp3.mockwebserver.SocketPolicy.DISCONNECT_AT_END;
+import static okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.junit.jupiter.api.condition.JRE.JAVA_16;
+import static org.junit.jupiter.api.condition.OS.LINUX;
+import static org.junit.jupiter.api.condition.OS.MAC;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -18,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import datadog.common.socket.UnixDomainServerSocketFactory;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.http.OkHttpUtils;
 import datadog.communication.serialization.FlushingBuffer;
@@ -39,6 +49,8 @@ import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.Flaky;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -46,11 +58,17 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.HttpUrl;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.mockito.Mockito;
 import org.tabletest.junit.TableTest;
 
@@ -336,12 +354,11 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
     List<DDSpan> minimalTrace = createMinimalTrace();
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
-    JavaTestHttpServer agent =
+    try (JavaTestHttpServer agent =
         JavaTestHttpServer.httpServer(
             server ->
                 server.handlers(
-                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())));
-    try {
+                    h -> h.put(agentVersion, api -> api.getResponse().status(200).send())))) {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress());
       okhttp3.OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
       DDAgentFeaturesDiscovery discovery =
@@ -380,8 +397,6 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       writer.close();
 
       verify(healthMetrics, times(1)).onShutdown(true);
-    } finally {
-      agent.close();
     }
   }
 
@@ -397,7 +412,9 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
 
     // DQH -- need to set-up a dummy agent for the final send callback to work
     final boolean[] first = {true};
-    JavaTestHttpServer agent =
+    // DQH - DDApi sniffs for end point existence, so respond with 200 the
+    // first time
+    try (JavaTestHttpServer agent =
         JavaTestHttpServer.httpServer(
             server ->
                 server.handlers(
@@ -413,8 +430,7 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
                               } else {
                                 api.getResponse().status(500).send();
                               }
-                            })));
-    try {
+                            })))) {
       HttpUrl agentUrl = HttpUrl.get(agent.getAddress());
       okhttp3.OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000);
       DDAgentFeaturesDiscovery discovery =
@@ -453,8 +469,82 @@ class DDAgentWriterCombinedTest extends DDCoreJavaSpecification {
       writer.close();
 
       verify(healthMetrics, times(1)).onShutdown(true);
+    }
+  }
+
+  @Test
+  @WithConfig(key = JDK_SOCKET_ENABLED, value = "true")
+  @EnabledForJreRange(min = JAVA_16)
+  @EnabledOnOs({LINUX, MAC})
+  void unixSocketTimeoutKeepsWorkerAliveAndReconnects() throws Exception {
+    assertTrue(Config.get().isJdkSocketEnabled());
+
+    Path socketPath = Files.createTempFile("dd-trace-agent-", ".sock");
+    Files.delete(socketPath);
+
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    AtomicReference<Thread> failedSendThread = new AtomicReference<>();
+    AtomicReference<Thread> successfulSendThread = new AtomicReference<>();
+    doAnswer(
+            invocation -> {
+              failedSendThread.set(Thread.currentThread());
+              return null;
+            })
+        .when(healthMetrics)
+        .onFailedSend(anyInt(), anyInt(), any());
+    doAnswer(
+            invocation -> {
+              successfulSendThread.set(Thread.currentThread());
+              return null;
+            })
+        .when(healthMetrics)
+        .onSend(anyInt(), anyInt(), any());
+
+    DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
+    when(discovery.getTraceEndpoint()).thenReturn("v0.4/traces");
+
+    try (MockWebServer server = new MockWebServer();
+        DDAgentWriter writer =
+            DDAgentWriter.builder()
+                .featureDiscovery(discovery)
+                .unixDomainSocket(socketPath.toString())
+                .timeoutMillis(100)
+                .monitoring(monitoring)
+                .healthMetrics(healthMetrics)
+                .flushIntervalMilliseconds(-1)
+                .flushTimeout(5, TimeUnit.SECONDS)
+                .build()) {
+      server.setServerSocketFactory(new UnixDomainServerSocketFactory(socketPath.toFile()));
+      // Read the first request fully, then withhold the response to trigger a header-read timeout.
+      server.enqueue(new MockResponse().setSocketPolicy(NO_RESPONSE));
+      server.enqueue(new MockResponse().setResponseCode(200).setSocketPolicy(DISCONNECT_AT_END));
+      server.start();
+
+      writer.start();
+
+      writer.write(createMinimalTrace());
+      assertTrue(writer.flush());
+
+      RecordedRequest failedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+      assertNotNull(failedRequest);
+      assertEquals(0, failedRequest.getSequenceNumber());
+      assertEquals(1, server.getRequestCount());
+      verify(healthMetrics, times(1)).onFailedSend(anyInt(), anyInt(), any());
+
+      writer.write(createMinimalTrace());
+      assertTrue(writer.flush());
+
+      RecordedRequest successfulRequest = server.takeRequest(5, TimeUnit.SECONDS);
+      assertNotNull(successfulRequest);
+      // Sequence numbers are per connection; zero again proves that this used a fresh socket.
+      assertEquals(0, successfulRequest.getSequenceNumber());
+      assertEquals(2, server.getRequestCount());
+      verify(healthMetrics, times(1)).onSend(anyInt(), anyInt(), any());
+      assertSame(failedSendThread.get(), successfulSendThread.get());
+    } catch (IOException | UnsupportedOperationException e) {
+      assumeTrue(false, "Unix-domain sockets are not supported: " + e.getMessage());
     } finally {
-      agent.close();
+      Files.deleteIfExists(socketPath);
     }
   }
 

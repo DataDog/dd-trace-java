@@ -45,7 +45,7 @@ public final class UnixDomainSocketFactory extends SocketFactory {
       if (this.useJdkUdsSocket) {
         try {
           return new TunnelingJdkSocket(this.path.toPath());
-        } catch (Throwable ignore) {
+        } catch (IOException | UnsupportedOperationException ignore) {
           // fall back to jnr-unixsocket library
         }
       }
