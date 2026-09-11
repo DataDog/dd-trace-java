@@ -11,13 +11,17 @@ cases:
       Apply this repo's performance-review criteria (reviewers/performance.md, its
       .agents/dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
       following method. No git checkout available — this snippet is the entire change to
-      review.
+      review. Lookup is by key only; insertion order is not part of the contract.
 
       ```java
       private final Map<String, Object> sessionCache = new LinkedHashMap<>();
 
       void recordSession(String sessionId, Object payload) {
         sessionCache.put(sessionId, payload);
+      }
+
+      Object getSession(String sessionId) {
+        return sessionCache.get(sessionId);
       }
       ```
     expected_criteria:
