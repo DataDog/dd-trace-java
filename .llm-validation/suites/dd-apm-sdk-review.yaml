@@ -80,15 +80,15 @@ cases:
 
   - id: java-security-crash-handler-before-trust
     files:
-      - .agents/skills/dd-apm-sdk-review/SKILL.md
       - .agents/skills/dd-apm-sdk-review/reviewers/_common.md
       - .agents/skills/dd-apm-sdk-review/reviewers/security.md
-      - .agents/skills/dd-apm-sdk-review/reviewers/report-template.md
       - .agents/dd-apm-sdk-review-overrides/reviewers/security.md
     input: |
-      Run dd-apm-sdk-review on the following change. There is no git repository to
-      inspect — this diff is the entire change set; do not attempt any git commands, go
-      straight to running the reviewers on the pasted content below.
+      Apply this repo's security-review criteria (reviewers/security.md, its
+      .agents/dd-apm-sdk-review-overrides/reviewers/security.md override, and _common.md) to
+      the following change. No git checkout available — this snippet is the entire change to
+      review. Report the security lens findings (location, failure mode, fix). This is not
+      the orchestrator's pasteable final report.
 
       ```diff
       diff --git a/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java b/dd-java-agent/agent-crashtracking/src/main/java/datadog/crashtracking/Initializer.java
@@ -111,11 +111,10 @@ cases:
       - "Flags that the JVM handler flag (`OnError`) is set to the target script/path BEFORE `CrashUploaderScriptInitializer.initialize(...)` — the ownership/trust validation — has run and returned a result. It is not enough to note that a validation step exists; the report must call out the ordering problem — if `initialize(...)` later rejects the path, the flag has already been committed to the untrusted path and the JVM crash handler will still execute it on a crash."
       - "Classifies this as a security finding (P0 or P1, not merely a style/maintainability nit) — a security control that can be silently bypassed."
       - "Recommends gating the flag-setter on the validator's result (e.g. `if (initialize(...)) { flags.setValue(...) }`) or clearing/restoring the flag on validation failure — not just \"add more logging\" or \"add a comment\"."
-      - "States the verdict line as exactly Verdict BLOCK and ends with DO NOT PUSH."
     bad_signals:
       - "Misses the ordering problem and only notes that a validation step exists."
       - "Treats this as a style or logging nit rather than a security bypass."
-      - "Approves the change or uses APPROVE / APPROVE_WITH_COMMENTS / READY TO PUSH."
+      - "Approves the change or reduces it to a private-routing notice with no location or failure mode."
 
   - id: java-correctness-capture-before-send
     files:
@@ -332,9 +331,10 @@ cases:
       diff --git a/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV0_4.java b/dd-trace-core/src/main/java/datadog/trace/common/writer/ddagent/TraceMapperV0_4.java
       @@ -300,10 +300,20 @@ public final class TraceMapperV0_4 implements TraceMapper {
       +  // PR #12096: process/propagation tags (dd-p-*) must be written once per
-      +  // payload, on the first span of the trace chunk currently being mapped.
+      +  // payload, on the first span of the first chunk in that payload.
       +  // This TraceMapperV0_4 instance is held by DDAgentWriter and reused across
-      +  // every trace chunk sent for the lifetime of the writer.
+      +  // every trace chunk sent for the lifetime of the writer. The writer calls
+      +  // mapper.reset() after each payload flush; map() may run many times per payload.
       +  private boolean firstSpanWritten;
       +
       +  @Override
@@ -352,11 +352,11 @@ cases:
       +  }
       ```
     expected_criteria:
-      - "Flags that `firstSpanWritten` is an instance field that is only ever set to `true` and is never reset to `false` at the start of `map()`."
-      - "Explains the concrete consequence given mapper reuse across the writer's lifetime: after the first chunk, subsequent chunks never write process/ propagation tags (`dd-p-*`) on their first span — silent cross-payload data loss."
-      - "Recommends resetting `firstSpanWritten` to `false` at the start of each `map()` call (or an explicit `reset()` before each `map()`)."
+      - "Flags that `firstSpanWritten` is an instance field that is only ever set to `true` and is never cleared between payloads."
+      - "Explains the concrete consequence given mapper reuse across the writer's lifetime: after the first payload, later payloads never write process/propagation tags (`dd-p-*`) — silent cross-payload data loss."
+      - "Recommends clearing `firstSpanWritten` in `reset()` (the payload-flush hook), not at the start of every `map()` — a per-map reset would write the tags on every chunk of the same payload."
       - "States an explicit verdict line and the matching gate line: `DO NOT PUSH` on BLOCK, `WAITING ON HUMAN` on APPROVE_WITH_COMMENTS, or `READY TO PUSH` on APPROVE."
     bad_signals:
-      - "Notes the flag exists but misses that nothing re-initializes it per chunk."
-      - "Suggests only \"make the field volatile\" or \"add logging\" without a per-map reset."
+      - "Notes the flag exists but misses that nothing re-initializes it per payload."
+      - "Suggests resetting the field at the start of every `map()` (or only \"make it volatile\" / \"add logging\")."
       - "Treats this as a crash rather than silent data loss from leaked state."
