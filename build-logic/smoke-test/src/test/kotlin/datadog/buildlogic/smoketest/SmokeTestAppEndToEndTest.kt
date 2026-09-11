@@ -265,7 +265,7 @@ class SmokeTestAppEndToEndTest {
   }
 
   @Test
-  fun `init script prepends Maven proxy repositories without overriding project repositories`() {
+  fun `local proxy property prepends Maven proxy repositories exactly once`() {
     writeOuterSettings()
     val proxyRepository = projectDir.resolve("proxy-maven-repo").toFile()
     val projectRepository = projectDir.resolve("project-maven-repo").toFile()
@@ -298,10 +298,12 @@ class SmokeTestAppEndToEndTest {
         inputs.files(configurations.compileClasspath)
         outputs.file(resolved)
         doLast {
+          val artifacts = configurations.compileClasspath.get()
+            .sortedBy { it.name }
+            .map { it.name + "=" + it.readText() }
           resolved.get().asFile.writeText(
-            configurations.compileClasspath.get()
-              .sortedBy { it.name }
-              .joinToString(System.lineSeparator()) { it.name + "=" + it.readText() }
+            (listOf("init-script-count=" + gradle.startParameter.initScripts.size) + artifacts)
+              .joinToString(System.lineSeparator())
           )
         }
       }
@@ -311,15 +313,114 @@ class SmokeTestAppEndToEndTest {
     val result = runner(
       "resolveRepositories",
       "-PmavenRepositoryProxy=${proxyRepository.toURI()}",
-      environment = mapOf("CI" to "true"),
+      environment = mapOf("CI" to "false"),
     ).build()
 
     assertThat(result.task(":resolveRepositories")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val resolvedFile = applicationOutput("resolved-repositories.txt")
     assertThat(resolvedFile).exists()
     assertThat(resolvedFile.readLines()).containsExactly(
+      "init-script-count=1",
       "project-only-1.0.jar=project-only",
       "shared-1.0.jar=proxy",
+    )
+  }
+
+  @Test
+  fun `proxy declared in gradleProperties also injects repository init script`() {
+    writeOuterSettings()
+    writeSmokeTestAppBuild(
+      smokeTestGradleApplication(
+        taskName = "recordProxy",
+        artifactPath = "proxy.txt",
+        sysProperty = "proxy.path",
+      ),
+      extraImports = "import datadog.buildlogic.smoketest.NestedGradleBuild",
+      extraPreamble = """
+      tasks.withType<NestedGradleBuild>().configureEach {
+        mavenRepositoryProxy.set("")
+        gradleProperties.put("mavenRepositoryProxy", "https://declared.example")
+      }
+      """,
+    )
+    writeInnerSettings()
+    writeInnerBuild(recordProxyTask())
+
+    val result = runner(
+      "recordProxy",
+      environment = mapOf("CI" to "false"),
+    ).build()
+
+    assertThat(result.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("proxy.txt").readLines()).containsExactly(
+      "proxy=https://declared.example",
+      "init-script-count=1",
+    )
+  }
+
+  @Test
+  fun `explicit task proxy overrides outer proxy on CI`() {
+    writeOuterSettings()
+    writeSmokeTestAppBuild(
+      smokeTestGradleApplication(
+        taskName = "recordProxy",
+        artifactPath = "proxy.txt",
+        sysProperty = "proxy.path",
+      ),
+      extraImports = "import datadog.buildlogic.smoketest.NestedGradleBuild",
+      extraPreamble = """
+      tasks.withType<NestedGradleBuild>().configureEach {
+        mavenRepositoryProxy.set("https://task.example")
+      }
+      """,
+    )
+    writeInnerSettings()
+    writeInnerBuild(recordProxyTask())
+
+    val result = runner(
+      "recordProxy",
+      "-PmavenRepositoryProxy=https://outer.example",
+      environment = mapOf("CI" to "true"),
+    ).build()
+
+    assertThat(result.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("proxy.txt").readLines()).containsExactly(
+      "proxy=https://task.example",
+      "init-script-count=1",
+    )
+  }
+
+  @Test
+  fun `outer cache key reflects repository proxy changes`() {
+    writeOuterSettings(withLocalBuildCache = true)
+    writeSmokeTestAppBuild(
+      smokeTestGradleApplication(
+        taskName = "recordProxy",
+        artifactPath = "proxy.txt",
+        sysProperty = "proxy.path",
+      ),
+    )
+    writeInnerSettings()
+    writeInnerBuild(recordProxyTask())
+
+    val first = runner(
+      "recordProxy",
+      "--build-cache",
+      "-PmavenRepositoryProxy=https://first.example",
+    ).build()
+    assertThat(first.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+
+    applicationBuildDir.deleteRecursively()
+
+    val second = runner(
+      "recordProxy",
+      "--build-cache",
+      "-PmavenRepositoryProxy=https://second.example",
+    ).build()
+    assertThat(second.task(":recordProxy")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(applicationOutput("proxy.txt").readLines()).containsExactly(
+      "proxy=https://second.example",
+      "init-script-count=1",
     )
   }
 
@@ -569,6 +670,22 @@ class SmokeTestAppEndToEndTest {
       """.trimIndent(),
     )
   }
+
+  private fun recordProxyTask(): String =
+    """
+    tasks.register("recordProxy") {
+      val out = layout.buildDirectory.file("proxy.txt")
+      outputs.file(out)
+      doLast {
+        out.get().asFile.writeText(
+          listOf(
+            "proxy=" + project.findProperty("mavenRepositoryProxy"),
+            "init-script-count=" + gradle.startParameter.initScripts.size,
+          ).joinToString(System.lineSeparator())
+        )
+      }
+    }
+    """.trimIndent()
 
   private fun applicationOutput(relativePath: String): File =
     applicationBuildDir.resolve(relativePath)

@@ -150,13 +150,8 @@ ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainers
   maxParallelUsages = project.findProperty("testcontainersMaxParallelUsages").toInteger()
 }
 
-// Task for tests that want to run forked in their own separate JVM
-tasks.register('forkedTest', Test) {
-  group = LifecycleBasePlugin.VERIFICATION_GROUP
-  useJUnitPlatform()
-  testClassesDirs = sourceSets.test.output.classesDirs
-  classpath = sourceSets.test.runtimeClasspath
-}
+// Every project gets a forked test task for its default 'test' source set.
+addForkedTestTask('test')
 
 // testRuntimeActivation is registered in individual module build files after this convention is
 // applied, so tasks.named() won't work here — use a lazy hook that intercepts it on registration.

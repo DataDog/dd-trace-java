@@ -21,7 +21,7 @@ muzzle {
 }
 
 addTestSuiteForDir('latestDepTest', 'latestDepTest')
-addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'latestDepTest')
+addForkedTestTask('latestDepTest')
 
 configurations {
   testArtifacts
@@ -56,15 +56,11 @@ dependencies {
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '4.+'
 }
 
-["compileLatestDepTestJava", "compileLatestDepForkedTestJava"].each { name ->
-  tasks.named(name, JavaCompile) {
-    configureCompiler(it, 11)
-  }
+tasks.named("compileLatestDepTestJava", JavaCompile) {
+  configureCompiler(it, 11)
 }
-["compileLatestDepForkedTestGroovy", "compileLatestDepTestGroovy"].each {
-  tasks.named(it, GroovyCompile) {
-    configureCompiler(it, 11)
-  }
+tasks.named("compileLatestDepTestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
 }
 
 tasks.named("latestDepTest", Test) {
@@ -74,10 +70,9 @@ tasks.named("latestDepTest", Test) {
   }
 }
 
-tasks.named("latestDepForkedTest", Test) {
+tasks.named("latestDepTestForkedTest", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_11
     maxJavaVersion = JavaVersion.VERSION_25
   }
 }
-

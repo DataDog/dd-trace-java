@@ -965,7 +965,7 @@ Implement `JavaModuleOpenProvider` when:
 Tests are written in Groovy using the [Spock framework](http://spockframework.org).
 For instrumentations, `InstrumentationSpecification` must be extended.
 For example, HTTP server frameworks use base tests which enforce consistency between different implementations
-(see [HttpServerTest](../dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
+(see [HttpServerTest](../dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/base/HttpServerTest.groovy)).
 When writing an instrumentation it is much faster to test just the instrumentation rather than build the entire project,
 for example:
 
