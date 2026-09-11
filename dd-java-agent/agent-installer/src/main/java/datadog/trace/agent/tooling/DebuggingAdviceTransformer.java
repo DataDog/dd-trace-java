@@ -25,6 +25,16 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
   private final String instrumentationClass;
   private final String adviceClass;
 
+  static AgentBuilder.Transformer.ForAdvice create(
+      Advice.WithCustomMapping advice,
+      String instrumentationClass,
+      String adviceClass,
+      boolean diagnosticsEnabled) {
+    return diagnosticsEnabled
+        ? new DebuggingAdviceTransformer(advice, instrumentationClass, adviceClass)
+        : new AgentBuilder.Transformer.ForAdvice(advice);
+  }
+
   DebuggingAdviceTransformer(
       Advice.WithCustomMapping advice, String instrumentationClass, String adviceClass) {
     super(advice);

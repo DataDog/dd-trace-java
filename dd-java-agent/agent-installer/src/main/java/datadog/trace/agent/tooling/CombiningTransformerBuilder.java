@@ -63,7 +63,7 @@ public final class CombiningTransformerBuilder
   private final InstrumenterIndex instrumenterIndex;
   private final int knownTransformationCount;
   private final Set<InstrumenterModule.TargetSystem> enabledSystems;
-  private final boolean debugEnabled;
+  private final boolean adviceTransformationDiagnosticsEnabled;
 
   private final List<MatchRecorder> matchers = new ArrayList<>();
   private final BitSet knownTypesMask;
@@ -91,7 +91,7 @@ public final class CombiningTransformerBuilder
       AgentBuilder agentBuilder,
       InstrumenterIndex instrumenterIndex,
       Set<InstrumenterModule.TargetSystem> enabledSystems,
-      boolean debugEnabled) {
+      boolean adviceTransformationDiagnosticsEnabled) {
     this.agentBuilder = agentBuilder;
     this.instrumenterIndex = instrumenterIndex;
     int knownInstrumentationCount = instrumenterIndex.instrumentationCount();
@@ -101,7 +101,7 @@ public final class CombiningTransformerBuilder
     this.nextRuntimeInstrumentationId = knownInstrumentationCount;
     this.nextRuntimeTransformationId = knownTransformationCount;
     this.enabledSystems = enabledSystems;
-    this.debugEnabled = debugEnabled;
+    this.adviceTransformationDiagnosticsEnabled = adviceTransformationDiagnosticsEnabled;
   }
 
   /** Builds matchers and transformers for an instrumentation module and its members. */
@@ -155,7 +155,8 @@ public final class CombiningTransformerBuilder
   /** Builds a type-specific transformer, controlled by one or more matchers. */
   private void buildTypeInstrumentation(Instrumenter member) {
 
-    instrumentationClass = debugEnabled ? member.getClass().getName() : null;
+    instrumentationClass =
+        adviceTransformationDiagnosticsEnabled ? member.getClass().getName() : null;
 
     int transformationId = instrumenterIndex.transformationId(member);
     if (transformationId < 0) {
@@ -279,9 +280,11 @@ public final class CombiningTransformerBuilder
       customMapping = customMapping.with(postProcessor);
     }
     AgentBuilder.Transformer.ForAdvice forAdvice =
-        debugEnabled
-            ? new DebuggingAdviceTransformer(customMapping, instrumentationClass, adviceClass)
-            : new AgentBuilder.Transformer.ForAdvice(customMapping);
+        DebuggingAdviceTransformer.create(
+            customMapping,
+            instrumentationClass,
+            adviceClass,
+            adviceTransformationDiagnosticsEnabled);
     forAdvice =
         forAdvice
             .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(adviceClass))

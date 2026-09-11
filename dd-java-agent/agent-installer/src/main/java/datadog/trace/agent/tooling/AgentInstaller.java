@@ -19,6 +19,7 @@ import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.api.ProductActivation;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -112,6 +113,17 @@ public class AgentInstaller {
       final Instrumentation inst,
       final boolean skipAdditionalLibraryMatcher,
       final Set<InstrumenterModule.TargetSystem> enabledSystems,
+      final AgentBuilder.Listener... listeners) {
+    return installBytebuddyAgent(
+        inst, skipAdditionalLibraryMatcher, enabledSystems, DEBUG, listeners);
+  }
+
+  @VisibleForTesting
+  public static ClassFileTransformer installBytebuddyAgent(
+      final Instrumentation inst,
+      final boolean skipAdditionalLibraryMatcher,
+      final Set<InstrumenterModule.TargetSystem> enabledSystems,
+      final boolean adviceTransformationDiagnosticsEnabled,
       final AgentBuilder.Listener... listeners) {
     Utils.setInstrumentation(inst);
 
@@ -218,7 +230,11 @@ public class AgentInstaller {
     }
 
     CombiningTransformerBuilder transformerBuilder =
-        new CombiningTransformerBuilder(agentBuilder, instrumenterIndex, enabledSystems, DEBUG);
+        new CombiningTransformerBuilder(
+            agentBuilder,
+            instrumenterIndex,
+            enabledSystems,
+            adviceTransformationDiagnosticsEnabled);
 
     int installedCount = 0;
     for (InstrumenterModule module : instrumenterModules) {

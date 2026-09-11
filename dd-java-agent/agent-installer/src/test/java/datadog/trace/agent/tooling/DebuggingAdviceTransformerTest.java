@@ -33,6 +33,24 @@ import org.slf4j.LoggerFactory;
 class DebuggingAdviceTransformerTest {
 
   @Test
+  void selectsRegularAdviceTransformerWhenDiagnosticsAreDisabled() {
+    AgentBuilder.Transformer.ForAdvice transformer =
+        DebuggingAdviceTransformer.create(
+            Advice.withCustomMapping(), "test.Instrumentation", ValidAdvice.class.getName(), false);
+
+    assertEquals(AgentBuilder.Transformer.ForAdvice.class, transformer.getClass());
+  }
+
+  @Test
+  void selectsDebuggingAdviceTransformerWhenDiagnosticsAreEnabled() {
+    AgentBuilder.Transformer.ForAdvice transformer =
+        DebuggingAdviceTransformer.create(
+            Advice.withCustomMapping(), "test.Instrumentation", ValidAdvice.class.getName(), true);
+
+    assertEquals(DebuggingAdviceTransformer.class, transformer.getClass());
+  }
+
+  @Test
   void doesNotChangeGeneratedBytecode() {
     byte[] regular = transform(new AgentBuilder.Transformer.ForAdvice(), ValidAdvice.class);
     byte[] debugging =
