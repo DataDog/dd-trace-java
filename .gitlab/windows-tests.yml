@@ -183,8 +183,8 @@ test-base-windows:
         - workspace/**/build/test-results/**/*.xml
         - buildSrc/build/test-results/**/*.xml
 
-# Keep the first instrumentation rollout opt-in on every ref. Unlike the Linux
-# test_inst job, this intentionally does not enable the APM Test Agent sidecar:
+# Keep the instrumentation rollout opt-in on every ref. Unlike the Linux
+# instrumentation jobs, these intentionally do not enable the APM Test Agent sidecar:
 # the tests still assert against their in-memory writer, while cross-container
 # Test Agent connectivity can be added as a separate step.
 test-inst-windows:
@@ -196,6 +196,31 @@ test-inst-windows:
     matrix:
       - testJvm: [ "21" ]
         CI_SPLIT: [ "1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8" ]
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: manual
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: manual
+      allow_failure: true
+      variables:
+        WINDOWS_SEED_CACHE_POLICY: pull-push
+    - when: manual
+      allow_failure: true
+
+test-inst-latest-windows:
+  extends: test-base-windows
+  variables:
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+    CACHE_TYPE: "latestdep"
+  parallel:
+    matrix:
+      - testJvm: [ "21" ]
+        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6" ]
   rules:
     - if: '$POPULATE_CACHE'
       when: never

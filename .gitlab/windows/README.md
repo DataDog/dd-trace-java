@@ -4,9 +4,9 @@ This directory contains an experimental Windows test job and its repo-local CI i
 The image contains MinGit and the Temurin 8, 11, 17, 21, and 25 JDK toolchains used by
 the Gradle build. JDK 21 is the default daemon and test JVM. The base test scope runs
 `:baseTest` on Java 21, split into the same four partitions as the existing `test_base`
-job. A second, fully manual scope runs `:instrumentationTest` on Java 21 in eight
-partitions. Both validate the execution model before moving the image to
-`dd-trace-java-docker-build`.
+job. Two fully manual scopes run `:instrumentationTest` on Java 21 in eight partitions
+and `:instrumentationLatestDepTest` on Java 21 in six partitions. Together they validate
+the execution model before moving the image to `dd-trace-java-docker-build`.
 
 ## Running the prototype
 
@@ -17,6 +17,8 @@ partitions. Both validate the execution model before moving the image to
 4. Run or retry the four `test-base-windows` matrix jobs.
 5. Trigger the desired `test-inst-windows` partitions manually. Starting with `1/8`
    provides a small plumbing check before running the other seven partitions.
+6. Trigger the desired `test-inst-latest-windows` partitions manually. Starting with
+   `1/6` provides the equivalent plumbing check before running the other five partitions.
 
 The image producer always overwrites this single mutable prototype tag and uses the
 previous image as its Docker layer cache. Test jobs explicitly pull the tag before use,
