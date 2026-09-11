@@ -14,6 +14,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
+import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 
 public class JavaTimerInstrumentation
@@ -39,7 +40,7 @@ public class JavaTimerInstrumentation
 
   public static final class TimerScheduleAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void before(@Advice.Argument(0) Runnable task, @Advice.Argument(2) long period) {
+    public static void before(@Advice.Argument(0) TimerTask task, @Advice.Argument(2) long period) {
       // don't propagate fixed time / rate executions
       if (period != 0) {
         return;
@@ -52,7 +53,7 @@ public class JavaTimerInstrumentation
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Argument(0) Runnable task, @Advice.Thrown Throwable thrown) {
+    public static void after(@Advice.Argument(0) TimerTask task, @Advice.Thrown Throwable thrown) {
       if (null != thrown && !exclude(RUNNABLE, task)) {
         cancelTask(InstrumentationContext.get(Runnable.class, State.class), task);
       }

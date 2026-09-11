@@ -10,39 +10,30 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.java.concurrent.runnable.RunnableInstrumentation;
+import java.util.TimerTask;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * Instruments {@code java.util.TimerTask}.
+ * Instrument {@link java.util.TimerTask}
  *
  * <p>Only the cancel part is handled here because the execution is handled by the {@link
  * RunnableInstrumentation}
  */
 public final class TimerTaskInstrumentation
     implements Instrumenter.ForBootstrap,
-        Instrumenter.CanShortcutTypeMatching,
+        Instrumenter.ForTypeHierarchy,
         Instrumenter.HasMethodAdvice {
 
   @Override
-  public boolean onlyMatchKnownTypes() {
-    return false;
-  }
-
-  @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {"java.util.TimerTask"};
-  }
-
-  @Override
   public String hierarchyMarkerType() {
-    return null;
+    return null; // bootstrap type
   }
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return extendsClass(named("java.util.TimerTask"));
+    return extendsClass(named(TimerTask.class.getName()));
   }
 
   @Override
@@ -54,7 +45,7 @@ public final class TimerTaskInstrumentation
 
   public static class CancelAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void onCancel(@Advice.This Runnable self) {
+    public static void onCancel(@Advice.This TimerTask self) {
       AdviceUtils.cancelTask(InstrumentationContext.get(Runnable.class, State.class), self);
     }
   }
