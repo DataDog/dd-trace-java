@@ -17,10 +17,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/**
- * Covers the scalar {@code gen_ai.*} attributes emitted onto the APM span at finish, which make
- * model, provider, application, conversation and token usage searchable in APM.
- */
+/** Covers the {@code gen_ai.*} attributes a manual LLM Observability span emits at finish. */
 class DDLLMObsSpanGenAiApmTagsTest {
   private static final Field SPAN_FIELD;
 

@@ -193,8 +193,7 @@ public class OpenAiDecorator extends ClientDecorator {
             .recordSpanFinished(INTEGRATION, spanKind, isRootSpan, true, span.isError(), false);
       }
     } else if (span != null) {
-      // Tracing still runs with LLM Observability off, and model, provider and ml_app are known
-      // here. Token usage and session id are not computed on this path, so they stay unreported.
+      // Tracing still runs with LLM Observability off, where these four remain resolvable.
       GenAiApmTags.applyWithoutLlmObs(
           span,
           operationName(span),
@@ -205,9 +204,6 @@ public class OpenAiDecorator extends ClientDecorator {
     super.doBeforeFinish(context);
   }
 
-  /**
-   * The LLM Observability span kind the endpoint maps to, or null if the span traced no request.
-   */
   private static String operationName(AgentSpan span) {
     String endpoint = stringTag(span, CommonTags.OPENAI_REQUEST_ENDPOINT);
     if (endpoint == null) {
@@ -218,7 +214,7 @@ public class OpenAiDecorator extends ClientDecorator {
         : Tags.LLMOBS_LLM_SPAN_KIND;
   }
 
-  /** Prefers the model the response reports, which resolves aliases the request used. */
+  /** The response model resolves aliases the request used, so it wins. */
   private static String requestedModel(AgentSpan span) {
     String model = stringTag(span, CommonTags.OPENAI_RESPONSE_MODEL);
     return model != null ? model : stringTag(span, CommonTags.OPENAI_REQUEST_MODEL);

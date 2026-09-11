@@ -692,8 +692,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
     if (finished) {
       return;
     }
-    // Ahead of span.finish() while the span is still mutable, and in its own try/catch so a
-    // failure here cannot cost the LLM Observability event.
+    // While the span is still mutable, and isolated so a failure cannot cost the event.
     try {
       GenAiApmTags.apply(span);
     } catch (Throwable t) {

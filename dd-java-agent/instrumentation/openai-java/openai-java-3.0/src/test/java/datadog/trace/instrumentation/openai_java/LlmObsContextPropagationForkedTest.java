@@ -329,9 +329,8 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
 }
 
 /**
- * Verifies the gen_ai.* attributes an openai.request span carries with LLM Observability disabled.
- * The instrumentation still traces on that path, so operation, model, provider and application are
- * resolvable, while token usage and conversation id are never computed and must stay absent.
+ * Verifies the gen_ai.* attributes an openai.request span carries with LLM Observability disabled:
+ * operation, model, provider and application, but never token usage or conversation id.
  */
 @WithConfig(key = "llmobs.enabled", value = "false")
 class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
@@ -341,7 +340,7 @@ class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
     try {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     } catch (Exception ignored) {
-      // Mock server returns no body — the SDK may throw on parse. The span is already created.
+      // The mock server returns no body, so the SDK may throw while parsing the response.
     }
 
     writer.waitForTraces(1);
@@ -349,7 +348,7 @@ class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
     assertNotNull(openAiSpan, "openai.request span should have been created");
 
     assertEquals("llm", openAiSpan.getTag("gen_ai.operation.name"));
-    // The mock returns no body, so there is no response model and the request model stands in.
+    // The mock returns no body, so the request model stands in for the absent response model.
     assertEquals(
         openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
     assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
@@ -368,7 +367,7 @@ class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
     try {
       openAiClient.embeddings().create(buildMinimalEmbeddingParams());
     } catch (Exception ignored) {
-      // Mock server returns no body — the SDK may throw on parse. The span is already created.
+      // The mock server returns no body, so the SDK may throw while parsing the response.
     }
 
     writer.waitForTraces(1);

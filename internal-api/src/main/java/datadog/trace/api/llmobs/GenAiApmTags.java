@@ -6,15 +6,8 @@ import java.util.Locale;
 
 /**
  * Emits the scalar {@code gen_ai.*} attributes of an LLM Observability span onto the APM span, so
- * model, provider, application, conversation and token usage are indexed and searchable in APM.
- *
- * <p>Message bodies (input, output, tool definitions, retrieval documents) are deliberately left
- * off the APM span and keep coming from the LLM Observability track.
- *
- * <p>{@link #apply} reads the values back from the {@code _ml_obs_tag.} / {@code _ml_obs_metric.}
- * tags rather than taking them as arguments, because they are stamped by several decorators over a
- * span's lifetime and are only all present at finish time. {@link #applyWithoutLlmObs} covers the
- * instrumentation that still traces with LLM Observability off, where those tags do not exist.
+ * model, provider, application, conversation and token usage are searchable in APM. Message bodies
+ * stay off the APM span and keep coming from the LLM Observability track.
  */
 public final class GenAiApmTags {
   public static final String OPERATION_NAME = "gen_ai.operation.name";
@@ -40,7 +33,7 @@ public final class GenAiApmTags {
   private static final String ML_APP_TAG = LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP;
   private static final String SESSION_ID_TAG = LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID;
 
-  /** Matches the fallback the LLM Observability event uses for model-backed spans. */
+  /** Matches the fallback the LLM Observability event uses. */
   private static final String DEFAULT_MODEL = "custom";
 
   /** LLM Observability metric name paired with the {@code gen_ai.usage.*} key it maps to. */
@@ -54,8 +47,8 @@ public final class GenAiApmTags {
   };
 
   /**
-   * Writes the {@code gen_ai.*} attributes onto the given span. Must be called before the span is
-   * finished, and is a no-op for a span that carries no LLM Observability span kind.
+   * Writes the attributes onto a span that is not yet finished, reading them back from its {@code
+   * _ml_obs_tag.} / {@code _ml_obs_metric.} tags. No-op for a span with no LLM Observability kind.
    */
   public static void apply(AgentSpan span) {
     if (span == null) {
@@ -73,7 +66,7 @@ public final class GenAiApmTags {
         stringTag(span, ML_APP_TAG),
         stringTag(span, SESSION_ID_TAG));
 
-    // Other span kinds carry unrelated metrics that would be misleading under a gen_ai.usage.* key.
+    // Other kinds carry unrelated metrics that a gen_ai.usage.* key would misrepresent.
     if (isModelBacked(spanKind)) {
       for (String[] metric : TOKEN_METRICS) {
         Object value = span.getTag(metric[0]);
@@ -85,11 +78,8 @@ public final class GenAiApmTags {
   }
 
   /**
-   * Writes the subset of {@code gen_ai.*} attributes that instrumentation can supply with LLM
-   * Observability disabled. Token usage and conversation id are left out: neither is computed on
-   * that path, so there is nothing to report.
-   *
-   * @param operationName the LLM Observability span kind this operation maps to
+   * Writes the subset available with LLM Observability disabled. Token usage and conversation id
+   * are never computed on that path, so they are left out.
    */
   public static void applyWithoutLlmObs(
       AgentSpan span, String operationName, String modelName, String modelProvider, String mlApp) {
