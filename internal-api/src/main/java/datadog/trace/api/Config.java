@@ -59,6 +59,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_I
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERMEDIATE_SPANS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DEBUGGER_EXCEPTION_CAPTURE_INTERVAL_SECONDS;
@@ -586,6 +587,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_ALWAYS_APPEND_SQL_COMMENT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_CONNECT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_METADATA_FETCHING_ON_QUERY;
@@ -1251,6 +1253,7 @@ public class Config {
 
   private final boolean dbmInjectSqlBaseHash;
   private final String dbmPropagationMode;
+  private final boolean dbmPropagationOracleActionOnlyEnabled;
   private final boolean dbmTracePreparedStatements;
   private final boolean dbmAlwaysAppendSqlComment;
   private final boolean dbMetadataFetchingOnQuery;
@@ -1850,6 +1853,11 @@ public class Config {
     dbmPropagationMode =
         configProvider.getString(
             DB_DBM_PROPAGATION_MODE_MODE, DEFAULT_DB_DBM_PROPAGATION_MODE_MODE);
+
+    dbmPropagationOracleActionOnlyEnabled =
+        configProvider.getBoolean(
+            DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED,
+            DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED);
 
     dbmTracePreparedStatements =
         configProvider.getBoolean(
@@ -6049,6 +6057,10 @@ public class Config {
     return dbmPropagationMode;
   }
 
+  public boolean isDbmPropagationOracleActionOnlyEnabled() {
+    return dbmPropagationOracleActionOnlyEnabled;
+  }
+
   // Database monitoring propagation mode constants
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
@@ -6628,6 +6640,8 @@ public class Config {
         + dbmInjectSqlBaseHash
         + ", dbmPropagationMode="
         + dbmPropagationMode
+        + ", dbmPropagationOracleActionOnlyEnabled="
+        + dbmPropagationOracleActionOnlyEnabled
         + ", dbmTracePreparedStatements="
         + dbmTracePreparedStatements
         + ", splitByTags="

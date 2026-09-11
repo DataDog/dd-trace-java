@@ -74,6 +74,8 @@ public final class TraceInstrumentationConfig {
 
   public static final String DB_DBM_INJECT_SQL_BASEHASH = "dbm.inject.sql.basehash";
   public static final String DB_DBM_PROPAGATION_MODE_MODE = "dbm.propagation.mode";
+  public static final String DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED =
+      "dbm.propagation.oracle.action-only.enabled";
   public static final String DB_DBM_TRACE_PREPARED_STATEMENTS = "dbm.trace_prepared_statements";
   public static final String DB_DBM_ALWAYS_APPEND_SQL_COMMENT = "dbm.always_append_sql_comment";
 

@@ -11,6 +11,7 @@ import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.SqlInjectionModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import java.sql.Connection;
 import javax.annotation.Nonnull;
 
@@ -20,20 +21,21 @@ import javax.annotation.Nonnull;
     helpers = {JDBCDecorator.class})
 public class IastConnectionCallSite {
 
-  private static ContextStore<Connection, DBInfo> DB_INFO_STORE = null;
+  private static ContextStore<Connection, JDBCConnectionContext> CONNECTION_CONTEXT_STORE = null;
 
   @SuppressWarnings("unchecked")
   @Nonnull
   public static DBInfo getDBInfo(final Connection connection) {
-    if (DB_INFO_STORE == null) {
-      final int storeId = getContextStoreId(Connection.class.getName(), DBInfo.class.getName());
+    if (CONNECTION_CONTEXT_STORE == null) {
+      final int storeId =
+          getContextStoreId(Connection.class.getName(), JDBCConnectionContext.class.getName());
       final ContextStore<?, ?> store = getContextStore(storeId);
-      DB_INFO_STORE = (ContextStore<Connection, DBInfo>) store;
+      CONNECTION_CONTEXT_STORE = (ContextStore<Connection, JDBCConnectionContext>) store;
     }
-    if (DB_INFO_STORE == null) {
+    if (CONNECTION_CONTEXT_STORE == null) {
       return JDBCDecorator.parseDBInfoFromConnection(connection);
     } else {
-      return JDBCDecorator.parseDBInfo(connection, DB_INFO_STORE);
+      return JDBCDecorator.parseConnectionContext(connection, CONNECTION_CONTEXT_STORE).getDbInfo();
     }
   }
 
