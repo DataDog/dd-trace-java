@@ -18,6 +18,7 @@ public final class ScopeRecord {
 
   private final ScopeEvent open;
   private ScopeEvent close;
+  private boolean deferredCleanup;
   private final List<ScopeEvent> wrongThreadCloses = new ArrayList<>(0);
 
   ScopeRecord(
@@ -27,6 +28,7 @@ public final class ScopeRecord {
       String spanName,
       byte source,
       Long continuationSeq,
+      boolean deferredCleanup,
       ScopeEvent open) {
     this.seq = seq;
     this.traceId = traceId;
@@ -34,6 +36,7 @@ public final class ScopeRecord {
     this.spanName = spanName;
     this.source = source;
     this.continuationSeq = continuationSeq;
+    this.deferredCleanup = deferredCleanup;
     this.open = open;
   }
 
@@ -56,6 +59,7 @@ public final class ScopeRecord {
             spanName,
             source,
             continuationSeq,
+            deferredCleanup,
             open == null ? null : open.snapshot());
     copy.close = close == null ? null : close.snapshot();
     for (ScopeEvent event : wrongThreadCloses) {
@@ -80,6 +84,14 @@ public final class ScopeRecord {
     return close != null;
   }
 
+  synchronized void markDeferredCleanup() {
+    deferredCleanup = true;
+  }
+
+  public synchronized boolean deferredCleanup() {
+    return deferredCleanup;
+  }
+
   /** {@code true} when the scope was opened and closed on different threads. */
   public synchronized boolean threadHandoff() {
     return open != null && close != null && !open.threadName.equals(close.threadName);
@@ -95,7 +107,7 @@ public final class ScopeRecord {
 
   public synchronized EnumSet<Failure> failures() {
     EnumSet<Failure> failures = EnumSet.noneOf(Failure.class);
-    if (open != null && close == null) {
+    if (open != null && close == null && !deferredCleanup) {
       failures.add(Failure.NEVER_CLOSED);
     }
     if (!wrongThreadCloses.isEmpty()) {
