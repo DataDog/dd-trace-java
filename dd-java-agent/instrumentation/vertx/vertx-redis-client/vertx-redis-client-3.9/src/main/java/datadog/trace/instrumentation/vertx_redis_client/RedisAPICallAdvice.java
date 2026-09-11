@@ -2,7 +2,6 @@ package datadog.trace.instrumentation.vertx_redis_client;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 
@@ -105,7 +104,7 @@ public class RedisAPICallAdvice {
     final AgentSpan parentSpan = activeSpan();
     final AgentSpan clientSpan = DECORATE.startAndDecorateSpan(method.getName());
     ContextContinuation parentContinuation =
-        null == parentSpan ? captureSpan(noopSpan()) : captureSpan(parentSpan);
+        null == parentSpan ? noopSpan().captureWithContext() : parentSpan.captureWithContext();
     /*
     Opens a new scope.
     The potential racy condition when the handler may be added to an already finished task is handled

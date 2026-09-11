@@ -10,6 +10,10 @@ import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.finatra.FinatraDecorator
+import spock.lang.Shared
+
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -18,6 +22,9 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCES
 class FinatraServer270Test extends HttpServerTest<HttpServer> {
   private static final Duration TIMEOUT = Duration.fromSeconds(5)
   private static final Duration STARTUP_TIMEOUT = Duration.fromSeconds(20)
+
+  @Shared
+  private FutureTask<Void> serverMain
 
   static closeAndWait(Closable closable) {
     if (closable != null) {
@@ -33,13 +40,6 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
   @Override
   HttpServer startServer(int port) {
     HttpServer testServer = new FinatraServer()
-
-    // Starting the server is blocking so start it in a separate thread
-    Thread startupThread = new Thread({
-      testServer.main("-admin.port=:0", "-http.port=:" + port)
-    })
-    startupThread.setDaemon(true)
-    startupThread.start()
 
     Promise<Boolean> startupPromise = new Promise<>()
 
@@ -62,6 +62,16 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
         }
       })
 
+    // Starting the server is blocking so start it in a separate thread. nonExitingMain (unlike
+    // main) reports lifecycle errors instead of calling System.exit, which would take down the
+    // whole test worker. The observer above is registered first so no startup event is missed.
+    serverMain = new FutureTask<Void>({
+      testServer.nonExitingMain("-admin.port=:0", "-http.port=:" + port)
+    }, null)
+    Thread serverThread = new Thread(serverMain, "finatra-server")
+    serverThread.setDaemon(true)
+    serverThread.start()
+
     Await.result(startupPromise, STARTUP_TIMEOUT)
 
     return testServer
@@ -80,7 +90,12 @@ class FinatraServer270Test extends HttpServerTest<HttpServer> {
 
   @Override
   void stopServer(HttpServer httpServer) {
+    if (httpServer == null) {
+      return // startServer failed before handing the server over
+    }
     Await.ready(httpServer.close(), TIMEOUT)
+    // Rethrows a shutdown failure reported by the server thread, or times out if it did not stop
+    serverMain.get(TIMEOUT.inMilliseconds(), TimeUnit.MILLISECONDS)
   }
 
   @Override

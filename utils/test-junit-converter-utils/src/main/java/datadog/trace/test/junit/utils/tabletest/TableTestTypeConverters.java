@@ -91,7 +91,7 @@ public final class TableTestTypeConverters {
         if (value.endsWith("f")) {
           return Float.parseFloat(value);
         }
-        if (value.endsWith("d")) {
+        if (value.endsWith("d") || value.contains(".")) {
           return Double.parseDouble(value);
         }
         return Integer.decode(value);

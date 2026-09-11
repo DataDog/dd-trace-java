@@ -261,13 +261,23 @@ public class LLMObsSystem {
     @Override
     public LLMObsSpan startAgentSpan(
         String spanName, @Nullable String mlApp, @Nullable String sessionId) {
+      return startAgentSpan(spanName, mlApp, sessionId, null);
+    }
+
+    @Override
+    public LLMObsSpan startAgentSpan(
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId,
+        @Nullable String version) {
       return new DDLLMObsSpan(
           Tags.LLMOBS_AGENT_SPAN_KIND,
           spanName,
           getMLApp(mlApp),
           sessionId,
           serviceName,
-          wellKnownTags);
+          wellKnownTags,
+          version);
     }
 
     @Override

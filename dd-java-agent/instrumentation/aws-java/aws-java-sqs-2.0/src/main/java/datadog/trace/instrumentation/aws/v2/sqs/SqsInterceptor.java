@@ -32,7 +32,7 @@ public class SqsInterceptor implements ExecutionInterceptor {
 
   public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
-          .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
+          .getOrCreate("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
 
   public SqsInterceptor() {}
 
