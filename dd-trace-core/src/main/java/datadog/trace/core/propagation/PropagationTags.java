@@ -95,6 +95,11 @@ public abstract class PropagationTags {
    */
   public abstract void updateW3CTracestate(String tracestate);
 
+  /** Updates the original W3C tracestate header from {@code source}. */
+  public void updateW3CTracestateFrom(PropagationTags source) {
+    updateW3CTracestate(source.getW3CTracestate());
+  }
+
   /**
    * Constructs a header value that includes valid propagated _dd.p.* tags and possibly a new
    * sampling decision tag _dd.p.dm based on the current state. Returns null if the value length
