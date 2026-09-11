@@ -7,18 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * An immutable snapshot of the recorded continuation and scope lifecycles plus the derived failure
- * findings. Exposes two text renderings: a problem-only summary ({@link #renderSummary()}) for
- * quick triage / assertion messages, and a complete timeline ({@link #renderTimeline()}) that dumps
- * <em>every</em> continuation and scope with its full event lineage. The harness emits the timeline
- * when it contains a finding, giving humans and diagnostic skills enough data to build a graph.
- *
- * <p>The two lifecycles are kept separate: {@link ContinuationRecord} (captured → resumed →
- * finished) and {@link ScopeRecord} (opened → closed). A scope spawned by resuming a continuation
- * is linked to it ({@link ContinuationRecord#scopeRecordSeqs()} / {@link
- * ScopeRecord#continuationSeq}) and rendered nested under it in the timeline.
- */
+/** Immutable scope and continuation lifecycle snapshot with derived failures. */
 public final class ScopeDiagnosticsReport {
   private final List<ContinuationRecord> continuations;
   private final List<ScopeRecord> scopes;
@@ -84,8 +73,6 @@ public final class ScopeDiagnosticsReport {
     return result;
   }
 
-  // ---- accessors -----------------------------------------------------------
-
   public List<ContinuationRecord> records() {
     return new ArrayList<>(continuations);
   }
@@ -136,12 +123,7 @@ public final class ScopeDiagnosticsReport {
     return n;
   }
 
-  /**
-   * True when there is a genuine bug to fail on: a never-resolved leak, a double finish, an
-   * activation after resolve, or a scope that was never closed. {@link Failure#LATE_FINISH} and
-   * {@link Failure#CLOSE_WRONG_THREAD} are reported but do not fail (frequently legitimate async or
-   * teardown ordering).
-   */
+  /** Returns whether the report contains a failure that should fail the test. */
   public boolean hasProblems() {
     return leakCount() > 0
         || doubleCount() > 0
@@ -153,8 +135,6 @@ public final class ScopeDiagnosticsReport {
   public boolean hasFindings() {
     return !continuationFailures.isEmpty() || !scopeFailures.isEmpty();
   }
-
-  // ---- rendering: text summary ---------------------------------------------
 
   private void appendHeader(StringBuilder sb, String title) {
     sb.append(title)
@@ -177,7 +157,7 @@ public final class ScopeDiagnosticsReport {
         .append(" wrong-thread)\n");
   }
 
-  /** Problem-only summary: just the flagged continuations and scopes with their callsites. */
+  /** Renders flagged continuations and scopes with their call sites. */
   public String renderSummary() {
     StringBuilder sb = new StringBuilder();
     appendHeader(sb, "Scope/continuation problems");
@@ -218,17 +198,9 @@ public final class ScopeDiagnosticsReport {
     return sb.toString();
   }
 
-  // ---- rendering: complete timeline ----------------------------------------
-
   private static final int TIMELINE_FRAMES = 3;
 
-  /**
-   * Complete cross-thread timeline: one block per continuation (capture → resume(s) → terminal),
-   * with the scopes it spawned nested under it, followed by any non-continuation scopes. Unlike
-   * {@link #renderSummary()} this lists <em>all</em> records, not just the flagged ones, so a graph
-   * (Gantt/DAG) or report can be reconstructed from it whether or not anything leaked. Each event
-   * carries its relative time ({@code +Δms} from the first recorded event), thread, and callsite.
-   */
+  /** Renders all events with relative times, threads, call sites, and linked scopes. */
   public String renderTimeline() {
     StringBuilder sb = new StringBuilder();
     appendHeader(sb, "Scope/continuation timeline");

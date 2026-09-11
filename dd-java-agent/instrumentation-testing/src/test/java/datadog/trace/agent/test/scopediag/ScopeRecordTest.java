@@ -60,7 +60,7 @@ class ScopeRecordTest {
 
     ScopeDiagnosticsReport report = report(s);
     assertEquals(1, report.neverClosedScopeCount());
-    assertTrue(report.hasProblems()); // never-closed is a genuine bug
+    assertTrue(report.hasProblems());
   }
 
   @Test
