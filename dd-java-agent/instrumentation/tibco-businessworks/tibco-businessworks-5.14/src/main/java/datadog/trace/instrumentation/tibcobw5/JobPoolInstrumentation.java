@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.DECORATE;
 import static datadog.trace.instrumentation.tibcobw5.TibcoDecorator.TIBCO_PROCESS_OPERATION;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -33,10 +34,11 @@ public class JobPoolInstrumentation extends AbstractTibcoInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("addJob")
+            .and(isPublic())
             .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
         getClass().getName() + "$JobStartAdvice");
     transformer.applyAdvice(
-        named("removeJob")
+        named("removeJob") // note: removeJob is a protected method (not public)
             .and(takesArgument(0, hasInterface(named("com.tibco.pe.plugin.ProcessContext")))),
         getClass().getName() + "$JobEndAdvice");
   }
