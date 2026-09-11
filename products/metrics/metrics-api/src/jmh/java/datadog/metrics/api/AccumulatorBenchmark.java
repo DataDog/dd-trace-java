@@ -79,6 +79,51 @@ import org.openjdk.jmh.infra.Blackhole;
  * independent Fork(5) run after the stripe-count cap ({@code MAX_STRIPES = 64}) landed: a large,
  * robust win on the call that fires on every event, and no confirmed cost on the call that fires
  * once per reporting cycle.
+ *
+ * <p><b>{@code longAdderDelta*}: the fair single-counter baseline.</b> {@code longAdderGroup}'s
+ * ~310x/~32x win above is real, but it's the cost of buying {@code sumThenReset()}'s no-lost-update
+ * guarantee <em>via a lock</em> -- not the cost of a single {@code LongAdder} on its own.
+ * Pre-migration {@code TracerHealthMetrics} never took that lock: it kept a single {@code
+ * previousCounts}/{@code countIndex}-tracked differ computing {@code sum() - previous} by hand,
+ * which is already lock-free and never loses an update, because a missed delta on one {@code sum()}
+ * just shows up whole on the next one (see {@link #deltaSumAndReset}). {@code longAdderDelta_*}/
+ * {@code longAdderDeltaMixed_*} below reproduce exactly that pattern -- one {@code LongAdder}, one
+ * dedicated differ, no lock anywhere -- as the fairest single-counter comparison to {@link
+ * Accumulator}: both designs give the same no-lost-update guarantee, just by different means
+ * (per-thread striping vs. a single differ's own unsynchronized bookkeeping), so neither pays for a
+ * lock the other doesn't need. Fork(5), 15 samples per benchmark, same machine: <code>
+ * AccumulatorBenchmark.accumulatorAccumulateAndReset_lowContention  avgt   15  0.050 ±  0.001  us/op
+ * AccumulatorBenchmark.accumulatorMixed                             avgt   15  0.158 ±  0.022  us/op
+ * AccumulatorBenchmark.accumulatorMixed:accumulatorMixed_drain      avgt   15  0.692 ±  0.077  us/op
+ * AccumulatorBenchmark.accumulatorMixed:accumulatorMixed_write      avgt   15  0.024 ±  0.009  us/op
+ * AccumulatorBenchmark.longAdderDelta_lowContention                 avgt   15  0.018 ±  0.001  us/op
+ * AccumulatorBenchmark.longAdderDeltaMixed                          avgt   15  0.118 ±  0.006  us/op
+ * AccumulatorBenchmark.longAdderDeltaMixed:longAdderDeltaMixed_drain avgt  15  0.122 ±  0.012  us/op
+ * AccumulatorBenchmark.longAdderDeltaMixed:longAdderDeltaMixed_write avgt  15  0.117 ±  0.006  us/op
+ * </code> Here {@link Accumulator} does <em>not</em> win outright. In the single-threaded
+ * inc-then-diff-per-call shape, the safe {@code LongAdder} delta is ~2.8x cheaper (0.018 vs 0.050
+ * us/op) -- no striping to fan out or fold back in when there's only one thread. In the realistic
+ * many-writers/one-drainer topology ({@code accumulatorMixed} vs {@code longAdderDeltaMixed}),
+ * {@link Accumulator} wins the write side by ~4.9x (0.024 vs 0.117 us/op, the call on the hot path)
+ * but loses the drain side by ~5.7x (0.692 vs 0.122 us/op) and the combined total by ~1.34x (0.158
+ * vs 0.118 us/op) -- the striping that makes writes cheap has to be folded back together somewhere,
+ * and that fold costs more than one differ's plain subtraction.
+ *
+ * <p>That's not a mark against {@link Accumulator}: it's the expected shape of a primitive whose
+ * value isn't raw single-counter throughput. {@link Accumulator}'s real win shows up one level up,
+ * in a from-scratch before/after of an actual migrated caller -- {@code
+ * TracerHealthMetricsBenchmark} (see {@code
+ * dd-trace-core/src/jmh/java/datadog/trace/core/monitor/}), which replaced ~49 individual {@code
+ * LongAdder} fields and their hand-rolled {@code previousCounts}/{@code countIndex} delta tracking
+ * with one {@code Accumulator<TracerHealthMetric>}. There, every hot single-counter call is at
+ * parity with or faster than the legacy code (0.6-0.7x of legacy on {@code onSend}, the most
+ * frequent real call site), and the batch drain -- the actual shape {@link Accumulator} is for,
+ * many counters read and reset together once per reporting cycle -- is where the real-code evidence
+ * is decisive, not just competitive. The fair single-counter numbers above are worth publishing
+ * precisely because they're not a clean win: they show {@link Accumulator} doesn't need to dominate
+ * every synthetic one-counter microbenchmark to be the right call once counters are plural and the
+ * drain is the thing that matters, which {@code TracerHealthMetricsBenchmark} demonstrates directly
+ * on real code rather than a synthetic stand-in.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 10)
@@ -120,6 +165,8 @@ public class AccumulatorBenchmark {
   private static final Counter8[] COUNTER8_VALUES = Counter8.values();
 
   private final LongAdder adder = new LongAdder();
+  private final LongAdder deltaAdder = new LongAdder();
+  private long deltaPrevious;
   private final Accumulator<Counter> accumulator = Accumulator.of(Counter.class);
   private final Accumulator<Counter8> accumulator8 = Accumulator.of(Counter8.class);
   private final ConcurrentHashMap<String, AtomicLong> chm = new ConcurrentHashMap<>();
@@ -191,6 +238,29 @@ public class AccumulatorBenchmark {
     return acc;
   }
 
+  /**
+   * The safe, lock-free alternative to {@code sumThenReset()} that pre-migration {@code
+   * TracerHealthMetrics} actually used (via {@code previousCounts}/{@code countIndex}): never reset
+   * the {@code LongAdder} at all, and have a single differ thread track the last observed {@code
+   * sum()} to compute its own delta. {@code sum()} alone never loses an update permanently -- a
+   * miss just shows up in the next {@code sum()} -- so this closes {@code sumThenReset()}'s reset
+   * race without any lock, at the cost of one extra subtraction per drain. The catch is the "single
+   * differ" part: {@code deltaPrevious} is unsynchronized plain state, correct only because exactly
+   * one thread ever calls this method between increments. Unlike {@code sumThenReset()}, which
+   * degrades gracefully (just an occasional dropped delta) if called from multiple threads at once,
+   * concurrent callers here would race on {@code deltaPrevious} itself and corrupt it -- so there
+   * is deliberately no {@code longAdderDelta_highContention} mirroring {@code
+   * longAdderSumThenReset_highContention}'s "every thread both writes and drains" shape; see {@code
+   * longAdderDeltaMixed_write}/{@code _drain} below for the one topology (many writers, one
+   * dedicated drainer) this baseline is actually valid under.
+   */
+  private long deltaSumAndReset() {
+    long current = deltaAdder.sum();
+    long delta = current - deltaPrevious;
+    deltaPrevious = current;
+    return delta;
+  }
+
   @Benchmark
   @Threads(1)
   public void longAdderIncrement_lowContention() {
@@ -239,6 +309,34 @@ public class AccumulatorBenchmark {
   public void longAdderSumThenReset_highContention(Blackhole blackhole) {
     adder.increment();
     blackhole.consume(adder.sumThenReset());
+  }
+
+  @Benchmark
+  @Threads(1)
+  public void longAdderDelta_lowContention(Blackhole blackhole) {
+    deltaAdder.increment();
+    blackhole.consume(deltaSumAndReset());
+  }
+
+  /**
+   * The realistic, valid topology for {@link #deltaSumAndReset} -- many writers, one dedicated
+   * differ -- mirroring {@code accumulatorMixed_write}/{@code _drain} below so the two can be
+   * compared directly: this is the fairest single-counter match for {@link Accumulator}, since both
+   * are lock-free on the write side and both give the same no-lost-update guarantee, just by
+   * different means (per-slot atomic {@code getAndSet} vs. a single differ's own bookkeeping).
+   */
+  @Benchmark
+  @Group("longAdderDeltaMixed")
+  @GroupThreads(4)
+  public void longAdderDeltaMixed_write() {
+    deltaAdder.increment();
+  }
+
+  @Benchmark
+  @Group("longAdderDeltaMixed")
+  @GroupThreads(1)
+  public void longAdderDeltaMixed_drain(Blackhole blackhole) {
+    blackhole.consume(deltaSumAndReset());
   }
 
   @Benchmark
