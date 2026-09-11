@@ -4,7 +4,10 @@ import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
-import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
+import static datadog.crashtracking.Initializer.isSafeToRepair;
+import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
+import static datadog.crashtracking.Initializer.restrictScriptToOwnerOnly;
+import static datadog.crashtracking.Initializer.stripGroupAndWorldBits;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
 
@@ -78,14 +81,30 @@ public final class CrashUploaderScriptInitializer {
             scriptDirectory);
         return false;
       }
-      scriptDirectory.setReadable(true, true);
-      scriptDirectory.setWritable(true, true);
-      scriptDirectory.setExecutable(true, true);
-    } else {
-      if (!isOwnedAndPrivate(scriptDirectory)) {
+      if (!restrictDirectoryToOwnerOnly(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Untrusted crash tracking script folder {} (wrong owner or group/world bits set). "
+            "Unable to restrict crash tracking script folder {} to owner-only permissions. "
+                + SETUP_FAILURE_MESSAGE,
+            scriptDirectory);
+        return false;
+      }
+    } else {
+      if (!isSafeToRepair(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Untrusted crash tracking script folder {} (wrong owner or group/world-writable). "
+                + SETUP_FAILURE_MESSAGE,
+            scriptDirectory);
+        return false;
+      }
+      // owned by us but possibly left over from an older, less restrictive version: strip any
+      // stray group/world bits without touching the owner's own bits, so a directory an operator
+      // deliberately made non-writable stays non-writable
+      if (!stripGroupAndWorldBits(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Unable to strip group/world permissions from crash tracking script folder {}. "
                 + SETUP_FAILURE_MESSAGE,
             scriptDirectory);
         return false;
@@ -101,7 +120,8 @@ public final class CrashUploaderScriptInitializer {
     } catch (UntrustedScriptException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Untrusted crash uploader script {} (wrong owner or group/world-writable). "
+          "Untrusted or unprotectable crash uploader script {} (wrong owner, group/world-writable,"
+              + " or unable to restrict permissions). "
               + SETUP_FAILURE_MESSAGE,
           scriptFile);
       return false;
@@ -118,9 +138,14 @@ public final class CrashUploaderScriptInitializer {
   static class UntrustedScriptException extends IOException {}
 
   /**
-   * Writes the crash uploader script if it does not already exist. When the script already exists
-   * it is validated for POSIX ownership and permissions before reuse; an untrusted script causes
-   * this method to throw {@link UntrustedScriptException} so the caller can return {@code false}.
+   * Writes the crash uploader script if it does not already exist. A freshly written script is
+   * immediately restricted to owner-only permissions; a script that cannot be locked down is
+   * discarded. When the script already exists it is validated for POSIX ownership and repairable
+   * permissions before reuse: a script owned by the JVM user without group/world write bits is
+   * repaired in place by stripping stray group/world bits (e.g. left behind by an older, less
+   * restrictive version of this initializer), anything else is untrusted. Failure to trust or
+   * repair the script causes this method to throw {@link UntrustedScriptException} so the caller
+   * can return {@code false}.
    */
   private static void writeCrashUploaderScript(
       InputStream template, File scriptFile, String execClass, String crashFile)
@@ -137,11 +162,13 @@ public final class CrashUploaderScriptInitializer {
           bw.newLine();
         }
       }
-      scriptFile.setReadable(true, true);
-      scriptFile.setWritable(false, false);
-      scriptFile.setExecutable(true, true);
+      // fail closed: never leave a freshly written script we could not lock down
+      if (!restrictScriptToOwnerOnly(scriptFile)) {
+        scriptFile.delete();
+        throw new UntrustedScriptException();
+      }
     } else {
-      if (!isOwnedAndPrivate(scriptFile)) {
+      if (!isSafeToRepair(scriptFile) || !stripGroupAndWorldBits(scriptFile)) {
         throw new UntrustedScriptException();
       }
     }

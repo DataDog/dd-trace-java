@@ -5,8 +5,11 @@ import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.getScriptPathFromArg;
-import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
+import static datadog.crashtracking.Initializer.isSafeToRepair;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
+import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
+import static datadog.crashtracking.Initializer.restrictScriptToOwnerOnly;
+import static datadog.crashtracking.Initializer.stripGroupAndWorldBits;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.internal.VisibleForTesting;
@@ -61,10 +64,20 @@ public final class OOMENotifierScriptInitializer {
     File scriptDirectory = scriptFile.getParentFile();
 
     if (scriptDirectory.exists()) {
-      if (!isOwnedAndPrivate(scriptDirectory)) {
+      if (!isSafeToRepair(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Untrusted OOME script folder {} (wrong owner or group/world bits set). OOME notification will not work properly.",
+            "Untrusted OOME script folder {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
+      // owned by us but possibly left over from an older, less restrictive version: strip any
+      // stray group/world bits without touching the owner's own bits, so a directory an operator
+      // deliberately made non-writable stays non-writable
+      if (!stripGroupAndWorldBits(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Unable to strip group/world permissions from OOME script folder {}. OOME notification will not work properly.",
             scriptDirectory);
         return false;
       }
@@ -86,23 +99,38 @@ public final class OOMENotifierScriptInitializer {
             scriptDirectory);
         return false;
       }
-      scriptDirectory.setReadable(true, true);
-      scriptDirectory.setWritable(true, true);
-      scriptDirectory.setExecutable(true, true);
+      if (!restrictDirectoryToOwnerOnly(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Unable to restrict OOME script folder {} to owner-only permissions. OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
     }
 
     try {
       // do not overwrite existing
       if (!scriptFile.exists()) {
         copyStream(getOomeNotifierTemplate(), scriptFile);
-        scriptFile.setReadable(true, true);
-        scriptFile.setWritable(false, false);
-        scriptFile.setExecutable(true, true);
+        // fail closed: never leave a freshly written script we could not lock down
+        if (!restrictScriptToOwnerOnly(scriptFile)) {
+          scriptFile.delete();
+          throw new IOException("Unable to restrict OOME script permissions");
+        }
       } else {
-        if (!isOwnedAndPrivate(scriptFile)) {
+        // owned by us but possibly left over from an older, less restrictive version: repair in
+        // place by stripping stray group/world bits, preserving the owner's own bits
+        if (!isSafeToRepair(scriptFile)) {
           LOG.warn(
               SEND_TELEMETRY,
               "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+              scriptFile);
+          return false;
+        }
+        if (!stripGroupAndWorldBits(scriptFile)) {
+          LOG.warn(
+              SEND_TELEMETRY,
+              "Unable to strip group/world permissions from OOME script {}. OOME notification will not work properly.",
               scriptFile);
           return false;
         }
@@ -110,8 +138,9 @@ public final class OOMENotifierScriptInitializer {
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Failed to copy OOME script {}. OOME notification will not work properly.",
-          scriptFile);
+          "Failed to copy OOME script {} ({}). OOME notification will not work properly.",
+          scriptFile,
+          e.getMessage());
       return false;
     }
     return true;
