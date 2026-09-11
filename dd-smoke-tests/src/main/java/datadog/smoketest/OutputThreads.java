@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -23,17 +24,26 @@ public class OutputThreads implements Closeable {
   private static final int MAX_LINE_SIZE = 1024 * 1024;
   private static final int DEFAULT_TIMEOUT_MILLIS = 10_000;
 
-  final ThreadGroup tg = new ThreadGroup("smoke-output");
+  final ThreadGroup tg;
   final List<String> testLogMessages = new ArrayList<>();
+
+  public OutputThreads() {
+    this(new ThreadGroup("smoke-output"));
+  }
+
+  @VisibleForTesting
+  OutputThreads(ThreadGroup tg) {
+    this.tg = tg;
+  }
 
   public void close() {
     tg.interrupt();
     Thread[] threads = new Thread[tg.activeCount()];
-    tg.enumerate(threads);
+    int threadCount = tg.enumerate(threads);
 
-    for (Thread thread : threads) {
+    for (int i = 0; i < threadCount; i++) {
       try {
-        thread.join(THREAD_JOIN_TIMEOUT_MILLIS);
+        threads[i].join(THREAD_JOIN_TIMEOUT_MILLIS);
       } catch (InterruptedException e) {
         // ignore
       }
