@@ -9612,6 +9612,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_RESPONSE_STATUS_EXCEPTIONS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_RESTEASY_ENABLED": [
       {
         "version": "A",
