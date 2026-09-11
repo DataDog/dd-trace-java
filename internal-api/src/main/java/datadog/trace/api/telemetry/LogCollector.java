@@ -6,7 +6,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,9 +59,7 @@ public class LogCollector {
 
     // Lock-free scan first: most calls are re-observations of an already-seen message, so this
     // avoids paying for a reservation and a RawLogMessage allocation on the common path.
-    for (Iterator<RawLogMessage> it = ConcurrentHashtable.hashIterator(rawLogMessages, keyHash);
-        it.hasNext(); ) {
-      RawLogMessage existing = it.next();
+    for (RawLogMessage existing : ConcurrentHashtable.hashIterable(rawLogMessages, keyHash)) {
       if (throwable != null && existing.throwable != null && existing.throwable != throwable) {
         if (throwableStackTrace == null) {
           throwableStackTrace = throwable.getStackTrace();
@@ -78,7 +75,7 @@ public class LogCollector {
         ConcurrentHashtable.tryReserve(rawLogMessages)) {
       // TODO: We could emit a metric for dropped logs when the reservation is empty (table full).
       RawLogMessage rawLogMessage =
-          reservation.tryGetOrInsertOrNull(RawLogMessage::new, logLevel, message, throwable, tags);
+          reservation.tryGetOrInsertOrNull(logLevel, message, throwable, tags, RawLogMessage::new);
       if (rawLogMessage != null) {
         rawLogMessage.count.incrementAndGet();
       }

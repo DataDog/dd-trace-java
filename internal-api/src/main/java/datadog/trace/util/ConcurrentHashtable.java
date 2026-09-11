@@ -941,7 +941,7 @@ public final class ConcurrentHashtable {
    *
    * <pre>{@code
    * try (Reservation<TEntry> r = ConcurrentHashtable.tryReserve(state)) {
-   *   return r.tryGetOrInsertOrNull(TEntry::new, component1, component2, component3);
+   *   return r.tryGetOrInsertOrNull(component1, component2, component3, TEntry::new);
    * }
    * }</pre>
    *
@@ -966,8 +966,8 @@ public final class ConcurrentHashtable {
    * slot and auto-cancelling it on {@link #close} if it's never consumed. A single {@code
    * Reservation} must be used for at most one {@code tryGetOrInsertOrNull} call.
    *
-   * <p>Overloaded up to 4 key components ({@link #tryGetOrInsertOrNull(Function, Object)} through
-   * {@link #tryGetOrInsertOrNull(Function4, Object, Object, Object, Object)}) so a non-capturing
+   * <p>Overloaded up to 4 key components ({@link #tryGetOrInsertOrNull(Object, Function)} through
+   * {@link #tryGetOrInsertOrNull(Object, Object, Object, Object, Function4)}) so a non-capturing
    * method reference can build the entry directly from its natural constructor arguments, without
    * an intermediate holder object or a capturing lambda.
    *
@@ -988,13 +988,13 @@ public final class ConcurrentHashtable {
     }
 
     /**
-     * One key component; see {@link #tryGetOrInsertOrNull(BiFunction, Object, Object)} for the
+     * One key component; see {@link #tryGetOrInsertOrNull(Object, Object, BiFunction)} for the
      * general contract.
      */
     @StrategyConsumer
     @Nullable
     public <A> TEntry tryGetOrInsertOrNull(
-        @Strategy @Nonnull Function<? super A, ? extends TEntry> factory, A a) {
+        A a, @Strategy @Nonnull Function<? super A, ? extends TEntry> factory) {
       return state == null ? null : finish(factory.apply(a));
     }
 
@@ -1013,74 +1013,76 @@ public final class ConcurrentHashtable {
     @StrategyConsumer
     @Nullable
     public <A, B> TEntry tryGetOrInsertOrNull(
-        @Strategy @Nonnull BiFunction<? super A, ? super B, ? extends TEntry> factory, A a, B b) {
+        A a, B b, @Strategy @Nonnull BiFunction<? super A, ? super B, ? extends TEntry> factory) {
       return state == null ? null : finish(factory.apply(a, b));
     }
 
     /**
-     * Three key components; see {@link #tryGetOrInsertOrNull(BiFunction, Object, Object)} for the
+     * Three key components; see {@link #tryGetOrInsertOrNull(Object, Object, BiFunction)} for the
      * general contract.
      */
     @StrategyConsumer
     @Nullable
     public <A, B, C> TEntry tryGetOrInsertOrNull(
-        @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory,
-        A a,
-        B b,
-        C c) {
-      return state == null ? null : finish(factory.apply(a, b, c));
-    }
-
-    /** Four key components; see {@link #tryGetOrInsertOrNull(BiFunction, Object, Object)}. */
-    @StrategyConsumer
-    @Nullable
-    public <A, B, C, D> TEntry tryGetOrInsertOrNull(
-        @Nonnull Function4<? super A, ? super B, ? super C, ? super D, ? extends TEntry> factory,
         A a,
         B b,
         C c,
-        D d) {
+        @Strategy @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory) {
+      return state == null ? null : finish(factory.apply(a, b, c));
+    }
+
+    /** Four key components; see {@link #tryGetOrInsertOrNull(Object, Object, BiFunction)}. */
+    @StrategyConsumer
+    @Nullable
+    public <A, B, C, D> TEntry tryGetOrInsertOrNull(
+        A a,
+        B b,
+        C c,
+        D d,
+        @Strategy @Nonnull
+            Function4<? super A, ? super B, ? super C, ? super D, ? extends TEntry> factory) {
       return state == null ? null : finish(factory.apply(a, b, c, d));
     }
 
     /**
-     * {@link Maybe}-wrapping counterpart of {@link #tryGetOrInsertOrNull(Function, Object)}, for
+     * {@link Maybe}-wrapping counterpart of {@link #tryGetOrInsertOrNull(Object, Function)}, for
      * callers who'd rather make the "this can fail unlike unbounded collections" outcome visible in
      * the return type than rely on a {@code null} check — mirrors {@link D1#tryGetOrCreate} /
      * {@link D2#tryGetOrCreate} wrapping their own {@code ...OrNull} methods.
      */
     @Nonnull
     public <A> Maybe<TEntry> tryGetOrInsert(
-        @Strategy @Nonnull Function<? super A, ? extends TEntry> factory, A a) {
-      return Maybe.of(tryGetOrInsertOrNull(factory, a));
+        A a, @Strategy @Nonnull Function<? super A, ? extends TEntry> factory) {
+      return Maybe.of(tryGetOrInsertOrNull(a, factory));
     }
 
-    /** Two key components; see {@link #tryGetOrInsert(Function, Object)}. */
+    /** Two key components; see {@link #tryGetOrInsert(Object, Function)}. */
     @Nonnull
     public <A, B> Maybe<TEntry> tryGetOrInsert(
-        @Strategy @Nonnull BiFunction<? super A, ? super B, ? extends TEntry> factory, A a, B b) {
-      return Maybe.of(tryGetOrInsertOrNull(factory, a, b));
+        A a, B b, @Strategy @Nonnull BiFunction<? super A, ? super B, ? extends TEntry> factory) {
+      return Maybe.of(tryGetOrInsertOrNull(a, b, factory));
     }
 
-    /** Three key components; see {@link #tryGetOrInsert(Function, Object)}. */
+    /** Three key components; see {@link #tryGetOrInsert(Object, Function)}. */
     @Nonnull
     public <A, B, C> Maybe<TEntry> tryGetOrInsert(
-        @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory,
-        A a,
-        B b,
-        C c) {
-      return Maybe.of(tryGetOrInsertOrNull(factory, a, b, c));
-    }
-
-    /** Four key components; see {@link #tryGetOrInsert(Function, Object)}. */
-    @Nonnull
-    public <A, B, C, D> Maybe<TEntry> tryGetOrInsert(
-        @Nonnull Function4<? super A, ? super B, ? super C, ? super D, ? extends TEntry> factory,
         A a,
         B b,
         C c,
-        D d) {
-      return Maybe.of(tryGetOrInsertOrNull(factory, a, b, c, d));
+        @Strategy @Nonnull Function3<? super A, ? super B, ? super C, ? extends TEntry> factory) {
+      return Maybe.of(tryGetOrInsertOrNull(a, b, c, factory));
+    }
+
+    /** Four key components; see {@link #tryGetOrInsert(Object, Function)}. */
+    @Nonnull
+    public <A, B, C, D> Maybe<TEntry> tryGetOrInsert(
+        A a,
+        B b,
+        C c,
+        D d,
+        @Strategy @Nonnull
+            Function4<? super A, ? super B, ? super C, ? super D, ? extends TEntry> factory) {
+      return Maybe.of(tryGetOrInsertOrNull(a, b, c, d, factory));
     }
 
     private TEntry finish(@Nonnull TEntry newEntry) {
@@ -1352,6 +1354,24 @@ public final class ConcurrentHashtable {
   public static <TEntry extends Entry<TEntry>> Iterator<TEntry> hashIterator(
       @Nonnull State<TEntry> state, long keyHash) {
     return hashIterator(state.buckets, keyHash);
+  }
+
+  /**
+   * {@link Iterable} wrapper around {@link #hashIterator(AtomicReferenceArray, long)}, for callers
+   * that want a plain for-each loop over the candidates for {@code keyHash} rather than driving the
+   * {@link Iterator} by hand.
+   */
+  @Nonnull
+  public static <TEntry extends Entry<TEntry>> Iterable<TEntry> hashIterable(
+      @Nonnull AtomicReferenceArray<TEntry> buckets, long keyHash) {
+    return () -> hashIterator(buckets, keyHash);
+  }
+
+  /** {@link #hashIterable(AtomicReferenceArray, long)} over a {@link State}. */
+  @Nonnull
+  public static <TEntry extends Entry<TEntry>> Iterable<TEntry> hashIterable(
+      @Nonnull State<TEntry> state, long keyHash) {
+    return hashIterable(state.buckets, keyHash);
   }
 
   /**

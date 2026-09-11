@@ -35,7 +35,7 @@ class ConcurrentHashtableReservationTest {
     TestEntry first;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
       assertTrue(r.isPresent());
-      first = r.tryGetOrInsertOrNull(TestEntry::new, 1);
+      first = r.tryGetOrInsertOrNull(1, TestEntry::new);
     }
     assertEquals(1, first.value);
     assertEquals(1, ConcurrentHashtable.estimateSize(state));
@@ -44,7 +44,7 @@ class ConcurrentHashtableReservationTest {
     // existing entry, not double-insert or leak the claimed slot.
     TestEntry second;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      second = r.tryGetOrInsertOrNull(TestEntry::new, 1);
+      second = r.tryGetOrInsertOrNull(1, TestEntry::new);
     }
     assertSame(first, second);
     assertEquals(1, ConcurrentHashtable.estimateSize(state));
@@ -55,7 +55,7 @@ class ConcurrentHashtableReservationTest {
     ConcurrentHashtable.State<TestEntry> state =
         ConcurrentHashtable.createBounded(TestEntry.class, 1);
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      r.tryGetOrInsertOrNull(TestEntry::new, 1);
+      r.tryGetOrInsertOrNull(1, TestEntry::new);
     }
     assertTrue(ConcurrentHashtable.isFull(state));
 
@@ -65,11 +65,11 @@ class ConcurrentHashtableReservationTest {
       assertFalse(r.isPresent());
       result =
           r.tryGetOrInsertOrNull(
+              2,
               v -> {
                 factoryCalls.incrementAndGet();
                 return new TestEntry(v);
-              },
-              2);
+              });
     }
     assertNull(result);
     assertEquals(0, factoryCalls.get());
@@ -95,14 +95,14 @@ class ConcurrentHashtableReservationTest {
 
     Maybe<TestEntry> present;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      present = r.tryGetOrInsert(TestEntry::new, 1);
+      present = r.tryGetOrInsert(1, TestEntry::new);
     }
     assertTrue(present.isPresent());
     assertEquals(1, present.getOrNull().value);
 
     Maybe<TestEntry> absent;
     try (ConcurrentHashtable.Reservation<TestEntry> r = ConcurrentHashtable.tryReserve(state)) {
-      absent = r.tryGetOrInsert(TestEntry::new, 2);
+      absent = r.tryGetOrInsert(2, TestEntry::new);
     }
     assertFalse(absent.isPresent());
     assertNull(absent.getOrNull());
@@ -163,7 +163,7 @@ class ConcurrentHashtableReservationTest {
     ThreePartEntry three;
     try (ConcurrentHashtable.Reservation<ThreePartEntry> r =
         ConcurrentHashtable.tryReserve(state3)) {
-      three = r.tryGetOrInsertOrNull(ThreePartEntry::new, "x", "y", "z");
+      three = r.tryGetOrInsertOrNull("x", "y", "z", ThreePartEntry::new);
     }
     assertEquals("x", three.a);
     assertEquals("y", three.b);
@@ -174,7 +174,7 @@ class ConcurrentHashtableReservationTest {
     FourPartEntry four;
     try (ConcurrentHashtable.Reservation<FourPartEntry> r =
         ConcurrentHashtable.tryReserve(state4)) {
-      four = r.tryGetOrInsertOrNull(FourPartEntry::new, "w", "x", "y", "z");
+      four = r.tryGetOrInsertOrNull("w", "x", "y", "z", FourPartEntry::new);
     }
     assertEquals("w", four.a);
     assertEquals("x", four.b);
