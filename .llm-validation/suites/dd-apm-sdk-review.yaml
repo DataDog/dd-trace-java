@@ -27,7 +27,7 @@ cases:
     bad_signals:
       - "Treats the LinkedHashMap choice as a pure style nit with no cost explanation."
       - "Misses the unbounded / high-cardinality aspect entirely."
-      - "Invents a Datadog-internal collection type name that doesn't exist in this repo's toolkit (Strings, SubSequence, HashingUtils, Hashtable, RE2J)."
+      - "Invents a Datadog-internal collection type name that doesn't exist in this repo's toolkit (Strings, SubSequence, HashingUtils, Hashtable, ConcurrentHashtable, StringIndex, RE2J)."
 
   - id: java-perf-pipeline-full-review-002
     files:
