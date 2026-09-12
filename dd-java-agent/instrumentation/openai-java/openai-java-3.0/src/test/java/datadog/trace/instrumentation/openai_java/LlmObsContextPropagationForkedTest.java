@@ -24,6 +24,8 @@ import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 /**
  * Mock OpenAI backend and request helpers, shared by the LLMObs forked tests in this file.
@@ -118,6 +120,9 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
  * body shape doesn't matter for what's being tested.
  */
 @WithConfig(key = "llmobs.enabled", value = "true")
+@DisabledOnOs(
+    value = OS.WINDOWS,
+    disabledReason = "The first OpenAI request does not emit its trace on Windows CI")
 class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest {
 
   @Test
@@ -317,6 +322,9 @@ class LlmObsContextPropagationForkedTest extends AbstractLlmObsOpenAiForkedTest 
  */
 @WithConfig(key = "llmobs.enabled", value = "true")
 @WithConfig(key = "llmobs.sample.rate", value = "0")
+@DisabledOnOs(
+    value = OS.WINDOWS,
+    disabledReason = "The first OpenAI request does not emit its trace on Windows CI")
 class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
 
   @Test

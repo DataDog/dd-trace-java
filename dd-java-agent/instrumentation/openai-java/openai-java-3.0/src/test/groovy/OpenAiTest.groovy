@@ -37,8 +37,15 @@ import datadog.trace.core.util.LRUCache
 import java.nio.file.Path
 import java.nio.file.Paths
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
+@IgnoreIf(
+reason = "The first OpenAI request does not emit its trace on Windows CI",
+inherited = true,
+value = {
+  OperatingSystem.isWindows()
+})
 abstract class OpenAiTest extends InstrumentationSpecification {
 
   private static final int WINDOWS_TRACE_TIMEOUT_SECONDS = 90

@@ -12,6 +12,9 @@ if ([string]::IsNullOrWhiteSpace($env:GRADLE_TARGET)) {
 if ([string]::IsNullOrWhiteSpace($env:testJvm)) {
     throw "testJvm is required"
 }
+if ($env:GRADLE_WORKERS -notmatch '^[1-9][0-9]*$') {
+    throw "Expected GRADLE_WORKERS to be a positive integer; got '$env:GRADLE_WORKERS'"
+}
 
 $split = $env:CI_SPLIT.Split("/")
 if ([int]$split[0] -gt [int]$split[1]) {
@@ -79,7 +82,7 @@ try {
         "--stacktrace",
         "--no-daemon",
         "--parallel",
-        "--max-workers=4",
+        "--max-workers=$($env:GRADLE_WORKERS)",
         "--continue"
     )
 

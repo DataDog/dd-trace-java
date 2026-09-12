@@ -66,6 +66,7 @@ test-base-windows:
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
     GRADLE_TARGET: ":baseTest"
+    GRADLE_WORKERS: "4"
     CACHE_TYPE: "base"
     # Feature branches only read the shared dependency seed; protected refs
     # refresh it (overridden in rules below).
@@ -146,12 +147,14 @@ test-base-windows:
         "--env", "CI_COMMIT_BRANCH=$($env:CI_COMMIT_BRANCH)",
         "--env", "CI_SPLIT=$($env:CI_SPLIT)",
         "--env", "GRADLE_TARGET=$($env:GRADLE_TARGET)",
+        "--env", "GRADLE_WORKERS=$($env:GRADLE_WORKERS)",
         "--env", "testJvm=$($env:testJvm)",
         "--env", "MAVEN_REPOSITORY_PROXY=$($env:MAVEN_REPOSITORY_PROXY)",
         "--env", "GRADLE_PLUGIN_PROXY=$($env:GRADLE_PLUGIN_PROXY)",
         "--env", "MASS_READ_URL=$($env:MASS_READ_URL)",
         # Parity with .test_job_common on Linux: both runtimes size pools from
         # availableProcessors(), which is unreliable in containers.
+        "--env", "JAVA_TOOL_OPTIONS=-XX:ActiveProcessorCount=4",
         "--env", "RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE=4",
         "--env", "JETTY_AVAILABLE_PROCESSORS=4",
         "--env", "TESTCONTAINERS_CHECKS_DISABLE=true",
@@ -177,6 +180,7 @@ test-base-windows:
       - buildSrc/build/test-results/**
       - buildSrc/build/reports/tests/**
       - .gradle/daemon/*/*.out.log
+      - .gradle/workers/hs_err_pid*.log
       - .tmp/**
     reports:
       junit:
@@ -190,6 +194,9 @@ test-smoke-windows:
   extends: test-base-windows
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
+    # Smoke tasks start additional JVMs and Docker processes, so leave one
+    # worker of headroom inside the 20 GiB Windows container.
+    GRADLE_WORKERS: "3"
     CACHE_TYPE: "smoke"
   parallel:
     matrix:

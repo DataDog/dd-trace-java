@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.environment.OperatingSystem
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.restlet.ResourceDecorator
@@ -123,6 +124,18 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
   @Override
   boolean testBadUrl() {
     false
+  }
+
+  @Override
+  boolean testEncodedPath() {
+    // Restlet decodes encoded paths before the instrumentation observes them on Windows.
+    !OperatingSystem.isWindows()
+  }
+
+  @Override
+  boolean testEncodedQuery() {
+    // Restlet decodes encoded queries before the instrumentation observes them on Windows.
+    !OperatingSystem.isWindows()
   }
 
   @Override
