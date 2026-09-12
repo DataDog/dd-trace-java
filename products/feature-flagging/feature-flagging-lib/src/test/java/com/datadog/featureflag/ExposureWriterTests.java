@@ -440,6 +440,30 @@ class ExposureWriterTests {
   }
 
   @Test
+  void testMissingBackendClosesWriterFromSerializerThread() throws Exception {
+    CountDownLatch backendRequested = new CountDownLatch(1);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            () -> {
+              backendRequested.countDown();
+              return null;
+            },
+            mockConfig("missing-backend-service"),
+            100);
+
+    writer.init();
+
+    assertTrue(backendRequested.await(5, java.util.concurrent.TimeUnit.SECONDS));
+    poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
+    writer.accept(buildExposure());
+    assertEquals(0, writer.queueSize());
+    writer.close();
+  }
+
+  @Test
   void testHttpFailureIsNotRetriedAtTransportLayer() throws Exception {
     String serviceName = "fail-once";
     Config config = mockConfig(serviceName);

@@ -395,6 +395,81 @@ class AgentlessFeatureFlagBackendApiTest {
   }
 
   @Test
+  void sharedLocalRouteDiscoversWriterSpecificProxy() throws Exception {
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
+    routeSelector.initialize(true, false);
+    final RecordingBackendApi recoveredLocal = new RecordingBackendApi();
+    final AtomicInteger proxyApiCreations = new AtomicInteger();
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
+            null,
+            null,
+            () -> {
+              proxyApiCreations.incrementAndGet();
+              return recoveredLocal;
+            },
+            () -> null,
+            "flag evaluation",
+            routeSelector);
+
+    api.post("flagevaluation", requestBody("local"), stream -> null, null, false);
+
+    assertEquals(1, proxyApiCreations.get());
+    assertEquals(1, recoveredLocal.calls);
+    assertEquals(FeatureFlagRouteSelector.Route.LOCAL, routeSelector.current());
+  }
+
+  @Test
+  void sharedLocalRouteUsesDirectWhenWriterSpecificProxyIsUnavailable() throws Exception {
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
+    routeSelector.initialize(true, false);
+    final RecordingBackendApi direct = new RecordingBackendApi();
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
+            null, direct, () -> null, () -> direct, "flag evaluation", routeSelector);
+
+    api.post("flagevaluation", requestBody("direct"), stream -> null, null, false);
+
+    assertEquals(1, direct.calls);
+    assertEquals(FeatureFlagRouteSelector.Route.DIRECT, routeSelector.current());
+  }
+
+  @Test
+  void sharedLocalRouteBecomesUnavailableWhenWriterHasNoRoute() {
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
+    routeSelector.initialize(true, false);
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
+            null,
+            null,
+            () -> {
+              throw new IllegalStateException("discovery failed");
+            },
+            () -> null,
+            "flag evaluation",
+            routeSelector);
+
+    assertThrows(
+        IOException.class,
+        () -> api.post("flagevaluation", requestBody("missing"), stream -> null, null, false));
+    assertEquals(FeatureFlagRouteSelector.Route.UNAVAILABLE, routeSelector.current());
+  }
+
+  @Test
+  void sharedDirectRouteWithoutWriterClientIsUnavailable() {
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
+    routeSelector.initialize(false, true);
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(
+            null, null, () -> null, () -> null, "flag evaluation", routeSelector);
+
+    assertThrows(
+        IOException.class,
+        () -> api.post("flagevaluation", requestBody("missing"), stream -> null, null, false));
+    assertEquals(FeatureFlagRouteSelector.Route.DIRECT, routeSelector.current());
+  }
+
+  @Test
   void workingDirectRouteDoesNotAttemptRecovery() throws Exception {
     final AtomicLong clock = new AtomicLong();
     final RecordingBackendApi direct = new RecordingBackendApi();
