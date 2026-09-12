@@ -44,44 +44,38 @@ import org.openjdk.jmh.infra.Blackhole;
  * {@code *_sameKey} variants reuse the original interned key instances to show the identity fast
  * path — which is the common tracer case, since map keys are typically interned tag-name constants.
  *
- * <p>JDK 17 results (Apple M1, quiet machine, {@code @Fork(5)}, {@code @Threads(8)}; M ops/s).
- * {@code get} uses distinct keys (exercises {@code equals()}); {@code sameKey} reuses the interned
- * key (the {@code ==} fast path — the common tracer case):
+ * <p>{@link BenchmarkUtils#polluteHashDispatch()} prepares shared {@code hashCode()} and {@code
+ * equals()} call sites before measurement. This avoids giving hash-based structures an
+ * unrealistically monomorphic type profile.
+ *
+ * <p>A virtual call site is <i>monomorphic</i> when it has observed one receiver class,
+ * <i>polymorphic</i> when it has observed a small set, and <i>megamorphic</i> when no small, stable
+ * set dominates. HotSpot can usually devirtualize and inline the monomorphic case, sometimes a
+ * small polymorphic one; megamorphic sites generally retain virtual dispatch.
+ *
+ * <p>Results on an Apple M1 with Java 8u382, {@code @Fork(5)}, and {@code @Threads(8)} (M ops/s):
  *
  * <pre>{@code
- * Structure                           get sameKey
- * stringIndex_embedded (static)      1498    2081    (fastest)
- * stringIndex (inst)                 1363    1900
- * hashMap                            1216    1850
- * linkedHashMap                      1214       -
- * tagMap                             1167    1386
- * tracerImmutableMap                 1049    1364    (MapN)
- * treeMap                             656       -
+ * Structure                get sameKey iterate iterate_forEach
+ * hashMap                 1202    1438     120        -
+ * linkedHashMap           1097       -     127        -
+ * treeMap                  487       -     121        -
+ * tagMap                  1005    1235     109       121
+ * tracerImmutableMap      1052    1249     123        -   (MapN)
+ * stringIndex             1366    1724       -        -
+ * stringIndex_embedded    1479    1846       -        -
  * }</pre>
  *
- * <p>{@code iterate} (full traversal):
- *
- * <pre>{@code
- * tagMap.forEach        148    (fastest)
- * linkedHashMap         136
- * tracerImmutableMap    135    (MapN)
- * treeMap               134
- * hashMap               104
- * tagMap (iterator)      96
- * }</pre>
- *
- * <p>Key findings:
+ * <p>In this run:
  *
  * <ul>
- *   <li>StringIndex-as-map ({@code EmbeddingSupport}) is the fastest {@code get} — beating {@code
- *       HashMap} and {@code Map.copyOf}/{@code MapN}, most on the interned path; the instance
- *       wrapper trails it by ~10%. (vs {@code MapN} the edge is speed + the slot/parallel-array
- *       capability, not footprint — see {@link ImmutableSetBenchmark}.)
- *   <li>{@code TagMap.forEach} (148) beats its own {@code iterator} (96) by ~1.5x: TagMap's
- *       structure makes a faithful external {@code Iterator} expensive (externalized cursor +
- *       skip-empty + per-call re-entry + the iterator allocation) — all of which internal {@code
- *       forEach} avoids. Traverse TagMap via {@code forEach}, never its iterator; that gap only
- *       widens as TagMap's entry model grows.
+ *   <li>The embedded StringIndex has the fastest {@code get}; the instance wrapper is second.
+ *   <li>Both StringIndex variants outperform the map-based alternatives for distinct and identical
+ *       key instances.
+ *   <li>{@code TreeMap.get} varies widely across forks (roughly 230-610 M ops/s), so its mean is
+ *       less stable than the other results.
+ *   <li>{@code TagMap.forEach} is about 10% faster than its iterator (121 vs. 109 M ops/s). Its
+ *       advantage widens as TagMap's entry model grows.
  * </ul>
  */
 // @Fork(5): get_tracerImmutableMap* (MapN reached via interface dispatch) is JIT-bimodal at fewer
@@ -145,6 +139,8 @@ public class ImmutableMapBenchmark {
 
   @Setup(Level.Trial)
   public void setUp() {
+    BenchmarkUtils.polluteHashDispatch();
+
     hashMap = new HashMap<>();
     fill(hashMap);
     linkedHashMap = new LinkedHashMap<>();
