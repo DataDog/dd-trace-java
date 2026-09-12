@@ -29,73 +29,83 @@ final class FeatureFlagBackendApiFactory {
   private final Config config;
   private final BackendApiFactory backendApiFactory;
   private final FeatureFlagEventType eventType;
+  private final FeatureFlagRouteSelector routeSelector;
 
   FeatureFlagBackendApiFactory(
       final Config config,
       final SharedCommunicationObjects sharedCommunicationObjects,
       final FeatureFlagEventType eventType) {
+    this(config, sharedCommunicationObjects, eventType, new FeatureFlagRouteSelector());
+  }
+
+  FeatureFlagBackendApiFactory(
+      final Config config,
+      final SharedCommunicationObjects sharedCommunicationObjects,
+      final FeatureFlagEventType eventType,
+      final FeatureFlagRouteSelector routeSelector) {
     this(
         config,
         new BackendApiFactory(config, sharedCommunicationObjects, REQUEST_HEADERS, true),
-        eventType);
+        eventType,
+        routeSelector);
   }
 
   FeatureFlagBackendApiFactory(
       final Config config,
       final BackendApiFactory backendApiFactory,
       final FeatureFlagEventType eventType) {
+    this(config, backendApiFactory, eventType, new FeatureFlagRouteSelector());
+  }
+
+  FeatureFlagBackendApiFactory(
+      final Config config,
+      final BackendApiFactory backendApiFactory,
+      final FeatureFlagEventType eventType,
+      final FeatureFlagRouteSelector routeSelector) {
     this.config = config;
     this.backendApiFactory = backendApiFactory;
     this.eventType = eventType;
+    this.routeSelector = routeSelector;
   }
 
   @Nullable
   BackendApi create() {
     final boolean agentless =
         CONFIGURATION_SOURCE_AGENTLESS.equals(config.getFeatureFlaggingConfigurationSource());
-    final boolean directFallbackAvailable = agentless && hasDirectCredentials();
-    // Preserve the historical v2 endpoint when initial discovery itself is unavailable. Recovery
-    // from a working direct route is stricter below: only an advertised endpoint proves that local
-    // delivery has returned, avoiding an ambiguous failed probe of an assumed v2 endpoint.
-    final BackendApi proxyApi = createProxyApi(false, true);
     if (!agentless) {
-      if (proxyApi == null) {
-        LOGGER.warn(
-            "Feature Flagging {} delivery is disabled because the local Agent does not support the EVP proxy",
-            eventType.logName());
-      }
-      return proxyApi;
+      // Preserve the historical Agent-backed client: fixed EVP v2, no /info discovery, no direct
+      // credentials, and no Agentless route state.
+      return backendApiFactory.createEvpProxyApiForEndpoint(
+          Intake.EVENT_PLATFORM,
+          eventType.responseCompressionEnabled(),
+          HttpRetryPolicy.Factory.NEVER_RETRY,
+          V2_EVP_PROXY_ENDPOINT);
     }
 
-    if (!directFallbackAvailable) {
-      return proxyApi;
-    }
-
-    final BackendApi directApi = proxyApi == null ? createDirectApi() : null;
-    if (proxyApi != null || directApi != null) {
-      return new AgentlessFeatureFlagBackendApi(
-          proxyApi,
-          directApi,
-          () -> createProxyApi(true, false),
-          this::createDirectApi,
+    final BackendApi proxyApi = createProxyApi(false);
+    final BackendApi directApi = createDirectApi();
+    if (proxyApi == null && directApi == null) {
+      LOGGER.warn(
+          "Feature Flagging {} delivery is waiting for a compatible local EVP proxy because direct intake credentials are unavailable",
           eventType.logName());
     }
-
-    LOGGER.warn(
-        "Feature Flagging {} delivery is disabled because no compatible local EVP proxy or direct intake credentials are available",
-        eventType.logName());
-    return null;
+    return new AgentlessFeatureFlagBackendApi(
+        proxyApi,
+        directApi,
+        () -> createProxyApi(true),
+        this::createDirectApi,
+        eventType.logName(),
+        routeSelector);
   }
 
   @Nullable
-  private BackendApi createProxyApi(
-      final boolean forceDiscovery, final boolean useDiscoveryFailureFallback) {
+  private BackendApi createProxyApi(final boolean forceDiscovery) {
     return backendApiFactory.createEvpProxyApi(
         Intake.EVENT_PLATFORM,
         eventType.responseCompressionEnabled(),
         HttpRetryPolicy.Factory.NEVER_RETRY,
-        useDiscoveryFailureFallback ? V2_EVP_PROXY_ENDPOINT : null,
-        forceDiscovery);
+        forceDiscovery,
+        true);
   }
 
   private static Map<String, String> requestHeaders() {

@@ -45,6 +45,18 @@ public class ExposureWriterImpl implements ExposureWriter {
   }
 
   ExposureWriterImpl(
+      final SharedCommunicationObjects sco,
+      final Config config,
+      final FeatureFlagRouteSelector routeSelector) {
+    this(
+        DEFAULT_CAPACITY,
+        DEFAULT_FLUSH_INTERVAL_IN_SECONDS,
+        SECONDS,
+        new FeatureFlagBackendApiFactory(config, sco, FeatureFlagEventType.EXPOSURE, routeSelector),
+        config);
+  }
+
+  ExposureWriterImpl(
       final int capacity,
       final long flushInterval,
       final TimeUnit timeUnit,

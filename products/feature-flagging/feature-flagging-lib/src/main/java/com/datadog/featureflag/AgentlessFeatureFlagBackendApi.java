@@ -7,7 +7,6 @@ import datadog.communication.util.IOThrowingFunction;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
@@ -15,22 +14,19 @@ import okhttp3.RequestBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Sends Feature Flag events through a local EVP proxy, with a safe direct intake fallback. */
+/** Sends Feature Flag events through the process-wide Agentless EVP route selector. */
 final class AgentlessFeatureFlagBackendApi implements BackendApi {
 
   private static final Logger LOGGER =
       LoggerFactory.getLogger(AgentlessFeatureFlagBackendApi.class);
-  private static final long DEFAULT_RECOVERY_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
 
+  private final FeatureFlagRouteSelector routeSelector;
   private final Supplier<BackendApi> proxyApiSupplier;
   private final Supplier<BackendApi> directApiSupplier;
   private final String eventType;
-  private final LongSupplier nanoTime;
-  private final long recoveryIntervalNanos;
-  private volatile Route activeRoute;
+  private volatile BackendApi proxyApi;
   private volatile BackendApi directApi;
   private volatile boolean directApiCreationAttempted;
-  private volatile long nextProxyProbeNanos;
 
   AgentlessFeatureFlagBackendApi(
       @Nullable final BackendApi proxyApi,
@@ -44,8 +40,7 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
         proxyApiSupplier,
         directApiSupplier,
         eventType,
-        System::nanoTime,
-        DEFAULT_RECOVERY_INTERVAL_NANOS);
+        new FeatureFlagRouteSelector());
   }
 
   AgentlessFeatureFlagBackendApi(
@@ -56,20 +51,30 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       final String eventType,
       final LongSupplier nanoTime,
       final long recoveryIntervalNanos) {
-    if (proxyApi == null && directApi == null) {
-      throw new IllegalArgumentException("A Feature Flagging event route is required");
-    }
-    this.proxyApiSupplier = proxyApiSupplier;
+    this(
+        proxyApi,
+        directApi,
+        proxyApiSupplier,
+        directApiSupplier,
+        eventType,
+        new FeatureFlagRouteSelector(nanoTime, recoveryIntervalNanos));
+  }
+
+  AgentlessFeatureFlagBackendApi(
+      @Nullable final BackendApi proxyApi,
+      @Nullable final BackendApi directApi,
+      final Supplier<BackendApi> proxyApiSupplier,
+      final Supplier<BackendApi> directApiSupplier,
+      final String eventType,
+      final FeatureFlagRouteSelector routeSelector) {
+    this.proxyApi = proxyApi;
     this.directApi = directApi;
+    this.proxyApiSupplier = proxyApiSupplier;
     this.directApiSupplier = directApiSupplier;
     this.eventType = eventType;
-    this.nanoTime = nanoTime;
-    this.recoveryIntervalNanos = recoveryIntervalNanos;
-    this.activeRoute = proxyApi != null ? new Route(proxyApi, true) : new Route(directApi, false);
+    this.routeSelector = routeSelector;
     this.directApiCreationAttempted = directApi != null;
-    if (proxyApi == null) {
-      scheduleProxyRecovery();
-    }
+    routeSelector.initialize(proxyApi != null, directApi != null);
   }
 
   @Override
@@ -80,16 +85,17 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
       @Nullable final OkHttpUtils.CustomListener requestListener,
       final boolean requestCompression)
       throws IOException {
-    final Route selectedRoute = selectRoute();
+    final SelectedApi selected = selectApi();
     try {
-      return selectedRoute.api.post(
+      return selected.api.post(
           uri, requestBody, responseParser, requestListener, requestCompression);
     } catch (final IOException exception) {
-      if (!selectedRoute.proxy) {
+      if (!selected.local) {
         throw exception;
       }
 
-      final BackendApi fallbackApi = switchFutureBatchesToDirect(selectedRoute);
+      final BackendApi fallbackApi = getOrCreateDirectApi();
+      routeSelector.localFailure(fallbackApi != null);
       if (fallbackApi == null || !isSafeToReplayDirectly(exception)) {
         throw exception;
       }
@@ -98,60 +104,53 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
     }
   }
 
-  private Route selectRoute() {
-    final Route selectedRoute = activeRoute;
-    if (selectedRoute.proxy || !proxyRecoveryDue()) {
-      return selectedRoute;
-    }
-
-    synchronized (this) {
-      final Route currentRoute = activeRoute;
-      if (currentRoute.proxy || !proxyRecoveryDue()) {
-        return currentRoute;
+  private SelectedApi selectApi() throws IOException {
+    FeatureFlagRouteSelector.Route selectedRoute = routeSelector.current();
+    if (selectedRoute == FeatureFlagRouteSelector.Route.UNAVAILABLE
+        && routeSelector.tryBeginLocalRecovery()) {
+      final BackendApi recoveredProxyApi = discoverProxyApi();
+      if (recoveredProxyApi != null) {
+        proxyApi = recoveredProxyApi;
+        routeSelector.localRecovered();
       }
-      // Reserve the next recovery window before performing discovery so concurrent senders keep
-      // using direct intake instead of blocking or creating a probe stampede.
-      scheduleProxyRecovery();
+      selectedRoute = routeSelector.current();
     }
 
-    BackendApi recoveredProxyApi = null;
-    try {
-      recoveredProxyApi = proxyApiSupplier.get();
-    } catch (final RuntimeException exception) {
-      // Route recovery is best effort. A discovery/configuration failure must not interrupt the
-      // working direct route and lose the current batch.
-      LOGGER.debug("Could not recover the local Feature Flagging {} route", eventType, exception);
-    }
-    if (recoveredProxyApi != null) {
-      synchronized (this) {
-        if (!activeRoute.proxy) {
-          LOGGER.debug(
-              "Switching Feature Flagging {} delivery from direct intake to the local EVP proxy",
-              eventType);
-          activeRoute = new Route(recoveredProxyApi, true);
+    if (selectedRoute == FeatureFlagRouteSelector.Route.LOCAL) {
+      BackendApi selectedProxyApi = proxyApi;
+      if (selectedProxyApi == null) {
+        selectedProxyApi = discoverProxyApi();
+        if (selectedProxyApi != null) {
+          proxyApi = selectedProxyApi;
+        } else {
+          final BackendApi selectedDirectApi = getOrCreateDirectApi();
+          routeSelector.localFailure(selectedDirectApi != null);
+          if (selectedDirectApi != null) {
+            return new SelectedApi(selectedDirectApi, false);
+          }
+          throw unavailableRoute();
         }
       }
+      return new SelectedApi(selectedProxyApi, true);
     }
-    return activeRoute;
+
+    if (selectedRoute == FeatureFlagRouteSelector.Route.DIRECT) {
+      final BackendApi selectedDirectApi = getOrCreateDirectApi();
+      if (selectedDirectApi != null) {
+        return new SelectedApi(selectedDirectApi, false);
+      }
+    }
+    throw unavailableRoute();
   }
 
   @Nullable
-  private BackendApi switchFutureBatchesToDirect(final Route failedProxyRoute) {
-    final BackendApi fallbackApi = getOrCreateDirectApi();
-    if (fallbackApi == null) {
+  private BackendApi discoverProxyApi() {
+    try {
+      return proxyApiSupplier.get();
+    } catch (final RuntimeException exception) {
+      LOGGER.debug("Could not discover the local Feature Flagging {} route", eventType, exception);
       return null;
     }
-
-    synchronized (this) {
-      if (activeRoute == failedProxyRoute) {
-        LOGGER.debug(
-            "Switching Feature Flagging {} delivery from the local EVP proxy to direct intake",
-            eventType);
-        activeRoute = new Route(fallbackApi, false);
-        scheduleProxyRecovery();
-      }
-    }
-    return fallbackApi;
   }
 
   @Nullable
@@ -159,7 +158,6 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
     if (directApiCreationAttempted) {
       return directApi;
     }
-
     synchronized (this) {
       if (!directApiCreationAttempted) {
         directApi = directApiSupplier.get();
@@ -169,12 +167,8 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
     }
   }
 
-  private boolean proxyRecoveryDue() {
-    return nanoTime.getAsLong() - nextProxyProbeNanos >= 0;
-  }
-
-  private void scheduleProxyRecovery() {
-    nextProxyProbeNanos = nanoTime.getAsLong() + recoveryIntervalNanos;
+  private IOException unavailableRoute() {
+    return new IOException("No Feature Flagging " + eventType + " delivery route is available");
   }
 
   private static boolean isSafeToReplayDirectly(final IOException exception) {
@@ -188,13 +182,13 @@ final class AgentlessFeatureFlagBackendApi implements BackendApi {
     return false;
   }
 
-  private static final class Route {
+  private static final class SelectedApi {
     private final BackendApi api;
-    private final boolean proxy;
+    private final boolean local;
 
-    private Route(final BackendApi api, final boolean proxy) {
+    private SelectedApi(final BackendApi api, final boolean local) {
       this.api = api;
-      this.proxy = proxy;
+      this.local = local;
     }
   }
 }

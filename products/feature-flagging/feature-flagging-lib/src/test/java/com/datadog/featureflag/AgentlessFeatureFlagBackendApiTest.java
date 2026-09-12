@@ -82,7 +82,7 @@ class AgentlessFeatureFlagBackendApiTest {
   }
 
   @Test
-  void recoversTheLocalRouteAfterTheCooldown() throws Exception {
+  void keepsDirectRouteStickyAfterLocalFailure() throws Exception {
     final AtomicLong clock = new AtomicLong();
     final RecordingBackendApi unavailableLocal =
         new RecordingBackendApi(new ConnectException("connection refused"));
@@ -99,8 +99,8 @@ class AgentlessFeatureFlagBackendApiTest {
     api.post("exposures", requestBody("third"), stream -> null, null, false);
 
     assertEquals(1, unavailableLocal.calls);
-    assertEquals(2, direct.calls);
-    assertEquals(1, recoveredLocal.calls);
+    assertEquals(3, direct.calls);
+    assertEquals(0, recoveredLocal.calls);
   }
 
   @ParameterizedTest
@@ -121,7 +121,7 @@ class AgentlessFeatureFlagBackendApiTest {
   }
 
   @Test
-  void startsDirectAndRetriesLocalDiscoveryOnlyAfterTheCooldown() throws Exception {
+  void startsDirectAndNeverProbesLocal() throws Exception {
     final AtomicLong clock = new AtomicLong();
     final RecordingBackendApi direct = new RecordingBackendApi();
     final RecordingBackendApi recoveredLocal = new RecordingBackendApi();
@@ -145,15 +145,14 @@ class AgentlessFeatureFlagBackendApiTest {
     clock.set(10);
     api.post("exposures", requestBody("third"), stream -> null, null, false);
 
-    assertEquals(1, proxyApiCreations.get());
-    assertEquals(2, direct.calls);
-    assertEquals(1, recoveredLocal.calls);
+    assertEquals(0, proxyApiCreations.get());
+    assertEquals(3, direct.calls);
+    assertEquals(0, recoveredLocal.calls);
   }
 
   @Test
   void concurrentSendersDoNotBlockOnOrDuplicateARecoveryProbe() throws Exception {
     final AtomicLong clock = new AtomicLong(10);
-    final RecordingBackendApi direct = new RecordingBackendApi();
     final RecordingBackendApi recoveredLocal = new RecordingBackendApi();
     final AtomicInteger proxyApiCreations = new AtomicInteger();
     final CountDownLatch probeStarted = new CountDownLatch(1);
@@ -161,7 +160,7 @@ class AgentlessFeatureFlagBackendApiTest {
     final AgentlessFeatureFlagBackendApi api =
         new AgentlessFeatureFlagBackendApi(
             null,
-            direct,
+            null,
             () -> {
               proxyApiCreations.incrementAndGet();
               probeStarted.countDown();
@@ -173,7 +172,7 @@ class AgentlessFeatureFlagBackendApiTest {
               }
               return recoveredLocal;
             },
-            () -> direct,
+            () -> null,
             "flag evaluation",
             clock::get,
             10);
@@ -191,41 +190,46 @@ class AgentlessFeatureFlagBackendApiTest {
             });
     assertTrue(probeStarted.await(5, TimeUnit.SECONDS));
 
-    api.post("flagevaluation", requestBody("parallel"), stream -> null, null, false);
+    assertThrows(
+        IOException.class,
+        () -> api.post("flagevaluation", requestBody("parallel"), stream -> null, null, false));
     releaseProbe.countDown();
     recoveringPost.get(5, TimeUnit.SECONDS);
 
     assertEquals(1, proxyApiCreations.get());
-    assertEquals(1, direct.calls);
     assertEquals(1, recoveredLocal.calls);
   }
 
   @Test
   void failedRecoveryIsStickyForAnotherCooldown() throws Exception {
     final AtomicLong clock = new AtomicLong();
-    final RecordingBackendApi direct = new RecordingBackendApi();
     final AtomicInteger proxyApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
         new AgentlessFeatureFlagBackendApi(
             null,
-            direct,
+            null,
             () -> {
               proxyApiCreations.incrementAndGet();
               return null;
             },
-            () -> direct,
+            () -> null,
             "exposure",
             clock::get,
             10);
 
     clock.set(10);
-    api.post("exposures", requestBody("first"), stream -> null, null, false);
-    api.post("exposures", requestBody("second"), stream -> null, null, false);
+    assertThrows(
+        IOException.class,
+        () -> api.post("exposures", requestBody("first"), stream -> null, null, false));
+    assertThrows(
+        IOException.class,
+        () -> api.post("exposures", requestBody("second"), stream -> null, null, false));
     clock.set(20);
-    api.post("exposures", requestBody("third"), stream -> null, null, false);
+    assertThrows(
+        IOException.class,
+        () -> api.post("exposures", requestBody("third"), stream -> null, null, false));
 
     assertEquals(2, proxyApiCreations.get());
-    assertEquals(3, direct.calls);
   }
 
   @Test
@@ -248,20 +252,21 @@ class AgentlessFeatureFlagBackendApiTest {
         HttpResponseException.class,
         () -> api.post("exposures", requestBody("first"), stream -> null, null, false));
     assertThrows(
-        HttpResponseException.class,
+        IOException.class,
         () -> api.post("exposures", requestBody("second"), stream -> null, null, false));
 
-    assertEquals(2, local.calls);
+    assertEquals(1, local.calls);
     assertEquals(1, directApiCreations.get());
   }
 
   @Test
-  void requiresAtLeastOneInitialRoute() {
+  void permitsUnavailableStartupSoLocalDeliveryCanRecover() {
+    final AgentlessFeatureFlagBackendApi api =
+        new AgentlessFeatureFlagBackendApi(null, null, () -> null, () -> null, "flag evaluation");
+
     assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new AgentlessFeatureFlagBackendApi(
-                null, null, () -> null, () -> null, "flag evaluation"));
+        IOException.class,
+        () -> api.post("flagevaluation", requestBody("first"), stream -> null, null, false));
   }
 
   @Test
@@ -354,14 +359,52 @@ class AgentlessFeatureFlagBackendApiTest {
   }
 
   @Test
-  void recoveryFailureDoesNotInterruptTheWorkingDirectRoute() throws Exception {
+  void sharesRouteTransitionsAcrossExposureAndFlagEvaluationWriters() throws Exception {
+    final FeatureFlagRouteSelector routeSelector = new FeatureFlagRouteSelector();
+    final RecordingBackendApi exposureLocal =
+        new RecordingBackendApi(new SocketTimeoutException("ambiguous timeout"));
+    final RecordingBackendApi exposureDirect = new RecordingBackendApi();
+    final RecordingBackendApi evaluationLocal = new RecordingBackendApi();
+    final RecordingBackendApi evaluationDirect = new RecordingBackendApi();
+    final AgentlessFeatureFlagBackendApi exposureApi =
+        new AgentlessFeatureFlagBackendApi(
+            exposureLocal,
+            exposureDirect,
+            () -> exposureLocal,
+            () -> exposureDirect,
+            "exposure",
+            routeSelector);
+    final AgentlessFeatureFlagBackendApi evaluationApi =
+        new AgentlessFeatureFlagBackendApi(
+            evaluationLocal,
+            evaluationDirect,
+            () -> evaluationLocal,
+            () -> evaluationDirect,
+            "flag evaluation",
+            routeSelector);
+
+    assertThrows(
+        SocketTimeoutException.class,
+        () -> exposureApi.post("exposures", requestBody("first"), stream -> null, null, false));
+    evaluationApi.post("flagevaluation", requestBody("second"), stream -> null, null, false);
+
+    assertEquals(1, exposureLocal.calls);
+    assertEquals(0, exposureDirect.calls);
+    assertEquals(0, evaluationLocal.calls);
+    assertEquals(1, evaluationDirect.calls);
+  }
+
+  @Test
+  void workingDirectRouteDoesNotAttemptRecovery() throws Exception {
     final AtomicLong clock = new AtomicLong();
     final RecordingBackendApi direct = new RecordingBackendApi();
+    final AtomicInteger proxyApiCreations = new AtomicInteger();
     final AgentlessFeatureFlagBackendApi api =
         new AgentlessFeatureFlagBackendApi(
             null,
             direct,
             () -> {
+              proxyApiCreations.incrementAndGet();
               throw new IllegalStateException("discovery failed");
             },
             () -> direct,
@@ -373,6 +416,7 @@ class AgentlessFeatureFlagBackendApiTest {
     api.post("exposures", requestBody("survives recovery failure"), stream -> null, null, false);
 
     assertEquals(1, direct.calls);
+    assertEquals(0, proxyApiCreations.get());
   }
 
   private static void assertNoSameBatchReplayButUsesDirectForNext(final IOException failure)

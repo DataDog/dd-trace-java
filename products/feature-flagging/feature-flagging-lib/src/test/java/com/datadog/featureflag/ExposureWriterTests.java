@@ -1,6 +1,5 @@
 package com.datadog.featureflag;
 
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V2_EVP_PROXY_ENDPOINT;
 import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGURATION_SOURCE_AGENTLESS;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
@@ -73,7 +72,7 @@ import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
 
-  private static final String EXPOSURES_ENDPOINT = "/evp_proxy/api/v2/exposures";
+  private static final String EXPOSURES_ENDPOINT = "/evp_proxy/v2/api/v2/exposures";
   private static final String DIRECT_EXPOSURES_ENDPOINT = "/api/v2/exposures";
   private static final String API_KEY = "test-api-key";
   private static final double TIMEOUT_SECONDS = 5;
@@ -484,11 +483,7 @@ class ExposureWriterTests {
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
     when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            true,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            V2_EVP_PROXY_ENDPOINT,
-            false))
+            Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY, false, true))
         .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(true), eq(false)))
         .thenReturn(directApi);
@@ -532,17 +527,14 @@ class ExposureWriterTests {
   }
 
   @Test
-  void testWriterStopsReceivingExposuresIfEvpProxyIsNotAvailable() throws Exception {
+  void testAgentlessWriterWaitsForUnavailableProxyRecovery() throws Exception {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects(false);
+    Config config = mockConfig("unavailable-service");
+    when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
 
-    try (ExposureWriterImpl writer =
-        new ExposureWriterImpl(sharedCommunicationObjects, Config.get())) {
+    try (ExposureWriterImpl writer = new ExposureWriterImpl(sharedCommunicationObjects, config)) {
       writer.init();
-      poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
-
-      FeatureFlaggingGateway.dispatch(buildExposure());
-
-      assertEquals(0, writer.queueSize());
+      poll.eventually(() -> assertTrue(writer.isSerializerThreadAlive()));
     }
   }
 
@@ -562,7 +554,6 @@ class ExposureWriterTests {
   private SharedCommunicationObjects sharedCommunicationObjects(boolean evpProxyAvailable) {
     DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
     when(discovery.supportsEvpProxy()).thenReturn(evpProxyAvailable);
-    when(discovery.hasValidInfoResponse()).thenReturn(true);
     if (evpProxyAvailable) {
       when(discovery.getEvpProxyEndpoint()).thenReturn("/evp_proxy/");
     }

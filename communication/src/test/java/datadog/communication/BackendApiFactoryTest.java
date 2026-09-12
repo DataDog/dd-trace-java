@@ -9,9 +9,11 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_AGENTLESS
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
@@ -222,6 +224,103 @@ class BackendApiFactoryTest {
   }
 
   @Test
+  void evpProxyPreservesConfiguredAgentBasePath() throws Exception {
+    final MockWebServer agent = new MockWebServer();
+    agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
+    agent.start();
+    try {
+      final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT);
+      final BackendApiFactory factory =
+          new BackendApiFactory(
+              Config.get(), sharedCommunicationObjects(discovery, agent.url("/agent/base")));
+      final BackendApi api = factory.createBackendApi(Intake.EVENT_PLATFORM, false);
+
+      assertNotNull(api);
+      api.post(
+          "flagevaluation",
+          RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+          stream -> null,
+          null,
+          false);
+
+      assertEquals("/agent/base/evp_proxy/v4/api/v2/flagevaluation", agent.takeRequest().getPath());
+    } finally {
+      agent.shutdown();
+    }
+  }
+
+  @Test
+  void discoveryPreservesAgentBasePathAndAcceptsCaseInsensitiveIdentityCapabilities()
+      throws Exception {
+    final MockWebServer agent = new MockWebServer();
+    agent.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .setBody(
+                "{\"endpoints\":[\"v0.5/traces\",\"/evp_proxy/v4/\"],"
+                    + "\"evp_proxy_allowed_headers\":[\"dd-evp-origin\","
+                    + "\"DD-EVP-ORIGIN-VERSION\"]}"));
+    agent.start();
+    try {
+      final DDAgentFeaturesDiscovery discovery =
+          new DDAgentFeaturesDiscovery(
+              new OkHttpClient(),
+              Monitoring.DISABLED,
+              agent.url("/agent/base"),
+              ProtocolVersion.V0_5,
+              true,
+              false);
+
+      discovery.discover();
+
+      assertEquals("/agent/base/info", agent.takeRequest().getPath());
+      assertEquals(V4_EVP_PROXY_ENDPOINT, discovery.getEvpProxyEndpoint());
+      assertTrue(discovery.supportsEvpProxyHeaders(sdkHeaders().keySet()));
+    } finally {
+      agent.shutdown();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        "{}",
+        "{\"evp_proxy_allowed_headers\":null}",
+        "{\"evp_proxy_allowed_headers\":[\"DD-EVP-ORIGIN\"]}",
+        "{\"evp_proxy_allowed_headers\":[\"DD-EVP-ORIGIN-VERSION\"]}"
+      })
+  void discoveryRejectsMissingOrPartialIdentityCapabilities(final String capabilityJson)
+      throws Exception {
+    final MockWebServer agent = new MockWebServer();
+    final String fields = capabilityJson.substring(1, capabilityJson.length() - 1);
+    agent.enqueue(
+        new MockResponse()
+            .setResponseCode(200)
+            .setBody(
+                "{\"endpoints\":[\"v0.5/traces\",\"evp_proxy/v4/\"]"
+                    + (fields.isEmpty() ? "" : "," + fields)
+                    + "}"));
+    agent.start();
+    try {
+      final DDAgentFeaturesDiscovery discovery =
+          new DDAgentFeaturesDiscovery(
+              new OkHttpClient(),
+              Monitoring.DISABLED,
+              agent.url("/"),
+              ProtocolVersion.V0_5,
+              true,
+              false);
+
+      discovery.discover();
+
+      assertEquals(V4_EVP_PROXY_ENDPOINT, discovery.getEvpProxyEndpoint());
+      assertFalse(discovery.supportsEvpProxyHeaders(sdkHeaders().keySet()));
+    } finally {
+      agent.shutdown();
+    }
+  }
+
+  @Test
   void featureFlagProxyRequestCarriesSdkIdentityWithoutDirectCredentials() throws Exception {
     final MockWebServer agent = new MockWebServer();
     agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
@@ -236,11 +335,7 @@ class BackendApiFactoryTest {
               true);
       final BackendApi api =
           factory.createEvpProxyApi(
-              Intake.EVENT_PLATFORM,
-              false,
-              HttpRetryPolicy.Factory.NEVER_RETRY,
-              V2_EVP_PROXY_ENDPOINT,
-              false);
+              Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY, false, true);
 
       assertNotNull(api);
       api.post(
@@ -351,25 +446,34 @@ class BackendApiFactoryTest {
   }
 
   @Test
-  void discoveryFailureRetainsV2CompatibilityRoute() throws Exception {
+  void fixedV2CompatibilityRouteDoesNotDependOnDiscovery() throws Exception {
     final MockWebServer agent = new MockWebServer();
+    agent.enqueue(new MockResponse().setResponseCode(500).setBody("ambiguous"));
     agent.enqueue(new MockResponse().setResponseCode(200).setBody("{}"));
     agent.start();
     try {
-      final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(null, false);
+      final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(null);
       final BackendApiFactory factory =
           new BackendApiFactory(
               Config.get(), sharedCommunicationObjects(discovery, agent.url("/")));
 
       final BackendApi api =
-          factory.createEvpProxyApi(
+          factory.createEvpProxyApiForEndpoint(
               Intake.EVENT_PLATFORM,
               false,
               HttpRetryPolicy.Factory.NEVER_RETRY,
-              V2_EVP_PROXY_ENDPOINT,
-              false);
+              V2_EVP_PROXY_ENDPOINT);
 
       assertNotNull(api);
+      assertThrows(
+          HttpResponseException.class,
+          () ->
+              api.post(
+                  "flagevaluation",
+                  RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
+                  stream -> null,
+                  null,
+                  false));
       api.post(
           "flagevaluation",
           RequestBody.create(JSON, "{}".getBytes(StandardCharsets.UTF_8)),
@@ -377,39 +481,34 @@ class BackendApiFactoryTest {
           null,
           false);
       assertEquals("/evp_proxy/v2/api/v2/flagevaluation", agent.takeRequest().getPath());
+      assertEquals("/evp_proxy/v2/api/v2/flagevaluation", agent.takeRequest().getPath());
+      assertEquals(2, agent.getRequestCount());
     } finally {
       agent.shutdown();
     }
   }
 
   @Test
-  void authoritativeMissingProxyDoesNotUseV2CompatibilityRoute() {
-    final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(null, true);
+  void capabilityGatedProxyRequiresConfiguredRequestHeaders() {
+    final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(V4_EVP_PROXY_ENDPOINT, false);
     final BackendApiFactory factory =
-        new BackendApiFactory(Config.get(), sharedCommunicationObjects(discovery, null));
+        new BackendApiFactory(
+            Config.get(), sharedCommunicationObjects(discovery, null), sdkHeaders(), true);
 
     assertNull(
         factory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            false,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            V2_EVP_PROXY_ENDPOINT,
-            false));
+            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY, false, true));
   }
 
   @Test
   void recoveryRequestForcesFreshDiscovery() {
-    final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(null, true);
+    final FakeFeaturesDiscovery discovery = new FakeFeaturesDiscovery(null);
     final BackendApiFactory factory =
         new BackendApiFactory(Config.get(), sharedCommunicationObjects(discovery, null));
 
     assertNull(
         factory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM,
-            false,
-            HttpRetryPolicy.Factory.NEVER_RETRY,
-            V2_EVP_PROXY_ENDPOINT,
-            true));
+            Intake.EVENT_PLATFORM, false, HttpRetryPolicy.Factory.NEVER_RETRY, true, true));
     assertEquals(1, discovery.forcedDiscoveries);
     assertEquals(0, discovery.outdatedDiscoveries);
   }
@@ -476,7 +575,7 @@ class BackendApiFactoryTest {
 
   private static final class FakeFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     private final String evpProxyEndpoint;
-    private final boolean validInfoResponse;
+    private final boolean supportsRequestHeaders;
     private int forcedDiscoveries;
     private int outdatedDiscoveries;
 
@@ -484,7 +583,8 @@ class BackendApiFactoryTest {
       this(evpProxyEndpoint, true);
     }
 
-    private FakeFeaturesDiscovery(final String evpProxyEndpoint, final boolean validInfoResponse) {
+    private FakeFeaturesDiscovery(
+        final String evpProxyEndpoint, final boolean supportsRequestHeaders) {
       super(
           new OkHttpClient(),
           Monitoring.DISABLED,
@@ -493,7 +593,7 @@ class BackendApiFactoryTest {
           true,
           false);
       this.evpProxyEndpoint = evpProxyEndpoint;
-      this.validInfoResponse = validInfoResponse;
+      this.supportsRequestHeaders = supportsRequestHeaders;
     }
 
     @Override
@@ -517,8 +617,8 @@ class BackendApiFactoryTest {
     }
 
     @Override
-    public boolean hasValidInfoResponse() {
-      return validInfoResponse;
+    public boolean supportsEvpProxyHeaders(final Iterable<String> requiredHeaders) {
+      return supportsRequestHeaders;
     }
   }
 }

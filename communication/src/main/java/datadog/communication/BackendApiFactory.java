@@ -190,22 +190,21 @@ public class BackendApiFactory {
   /** Creates an API client that sends data through a compatible local EVP proxy. */
   public @Nullable BackendApi createEvpProxyApi(
       Intake intake, boolean responseCompression, HttpRetryPolicy.Factory retryPolicyFactory) {
-    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, null, false);
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, false, false);
   }
 
   /**
-   * Creates an EVP proxy client, optionally retaining a compatibility endpoint when Agent discovery
-   * itself is unavailable.
+   * Creates an EVP proxy client after Agent discovery, optionally forcing a fresh discovery and
+   * requiring the Agent to advertise every configured request header.
    *
-   * <p>An authoritative Agent response that omits EVP support never uses the fallback endpoint. The
-   * {@code forceDiscovery} form is intended for bounded route-recovery probes.
+   * <p>The {@code forceDiscovery} form is intended for bounded unavailable-route recovery probes.
    */
   public @Nullable BackendApi createEvpProxyApi(
       Intake intake,
       boolean responseCompression,
       HttpRetryPolicy.Factory retryPolicyFactory,
-      @Nullable String discoveryFailureFallbackEndpoint,
-      boolean forceDiscovery) {
+      boolean forceDiscovery,
+      boolean requireConfiguredRequestHeaders) {
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
     if (forceDiscovery) {
@@ -214,22 +213,39 @@ public class BackendApiFactory {
       featuresDiscovery.discoverIfOutdated();
     }
     String evpProxyEndpoint = featuresDiscovery.getEvpProxyEndpoint();
-    if (evpProxyEndpoint == null
-        && discoveryFailureFallbackEndpoint != null
-        && !featuresDiscovery.hasValidInfoResponse()) {
-      evpProxyEndpoint = discoveryFailureFallbackEndpoint;
+    if (evpProxyEndpoint != null
+        && requireConfiguredRequestHeaders
+        && !featuresDiscovery.supportsEvpProxyHeaders(requestHeaders.keySet())) {
+      evpProxyEndpoint = null;
     }
     if (evpProxyEndpoint == null) {
       return null;
     }
 
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, evpProxyEndpoint);
+  }
+
+  /** Creates an EVP proxy client for a fixed compatibility endpoint without Agent discovery. */
+  public BackendApi createEvpProxyApiForEndpoint(
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      String evpProxyEndpoint) {
+    return createEvpProxyApi(intake, responseCompression, retryPolicyFactory, evpProxyEndpoint);
+  }
+
+  private BackendApi createEvpProxyApi(
+      Intake intake,
+      boolean responseCompression,
+      HttpRetryPolicy.Factory retryPolicyFactory,
+      String evpProxyEndpoint) {
     String traceId = config.getIdGenerationStrategy().generateTraceId().toString();
     log.debug(
         "Creating EVP proxy client for {} using endpoint {} with responseCompression={}",
         intake,
         evpProxyEndpoint,
         responseCompression);
-    HttpUrl evpProxyUrl = sharedCommunicationObjects.agentUrl.resolve(evpProxyEndpoint);
+    HttpUrl evpProxyUrl = appendPath(sharedCommunicationObjects.agentUrl, evpProxyEndpoint);
     String subdomain = intake.getUrlPrefix();
     return new EvpProxyApi(
         traceId,
@@ -238,6 +254,14 @@ public class BackendApiFactory {
         sendOnce ? HttpRetryPolicy.Factory.NEVER_RETRY : retryPolicyFactory,
         configureHttpClient(sharedCommunicationObjects.agentHttpClient),
         responseCompression);
+  }
+
+  static HttpUrl appendPath(final HttpUrl baseUrl, final String path) {
+    int firstCharacter = 0;
+    while (firstCharacter < path.length() && path.charAt(firstCharacter) == '/') {
+      firstCharacter++;
+    }
+    return baseUrl.newBuilder().addPathSegments(path.substring(firstCharacter)).build();
   }
 
   OkHttpClient configureHttpClient(final OkHttpClient httpClient) {
