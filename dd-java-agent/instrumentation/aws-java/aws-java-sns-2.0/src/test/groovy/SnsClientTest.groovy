@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
@@ -22,6 +25,9 @@ import java.time.Duration
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class SnsClientTest extends VersionedNamingTestBase {
   static final LOCALSTACK = new GenericContainer(DockerImageName.parse("localstack/localstack:4.2.0"))
   .withExposedPorts(4566) // Default LocalStack port

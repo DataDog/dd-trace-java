@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
+import datadog.environment.OperatingSystem
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.restlet.ResourceDecorator
@@ -29,8 +30,20 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.QUERY_PARAM
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.REDIRECT
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.SUCCESS
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostHostname
+import static datadog.trace.test.util.PlatformTestUtils.normalizeLocalhostUrl
 
 abstract class RestletTestBase extends HttpServerTest<Component> {
+
+  @Override
+  String normalizeServerHostname(String value) {
+    normalizeLocalhostHostname(value)
+  }
+
+  @Override
+  String normalizeServerUrl(String value) {
+    normalizeLocalhostUrl(value)
+  }
 
   class RestletServer implements HttpServer {
     def port = 0
@@ -114,6 +127,18 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
   }
 
   @Override
+  boolean testEncodedPath() {
+    // Restlet decodes encoded paths before the instrumentation observes them on Windows.
+    !OperatingSystem.isWindows()
+  }
+
+  @Override
+  boolean testEncodedQuery() {
+    // Restlet decodes encoded queries before the instrumentation observes them on Windows.
+    !OperatingSystem.isWindows()
+  }
+
+  @Override
   Serializable expectedServerSpanRoute(ServerEndpoint endpoint) {
     switch (endpoint) {
       case NOT_FOUND:
@@ -129,7 +154,9 @@ abstract class RestletTestBase extends HttpServerTest<Component> {
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    return [ (Tags.PEER_HOSTNAME): "localhost" ]
+    return [(Tags.PEER_HOSTNAME): {
+        normalizeLocalhostHostname(it as String) == "localhost"
+      }]
   }
 
   String capitalize(String word) {

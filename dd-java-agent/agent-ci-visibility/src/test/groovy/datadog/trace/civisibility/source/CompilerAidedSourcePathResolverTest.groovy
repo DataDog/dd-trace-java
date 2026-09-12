@@ -3,6 +3,8 @@ package datadog.trace.civisibility.source
 import datadog.compiler.annotations.SourcePath
 import spock.lang.Specification
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators
+
 class CompilerAidedSourcePathResolverTest extends Specification {
 
   public static final String REPO_ROOT = "/repo/root"
@@ -15,10 +17,11 @@ class CompilerAidedSourcePathResolverTest extends Specification {
 
     when:
     def path = sourcePathResolver.getSourcePaths(clazz)
+    def normalizedPaths = normalizePathSeparators(path)
 
     then:
-    path.size() == expectedPath.size()
-    path.containsAll(expectedPath)
+    normalizedPaths.size() == expectedPath.size()
+    normalizedPaths.containsAll(expectedPath)
 
     where:
     clazz                             | expectedPath

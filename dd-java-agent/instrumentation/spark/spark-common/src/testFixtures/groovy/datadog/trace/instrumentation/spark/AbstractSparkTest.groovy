@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.spark
 
 import datadog.environment.JavaVirtualMachine
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
@@ -21,8 +22,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import spock.lang.IgnoreIf
 
-@IgnoreIf(reason="https://issues.apache.org/jira/browse/HADOOP-18174", value = {
-  JavaVirtualMachine.isJ9()
+@IgnoreIf(reason="Requires Hadoop winutils on Windows; J9 is affected by HADOOP-18174", inherited = true, value = {
+  OperatingSystem.isWindows() || JavaVirtualMachine.isJ9()
 })
 abstract class AbstractSparkTest extends InstrumentationSpecification {
   @Override

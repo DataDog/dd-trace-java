@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.maven3;
 
+import static datadog.trace.test.util.PlatformTestUtils.normalizeExecutableName;
+import static datadog.trace.test.util.PlatformTestUtils.normalizePathSeparators;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -286,7 +288,9 @@ public class MavenUtilsTest extends AbstractMavenTest {
     MavenSession session = executionEvent.getSession();
     String effectiveJvm = MavenUtils.getEffectiveJvmFallback(session, mojoExecution);
     assertNotNull(effectiveJvm);
-    assertTrue(effectiveJvm.endsWith("/my-jdk-home/bin/java"));
+    assertTrue(
+        normalizeExecutableName(normalizePathSeparators(effectiveJvm))
+            .endsWith("/my-jdk-home/bin/java"));
     return true;
   }
 
@@ -331,7 +335,7 @@ public class MavenUtilsTest extends AbstractMavenTest {
     MavenSession session = executionEvent.getSession();
     Path jvmPath = MavenUtils.getForkedJvmPath(session, mojoExecution);
     assertNotNull(jvmPath);
-    assertTrue(jvmPath.toString().endsWith("/java"));
+    assertEquals("java", normalizeExecutableName(jvmPath.getFileName().toString()));
     return true;
   }
 
@@ -356,7 +360,10 @@ public class MavenUtilsTest extends AbstractMavenTest {
 
     for (String suffix : suffixes) {
       assertFalse(
-          classpath.stream().noneMatch(c -> c.toString().endsWith(suffix)),
+          classpath.stream()
+              .map(Path::toString)
+              .map(c -> normalizePathSeparators(c))
+              .noneMatch(c -> c.endsWith(suffix)),
           "Missing entry: " + suffix);
     }
   }

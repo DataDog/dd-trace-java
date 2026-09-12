@@ -155,6 +155,8 @@ class GitUtilsTest extends Specification {
     "multiple/levels/of/nesting" | true
     "/absolute/path"             | true  // absolute paths allowed
     "/home/user/workspace"       | true  // typical CI workspace
+    "C:\\Users\\build\\workspace" | true  // Windows absolute path
+    "C:\\Program Files\\repo"      | true  // Windows path with spaces
     "../parent/path"             | false // path traversal at start
     "path/../other"              | false // path traversal in middle
     "path/to/.."                 | false // path traversal at end

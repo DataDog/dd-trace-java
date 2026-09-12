@@ -1,3 +1,4 @@
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -12,6 +13,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
+import datadog.trace.test.util.PollingConditions
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.KafkaConsumer
@@ -229,6 +231,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     ClusterIdHolder.get() == null
     int nTraces = isDataStreamsEnabled() ? 3 : 2
     int produceTraceIdx = nTraces - 1
+    normalizeTraceChunks()
     TEST_WRITER.waitForTraces(nTraces)
     def traces = new ArrayList<>(TEST_WRITER)
     traces.sort(new SortKafkaTraces())
@@ -384,6 +387,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     received.value() == greeting
     received.key() == null
 
+    normalizeTraceChunks()
     assertTraces(2, SORT_TRACES_BY_ID) {
       trace(3) {
         basicSpan(it, "parent")
@@ -453,6 +457,38 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     cleanup:
     producerFactory.stop()
     container?.stop()
+  }
+
+  /**
+   * On Windows, thread scheduling can publish the Kafka deliver parent and consumer child as
+   * separate chunks. Reassemble them into the trace shape asserted on other platforms.
+   */
+  protected void normalizeTraceChunks() {
+    if (!OperatingSystem.isWindows()) {
+      return
+    }
+
+    new PollingConditions(timeout: 20).eventually {
+      assert TEST_WRITER.flatten().any {
+        it.operationName.toString() == operationForConsumer()
+      }
+    }
+
+    TEST_WRITER.groupBy { trace -> [trace.first().traceId, trace.first().localRootSpan.spanId] }
+    .values()
+    .findAll { chunks ->
+      chunks.size() > 1 &&
+        chunks.first().first().localRootSpan.operationName.toString() == "kafka.deliver"
+    }
+    .each { chunks ->
+      def localRootSpan = chunks.first().first().localRootSpan
+      def normalizedTrace = chunks
+        .collectMany { chunk -> chunk }
+        .sort { span -> span.spanId == localRootSpan.spanId ? 1 : 0 }
+      int normalizedIndex = TEST_WRITER.indexOf(chunks.first())
+      TEST_WRITER.set(normalizedIndex, normalizedTrace)
+      chunks.tail().each { TEST_WRITER.remove(it) }
+    }
   }
 
   def "test pass through tombstone"() {

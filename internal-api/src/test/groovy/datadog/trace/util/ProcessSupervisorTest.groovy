@@ -1,14 +1,15 @@
 package datadog.trace.util
 
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.test.util.PortableCommand
 import spock.util.concurrent.PollingConditions
 
 // This test looks at the private "currentProcess" variable because the alternative
 // would be calling "ps -e" repeatedly
 class ProcessSupervisorTest extends DDSpecification {
   ProcessBuilder createProcessBuilder() {
-    // Creates a process that never returns
-    return new ProcessBuilder("tail", "-f", "/dev/null")
+    // Creates a process that never returns on its own
+    return new ProcessBuilder(PortableCommand.runForever())
   }
 
   def "Process killed when supervisor closed"() {

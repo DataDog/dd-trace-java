@@ -358,7 +358,7 @@ public final class CrashUploader {
       log.error("No match found for error.message");
       return null;
     }
-    return Arrays.stream(matcher.group().split(System.lineSeparator()))
+    return Arrays.stream(matcher.group().split("\\r?\\n"))
         .filter(
             s ->
                 !s.equals("# A fatal error has been detected by the Java Runtime Environment:")

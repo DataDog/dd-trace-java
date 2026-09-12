@@ -1,13 +1,18 @@
 package datadog.trace.instrumentation.java.lang
 
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.SpanAssert
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
 import datadog.trace.bootstrap.ActiveSubsystems
+import spock.lang.IgnoreIf
 
 import java.util.concurrent.TimeUnit
 
+@IgnoreIf(reason = "Uses POSIX /bin/sh commands, which are not available on Windows", value = {
+  OperatingSystem.isWindows()
+})
 class ProcessImplInstrumentationSpecification extends InstrumentationSpecification {
 
   boolean previousAppsecState = false

@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.spymemcached
 
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import com.google.common.util.concurrent.MoreExecutors
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -29,6 +32,9 @@ import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator
 import static datadog.trace.instrumentation.spymemcached.MemcacheClientDecorator.COMPONENT_NAME
 import static net.spy.memcached.ConnectionFactoryBuilder.Protocol.BINARY
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class SpymemcachedTest extends VersionedNamingTestBase {
 
   @Shared

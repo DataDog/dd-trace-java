@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import com.rabbitmq.client.AMQP
 import com.rabbitmq.client.Channel
 import com.rabbitmq.client.ConnectionFactory
@@ -14,6 +17,9 @@ import spock.lang.Shared
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 class ReactorRabbitMQTest extends InstrumentationSpecification {
   @Shared
   def rabbitMQContainer

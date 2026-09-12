@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.scala
 
 
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
 import datadog.trace.api.iast.sink.SsrfModule
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
@@ -27,6 +29,9 @@ class SourceCallSiteTest extends AbstractIastScalaTest {
     return 'foo.bar.TestSourceSuite'
   }
 
+  @IgnoreIf(reason = "Uses POSIX /etc/passwd test inputs, which are not available on Windows", value = {
+    OperatingSystem.isWindows()
+  })
   void 'test scala.io.Source.#method'() {
     setup:
     final module = Mock(PathTraversalModule)
