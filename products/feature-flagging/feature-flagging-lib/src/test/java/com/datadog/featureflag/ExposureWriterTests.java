@@ -4,6 +4,7 @@ import static datadog.trace.api.featureflag.config.FeatureFlaggingConfig.CONFIGU
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -57,6 +58,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
@@ -65,20 +67,19 @@ import okio.Okio;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.tabletest.junit.TableTest;
 
 class ExposureWriterTests {
 
-  private static final String EXPOSURES_ENDPOINT = "/evp_proxy/api/v2/exposures";
+  private static final String EXPOSURES_ENDPOINT = "/evp_proxy/v2/api/v2/exposures";
   private static final String DIRECT_EXPOSURES_ENDPOINT = "/api/v2/exposures";
   private static final String API_KEY = "test-api-key";
   private static final double TIMEOUT_SECONDS = 5;
 
   private final PollingConditions poll = new PollingConditions(TIMEOUT_SECONDS);
   private Queue<ExposuresRequest> requests;
+  private Queue<String> requestAttempts;
   private Set<String> failed;
   private JavaTestHttpServer server;
   private SharedCommunicationObjects sharedCommunicationObjects;
@@ -86,6 +87,7 @@ class ExposureWriterTests {
   @BeforeEach
   void setUp() {
     requests = new ConcurrentLinkedQueue<>();
+    requestAttempts = new ConcurrentLinkedQueue<>();
     failed = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     JsonAdapter<ExposuresRequest> adapter =
         new Moshi.Builder().build().adapter(ExposuresRequest.class);
@@ -114,6 +116,7 @@ class ExposureWriterTests {
         adapter.fromJson(
             Okio.buffer(Okio.source(new ByteArrayInputStream(api.getRequest().getBody()))));
     String serviceName = exposuresRequest.context.get("service");
+    requestAttempts.add(serviceName);
     boolean failForever = "fail-forever".equals(serviceName);
     boolean fail = serviceName.startsWith("fail") && (failed.add(serviceName) || failForever);
     if (fail) {
@@ -262,10 +265,183 @@ class ExposureWriterTests {
     }
   }
 
-  @ParameterizedTest
-  @ValueSource(booleans = {false, true})
-  void testFailuresAreRetried(boolean finallyFail) throws Exception {
-    String serviceName = finallyFail ? "fail-forever" : "fail-once";
+  @Test
+  void testQueueThresholdFlushesWithoutWaitingForTheInterval() throws Exception {
+    Config config = mockConfig("threshold-service");
+    List<ExposureEvent> exposures = buildExposures(101);
+
+    try (ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 8, Long.MAX_VALUE, NANOSECONDS, sharedCommunicationObjects, config)) {
+      for (ExposureEvent exposure : exposures) {
+        writer.accept(exposure);
+      }
+      writer.init();
+
+      poll.eventually(() -> assertExposures(allExposures(), exposures));
+    }
+  }
+
+  @Test
+  void testCloseDrainsAndFinalFlushesExactlyOnceWithoutWaitingForTheInterval() throws Exception {
+    Config config = mockConfig("shutdown-service");
+    List<ExposureEvent> exposures = buildExposures(5);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4, Long.MAX_VALUE, NANOSECONDS, sharedCommunicationObjects, config);
+
+    writer.init();
+    for (ExposureEvent exposure : exposures) {
+      writer.accept(exposure);
+    }
+
+    writer.close();
+
+    assertFalse(writer.isSerializerThreadAlive());
+    assertEquals(1, requests.size());
+    assertExposures(allExposures(), exposures);
+
+    // A repeated close and a stale listener invocation after close must neither replay the batch
+    // nor leave an event stranded in the queue.
+    writer.close();
+    writer.accept(buildExposure());
+    MILLISECONDS.sleep(200);
+    assertEquals(1, requests.size());
+    assertEquals(0, writer.queueSize());
+  }
+
+  @Test
+  void testFinalFlushRunsWithoutTheInterruptFlagSet() throws Exception {
+    BackendApi backendApi = mock(BackendApi.class);
+    AtomicBoolean interruptedDuringPost = new AtomicBoolean(true);
+    when(backendApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            invocation -> {
+              interruptedDuringPost.set(Thread.currentThread().isInterrupted());
+              return null;
+            });
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            () -> backendApi,
+            mockConfig("shutdown-service"),
+            ExposureWriterImpl.SHUTDOWN_TIMEOUT_MILLIS);
+
+    writer.init();
+    writer.accept(buildExposure());
+    writer.close();
+
+    verify(backendApi, times(1))
+        .post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false));
+    assertFalse(
+        interruptedDuringPost.get(),
+        "The final HTTP request must not inherit the interrupt used to wake queue polling");
+    assertFalse(writer.isSerializerThreadAlive());
+  }
+
+  @Test
+  void testCloseWaitIsBoundedWhenFinalPostDoesNotReturn() throws Exception {
+    BackendApi backendApi = mock(BackendApi.class);
+    CountDownLatch postStarted = new CountDownLatch(1);
+    CountDownLatch releasePost = new CountDownLatch(1);
+    when(backendApi.post(eq("exposures"), any(RequestBody.class), any(), any(), eq(false)))
+        .thenAnswer(
+            invocation -> {
+              postStarted.countDown();
+              releasePost.await();
+              return null;
+            });
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            () -> backendApi,
+            mockConfig("blocked-shutdown-service"),
+            100);
+
+    try {
+      writer.init();
+      writer.accept(buildExposure());
+      long start = System.nanoTime();
+
+      writer.close();
+
+      long elapsedMillis = NANOSECONDS.toMillis(System.nanoTime() - start);
+      assertTrue(postStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
+      assertTrue(elapsedMillis < 2000, "close exceeded its configured bounded wait");
+      assertTrue(writer.isSerializerThreadAlive());
+    } finally {
+      releasePost.countDown();
+    }
+    poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
+  }
+
+  @Test
+  void testStaleGatewayDispatchCannotEnqueueAfterClose() throws Exception {
+    CountDownLatch dispatchSnapshotTaken = new CountDownLatch(1);
+    CountDownLatch releaseDispatch = new CountDownLatch(1);
+    FeatureFlaggingGateway.ExposureListener blocker =
+        ignored -> {
+          dispatchSnapshotTaken.countDown();
+          try {
+            releaseDispatch.await();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        };
+    FeatureFlaggingGateway.addExposureListener(blocker);
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(
+            1 << 4,
+            Long.MAX_VALUE,
+            NANOSECONDS,
+            sharedCommunicationObjects,
+            mockConfig("stale-dispatch-service"));
+    Thread dispatcher =
+        new Thread(() -> FeatureFlaggingGateway.dispatch(buildExposure()), "exposure-dispatcher");
+
+    try {
+      writer.init();
+      dispatcher.start();
+      assertTrue(dispatchSnapshotTaken.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+      writer.close();
+      releaseDispatch.countDown();
+      dispatcher.join(5000);
+
+      assertFalse(dispatcher.isAlive());
+      assertFalse(writer.isSerializerThreadAlive());
+      assertEquals(0, writer.queueSize());
+      assertTrue(requests.isEmpty());
+    } finally {
+      releaseDispatch.countDown();
+      dispatcher.join(5000);
+      FeatureFlaggingGateway.removeExposureListener(blocker);
+      writer.close();
+    }
+  }
+
+  @Test
+  void testCloseBeforeInitPreventsLaterStartAndAccept() {
+    ExposureWriterImpl writer =
+        new ExposureWriterImpl(sharedCommunicationObjects, mockConfig("never-started-service"));
+
+    writer.close();
+    writer.init();
+    writer.accept(buildExposure());
+    writer.close();
+
+    assertFalse(writer.isSerializerThreadAlive());
+    assertEquals(0, writer.queueSize());
+    assertTrue(requests.isEmpty());
+  }
+
+  @Test
+  void testHttpFailureIsNotRetriedAtTransportLayer() throws Exception {
+    String serviceName = "fail-once";
     Config config = mockConfig(serviceName);
 
     try (ExposureWriterImpl writer =
@@ -273,13 +449,11 @@ class ExposureWriterTests {
       writer.init();
       writer.accept(buildExposure());
 
-      MILLISECONDS.sleep(500); // wait for a flush to happen
-      ExposuresRequest found = findRequest(serviceName);
-      if (finallyFail) {
-        assertNull(found, requests.toString());
-      } else {
-        poll.eventually(() -> assertNotNull(findRequest(serviceName), requests.toString()));
-      }
+      poll.eventually(() -> assertEquals(1, Collections.frequency(requestAttempts, serviceName)));
+      MILLISECONDS.sleep(500);
+
+      assertEquals(1, Collections.frequency(requestAttempts, serviceName));
+      assertNull(findRequest(serviceName), requests.toString());
     }
   }
 
@@ -309,7 +483,7 @@ class ExposureWriterTests {
     final BackendApi proxyApi = mock(BackendApi.class);
     final BackendApi directApi = mock(BackendApi.class);
     when(backendApiFactory.createEvpProxyApi(
-            Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY))
+            Intake.EVENT_PLATFORM, true, HttpRetryPolicy.Factory.NEVER_RETRY, false, true))
         .thenReturn(proxyApi);
     when(backendApiFactory.createDirectIntakeApi(eq(Intake.EVENT_PLATFORM), eq(true), eq(false)))
         .thenReturn(directApi);
@@ -353,17 +527,14 @@ class ExposureWriterTests {
   }
 
   @Test
-  void testWriterStopsReceivingExposuresIfEvpProxyIsNotAvailable() throws Exception {
+  void testAgentlessWriterWaitsForUnavailableProxyRecovery() throws Exception {
     SharedCommunicationObjects sharedCommunicationObjects = sharedCommunicationObjects(false);
+    Config config = mockConfig("unavailable-service");
+    when(config.getFeatureFlaggingConfigurationSource()).thenReturn(CONFIGURATION_SOURCE_AGENTLESS);
 
-    try (ExposureWriterImpl writer =
-        new ExposureWriterImpl(sharedCommunicationObjects, Config.get())) {
+    try (ExposureWriterImpl writer = new ExposureWriterImpl(sharedCommunicationObjects, config)) {
       writer.init();
-      poll.eventually(() -> assertFalse(writer.isSerializerThreadAlive()));
-
-      FeatureFlaggingGateway.dispatch(buildExposure());
-
-      assertEquals(0, writer.queueSize());
+      poll.eventually(() -> assertTrue(writer.isSerializerThreadAlive()));
     }
   }
 
