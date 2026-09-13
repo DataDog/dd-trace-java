@@ -96,7 +96,7 @@ configurations.configureEach {
 
 dependencies {
   testImplementation 'junit:junit:4.13.2'
-  testImplementation 'org.robolectric:robolectric:4.16.1'
+  testImplementation 'org.robolectric:robolectric:4.17'
   // Pre-built Android SDK jar for the level the fixtures configure.
   testImplementation 'org.robolectric:android-all:14-robolectric-10818077'
   // androidx.test:core pulls in androidx.test:monitor (InstrumentationRegistry); ext:junit provides

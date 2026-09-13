@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.robolectric;
 
+import android.os.Build;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.File;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
@@ -13,7 +15,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.versioning.AndroidVersions;
 
 public final class RobolectricTestAnnotator {
 
@@ -40,15 +41,30 @@ public final class RobolectricTestAnnotator {
     }
 
     span.setTag(Tags.TEST_ANDROID_API_LEVEL, apiLevel);
-    AndroidVersions.AndroidRelease release = AndroidVersions.getReleaseForSdkInt(apiLevel);
-    if (release != null) {
-      span.setTag(Tags.TEST_ANDROID_RELEASE, release.getVersion());
-      span.setTag(Tags.TEST_ANDROID_CODENAME, release.getShortCode());
+    span.setTag(Tags.TEST_ANDROID_RELEASE, Build.VERSION.RELEASE);
+    String androidCodename = androidCodename(apiLevel);
+    if (androidCodename != null) {
+      span.setTag(Tags.TEST_ANDROID_CODENAME, androidCodename);
     }
     String robolectricVersion = robolectricVersion();
     if (robolectricVersion != null) {
       span.setTag(Tags.TEST_ANDROID_ROBOLECTRIC_VERSION, robolectricVersion);
     }
+  }
+
+  private static String androidCodename(int apiLevel) {
+    try {
+      // Released Android SDKs report "REL" through Build.VERSION.CODENAME. Derive the public
+      // short codename (U, V, and so on) from the matching VERSION_CODES field instead.
+      for (Field field : Build.VERSION_CODES.class.getFields()) {
+        if (field.getType() == int.class && field.getInt(null) == apiLevel) {
+          return field.getName().substring(0, 1);
+        }
+      }
+    } catch (Throwable t) {
+      // Ignore missing or inaccessible fields and omit the optional codename tag.
+    }
+    return null;
   }
 
   private static String robolectricVersion() {
