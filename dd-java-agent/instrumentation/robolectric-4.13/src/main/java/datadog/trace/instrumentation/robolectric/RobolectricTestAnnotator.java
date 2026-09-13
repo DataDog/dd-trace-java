@@ -55,16 +55,28 @@ public final class RobolectricTestAnnotator {
   private static String androidCodename(int apiLevel) {
     try {
       // Released Android SDKs report "REL" through Build.VERSION.CODENAME. Derive the public
-      // short codename (U, V, and so on) from the matching VERSION_CODES field instead.
+      // short codename (NMR1, Sv2, U, and so on) from the matching VERSION_CODES field instead.
       for (Field field : Build.VERSION_CODES.class.getFields()) {
         if (field.getType() == int.class && field.getInt(null) == apiLevel) {
-          return field.getName().substring(0, 1);
+          return androidCodename(field.getName());
         }
       }
     } catch (Throwable t) {
       // Ignore missing or inaccessible fields and omit the optional codename tag.
     }
     return null;
+  }
+
+  static String androidCodename(String versionCodeName) {
+    int minorReleaseIndex = versionCodeName.lastIndexOf("_MR");
+    if (minorReleaseIndex >= 0) {
+      return versionCodeName.substring(0, 1) + versionCodeName.substring(minorReleaseIndex + 1);
+    }
+    int versionIndex = versionCodeName.lastIndexOf("_V");
+    if (versionIndex >= 0) {
+      return versionCodeName.substring(0, 1) + "v" + versionCodeName.substring(versionIndex + 2);
+    }
+    return versionCodeName.substring(0, 1);
   }
 
   private static String robolectricVersion() {
