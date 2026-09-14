@@ -42,11 +42,12 @@ public class LLMObsSystem {
       return;
     }
 
-    // LLM Observability spans are backed by tracer spans, so without a tracer there is nothing to
-    // build them on: AgentTracer.get().buildSpan() returns null on the no-op tracer. Leave the
-    // no-op SDK implementations in place so the public API stays safe to call.
+    // dd.trace.enabled=false turns the whole tracer off, and LLMObs spans are backed by tracer
+    // spans: buildSpan() returns null on the no-op tracer, so starting up here would make every
+    // span-starting call throw into application code. Leave the no-op SDK installed instead.
+    // (dd.apm.tracing.enabled=false is different — the tracer stays, so LLMObs works.)
     if (!config.isTraceEnabled()) {
-      LOGGER.debug("LLM Observability is disabled: tracing is disabled");
+      LOGGER.debug("LLM Observability is disabled: the tracer is disabled (dd.trace.enabled)");
       return;
     }
 

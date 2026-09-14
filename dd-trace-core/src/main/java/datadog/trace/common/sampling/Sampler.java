@@ -42,8 +42,9 @@ public interface Sampler {
                 "APM tracing is disabled, but ASM is enabled. Only 1 APM trace per minute will be sent.");
             return new AsmStandaloneSampler(Clock.systemUTC());
           }
-          // No product needs a continuous APM trace, so drop them all. Products that keep their
-          // own traces (ASM, AI Guard) force-keep them, which this sampler cannot override.
+          // ASM is the only product needing a trickle of APM traces to stay in the service
+          // catalog, so with it off we can drop every APM trace. Traces a product does want
+          // (asm.keep, ai_guard.keep) are force-kept on the span, which no sampler can override.
           log.debug("APM tracing is disabled. APM traces will be dropped.");
           return new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
         }
