@@ -11,10 +11,12 @@ import static datadog.trace.api.config.TracerConfig.PRIORITY_SAMPLING_FORCE;
 import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLE_RATE;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ListWriter;
@@ -22,6 +24,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 
 class SamplerTest extends DDJavaSpecification {
@@ -185,19 +188,31 @@ class SamplerTest extends DDJavaSpecification {
     }
   }
 
+  /**
+   * Asserts the trace is marked dropped but still written. Products that ride the tracer and ship
+   * their spans elsewhere — LLM Observability sends them to its own intake — depend on the spans
+   * still reaching the writers, so dropping APM traces must mean a drop priority, not a discarded
+   * span.
+   */
   private static void assertApmTracesDropped() {
     Sampler sampler = Sampler.Builder.forConfig(Config.get(), null);
 
     assertInstanceOf(ForcePrioritySampler.class, sampler);
 
-    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).sampler(sampler).build();
+    ListWriter writer = new ListWriter();
+    CoreTracer tracer = CoreTracer.builder().writer(writer).sampler(sampler).build();
     try {
       DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
       ((PrioritySampler) sampler).setSamplingPriority(span);
 
       assertEquals(SAMPLER_DROP, (int) span.getSamplingPriority());
+      assertTrue(sampler.sample(span));
 
       span.finish();
+      writer.waitForTraces(1);
+      assertEquals(singletonList(span), writer.firstTrace());
+    } catch (InterruptedException | TimeoutException e) {
+      throw new AssertionError("the dropped trace was never written", e);
     } finally {
       tracer.close();
     }

@@ -1,7 +1,5 @@
 package datadog.smoketest.apmtracingdisabled;
 
-import datadog.trace.api.llmobs.LLMObs;
-import datadog.trace.api.llmobs.LLMObsSpan;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
@@ -81,14 +79,6 @@ public class Controller {
       RestTemplate restTemplate = new RestTemplate();
       restTemplate.getForObject(url, String.class);
     }
-  }
-
-  @GetMapping("/llmobs")
-  public String llmObs() {
-    LLMObsSpan span = LLMObs.startLLMSpan("llm-call", "gpt-4", "openai", null, null);
-    span.annotateIO("input", "output");
-    span.finish();
-    return "llmobs";
   }
 
   @GetMapping("/late-outbound")
