@@ -73,7 +73,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         return tagsFactory.empty();
       }
 
-      boolean datadogMember = ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean datadogMember =
+          ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
       boolean otelMember =
           !datadogMember && otelMemberStart == -1 && value.startsWith(OTEL_MEMBER_KEY, memberStart);
       if (datadogMember) {
