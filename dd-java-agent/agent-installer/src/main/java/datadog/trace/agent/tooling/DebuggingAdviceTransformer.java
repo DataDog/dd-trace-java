@@ -162,11 +162,28 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       MethodDescription instrumentedMethod,
       DownstreamMethodVisitor downstreamVisitor,
       Throwable failure) {
-    if (downstreamVisitor.clear(failure)) {
+    if (downstreamVisitor.isDownstreamFailure(failure)) {
       return propagate(failure);
     }
-    return AdviceTransformationException.wrap(
+    return wrapAdviceFailure(
         instrumentationClass, adviceClass, instrumentedType, instrumentedMethod, failure);
+  }
+
+  private static AdviceTransformationException wrapAdviceFailure(
+      String instrumentationClass,
+      String adviceClass,
+      TypeDescription instrumentedType,
+      MethodDescription instrumentedMethod,
+      Throwable failure) {
+    if (failure instanceof AdviceTransformationException) {
+      return (AdviceTransformationException) failure;
+    }
+    return new AdviceTransformationException(
+        instrumentationClass,
+        adviceClass,
+        instrumentedType.getName(),
+        instrumentedMethod.getInternalName() + instrumentedMethod.getDescriptor(),
+        failure);
   }
 
   private static RuntimeException propagate(Throwable failure) {
@@ -190,7 +207,8 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       return propagate(failure);
     }
 
-    private boolean clear(Throwable failure) {
+    /** Returns whether the same failure came from downstream, then clears the recorded failure. */
+    private boolean isDownstreamFailure(Throwable failure) {
       Throwable downstreamFailure = this.failure;
       this.failure = null;
       return downstreamFailure == failure;
@@ -415,59 +433,6 @@ final class DebuggingAdviceTransformer extends AgentBuilder.Transformer.ForAdvic
       } catch (RuntimeException | LinkageError failure) {
         throw record(failure);
       }
-    }
-  }
-
-  static final class AdviceTransformationException extends RuntimeException {
-    private final String instrumentationClass;
-    private final String adviceClass;
-    private final String targetClass;
-    private final String targetMethod;
-
-    private AdviceTransformationException(
-        String instrumentationClass,
-        String adviceClass,
-        String targetClass,
-        String targetMethod,
-        Throwable cause) {
-      super("Advice transformation failed for " + targetClass + '.' + targetMethod, cause);
-      this.instrumentationClass = instrumentationClass;
-      this.adviceClass = adviceClass;
-      this.targetClass = targetClass;
-      this.targetMethod = targetMethod;
-    }
-
-    private static RuntimeException wrap(
-        String instrumentationClass,
-        String adviceClass,
-        TypeDescription instrumentedType,
-        MethodDescription instrumentedMethod,
-        Throwable failure) {
-      if (failure instanceof AdviceTransformationException) {
-        return (AdviceTransformationException) failure;
-      }
-      return new AdviceTransformationException(
-          instrumentationClass,
-          adviceClass,
-          instrumentedType.getName(),
-          instrumentedMethod.getInternalName() + instrumentedMethod.getDescriptor(),
-          failure);
-    }
-
-    String getInstrumentationClass() {
-      return instrumentationClass;
-    }
-
-    String getAdviceClass() {
-      return adviceClass;
-    }
-
-    String getTargetClass() {
-      return targetClass;
-    }
-
-    String getTargetMethod() {
-      return targetMethod;
     }
   }
 }

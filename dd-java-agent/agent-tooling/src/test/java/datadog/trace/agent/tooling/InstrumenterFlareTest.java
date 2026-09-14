@@ -1,5 +1,6 @@
 package datadog.trace.agent.tooling;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,6 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -39,10 +41,23 @@ class InstrumenterFlareTest {
 
     String errors = readEntry(bytes.toByteArray(), "instrumenter_errors.txt");
     assertNotNull(errors);
-    assertTrue(errors.contains("count=2 repeated error"));
-    assertTrue(errors.contains("count=1 unique error 62"));
+    assertTrue(errors.contains("count=2 detail=repeated error"));
+    assertTrue(errors.contains("count=1 detail=unique error 62"));
     assertFalse(errors.contains("overflow error"));
     assertTrue(errors.contains("dropped_error_count=1"));
+  }
+
+  @Test
+  void truncatesTransformationErrorDetails() {
+    char[] detail = new char[5000];
+    Arrays.fill(detail, 'x');
+
+    InstrumenterFlare.recordTransformationError(new String(detail));
+
+    String errors = InstrumenterFlare.transformationErrors();
+    assertTrue(errors.startsWith("count=1 detail="));
+    assertTrue(errors.endsWith("...\n"));
+    assertEquals("count=1 detail=".length() + 4096 + "...\n".length(), errors.length());
   }
 
   private static String readEntry(byte[] zipBytes, String entryName) throws IOException {

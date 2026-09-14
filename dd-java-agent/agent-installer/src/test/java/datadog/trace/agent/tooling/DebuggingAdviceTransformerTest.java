@@ -55,7 +55,7 @@ class DebuggingAdviceTransformerTest {
     RuntimeException thrown =
         assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
 
-    assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+    assertTrue(thrown instanceof AdviceTransformationException);
     assertSame(failure, thrown.getCause());
   }
 
@@ -70,7 +70,7 @@ class DebuggingAdviceTransformerTest {
     RuntimeException thrown =
         assertThrows(RuntimeException.class, () -> wrapTargetMethod(delegate));
 
-    assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+    assertTrue(thrown instanceof AdviceTransformationException);
     assertSame(failure, thrown.getCause());
   }
 
@@ -89,7 +89,7 @@ class DebuggingAdviceTransformerTest {
     MethodVisitor visitor = wrapTargetMethod(delegate);
     RuntimeException thrown = assertThrows(RuntimeException.class, () -> visitor.visitMaxs(0, 0));
 
-    assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+    assertTrue(thrown instanceof AdviceTransformationException);
     assertSame(failure, thrown.getCause());
   }
 
@@ -142,7 +142,7 @@ class DebuggingAdviceTransformerTest {
         assertThrows(
             RuntimeException.class, () -> visitLocalVariableAnnotation(wrapTargetMethod(delegate)));
 
-    assertTrue(thrown instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+    assertTrue(thrown instanceof AdviceTransformationException);
     assertSame(failure, thrown.getCause());
   }
 
@@ -177,7 +177,7 @@ class DebuggingAdviceTransformerTest {
       logger.setLevel(Level.DEBUG);
       RuntimeException failure =
           assertThrows(RuntimeException.class, () -> materialize(transformer));
-      assertTrue(failure instanceof DebuggingAdviceTransformer.AdviceTransformationException);
+      assertTrue(failure instanceof AdviceTransformationException);
       assertTrue(failure.getCause().getMessage().contains("does not define an index 1"));
 
       new AgentInstaller.TransformLoggingListener()
@@ -221,9 +221,8 @@ class DebuggingAdviceTransformerTest {
                     debuggingTransformer(InvalidArgumentAdvice.class),
                     debuggingTransformer(ValidAdvice.class)));
 
-    assertTrue(failure instanceof DebuggingAdviceTransformer.AdviceTransformationException);
-    DebuggingAdviceTransformer.AdviceTransformationException diagnostic =
-        (DebuggingAdviceTransformer.AdviceTransformationException) failure;
+    assertTrue(failure instanceof AdviceTransformationException);
+    AdviceTransformationException diagnostic = (AdviceTransformationException) failure;
     assertEquals(InvalidArgumentAdvice.class.getName(), diagnostic.getAdviceClass());
     assertTrue(diagnostic.getCause().getMessage().contains("does not define an index 1"));
   }

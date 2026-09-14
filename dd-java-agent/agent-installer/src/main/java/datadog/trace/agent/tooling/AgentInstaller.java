@@ -7,7 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isDefaultFinalizer;
 
 import datadog.environment.SystemProperties;
 import datadog.instrument.fieldinject.GlobalObjectStore;
-import datadog.trace.agent.tooling.DebuggingAdviceTransformer.AdviceTransformationException;
 import datadog.trace.agent.tooling.bytebuddy.SharedTypePools;
 import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
