@@ -117,7 +117,7 @@ cases:
       ```
     expected_criteria:
       - "Flags that the JVM handler flag (`OnError`) is set to the target script/path BEFORE `CrashUploaderScriptInitializer.initialize(...)` — the ownership/trust validation — has run and returned a result. It is not enough to note that a validation step exists; the report must call out the ordering problem — if `initialize(...)` later rejects the path, the flag has already been committed to the untrusted path and the JVM crash handler will still execute it on a crash."
-      - "Classifies this as a security finding (P0 or P1, not merely a style/maintainability nit) — a security control that can be silently bypassed."
+      - "Classifies this as a security finding (P0, not merely a style/maintainability nit) — a security control that can be silently bypassed."
       - "Recommends gating the flag-setter on the validator's result (e.g. `if (initialize(...)) { flags.setValue(...) }`) or clearing/restoring the flag on validation failure — not just \"add more logging\" or \"add a comment\"."
     bad_signals:
       - "Misses the ordering problem and only notes that a validation step exists."
