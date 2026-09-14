@@ -38,7 +38,7 @@ public final class DDJava9ClassFileTransformer
       return classFileTransformer.transform(
           classLoader, internalClassName, classBeingRedefined, protectionDomain, classFileBuffer);
     } finally {
-      SharedTypePools.endTransform();
+      SharedTypePools.endTransform(classFileBuffer);
     }
   }
 
@@ -65,7 +65,7 @@ public final class DDJava9ClassFileTransformer
           protectionDomain,
           classFileBuffer);
     } finally {
-      SharedTypePools.endTransform();
+      SharedTypePools.endTransform(classFileBuffer);
     }
   }
 }

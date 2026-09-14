@@ -100,6 +100,8 @@ final class TypeFactory {
 
   boolean createOutlines = OUTLINING_ENABLED;
 
+  String lambdaInterface;
+
   ClassLoader originalClassLoader;
 
   ClassLoader currentClassLoader;
@@ -145,10 +147,11 @@ final class TypeFactory {
   /**
    * New transform request; begins with type matching that only requires outline descriptions.
    *
-   * <p>Byte-buddy's circularity lock makes sure we won't have any nested transform calls, but we
-   * may be asked to transform support types while deciding which loaded types need re-transforming
-   * when first installing the agent. If that happens then we need to remember the original context
-   * used for matching and restore it afterwards.
+   * <p>Byte-buddy's circularity lock prevents nested callbacks from reaching this step, but those
+   * callbacks still pass through the outer transformer wrapper. We may also be asked to transform
+   * support types while deciding which loaded types need re-transforming when first installing the
+   * agent. If that happens then we need to remember the original context used for matching and
+   * restore it afterwards.
    */
   void beginTransform(String name, byte[] bytecode) {
     targetName = name;
@@ -157,6 +160,18 @@ final class TypeFactory {
     if (installing) {
       originalClassLoader = currentClassLoader;
     }
+  }
+
+  void beginLambdaTransform(String interfaceClassName) {
+    lambdaInterface = interfaceClassName;
+  }
+
+  void endLambdaTransform() {
+    lambdaInterface = null;
+  }
+
+  String lambdaInterface() {
+    return lambdaInterface;
   }
 
   /** Once matching is complete we need full descriptions for the actual transformation. */
@@ -171,7 +186,14 @@ final class TypeFactory {
     return wasEnabled;
   }
 
-  /** Cleans-up local caches to minimise memory use once we're done with the type-factory. */
+  /** Cleans up local caches if this callback owns the active transformation. */
+  void endTransform(byte[] classFileBuffer) {
+    if (targetBytecode == classFileBuffer) {
+      endTransform();
+    }
+  }
+
+  /** Cleans up local caches to minimise memory use once we're done with the type-factory. */
   void endTransform() {
     if (null == targetName) {
       return; // transformation didn't reach resolve step
@@ -231,6 +253,10 @@ final class TypeFactory {
     return deferredTypes.computeIfAbsent(name, deferType);
   }
 
+  private boolean isLambdaTarget(String name) {
+    return null != lambdaInterface && name.equals(targetName);
+  }
+
   /** Attempts to resolve the named type using the current context. */
   TypeDescription resolveType(LazyType request) {
     if (null != classFileLocator) {
@@ -257,9 +283,10 @@ final class TypeFactory {
     int classLoaderId = request.getClassLoaderId();
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
+    // Hidden lambda names may later be reused by an ordinary class definition.
+    boolean cacheable = !isLambdaTarget(name);
 
-    // existing type description from same classloader?
-    SharedTypeInfo<TypeDescription> sharedType = types.find(name);
+    SharedTypeInfo<TypeDescription> sharedType = cacheable ? types.find(name) : null;
     if (null != sharedType
         && (name.startsWith("java.") || sharedType.sameClassLoader(classLoaderId))) {
       InstrumenterMetrics.reuseTypeDescription(fromTick, isOutline);
@@ -286,14 +313,16 @@ final class TypeFactory {
 
     InstrumenterMetrics.buildTypeDescription(fromTick, isOutline);
 
-    if (MEMOIZING_ENABLED && null != type) {
+    if (cacheable && MEMOIZING_ENABLED && null != type) {
       if (type.isPublic()) {
         isPublicFilter.add(name);
       }
     }
 
-    // share result, whether we found it or not
-    types.share(name, classLoaderId, classFile, type);
+    if (cacheable) {
+      // share result, whether we found it or not
+      types.share(name, classLoaderId, classFile, type);
+    }
 
     return type;
   }
@@ -368,6 +397,11 @@ final class TypeFactory {
       return null;
     }
 
+    @Override
+    public boolean isCacheable() {
+      return !isLambdaTarget(name);
+    }
+
     private ClassFileLocator.Resolution locateClassFile() {
       if (name.equals(targetName)) {
         return new ClassFileLocator.Resolution.Explicit(targetBytecode);
@@ -396,7 +430,7 @@ final class TypeFactory {
 
     @Override
     public boolean isPublic() {
-      return isPublicFilter.contains(name) || super.isPublic();
+      return (isCacheable() && isPublicFilter.contains(name)) || super.isPublic();
     }
 
     private TypeDescription outline() {
