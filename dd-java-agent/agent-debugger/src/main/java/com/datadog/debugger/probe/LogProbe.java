@@ -588,13 +588,29 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (!MethodLocation.isSame(methodLocation, evaluateAt)) {
       return;
     }
-    // if condition has error and no capture Snapshot, the error is reported using errorSampler
-    // at 1/s rate instead of the log template one
-    Sampler localSampler =
-        logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
-    boolean sampled = !logStatus.getDebugSessionStatus().isDisabled() && trySample(localSampler);
+    DebugSessionStatus debugSessionStatus = logStatus.getDebugSessionStatus();
+    if (debugSessionStatus.isDisabled()) {
+      return;
+    }
+    boolean sampled;
+    if (debugSessionStatus.isActive()) {
+      // LogStatus.shouldSend() emits unconditionally when the debug session is ACTIVE, so this
+      // probe must not record a coordinated decision that shouldSend() would ignore anyway.
+      // Instead, make sure the shared trace-level state lets the other full-snapshot probes on
+      // this trace emit too, rather than leaving/recording a DROP that would suppress them.
+      sampled = true;
+      if (isFullSnapshot()) {
+        forceCoordinatedEmit();
+      }
+    } else {
+      // if condition has error and no capture Snapshot, the error is reported using errorSampler
+      // at 1/s rate instead of the log template one
+      Sampler localSampler =
+          logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
+      sampled = trySample(localSampler);
+    }
     logStatus.setSampled(sampled);
-    if (!sampled && !logStatus.getDebugSessionStatus().isDisabled()) {
+    if (!sampled) {
       DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
     }
   }
@@ -648,8 +664,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   }
 
   /**
-   * Holds the once-per-trace coordinated sampling decision shared by all full-snapshot probes on
-   * a given local root span, so that either all of them emit or none of them do.
+   * Holds the once-per-trace coordinated sampling decision shared by all full-snapshot probes on a
+   * given local root span, so that either all of them emit or none of them do.
    */
   static class CoordinatedSamplingState {
     /** Outcome of the first probe's sampling decision for the trace, cached on the root span. */
@@ -700,6 +716,25 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       }
     }
     return state.tryEmit(getProbeId().getEncodedId());
+  }
+
+  /**
+   * Ensures the trace-level coordinated sampling state allows emission, upgrading a previously
+   * cached DROP (recorded by an ordinary probe before this debug session became active) so that
+   * every full-snapshot probe on this trace gets a chance to emit.
+   */
+  private void forceCoordinatedEmit() {
+    AgentSpan localRootSpan = getActiveLocalRootSpan();
+    if (localRootSpan == null) {
+      return;
+    }
+    synchronized (localRootSpan) {
+      Context traceContext = Context.from(localRootSpan);
+      CoordinatedSamplingState state = traceContext.get(SAMPLING_KEY);
+      if (state == null || state.status != EMIT) {
+        traceContext.with(SAMPLING_KEY, new CoordinatedSamplingState(EMIT)).attachTo(localRootSpan);
+      }
+    }
   }
 
   private AgentSpan getActiveLocalRootSpan() {

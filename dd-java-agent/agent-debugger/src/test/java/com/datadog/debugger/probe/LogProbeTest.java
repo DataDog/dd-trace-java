@@ -410,6 +410,61 @@ public class LogProbeTest {
   }
 
   @Test
+  public void coordinatedSamplingActiveSessionOverridesCachedDrop() {
+    DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    AgentSpan span = tracer.startSpan("coordinated sampling debug session testing", "test span");
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
+      // every real sampling decision drops, so the first full-snapshot probe caches a DROP
+      // decision for the whole trace before any debug session is active.
+      ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
+
+      LogProbe ordinaryProbeBefore =
+          createLog(null)
+              .probeId(ProbeId.newId())
+              .captureSnapshot(true)
+              .evaluateAt(MethodLocation.EXIT)
+              .build();
+      LogStatus statusBefore = evaluateOnce(ordinaryProbeBefore, MethodLocation.EXIT);
+      Assertions.assertFalse(statusBefore.isSampled());
+
+      // the debug session becomes active: a probe belonging to it must emit unconditionally...
+      span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
+      LogProbe activeSessionProbe =
+          createLog(null)
+              .probeId(ProbeId.newId())
+              .captureSnapshot(true)
+              .evaluateAt(MethodLocation.EXIT)
+              .tags(format("session_id:%s", DEBUG_SESSION_ID))
+              .build();
+      LogStatus activeStatus = evaluateOnce(activeSessionProbe, MethodLocation.EXIT);
+      assertTrue(activeStatus.isSampled());
+      assertTrue(activeStatus.shouldSend());
+
+      // ...and must not leave the earlier cached DROP in place, or every ordinary full-snapshot
+      // probe evaluated afterwards on this trace would keep being suppressed by it.
+      LogProbe ordinaryProbeAfter =
+          createLog(null)
+              .probeId(ProbeId.newId())
+              .captureSnapshot(true)
+              .evaluateAt(MethodLocation.EXIT)
+              .build();
+      LogStatus statusAfter = evaluateOnce(ordinaryProbeAfter, MethodLocation.EXIT);
+      assertTrue(statusAfter.isSampled());
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+  }
+
+  private LogStatus evaluateOnce(LogProbe logProbe, MethodLocation methodLocation) {
+    CapturedContext context = new CapturedContext();
+    context.evaluate(logProbe, "", 0, methodLocation, false);
+    return (LogStatus) context.getStatus(logProbe.getProbeId().getEncodedId());
+  }
+
+  @Test
   public void isReadyToCaptureRateLimitedRecordsSkip() {
     DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
     DebuggerAgentHelper.injectSink(sink);
