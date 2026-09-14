@@ -108,7 +108,6 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile TagValue orgPropagationMarkerTagValue;
 
-    private OtelTraceState otelTraceState;
     private volatile SamplingState samplingState;
 
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
@@ -220,7 +219,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority, int samplingMechanism) {
       if (samplingPriority != PrioritySampling.UNSET && canChangeDecisionMaker
           || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
-        OtelTraceState nextOtelTraceState = otelTraceState;
+        OtelTraceState nextOtelTraceState = getOtelTraceState();
         if (nextOtelTraceState != null) {
           if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE
               && !nextOtelTraceState.isConsistentWith(samplingPriority > 0)) {
@@ -244,7 +243,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {
         return false;
       }
-      OtelTraceState nextOtelTraceState = otelTraceState;
+      OtelTraceState nextOtelTraceState = getOtelTraceState();
       if (nextOtelTraceState != null) {
         if ((samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE
                 || samplingMechanism == SamplingMechanism.UNKNOWN)
@@ -275,7 +274,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {
         return false;
       }
-      OtelTraceState nextOtelTraceState = otelTraceState;
+      OtelTraceState nextOtelTraceState = getOtelTraceState();
       if (nextOtelTraceState == null) {
         boolean limiterDemotion = probabilitySamplingResult && samplingPriority <= 0;
         if (!limiterDemotion) {
@@ -298,7 +297,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public synchronized void forceKeep(int samplingMechanism) {
-      OtelTraceState nextOtelTraceState = otelTraceState;
+      OtelTraceState nextOtelTraceState = getOtelTraceState();
       if (nextOtelTraceState != null) {
         nextOtelTraceState = nextOtelTraceState.forNonProbabilityDecision();
       }
@@ -349,7 +348,6 @@ public class PTagsFactory implements PropagationTags.Factory {
         }
         nextDecisionMakerTagValue = null;
       }
-      otelTraceState = nextOtelTraceState;
       samplingState =
           newSamplingState(
               samplingPriority,
@@ -427,7 +425,7 @@ public class PTagsFactory implements PropagationTags.Factory {
             newSamplingState(
                 currentState.getSamplingPriority(),
                 tracestate,
-                otelTraceState,
+                getOtelTraceState(),
                 getDecisionMakerTagValue(currentState),
                 next);
       }
@@ -583,8 +581,13 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (lastParentIdOverride == null) {
         return headerValue(headerType);
       }
+      SamplingState currentSamplingState = samplingState;
       String header =
-          PTagsCodec.headerValue(factory.getDecoderEncoder(headerType), this, lastParentIdOverride);
+          PTagsCodec.headerValue(
+              factory.getDecoderEncoder(headerType),
+              this,
+              lastParentIdOverride,
+              currentSamplingState);
       return (header == null || header.isEmpty()) ? null : header;
     }
 
@@ -652,10 +655,6 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private void invalidateXDatadogTagsSize() {
       xDatadogTagsSizeCache = null;
-    }
-
-    int getXDatadogTagsSize() {
-      return getXDatadogTagsSize(samplingState);
     }
 
     int getXDatadogTagsSize(SamplingState samplingState) {
@@ -771,7 +770,6 @@ public class PTagsFactory implements PropagationTags.Factory {
         otelTraceState = otelTraceState.withoutThreshold();
       }
       this.tracestate = tracestate;
-      this.otelTraceState = otelTraceState;
       this.samplingState =
           newSamplingState(
               samplingPriority,
@@ -781,15 +779,14 @@ public class PTagsFactory implements PropagationTags.Factory {
               getKnuthSamplingRateTagValue());
     }
 
-    OtelTraceState getOtelTraceState() {
-      return otelTraceState;
+    private OtelTraceState getOtelTraceState() {
+      return (OtelTraceState) samplingState.getOtelTraceState();
     }
 
     void setOtelTraceState(OtelTraceState otelTraceState) {
-      if (this.otelTraceState != otelTraceState) {
+      if (getOtelTraceState() != otelTraceState) {
         clearCachedHeader(W3C);
       }
-      this.otelTraceState = otelTraceState;
       SamplingState currentState = samplingState;
       this.samplingState =
           newSamplingState(
@@ -818,7 +815,7 @@ public class PTagsFactory implements PropagationTags.Factory {
             newSamplingState(
                 currentState.getSamplingPriority(),
                 tracestate,
-                otelTraceState,
+                getOtelTraceState(),
                 decisionMakerTagValue,
                 getKnuthSamplingRateTagValue(currentState));
       }

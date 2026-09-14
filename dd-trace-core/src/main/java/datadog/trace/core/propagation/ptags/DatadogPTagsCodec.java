@@ -124,19 +124,9 @@ final class DatadogPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int estimateHeaderSize(PTags pTags) {
-    return pTags.getXDatadogTagsSize();
-  }
-
-  @Override
-  protected int estimateHeaderSize(PTags pTags, SamplingState samplingState) {
+  protected int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
     return pTags.getXDatadogTagsSize(samplingState);
-  }
-
-  @Override
-  protected int appendPrefix(StringBuilder sb, PTags ptags) {
-    // Calculate the tag size here and return it. Don't do anything else since there is no prefix.
-    return ptags.getXDatadogTagsSize();
   }
 
   @Override
@@ -162,7 +152,7 @@ final class DatadogPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int appendSuffix(StringBuilder sb, PTags ptags, int size) {
+  protected int appendSuffix(StringBuilder sb, PTags ptags, int size, SamplingState samplingState) {
     return size;
   }
 

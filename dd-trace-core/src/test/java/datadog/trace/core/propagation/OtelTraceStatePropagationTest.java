@@ -184,7 +184,7 @@ class OtelTraceStatePropagationTest {
         tags.tryUpdateProbabilitySamplingDecision(SAMPLER_KEEP, AGENT_RATE, 0.5, true, 1L, false));
 
     String header = tags.headerValue(W3C);
-    assertTrue(header.split(",").length <= 32);
+    assertEquals(32, header.split(",").length);
     assertTrue(header.startsWith("dd=s:1;t.dm:-1;t.ksr:0.5,ot=rv:"));
     assertFalse(header.contains("v30=state"));
   }

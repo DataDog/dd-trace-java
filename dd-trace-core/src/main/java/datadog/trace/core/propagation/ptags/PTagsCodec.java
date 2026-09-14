@@ -25,14 +25,6 @@ abstract class PTagsCodec {
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
-  static String headerValue(PTagsCodec codec, PTags ptags) {
-    return headerValue(codec, ptags, null);
-  }
-
-  static String headerValue(PTagsCodec codec, PTags ptags, CharSequence lastParentIdOverride) {
-    return headerValue(codec, ptags, lastParentIdOverride, ptags.samplingState());
-  }
-
   static String headerValue(
       PTagsCodec codec,
       PTags ptags,
@@ -187,42 +179,19 @@ abstract class PTagsCodec {
 
   abstract PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value);
 
-  protected abstract int estimateHeaderSize(PTags pTags);
+  protected abstract int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState);
 
-  protected int estimateHeaderSize(PTags pTags, SamplingState samplingState) {
-    return estimateHeaderSize(pTags);
-  }
-
-  protected int estimateHeaderSize(
-      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
-    return estimateHeaderSize(pTags, samplingState);
-  }
-
-  protected abstract int appendPrefix(StringBuilder sb, PTags ptags);
-
-  /**
-   * Encode the prefix, using {@code lastParentIdOverride} for the W3C {@code p:} when non-null
-   * (inject-time). Codecs without a last-parent-id (e.g. Datadog) ignore the override.
-   */
-  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
-    return appendPrefix(sb, ptags);
-  }
-
-  protected int appendPrefix(
+  protected abstract int appendPrefix(
       StringBuilder sb,
       PTags ptags,
       CharSequence lastParentIdOverride,
-      SamplingState samplingState) {
-    return appendPrefix(sb, ptags, lastParentIdOverride);
-  }
+      SamplingState samplingState);
 
   protected abstract int appendTag(StringBuilder sb, TagElement key, TagElement value, int size);
 
-  protected abstract int appendSuffix(StringBuilder sb, PTags ptags, int size);
-
-  protected int appendSuffix(StringBuilder sb, PTags ptags, int size, SamplingState samplingState) {
-    return appendSuffix(sb, ptags, size);
-  }
+  protected abstract int appendSuffix(
+      StringBuilder sb, PTags ptags, int size, SamplingState samplingState);
 
   protected abstract boolean isTooLarge(StringBuilder sb, int size);
 

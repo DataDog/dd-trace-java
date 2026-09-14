@@ -3,7 +3,6 @@ package datadog.trace.core.propagation.ptags;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -18,9 +17,8 @@ class OtelTraceStateTest {
   void convertsDatadogProbabilityDecision() {
     OtelTraceState state = OtelTraceState.fromProbabilityDecision(0xfff972474538efffL, 0.1, true);
 
-    assertSame(state, state.getValue());
     assertFalse(state.isMaterialized());
-    assertEquals("rv:ef284ace7a91e1;th:e6666666666668", state.getValue().toString());
+    assertEquals("rv:ef284ace7a91e1;th:e6666666666668", state.toString());
     assertTrue(state.isMaterialized());
     assertTrue(state.isConsistentWith(true));
   }
@@ -39,7 +37,7 @@ class OtelTraceStateTest {
   void rateZeroUsesLargestWireThresholdAndRemainsDropConsistent() {
     OtelTraceState state = OtelTraceState.fromProbabilityDecision(0L, 0.0, false);
 
-    assertEquals("rv:fffffffffffffe;th:ffffffffffffff", state.getValue().toString());
+    assertEquals("rv:fffffffffffffe;th:ffffffffffffff", state.toString());
     assertTrue(state.isConsistentWith(false));
   }
 
@@ -47,7 +45,7 @@ class OtelTraceStateTest {
   void correctsOnlySerializedRandomValueAtKeepBoundary() {
     OtelTraceState state = OtelTraceState.fromProbabilityDecision(0x03a93ee8b1999f00L, 0.1, true);
 
-    assertEquals("rv:e6666666666668;th:e6666666666668", state.getValue().toString());
+    assertEquals("rv:e6666666666668;th:e6666666666668", state.toString());
     assertTrue(state.isConsistentWith(true));
   }
 
@@ -59,7 +57,7 @@ class OtelTraceStateTest {
 
     assertEquals(
         "rv:" + DROP_PRECISION_BOUNDARY_RANDOM_VALUE + ";th:" + DROP_PRECISION_BOUNDARY_THRESHOLD,
-        state.getValue().toString());
+        state.toString());
     assertTrue(state.isConsistentWith(false));
   }
 
@@ -72,17 +70,17 @@ class OtelTraceStateTest {
 
   @Test
   void retainsInheritedRandomnessAndUnknownFieldsWithoutThreshold() {
-    OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;th:8;x:value", 0, 0);
+    OtelTraceState state = OtelTraceState.parse("rv:0123456789abcd;th:8;x:value", 0);
 
     OtelTraceState transformed = state.forNonProbabilityDecision();
 
-    assertEquals("rv:0123456789abcd;x:value", transformed.getValue().toString());
+    assertEquals("rv:0123456789abcd;x:value", transformed.toString());
     assertTrue(transformed.isConsistentWith(false));
   }
 
   private static void assertThreshold(double rate, String expectedThreshold) {
     OtelTraceState state = OtelTraceState.fromProbabilityDecision(1L, rate, rate > 0.0);
-    String value = state.getValue().toString();
+    String value = state.toString();
     assertEquals(expectedThreshold, value.substring(value.indexOf(";th:") + 4));
   }
 }

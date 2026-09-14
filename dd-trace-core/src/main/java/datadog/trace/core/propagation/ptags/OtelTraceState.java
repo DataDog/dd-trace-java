@@ -10,7 +10,6 @@ final class OtelTraceState implements CharSequence {
 
   private final CharSequence value;
   private final CharSequence fields;
-  private final int originalPosition;
   private final int originalSize;
   private final long randomValue;
   private final long threshold;
@@ -26,7 +25,6 @@ final class OtelTraceState implements CharSequence {
   private OtelTraceState(
       CharSequence value,
       CharSequence fields,
-      int originalPosition,
       int originalSize,
       long randomValue,
       long threshold,
@@ -39,7 +37,6 @@ final class OtelTraceState implements CharSequence {
       boolean inheritedRandomValue) {
     this.value = value;
     this.fields = fields;
-    this.originalPosition = originalPosition;
     this.originalSize = originalSize;
     this.randomValue = randomValue;
     this.threshold = threshold;
@@ -52,7 +49,7 @@ final class OtelTraceState implements CharSequence {
     this.inheritedRandomValue = inheritedRandomValue;
   }
 
-  static OtelTraceState parse(CharSequence raw, int originalPosition, int originalSize) {
+  static OtelTraceState parse(CharSequence raw, int originalSize) {
     if (raw == null || raw.length() == 0 || raw.length() > MAX_VALUE_LENGTH) {
       return null;
     }
@@ -115,12 +112,11 @@ final class OtelTraceState implements CharSequence {
     if (normalized) {
       CharSequence normalizedValue =
           normalize(raw, randomValueStart, randomValueEnd, thresholdStart, thresholdEnd);
-      return parseCanonical(normalizedValue, originalPosition, originalSize);
+      return parseCanonical(normalizedValue, originalSize);
     }
     return new OtelTraceState(
         raw,
         raw,
-        originalPosition,
         originalSize,
         parseHex(raw, randomValueStart, randomValueEnd),
         parseThreshold(raw, thresholdStart, thresholdEnd),
@@ -133,8 +129,7 @@ final class OtelTraceState implements CharSequence {
         true);
   }
 
-  private static OtelTraceState parseCanonical(
-      CharSequence value, int originalPosition, int originalSize) {
+  private static OtelTraceState parseCanonical(CharSequence value, int originalSize) {
     int randomValueStart = -1;
     int randomValueEnd = -1;
     int thresholdStart = -1;
@@ -157,7 +152,6 @@ final class OtelTraceState implements CharSequence {
     return new OtelTraceState(
         value,
         value,
-        originalPosition,
         originalSize,
         parseHex(value, randomValueStart, randomValueEnd),
         parseThreshold(value, thresholdStart, thresholdEnd),
@@ -185,7 +179,7 @@ final class OtelTraceState implements CharSequence {
     }
 
     return new OtelTraceState(
-        null, null, 1, 0, randomValue, threshold, -1, -1, -1, -1, true, true, false);
+        null, null, 0, randomValue, threshold, -1, -1, -1, -1, true, true, false);
   }
 
   OtelTraceState withoutThreshold() {
@@ -214,7 +208,6 @@ final class OtelTraceState implements CharSequence {
     return new OtelTraceState(
         null,
         fields,
-        1,
         0,
         randomValue,
         threshold,
@@ -225,14 +218,6 @@ final class OtelTraceState implements CharSequence {
         retainRandomValue,
         retainThreshold,
         randomValueIsInherited);
-  }
-
-  CharSequence getValue() {
-    return value == null ? this : value;
-  }
-
-  int getOriginalPosition() {
-    return originalPosition;
   }
 
   int getOriginalSize() {

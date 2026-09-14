@@ -11,6 +11,7 @@ import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import datadog.trace.util.SubSequence;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -55,7 +56,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     int otelMemberStart = -1;
     int otelMemberValueStart = -1;
     int otelMemberValueEnd = -1;
-    int otelMemberPosition = -1;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
@@ -88,7 +88,6 @@ public class W3CPTagsCodec extends PTagsCodec {
         otelMemberStart = memberStart;
         otelMemberValueStart = memberValueStart;
         otelMemberValueEnd = memberValueEnd;
-        otelMemberPosition = memberIndex;
       }
 
       memberIndex++;
@@ -105,7 +104,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       otelTraceState =
           OtelTraceState.parse(
               SubSequence.of(value, otelMemberValueStart, valueEnd),
-              otelMemberPosition,
               memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd));
     }
 
@@ -237,39 +235,12 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int estimateHeaderSize(PTags pTags) {
-    int size = EMPTY_SIZE + 1; // 'dd=' and delimiter;
-    // Yes, this is a bit much, but better safe than sorry
-    size += pTags.getXDatadogTagsSize();
-    if (pTags.getOrigin() != null) {
-      size += pTags.getOrigin().length() + 3; // 'o:' + delimiter
-    }
-    if (pTags.getSamplingPriority() != PrioritySampling.UNSET) {
-      size += 5; // 's:-?[0-9]' + delimiter
-    }
-    boolean includesOriginalTracestate = false;
-    if (pTags instanceof W3CPTags) {
-      W3CPTags w3CPTags = (W3CPTags) pTags;
-      size += w3CPTags.maxUnknownSize;
-      if (w3CPTags.ddMemberStart != -1) {
-        size +=
-            (w3CPTags.tracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
-        includesOriginalTracestate = true;
-      }
-    } else if (pTags.tracestate != null) {
-      // We assume there is no Datadog list-member
-      size += pTags.tracestate.length();
-      includesOriginalTracestate = true;
-    }
-    OtelTraceState otelTraceState = pTags.getOtelTraceState();
-    if (otelTraceState != null) {
-      size -= includesOriginalTracestate ? otelTraceState.getOriginalSize() : 0;
-      size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
-    }
-    return size;
-  }
-
-  @Override
+  @SuppressWarnings("StringEquality")
+  @SuppressFBWarnings(
+      value = "ES_COMPARING_STRINGS_WITH_EQ",
+      justification =
+          "Identity determines whether the sampling state retains this PTags instance's raw "
+              + "tracestate, allowing its parsed size metadata to be reused.")
   protected int estimateHeaderSize(
       PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
     int size = EMPTY_SIZE + 1;
@@ -308,16 +279,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
     }
     return Math.min(size, MAX_HEADER_SIZE);
-  }
-
-  @Override
-  protected int appendPrefix(StringBuilder sb, PTags ptags) {
-    return appendPrefix(sb, ptags, null);
-  }
-
-  @Override
-  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
-    return appendPrefix(sb, ptags, lastParentIdOverride, ptags.samplingState());
   }
 
   @Override
@@ -365,11 +326,6 @@ public class W3CPTagsCodec extends PTagsCodec {
   @Override
   protected int appendTag(StringBuilder sb, TagElement key, TagElement value, int size) {
     return appendTag(sb, key, value, Encoding.W3C, size);
-  }
-
-  @Override
-  protected int appendSuffix(StringBuilder sb, PTags ptags, int size) {
-    return appendSuffix(sb, ptags, size, ptags.samplingState());
   }
 
   @Override
@@ -850,10 +806,8 @@ public class W3CPTagsCodec extends PTagsCodec {
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     boolean memberAppended = false;
     boolean preserveOtelPosition = isUnchangedInheritedOtelMember(original, otelTraceState);
-    if (!preserveOtelPosition
-        && otelTraceState != null
-        && remainingMembers > 0
-        && appendMemberIfFits(sb, OTEL_MEMBER_KEY, otelTraceState)) {
+    if (!preserveOtelPosition && otelTraceState != null && remainingMembers > 0) {
+      appendMember(sb, OTEL_MEMBER_KEY, otelTraceState);
       remainingMembers--;
       memberAppended = true;
     }
@@ -868,9 +822,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       boolean otelMember = original.startsWith(OTEL_MEMBER_KEY, memberStart);
       if (!datadogMember && (!otelMember || preserveOtelPosition)) {
         int end = stripTrailingOWC(original, memberStart, memberEnd);
-        if (!appendMemberIfFits(sb, original, memberStart, end)) {
-          break;
-        }
+        appendMember(sb, original, memberStart, end);
         remainingMembers--;
         memberAppended = true;
       }
@@ -926,18 +878,16 @@ public class W3CPTagsCodec extends PTagsCodec {
         }
         if (original.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
           int end = stripTrailingOWC(original, memberStart, memberEnd);
-          if (appendMemberIfFits(result, original, memberStart, end)) {
-            memberCount++;
-          }
+          appendMember(result, original, memberStart, end);
+          memberCount++;
           break;
         }
         memberStart = findNextMember(original, memberEnd + 1);
       }
     }
 
-    if (otelTraceState != null
-        && memberCount < MAX_MEMBER_COUNT
-        && appendMemberIfFits(result, OTEL_MEMBER_KEY, otelTraceState)) {
+    if (otelTraceState != null && memberCount < MAX_MEMBER_COUNT) {
+      appendMember(result, OTEL_MEMBER_KEY, otelTraceState);
       memberCount++;
     }
 
@@ -953,9 +903,7 @@ public class W3CPTagsCodec extends PTagsCodec {
                 || original.startsWith(OTEL_MEMBER_KEY, memberStart);
         if (!managed) {
           int end = stripTrailingOWC(original, memberStart, memberEnd);
-          if (!appendMemberIfFits(result, original, memberStart, end)) {
-            break;
-          }
+          appendMember(result, original, memberStart, end);
           memberCount++;
         }
         memberStart = findNextMember(original, memberEnd + 1);
@@ -993,29 +941,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     sb.append(key).append(value);
   }
 
-  private static boolean appendMemberIfFits(StringBuilder sb, String member, int start, int end) {
-    int addedSize = end - start + (sb.length() == 0 ? 0 : 1);
-    if (sb.length() + addedSize > MAX_HEADER_SIZE) {
-      return false;
-    }
-    appendMember(sb, member, start, end);
-    return true;
-  }
-
-  private static boolean appendMemberIfFits(StringBuilder sb, String key, CharSequence value) {
-    int addedSize = key.length() + value.length() + (sb.length() == 0 ? 0 : 1);
-    if (sb.length() + addedSize > MAX_HEADER_SIZE) {
-      return false;
-    }
-    appendMember(sb, key, value);
-    return true;
-  }
-
   static OtelTraceState extractOtelTraceState(String tracestate) {
     if (tracestate == null || tracestate.isEmpty()) {
       return null;
     }
-    int memberPosition = 0;
     int firstMemberStart = findNextMember(tracestate, 0);
     int memberStart = firstMemberStart;
     int otelMemberStart = -1;
@@ -1036,7 +965,6 @@ public class W3CPTagsCodec extends PTagsCodec {
         otelMemberValueEnd = memberValueEnd;
         break;
       }
-      memberPosition++;
       memberStart = findNextMember(tracestate, memberValueEnd);
     }
     if (otelMemberStart == -1) {
@@ -1045,7 +973,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     int valueEnd = stripTrailingOWC(tracestate, otelMemberValueStart, otelMemberValueEnd);
     return OtelTraceState.parse(
         SubSequence.of(tracestate, otelMemberValueStart, valueEnd),
-        memberPosition,
         memberContributionSize(tracestate, firstMemberStart, otelMemberStart, otelMemberValueEnd));
   }
 
