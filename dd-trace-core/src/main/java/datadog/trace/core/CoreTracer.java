@@ -86,7 +86,6 @@ import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.metrics.NoOpMetricsAggregator;
 import datadog.trace.common.sampling.RateByServiceTraceSampler;
-import datadog.trace.common.sampling.RuleBasedTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.sampling.SpanSamplingRules;
@@ -137,6 +136,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,15 +184,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   final Sampler initialSampler;
 
   /**
-   * The sampler applying the rates published by the agent, shared by every sampler this tracer
-   * builds.
-   *
-   * <p>Only the initial sampler is registered to receive agent rates, and that registration is
-   * never repeated. Reusing this instance when the sampler is rebuilt on a remote configuration
-   * change keeps the rebuilt sampler connected to those rates, and keeps the rates already learned.
-   * May be {@code null} when the tracer was given a sampler that does not use agent rates.
+   * The sampler registered to receive agent published rates, reused across sampler rebuilds so
+   * learned rates survive.
    */
-  final RateByServiceTraceSampler agentSampler;
+  @Nullable final RateByServiceTraceSampler agentSampler;
 
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContinuableScopeManager scopeManager;
@@ -692,7 +687,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.initialConfig = config;
     this.apmTracingEnabled = config.isApmTracingEnabled();
     this.initialSampler = sampler;
-    this.agentSampler = agentSamplerOf(sampler);
+    this.agentSampler = sampler.agentSampler();
 
     // Get initial Trace Sampling Rules from config
     String traceSamplingRulesJson = config.getTraceSamplingRules();
@@ -1655,22 +1650,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return Collections.unmodifiableMap(inverted);
   }
 
-  /**
-   * Extracts the sampler applying agent published rates from the sampler this tracer was built
-   * with, so that it can be reused whenever the sampler is rebuilt.
-   *
-   * @return the agent rate sampler in use, or {@code null} if this tracer does not use one.
-   */
-  private static RateByServiceTraceSampler agentSamplerOf(final Sampler sampler) {
-    if (sampler instanceof RateByServiceTraceSampler) {
-      return (RateByServiceTraceSampler) sampler;
-    }
-    if (sampler instanceof RuleBasedTraceSampler) {
-      return ((RuleBasedTraceSampler<?>) sampler).agentSampler();
-    }
-    return null;
-  }
-
   /** Spans are built using this builder */
   public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     protected static final boolean USE_SCOPE = false;
@@ -2577,13 +2556,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
         sampler = oldSnapshot.sampler;
       } else {
-        // Reuse the agent sampler so the rebuilt sampler keeps receiving agent rates: the response
-        // listener is registered once, against the initial sampler, and is never re-registered.
-        RateByServiceTraceSampler agentSampler = CoreTracer.this.agentSampler;
-        sampler =
-            agentSampler == null
-                ? Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this)
-                : Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
+        // Reuse the agent sampler: registration for agent rates happens once, at construction.
+        sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
       }
 
       if (null == oldSnapshot) {

@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,25 +31,30 @@ public interface Sampler {
    */
   <T extends CoreSpan<T>> boolean sample(T span);
 
+  /** Returns the sampler applying agent published rates. */
+  @Nullable
+  default RateByServiceTraceSampler agentSampler() {
+    return null;
+  }
+
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
-      return forConfig(config, traceConfig, new RateByServiceTraceSampler());
+      return forConfig(config, traceConfig, null);
     }
 
     /**
-     * Builds the sampler described by {@code config} and {@code traceConfig}, using {@code
-     * agentSampler} wherever agent published sampling rates apply.
+     * Builds the sampler for {@code config}/{@code traceConfig}, using {@code agentSampler} for
+     * agent published rates (defaulting to a new {@link RateByServiceTraceSampler} if null.)
      *
-     * <p>Callers that rebuild the sampler when remote configuration changes must pass the same
-     * {@code agentSampler} instance every time: it is the instance registered to receive agent
-     * sampling rates, and a fresh one would silently start over at a rate of 1.0.
+     * <p>Callers rebuilding the sampler must reuse the same {@code agentSampler} value: it's
+     * registered once for agent rates, and a fresh one would reset its learned rates to 1.0.
      */
     public static Sampler forConfig(
         final Config config,
         final TraceConfig traceConfig,
-        final RateByServiceTraceSampler agentSampler) {
+        @Nullable final RateByServiceTraceSampler agentSampler) {
       Sampler sampler;
       if (config != null) {
         if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
@@ -111,7 +117,7 @@ public interface Sampler {
                 "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler.");
             sampler = new ParentBasedAlwaysOnSampler();
           } else {
-            sampler = agentSampler;
+            sampler = agentSampler != null ? agentSampler : new RateByServiceTraceSampler();
           }
         } else if (config.isTraceOtlpExporterEnabled()) {
           // AllSampler does not emit a sampling priority; OTLP export requires one.

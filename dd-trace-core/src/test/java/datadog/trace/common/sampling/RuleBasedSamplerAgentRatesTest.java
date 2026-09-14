@@ -5,27 +5,24 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SAMPLING_RULES;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
+import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.Mockito.mock;
 
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
 
 /**
- * Agent published sampling rates must still apply to spans that match no sampling rule.
- *
- * <p>Only one sampler is registered to receive those rates, so a rule based sampler has to forward
- * them to the fallback it delegates to.
+ * Agent published sampling rates must still apply to spans matching no sampling rule, via {@link
+ * RuleBasedTraceSampler#agentSampler()}.
  */
 class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
 
@@ -40,8 +37,7 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
     assertInstanceOf(RuleBasedTraceSampler.class, sampler);
 
     // The agent asks for everything to be dropped for this service.
-    assertInstanceOf(RemoteResponseListener.class, sampler);
-    ((RemoteResponseListener) sampler).onResponse("traces", rateByService("service", "bar", 0.0));
+    sampler.agentSampler().onResponse("traces", rateByService("service", "bar", 0.0));
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
@@ -62,7 +58,7 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
         TRACE_SAMPLING_RULES, "[{\"service\": \"service\", \"sample_rate\": 1}]");
     Sampler sampler = Sampler.Builder.forConfig(properties);
 
-    ((RemoteResponseListener) sampler).onResponse("traces", rateByService("service", "bar", 0.0));
+    sampler.agentSampler().onResponse("traces", rateByService("service", "bar", 0.0));
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
@@ -85,7 +81,7 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
     properties.setProperty(TRACE_SAMPLE_RATE, "1");
     Sampler sampler = Sampler.Builder.forConfig(properties);
 
-    ((RemoteResponseListener) sampler).onResponse("traces", rateByService("service", "bar", 0.0));
+    sampler.agentSampler().onResponse("traces", rateByService("service", "bar", 0.0));
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     try {
@@ -142,6 +138,15 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void agentSamplerIsNullWhenFallbackDoesNotUseAgentRates() {
+    // A fallback that isn't a Sampler at all, so it can't be a source of agent rates.
+    PrioritySampler fallback = mock(PrioritySampler.class);
+    RuleBasedTraceSampler<?> sampler = new RuleBasedTraceSampler<>(emptyList(), 100, fallback);
+
+    assertNull(sampler.agentSampler());
+  }
+
+  @Test
   void unknownServiceIsKeptUntilTheAgentReportsARate() {
     Properties properties = new Properties();
     properties.setProperty(TRACE_SAMPLING_RULES, RULE_MISSING_SERVICE);
@@ -167,14 +172,5 @@ class RuleBasedSamplerAgentRatesTest extends DDCoreJavaSpecification {
             .withTag("env", "bar")
             .ignoreActiveSpan()
             .start();
-  }
-
-  private static Map<String, Map<String, Number>> rateByService(
-      String service, String env, double rate) {
-    Map<String, Number> byService = new HashMap<>();
-    byService.put("service:" + service + ",env:" + env, rate);
-    Map<String, Map<String, Number>> response = new HashMap<>();
-    response.put("rate_by_service", byService);
-    return response;
   }
 }

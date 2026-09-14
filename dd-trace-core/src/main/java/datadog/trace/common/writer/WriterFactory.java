@@ -18,6 +18,7 @@ import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.intake.TrackType;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -188,8 +189,10 @@ public class WriterFactory {
               commObjects.monitoring,
               config.isTracerMetricsEnabled());
 
-      if (sampler instanceof RemoteResponseListener) {
-        ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
+      // Register whichever sampler applies agent published rates, regardless of what wraps it.
+      final RateByServiceTraceSampler agentRateSampler = sampler.agentSampler();
+      if (agentRateSampler != null) {
+        ddAgentApi.addResponseListener(agentRateSampler);
       }
 
       // Drop p0 (sampled-out) traces when client-side stats are being computed -- either via the

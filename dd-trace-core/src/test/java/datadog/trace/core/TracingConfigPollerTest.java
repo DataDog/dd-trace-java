@@ -28,14 +28,11 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.RuleBasedTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.common.writer.RemoteResponseListener;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Test;
@@ -322,8 +319,7 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     unclosedTracers.add(tracer);
 
     try {
-      // Without rules the initial sampler is the agent rate sampler itself, and it is the sampler
-      // registered to receive agent rates.
+      // Without rules, the initial sampler is the agent rate sampler itself, registered for rates.
       Sampler initialSampler = tracer.captureTraceConfig().sampler;
       assertInstanceOf(RateByServiceTraceSampler.class, initialSampler);
       assertSame(initialSampler, tracer.agentSampler);
@@ -353,13 +349,8 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       assertInstanceOf(RuleBasedTraceSampler.class, rebuiltSampler);
       assertSame(tracer.agentSampler, ((RuleBasedTraceSampler<?>) rebuiltSampler).agentSampler());
 
-      // Rates published by the agent reach the sampler that is registered, which is still the
-      // initial one, and must apply to spans matching none of the rules.
-      Map<String, Number> byService = new HashMap<>();
-      byService.put("service:service,env:bar", 0.0);
-      Map<String, Map<String, Number>> response = new HashMap<>();
-      response.put("rate_by_service", byService);
-      ((RemoteResponseListener) initialSampler).onResponse("traces", response);
+      // Agent rates reach the registered (initial) sampler and must still apply to unmatched spans.
+      initialSampler.agentSampler().onResponse("traces", rateByService("service", "bar", 0.0));
 
       DDSpan span =
           (DDSpan)
