@@ -218,21 +218,95 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority, int samplingMechanism) {
       if (samplingPriority != PrioritySampling.UNSET && canChangeDecisionMaker
           || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
-        doUpdateTraceSamplingPriority(samplingPriority, samplingMechanism);
+        OtelTraceState nextOtelTraceState = otelTraceState;
+        if (nextOtelTraceState != null) {
+          if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE
+              && !nextOtelTraceState.isConsistentWith(samplingPriority > 0)) {
+            nextOtelTraceState = nextOtelTraceState.withoutThreshold();
+          } else if (samplingMechanism != SamplingMechanism.UNKNOWN
+              && samplingMechanism != SamplingMechanism.EXTERNAL_OVERRIDE) {
+            nextOtelTraceState = nextOtelTraceState.forNonProbabilityDecision();
+          }
+        }
+        installSamplingState(samplingPriority, samplingMechanism, nextOtelTraceState);
       }
     }
 
     @Override
-    public synchronized void forceKeep(int samplingMechanism) {
-      doUpdateTraceSamplingPriority(PrioritySampling.USER_KEEP, samplingMechanism);
+    public synchronized boolean tryUpdateTraceSamplingPriority(
+        int samplingPriority, int samplingMechanism, boolean allowOverride) {
+      if (samplingPriority == PrioritySampling.UNSET) {
+        return false;
+      }
+      SamplingState current = samplingState;
+      if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {
+        return false;
+      }
+      OtelTraceState nextOtelTraceState = otelTraceState;
+      if (nextOtelTraceState != null) {
+        if ((samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE
+                || samplingMechanism == SamplingMechanism.UNKNOWN)
+            && !nextOtelTraceState.isConsistentWith(samplingPriority > 0)) {
+          nextOtelTraceState = nextOtelTraceState.withoutThreshold();
+        } else if (samplingMechanism != SamplingMechanism.UNKNOWN) {
+          nextOtelTraceState = nextOtelTraceState.forNonProbabilityDecision();
+        }
+      }
+      installSamplingState(samplingPriority, samplingMechanism, nextOtelTraceState);
+      return true;
     }
 
-    private void doUpdateTraceSamplingPriority(int samplingPriority, int samplingMechanism) {
-      SamplingState currentState = samplingState;
-      if (currentState.getSamplingPriority() != samplingPriority) {
-        clearCachedHeader(W3C);
+    @Override
+    public synchronized boolean tryUpdateProbabilitySamplingDecision(
+        int samplingPriority,
+        int samplingMechanism,
+        double sampleRate,
+        boolean probabilitySamplingResult,
+        long traceIdLowOrderBits,
+        boolean allowOverride) {
+      SamplingState current = samplingState;
+      if (!allowOverride && current.getSamplingPriority() != PrioritySampling.UNSET) {
+        return false;
       }
-      TagValue decisionMakerTagValue = getDecisionMakerTagValue(currentState);
+      OtelTraceState nextOtelTraceState = otelTraceState;
+      if (nextOtelTraceState == null) {
+        boolean limiterDemotion = probabilitySamplingResult && samplingPriority <= 0;
+        if (!limiterDemotion) {
+          nextOtelTraceState =
+              OtelTraceState.fromProbabilityDecision(
+                  traceIdLowOrderBits, sampleRate, probabilitySamplingResult);
+        }
+      } else if (probabilitySamplingResult && samplingPriority <= 0) {
+        nextOtelTraceState = nextOtelTraceState.withoutThreshold();
+      }
+      TagValue nextKnuthSamplingRate = knuthSamplingRateTagValue(sampleRate);
+      installSamplingState(
+          samplingPriority, samplingMechanism, nextOtelTraceState, nextKnuthSamplingRate);
+      return true;
+    }
+
+    @Override
+    public synchronized void forceKeep(int samplingMechanism) {
+      OtelTraceState nextOtelTraceState = otelTraceState;
+      if (nextOtelTraceState != null) {
+        nextOtelTraceState = nextOtelTraceState.forNonProbabilityDecision();
+      }
+      installSamplingState(PrioritySampling.USER_KEEP, samplingMechanism, nextOtelTraceState);
+    }
+
+    private void installSamplingState(
+        int samplingPriority, int samplingMechanism, OtelTraceState nextOtelTraceState) {
+      installSamplingState(
+          samplingPriority, samplingMechanism, nextOtelTraceState, getKnuthSamplingRateTagValue());
+    }
+
+    private void installSamplingState(
+        int samplingPriority,
+        int samplingMechanism,
+        OtelTraceState nextOtelTraceState,
+        TagValue nextKnuthSamplingRateTagValue) {
+      clearCachedHeader(W3C);
+      TagValue nextDecisionMakerTagValue = getDecisionMakerTagValue();
       if (samplingPriority > 0) {
         // TODO should try to keep the old sampling mechanism if we override the value?
         if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
@@ -243,29 +317,30 @@ public class PTagsFactory implements PropagationTags.Factory {
         // format
         if (samplingMechanism >= 0) {
           TagValue newDM = TagValue.from("-" + samplingMechanism);
-          if (!newDM.equals(decisionMakerTagValue)) {
+          if (!newDM.equals(nextDecisionMakerTagValue)) {
             // This should invalidate any cached w3c and datadog header
             clearCachedHeader(DATADOG);
             clearCachedHeader(W3C);
           }
-          decisionMakerTagValue = newDM;
+          nextDecisionMakerTagValue = newDM;
         }
       } else {
         // Drop the decision maker tag
-        if (decisionMakerTagValue != null) {
+        if (nextDecisionMakerTagValue != null) {
           // This should invalidate any cached w3c and datadog header
           clearCachedHeader(DATADOG);
           clearCachedHeader(W3C);
         }
-        decisionMakerTagValue = null;
+        nextDecisionMakerTagValue = null;
       }
+      otelTraceState = nextOtelTraceState;
       samplingState =
           newSamplingState(
               samplingPriority,
               tracestate,
-              otelTraceState,
-              decisionMakerTagValue,
-              getKnuthSamplingRateTagValue(currentState));
+              nextOtelTraceState,
+              nextDecisionMakerTagValue,
+              nextKnuthSamplingRateTagValue);
     }
 
     private static SamplingState newSamplingState(

@@ -106,6 +106,17 @@ public abstract class PropagationTags {
    */
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
+  public abstract boolean tryUpdateTraceSamplingPriority(
+      int samplingPriority, int samplingMechanism, boolean allowOverride);
+
+  public abstract boolean tryUpdateProbabilitySamplingDecision(
+      int samplingPriority,
+      int samplingMechanism,
+      double sampleRate,
+      boolean probabilitySamplingResult,
+      long traceIdLowOrderBits,
+      boolean allowOverride);
+
   public abstract void forceKeep(int samplingMechanism);
 
   public abstract int getSamplingPriority();

@@ -217,6 +217,74 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void defaultFallbackEmitsConsistentProbabilityStateBeforeAgentResponse() {
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    try {
+      DDSpan span =
+          (DDSpan)
+              tracer
+                  .buildSpan("datadog", "fallback")
+                  .withServiceName("spock")
+                  .ignoreActiveSpan()
+                  .start();
+
+      serviceSampler.setSamplingPriority(span);
+
+      String otelTraceState =
+          span.spanContext()
+              .getPropagationTags()
+              .samplingState()
+              .getOtelTraceState()
+              .toString();
+      assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
+      assertTrue(otelTraceState.matches("rv:[0-9a-f]{14};th:0"), otelTraceState);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void emptyAndNullOnlyResponsesKeepDefaultProbabilityFallback() {
+    RateByServiceTraceSampler serviceSampler = new RateByServiceTraceSampler();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    try {
+      serviceSampler.onResponse("traces", rateResponse(new String[0][0]));
+      assertEquals(1.0, serviceSampler.fallbackSampleRate());
+      assertDefaultFallbackSampling(serviceSampler, tracer);
+
+      serviceSampler.onResponse("traces", rateResponse("service:,env:", null));
+      assertEquals(1.0, serviceSampler.fallbackSampleRate());
+      assertDefaultFallbackSampling(serviceSampler, tracer);
+    } finally {
+      tracer.close();
+    }
+  }
+
+  private static void assertDefaultFallbackSampling(
+      RateByServiceTraceSampler serviceSampler, CoreTracer tracer) {
+    DDSpan span =
+        (DDSpan)
+            tracer
+                .buildSpan("datadog", "fallback")
+                .withServiceName("spock")
+                .ignoreActiveSpan()
+                .start();
+
+    serviceSampler.setSamplingPriority(span);
+
+    assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
+    String otelTraceState =
+        span.spanContext()
+            .getPropagationTags()
+            .samplingState()
+            .getOtelTraceState()
+            .toString();
+    assertTrue(otelTraceState.matches("rv:[0-9a-f]{14};th:0"), otelTraceState);
+    span.finish();
+  }
+
+  @Test
   void samplingPrioritySetWhenServiceLater() throws Exception {
     RateByServiceTraceSampler sampler = new RateByServiceTraceSampler();
     ListWriter writer = new ListWriter();
