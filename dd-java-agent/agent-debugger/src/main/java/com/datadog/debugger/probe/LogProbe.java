@@ -599,7 +599,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       // Instead, make sure the shared trace-level state lets the other full-snapshot probes on
       // this trace emit too, rather than leaving/recording a DROP that would suppress them.
       sampled = true;
-      if (isFullSnapshot()) {
+      if (isFullSnapshot() && useCoordinatedSampling()) {
         forceCoordinatedEmit();
       }
     } else {
@@ -693,9 +693,23 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
   }
 
+  /**
+   * Whether this probe shares the trace-wide {@link CoordinatedSamplingState} with other
+   * full-snapshot probes on the same local root span, so they all emit together or not at all.
+   * Probes with their own independent sampling flow (e.g. {@link ExceptionProbe}) must not
+   * participate, or their unrelated decision would leak into (and be leaked into by) ordinary
+   * snapshot probes sharing the same trace.
+   */
+  protected boolean useCoordinatedSampling() {
+    return true;
+  }
+
   private boolean trySample(Sampler sampler) {
     if (!isFullSnapshot()) {
       return ProbeRateLimiter.tryProbe(sampler, false);
+    }
+    if (!useCoordinatedSampling()) {
+      return ProbeRateLimiter.tryProbe(sampler, true);
     }
 
     AgentSpan localRootSpan = getActiveLocalRootSpan();
