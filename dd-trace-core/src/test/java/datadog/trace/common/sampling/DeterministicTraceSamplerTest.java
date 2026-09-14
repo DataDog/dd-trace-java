@@ -357,6 +357,15 @@ class DeterministicTraceSamplerTest {
     assertTrue(sampler.sample(span));
   }
 
+  @TableTest({
+    "rate       ",
+    "0.123456789",
+    "0.999999999"
+  })
+  void preservesConfiguredSampleRate(double rate) {
+    assertEquals(rate, new DeterministicSampler.TraceSampler(rate).getSampleRate());
+  }
+
   @ParameterizedTest(name = "rate={0}")
   @MethodSource("testCutoffCalculationArguments")
   void testCutoffCalculation(int rate) {

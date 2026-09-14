@@ -1,5 +1,8 @@
 package com.datadog.debugger.sink;
 
+import static datadog.trace.api.debugger.DebuggerMetricCollector.DroppedReason.QUEUE_FULL;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.EVALUATION_TIME_OUT;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -20,13 +23,13 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.uploader.BatchUploader;
-import com.datadog.debugger.util.DebuggerMetrics;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Types;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
@@ -496,7 +499,7 @@ public class DebuggerSinkTest {
 
   @Test
   public void skipSnapshot() {
-    DebuggerMetrics debuggerMetrics = spy(DebuggerMetrics.getInstance(config));
+    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
     SnapshotSink snapshotSink =
         new SnapshotSink(
             config,
@@ -510,14 +513,61 @@ public class DebuggerSinkTest {
                 "Logs", config, config.getFinalDebuggerSnapshotUrl(), SnapshotSink.RETRY_POLICY));
     SymbolSink symbolSink = new SymbolSink(config);
     DebuggerSink sink =
-        new DebuggerSink(config, "", debuggerMetrics, probeStatusSink, snapshotSink, symbolSink);
+        new DebuggerSink(config, "", metricCollector, probeStatusSink, snapshotSink, symbolSink);
     Snapshot snapshot = createSnapshot();
-    sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.CONDITION);
-    verify(debuggerMetrics)
-        .incrementCounter(anyString(), eq("cause:condition"), eq("probe_id:" + PROBE_ID.getId()));
-    sink.skipSnapshot(snapshot.getProbe().getId(), DebuggerContext.SkipCause.RATE);
-    verify(debuggerMetrics)
-        .incrementCounter(anyString(), eq("cause:rate"), eq("probe_id:" + PROBE_ID.getId()));
+    sink.skipSnapshot(snapshot.getProbe().getId(), RATE_LIMIT);
+    verify(metricCollector).recordEventSkipped(eq(RATE_LIMIT));
+  }
+
+  @Test
+  public void skipSnapshotEvaluationTimeOut() {
+    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
+    DebuggerSink sink =
+        new DebuggerSink(
+            config,
+            "",
+            metricCollector,
+            probeStatusSink,
+            new SnapshotSink(config, "", snapshotUploader, logUploader),
+            new SymbolSink(config));
+    Snapshot snapshot = createSnapshot();
+    sink.skipSnapshot(snapshot.getProbe().getId(), EVALUATION_TIME_OUT);
+    verify(metricCollector).recordEventSkipped(eq(EVALUATION_TIME_OUT));
+  }
+
+  @Test
+  public void addSnapshotQueueFullRecordsDropped() {
+    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
+    SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
+    DebuggerSink sink =
+        new DebuggerSink(
+            config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
+    Snapshot snapshot = createSnapshot();
+    for (int i = 0; i < SnapshotSink.LOW_RATE_CAPACITY; i++) {
+      sink.addSnapshot(snapshot);
+    }
+    verify(metricCollector, times(0)).recordEventDropped(QUEUE_FULL);
+    sink.addSnapshot(snapshot);
+    verify(metricCollector, times(1)).recordEventDropped(QUEUE_FULL);
+  }
+
+  @Test
+  public void addHighRateSnapshotRecordsEveryDrop() {
+    DebuggerMetricCollector metricCollector = spy(DebuggerMetricCollector.get());
+    SnapshotSink snapshotSink = new SnapshotSink(config, "", snapshotUploader, logUploader);
+    DebuggerSink sink =
+        new DebuggerSink(
+            config, "", metricCollector, probeStatusSink, snapshotSink, new SymbolSink(config));
+    Snapshot snapshot = createSnapshot();
+    // fill the high rate queue to capacity
+    for (int i = 0; i < SnapshotSink.HIGH_RATE_CAPACITY; i++) {
+      sink.addHighRateSnapshot(snapshot);
+    }
+    verify(metricCollector, times(0)).recordEventDropped(QUEUE_FULL);
+    for (int i = 0; i < 3; i++) {
+      sink.addHighRateSnapshot(snapshot);
+    }
+    verify(metricCollector, times(3)).recordEventDropped(QUEUE_FULL);
   }
 
   private JsonSnapshotSerializer.IntakeRequest assertOneIntakeRequest(String strPayload)
@@ -543,7 +593,7 @@ public class DebuggerSinkTest {
     return new DebuggerSink(
         config,
         tags,
-        DebuggerMetrics.getInstance(config),
+        DebuggerMetricCollector.get(),
         probeStatusSink,
         new SnapshotSink(config, tags, snapshotUploader, logUploader),
         new SymbolSink(config));
@@ -555,7 +605,7 @@ public class DebuggerSinkTest {
     return new DebuggerSink(
         config,
         tags,
-        DebuggerMetrics.getInstance(config),
+        DebuggerMetricCollector.get(),
         probeSink,
         new SnapshotSink(config, tags, snapshotUploader, logUploader),
         new SymbolSink(config));

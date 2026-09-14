@@ -8,6 +8,7 @@ muzzle {
     module = "aws-java-sdk-sns"
     versions = "[1.12.113,2)"
     assertInverse = true
+    excludeDependency 'joda-time:joda-time'
   }
 }
 

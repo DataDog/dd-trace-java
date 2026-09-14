@@ -2041,8 +2041,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
-    assertTrue(listener.skipped);
-    assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
   @Test
