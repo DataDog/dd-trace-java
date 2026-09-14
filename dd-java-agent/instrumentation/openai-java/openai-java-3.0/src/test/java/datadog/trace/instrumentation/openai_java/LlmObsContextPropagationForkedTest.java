@@ -336,16 +336,14 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
 class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
 
   @Test
-  void chatCompletionEmitsTheGenAiAttributesAvailableWithoutLlmObs() throws Exception {
+  void chatCompletionEmitsTheGenAiAttributesAvailableWithoutLlmObs() {
     try {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     } catch (Exception ignored) {
       // The mock server returns no body, so the SDK may throw while parsing the response.
     }
 
-    writer.waitForTraces(1);
-    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
-    assertNotNull(openAiSpan, "openai.request span should have been created");
+    DDSpan openAiSpan = awaitOpenAiSpan("/v1/chat/completions");
 
     assertEquals("llm", openAiSpan.getTag("gen_ai.operation.name"));
     // The mock returns no body, so the request model stands in for the absent response model.
@@ -363,20 +361,36 @@ class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
   }
 
   @Test
-  void embeddingMapsToTheEmbeddingOperation() throws Exception {
+  void embeddingMapsToTheEmbeddingOperation() {
     try {
       openAiClient.embeddings().create(buildMinimalEmbeddingParams());
     } catch (Exception ignored) {
       // The mock server returns no body, so the SDK may throw while parsing the response.
     }
 
-    writer.waitForTraces(1);
-    DDSpan openAiSpan = findSpanByOperationName(writer, "openai.request");
-    assertNotNull(openAiSpan, "openai.request span should have been created");
+    DDSpan openAiSpan = awaitOpenAiSpan("/v1/embeddings");
 
     assertEquals("embedding", openAiSpan.getTag("gen_ai.operation.name"));
     assertEquals(
         openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
     assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
+  }
+
+  // Both tests here produce an openai.request span, so match on the endpoint rather than take the
+  // first one written: a trace arriving late from the sibling test would otherwise be picked up.
+  private DDSpan awaitOpenAiSpan(String endpoint) {
+    blockUntilTracesMatch(traces -> findOpenAiSpan(traces, endpoint) != null);
+    DDSpan span = findOpenAiSpan(writer, endpoint);
+    assertNotNull(span, "openai.request span for " + endpoint + " should have been created");
+    return span;
+  }
+
+  private static DDSpan findOpenAiSpan(List<List<DDSpan>> traces, String endpoint) {
+    return traces.stream()
+        .flatMap(List::stream)
+        .filter(span -> "openai.request".equals(span.getOperationName().toString()))
+        .filter(span -> endpoint.equals(span.getTag("openai.request.endpoint")))
+        .findFirst()
+        .orElse(null);
   }
 }
