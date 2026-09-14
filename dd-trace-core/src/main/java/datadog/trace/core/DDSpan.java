@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
+import datadog.trace.bootstrap.instrumentation.api.SpanPrototype;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -669,6 +670,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
   public final DDSpan setSpanType(final CharSequence type) {
     context.setSpanType(type);
     return this;
+  }
+
+  @Override
+  public void apply(@Nonnull final SpanPrototype prototype) {
+    // Route straight to the context (owner of the tag map + future fast path) rather than through
+    // the interface default's per-setter delegation.
+    context.apply(prototype);
   }
 
   // Getters
