@@ -698,7 +698,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public String getW3CTracestate(SamplingState samplingState) {
-      return samplingState.getTracestate();
+      return W3CPTagsCodec.rebuildTracestate(samplingState);
     }
 
     @Override
@@ -725,6 +725,11 @@ public class PTagsFactory implements PropagationTags.Factory {
     private synchronized void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
       clearCachedHeader(W3C);
       int samplingPriority = samplingState.getSamplingPriority();
+      if (otelTraceState != null
+          && samplingPriority != PrioritySampling.UNSET
+          && !otelTraceState.isConsistentWith(samplingPriority > 0)) {
+        otelTraceState = otelTraceState.withoutThreshold();
+      }
       this.tracestate = tracestate;
       this.otelTraceState = otelTraceState;
       this.samplingState =

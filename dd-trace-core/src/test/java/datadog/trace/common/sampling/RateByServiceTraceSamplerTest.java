@@ -2,6 +2,7 @@ package datadog.trace.common.sampling;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -231,14 +232,9 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
 
       serviceSampler.setSamplingPriority(span);
 
-      String otelTraceState =
-          span.spanContext()
-              .getPropagationTags()
-              .samplingState()
-              .getOtelTraceState()
-              .toString();
+      String tracestate = span.spanContext().getPropagationTags().headerValue(W3C);
       assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
-      assertTrue(otelTraceState.matches("rv:[0-9a-f]{14};th:0"), otelTraceState);
+      assertTrue(tracestate.matches(".*ot=rv:[0-9a-f]{14};th:0.*"), tracestate);
     } finally {
       tracer.close();
     }
@@ -274,13 +270,8 @@ class RateByServiceTraceSamplerTest extends DDCoreJavaSpecification {
     serviceSampler.setSamplingPriority(span);
 
     assertEquals(SAMPLER_KEEP, span.getSamplingPriority());
-    String otelTraceState =
-        span.spanContext()
-            .getPropagationTags()
-            .samplingState()
-            .getOtelTraceState()
-            .toString();
-    assertTrue(otelTraceState.matches("rv:[0-9a-f]{14};th:0"), otelTraceState);
+    String tracestate = span.spanContext().getPropagationTags().headerValue(W3C);
+    assertTrue(tracestate.matches(".*ot=rv:[0-9a-f]{14};th:0.*"), tracestate);
     span.finish();
   }
 

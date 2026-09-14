@@ -7,9 +7,10 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.LOCAL_USER_RULE;
 import static datadog.trace.common.sampling.RuleBasedTraceSampler.SAMPLING_RULE_RATE;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.common.sampling.PrioritySampler;
@@ -25,7 +26,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
   private static final String AGENT_RATE_ENDPOINT = "traces";
-  private static final String OTEL_RANDOM_VALUE_PREFIX = "rv:";
+  private static final String OTEL_MEMBER = "ot=";
+  private static final String OTEL_RANDOM_VALUE_PREFIX = "ot=rv:";
   private static final String HALF_THRESHOLD = ";th:8";
   private static final String MAX_THRESHOLD = ";th:ffffffffffffff";
   private static final double HALF_RATE = 0.5;
@@ -39,9 +41,9 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
         span -> {
           sampler.setSamplingPriority(span);
 
-          String state = otelTraceState(span);
-          assertTrue(state.contains(OTEL_RANDOM_VALUE_PREFIX));
-          assertTrue(state.contains(";th:0"));
+          String header = w3cHeader(span);
+          assertTrue(header.contains(OTEL_RANDOM_VALUE_PREFIX));
+          assertTrue(header.contains(";th:0"));
         });
   }
 
@@ -53,9 +55,9 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
         span -> {
           sampler.setSamplingPriority(span);
 
-          String state = otelTraceState(span);
-          assertTrue(state.contains(OTEL_RANDOM_VALUE_PREFIX));
-          assertTrue(state.contains(HALF_THRESHOLD));
+          String header = w3cHeader(span);
+          assertTrue(header.contains(OTEL_RANDOM_VALUE_PREFIX));
+          assertTrue(header.contains(HALF_THRESHOLD));
         });
   }
 
@@ -67,10 +69,10 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
         span -> {
           sampler.setSamplingPriority(span);
 
-          String state = otelTraceState(span);
-          assertTrue(state.contains(OTEL_RANDOM_VALUE_PREFIX));
-          assertFalse(state.contains("rv:ffffffffffffff"));
-          assertTrue(state.contains(MAX_THRESHOLD));
+          String header = w3cHeader(span);
+          assertTrue(header.contains(OTEL_RANDOM_VALUE_PREFIX));
+          assertFalse(header.contains("ot=rv:ffffffffffffff"));
+          assertTrue(header.contains(MAX_THRESHOLD));
         });
   }
 
@@ -87,9 +89,9 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
         span -> {
           sampler.setSamplingPriority(span);
 
-          String state = otelTraceState(span);
-          assertTrue(state.contains(OTEL_RANDOM_VALUE_PREFIX));
-          assertTrue(state.contains(HALF_THRESHOLD));
+          String header = w3cHeader(span);
+          assertTrue(header.contains(OTEL_RANDOM_VALUE_PREFIX));
+          assertTrue(header.contains(HALF_THRESHOLD));
         });
   }
 
@@ -107,9 +109,9 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
       sampler.setSamplingPriority(allowed);
       sampler.setSamplingPriority(rejected);
 
-      assertTrue(otelTraceState(allowed).contains(OTEL_RANDOM_VALUE_PREFIX));
+      assertTrue(w3cHeader(allowed).contains(OTEL_RANDOM_VALUE_PREFIX));
       assertEquals(USER_DROP, rejected.samplingPriority());
-      assertNull(otelTraceState(rejected));
+      assertFalse(w3cHeader(rejected).contains(OTEL_MEMBER));
     } finally {
       tracer.close();
     }
@@ -120,11 +122,11 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
     withRootSpan(
         span -> {
           span.setSamplingPriority(USER_KEEP, SAMPLING_RULE_RATE, HALF_RATE, true, LOCAL_USER_RULE);
-          assertTrue(otelTraceState(span).contains(OTEL_RANDOM_VALUE_PREFIX));
+          assertTrue(w3cHeader(span).contains(OTEL_RANDOM_VALUE_PREFIX));
 
           span.spanContext().forceKeep();
 
-          assertNull(otelTraceState(span));
+          assertFalse(w3cHeader(span).contains(OTEL_MEMBER));
         });
   }
 
@@ -146,10 +148,10 @@ class OtelSamplingDecisionTest extends DDCoreJavaSpecification {
             .start();
   }
 
-  private static String otelTraceState(DDSpan span) {
-    CharSequence state =
-        span.spanContext().getPropagationTags().samplingState().getOtelTraceState();
-    return state == null ? null : state.toString();
+  private static String w3cHeader(DDSpan span) {
+    String header = span.spanContext().getPropagationTags().headerValue(W3C);
+    assertNotNull(header);
+    return header;
   }
 
   private static Map<String, Map<String, Number>> agentRates(double rate) {
