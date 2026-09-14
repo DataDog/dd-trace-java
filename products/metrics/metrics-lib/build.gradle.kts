@@ -5,11 +5,10 @@ import org.gradle.api.Action
 plugins {
   `java-library`
   id("com.gradleup.shadow")
+  id("dd-trace-java.module.product-subsystem")
 }
 
 description = "StatsD client"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
   api(project(":products:metrics:metrics-api"))

@@ -6,6 +6,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGUR
 import static datadog.trace.api.ConfigDefaults.DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL
 import static datadog.trace.api.DDTags.HOST_TAG
@@ -124,6 +126,8 @@ import static datadog.trace.api.config.TracerConfig.SPAN_TAGS
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES
+import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_ITEMS
 import static datadog.trace.api.config.TracerConfig.TRACE_EXPERIMENTAL_FEATURES_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL
@@ -589,7 +593,7 @@ class ConfigTest extends DDSpecification {
   def "otel generic config via system properties - metrics enabled"() {
     setup:
     System.setProperty(DD_METRICS_OTEL_ENABLED_PROP, "true")
-    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment=production, message=blahblah")
+    System.setProperty(OTEL_RESOURCE_ATTRIBUTES_PROP, "service.name=my=app,service.version=1.0.0,deployment.environment.name=production, message=blahblah")
     System.setProperty("otel.log.level", "warning")
 
     when:
@@ -3124,6 +3128,33 @@ class ConfigTest extends DDSpecification {
     "invalid"      | "invalid"      | null              | null
     "\$.a"         | "\$.b"         | '[$[\'a\']]'          | '[$[\'b\']]'
     "\$.a,invalid" | "\$.b,invalid" | '[$[\'a\']]'          | '[$[\'b\']]'
+  }
+
+  def "baggage limits normalize negative values to zero"() {
+    setup:
+    def prop = new Properties()
+    if (maxItems != null) {
+      prop.setProperty(TRACE_BAGGAGE_MAX_ITEMS, maxItems)
+    }
+    if (maxBytes != null) {
+      prop.setProperty(TRACE_BAGGAGE_MAX_BYTES, maxBytes)
+    }
+
+    when:
+    Config config = Config.get(prop)
+
+    then:
+    config.traceBaggageMaxItems == expectedMaxItems
+    config.traceBaggageMaxBytes == expectedMaxBytes
+
+    where:
+    maxItems | maxBytes | expectedMaxItems                  | expectedMaxBytes
+    null     | null     | DEFAULT_TRACE_BAGGAGE_MAX_ITEMS   | DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+    "0"      | "0"      | 0                                 | 0
+    "8"      | "512"    | 8                                 | 512
+    "-1"     | null     | 0                                 | DEFAULT_TRACE_BAGGAGE_MAX_BYTES
+    null     | "-8192"  | DEFAULT_TRACE_BAGGAGE_MAX_ITEMS   | 0
+    "-1"     | "-1"     | 0                                 | 0
   }
 
   // Subclass for setting Strictness of ConfigHelper when using fake configs

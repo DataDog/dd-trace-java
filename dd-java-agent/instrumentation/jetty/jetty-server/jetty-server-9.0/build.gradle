@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'java-test-fixtures'
+}
+
 muzzle {
   pass {
     name = '9_full_series'
@@ -14,9 +19,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply plugin: 'java-test-fixtures'
-apply from: "$rootDir/gradle/java.gradle"
 
 // Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure servlet 2.x instrumentation applies
 configurations.testImplementation {

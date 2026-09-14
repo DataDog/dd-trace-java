@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.mass'
+  id 'dd-trace-java.module.instrumentation'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 // Configuration for downloading CICS SDK from IBM
 ext {

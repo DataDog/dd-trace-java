@@ -187,6 +187,12 @@ public final class ProfilingConfig {
       "profiling.experimental.ddprof.nativemem.interval";
   public static final int PROFILING_DATADOG_PROFILER_NATIVEMEM_INTERVAL_DEFAULT = 512 * 1024;
 
+  public static final String PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED =
+      "profiling.experimental.ddprof.nativesocket.enabled";
+  public static final boolean PROFILING_DATADOG_PROFILER_NATIVESOCKET_ENABLED_DEFAULT = false;
+  public static final String PROFILING_DATADOG_PROFILER_NATIVESOCKET_INTERVAL =
+      "profiling.experimental.ddprof.nativesocket.interval";
+
   public static final String PROFILING_ENDPOINT_COLLECTION_ENABLED =
       "profiling.endpoint.collection.enabled";
   public static final boolean PROFILING_ENDPOINT_COLLECTION_ENABLED_DEFAULT = true;

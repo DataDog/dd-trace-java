@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 def reactiveStreamsVersion = '1.0.0'
 
 muzzle {
@@ -7,8 +11,6 @@ muzzle {
     versions = "[${reactiveStreamsVersion},)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

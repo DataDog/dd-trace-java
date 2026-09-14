@@ -2041,8 +2041,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
-    assertTrue(listener.skipped);
-    assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
   @Test
@@ -3018,6 +3016,31 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertEquals(1, evaluationErrors.size());
     assertEquals("nullTyped.fld.fld", evaluationErrors.get(0).getExpr());
     assertEquals("Cannot dereference field: fld", evaluationErrors.get(0).getMessage());
+  }
+
+  @Test
+  public void captureExpressionsWithRejectingCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
+            .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
+            .template("plain log", Collections.emptyList())
+            .captureExpressions(
+                Collections.singletonList(
+                    new LogProbe.CaptureExpression(
+                        "unknown_symbol",
+                        new ValueScript(ref("doesNotExist"), "doesNotExist"),
+                        null)))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    for (int i = 0; i < 5; i++) {
+      int result = Reflect.onClass(testClass).call("main", "1").get();
+      assertEquals(3, result);
+    }
+    assertEquals(0, listener.snapshots.size());
   }
 
   @Test

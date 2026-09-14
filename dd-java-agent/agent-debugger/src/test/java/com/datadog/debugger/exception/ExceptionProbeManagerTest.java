@@ -7,8 +7,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.probe.ExceptionProbe;
+import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -46,7 +48,7 @@ class ExceptionProbeManagerTest {
     ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
 
     String fingerprint = Fingerprinter.fingerprint(exception, classNameFiltering);
-    assertEquals("4974b2b4853e6152d8f218fb79a42a761a45335447e22e53d75f5325e742655", fingerprint);
+    assertEquals("b3cf344f48cb7d44f2f75ac267667fbdda167e494f24d55149843896c16584ca", fingerprint);
     exceptionProbeManager.createProbesForException(exception.getStackTrace(), 0);
     assertEquals(1, exceptionProbeManager.getProbes().size());
     ExceptionProbe exceptionProbe = exceptionProbeManager.getProbes().iterator().next();
@@ -120,5 +122,30 @@ class ExceptionProbeManagerTest {
 
   RuntimeException level3() {
     return new RuntimeException("3 level deep exception");
+  }
+
+  @Test
+  void addSnapshotCapsGrowth() {
+    ClassNameFiltering classNameFiltering = ClassNameFiltering.allowAll();
+    ExceptionProbeManager exceptionProbeManager = new ExceptionProbeManager(classNameFiltering);
+    RuntimeException throwable = new RuntimeException("test");
+    for (int i = 0; i < 300; i++) {
+      exceptionProbeManager.addSnapshot(createSnapshot(throwable));
+    }
+    ExceptionProbeManager.ThrowableState state =
+        exceptionProbeManager.getStateByThrowable(throwable);
+    int cappedSize = state.getSnapshots().size();
+    for (int i = 0; i < 50; i++) {
+      exceptionProbeManager.addSnapshot(createSnapshot(throwable));
+    }
+    assertEquals(cappedSize, state.getSnapshots().size());
+  }
+
+  private static Snapshot createSnapshot(Throwable throwable) {
+    Snapshot snapshot = new Snapshot(Thread.currentThread(), null, 1);
+    CapturedContext context = new CapturedContext();
+    context.addThrowable(throwable);
+    snapshot.setExit(context);
+    return snapshot;
   }
 }

@@ -1,9 +1,25 @@
 package com.datadog.debugger.el;
 
-import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.DSL.and;
+import static com.datadog.debugger.el.DSL.eq;
+import static com.datadog.debugger.el.DSL.ge;
+import static com.datadog.debugger.el.DSL.getMember;
+import static com.datadog.debugger.el.DSL.gt;
+import static com.datadog.debugger.el.DSL.index;
+import static com.datadog.debugger.el.DSL.le;
+import static com.datadog.debugger.el.DSL.len;
+import static com.datadog.debugger.el.DSL.lt;
+import static com.datadog.debugger.el.DSL.not;
+import static com.datadog.debugger.el.DSL.or;
+import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.DSL.value;
+import static com.datadog.debugger.el.DSL.when;
 import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.expressions.IsEmptyExpression;
 import com.datadog.debugger.el.values.BooleanValue;

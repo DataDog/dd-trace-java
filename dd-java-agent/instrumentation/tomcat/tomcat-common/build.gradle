@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 configurations.configureEach {
   // shut up about broken xml-api pom relocation

@@ -1,5 +1,7 @@
 plugins {
   id 'idea'
+  id 'dd-trace-java.module.instrumentation'
+  id 'dd-trace-java.conventions.testing.slf4j-simple'
 }
 
 muzzle {
@@ -7,9 +9,6 @@ muzzle {
     coreJdk('25')
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_25)

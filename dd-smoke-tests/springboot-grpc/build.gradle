@@ -3,9 +3,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'com.gradleup.shadow'
   id 'com.google.protobuf' version '0.10.0'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   // TODO Java 17: This version of spring-boot doesn't support Java 17

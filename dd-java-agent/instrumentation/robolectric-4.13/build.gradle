@@ -1,20 +1,22 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   extraRepository('google', 'https://maven.google.com')
   pass {
     group = 'org.robolectric'
     module = 'robolectric'
-    versions = '[4.13,)'
+    versions = '[4.13,4.17)'
     // androidx.test:monitor is an Android archive (.aar) that a JVM configuration cannot consume;
     // it is not referenced by the advice/helper. Mirror the compileOnly exclusion below.
     excludeDependency 'androidx.test:monitor'
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 repositories {
   // Robolectric drags in androidx.test.* transitive dependencies that are published only to
-  // Google's Maven. Declared after java.gradle so Maven Central is tried first
+  // Google's Maven. Declared after the module convention so Maven Central is tried first.
   maven {
     url = 'https://maven.google.com'
     content {

@@ -2,15 +2,29 @@ package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.agent.CapturingTestBase.getConfig;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.EVALUATION_TIME_OUT;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
 import static java.lang.String.format;
 import static java.lang.Thread.currentThread;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.datadog.debugger.agent.DebuggerAgentHelper;
+import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvaluationTimeOutException;
+import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.el.ValueScript;
 import com.datadog.debugger.probe.LogProbe.Builder;
 import com.datadog.debugger.probe.LogProbe.LogStatus;
 import com.datadog.debugger.sink.DebuggerSink;
@@ -19,6 +33,7 @@ import com.datadog.debugger.sink.Snapshot;
 import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.api.sampling.ConstantSampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -340,6 +355,108 @@ public class LogProbeTest {
         "errorEntry", snapshot.getCaptures().getEntry().getCapturedThrowable().getMessage());
     assertEquals(
         "errorExit", snapshot.getCaptures().getReturn().getCapturedThrowable().getMessage());
+  }
+
+  @Test
+  public void captureExpressionsInActiveDebugSession() {
+    DebuggerAgentHelper.injectSink(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    TracerAPI tracer =
+        CoreTracer.builder().idGenerationStrategy(IdGenerationStrategy.fromName("random")).build();
+    AgentTracer.registerIfAbsent(tracer);
+    AgentSpan span = tracer.startSpan("log probe capture expression testing", "test span");
+    try (ContextScope scope = tracer.activateManualSpan(span)) {
+      span.setTag(Tags.PROPAGATED_DEBUG, DEBUG_SESSION_ID + ":1");
+      // the probe sampler always rejects: the active session decision must still win
+      ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
+      LogProbe logProbe =
+          createLog("log line")
+              .probeId(ProbeId.newId())
+              .evaluateAt(MethodLocation.EXIT)
+              .tags(format("session_id:%s", DEBUG_SESSION_ID))
+              .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(1))), "1 == 1"))
+              .captureExpressions(
+                  singletonList(
+                      new LogProbe.CaptureExpression(
+                          "greeting", new ValueScript(DSL.value("hello"), "'hello'"), null)))
+              .build();
+      logProbe.initSamplers();
+      CapturedContext entryContext = capturedContext(span, logProbe);
+      CapturedContext exitContext = capturedContext(span, logProbe);
+      logProbe.evaluate(entryContext, new LogStatus(logProbe), MethodLocation.ENTRY, false);
+      logProbe.evaluate(exitContext, new LogStatus(logProbe), MethodLocation.EXIT, false);
+      Snapshot snapshot = new Snapshot(currentThread(), logProbe, 3);
+      assertTrue(logProbe.fillSnapshot(entryContext, exitContext, emptyList(), snapshot));
+      assertEquals(
+          "hello",
+          snapshot
+              .getCaptures()
+              .getReturn()
+              .getCaptureExpressions()
+              .get("greeting")
+              .getValue()
+              .toString());
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+  }
+
+  @Test
+  public void isReadyToCaptureRateLimitedRecordsSkip() {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    try {
+      ProbeRateLimiter.setSamplerSupplier(rate -> new ConstantSampler(false));
+      LogProbe logProbe = createLog(null).build();
+      logProbe.initSamplers();
+      Assertions.assertFalse(logProbe.isReadyToCapture());
+      verify(sink).skipSnapshot(PROBE_ID.getId(), RATE_LIMIT);
+    } finally {
+      ProbeRateLimiter.setSamplerSupplier(null);
+    }
+  }
+
+  @Test
+  public void evaluateConditionTimeoutRecordsSkipAndConditionErrors() {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    ProbeCondition timingOutCondition = mock(ProbeCondition.class);
+    when(timingOutCondition.execute(any(), any()))
+        .thenThrow(new EvaluationTimeOutException("timeout after 100ms", "slow.expr"));
+    LogProbe logProbe =
+        createLog(null).evaluateAt(MethodLocation.EXIT).when(timingOutCondition).build();
+    CapturedContext context = new CapturedContext();
+    LogStatus status = new LogStatus(logProbe);
+
+    // methodLocation (ENTRY) intentionally differs from evaluateAt (EXIT) so that sample() is a
+    // no-op here, isolating the skipSnapshot call to evaluateCondition()'s timeout handling.
+    logProbe.evaluate(context, status, MethodLocation.ENTRY, false);
+
+    Assertions.assertFalse(status.getCondition());
+    assertTrue(status.hasConditionErrors());
+    assertEquals(1, status.getErrors().size());
+    assertEquals("slow.expr", status.getErrors().get(0).getExpr());
+    assertEquals("timeout after 100ms", status.getErrors().get(0).getMessage());
+    verify(sink).skipSnapshot(PROBE_ID.getId(), EVALUATION_TIME_OUT);
+    verify(sink, times(1)).skipSnapshot(anyString(), any());
+  }
+
+  @Test
+  public void evaluateConditionFalseDoesNotSkipSnapshot() {
+    DebuggerSink sink = spy(new DebuggerSink(getConfig(), mock(ProbeStatusSink.class)));
+    DebuggerAgentHelper.injectSink(sink);
+    LogProbe logProbe =
+        createLog(null)
+            .evaluateAt(MethodLocation.EXIT)
+            .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
+            .build();
+    CapturedContext context = new CapturedContext();
+    LogStatus status = new LogStatus(logProbe);
+
+    logProbe.evaluate(context, status, MethodLocation.EXIT, false);
+
+    Assertions.assertFalse(status.getCondition());
+    Assertions.assertFalse(status.hasConditionErrors());
+    verify(sink, never()).skipSnapshot(anyString(), any());
   }
 
   private Builder createLog(String template) {

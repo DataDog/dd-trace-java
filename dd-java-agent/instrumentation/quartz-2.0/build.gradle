@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.quartz-scheduler'
@@ -8,8 +12,6 @@ muzzle {
     javaVersion = "11"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteForDir('version40Test', 'test')

@@ -60,6 +60,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
+  static final boolean DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE = true;
 
   static final boolean DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT = false;
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
@@ -97,6 +98,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
+
+  static final boolean DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED = false;
 
   static final TracePropagationBehaviorExtract DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT =
       TracePropagationBehaviorExtract.CONTINUE;
@@ -192,6 +195,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LLM_OBS_ENABLED = false;
   static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
+  static final double DEFAULT_LLM_OBS_SAMPLE_RATE = 1.0;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 

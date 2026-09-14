@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     name = "jakarta.jms"
@@ -8,8 +12,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17

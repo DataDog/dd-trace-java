@@ -2,7 +2,10 @@ package com.datadog.debugger.el.expressions;
 
 import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.EvalContext;

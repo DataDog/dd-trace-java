@@ -13,10 +13,11 @@ apply plugin: 'java'
 // the 'com.android.base' plugin id, so applying an id-only stand-in exercises it.
 apply plugin: 'com.android.base'
 
+def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+
 repositories {
   mavenLocal()
 
-  def proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
   if (proxyUrl) {
     println "Using proxy repository: $proxyUrl"
     maven {
@@ -106,6 +107,10 @@ dependencies {
 
 test {
   useJUnit()
+  if (proxyUrl) {
+    // Robolectric resolves the Android SDK at test runtime, outside Gradle's dependency resolver.
+    systemProperty "robolectric.dependency.repo.url", proxyUrl
+  }
   // Coverage is validated by the other Gradle smoke scenarios; disable it here so this scenario
   // stays focused on the emulated-SDK (test.android.*) tags.
   environment "DD_CIVISIBILITY_CODE_COVERAGE_ENABLED", "false"

@@ -309,7 +309,7 @@ class FileBasedPayloadDispatcherTest {
             0,
             false,
             false,
-            null,
+            0,
             null,
             0,
             null,

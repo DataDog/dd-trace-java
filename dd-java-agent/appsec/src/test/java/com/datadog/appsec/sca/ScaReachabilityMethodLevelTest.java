@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.telemetry.dependency.Dependency;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
@@ -510,9 +511,13 @@ class ScaReachabilityMethodLevelTest {
   @Test
   void transform_retransform_processesInlineAndDoesNotReSchedule() throws Exception {
     // On retransform (classBeingRedefined != null), transform() calls processClass() inline.
-    // Version resolution fails in the unit-test context (no real JAR for com.example:lib),
-    // so processClass() re-queues in pendingRetransformNames for a retry, but the key invariant
-    // is that the retransform path reaches processClass() rather than the first-load fast-path.
+    // Version resolution fails in the unit-test context (no real JAR for com.example:lib), so
+    // processClass() re-queues in pendingRetransformNames for a retry. This exercises a single
+    // unresolved attempt (attempt 1 of ScaReachabilityTransformer.MAX_UNRESOLVED_RETRIES = 5), so
+    // re-queueing here is the expected, unchanged behaviour: the cap only stops the retries once it
+    // is exhausted, which transform_retransform_stopsReQueueingAfterMaxUnresolvedRetries covers.
+    // The invariant asserted here is that the retransform path reaches processClass() rather than
+    // the first-load fast-path.
     String json =
         "{\"version\":1,\"entries\":[{"
             + "\"vuln_id\":\"GHSA-mth\",\"artifact\":\"com.example:lib\","
@@ -534,12 +539,126 @@ class ScaReachabilityMethodLevelTest {
         TargetClass.class.getProtectionDomain(),
         bytecodeOf(TargetClass.class));
 
-    // Version resolution failed (no pom.properties for com.example:lib in test classpath),
-    // so processClass() re-queued the class for a retry on the next heartbeat.
-    // This confirms the retransform path reached processClass() rather than the first-load path.
+    // Version resolution failed (no pom.properties for com.example:lib in test classpath), so
+    // processClass() re-queued the class for a retry on the next heartbeat -- this is only attempt
+    // 1, well below the cap. This confirms the retransform path reached processClass() rather than
+    // the first-load path.
     assertFalse(
         t.pendingRetransformNames.isEmpty(),
         "processClass() must re-queue on version resolution failure for heartbeat retry");
+  }
+
+  @Test
+  void transform_retransform_stopsReQueueingAfterMaxUnresolvedRetries() throws Exception {
+    // APPSEC-69734: an artifact that can never resolve as a dependency (com.example:lib has no
+    // pom.properties anywhere in the test classpath, just like an embedded-Tomcat app never
+    // resolving "tomcat"/"tomcat-coyote") must not re-queue itself into pendingRetransformNames
+    // forever — every heartbeat would otherwise cost a stop-the-world retransformClasses() call.
+    String json =
+        "{\"version\":1,\"entries\":[{"
+            + "\"vuln_id\":\"GHSA-cap\",\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + TargetClass.class.getName().replace('.', '/')
+            + "\",\"method\":\"vulnerableMethod\"}]"
+            + "}]}";
+    ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
+
+    int maxRetries = ScaReachabilityTransformer.MAX_UNRESOLVED_RETRIES;
+
+    // Heartbeats 1..maxRetries-1 stay within the cap and keep re-queuing. The Nth heartbeat is the
+    // one where the attempt count reaches maxRetries and processClass() gives up instead.
+    for (int attempt = 1; attempt < maxRetries; attempt++) {
+      // Each iteration stands for one telemetry heartbeat. Clearing pendingRetransformNames first
+      // makes each iteration's assertion meaningful on its own — otherwise a leftover entry from an
+      // earlier attempt would keep the set non-empty even if this attempt's re-queue were broken.
+      t.pendingRetransformNames.clear();
+      simulateHeartbeat(t);
+      assertFalse(
+          t.pendingRetransformNames.isEmpty(),
+          "attempt " + attempt + " is within the cap, so the class must still be queued for retry");
+    }
+
+    // The cap is reached on this heartbeat (attempt count == maxRetries): from now on
+    // processClass() must not re-add the class. Clearing the set makes that unambiguous — anything
+    // present afterwards can only have been re-added by the call below.
+    t.pendingRetransformNames.clear();
+    simulateHeartbeat(t);
+
+    assertTrue(
+        t.pendingRetransformNames.isEmpty(),
+        "after MAX_UNRESOLVED_RETRIES the class must be given up on and never re-queued again");
+  }
+
+  @Test
+  void transform_retransform_resolvingBeforeTheCapStillInjectsTheCallback() throws Exception {
+    // APPSEC-69734: the retry cap must only ever kick in for artifacts that never resolve. An
+    // artifact that stays unresolved for a few heartbeats and then finally resolves (e.g. its JAR
+    // is only scanned successfully on a later pass) must behave exactly as before the cap existed:
+    // the method-level callback is injected on that attempt, and nothing is given up on early.
+    String json =
+        "{\"version\":1,\"entries\":[{"
+            + "\"vuln_id\":\"GHSA-late\",\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + TargetClass.class.getName().replace('.', '/')
+            + "\",\"method\":\"vulnerableMethod\"}]"
+            + "}]}";
+    ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
+
+    // Attempts 1..3: com.example:lib has no pom.properties in the test classpath, so resolution
+    // fails and the class is re-queued (3 < MAX_UNRESOLVED_RETRIES).
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      t.pendingRetransformNames.clear();
+      assertNull(
+          simulateHeartbeat(t),
+          "attempt " + attempt + " cannot inject anything while the artifact is unresolved");
+      assertTrue(
+          t.pendingRetransformNames.contains(TargetClass.class.getName().replace('.', '/')),
+          "attempt " + attempt + " is well within the cap, so the class must be re-queued");
+    }
+
+    // Attempt 4 (still before the 5th and final allowed attempt): make resolution succeed by
+    // seeding the classpath-scan cache that resolveArtifactDep() consults before scanning, which
+    // is exactly what a successful findArtifactInClasspath() would have populated.
+    t.classpathArtifactCache.put(
+        "com.example:lib", new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", null));
+    t.pendingRetransformNames.clear();
+
+    byte[] modified = simulateHeartbeat(t);
+
+    assertNotNull(modified, "once the artifact resolves, the callback bytecode must be returned");
+    assertTrue(
+        t.pendingRetransformNames.isEmpty(),
+        "nothing is left unresolved, so there is nothing to re-queue");
+
+    Class<?> cls = loadModified(modified);
+    cls.getMethod("vulnerableMethod").invoke(cls.getDeclaredConstructor().newInstance());
+
+    List<ScaReachabilityHit> hits = drainHits();
+    assertEquals(1, hits.size(), "the injected callback must fire like it did before the cap");
+    assertEquals("GHSA-late", hits.get(0).vulnId());
+    assertEquals("com.example:lib", hits.get(0).artifact());
+    assertEquals("1.0.0", hits.get(0).version());
+  }
+
+  /**
+   * Simulates one telemetry heartbeat: clears the per-heartbeat dedup marker (only {@link
+   * ScaReachabilityTransformer#performPendingRetransforms()} does this in production; done here by
+   * hand because these tests drive {@code transform()} directly), then fires the retransform path
+   * ({@code classBeingRedefined != null}) for {@link TargetClass}, returning whatever bytecode
+   * {@code processClass()} produced ({@code null} while the watched artifact stays unresolved).
+   */
+  private static byte[] simulateHeartbeat(ScaReachabilityTransformer t) throws Exception {
+    t.countedThisHeartbeat.clear();
+    return t.transform(
+        null,
+        TargetClass.class.getName().replace('.', '/'),
+        TargetClass.class,
+        TargetClass.class.getProtectionDomain(),
+        bytecodeOf(TargetClass.class));
   }
 
   // ---------------------------------------------------------------------------

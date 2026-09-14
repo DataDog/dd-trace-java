@@ -1,4 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+}
+
 description = 'Mock Datadog backend used by smoke tests.'
 
 dependencies {

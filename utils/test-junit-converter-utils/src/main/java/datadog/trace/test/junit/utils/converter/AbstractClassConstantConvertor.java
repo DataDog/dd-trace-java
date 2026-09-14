@@ -32,15 +32,22 @@ public abstract class AbstractClassConstantConvertor<T> implements ArgumentConve
       s = s.substring(length + 1);
     }
     T mappedValue = mapping().get(s);
-    if (mappedValue == null && throwsOnUnsupportedValue()) {
-      throw new ArgumentConversionException(
-          "Unsupported constant " + source + " from " + className);
+    if (mappedValue == null) {
+      if (throwsOnUnsupportedValue()) {
+        throw new ArgumentConversionException(
+            "Unsupported constant " + source + " from " + className);
+      }
+      return convertWhenNoMapping(source);
     }
     return mappedValue;
   }
 
   protected boolean throwsOnUnsupportedValue() {
     return true;
+  }
+
+  protected T convertWhenNoMapping(Object source) {
+    return null;
   }
 
   public abstract static class AbstractStringFallThruConverter

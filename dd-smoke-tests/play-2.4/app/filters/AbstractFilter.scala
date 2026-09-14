@@ -1,11 +1,12 @@
 package filters
 
 import io.opentracing.Scope
-import io.opentracing.Span
-import io.opentracing.Tracer
 import io.opentracing.util.GlobalTracer
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
-import play.api.mvc._
+import play.api.mvc.Filter
+import play.api.mvc.RequestHeader
+import play.api.mvc.Result
+
 import scala.concurrent.Future
 
 abstract class AbstractFilter(val operationName: String, val wrap: Boolean) extends Filter {

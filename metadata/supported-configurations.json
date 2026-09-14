@@ -118,7 +118,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_API_KEY_FILE": [
@@ -206,7 +207,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": ["DD_APP_KEY"]
+        "aliases": ["DD_APP_KEY"],
+        "sensitive": true
       }
     ],
     "DD_APPLICATION_KEY_FILE": [
@@ -1022,7 +1024,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_CRASHTRACKING_PROXY_PORT": [
@@ -1580,6 +1583,14 @@
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
+    "DD_FLAGGING_EVALUATION_COUNTS_ENABLED": [
+      {
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -2321,6 +2332,14 @@
         "aliases": []
       }
     ],
+    "DD_LLMOBS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": []
+      }
+    ],
     "DD_LOGS_INJECTION": [
       {
         "version": "B",
@@ -2398,7 +2417,8 @@
         "version": "A",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_LOGS_PROTOCOL": [
@@ -2534,7 +2554,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_METRICS_PROTOCOL": [
@@ -2582,7 +2603,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_OTLP_TRACES_PROTOCOL": [
@@ -2678,7 +2700,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_PROFILING_APIKEY_FILE": [
@@ -2694,7 +2717,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_PROFILING_API_KEY_FILE": [
@@ -3249,6 +3273,22 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_NATIVESOCKET_INTERVAL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_EXPERIMENTAL_DDPROF_SCHEDULING_EVENT": [
       {
         "version": "A",
@@ -3358,7 +3398,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_PROFILING_PROXY_PORT": [
@@ -3742,7 +3783,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_RUM_DEFAULT_PRIVACY_LEVEL": [
@@ -4142,7 +4184,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "DD_TEST_FAILED_TEST_REPLAY_ENABLED": [
@@ -5206,6 +5249,14 @@
         "version": "A",
         "type": "int",
         "default": "30",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -6303,6 +6354,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_GUAVA_ENABLED", "DD_INTEGRATION_GUAVA_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GUIDEWIRE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_GUIDEWIRE_ENABLED", "DD_INTEGRATION_GUIDEWIRE_ENABLED"]
       }
     ],
     "DD_TRACE_HAZELCAST_ENABLED": [
@@ -9737,6 +9796,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_RUNTIME_CONTEXT_MAP_PER_STORE": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_RXJAVA_ENABLED": [
       {
         "version": "A",
@@ -11886,7 +11953,8 @@
         "version": "B",
         "type": "map",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_PROTOCOL": [
@@ -11926,7 +11994,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": [
@@ -11966,7 +12035,8 @@
         "version": "B",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": [
@@ -12022,7 +12092,8 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": []
+        "aliases": [],
+        "sensitive": true
       }
     ],
     "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": [
