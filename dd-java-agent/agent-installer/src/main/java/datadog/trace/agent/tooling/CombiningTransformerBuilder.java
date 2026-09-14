@@ -280,11 +280,9 @@ public final class CombiningTransformerBuilder
       customMapping = customMapping.with(postProcessor);
     }
     AgentBuilder.Transformer.ForAdvice forAdvice =
-        DebuggingAdviceTransformer.create(
-            customMapping,
-            instrumentationClass,
-            adviceClass,
-            adviceTransformationDiagnosticsEnabled);
+        adviceTransformationDiagnosticsEnabled
+            ? new DebuggingAdviceTransformer(customMapping, instrumentationClass, adviceClass)
+            : new AgentBuilder.Transformer.ForAdvice(customMapping);
     forAdvice =
         forAdvice
             .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(adviceClass))
