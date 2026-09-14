@@ -55,7 +55,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     int otelMemberValueStart = -1;
     int otelMemberValueEnd = -1;
     int otelMemberPosition = -1;
-    int otherMemberPosition = 0;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
@@ -74,11 +73,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         return tagsFactory.empty();
       }
 
-      // Keep detecting duplicate dd members until ot is found because injection drops them,
-      // so they must not advance its saved position.
-      boolean datadogMember =
-          (ddMemberIndex == -1 || otelMemberStart == -1)
-              && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean datadogMember = value.startsWith(DATADOG_MEMBER_KEY, memberStart);
       boolean otelMember =
           !datadogMember && otelMemberStart == -1 && value.startsWith(OTEL_MEMBER_KEY, memberStart);
       if (datadogMember) {
@@ -92,9 +87,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         otelMemberStart = memberStart;
         otelMemberValueStart = memberValueStart;
         otelMemberValueEnd = memberValueEnd;
-        otelMemberPosition = otherMemberPosition;
-      } else if (otelMemberStart == -1) {
-        otherMemberPosition++;
+        otelMemberPosition = memberIndex;
       }
 
       memberIndex++;
@@ -749,6 +742,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     OtelTraceState otelTraceState = ptags.getOtelTraceState();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
     int otherMemberPosition = 0;
+    int originalMemberPosition = 0;
+    int otelMemberPositionOffset = 0;
+    int otelMemberOriginalPosition =
+        otelTraceState == null ? -1 : otelTraceState.getOriginalPosition();
     boolean otelTraceStateAppended = false;
     boolean memberAppended = false;
     int len = original == null ? 0 : original.length();
@@ -759,13 +756,15 @@ public class W3CPTagsCodec extends PTagsCodec {
       if (memberEnd < 0) {
         memberEnd = len;
       }
-      boolean managedMember =
-          original.startsWith(DATADOG_MEMBER_KEY, memberStart)
-              || original.startsWith(OTEL_MEMBER_KEY, memberStart);
+      boolean datadogMember = original.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean managedMember = datadogMember || original.startsWith(OTEL_MEMBER_KEY, memberStart);
+      if (datadogMember && originalMemberPosition < otelMemberOriginalPosition) {
+        otelMemberPositionOffset++;
+      }
       if (!managedMember) {
         if (otelTraceState != null
             && !otelTraceStateAppended
-            && otelTraceState.getOriginalPosition() == otherMemberPosition) {
+            && otelMemberOriginalPosition - otelMemberPositionOffset == otherMemberPosition) {
           appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.getValue());
           remainingMembers--;
           otelTraceStateAppended = true;
@@ -780,12 +779,13 @@ public class W3CPTagsCodec extends PTagsCodec {
         otherMemberPosition++;
         memberAppended = true;
       }
+      originalMemberPosition++;
       memberStart = findNextMember(original, memberEnd + 1);
     }
     if (otelTraceState != null
         && !otelTraceStateAppended
         && remainingMembers > 0
-        && otelTraceState.getOriginalPosition() == otherMemberPosition) {
+        && otelMemberOriginalPosition - otelMemberPositionOffset == otherMemberPosition) {
       appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.getValue());
       memberAppended = true;
     }
@@ -810,7 +810,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (tracestate == null || tracestate.isEmpty()) {
       return null;
     }
-    int otherMemberPosition = 0;
+    int memberPosition = 0;
     int firstMemberStart = findNextMember(tracestate, 0);
     int memberStart = firstMemberStart;
     int otelMemberStart = -1;
@@ -831,9 +831,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         otelMemberValueEnd = memberValueEnd;
         break;
       }
-      if (!tracestate.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
-        otherMemberPosition++;
-      }
+      memberPosition++;
       memberStart = findNextMember(tracestate, memberValueEnd);
     }
     if (otelMemberStart == -1) {
@@ -842,7 +840,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int valueEnd = stripTrailingOWC(tracestate, otelMemberValueStart, otelMemberValueEnd);
     return OtelTraceState.parse(
         SubSequence.of(tracestate, otelMemberValueStart, valueEnd),
-        otherMemberPosition,
+        memberPosition,
         memberContributionSize(tracestate, firstMemberStart, otelMemberStart, otelMemberValueEnd));
   }
 

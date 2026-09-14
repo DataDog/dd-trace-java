@@ -31,4 +31,13 @@ class OtelTraceStateParsingTest {
     assertEquals(INHERITED_POSITION, state.getOriginalPosition());
     assertEquals(ORIGINAL_MEMBER_CONTRIBUTION_SIZE, state.getOriginalSize());
   }
+
+  @Test
+  void extractsOriginalMemberPosition() {
+    OtelTraceState state =
+        W3CPTagsCodec.extractOtelTraceState("first=value,dd=s:1,dd=s:0,ot=" + VALUE);
+
+    assertNotNull(state);
+    assertEquals(3, state.getOriginalPosition());
+  }
 }
