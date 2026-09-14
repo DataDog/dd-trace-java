@@ -22,7 +22,9 @@ gradle.beforeSettings(Action<Settings> {
         }
       }
       gradlePluginPortal()
-      mavenCentral()
+      if (mavenRepositoryProxy.isNullOrBlank()) {
+        mavenCentral()
+      }
     }
   }
 
@@ -35,7 +37,9 @@ gradle.beforeSettings(Action<Settings> {
           isAllowInsecureProtocol = true
         }
       }
-      mavenCentral()
+      if (mavenRepositoryProxy.isNullOrBlank()) {
+        mavenCentral()
+      }
     }
   })
 })
