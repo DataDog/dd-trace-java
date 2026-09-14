@@ -85,6 +85,8 @@ import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.metrics.NoOpMetricsAggregator;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
+import datadog.trace.common.sampling.RuleBasedTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.sampling.SpanSamplingRules;
@@ -180,6 +182,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler initialSampler;
+
+  /**
+   * The sampler applying the rates published by the agent, shared by every sampler this tracer
+   * builds.
+   *
+   * <p>Only the initial sampler is registered to receive agent rates, and that registration is
+   * never repeated. Reusing this instance when the sampler is rebuilt on a remote configuration
+   * change keeps the rebuilt sampler connected to those rates, and keeps the rates already learned.
+   * May be {@code null} when the tracer was given a sampler that does not use agent rates.
+   */
+  final RateByServiceTraceSampler agentSampler;
 
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContinuableScopeManager scopeManager;
@@ -679,6 +692,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.initialConfig = config;
     this.apmTracingEnabled = config.isApmTracingEnabled();
     this.initialSampler = sampler;
+    this.agentSampler = agentSamplerOf(sampler);
 
     // Get initial Trace Sampling Rules from config
     String traceSamplingRulesJson = config.getTraceSamplingRules();
@@ -1641,6 +1655,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return Collections.unmodifiableMap(inverted);
   }
 
+  /**
+   * Extracts the sampler applying agent published rates from the sampler this tracer was built
+   * with, so that it can be reused whenever the sampler is rebuilt.
+   *
+   * @return the agent rate sampler in use, or {@code null} if this tracer does not use one.
+   */
+  private static RateByServiceTraceSampler agentSamplerOf(final Sampler sampler) {
+    if (sampler instanceof RateByServiceTraceSampler) {
+      return (RateByServiceTraceSampler) sampler;
+    }
+    if (sampler instanceof RuleBasedTraceSampler) {
+      return ((RuleBasedTraceSampler<?>) sampler).agentSampler();
+    }
+    return null;
+  }
+
   /** Spans are built using this builder */
   public abstract static class CoreSpanBuilder implements AgentTracer.SpanBuilder {
     protected static final boolean USE_SCOPE = false;
@@ -2547,7 +2577,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
         sampler = oldSnapshot.sampler;
       } else {
-        sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
+        // Reuse the agent sampler so the rebuilt sampler keeps receiving agent rates: the response
+        // listener is registered once, against the initial sampler, and is never re-registered.
+        RateByServiceTraceSampler agentSampler = CoreTracer.this.agentSampler;
+        sampler =
+            agentSampler == null
+                ? Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this)
+                : Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
       }
 
       if (null == oldSnapshot) {

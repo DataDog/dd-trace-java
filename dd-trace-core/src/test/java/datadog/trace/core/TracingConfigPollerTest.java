@@ -2,8 +2,11 @@ package datadog.trace.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,11 +22,20 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.common.sampling.PrioritySampler;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
+import datadog.trace.common.sampling.RuleBasedTraceSampler;
+import datadog.trace.common.sampling.Sampler;
+import datadog.trace.common.writer.ListWriter;
+import datadog.trace.common.writer.RemoteResponseListener;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Test;
@@ -281,6 +293,86 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       // Both org level configs should be merged, with data streams enabled
       assertTrue(tracer.captureTraceConfig().isTraceEnabled());
       assertTrue(tracer.captureTraceConfig().isDataStreamsEnabled());
+    } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void samplerRebuiltByRemoteConfigStillAppliesAgentRates() throws Exception {
+    ParsedConfigKey rulesKey = ParsedConfigKey.parse("datadog/2/APM_TRACING/service_config/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    CoreTracer tracer =
+        CoreTracer.builder()
+            .writer(new ListWriter())
+            .sharedCommunicationObjects(sco)
+            .pollForTracingConfiguration()
+            .build();
+    unclosedTracers.add(tracer);
+
+    try {
+      // Without rules the initial sampler is the agent rate sampler itself, and it is the sampler
+      // registered to receive agent rates.
+      Sampler initialSampler = tracer.captureTraceConfig().sampler;
+      assertInstanceOf(RateByServiceTraceSampler.class, initialSampler);
+      assertSame(initialSampler, tracer.agentSampler);
+
+      ProductListener updater = capturedUpdater[0];
+      updater.accept(
+          rulesKey,
+          ("{\n"
+                  + "  \"service_target\": {\n"
+                  + "    \"service\": \"*\",\n"
+                  + "    \"env\": \"*\"\n"
+                  + "  },\n"
+                  + "  \"lib_config\": {\n"
+                  + "    \"tracing_sampling_rules\": [{\n"
+                  + "      \"service\": \"other-service\",\n"
+                  + "      \"sample_rate\": 1.0\n"
+                  + "    }]\n"
+                  + "  }\n"
+                  + "}")
+              .getBytes(StandardCharsets.UTF_8),
+          null);
+      updater.commit(null);
+
+      // The rules rebuilt the sampler, but around the same agent rate sampler.
+      Sampler rebuiltSampler = tracer.captureTraceConfig().sampler;
+      assertNotSame(initialSampler, rebuiltSampler);
+      assertInstanceOf(RuleBasedTraceSampler.class, rebuiltSampler);
+      assertSame(tracer.agentSampler, ((RuleBasedTraceSampler<?>) rebuiltSampler).agentSampler());
+
+      // Rates published by the agent reach the sampler that is registered, which is still the
+      // initial one, and must apply to spans matching none of the rules.
+      Map<String, Number> byService = new HashMap<>();
+      byService.put("service:service,env:bar", 0.0);
+      Map<String, Map<String, Number>> response = new HashMap<>();
+      response.put("rate_by_service", byService);
+      ((RemoteResponseListener) initialSampler).onResponse("traces", response);
+
+      DDSpan span =
+          (DDSpan)
+              tracer
+                  .buildSpan("datadog", "operation")
+                  .withServiceName("service")
+                  .withTag("env", "bar")
+                  .ignoreActiveSpan()
+                  .start();
+      ((PrioritySampler) rebuiltSampler).setSamplingPriority(span);
+
+      assertEquals(PrioritySampling.SAMPLER_DROP, (int) span.getSamplingPriority());
+      assertEquals(0.0, span.getTag(RateByServiceTraceSampler.SAMPLING_AGENT_RATE));
     } finally {
       tracer.close();
     }

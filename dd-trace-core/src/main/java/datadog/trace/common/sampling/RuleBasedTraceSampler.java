@@ -3,6 +3,7 @@ package datadog.trace.common.sampling;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.sampling.SamplingRule;
+import datadog.trace.common.writer.RemoteResponseListener;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.util.SimpleRateLimiter;
 import java.util.ArrayList;
@@ -12,7 +13,8 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, PrioritySampler {
+public class RuleBasedTraceSampler<T extends CoreSpan<T>>
+    implements Sampler, PrioritySampler, RemoteResponseListener {
 
   private static final Logger log = LoggerFactory.getLogger(RuleBasedTraceSampler.class);
   private final List<RateSamplingRule> samplingRules;
@@ -47,6 +49,31 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       final List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules,
       final Double defaultRate,
       final int rateLimit) {
+    return build(
+        serviceRules,
+        operationRules,
+        traceSamplingRules,
+        defaultRate,
+        rateLimit,
+        new RateByServiceTraceSampler());
+  }
+
+  /**
+   * Builds a rule based sampler that delegates to {@code fallbackSampler} for spans that match no
+   * rule.
+   *
+   * <p>The fallback is supplied by the caller so that a single agent rate sampler instance can be
+   * shared across sampler rebuilds triggered by remote configuration. That instance is the one
+   * registered to receive agent sampling rates, so reusing it keeps the rates that have already
+   * been learned and keeps the rule miss path connected to the agent.
+   */
+  public static RuleBasedTraceSampler build(
+      @Deprecated final Map<String, String> serviceRules,
+      @Deprecated final Map<String, String> operationRules,
+      final List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules,
+      final Double defaultRate,
+      final int rateLimit,
+      final PrioritySampler fallbackSampler) {
 
     final List<RateSamplingRule> samplingRules = new ArrayList<>();
 
@@ -113,7 +140,31 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       samplingRules.add(samplingRule);
     }
 
-    return new RuleBasedTraceSampler(samplingRules, rateLimit, new RateByServiceTraceSampler());
+    return new RuleBasedTraceSampler(samplingRules, rateLimit, fallbackSampler);
+  }
+
+  /**
+   * Returns the sampler applying agent published rates to spans that match no rule, or {@code null}
+   * when the fallback does not use agent rates.
+   */
+  public RateByServiceTraceSampler agentSampler() {
+    return fallbackSampler instanceof RateByServiceTraceSampler
+        ? (RateByServiceTraceSampler) fallbackSampler
+        : null;
+  }
+
+  /**
+   * Forwards agent sampling rates to the fallback sampler.
+   *
+   * <p>Without this the inner {@link RateByServiceTraceSampler} would never observe the rates
+   * published by the agent, and every span matching no rule would be kept at a rate of 1.0.
+   */
+  @Override
+  public void onResponse(
+      final String endpoint, final Map<String, Map<String, Number>> responseJson) {
+    if (fallbackSampler instanceof RemoteResponseListener) {
+      ((RemoteResponseListener) fallbackSampler).onResponse(endpoint, responseJson);
+    }
   }
 
   private static byte samplingMechanism(SamplingRule.Provenance provenance) {

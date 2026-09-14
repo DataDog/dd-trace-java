@@ -34,6 +34,21 @@ public interface Sampler {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
+      return forConfig(config, traceConfig, new RateByServiceTraceSampler());
+    }
+
+    /**
+     * Builds the sampler described by {@code config} and {@code traceConfig}, using {@code
+     * agentSampler} wherever agent published sampling rates apply.
+     *
+     * <p>Callers that rebuild the sampler when remote configuration changes must pass the same
+     * {@code agentSampler} instance every time: it is the instance registered to receive agent
+     * sampling rates, and a fresh one would silently start over at a rate of 1.0.
+     */
+    public static Sampler forConfig(
+        final Config config,
+        final TraceConfig traceConfig,
+        final RateByServiceTraceSampler agentSampler) {
       Sampler sampler;
       if (config != null) {
         if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
@@ -75,7 +90,8 @@ public interface Sampler {
                     operationRules,
                     traceSamplingRules,
                     traceSampleRate,
-                    config.getTraceRateLimit());
+                    config.getTraceRateLimit(),
+                    agentSampler);
           } catch (final IllegalArgumentException e) {
             log.error("Invalid sampler configuration. Using AllSampler", e);
             sampler = new AllSampler();
@@ -95,7 +111,7 @@ public interface Sampler {
                 "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler.");
             sampler = new ParentBasedAlwaysOnSampler();
           } else {
-            sampler = new RateByServiceTraceSampler();
+            sampler = agentSampler;
           }
         } else if (config.isTraceOtlpExporterEnabled()) {
           // AllSampler does not emit a sampling priority; OTLP export requires one.
