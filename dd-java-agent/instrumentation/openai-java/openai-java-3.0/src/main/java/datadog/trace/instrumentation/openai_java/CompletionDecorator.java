@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.openai_java;
 
 import com.openai.models.completions.Completion;
 import com.openai.models.completions.CompletionCreateParams;
+import com.openai.models.completions.CompletionUsage;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -68,6 +69,8 @@ public class CompletionDecorator {
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
+    completion._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+
     if (!llmObsEnabled) {
       return;
     }
@@ -77,25 +80,18 @@ public class CompletionDecorator {
             .map(v -> LLMObs.LLMMessage.from("", v._text().asString().orElse(null)))
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
+  }
 
-    completion
-        ._usage()
+  private static void withUsage(AgentSpan span, CompletionUsage usage) {
+    usage
+        ._promptTokens()
         .asKnown()
-        .ifPresent(
-            usage -> {
-              usage
-                  ._promptTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
-              usage
-                  ._completionTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
-              usage
-                  ._totalTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
-            });
+        .ifPresent(v -> TokenUsage.set(span, CommonTags.INPUT_TOKENS, v));
+    usage
+        ._completionTokens()
+        .asKnown()
+        .ifPresent(v -> TokenUsage.set(span, CommonTags.OUTPUT_TOKENS, v));
+    usage._totalTokens().asKnown().ifPresent(v -> TokenUsage.set(span, CommonTags.TOTAL_TOKENS, v));
   }
 
   public void withCompletions(AgentSpan span, List<Completion> completions) {
@@ -107,6 +103,9 @@ public class CompletionDecorator {
     String modelName = firstCompletion._model().asString().orElse(null);
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
+
+    Completion lastCompletion = completions.get(completions.size() - 1);
+    lastCompletion._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
 
     if (!llmObsEnabled) {
       return;
@@ -133,26 +132,6 @@ public class CompletionDecorator {
             .map(entry -> LLMObs.LLMMessage.from("", entry.getValue().toString()))
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
-
-    Completion lastCompletion = completions.get(completions.size() - 1);
-    lastCompletion
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              usage
-                  ._promptTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.INPUT_TOKENS, v));
-              usage
-                  ._completionTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.OUTPUT_TOKENS, v));
-              usage
-                  ._totalTokens()
-                  .asKnown()
-                  .ifPresent(v -> span.setTag(CommonTags.TOTAL_TOKENS, v));
-            });
   }
 
   private Optional<String> extractCompletionModelName(CompletionCreateParams params) {

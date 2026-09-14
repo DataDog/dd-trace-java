@@ -14,6 +14,7 @@ import com.openai.models.chat.completions.ChatCompletionMessage;
 import com.openai.models.chat.completions.ChatCompletionMessageParam;
 import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
 import com.openai.models.chat.completions.ChatCompletionTool;
+import com.openai.models.completions.CompletionUsage;
 import datadog.trace.api.Config;
 import datadog.trace.api.llmobs.LLMObs;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -199,6 +200,8 @@ public class ChatCompletionDecorator {
     span.setTag(CommonTags.OPENAI_RESPONSE_MODEL, modelName);
     span.setTag(CommonTags.MODEL_NAME, modelName);
 
+    completion._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+
     if (!llmObsEnabled) {
       return;
     }
@@ -209,20 +212,16 @@ public class ChatCompletionDecorator {
             .filter(Objects::nonNull)
             .collect(Collectors.toList());
     span.setTag(CommonTags.OUTPUT, output);
+  }
 
-    completion
-        ._usage()
-        .asKnown()
-        .ifPresent(
-            usage -> {
-              span.setTag(CommonTags.INPUT_TOKENS, usage.promptTokens());
-              span.setTag(CommonTags.OUTPUT_TOKENS, usage.completionTokens());
-              span.setTag(CommonTags.TOTAL_TOKENS, usage.totalTokens());
-              usage
-                  .promptTokensDetails()
-                  .flatMap(details -> details.cachedTokens())
-                  .ifPresent(v -> span.setTag(CommonTags.CACHE_READ_INPUT_TOKENS, v));
-            });
+  private static void withUsage(AgentSpan span, CompletionUsage usage) {
+    TokenUsage.set(span, CommonTags.INPUT_TOKENS, usage.promptTokens());
+    TokenUsage.set(span, CommonTags.OUTPUT_TOKENS, usage.completionTokens());
+    TokenUsage.set(span, CommonTags.TOTAL_TOKENS, usage.totalTokens());
+    usage
+        .promptTokensDetails()
+        .flatMap(details -> details.cachedTokens())
+        .ifPresent(v -> TokenUsage.set(span, CommonTags.CACHE_READ_INPUT_TOKENS, v));
   }
 
   private static LLMObs.LLMMessage llmMessage(ChatCompletion.Choice choice) {
@@ -260,6 +259,9 @@ public class ChatCompletionDecorator {
 
   public void withChatCompletionChunks(AgentSpan span, List<ChatCompletionChunk> chunks) {
     if (!llmObsEnabled) {
+      for (ChatCompletionChunk chunk : chunks) {
+        chunk._usage().asKnown().ifPresent(usage -> withUsage(span, usage));
+      }
       return;
     }
     ChatCompletionAccumulator accumulator = ChatCompletionAccumulator.create();
