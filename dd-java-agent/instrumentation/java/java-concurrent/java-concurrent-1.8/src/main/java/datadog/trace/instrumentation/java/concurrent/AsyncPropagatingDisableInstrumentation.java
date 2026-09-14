@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPr
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
+import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -64,8 +65,9 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       extendsClass(named("java.net.http.HttpClient"));
   private static final String LETTUCE_HANDSHAKE_HANDLER =
       "io.lettuce.core.protocol.RedisHandshakeHandler";
-  private static final String PEKKO_HTTP_STREAM_STAGE =
-      "org.apache.pekko.http.impl.util.StreamUtils$$anon$4$$anon$5";
+  private static final ElementMatcher<TypeDescription> PEKKO_HTTP_STREAM_STAGE =
+      nameStartsWith("org.apache.pekko.http.impl.util.StreamUtils$")
+          .and(extendsClass(named("org.apache.pekko.stream.stage.GraphStageLogic")));
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -103,7 +105,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask",
       "jdk.internal.net.http.HttpClientImpl",
       LETTUCE_HANDSHAKE_HANDLER,
-      PEKKO_HTTP_STREAM_STAGE,
       "io.netty.util.concurrent.GlobalEventExecutor",
       "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
       "com.linecorp.armeria.client.HttpClientFactory",
@@ -123,7 +124,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
         .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
         .or(RXJAVA3_DISABLED_TYPE_INITIALIZERS)
-        .or(JAVA_HTTP_CLIENT);
+        .or(JAVA_HTTP_CLIENT)
+        .or(PEKKO_HTTP_STREAM_STAGE);
   }
 
   @Override
@@ -217,7 +219,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
     transformer.applyAdvice(
-        named("preStart").and(isDeclaredBy(named(PEKKO_HTTP_STREAM_STAGE))), advice);
+        named("preStart").and(takesNoArguments()).and(isDeclaredBy(PEKKO_HTTP_STREAM_STAGE)),
+        advice);
     // armeria runs its own codec/pipeline, so the active request span captured during connection
     // pool creation and channel connect will have no consumers.
     transformer.applyAdvice(
