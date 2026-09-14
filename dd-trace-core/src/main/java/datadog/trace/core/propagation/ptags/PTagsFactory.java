@@ -254,7 +254,12 @@ public class PTagsFactory implements PropagationTags.Factory {
           nextOtelTraceState = nextOtelTraceState.forNonProbabilityDecision();
         }
       }
-      installSamplingState(samplingPriority, samplingMechanism, nextOtelTraceState);
+      installSamplingState(
+          samplingPriority,
+          samplingMechanism,
+          nextOtelTraceState,
+          getKnuthSamplingRateTagValue(),
+          canChangeDecisionMaker || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE);
       return true;
     }
 
@@ -283,7 +288,11 @@ public class PTagsFactory implements PropagationTags.Factory {
       }
       TagValue nextKnuthSamplingRate = knuthSamplingRateTagValue(sampleRate);
       installSamplingState(
-          samplingPriority, samplingMechanism, nextOtelTraceState, nextKnuthSamplingRate);
+          samplingPriority,
+          samplingMechanism,
+          nextOtelTraceState,
+          nextKnuthSamplingRate,
+          canChangeDecisionMaker || samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE);
       return true;
     }
 
@@ -299,17 +308,22 @@ public class PTagsFactory implements PropagationTags.Factory {
     private void installSamplingState(
         int samplingPriority, int samplingMechanism, OtelTraceState nextOtelTraceState) {
       installSamplingState(
-          samplingPriority, samplingMechanism, nextOtelTraceState, getKnuthSamplingRateTagValue());
+          samplingPriority,
+          samplingMechanism,
+          nextOtelTraceState,
+          getKnuthSamplingRateTagValue(),
+          true);
     }
 
     private void installSamplingState(
         int samplingPriority,
         int samplingMechanism,
         OtelTraceState nextOtelTraceState,
-        TagValue nextKnuthSamplingRateTagValue) {
+        TagValue nextKnuthSamplingRateTagValue,
+        boolean updateDecisionMaker) {
       clearCachedHeader(W3C);
       TagValue nextDecisionMakerTagValue = getDecisionMakerTagValue();
-      if (samplingPriority > 0) {
+      if (updateDecisionMaker && samplingPriority > 0) {
         // TODO should try to keep the old sampling mechanism if we override the value?
         if (samplingMechanism == SamplingMechanism.EXTERNAL_OVERRIDE) {
           // There is no specific value for the EXTERNAL_OVERRIDE, so say that it's the DEFAULT
@@ -326,7 +340,7 @@ public class PTagsFactory implements PropagationTags.Factory {
           }
           nextDecisionMakerTagValue = newDM;
         }
-      } else {
+      } else if (updateDecisionMaker) {
         // Drop the decision maker tag
         if (nextDecisionMakerTagValue != null) {
           // This should invalidate any cached w3c and datadog header

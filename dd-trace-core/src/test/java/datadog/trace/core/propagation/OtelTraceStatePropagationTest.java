@@ -6,6 +6,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
 import static datadog.trace.api.sampling.SamplingMechanism.EXTERNAL_OVERRIDE;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -87,6 +88,33 @@ class OtelTraceStatePropagationTest {
         tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.1, false, 2L, false));
 
     assertEquals(established, tags.samplingState());
+  }
+
+  @Test
+  void atomicPriorityUpdatePreservesLockedDecisionMaker() {
+    PropagationTags tags =
+        PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=934086a686-4");
+
+    assertTrue(tags.tryUpdateTraceSamplingPriority(SAMPLER_KEEP, AGENT_RATE, false));
+
+    SamplingState state = tags.samplingState();
+    assertEquals(SAMPLER_KEEP, state.getSamplingPriority());
+    assertEquals("934086a686-4", state.getDecisionMaker().toString());
+  }
+
+  @Test
+  void atomicProbabilityUpdatePreservesLockedDecisionMaker() {
+    PropagationTags tags =
+        PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=934086a686-4");
+
+    assertTrue(
+        tags.tryUpdateProbabilitySamplingDecision(SAMPLER_DROP, AGENT_RATE, 0.5, false, 1L, false));
+
+    SamplingState state = tags.samplingState();
+    assertEquals(SAMPLER_DROP, state.getSamplingPriority());
+    assertEquals("934086a686-4", state.getDecisionMaker().toString());
+    assertEquals("0.5", state.getKnuthSamplingRate().toString());
+    assertTrue(state.getOtelTraceState().toString().matches("rv:[0-9a-f]{14};th:8"));
   }
 
   @Test
