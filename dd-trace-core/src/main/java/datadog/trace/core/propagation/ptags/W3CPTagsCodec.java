@@ -51,6 +51,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int memberIndex = 0;
     int ddMemberIndex = -1;
     OtelTraceState otelTraceState = null;
+    int otherMemberPosition = 0;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
@@ -69,27 +70,31 @@ public class W3CPTagsCodec extends PTagsCodec {
         return tagsFactory.empty();
       }
 
+      // Keep detecting duplicate dd members until ot is found because injection drops them,
+      // so they must not advance its saved position.
       boolean datadogMember =
-          ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
+          (ddMemberIndex == -1 || otelTraceState == null)
+              && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
       boolean otelMember =
           !datadogMember
               && otelTraceState == null
               && value.startsWith(OTEL_MEMBER_KEY, memberStart);
       if (datadogMember) {
-        ddMemberStart = memberStart;
-        ddMemberValueStart = memberValueStart;
-        ddMemberIndex = memberIndex;
-        ddMemberValueEnd = memberValueEnd;
+        if (ddMemberIndex == -1) {
+          ddMemberStart = memberStart;
+          ddMemberValueStart = memberValueStart;
+          ddMemberIndex = memberIndex;
+          ddMemberValueEnd = memberValueEnd;
+        }
       } else if (otelMember) {
-        // Position to retain for this member (if left unchanged)
-        // Indexing after an eventual dd= member which will be placed first
-        int memberPosition = memberIndex - (ddMemberStart >= 0 ? 1 : 0);
         otelTraceState =
             OtelTraceState.parse(
                 value.substring(
                     memberValueStart, stripTrailingOWC(value, memberValueStart, memberValueEnd)),
-                memberPosition,
+                otherMemberPosition,
                 memberContributionSize(value, firstMemberStart, memberStart, memberValueEnd));
+      } else if (otelTraceState == null) {
+        otherMemberPosition++;
       }
 
       memberIndex++;
