@@ -144,14 +144,20 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   @TableTest({
-    "scenario           | gradleVersion | projectName              | expectedTraces",
-    "robolectric-latest | latest        | test-succeed-robolectric | 7             "
+    "scenario           | gradleVersion | robolectricVersion | expectedVersion | projectName              | expectedTraces",
+    "robolectric-4.16   | latest        | 4.16.1             | 4.16.1          | test-succeed-robolectric | 7             ",
+    "robolectric-latest | latest        | +                  | any             | test-succeed-robolectric | 7             "
   })
   @ParameterizedTest
-  void testRobolectric(String gradleVersion, String projectName, int expectedTraces)
+  void testRobolectric(
+      String gradleVersion,
+      String robolectricVersion,
+      String expectedVersion,
+      String projectName,
+      int expectedTraces)
       throws IOException {
     Assumptions.assumeTrue(
-        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric 4.17 supports JDK 17-21");
+        JavaVirtualMachine.isJavaVersionBetween(17, 22), "Robolectric supports JDK 17-21");
     Assumptions.assumeFalse(
         OperatingSystem.architecture().isArm64(),
         "Robolectric does not support arm64 (missing native runtime binaries, follow https://github.com/robolectric/robolectric/issues/9166)");
@@ -163,15 +169,42 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleProjectProperties();
     ensureDependenciesDownloaded(gradleVersion);
 
-    BuildResult buildResult = runGradleTests(gradleVersion, true, false);
+    BuildResult buildResult =
+        runGradleTests(gradleVersion, true, false, "-ProbolectricVersion=" + robolectricVersion);
     assertBuildSuccessful(buildResult);
 
+    List<? extends Map<?, ?>> events = mockBackend.waitForEvents(expectedTraces);
+    assertRobolectricVersion(events, expectedVersion);
     verifyEventsAndCoverages(
         projectName,
         "gradle",
         gradleVersion,
-        mockBackend.waitForEvents(expectedTraces),
-        mockBackend.waitForCoverages(0));
+        events,
+        mockBackend.waitForCoverages(0),
+        Collections.singletonList("content.meta.['test.android.robolectric.version']"));
+  }
+
+  private static void assertRobolectricVersion(
+      List<? extends Map<?, ?>> events, String expectedVersion) {
+    int taggedEvents = 0;
+    for (Map<?, ?> event : events) {
+      Object content = event.get("content");
+      if (!(content instanceof Map)) {
+        continue;
+      }
+      Object meta = ((Map<?, ?>) content).get("meta");
+      if (!(meta instanceof Map)) {
+        continue;
+      }
+      Object version = ((Map<?, ?>) meta).get("test.android.robolectric.version");
+      if (version != null) {
+        if (!"any".equals(expectedVersion)) {
+          assertEquals(expectedVersion, version);
+        }
+        taggedEvents++;
+      }
+    }
+    assertEquals(2, taggedEvents);
   }
 
   @TableTest({
@@ -371,7 +404,17 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private BuildResult runGradleTests(
       String gradleVersion, boolean successExpected, boolean configurationCache)
       throws IOException {
+    return runGradleTests(gradleVersion, successExpected, configurationCache, new String[0]);
+  }
+
+  private BuildResult runGradleTests(
+      String gradleVersion,
+      boolean successExpected,
+      boolean configurationCache,
+      String... additionalArguments)
+      throws IOException {
     List<String> arguments = new java.util.ArrayList<>(Arrays.asList("test", "--stacktrace"));
+    arguments.addAll(Arrays.asList(additionalArguments));
     if (gradleVersion.compareTo("4.5") > 0) {
       // warning mode available starting from Gradle 4.5
       arguments.addAll(Arrays.asList("--warning-mode", "all"));
