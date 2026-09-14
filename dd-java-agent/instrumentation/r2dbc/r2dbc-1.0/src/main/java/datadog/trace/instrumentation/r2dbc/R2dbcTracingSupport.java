@@ -31,6 +31,15 @@ public final class R2dbcTracingSupport {
 
   public static ConnectionFactory wrapConnectionFactory(
       ConnectionFactory factory, ConnectionFactoryOptions options) {
+    // r2dbc-proxy is bundled as a real dependency (see build.gradle), so its own
+    // ConnectionFactoryProvider is discoverable by ConnectionFactories.find() like any
+    // other driver. If an application itself requests DRIVER="proxy" (r2dbc-proxy's own
+    // URL scheme), find() already returns an r2dbc-proxy-wrapped factory — wrapping it
+    // again here would double the query listener callbacks (duplicate spans).
+    if ("proxy".equals(options.getValue(ConnectionFactoryOptions.DRIVER))) {
+      return factory;
+    }
+
     TraceProxyExecutionListener queryListener = new TraceProxyExecutionListener(options);
     ConnectionMetadataListener metadataListener = new ConnectionMetadataListener(options);
 
