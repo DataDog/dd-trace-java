@@ -119,6 +119,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile TagValue orgPropagationMarkerTagValue;
 
+    private volatile OtelTraceState otelTraceState;
+
     /**
      * The LLM Observability propagation tags, held as one immutable bundle. Never {@code null} —
      * {@link LLMObsTagValues#EMPTY} means "none".
@@ -695,7 +697,34 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateW3CTracestate(String tracestate) {
+      setW3CTracestate(tracestate, W3CPTagsCodec.extractOtelTraceState(tracestate));
+    }
+
+    @Override
+    public void updateW3CTracestateFrom(PropagationTags source) {
+      if (!(source instanceof PTags)) {
+        super.updateW3CTracestateFrom(source);
+        return;
+      }
+      PTags sourcePTags = (PTags) source;
+      setW3CTracestate(sourcePTags.tracestate, sourcePTags.getOtelTraceState());
+    }
+
+    private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
+      clearCachedHeader(W3C);
       this.tracestate = tracestate;
+      this.otelTraceState = otelTraceState;
+    }
+
+    OtelTraceState getOtelTraceState() {
+      return otelTraceState;
+    }
+
+    void setOtelTraceState(OtelTraceState otelTraceState) {
+      if (this.otelTraceState != otelTraceState) {
+        this.otelTraceState = otelTraceState;
+        clearCachedHeader(W3C);
+      }
     }
 
     String getError() {

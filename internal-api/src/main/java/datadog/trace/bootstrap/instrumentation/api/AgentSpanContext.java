@@ -56,6 +56,15 @@ public interface AgentSpanContext {
   default void setIntegrationName(CharSequence componentName) {}
 
   /**
+   * The integration name recorded on this context, or {@code null} if none. Default {@code null}
+   * mirrors {@link #setIntegrationName}'s no-op default: contexts that do not track an integration
+   * name report absence, which lets never-clobber callers guard before setting.
+   */
+  default CharSequence getIntegrationName() {
+    return null;
+  }
+
+  /**
    * Gets the LLM Observability {@code ml_app} that arrived on the inbound headers, or {@code null}
    * if none did or this context implementation doesn't have propagation-tags access.
    *
