@@ -9,6 +9,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
+import datadog.trace.util.SubSequence;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -50,7 +51,10 @@ public class W3CPTagsCodec extends PTagsCodec {
     int ddMemberValueEnd = -1; // dd member value end position including OWS (exclusive)
     int memberIndex = 0;
     int ddMemberIndex = -1;
-    OtelTraceState otelTraceState = null;
+    int otelMemberStart = -1;
+    int otelMemberValueStart = -1;
+    int otelMemberValueEnd = -1;
+    int otelMemberPosition = -1;
     int otherMemberPosition = 0;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
@@ -73,12 +77,10 @@ public class W3CPTagsCodec extends PTagsCodec {
       // Keep detecting duplicate dd members until ot is found because injection drops them,
       // so they must not advance its saved position.
       boolean datadogMember =
-          (ddMemberIndex == -1 || otelTraceState == null)
+          (ddMemberIndex == -1 || otelMemberStart == -1)
               && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
       boolean otelMember =
-          !datadogMember
-              && otelTraceState == null
-              && value.startsWith(OTEL_MEMBER_KEY, memberStart);
+          !datadogMember && otelMemberStart == -1 && value.startsWith(OTEL_MEMBER_KEY, memberStart);
       if (datadogMember) {
         if (ddMemberIndex == -1) {
           ddMemberStart = memberStart;
@@ -87,13 +89,11 @@ public class W3CPTagsCodec extends PTagsCodec {
           ddMemberValueEnd = memberValueEnd;
         }
       } else if (otelMember) {
-        otelTraceState =
-            OtelTraceState.parse(
-                value.substring(
-                    memberValueStart, stripTrailingOWC(value, memberValueStart, memberValueEnd)),
-                otherMemberPosition,
-                memberContributionSize(value, firstMemberStart, memberStart, memberValueEnd));
-      } else if (otelTraceState == null) {
+        otelMemberStart = memberStart;
+        otelMemberValueStart = memberValueStart;
+        otelMemberValueEnd = memberValueEnd;
+        otelMemberPosition = otherMemberPosition;
+      } else if (otelMemberStart == -1) {
         otherMemberPosition++;
       }
 
@@ -103,6 +103,16 @@ public class W3CPTagsCodec extends PTagsCodec {
         // TODO should we return one with an error?
         return tagsFactory.empty();
       }
+    }
+
+    OtelTraceState otelTraceState = null;
+    if (otelMemberStart != -1) {
+      int valueEnd = stripTrailingOWC(value, otelMemberValueStart, otelMemberValueEnd);
+      otelTraceState =
+          OtelTraceState.parse(
+              SubSequence.of(value, otelMemberValueStart, valueEnd),
+              otelMemberPosition,
+              memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd));
     }
 
     if (ddMemberIndex == -1) {
@@ -789,7 +799,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     sb.append(member, start, end);
   }
 
-  private static void appendMember(StringBuilder sb, String key, String value) {
+  private static void appendMember(StringBuilder sb, String key, CharSequence value) {
     if (sb.length() != 0) {
       sb.append(MEMBER_SEPARATOR);
     }
@@ -803,6 +813,9 @@ public class W3CPTagsCodec extends PTagsCodec {
     int otherMemberPosition = 0;
     int firstMemberStart = findNextMember(tracestate, 0);
     int memberStart = firstMemberStart;
+    int otelMemberStart = -1;
+    int otelMemberValueStart = -1;
+    int otelMemberValueEnd = -1;
     while (memberStart < tracestate.length()) {
       int memberValueStart = validateMemberKey(tracestate, memberStart);
       if (memberValueStart < 0) {
@@ -813,18 +826,24 @@ public class W3CPTagsCodec extends PTagsCodec {
         return null;
       }
       if (tracestate.startsWith(OTEL_MEMBER_KEY, memberStart)) {
-        int end = stripTrailingOWC(tracestate, memberValueStart, memberValueEnd);
-        return OtelTraceState.parse(
-            tracestate.substring(memberValueStart, end),
-            otherMemberPosition,
-            memberContributionSize(tracestate, firstMemberStart, memberStart, memberValueEnd));
+        otelMemberStart = memberStart;
+        otelMemberValueStart = memberValueStart;
+        otelMemberValueEnd = memberValueEnd;
+        break;
       }
       if (!tracestate.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
         otherMemberPosition++;
       }
       memberStart = findNextMember(tracestate, memberValueEnd);
     }
-    return null;
+    if (otelMemberStart == -1) {
+      return null;
+    }
+    int valueEnd = stripTrailingOWC(tracestate, otelMemberValueStart, otelMemberValueEnd);
+    return OtelTraceState.parse(
+        SubSequence.of(tracestate, otelMemberValueStart, valueEnd),
+        otherMemberPosition,
+        memberContributionSize(tracestate, firstMemberStart, otelMemberStart, otelMemberValueEnd));
   }
 
   private static int memberContributionSize(

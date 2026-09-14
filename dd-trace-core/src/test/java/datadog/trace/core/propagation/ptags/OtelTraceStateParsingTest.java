@@ -3,7 +3,9 @@ package datadog.trace.core.propagation.ptags;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
+import datadog.trace.util.SubSequence;
 import org.junit.jupiter.api.Test;
 
 class OtelTraceStateParsingTest {
@@ -19,11 +21,12 @@ class OtelTraceStateParsingTest {
 
   @Test
   void retainsValueAndMemberMetadata() {
+    SubSequence value = SubSequence.of(VALUE, 0, VALUE.length());
     OtelTraceState state =
-        OtelTraceState.parse(VALUE, INHERITED_POSITION, ORIGINAL_MEMBER_CONTRIBUTION_SIZE);
+        OtelTraceState.parse(value, INHERITED_POSITION, ORIGINAL_MEMBER_CONTRIBUTION_SIZE);
 
     assertNotNull(state);
-    assertEquals(VALUE, state.getValue());
+    assertSame(value, state.getValue());
     assertEquals(VALUE.length(), state.length());
     assertEquals(INHERITED_POSITION, state.getOriginalPosition());
     assertEquals(ORIGINAL_MEMBER_CONTRIBUTION_SIZE, state.getOriginalSize());
