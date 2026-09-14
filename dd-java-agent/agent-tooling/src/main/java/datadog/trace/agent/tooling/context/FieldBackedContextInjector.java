@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling.context;
 import static datadog.trace.bootstrap.FieldBackedContextStores.getContextStoreId;
 import static datadog.trace.util.Strings.getInternalName;
 
+import datadog.instrument.fieldinject.GlobalObjectStore;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
@@ -48,7 +49,12 @@ public final class FieldBackedContextInjector implements AsmVisitorWrapper {
   static final String PUTTER_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(Type.VOID_TYPE, Type.INT_TYPE, Type.getType(Object.class));
 
-  static final String WEAK_REDIRECT_CLASS = getInternalName(WeakMapPerStore.class.getName());
+  static final String WEAK_REDIRECT_CLASS =
+      getInternalName(
+          (InstrumenterConfig.get().isRuntimeContextMapPerStore()
+                  ? WeakMapPerStore.class
+                  : GlobalObjectStore.class)
+              .getName());
 
   static final String WEAK_GET_METHOD_DESCRIPTOR =
       Type.getMethodDescriptor(

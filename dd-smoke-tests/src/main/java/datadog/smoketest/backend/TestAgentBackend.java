@@ -1,9 +1,7 @@
 package datadog.smoketest.backend;
 
 import static datadog.smoketest.backend.AgentBackendMessages.decodeMessages;
-import static java.lang.String.join;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Arrays.asList;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
@@ -64,14 +62,8 @@ public final class TestAgentBackend extends AgentBackend {
   /**
    * Trace-invariant checks enabled by default, mirroring the CI sidecar in {@code .gitlab-ci.yml}.
    */
-  private static final List<String> DEFAULT_ENABLED_CHECKS =
-      asList(
-          "trace_content_length",
-          "trace_stall",
-          "meta_tracer_version_header",
-          "trace_count_header",
-          "trace_peer_service",
-          "trace_dd_service");
+  private static final String ENABLED_CHECKS =
+      "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service";
 
   private static final MediaType JSON = MediaType.parse("application/json");
 
@@ -86,7 +78,6 @@ public final class TestAgentBackend extends AgentBackend {
   private final String image;
   private final String externalHost; // null => Testcontainers-managed container
   private final int externalPort;
-  private final List<String> enabledChecks;
   private final boolean retainAcrossTests;
   private final String sessionToken;
 
@@ -100,7 +91,6 @@ public final class TestAgentBackend extends AgentBackend {
     this.image = builder.image;
     this.externalHost = builder.externalHost;
     this.externalPort = builder.externalPort;
-    this.enabledChecks = new ArrayList<>(builder.enabledChecks);
     this.retainAcrossTests = builder.retainAcrossTests;
     this.sessionToken =
         builder.sessionToken != null ? builder.sessionToken : "smoke-" + UUID.randomUUID();
@@ -145,7 +135,7 @@ public final class TestAgentBackend extends AgentBackend {
     } else {
       GenericContainer<?> started = new GenericContainer<>(DockerImageName.parse(this.image));
       started.withExposedPorts(AGENT_PORT);
-      started.withEnv("ENABLED_CHECKS", join(",", this.enabledChecks));
+      started.withEnv("ENABLED_CHECKS", ENABLED_CHECKS);
       started.withEnv("TRACE_LANGUAGE", "java");
       started.withEnv("DD_POOL_TRACE_CHECK_FAILURES", "true");
       started.withEnv("DD_DISABLE_ERROR_RESPONSES", "true");
@@ -398,7 +388,6 @@ public final class TestAgentBackend extends AgentBackend {
     private String image;
     private String externalHost;
     private int externalPort;
-    private final List<String> enabledChecks;
     private boolean retainAcrossTests;
     private String sessionToken;
 
@@ -413,7 +402,6 @@ public final class TestAgentBackend extends AgentBackend {
         this.image = defaultImage();
       }
       this.externalPort = AGENT_PORT;
-      this.enabledChecks = new ArrayList<>(DEFAULT_ENABLED_CHECKS);
     }
 
     /**
@@ -426,18 +414,6 @@ public final class TestAgentBackend extends AgentBackend {
       this.image = image;
       this.externalHost = null;
       this.externalPort = 0;
-      return this;
-    }
-
-    /**
-     * Overrides the enabled trace-invariant checks ({@code ENABLED_CHECKS}).
-     *
-     * @param checks The check names to enable (replacing the defaults).
-     * @return This builder, for chaining.
-     */
-    public Builder enabledChecks(String... checks) {
-      this.enabledChecks.clear();
-      this.enabledChecks.addAll(asList(checks));
       return this;
     }
 

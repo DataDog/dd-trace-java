@@ -1,12 +1,14 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
 import static java.lang.String.format;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.StringTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
@@ -25,10 +27,10 @@ import com.squareup.moshi.JsonWriter;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -509,7 +511,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
+      boolean sampled = ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
+      if (!sampled) {
+        DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
+      }
+      return sampled;
     }
     return true;
   }
@@ -583,13 +589,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         !logStatus.getDebugSessionStatus().isDisabled()
             && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
     logStatus.setSampled(sampled);
-    if (!sampled) {
-      DebuggerAgent.getSink()
-          .skipSnapshot(
-              id,
-              logStatus.getDebugSessionStatus().isDisabled()
-                  ? DebuggerContext.SkipCause.DEBUG_SESSION_DISABLED
-                  : DebuggerContext.SkipCause.RATE);
+    if (!sampled && !logStatus.getDebugSessionStatus().isDisabled()) {
+      DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
     }
   }
 
@@ -603,6 +604,12 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       if (!probeCondition.execute(capture, timeoutChecker)) {
         return false;
       }
+    } catch (EvaluationTimeOutException ex) {
+      DebuggerAgent.getSink()
+          .skipSnapshot(id, DebuggerMetricCollector.SkippedReason.EVALUATION_TIME_OUT);
+      status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+      status.setConditionErrors(true);
+      return false;
     } catch (EvaluationException ex) {
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
@@ -631,11 +638,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         if (snapshotProcessor != null) {
           snapshotProcessor.accept(snapshot);
         }
-      } else {
-        sink.skipSnapshot(id, DebuggerContext.SkipCause.BUDGET);
       }
-    } else {
-      sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
     }
   }
 
@@ -857,7 +860,6 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         return;
       }
     }
-    sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
   }
 
   @Override

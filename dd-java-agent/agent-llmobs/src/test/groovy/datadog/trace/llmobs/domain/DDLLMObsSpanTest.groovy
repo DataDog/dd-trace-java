@@ -46,6 +46,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
   void setup() {
     assert TEST_TRACER.activeSpan() == null: "Span is active before test has started: " + TEST_TRACER.activeSpan()
     TEST_TRACER.flush()
+    LLMObsMetricCollector.get().resetForTesting()
   }
 
   void cleanup() {
@@ -626,10 +627,10 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "finish records span.finished telemetry when LLMObs enabled"() {
     setup:
     LLMObsMetricCollector collector = LLMObsMetricCollector.get()
-    collector.drain()
 
     when:
     llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "workflow-span").finish()
+    collector.prepareMetrics()
 
     then:
     def metrics = collector.drain()
@@ -650,12 +651,12 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "finish records span.finished telemetry for non-root span when LLMObs enabled"() {
     setup:
     LLMObsMetricCollector collector = LLMObsMetricCollector.get()
-    collector.drain()
 
     when:
     runUnderTrace("parent") {
       llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm").finish()
     }
+    collector.prepareMetrics()
 
     then:
     def metrics = collector.drain()
@@ -676,10 +677,10 @@ class DDLLMObsSpanTest  extends DDSpecification{
   def "span has expected session tag and telemetry has #expectedHasSessionIdTag"() {
     setup:
     LLMObsMetricCollector collector = LLMObsMetricCollector.get()
-    collector.drain()
 
     when:
     llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "workflow-span", sessionId).finish()
+    collector.prepareMetrics()
 
     then:
     def metrics = collector.drain()

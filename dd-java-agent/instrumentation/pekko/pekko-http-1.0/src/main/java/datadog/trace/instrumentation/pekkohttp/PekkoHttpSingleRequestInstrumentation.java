@@ -115,6 +115,9 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(
         @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+      if (request == null) {
+        return;
+      }
       final PekkoHttpHeaders headers = new PekkoHttpHeaders(request);
       DECORATE.injectContext(currentContext(), request, headers);
       request = headers.getRequest();
