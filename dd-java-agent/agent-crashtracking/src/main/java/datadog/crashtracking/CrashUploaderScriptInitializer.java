@@ -161,6 +161,11 @@ public final class CrashUploaderScriptInitializer {
           bw.write(template(line, execClass, crashFile));
           bw.newLine();
         }
+      } catch (IOException e) {
+        // fail closed: never leave a partially written script that a later JVM start would
+        // silently reuse (it passes isSafeToRepair because it carries no group/world write bits)
+        scriptFile.delete();
+        throw e;
       }
       // fail closed: never leave a freshly written script we could not lock down
       if (!restrictScriptToOwnerOnly(scriptFile)) {
