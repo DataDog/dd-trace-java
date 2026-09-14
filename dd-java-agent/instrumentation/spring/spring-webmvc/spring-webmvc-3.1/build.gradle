@@ -36,7 +36,7 @@ muzzle {
 }
 
 addTestSuite("latestDepTest")
-addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "latestDepTest")
+addForkedTestTask("latestDepTest")
 
 dependencies {
   compileOnly group: 'org.springframework', name: 'spring-webmvc', version: '3.1.0.RELEASE'

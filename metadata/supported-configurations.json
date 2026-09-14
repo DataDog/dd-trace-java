@@ -1188,6 +1188,14 @@
         "aliases": []
       }
     ],
+    "DD_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_DBM_TRACE_PREPARED_STATEMENTS": [
       {
         "version": "A",
@@ -2329,6 +2337,14 @@
         "version": "B",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_LLMOBS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
         "aliases": []
       }
     ],

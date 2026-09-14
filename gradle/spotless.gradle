@@ -11,16 +11,16 @@ def scriptApplyExceptions = [
   'gradle/publish.gradle': [':dd-java-agent'] as Set,
 ]
 boolean forbidLegacyScriptApplies = project.rootProject.name == 'dd-trace-java'
-def javaGradleApplyLinePattern = ~/^\s*(?:\w+\.)?apply(?:\s+from\s*:|\s*\(\s*from\s*=).*/
-// Script plugins that must be applied through a 'dd-trace-java.module.*' convention plugin instead.
+def legacyScriptApplyLinePattern = ~/^\s*(?:\w+\.)?apply(?:\s+from\s*:|\s*\(\s*from\s*=).*/
+// Script plugins that must be replaced by their corresponding convention plugins.
 def forbiddenScriptApplies = [
-  'gradle/java.gradle'   : 'Apply a \'dd-trace-java.module.*\' convention plugin instead of applying the script plugin \'gradle/java.gradle\' directly.',
+  'gradle/java.gradle'   : 'Apply the \'dd-trace-java.conventions.java\' convention plugin instead of applying the script plugin \'gradle/java.gradle\' directly.',
   'gradle/publish.gradle': 'Apply the \'dd-trace-java.module.distributable.*\' convention plugin instead of applying the script plugin \'gradle/publish.gradle\' directly.',
 ]
 def forbidLegacyScriptApplyStep = { String text ->
   if (forbidLegacyScriptApplies) {
     text.readLines().each { line ->
-      if (javaGradleApplyLinePattern.matcher(line).matches()) {
+      if (legacyScriptApplyLinePattern.matcher(line).matches()) {
         forbiddenScriptApplies.each { script, message ->
           if (line.contains(script) && !scriptApplyExceptions.getOrDefault(script, []).contains(project.path)) {
             throw new AssertionError(message)

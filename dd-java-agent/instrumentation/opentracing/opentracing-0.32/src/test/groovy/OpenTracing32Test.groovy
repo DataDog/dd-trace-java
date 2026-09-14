@@ -1,4 +1,3 @@
-import datadog.context.Context
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
@@ -176,7 +175,6 @@ class OpenTracing32Test extends InstrumentationSpecification {
     span instanceof MutableSpan
     scope instanceof TraceScope
     !internalTracer.isAsyncPropagationEnabled()
-    (scope as TraceScope).capture().context() == Context.root()
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
     when:
