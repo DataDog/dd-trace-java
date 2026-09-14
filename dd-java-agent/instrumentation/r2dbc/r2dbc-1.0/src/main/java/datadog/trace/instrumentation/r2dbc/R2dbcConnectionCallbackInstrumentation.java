@@ -49,7 +49,10 @@ public class R2dbcConnectionCallbackInstrumentation extends InstrumenterModule.T
       "io.r2dbc.proxy.callback.CallbackHandlerSupport",
       "io.r2dbc.proxy.callback.BatchCallbackHandler",
       "io.r2dbc.proxy.callback.CallbackHandlerSupport$MethodInvocationStrategy",
-      "io.r2dbc.proxy.callback.ConnectionCallbackHandler",
+      // ConnectionCallbackHandler is intentionally excluded: it is this module's
+      // instrumentedType(), so ByteBuddy already defines it on the target classloader.
+      // Listing it here would inject a second, redundant definition of the class
+      // currently being transformed.
       "io.r2dbc.proxy.callback.ConnectionFactoryCallbackHandler",
       "io.r2dbc.proxy.callback.MethodInvocationSubscriber",
       "io.r2dbc.proxy.callback.ConnectionFactoryCreateMethodInvocationSubscriber",
