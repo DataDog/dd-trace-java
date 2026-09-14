@@ -169,8 +169,9 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     givenGradleProjectProperties();
     ensureDependenciesDownloaded(gradleVersion);
 
-    BuildResult buildResult =
-        runGradleTests(gradleVersion, true, false, "-ProbolectricVersion=" + robolectricVersion);
+    Map<String, String> additionalEnvVars =
+        Collections.singletonMap("SMOKE_TEST_ROBOLECTRIC_VERSION", robolectricVersion);
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false, additionalEnvVars);
     assertBuildSuccessful(buildResult);
 
     List<? extends Map<?, ?>> events = mockBackend.waitForEvents(expectedTraces);
@@ -404,17 +405,17 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private BuildResult runGradleTests(
       String gradleVersion, boolean successExpected, boolean configurationCache)
       throws IOException {
-    return runGradleTests(gradleVersion, successExpected, configurationCache, new String[0]);
+    return runGradleTests(
+        gradleVersion, successExpected, configurationCache, Collections.emptyMap());
   }
 
   private BuildResult runGradleTests(
       String gradleVersion,
       boolean successExpected,
       boolean configurationCache,
-      String... additionalArguments)
+      Map<String, String> additionalEnvVars)
       throws IOException {
     List<String> arguments = new java.util.ArrayList<>(Arrays.asList("test", "--stacktrace"));
-    arguments.addAll(Arrays.asList(additionalArguments));
     if (gradleVersion.compareTo("4.5") > 0) {
       // warning mode available starting from Gradle 4.5
       arguments.addAll(Arrays.asList("--warning-mode", "all"));
@@ -422,7 +423,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     if (configurationCache) {
       arguments.addAll(Arrays.asList("--configuration-cache", "--rerun-tasks"));
     }
-    return runGradle(gradleVersion, arguments, successExpected);
+    return runGradle(gradleVersion, arguments, successExpected, additionalEnvVars);
   }
 
   /**
@@ -460,6 +461,15 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
+    return runGradle(gradleVersion, arguments, successExpected, Collections.emptyMap());
+  }
+
+  private BuildResult runGradle(
+      String gradleVersion,
+      List<String> arguments,
+      boolean successExpected,
+      Map<String, String> additionalEnvVars)
+      throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
     buildEnv.put("GRADLE_ARGS", "");
     buildEnv.put("GRADLE_OPTS", "");
@@ -468,6 +478,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     buildEnv.put(
         GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,
         GradleDistribution.uriFor(gradleVersion).toString());
+    buildEnv.putAll(additionalEnvVars);
 
     String mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY");
     if (mavenRepositoryProxy != null) {
