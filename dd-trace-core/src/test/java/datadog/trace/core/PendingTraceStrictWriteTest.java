@@ -15,7 +15,7 @@ public class PendingTraceStrictWriteTest extends PendingTraceTestBase {
   @Test
   void traceNotReportedUntilContinuationClosed() throws InterruptedException {
     AgentScope scope = tracer.activateSpan(rootSpan);
-    ContextContinuation continuation = tracer.captureActiveSpan();
+    ContextContinuation continuation = tracer.capture(rootSpan);
     scope.close();
     rootSpan.finish();
 
@@ -41,7 +41,7 @@ public class PendingTraceStrictWriteTest extends PendingTraceTestBase {
   @Test
   void negativeReferenceCountThrowsException() {
     AgentScope scope = tracer.activateSpan(rootSpan);
-    ContextContinuation continuation = tracer.captureActiveSpan();
+    ContextContinuation continuation = tracer.capture(rootSpan);
     scope.close();
     rootSpan.finish();
 
