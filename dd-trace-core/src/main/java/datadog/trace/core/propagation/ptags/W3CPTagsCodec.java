@@ -73,16 +73,15 @@ public class W3CPTagsCodec extends PTagsCodec {
         return tagsFactory.empty();
       }
 
-      boolean datadogMember = value.startsWith(DATADOG_MEMBER_KEY, memberStart);
+      boolean datadogMember = ddMemberIndex == -1 && value.startsWith(DATADOG_MEMBER_KEY, memberStart);
       boolean otelMember =
           !datadogMember && otelMemberStart == -1 && value.startsWith(OTEL_MEMBER_KEY, memberStart);
       if (datadogMember) {
-        if (ddMemberIndex == -1) {
-          ddMemberStart = memberStart;
-          ddMemberValueStart = memberValueStart;
-          ddMemberIndex = memberIndex;
-          ddMemberValueEnd = memberValueEnd;
-        }
+        ddMemberStart = memberStart;
+        ddMemberValueStart = memberValueStart;
+        ddMemberIndex = memberIndex;
+        ddMemberValueEnd = memberValueEnd;
+
       } else if (otelMember) {
         otelMemberStart = memberStart;
         otelMemberValueStart = memberValueStart;
@@ -758,6 +757,7 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       boolean datadogMember = original.startsWith(DATADOG_MEMBER_KEY, memberStart);
       boolean managedMember = datadogMember || original.startsWith(OTEL_MEMBER_KEY, memberStart);
+      // offset to correct for dd members that were dropped/relocated before ot's original position
       if (datadogMember && originalMemberPosition < otelMemberOriginalPosition) {
         otelMemberPositionOffset++;
       }
