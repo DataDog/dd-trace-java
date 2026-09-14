@@ -281,6 +281,12 @@ class SmokeTestAppEndToEndTest {
     )
     writeInnerSettings(
       """
+      pluginManagement {
+        repositories {
+          mavenCentral()
+        }
+      }
+
       gradle.settingsEvaluated {
         val outputDir = java.io.File(providers.gradleProperty("appBuildDir").get())
         outputDir.mkdirs()
@@ -295,6 +301,7 @@ class SmokeTestAppEndToEndTest {
     writeInnerBuild(
       """
       repositories {
+        mavenCentral()
         maven {
           url = uri("${projectRepository.toURI()}")
         }
