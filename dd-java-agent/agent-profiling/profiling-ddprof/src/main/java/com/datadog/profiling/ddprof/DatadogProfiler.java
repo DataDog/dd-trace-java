@@ -367,6 +367,10 @@ public final class DatadogProfiler {
     return profiler.execute(cmd);
   }
 
+  Path newSnapshotFile() throws IOException {
+    return Files.createTempFile(recordingsPath, "dd-profiler-snapshot-", ".jfr");
+  }
+
   Path newRecording() throws IOException, IllegalStateException {
     if (recordingFlag.compareAndSet(false, true)) {
       Path recFile = Files.createTempFile(recordingsPath, "dd-profiler-", ".jfr");
