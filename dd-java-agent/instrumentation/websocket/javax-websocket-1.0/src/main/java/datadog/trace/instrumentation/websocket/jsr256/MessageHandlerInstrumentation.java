@@ -40,13 +40,17 @@ public class MessageHandlerInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    applyOnMessageAdvice(transformer);
+  }
+
+  static void applyOnMessageAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isPublic()
             .and(named("onMessage"))
             .and(
                 takesArguments(1) // whole
                     .or(takesArguments(2).and(takesArgument(1, boolean.class)))), // partial
-        getClass().getName() + "$OnMessageAdvice");
+        MessageHandlerInstrumentation.class.getName() + "$OnMessageAdvice");
   }
 
   public static class OnMessageAdvice {
