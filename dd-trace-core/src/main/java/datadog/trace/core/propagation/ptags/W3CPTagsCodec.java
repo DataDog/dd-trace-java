@@ -7,6 +7,7 @@ import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import datadog.trace.util.SubSequence;
@@ -269,17 +270,31 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   @Override
+  protected int estimateHeaderSize(PTags pTags, SamplingState samplingState) {
+    return MAX_HEADER_SIZE;
+  }
+
+  @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
     return appendPrefix(sb, ptags, null);
   }
 
   @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
+    return appendPrefix(sb, ptags, lastParentIdOverride, ptags.samplingState());
+  }
+
+  @Override
+  protected int appendPrefix(
+      StringBuilder sb,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState) {
     sb.append(DATADOG_MEMBER_KEY);
     // Append sampling priority (s)
-    if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
+    if (samplingState.getSamplingPriority() != PrioritySampling.UNSET) {
       sb.append("s:");
-      sb.append(ptags.getSamplingPriority());
+      sb.append(samplingState.getSamplingPriority());
     }
     // Append origin (o)
     CharSequence origin = ptags.getOrigin();

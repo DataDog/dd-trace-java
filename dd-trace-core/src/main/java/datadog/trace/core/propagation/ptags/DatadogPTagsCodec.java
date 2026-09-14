@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import java.util.ArrayList;
@@ -128,9 +129,23 @@ final class DatadogPTagsCodec extends PTagsCodec {
   }
 
   @Override
+  protected int estimateHeaderSize(PTags pTags, SamplingState samplingState) {
+    return pTags.getXDatadogTagsSize(samplingState);
+  }
+
+  @Override
   protected int appendPrefix(StringBuilder sb, PTags ptags) {
     // Calculate the tag size here and return it. Don't do anything else since there is no prefix.
     return ptags.getXDatadogTagsSize();
+  }
+
+  @Override
+  protected int appendPrefix(
+      StringBuilder sb,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState) {
+    return ptags.getXDatadogTagsSize(samplingState);
   }
 
   @Override

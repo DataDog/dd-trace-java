@@ -22,6 +22,47 @@ import java.util.Map;
  */
 public abstract class PropagationTags {
 
+  public static final class SamplingState {
+    private final int samplingPriority;
+    private final String tracestate;
+    private final CharSequence otelTraceState;
+    private final CharSequence decisionMaker;
+    private final CharSequence knuthSamplingRate;
+
+    public SamplingState(
+        int samplingPriority,
+        String tracestate,
+        CharSequence otelTraceState,
+        CharSequence decisionMaker,
+        CharSequence knuthSamplingRate) {
+      this.samplingPriority = samplingPriority;
+      this.tracestate = tracestate;
+      this.otelTraceState = otelTraceState;
+      this.decisionMaker = decisionMaker;
+      this.knuthSamplingRate = knuthSamplingRate;
+    }
+
+    public int getSamplingPriority() {
+      return samplingPriority;
+    }
+
+    public String getTracestate() {
+      return tracestate;
+    }
+
+    public CharSequence getOtelTraceState() {
+      return otelTraceState;
+    }
+
+    public CharSequence getDecisionMaker() {
+      return decisionMaker;
+    }
+
+    public CharSequence getKnuthSamplingRate() {
+      return knuthSamplingRate;
+    }
+  }
+
   public static PropagationTags.Factory factory(Config config) {
     return factory(config.getxDatadogTagsMaxLength());
   }
@@ -69,6 +110,8 @@ public abstract class PropagationTags {
 
   public abstract int getSamplingPriority();
 
+  public abstract SamplingState samplingState();
+
   public abstract void updateTraceOrigin(CharSequence origin);
 
   public abstract CharSequence getOrigin();
@@ -86,6 +129,8 @@ public abstract class PropagationTags {
    * @return The original W3C tracestate header value.
    */
   public abstract String getW3CTracestate();
+
+  public abstract String getW3CTracestate(SamplingState samplingState);
 
   /**
    * Stores the original <a href="https://www.w3.org/TR/trace-context/#tracestate-header">W3C
@@ -115,6 +160,9 @@ public abstract class PropagationTags {
    * state. A {@code null} override falls back to {@link #headerValue(HeaderType)}.
    */
   public abstract String headerValue(HeaderType headerType, CharSequence lastParentIdOverride);
+
+  public abstract String headerValue(
+      HeaderType headerType, CharSequence lastParentIdOverride, SamplingState samplingState);
 
   /**
    * Fills a provided tagMap with valid propagated _dd.p.* tags and possibly a new sampling decision
