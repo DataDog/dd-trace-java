@@ -87,6 +87,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   static class PTags extends PropagationTags {
     private static final String EMPTY = "";
+    private static final SamplingState EMPTY_SAMPLING_STATE =
+        new SamplingState(PrioritySampling.UNSET, null, null, null, null);
 
     protected final PTagsFactory factory;
 
@@ -120,6 +122,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     private volatile CharSequence origin;
     private volatile HeaderCacheEntry datadogHeaderCache;
     private volatile HeaderCacheEntry w3cHeaderCache;
+    private volatile TracestateCacheEntry tracestateCache;
 
     /** The high-order 64 bits of the trace id. */
     private volatile long traceIdHighOrderBits;
@@ -182,8 +185,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.traceSource = traceSource;
-      this.samplingState =
-          newSamplingState(samplingPriority, null, null, decisionMakerTagValue, null);
+      this.samplingState = initialSamplingState(samplingPriority, decisionMakerTagValue);
       this.origin = origin;
       this.lastParentId = lastParentId;
       this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
@@ -355,6 +357,14 @@ public class PTagsFactory implements PropagationTags.Factory {
           otelTraceState,
           decisionMakerTagValue,
           knuthSamplingRateTagValue);
+    }
+
+    private static SamplingState initialSamplingState(
+        int samplingPriority, TagValue decisionMakerTagValue) {
+      if (samplingPriority == PrioritySampling.UNSET && decisionMakerTagValue == null) {
+        return EMPTY_SAMPLING_STATE;
+      }
+      return newSamplingState(samplingPriority, null, null, decisionMakerTagValue, null);
     }
 
     @Override
@@ -698,7 +708,23 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public String getW3CTracestate(SamplingState samplingState) {
-      return W3CPTagsCodec.rebuildTracestate(samplingState);
+      TracestateCacheEntry cache = tracestateCache;
+      if (cache == null || cache.samplingState != samplingState) {
+        cache =
+            new TracestateCacheEntry(samplingState, W3CPTagsCodec.rebuildTracestate(samplingState));
+        tracestateCache = cache;
+      }
+      return cache.tracestate;
+    }
+
+    private static final class TracestateCacheEntry {
+      private final SamplingState samplingState;
+      private final String tracestate;
+
+      private TracestateCacheEntry(SamplingState samplingState, String tracestate) {
+        this.samplingState = samplingState;
+        this.tracestate = tracestate;
+      }
     }
 
     @Override

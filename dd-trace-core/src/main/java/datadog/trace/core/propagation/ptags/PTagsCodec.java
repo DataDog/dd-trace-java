@@ -38,7 +38,7 @@ abstract class PTagsCodec {
       PTags ptags,
       CharSequence lastParentIdOverride,
       SamplingState samplingState) {
-    int estimate = codec.estimateHeaderSize(ptags, samplingState);
+    int estimate = codec.estimateHeaderSize(ptags, lastParentIdOverride, samplingState);
     if (estimate == 0) {
       return "";
     }
@@ -191,6 +191,11 @@ abstract class PTagsCodec {
 
   protected int estimateHeaderSize(PTags pTags, SamplingState samplingState) {
     return estimateHeaderSize(pTags);
+  }
+
+  protected int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+    return estimateHeaderSize(pTags, samplingState);
   }
 
   protected abstract int appendPrefix(StringBuilder sb, PTags ptags);

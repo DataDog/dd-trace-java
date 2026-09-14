@@ -270,8 +270,44 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int estimateHeaderSize(PTags pTags, SamplingState samplingState) {
-    return MAX_HEADER_SIZE;
+  protected int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+    int size = EMPTY_SIZE + 1;
+    size += pTags.getXDatadogTagsSize(samplingState);
+    if (pTags.getOrigin() != null) {
+      size += pTags.getOrigin().length() + 3;
+    }
+    if (samplingState.getSamplingPriority() != PrioritySampling.UNSET) {
+      size += 5;
+    }
+    CharSequence lastParent =
+        lastParentIdOverride != null ? lastParentIdOverride : pTags.getLastParentId();
+    if (lastParent != null) {
+      size += lastParent.length() + 3;
+    }
+    String originalTracestate = samplingState.getTracestate();
+    boolean includesOriginalTracestate = false;
+    if (originalTracestate != null
+        && pTags instanceof W3CPTags
+        && originalTracestate == pTags.tracestate) {
+      W3CPTags w3CPTags = (W3CPTags) pTags;
+      size += w3CPTags.maxUnknownSize;
+      if (w3CPTags.ddMemberStart != -1) {
+        size += originalTracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart);
+        includesOriginalTracestate = true;
+      }
+    } else if (originalTracestate != null) {
+      size += originalTracestate.length();
+      includesOriginalTracestate = true;
+    }
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    if (otelTraceState != null) {
+      if (includesOriginalTracestate && otelTraceState instanceof OtelTraceState) {
+        size -= ((OtelTraceState) otelTraceState).getOriginalSize();
+      }
+      size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
+    }
+    return Math.min(size, MAX_HEADER_SIZE);
   }
 
   @Override

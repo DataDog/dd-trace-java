@@ -10,6 +10,7 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
@@ -23,6 +24,13 @@ import org.junit.jupiter.params.provider.MethodSource;
 class OtelTraceStatePropagationTest {
   private static final String RV = "ef284ace7a91e1";
   private static final String TH = "e6666666666668";
+
+  @Test
+  void reusesEmptySamplingState() {
+    PropagationTags.Factory factory = PropagationTags.factory();
+
+    assertSame(factory.empty().samplingState(), factory.empty().samplingState());
+  }
 
   @ParameterizedTest
   @MethodSource("inboundTracestates")
@@ -63,7 +71,9 @@ class OtelTraceStatePropagationTest {
     assertEquals("1", after.getKnuthSamplingRate().toString());
     assertTrue(after.getOtelTraceState().toString().matches("rv:[0-9a-f]{14};th:0"));
     assertNull(tags.getW3CTracestate(before));
-    assertEquals("ot=" + after.getOtelTraceState(), tags.getW3CTracestate(after));
+    String tracestate = tags.getW3CTracestate(after);
+    assertEquals("ot=" + after.getOtelTraceState(), tracestate);
+    assertSame(tracestate, tags.getW3CTracestate(after));
   }
 
   @Test
