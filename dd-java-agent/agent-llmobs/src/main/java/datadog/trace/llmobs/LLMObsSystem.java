@@ -42,6 +42,15 @@ public class LLMObsSystem {
       return;
     }
 
+    // dd.trace.enabled=false turns the whole tracer off, and LLMObs spans are backed by tracer
+    // spans: buildSpan() returns null on the no-op tracer, so starting up here would make every
+    // span-starting call throw into application code. Leave the no-op SDK installed instead.
+    // (dd.apm.tracing.enabled=false is different — the tracer stays, so LLMObs works.)
+    if (!config.isTraceEnabled()) {
+      LOGGER.debug("LLM Observability is disabled: the tracer is disabled (dd.trace.enabled)");
+      return;
+    }
+
     sco.createRemaining(config);
 
     String mlApp = config.getLlmObsMlApp();
