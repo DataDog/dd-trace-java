@@ -1,6 +1,6 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.common.writer.RemoteApi.Response.success;
+import static datadog.communication.otlp.OtlpResponse.success;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -11,14 +11,14 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.communication.otlp.OtlpPayload;
+import datadog.communication.otlp.OtlpResponse;
+import datadog.communication.otlp.OtlpSender;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.AggregateEntry;
 import datadog.trace.common.metrics.AggregateEntryTestUtils;
-import datadog.trace.common.writer.RemoteApi;
-import datadog.trace.core.otlp.common.OtlpPayload;
-import datadog.trace.core.otlp.common.OtlpSender;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,7 +68,7 @@ class OtlpStatsMetricWriterTest {
     byte[] lastPayload;
 
     @Override
-    public RemoteApi.Response send(OtlpPayload payload) {
+    public OtlpResponse send(OtlpPayload payload) {
       sendCount++;
       java.nio.ByteBuffer content = payload.getContent();
       byte[] bytes = new byte[content.remaining()];
