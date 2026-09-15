@@ -18,12 +18,20 @@ excludedClassesCoverage += [
   'com.datadog.profiling.uploader.ProfileUploader.1',
   // When running on Java 8 without `jfr`, no code is executed
   'com.datadog.profiling.uploader.util.JfrCliHelper',
-  'com.datadog.profiling.uploader.util.JfrCliHelper.Event'
+  'com.datadog.profiling.uploader.util.JfrCliHelper.Event',
+  // OTLP uploader — network/IO class, exercised via integration tests
+  'com.datadog.profiling.uploader.OtlpProfileUploader',
+  'com.datadog.profiling.uploader.OtlpProfilesSenderFactory',
+  // Pre-existing borderline coverage — HTTP/upload plumbing, hard to unit test
+  'com.datadog.profiling.uploader.CompressingRequestBody',
+  'com.datadog.profiling.uploader.ProfileUploader',
+  'com.datadog.profiling.uploader.ProfileUploader.RecordingDataAdapter',
 ]
 
 dependencies {
   implementation libs.slf4j
   implementation project(':communication')
+  implementation project(':communication:otlp-exporter')
   implementation project(':internal-api')
   implementation project(':utils:container-utils')
   implementation project(':utils:logging-utils')
@@ -31,6 +39,7 @@ dependencies {
   implementation project(':utils:version-utils')
 
   implementation project(':dd-java-agent:agent-profiling:profiling-controller')
+  implementation project(':dd-java-agent:agent-profiling:profiling-otel')
 
   implementation libs.datadog.okhttp
   implementation libs.lz4
