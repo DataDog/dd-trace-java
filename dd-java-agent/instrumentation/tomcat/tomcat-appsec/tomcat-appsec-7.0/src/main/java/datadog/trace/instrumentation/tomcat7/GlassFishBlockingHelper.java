@@ -7,6 +7,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.MultipartContentDecoder;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
+import datadog.trace.instrumentation.tomcat.BlockFailureReporter;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +17,12 @@ import java.util.function.BiFunction;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class GlassFishBlockingHelper {
+
+  private static final Logger log = LoggerFactory.getLogger(GlassFishBlockingHelper.class);
 
   public static final int MAX_FILE_CONTENT_COUNT = Config.get().getAppSecMaxFileContentCount();
   public static final int MAX_FILE_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
@@ -38,12 +43,21 @@ public final class GlassFishBlockingHelper {
     try {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        // tryCommitAndReport already reports the block failure when the commit fails
+        if (!BlockFailureReporter.tryCommitAndReport(reqCtx, rba)) {
+          return false;
+        }
       } else if (!commitBlocking(fallbackReq, fallbackResp, rba)) {
+        if (fallbackResp != null) {
+          // a commit was genuinely attempted (there was a response to write to) and failed
+          BlockFailureReporter.reportBlockFailure(reqCtx);
+        }
         return false;
       }
-    } catch (Exception ignored) {
-      // commit failed — response not sent, cannot block this request
+    } catch (Exception e) {
+      // commit failed - response not sent, cannot block this request
+      log.debug("Error committing blocking response", e);
+      BlockFailureReporter.reportBlockFailure(reqCtx);
       return false;
     }
     // Response was committed — mark as blocked on a best-effort basis.
