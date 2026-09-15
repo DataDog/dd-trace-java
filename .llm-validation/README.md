@@ -62,7 +62,7 @@ docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
 
 # One named case (id from suites/dd-apm-sdk-review.yaml)
 docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
-  --repo /repo --base-sha master --case java-security-crash-handler-before-trust --runs 1
+  --repo /repo --base-sha master --case java-perf-lens-wrong-collection-001 --runs 1
 ```
 
 `--level` picks **which cases** run. `--runs` only changes how many times **those** cases
@@ -110,7 +110,7 @@ that level already selected.
 | Level | Cases | Default runs | Use |
 |---|---|---|---|
 | `minimum` | **1** (`java-perf-lens-wrong-collection-001`) | 2 | First smoke |
-| `gate` (default) | **8** listed in `config.yaml` | 2 | CI-shaped |
+| `gate` (default) | **7** listed in `config.yaml` | 2 | CI-shaped |
 | `full` | **every** case in `suites/` | 2 | Broader pass |
 
 So this command runs **one** case once, not the whole suite:
@@ -125,20 +125,20 @@ To run every case once, use `--level full`. To run the CI set once, use `--level
 ### One specific case
 
 `--case` takes the `id` from [`suites/dd-apm-sdk-review.yaml`](./suites/dd-apm-sdk-review.yaml)
-(e.g. `java-perf-lens-wrong-collection-001`, `java-security-crash-handler-before-trust`).
+(e.g. `java-perf-lens-wrong-collection-001`, `java-correctness-capture-before-send`).
 It overrides the preset’s case list; `--level` still supplies default `--runs` unless you
 pass `--runs`.
 
 ```bash
 # Docker
 docker run --rm -e LLMVAL_AUTH_HEADER -v "$PWD:/repo" "$LLMVAL_IMAGE" \
-  --repo /repo --base-sha master --case java-security-crash-handler-before-trust --runs 1
+  --repo /repo --base-sha master --case java-perf-lens-wrong-collection-001 --runs 1
 
 # Host .NET (from the platform repo)
 dotnet run --project src/Datadog.LlmValidation.Cli -- run \
   --repo /path/to/dd-trace-java \
   --base-sha master \
-  --case java-security-crash-handler-before-trust \
+  --case java-perf-lens-wrong-collection-001 \
   --runs 1 \
   --out results.json --report report.md --details details.json
 ```
