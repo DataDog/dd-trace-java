@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
@@ -8,7 +9,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_A
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
@@ -49,10 +49,12 @@ public final class OtlpTraceJson {
    * Same contract as the protobuf encoder: a tag the tracer intercepts into a first-class Metadata
    * field never reaches the per-entry projection below, so its OpenTelemetry name is resolved off
    * the registry here instead. Both encoders must agree -- a rename that reached only one of them
-   * would make the emitted attribute name depend on the transport protocol. (http.status_code is
-   * held back in both for the same reason; see OtlpTraceProto.)
+   * would make the emitted attribute name depend on the transport protocol.
    */
   private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
+
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
+      otelKey(KnownTags.HTTP_STATUS_CODE_ID);
 
   /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
   private static UTF8BytesString otelKey(long tagId) {
@@ -228,8 +230,8 @@ public final class OtlpTraceJson {
 
       writeSpanTag(writer, THREAD_ID, metadata.getThreadId());
       writeSpanTag(writer, THREAD_NAME, metadata.getThreadName());
-      if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(writer, HTTP_STATUS, metadata.getHttpStatusCode());
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
+        writeSpanTag(writer, HTTP_STATUS_CODE_KEY, metadata.getHttpStatusCode());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(writer, ORIGIN_KEY, metadata.getOrigin());

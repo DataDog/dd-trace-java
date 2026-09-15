@@ -1036,15 +1036,18 @@ class OtlpTraceProtoTest {
     for (String key : spec.extraTags.keySet()) {
       if ("http.status_code".equals(key)) {
         // Not a tag-map entry by the time it is serialized: the set path intercepts it into
-        // Metadata.httpStatusCode, so it never reaches the per-entry projection and keeps the
-        // Datadog name until Metadata carries the status as an int (see the intercepted-status
+        // Metadata.httpStatusCode, so it never reaches the per-entry projection and instead is
+        // resolved through the fixed HTTP_STATUS_CODE_KEY constant (see the intercepted-status
         // assertion below).
         assertTrue(
-            attrKeys.contains("http.status_code"),
-            "intercepted status must still be emitted as 'http.status_code' ["
+            attrKeys.contains("http.response.status_code"),
+            "intercepted status must be emitted as 'http.response.status_code' ["
                 + caseName
                 + "]; got "
                 + attrKeys);
+        assertFalse(
+            attrKeys.contains("http.status_code"),
+            "intercepted status must not also appear under its Datadog name [" + caseName + "]");
         continue;
       }
       long id = KnownTagCodec.keyOf(key);
@@ -1078,22 +1081,18 @@ class OtlpTraceProtoTest {
     }
     if (spec.httpStatusCode != 0) {
       // Intercepted into Metadata.httpStatusCode rather than left in the tag map, so its name comes
-      // from a key constant in OtlpTraceProto and not from the per-entry projection. Deliberately
-      // still the DATADOG name: the OpenTelemetry name is an int attribute in semantic conventions
-      // and Metadata carries the status as a string, so the rename waits on the int-typed Metadata
-      // rather than shipping the semconv key with a non-semconv type.
+      // from a key constant in OtlpTraceProto (HTTP_STATUS_CODE_KEY) and not from the per-entry
+      // projection. Emitted under its OpenTelemetry name as an int attribute, matching the
+      // semantic-conventions type, since Metadata now carries the status as an int.
       assertTrue(
-          attrKeys.contains("http.status_code"),
-          "attributes must include 'http.status_code' when set via setHttpStatusCode ["
+          attrKeys.contains("http.response.status_code"),
+          "attributes must include 'http.response.status_code' when set via setHttpStatusCode ["
               + caseName
               + "]; got "
               + attrKeys);
       assertFalse(
-          attrKeys.contains("http.response.status_code"),
-          "status code must not yet be emitted under its OpenTelemetry name, which semantic"
-              + " conventions type as an int ["
-              + caseName
-              + "]");
+          attrKeys.contains("http.status_code"),
+          "status code must not also be emitted under its Datadog name [" + caseName + "]");
     }
     if (spec.origin != null) {
       assertTrue(

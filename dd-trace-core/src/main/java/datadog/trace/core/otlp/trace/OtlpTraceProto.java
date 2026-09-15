@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
@@ -8,7 +9,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_A
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
@@ -64,14 +64,11 @@ public final class OtlpTraceProto {
    * so a rename declared in tag-conventions.yaml reaches OTLP with no second mapping table to keep
    * in sync.
    *
-   * <p>http.status_code is deliberately NOT renamed here yet. Its OpenTelemetry name
-   * (http.response.status_code) is an INT attribute in semantic conventions, but Metadata carries
-   * the intercepted status as a UTF8BytesString, so renaming it now would ship the right key with
-   * the wrong wire type -- worse for a semconv consumer than the un-renamed Datadog name, which
-   * such a consumer simply ignores. The rename follows the change that makes Metadata carry the
-   * status as an int and hand out the string only on demand.
    */
   private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
+
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
+      otelKey(KnownTags.HTTP_STATUS_CODE_ID);
 
   /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
   private static UTF8BytesString otelKey(long tagId) {
@@ -312,8 +309,8 @@ public final class OtlpTraceProto {
 
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
-      if (metadata.getHttpStatusCode() != null) {
-        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCode());
+      if (metadata.getHttpStatusCode() != UNSET_STATUS) {
+        writeSpanTag(buf, HTTP_STATUS_CODE_KEY, metadata.getHttpStatusCode());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());
