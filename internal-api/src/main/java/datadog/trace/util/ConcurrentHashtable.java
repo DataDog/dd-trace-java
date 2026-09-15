@@ -17,6 +17,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
+import javax.annotation.concurrent.NotThreadSafe;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -1154,9 +1155,13 @@ public final class ConcurrentHashtable {
    * one is open, and (having deliberately dropped the CAS-based fast path that would let two
    * threads race for the same slot) nothing else can even reserve.
    *
+   * <p>Confined to the thread that opened it, like any other short-lived {@code AutoCloseable}
+   * resource -- create it, use it, close it, all without letting it escape to another thread.
+   *
    * @param <TEntry> the table's entry type, itself self-bound (see {@link
    *     ConcurrentHashtable.Entry})
    */
+  @NotThreadSafe
   public static final class Reservation<TEntry extends Entry<TEntry>> implements AutoCloseable {
     @Nullable private final State<TEntry> state;
     private final boolean slotClaimed;
