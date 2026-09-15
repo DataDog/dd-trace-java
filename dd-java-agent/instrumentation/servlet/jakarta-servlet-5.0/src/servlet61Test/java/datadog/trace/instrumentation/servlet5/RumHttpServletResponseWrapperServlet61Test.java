@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.servlet5;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,11 +19,12 @@ import org.tabletest.junit.TableTest;
 class RumHttpServletResponseWrapperServlet61Test {
 
   @TableTest({
-    "scenario      | clearBuffer",
-    "clear buffer  | true       ",
-    "retain buffer | false      "
+    "scenario      | clearBuffer | rejected",
+    "clear buffer  | true        | false   ",
+    "retain buffer | false       | false   ",
+    "rejected call | true        | true    "
   })
-  void servlet61RedirectRespectsClearBuffer(boolean clearBuffer)
+  void servlet61RedirectRespectsClearBuffer(boolean clearBuffer, boolean rejected)
       throws IOException, ReflectiveOperationException {
     ServletContext servletContext = mock(ServletContext.class);
     when(servletContext.getEffectiveMajorVersion()).thenReturn(6);
@@ -37,10 +40,18 @@ class RumHttpServletResponseWrapperServlet61Test {
     setWrappedPipeWriter(wrapper, pipe);
     pipe.write("</he");
 
-    wrapper.sendRedirect("/other", 307, clearBuffer);
+    if (rejected) {
+      doThrow(new IllegalStateException("response already committed"))
+          .when(response)
+          .sendRedirect("/other", 307, clearBuffer);
+      assertThrows(
+          IllegalStateException.class, () -> wrapper.sendRedirect("/other", 307, clearBuffer));
+    } else {
+      wrapper.sendRedirect("/other", 307, clearBuffer);
+    }
     wrapper.commit();
 
-    assertEquals(clearBuffer ? "" : "</he", downstream.toString());
+    assertEquals(clearBuffer && !rejected ? "" : "</he", downstream.toString());
     verify(response).sendRedirect("/other", 307, clearBuffer);
   }
 

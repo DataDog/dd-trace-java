@@ -209,31 +209,49 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void sendError(int sc) throws IOException {
+    boolean rejected = false;
     try {
       super.sendError(sc);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
     } finally {
-      discardBufferedContent();
-      stopFiltering();
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
     }
   }
 
   @Override
   public void sendError(int sc, String msg) throws IOException {
+    boolean rejected = false;
     try {
       super.sendError(sc, msg);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
     } finally {
-      discardBufferedContent();
-      stopFiltering();
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
     }
   }
 
   @Override
   public void sendRedirect(String location) throws IOException {
+    boolean rejected = false;
     try {
       super.sendRedirect(location);
+    } catch (IllegalStateException e) {
+      rejected = true;
+      throw e;
     } finally {
-      discardBufferedContent();
-      stopFiltering();
+      if (!rejected) {
+        discardBufferedContent();
+        stopFiltering();
+      }
     }
   }
 

@@ -289,6 +289,25 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
     downstream.toString().isEmpty()
   }
 
+  void 'sendError preserves buffered content when the delegate rejects the call'() {
+    setup:
+    def downstream = new StringWriter()
+    attachWriter(downstream).write("</he")
+
+    when:
+    wrapper.sendError(500)
+
+    then:
+    thrown(IllegalStateException)
+    1 * mockResponse.sendError(500) >> { throw new IllegalStateException("already committed") }
+
+    when:
+    wrapper.commit()
+
+    then:
+    downstream.toString() == "</he"
+  }
+
   void 'sendRedirect discards buffered content and stops filtering'() {
     setup:
     def downstream = new StringWriter()
