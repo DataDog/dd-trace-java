@@ -4,6 +4,7 @@ import static datadog.trace.util.HashingUtils.addToHash;
 import static datadog.trace.util.HashingUtils.hash;
 
 import datadog.trace.api.featureflag.flagevaluation.FlagEvalEvent;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -11,6 +12,9 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_64BIT_PRIMITIVE", "AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE"},
+    justification = "The aggregator is confined to the single flag-evaluation serializer thread")
 final class FlagEvaluationAggregator {
 
   // Design assumptions — document the scale we sized for
@@ -32,6 +36,7 @@ final class FlagEvaluationAggregator {
   static final int GLOBAL_CAP = 131_072; // nearest power of two above FULL_BUCKET_SIZING_BASIS
   static final int PER_FLAG_CAP = PER_FLAG_BUCKET_SIZING_BASIS;
   static final int DEGRADED_CAP = 32_768; // nearest power of two above DEGRADED_BUCKET_SIZING_BASIS
+  static final long RETAINED_BYTE_BUDGET = 64L << 20;
 
   private static final byte CTX_TAG_STRING = 's';
   private static final byte CTX_TAG_BOOL = 'b';
@@ -45,7 +50,20 @@ final class FlagEvaluationAggregator {
   final Map<DegradedKey, EvalBucket> degradedTier = new HashMap<>();
   final Map<String, Integer> perFlagCount = new HashMap<>();
   final AtomicLong droppedDegradedOverflow = new AtomicLong(0);
+  final AtomicLong droppedByteBudget = new AtomicLong(0);
+  final AtomicLong degradedCardinalityCap = new AtomicLong(0);
+  final AtomicLong degradedByteBudget = new AtomicLong(0);
   final AtomicInteger globalFullCount = new AtomicInteger(0);
+  private final long retainedByteBudget;
+  private long retainedBytes;
+
+  FlagEvaluationAggregator() {
+    this(RETAINED_BYTE_BUDGET);
+  }
+
+  FlagEvaluationAggregator(final long retainedByteBudget) {
+    this.retainedByteBudget = Math.max(0, retainedByteBudget);
+  }
 
   void aggregate(final FlagEvalEvent event) {
     final boolean isDefault = event.variant == null;
@@ -66,48 +84,76 @@ final class FlagEvaluationAggregator {
 
     final int flagCount = perFlagCount.getOrDefault(event.flagKey, 0);
     if (globalFullCount.get() < GLOBAL_CAP && flagCount < PER_FLAG_CAP) {
-      fullTier.put(
-          fullKey,
-          new EvalBucket(
-              event.flagKey,
-              event.variant,
-              event.allocationKey,
-              event.targetingKey,
-              event.errorMessage,
-              event.evalTimeMs,
-              isDefault,
-              prunedAttrs,
-              observeFullEvaluationData));
-      globalFullCount.incrementAndGet();
-      perFlagCount.put(event.flagKey, flagCount + 1);
-      return;
+      final long bucketBytes =
+          FlagEvaluationMemoryEstimator.fullBucketBytes(event, prunedAttrs, ctxKey);
+      if (reserve(bucketBytes)) {
+        fullTier.put(
+            fullKey,
+            new EvalBucket(
+                event.flagKey,
+                event.variant,
+                event.allocationKey,
+                event.targetingKey,
+                event.errorMessage,
+                event.evalTimeMs,
+                isDefault,
+                prunedAttrs,
+                observeFullEvaluationData));
+        globalFullCount.incrementAndGet();
+        perFlagCount.put(event.flagKey, flagCount + 1);
+        return;
+      }
     }
 
+    final boolean degradedByByteBudget =
+        globalFullCount.get() < GLOBAL_CAP && flagCount < PER_FLAG_CAP;
     final DegradedKey degradedKey = buildDegradedKey(event);
     bucket = degradedTier.get(degradedKey);
     if (bucket != null) {
       bucket.merge(event.evalTimeMs, isDefault);
       bucket.observeFullEvaluationData &= observeFullEvaluationData;
+      countDegraded(degradedByByteBudget);
       return;
     }
 
     if (degradedTier.size() < DEGRADED_CAP) {
-      degradedTier.put(
-          degradedKey,
-          new EvalBucket(
-              event.flagKey,
-              event.variant,
-              event.allocationKey,
-              null,
-              event.errorMessage,
-              event.evalTimeMs,
-              isDefault,
-              null,
-              observeFullEvaluationData));
+      if (reserve(FlagEvaluationMemoryEstimator.degradedBucketBytes(event))) {
+        degradedTier.put(
+            degradedKey,
+            new EvalBucket(
+                event.flagKey,
+                event.variant,
+                event.allocationKey,
+                null,
+                event.errorMessage,
+                event.evalTimeMs,
+                isDefault,
+                null,
+                observeFullEvaluationData));
+        countDegraded(degradedByByteBudget);
+        return;
+      }
+      droppedByteBudget.incrementAndGet();
       return;
     }
 
     droppedDegradedOverflow.incrementAndGet();
+  }
+
+  private void countDegraded(final boolean degradedByByteBudget) {
+    if (degradedByByteBudget) {
+      degradedByteBudget.incrementAndGet();
+    } else {
+      degradedCardinalityCap.incrementAndGet();
+    }
+  }
+
+  private boolean reserve(final long bytes) {
+    if (bytes > retainedByteBudget - retainedBytes) {
+      return false;
+    }
+    retainedBytes += bytes;
+    return true;
   }
 
   boolean isEmpty() {
@@ -116,14 +162,6 @@ final class FlagEvaluationAggregator {
 
   int fullTierSize() {
     return fullTier.size();
-  }
-
-  long degradedEvaluationCount() {
-    long count = 0;
-    for (final EvalBucket bucket : degradedTier.values()) {
-      count += bucket.count;
-    }
-    return count;
   }
 
   int bucketCount() {
@@ -143,11 +181,22 @@ final class FlagEvaluationAggregator {
     degradedTier.clear();
     perFlagCount.clear();
     globalFullCount.set(0);
+    retainedBytes = 0;
+  }
+
+  long retainedBytes() {
+    return retainedBytes;
   }
 
   AggregatedState snapshot() {
     return new AggregatedState(
-        new HashMap<>(fullTier), new HashMap<>(degradedTier), droppedDegradedOverflow.get());
+        new HashMap<>(fullTier),
+        new HashMap<>(degradedTier),
+        droppedDegradedOverflow.get(),
+        droppedByteBudget.get(),
+        degradedCardinalityCap.get(),
+        degradedByteBudget.get(),
+        retainedBytes);
   }
 
   void simulateFullTierAtCap() {
@@ -441,14 +490,26 @@ final class FlagEvaluationAggregator {
     final Map<FullKey, EvalBucket> fullTier;
     final Map<DegradedKey, EvalBucket> degradedTier;
     final long droppedDegradedOverflow;
+    final long droppedByteBudget;
+    final long degradedCardinalityCap;
+    final long degradedByteBudget;
+    final long retainedBytes;
 
     AggregatedState(
         final Map<FullKey, EvalBucket> fullTier,
         final Map<DegradedKey, EvalBucket> degradedTier,
-        final long droppedDegradedOverflow) {
+        final long droppedDegradedOverflow,
+        final long droppedByteBudget,
+        final long degradedCardinalityCap,
+        final long degradedByteBudget,
+        final long retainedBytes) {
       this.fullTier = fullTier;
       this.degradedTier = degradedTier;
       this.droppedDegradedOverflow = droppedDegradedOverflow;
+      this.droppedByteBudget = droppedByteBudget;
+      this.degradedCardinalityCap = degradedCardinalityCap;
+      this.degradedByteBudget = degradedByteBudget;
+      this.retainedBytes = retainedBytes;
     }
   }
 }
