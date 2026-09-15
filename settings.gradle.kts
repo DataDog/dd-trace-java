@@ -380,6 +380,7 @@ include(
   ":dd-java-agent:instrumentation:grizzly:grizzly-http-2.3.20",
   ":dd-java-agent:instrumentation:grpc-1.5",
   ":dd-java-agent:instrumentation:gson-1.6",
+  ":dd-java-agent:instrumentation:gson-2.1",
   ":dd-java-agent:instrumentation:guava-10.0",
   ":dd-java-agent:instrumentation:guidewire-10.0",
   ":dd-java-agent:instrumentation:hazelcast:hazelcast-3.6",
