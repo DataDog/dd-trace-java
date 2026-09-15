@@ -44,16 +44,20 @@ build-exploration-tests-image:
   after_script:
     - cp /exploration-tests/${PROJECT}/agent.log ${PROJECT}_agent.log
     - gzip ${PROJECT}_agent.log
+    - source $HOME/.sdkman/bin/sdkman-init.sh && sdk use java 25.0.2-tem && .gitlab/collect_results.sh
     - tar czf ${PROJECT}_surefire-reports.tar.gz /exploration-tests/${PROJECT}/target/surefire-reports
     - tar czf ${PROJECT}_debugger-dumps.tar.gz /tmp/debugger
   stage: exploration-tests
   tags: [ "arch:amd64"]
   image: $EXPLORATION_TESTS_IMAGE
   artifacts:
+    when: always
     paths:
       - "*_agent.log.gz"
       - "*_surefire-reports.tar.gz"
       - "*_debugger-dumps.tar.gz"
+    reports:
+      junit: results/*.xml
 
 exploration-tests-method-jsoup:
   needs: [ build ]
