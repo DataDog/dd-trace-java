@@ -9,6 +9,8 @@ import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.credential.BearerTokenCredential;
 import com.openai.models.ChatModel;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import com.openai.models.embeddings.EmbeddingCreateParams;
+import com.openai.models.embeddings.EmbeddingModel;
 import com.sun.net.httpserver.HttpServer;
 import datadog.context.ContextScope;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -73,6 +75,13 @@ abstract class AbstractLlmObsOpenAiForkedTest extends AbstractInstrumentationTes
         .model(ChatModel.GPT_4O_MINI)
         .addSystemMessage("")
         .addUserMessage("")
+        .build();
+  }
+
+  protected static EmbeddingCreateParams buildMinimalEmbeddingParams() {
+    return EmbeddingCreateParams.builder()
+        .model(EmbeddingModel.TEXT_EMBEDDING_ADA_002)
+        .input("")
         .build();
   }
 
@@ -316,5 +325,72 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
         LLMObsContext.SAMPLING_DECISION_DROPPED,
         openAiSpan.getTag("_ml_obs_tag.sampling_decision"));
     assertEquals("0", openAiSpan.getTag("_ml_obs_tag.sample_rate"));
+  }
+}
+
+/**
+ * Verifies the gen_ai.* attributes an openai.request span carries with LLM Observability disabled:
+ * operation, model, provider and application, but never token usage or conversation id.
+ */
+@WithConfig(key = "llmobs.enabled", value = "false")
+class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
+
+  @Test
+  void chatCompletionEmitsTheGenAiAttributesAvailableWithoutLlmObs() {
+    try {
+      openAiClient.chat().completions().create(buildMinimalChatParams());
+    } catch (Exception ignored) {
+      // The mock server returns no body, so the SDK may throw while parsing the response.
+    }
+
+    DDSpan openAiSpan = awaitOpenAiSpan("/v1/chat/completions");
+
+    assertEquals("llm", openAiSpan.getTag("gen_ai.operation.name"));
+    // The mock returns no body, so the request model stands in for the absent response model.
+    assertEquals(
+        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
+    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
+    assertNotNull(openAiSpan.getTag("gen_ai.application.name"));
+
+    assertNull(openAiSpan.getTag("gen_ai.conversation.id"));
+    assertNull(openAiSpan.getTag("gen_ai.usage.input_tokens"));
+    assertNull(openAiSpan.getTag("gen_ai.usage.output_tokens"));
+    assertNull(openAiSpan.getTag("gen_ai.usage.total_tokens"));
+
+    assertNull(openAiSpan.getTag("_ml_obs_tag.span.kind"));
+  }
+
+  @Test
+  void embeddingMapsToTheEmbeddingOperation() {
+    try {
+      openAiClient.embeddings().create(buildMinimalEmbeddingParams());
+    } catch (Exception ignored) {
+      // The mock server returns no body, so the SDK may throw while parsing the response.
+    }
+
+    DDSpan openAiSpan = awaitOpenAiSpan("/v1/embeddings");
+
+    assertEquals("embedding", openAiSpan.getTag("gen_ai.operation.name"));
+    assertEquals(
+        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
+    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
+  }
+
+  // Both tests here produce an openai.request span, so match on the endpoint rather than take the
+  // first one written: a trace arriving late from the sibling test would otherwise be picked up.
+  private DDSpan awaitOpenAiSpan(String endpoint) {
+    blockUntilTracesMatch(traces -> findOpenAiSpan(traces, endpoint) != null);
+    DDSpan span = findOpenAiSpan(writer, endpoint);
+    assertNotNull(span, "openai.request span for " + endpoint + " should have been created");
+    return span;
+  }
+
+  private static DDSpan findOpenAiSpan(List<List<DDSpan>> traces, String endpoint) {
+    return traces.stream()
+        .flatMap(List::stream)
+        .filter(span -> "openai.request".equals(span.getOperationName().toString()))
+        .filter(span -> endpoint.equals(span.getTag("openai.request.endpoint")))
+        .findFirst()
+        .orElse(null);
   }
 }
