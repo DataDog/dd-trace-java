@@ -128,8 +128,11 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
     try {
       LOGGER.debug("Received new definitions from {}", source);
-      definitionSources.put(source, definitions);
-      Configuration newConfiguration = createConfiguration(definitionSources);
+      Configuration newConfiguration;
+      synchronized (definitionSources) {
+        definitionSources.put(source, definitions);
+        newConfiguration = createConfiguration(definitionSources);
+      }
       applyNewConfiguration(newConfiguration);
     } catch (RuntimeException e) {
       ExceptionHelper.logException(LOGGER, e, "Error during accepting new debugger configuration:");
