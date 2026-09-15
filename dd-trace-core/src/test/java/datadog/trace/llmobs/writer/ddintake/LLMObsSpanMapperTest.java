@@ -877,8 +877,11 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
     Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
 
-    assertTrue(meta.containsKey("agent_manifest"));
-    Map<String, Object> gotManifest = (Map<String, Object>) meta.get("agent_manifest");
+    // The manifest is nested under metadata._dd, never emitted as a top-level meta key.
+    assertFalse(meta.containsKey("agent_manifest"));
+    Map<String, Object> metadata = (Map<String, Object>) meta.get("metadata");
+    Map<String, Object> metadataDd = (Map<String, Object>) metadata.get("_dd");
+    Map<String, Object> gotManifest = (Map<String, Object>) metadataDd.get("agent_manifest");
     assertEquals("travel_desk", gotManifest.get("name"));
     assertEquals("Book travel.", gotManifest.get("instructions"));
     assertEquals("gpt-4o", gotManifest.get("model"));
@@ -912,6 +915,74 @@ public class LLMObsSpanMapperTest extends DDCoreJavaSpecification {
     Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
     List<String> tags = (List<String>) spanData.get("tags");
     assertFalse(tags.stream().anyMatch(t -> t.contains("agent_manifest")));
+
+    tracer.close();
+  }
+
+  @Test
+  void testAgentManifestNestsUnderUserMetadata() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> manifest = new LinkedHashMap<>();
+    manifest.put("name", "my-agent");
+
+    Map<String, Object> userMetadata = new LinkedHashMap<>();
+    userMetadata.put("tenant", "acme");
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my-agent")
+            .withTag("_ml_obs_tag.span.kind", "agent")
+            .withTag("_ml_obs_tag.metadata", userMetadata)
+            .withTag("_ml_obs_tag.agent_manifest", manifest)
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+    Map<String, Object> metadata = (Map<String, Object>) meta.get("metadata");
+
+    assertFalse(meta.containsKey("agent_manifest"));
+    assertEquals("acme", metadata.get("tenant"));
+    Map<String, Object> metadataDd = (Map<String, Object>) metadata.get("_dd");
+    assertEquals(manifest, metadataDd.get("agent_manifest"));
+
+    tracer.close();
+  }
+
+  @Test
+  void testAgentManifestMergesWithExistingMetadataDd() throws Exception {
+    LLMObsSpanMapper mapper = new LLMObsSpanMapper();
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    Map<String, Object> manifest = new LinkedHashMap<>();
+    manifest.put("name", "my-agent");
+
+    Map<String, Object> existingDd = new LinkedHashMap<>();
+    existingDd.put("cost_tags", Collections.singletonList("model:gpt-4o"));
+    Map<String, Object> userMetadata = new LinkedHashMap<>();
+    userMetadata.put("_dd", existingDd);
+
+    AgentSpan agentSpan =
+        tracer
+            .buildSpan("datadog", "my-agent")
+            .withTag("_ml_obs_tag.span.kind", "agent")
+            .withTag("_ml_obs_tag.metadata", userMetadata)
+            .withTag("_ml_obs_tag.agent_manifest", manifest)
+            .start();
+    agentSpan.setSpanType(InternalSpanTypes.LLMOBS);
+    agentSpan.finish();
+
+    Map<String, Object> spanData = serializeSingleSpan(mapper, agentSpan);
+    Map<String, Object> meta = (Map<String, Object>) spanData.get("meta");
+    Map<String, Object> metadata = (Map<String, Object>) meta.get("metadata");
+    Map<String, Object> metadataDd = (Map<String, Object>) metadata.get("_dd");
+
+    assertEquals(1, metadata.size());
+    assertEquals(Collections.singletonList("model:gpt-4o"), metadataDd.get("cost_tags"));
+    assertEquals(manifest, metadataDd.get("agent_manifest"));
 
     tracer.close();
   }
