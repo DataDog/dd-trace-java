@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.base.HttpServer
 import datadog.trace.agent.test.base.HttpServerTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.test.util.ThreadUtils
 import datadog.trace.instrumentation.pekkohttp.PekkoHttpServerDecorator
 import okhttp3.Request
@@ -123,6 +124,14 @@ class PekkoHttpServerInstrumentationBindAndHandleTest extends PekkoHttpServerIns
   @Override
   boolean redirectHasBody() {
     return true
+  }
+}
+
+class PekkoHttpServerInstrumentationBindAndHandleContextSwapForkedTest extends PekkoHttpServerInstrumentationBindAndHandleTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }
 
