@@ -274,6 +274,23 @@ class WriterFactoryTest extends DDJavaSpecification {
   }
 
   @Test
+  void registersCustomSamplerImplementingRemoteResponseListener() throws Exception {
+    try (JavaTestHttpServer agent = tracesAgent()) {
+      CustomListenerSampler sampler = mock(CustomListenerSampler.class);
+      when(sampler.agentSampler()).thenReturn(null);
+
+      try (Writer writer = createDDAgentWriter(agent, sampler)) {
+        DDAgentApi api = onlyApi(writer);
+        api.sendSerializedTraces(emptyV04Payload());
+
+        verify(sampler).onResponse(anyString(), any());
+      }
+    }
+  }
+
+  private interface CustomListenerSampler extends Sampler, RemoteResponseListener {}
+
+  @Test
   void skipsResponseListenerRegistrationWhenNoAgentSampler() throws Exception {
     try (JavaTestHttpServer agent = tracesAgent()) {
       Sampler sampler = mock(Sampler.class);

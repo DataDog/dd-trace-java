@@ -193,6 +193,8 @@ public class WriterFactory {
       final RateByServiceTraceSampler agentRateSampler = sampler.agentSampler();
       if (agentRateSampler != null) {
         ddAgentApi.addResponseListener(agentRateSampler);
+      } else if (sampler instanceof RemoteResponseListener) {
+        ddAgentApi.addResponseListener((RemoteResponseListener) sampler);
       }
 
       // Drop p0 (sampled-out) traces when client-side stats are being computed -- either via the
