@@ -76,7 +76,8 @@ docs/                     Developer documentation (see below)
 ## Review Guidelines
 
 - **Technical debt**: run `/techdebt` over branch changes before marking a PR ready to catch code duplication, unnecessary complexity, and dead code (refactor-only, never changes behavior) — see [.agents/skills/techdebt/SKILL.md](.agents/skills/techdebt/SKILL.md).
-- **Performance**: run `/perf-review` over branch changes before marking a PR ready (advisory, not a merge gate) — see [.agents/skills/perf-review/SKILL.md](.agents/skills/perf-review/SKILL.md).
+- **Local agent with a skill harness (pilot):** run [dd-apm-sdk-review](.agents/skills/dd-apm-sdk-review/SKILL.md) on demand when asked. It is not required before every push. If any `P0` finding is reported, fix it or get explicit authorization and record the unresolved finding verbatim in the PR description. `P1`/`P2` findings can be dismissed by the human. (Performance review, previously the standalone `/perf-review` skill, is now one of this skill's perspectives — see `.agents/dd-apm-sdk-review-overrides/reviewers/performance.md`.)
+- **Reviewer without a skill harness** (for example, GitHub Codex): read and follow `.agents/skills/dd-apm-sdk-review/review-without-harness.md`. Do not load `SKILL.md` or `reviewers/report-template.md`.
 
 ## Critical constraints
 
