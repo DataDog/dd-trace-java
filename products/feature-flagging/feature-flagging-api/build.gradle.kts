@@ -1,5 +1,5 @@
+import datadog.gradle.configureCompiler
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
-import groovy.lang.Closure
 
 plugins {
   `java-library`
@@ -71,21 +71,8 @@ jmh {
   }
 }
 
-fun AbstractCompile.configureCompiler(
-  javaVersionInteger: Int,
-  compatibilityVersion: JavaVersion? = null,
-  unsetReleaseFlagReason: String? = null
-) {
-  (project.extra["configureCompiler"] as Closure<*>).call(
-    this,
-    javaVersionInteger,
-    compatibilityVersion,
-    unsetReleaseFlagReason
-  )
-}
-
 tasks.withType<JavaCompile>().configureEach {
-  configureCompiler(11, JavaVersion.VERSION_11)
+  configureCompiler(25, JavaVersion.VERSION_11)
 }
 
 tasks.withType<Javadoc>().configureEach {

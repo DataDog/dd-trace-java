@@ -114,11 +114,11 @@ tasks.named("compileMule46ForkedTestGroovy", GroovyCompile) {
 
 tasks.named("compileLatestDepForkedTestGroovy", GroovyCompile) {
   dependsOn 'mvnPackage', 'extractLatestMuleServices'
-  configureCompiler(it, 17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 tasks.named("compileLatestDepForkedTestJava", JavaCompile) {
-  configureCompiler(it, 17)
+  configureCompiler(it, 25, JavaVersion.VERSION_17)
 }
 
 tasks.named("mule46ForkedTest", Test) {

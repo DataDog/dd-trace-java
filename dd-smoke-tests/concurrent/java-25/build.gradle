@@ -32,8 +32,11 @@ tasks.named('compileJava', JavaCompile) {
   options.compilerArgs.add("--enable-preview")
 }
 
+// TODO: drop Groovy here at all
+// The Groovy test framework can't run on Java 25 (the module's default toolchain), so pin the
+// Groovy test compiler back to JDK 8 — matches the Java 8 test JVM that forks a Java 25 subprocess.
 tasks.named('compileTestGroovy') {
-  configureCompiler(it, 8, JavaVersion.VERSION_1_8)
+  configureCompiler(it, 8, JavaVersion.VERSION_1_8, "Groovy test framework cannot run on JDK 25")
 }
 
 application {

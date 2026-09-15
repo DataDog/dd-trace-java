@@ -17,7 +17,7 @@ tracerJava {
 
 ["compileMain_java11Java", "compileTestJava"].each {
   tasks.named(it, JavaCompile) {
-    configureCompiler(it, 11, JavaVersion.VERSION_11, "Needs access to module jdk.internal.vm.ci")
+    configureCompiler(it, 25, JavaVersion.VERSION_11, "Uses --add-exports to access jdk.internal.vm.ci, which is incompatible with --release")
     it.options.compilerArgs.addAll([
       '-Xlint:all,-processing,-options,-path',
       '--add-modules',

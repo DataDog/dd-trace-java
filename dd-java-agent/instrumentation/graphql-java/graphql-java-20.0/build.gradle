@@ -60,7 +60,7 @@ dependencies {
   "compileGraphql21LatestDepForkedTestGroovy"
 ].each {
   tasks.named(it) {
-    configureCompiler(it, 11)
+    configureCompiler(it, 25, JavaVersion.VERSION_11)
   }
 }
 

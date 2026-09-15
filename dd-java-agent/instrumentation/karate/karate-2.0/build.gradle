@@ -19,12 +19,12 @@ muzzle {
 
 ["compileMain_java21Java", "compileTestJava"].each {
   tasks.named(it, JavaCompile) {
-    configureCompiler(it, 21, JavaVersion.VERSION_21)
+    configureCompiler(it, 25, JavaVersion.VERSION_21)
   }
 }
 
 tasks.withType(GroovyCompile).configureEach {
-  configureCompiler(it, 21)
+  configureCompiler(it, 25, JavaVersion.VERSION_21)
 }
 
 dependencies {

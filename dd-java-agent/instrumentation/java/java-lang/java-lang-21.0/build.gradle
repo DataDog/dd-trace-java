@@ -23,7 +23,7 @@ idea {
 
 // Set test compile task to use JDK 21 to use the virtual threads API
 tasks.named("compileTestJava", JavaCompile) {
-  configureCompiler(it, 21)
+  configureCompiler(it, 25, JavaVersion.VERSION_21)
 }
 
 dependencies {

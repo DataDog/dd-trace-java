@@ -36,11 +36,9 @@ tasks.named("latest5DepTest", Test) {
   javaLauncher = getJavaLauncherFor(21)
 }
 
-tasks.named("compileLatest5DepTestJava", JavaCompile) {
-  configureCompiler(it, 21, JavaVersion.VERSION_1_8)
+tasks.named("compileLatest5DepTestGroovy", GroovyCompile) {
+  configureCompiler(it, 25, JavaVersion.VERSION_21)
 }
-
-configureGroovyCompiler(21, "compileLatest5DepTestGroovy")
 
 configurations.named("muleLatestDepTestRuntimeClasspath") {
   exclude(group: 'org.glassfish.grizzly')
