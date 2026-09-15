@@ -99,12 +99,18 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertEquals("fakeType", context.getSpanType().toString());
   }
 
+  /**
+   * Every caller of this helper exports the span before asserting, so the expected tags include the
+   * markers CoreTracer stamps at write time. {@code _dd.sdk.otlp_export} is {@code "false"} here
+   * because these tests use the default (native) writer — see {@link CoreSpanBuilderTest}.
+   */
   private static Map<String, Object> createExpectedTagsFromCurrentThread() {
     Thread thread = Thread.currentThread();
     Map<String, Object> expectedTags = new HashMap<>();
     expectedTags.put(THREAD_NAME, thread.getName());
     expectedTags.put(THREAD_ID, thread.getId());
     expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
+    expectedTags.put(DDTags.SDK_OTLP_EXPORT, "false");
     return expectedTags;
   }
 
@@ -276,11 +282,14 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     expectedTopTags.put("ttt", "t3");
     expectedTopTags.put(dataTag("tcd"), "[4]");
     expectedTopTags.put("tct", "t4");
+    // Declared on every span at creation — see CoreSpanBuilderTest.
+    expectedTopTags.put(DDTags.SDK_OTLP_EXPORT, "false");
     assertTagmap(topC.getTags(), expectedTopTags, true);
 
     Map<String, Object> expectedCurrentTags = new HashMap<>();
     expectedCurrentTags.put(dataTag("ccd"), "[2]");
     expectedCurrentTags.put("cct", "t2");
+    expectedCurrentTags.put(DDTags.SDK_OTLP_EXPORT, "false");
     assertTagmap(currentC.getTags(), expectedCurrentTags, true);
 
     current.finish();

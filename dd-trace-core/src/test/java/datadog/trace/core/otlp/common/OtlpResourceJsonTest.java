@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
+import static datadog.trace.api.config.GeneralConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.OTEL_TRACES_SPAN_METRICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
@@ -125,7 +126,8 @@ class OtlpResourceJsonTest {
                     + "SERVICE.VERSION:ignored-version,"
                     + "telemetry.sdk.name:ignored-sdk,"
                     + "telemetry.sdk.version:ignored-version,"
-                    + "telemetry.sdk.language:ignored-language"),
+                    + "telemetry.sdk.language:ignored-language,"
+                    + "datadog.sdk.semantics:ignored-semantics"),
             attrs(
                 "service.name", "my-service",
                 "deployment.environment.name", "staging",
@@ -145,6 +147,17 @@ class OtlpResourceJsonTest {
 
     Map<String, Object> actualAttributes = parseResourceAttributes(fragment);
     assertEquals(expectedAttributes, actualAttributes, "For case: " + caseName);
+  }
+
+  @Test
+  void usesOtelSdkSemanticsWhenEnabled() throws IOException {
+    Config config = Config.get(props(TRACE_OTEL_SEMANTICS_ENABLED, "true"));
+
+    Map<String, Object> attributes =
+        parseResourceAttributes(
+            OtlpResourceJson.buildResourceFragment(config, traceResourceAttributes(config)));
+
+    assertEquals("otel", attributes.get("datadog.sdk.semantics"));
   }
 
   /** The datadog-attrs variant carries {@code datadog.runtime_id}; the plain variant omits it. */
@@ -211,6 +224,7 @@ class OtlpResourceJsonTest {
     assertEquals(
         "true", withMarker.get("_dd.stats_computed"), "marker present when stats computed");
     assertFalse(without.containsKey("_dd.stats_computed"), "marker absent when stats not computed");
+    assertEquals("datadog", without.get("datadog.sdk.semantics"));
   }
 
   @Test

@@ -34,7 +34,8 @@ final class OtlpResourceAttributes {
               "service.version",
               "telemetry.sdk.name",
               "telemetry.sdk.version",
-              "telemetry.sdk.language"));
+              "telemetry.sdk.language",
+              "datadog.sdk.semantics"));
 
   /**
    * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
@@ -81,10 +82,13 @@ final class OtlpResourceAttributes {
   /**
    * Builds the extra resource attributes for the OTLP trace export: the {@code _dd.stats_computed}
    * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
-   * them from the exported spans.
+   * them from the exported spans; {@code datadog.sdk.semantics} marker when the SDK to note whether
+   * Datadog or OTel semantics are used.
    */
   static Map<String, Object> traceResourceAttributes(Config config) {
     Map<String, Object> attributes = new LinkedHashMap<>();
+    attributes.put(
+        "datadog.sdk.semantics", config.isTraceOtelSemanticsEnabled() ? "otel" : "datadog");
     if (config.isOtelTracesSpanMetricsEnabled()) {
       attributes.put(STATS_COMPUTED_KEY, "true");
     }
