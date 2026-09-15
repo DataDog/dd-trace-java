@@ -1,5 +1,7 @@
 package datadog.trace.api.featureflag;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -76,6 +78,23 @@ class FeatureFlaggingGatewayTest {
 
     verify(configListener).accept(firstConfiguration);
     verifyNoMoreInteractions(configListener);
+  }
+
+  @Test
+  void testDispatchPublishesVersionedConfigurationSnapshots() {
+    final long initialVersion = FeatureFlaggingGateway.getConfigSnapshot().getVersion();
+
+    FeatureFlaggingGateway.dispatch(firstConfiguration);
+    final FeatureFlaggingGateway.ConfigSnapshot firstSnapshot =
+        FeatureFlaggingGateway.getConfigSnapshot();
+    FeatureFlaggingGateway.dispatch(secondConfiguration);
+    final FeatureFlaggingGateway.ConfigSnapshot secondSnapshot =
+        FeatureFlaggingGateway.getConfigSnapshot();
+
+    assertEquals(initialVersion + 1, firstSnapshot.getVersion());
+    assertSame(firstConfiguration, firstSnapshot.getConfig());
+    assertEquals(firstSnapshot.getVersion() + 1, secondSnapshot.getVersion());
+    assertSame(secondConfiguration, secondSnapshot.getConfig());
   }
 
   @Test
