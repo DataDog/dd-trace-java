@@ -22,6 +22,14 @@ gradle.beforeSettings(Action<Settings> {
     }
   }
 
+  fun RepositoryHandler.removeDuplicateMavenProxy() {
+    val proxyUrl = mavenRepositoryProxy?.takeIf { it.isNotBlank() }?.trimEnd('/') ?: return
+    withType(MavenArtifactRepository::class.java)
+      .filter { it.url.toString().trimEnd('/') == proxyUrl }
+      .drop(1)
+      .forEach { remove(it) }
+  }
+
   buildscript.repositories.redirectMavenCentral()
   pluginManagement.repositories.redirectMavenCentral()
   dependencyResolutionManagement.repositories.redirectMavenCentral()
@@ -48,6 +56,10 @@ gradle.beforeSettings(Action<Settings> {
     }
   }
 
+  gradle.settingsEvaluated(Action<Settings> {
+    pluginManagement.repositories.removeDuplicateMavenProxy()
+  })
+
   gradle.beforeProject(Action<Project> {
     repositories.redirectMavenCentral()
     buildscript.repositories.redirectMavenCentral()
@@ -63,5 +75,9 @@ gradle.beforeSettings(Action<Settings> {
         mavenCentral()
       }
     }
+  })
+
+  gradle.afterProject(Action<Project> {
+    repositories.removeDuplicateMavenProxy()
   })
 })
