@@ -679,6 +679,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper, S
     context.apply(prototype);
   }
 
+  @Override
+  public void applyOverwriting(@Nonnull final SpanPrototype prototype) {
+    // Route straight to the context (owner of the tag map + future fast path) rather than through
+    // the interface default's per-setter delegation.
+    context.applyOverwriting(prototype);
+  }
+
   // Getters
 
   @Override

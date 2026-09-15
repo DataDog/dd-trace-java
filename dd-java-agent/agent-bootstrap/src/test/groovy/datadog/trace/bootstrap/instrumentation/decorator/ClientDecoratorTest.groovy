@@ -1,10 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.DDTags
-import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
-import datadog.trace.bootstrap.instrumentation.api.Tags
 
 class ClientDecoratorTest extends BaseDecoratorTest {
 
@@ -13,28 +9,24 @@ class ClientDecoratorTest extends BaseDecoratorTest {
   def "test afterStart"() {
     setup:
     def decorator = newDecorator((String) serviceName)
-    def spanContext = Mock(AgentSpanContext)
+    def recordingSpan = new RecordingSpan()
 
     when:
-    decorator.afterStart(span)
+    decorator.afterStart(recordingSpan)
 
     then:
+    def expected = ExpectedSpanState.expected()
+      .spanType(decorator.spanType())
+      .component("test-component")
+      .spanKind("client")
+      .measured(true)
+      .analyticsSampleRate(1.0d)
     if (serviceName != null) {
-      1 * span.setServiceName(serviceName, "test-component")
+      expected.serviceName(serviceName, "test-component")
     }
-    1 * span.setMeasured(true)
-    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
-    1 * span.spanContext() >> spanContext
-    1 * spanContext.setIntegrationName("test-component")
-    1 * span.setTag(TagMap.Entry.create(Tags.SPAN_KIND, "client"))
-    1 * span.setSpanType(decorator.spanType())
-    1 * span.setMetric(TagMap.Entry.create(DDTags.ANALYTICS_SAMPLE_RATE, 1.0))
-    _ * span.setTag(_)
-    _ * span.setTag(_, _) // Want to allow other calls from child implementations.
-    _ * span.setTag(_)
-    _ * span.setServiceName(_)
-    _ * span.setOperationName(_)
-    0 * _
+    // Polymorphic parent spec: subclass decorators (e.g. DB-type processing) layer on extra tags in
+    // afterStart, so tolerate additional tags while asserting the client-level scalars exactly.
+    expected.assertAppliedAllowingExtraTags(recordingSpan)
 
     where:
     serviceName << ["test-service", "other-service", null]
