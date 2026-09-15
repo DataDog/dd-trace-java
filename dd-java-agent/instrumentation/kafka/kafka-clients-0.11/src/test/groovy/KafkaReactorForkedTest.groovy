@@ -129,7 +129,7 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       }
     })
 
-    // Complete after the expected records and their asynchronous commits have drained.
+    // Limit reception to 100 records; then() waits for all their asynchronous commits.
     def receiverCompletion = kafkaReceiver.receive()
     .take(100)
     // publish on another thread to be sure we're propagating that receive span correctly
