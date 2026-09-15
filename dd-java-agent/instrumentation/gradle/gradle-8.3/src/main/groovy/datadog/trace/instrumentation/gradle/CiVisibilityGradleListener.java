@@ -16,6 +16,8 @@ import org.gradle.BuildResult;
 import org.gradle.StartParameter;
 import org.gradle.api.Named;
 import org.gradle.api.Project;
+import org.gradle.api.ProjectEvaluationListener;
+import org.gradle.api.ProjectState;
 import org.gradle.api.internal.BuildDefinition;
 import org.gradle.api.internal.StartParameterInternal;
 import org.gradle.api.internal.project.taskfactory.TaskIdentity;
@@ -28,6 +30,7 @@ import org.gradle.api.tasks.testing.Test;
 import org.gradle.build.event.BuildEventsListenerRegistry;
 import org.gradle.execution.taskgraph.TaskListenerInternal;
 import org.gradle.internal.InternalBuildListener;
+import org.gradle.internal.InternalListener;
 import org.gradle.internal.build.BuildState;
 import org.gradle.internal.build.NestedBuildState;
 import org.gradle.internal.build.RootBuildState;
@@ -82,6 +85,11 @@ public class CiVisibilityGradleListener extends BuildAdapter
       BuildState buildState,
       BuildEventsListenerRegistry buildEventsListenerRegistry) {
     this.gradle = gradle;
+
+    if (config.isCiVisibilityAutoConfigurationEnabled()) {
+      // AGP finalizes variant callbacks during project evaluation, before projectsEvaluated runs.
+      gradle.addProjectEvaluationListener(new AndroidProjectEvaluationListener());
+    }
 
     BuildServiceRegistry sharedServices = gradle.getSharedServices();
     Provider<CiVisibilityService> ciVisibilityServiceProvider =
@@ -194,9 +202,12 @@ public class CiVisibilityGradleListener extends BuildAdapter
     Map<String, Object> inputProperties = task.getInputs().getProperties();
     BuildModuleLayout moduleLayout =
         (BuildModuleLayout) inputProperties.get(CiVisibilityPluginExtension.MODULE_LAYOUT_PROPERTY);
-    if ((moduleLayout == null || moduleLayout.getSourceSets().isEmpty())
-        && project.getExtensions().findByName("android") != null) {
-      moduleLayout = AndroidGradleUtils.getAndroidModuleLayout(project, task);
+    if (isAndroid) {
+      BuildModuleLayout androidModuleLayout =
+          AndroidGradleUtils.getAndroidModuleLayout(project, task);
+      if (androidModuleLayout != null) {
+        moduleLayout = androidModuleLayout;
+      }
     }
 
     JavaAgent jacocoAgent = getJacocoAgent(task);
@@ -254,5 +265,17 @@ public class CiVisibilityGradleListener extends BuildAdapter
   @Override
   public void buildFinished(BuildResult result) {
     ciVisibilityService.onBuildFinish(result.getFailure());
+  }
+
+  private static final class AndroidProjectEvaluationListener
+      implements ProjectEvaluationListener, InternalListener {
+
+    @Override
+    public void beforeEvaluate(Project project) {
+      AndroidGradleUtils.configure(project);
+    }
+
+    @Override
+    public void afterEvaluate(Project project, ProjectState state) {}
   }
 }
