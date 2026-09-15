@@ -192,6 +192,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     sqlserver = new MSSQLServerContainer(MSSQLServerContainer.IMAGE)
       .acceptLicense()
       .withPassword(jdbcPasswords.get(SQLSERVER))
+      // Bound startup and retry once to survive transient container crashes on CI.
+      .withStartupTimeoutSeconds(120)
+      .withConnectTimeoutSeconds(120)
+      .withStartupAttempts(2)
     sqlserver.start()
     PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MS_SQL_SERVER_PORT), 5, SECONDS)
     jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
