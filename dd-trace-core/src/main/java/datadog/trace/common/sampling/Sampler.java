@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,10 +31,30 @@ public interface Sampler {
    */
   <T extends CoreSpan<T>> boolean sample(T span);
 
+  /** Returns the sampler applying agent published rates. */
+  @Nullable
+  default RateByServiceTraceSampler agentSampler() {
+    return null;
+  }
+
   final class Builder {
     private static final Logger log = LoggerFactory.getLogger(Builder.class);
 
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
+      return forConfig(config, traceConfig, null);
+    }
+
+    /**
+     * Builds the sampler for {@code config}/{@code traceConfig}, using {@code agentSampler} for
+     * agent published rates (defaulting to a new {@link RateByServiceTraceSampler} if null.)
+     *
+     * <p>Callers rebuilding the sampler must reuse the same {@code agentSampler} value: it's
+     * registered once for agent rates, and a fresh one would reset its learned rates to 1.0.
+     */
+    public static Sampler forConfig(
+        final Config config,
+        final TraceConfig traceConfig,
+        @Nullable final RateByServiceTraceSampler agentSampler) {
       Sampler sampler;
       if (config != null) {
         if (!config.isApmTracingEnabled()) {
@@ -83,7 +104,8 @@ public interface Sampler {
                     operationRules,
                     traceSamplingRules,
                     traceSampleRate,
-                    config.getTraceRateLimit());
+                    config.getTraceRateLimit(),
+                    agentSampler);
           } catch (final IllegalArgumentException e) {
             log.error("Invalid sampler configuration. Using AllSampler", e);
             sampler = new AllSampler();
@@ -103,7 +125,7 @@ public interface Sampler {
                 "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler.");
             sampler = new ParentBasedAlwaysOnSampler();
           } else {
-            sampler = new RateByServiceTraceSampler();
+            sampler = agentSampler != null ? agentSampler : new RateByServiceTraceSampler();
           }
         } else if (config.isTraceOtlpExporterEnabled()) {
           // AllSampler does not emit a sampling priority; OTLP export requires one.
