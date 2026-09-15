@@ -270,6 +270,25 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
     0 * mockTelemetryCollector.onInjectionSucceed(_)
   }
 
+  void 'sendError discards buffered content when the delegate throws'() {
+    setup:
+    def downstream = new StringWriter()
+    attachWriter(downstream).write("</he")
+
+    when:
+    wrapper.sendError(500)
+
+    then:
+    thrown(IOException)
+    1 * mockResponse.sendError(500) >> { throw new IOException("error response failed") }
+
+    when:
+    wrapper.commit()
+
+    then:
+    downstream.toString().isEmpty()
+  }
+
   void 'sendRedirect discards buffered content and stops filtering'() {
     setup:
     def downstream = new StringWriter()
@@ -285,6 +304,25 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
     downstream.toString() == "ad>"
     1 * mockResponse.sendRedirect("/other")
     0 * mockTelemetryCollector.onInjectionSucceed(_)
+  }
+
+  void 'sendRedirect discards buffered content when the delegate throws'() {
+    setup:
+    def downstream = new StringWriter()
+    attachWriter(downstream).write("</he")
+
+    when:
+    wrapper.sendRedirect("/other")
+
+    then:
+    thrown(IOException)
+    1 * mockResponse.sendRedirect("/other") >> { throw new IOException("redirect failed") }
+
+    when:
+    wrapper.commit()
+
+    then:
+    downstream.toString().isEmpty()
   }
 
   private PrintWriter attachWriter(StringWriter downstream) {

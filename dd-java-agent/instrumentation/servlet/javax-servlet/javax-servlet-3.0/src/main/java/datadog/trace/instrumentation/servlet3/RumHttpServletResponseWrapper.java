@@ -209,23 +209,32 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void sendError(int sc) throws IOException {
-    super.sendError(sc);
-    discardBufferedContent();
-    stopFiltering();
+    try {
+      super.sendError(sc);
+    } finally {
+      discardBufferedContent();
+      stopFiltering();
+    }
   }
 
   @Override
   public void sendError(int sc, String msg) throws IOException {
-    super.sendError(sc, msg);
-    discardBufferedContent();
-    stopFiltering();
+    try {
+      super.sendError(sc, msg);
+    } finally {
+      discardBufferedContent();
+      stopFiltering();
+    }
   }
 
   @Override
   public void sendRedirect(String location) throws IOException {
-    super.sendRedirect(location);
-    discardBufferedContent();
-    stopFiltering();
+    try {
+      super.sendRedirect(location);
+    } finally {
+      discardBufferedContent();
+      stopFiltering();
+    }
   }
 
   public void onInjected() {
