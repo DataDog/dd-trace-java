@@ -4,6 +4,8 @@ import datadog.environment.JavaVirtualMachine
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.api.civisibility.config.TestFQN
 import datadog.trace.api.civisibility.config.TestIdentifier
+import datadog.trace.api.civisibility.execution.TestStatus
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils
@@ -67,6 +69,19 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
 
     then:
     TEST_WRITER.size() == 0
+  }
+
+  def "reports skipped tests when suite setup fails"() {
+    when:
+    runTests([TestFailedSuiteSetup], false)
+
+    then:
+    def spans = TEST_WRITER.toList().flatten()
+    def session = spans.find { it.spanType == "test_session_end" }
+    def tests = spans.findAll { it.spanType == "test" }
+    tests.size() == 2
+    tests.every { it.getTag(Tags.TEST_STATUS) == TestStatus.skip }
+    tests.every { it.getTag(Tags.TEST_SESSION_ID) == session.getTag(Tags.TEST_SESSION_ID) }
   }
 
   def "test #testcaseName"() {

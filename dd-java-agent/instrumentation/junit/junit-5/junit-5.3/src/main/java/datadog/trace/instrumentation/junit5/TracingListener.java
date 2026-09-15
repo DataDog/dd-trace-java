@@ -6,7 +6,10 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.EngineExecutionListener;
 import org.junit.platform.engine.TestDescriptor;
@@ -22,6 +25,8 @@ public class TracingListener implements EngineExecutionListener {
 
   private final String testFramework;
   private final String testFrameworkVersion;
+  private final Set<TestDescriptor> startedOrSkippedDescriptors =
+      Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   public TracingListener(TestEngine testEngine) {
     String engineId = testEngine.getId();
@@ -41,6 +46,7 @@ public class TracingListener implements EngineExecutionListener {
 
   @Override
   public void executionStarted(final TestDescriptor descriptor) {
+    startedOrSkippedDescriptors.add(descriptor);
     if (descriptor.isContainer()) {
       containerExecutionStarted(descriptor);
     } else if (descriptor.isTest()) {
@@ -103,6 +109,11 @@ public class TracingListener implements EngineExecutionListener {
         TestEventsHandlerHolder.HANDLERS
             .get(TestFrameworkInstrumentation.JUNIT5)
             .onTestSuiteFailure(suiteDescriptor, throwable);
+
+        String reason = throwable.getMessage();
+        for (TestDescriptor child : suiteDescriptor.getChildren()) {
+          reportUnstartedDescendantsAsSkipped(child, reason);
+        }
       }
     }
     TestEventsHandlerHolder.HANDLERS
@@ -180,6 +191,10 @@ public class TracingListener implements EngineExecutionListener {
 
   @Override
   public void executionSkipped(final TestDescriptor descriptor, final String reason) {
+    if (!startedOrSkippedDescriptors.add(descriptor)) {
+      return;
+    }
+
     TestSource testSource = descriptor.getSource().orElse(null);
 
     if (testSource instanceof ClassSource) {
@@ -189,6 +204,17 @@ public class TracingListener implements EngineExecutionListener {
     } else if (testSource instanceof MethodSource) {
       // The annotation @Disabled is kept at method level.
       testMethodExecutionSkipped(descriptor, (MethodSource) testSource, reason);
+    }
+  }
+
+  private void reportUnstartedDescendantsAsSkipped(
+      final TestDescriptor descriptor, final String reason) {
+    if (!startedOrSkippedDescriptors.contains(descriptor)) {
+      executionSkipped(descriptor, reason);
+    } else {
+      for (TestDescriptor child : descriptor.getChildren()) {
+        reportUnstartedDescendantsAsSkipped(child, reason);
+      }
     }
   }
 
