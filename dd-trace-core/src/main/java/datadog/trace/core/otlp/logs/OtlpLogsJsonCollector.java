@@ -1,11 +1,12 @@
 package datadog.trace.core.otlp.logs;
 
+import static datadog.communication.otlp.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonJson.writeScopeAndSchema;
-import static datadog.trace.core.otlp.common.OtlpPayload.JSON_CONTENT_TYPE;
 import static datadog.trace.core.otlp.common.OtlpResourceJson.RESOURCE_FRAGMENT;
 import static datadog.trace.core.otlp.logs.OtlpLogsJson.writeLogRecordFields;
 
+import datadog.communication.otlp.OtlpPayload;
 import datadog.json.JsonWriter;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.logs.data.OtelLogRecordProcessor;
@@ -13,7 +14,6 @@ import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogsVisitor;
 import datadog.trace.bootstrap.otlp.logs.OtlpScopedLogsVisitor;
 import datadog.trace.core.otlp.common.LazyJsonArray;
-import datadog.trace.core.otlp.common.OtlpPayload;
 import java.nio.ByteBuffer;
 import java.util.function.ObjIntConsumer;
 

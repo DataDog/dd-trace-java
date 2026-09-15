@@ -1,12 +1,11 @@
-package datadog.trace.core.otlp.common;
+package datadog.communication.otlp;
 
 import static datadog.communication.http.OkHttpUtils.sendWithRetries;
-import static datadog.trace.common.writer.RemoteApi.Response.failed;
-import static datadog.trace.common.writer.RemoteApi.Response.success;
+import static datadog.communication.otlp.OtlpResponse.failed;
+import static datadog.communication.otlp.OtlpResponse.success;
 
 import datadog.communication.http.HttpRetryPolicy;
 import datadog.logging.RatelimitedLogger;
-import datadog.trace.common.writer.RemoteApi;
 import java.io.IOException;
 import okhttp3.OkHttpClient;
 
@@ -15,7 +14,7 @@ final class OtlpSenderSupport {
   private OtlpSenderSupport() {}
 
   /** Executes the given request with retries, logging failures via the rate-limited logger. */
-  static RemoteApi.Response send(
+  static OtlpResponse send(
       OkHttpClient client,
       HttpRetryPolicy.Factory retryPolicy,
       okhttp3.Request request,
