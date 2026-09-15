@@ -9,7 +9,10 @@ import org.eclipse.aether.resolution.VersionRangeResolutionException
 import org.eclipse.aether.resolution.VersionRangeResult
 import org.eclipse.aether.util.version.GenericVersionScheme
 import org.gradle.api.GradleException
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -18,6 +21,8 @@ import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicInteger
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
+
+private const val MAVEN_CENTRAL_URL = "https://repo1.maven.org/maven2/"
 
 class MuzzleMavenRepoUtilsTest {
 
@@ -107,6 +112,33 @@ class MuzzleMavenRepoUtilsTest {
       .hasMessageContaining("empty:")
       .hasMessageContaining("Attempts:\n  4")
       .hasMessageContaining("Backoff:\n  disabled")
+  }
+
+  // The two tests below are mutually exclusive: MAVEN_REPOSITORY_PROXY is read from the real
+  // environment (defaultMuzzleRepos deliberately does not take it as a parameter), so each of
+  // them covers the branch its environment can reach -- unset locally, set in CI.
+
+  @Test
+  @DisabledIfEnvironmentVariable(
+    named = "MAVEN_REPOSITORY_PROXY",
+    matches = ".*",
+    disabledReason = "A mirror is configured; the proxy variant of this test covers that case"
+  )
+  fun `defaultMuzzleRepos is Maven Central alone when no proxy is configured`() {
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos().map { it.id to it.url })
+      .containsExactly("central" to MAVEN_CENTRAL_URL)
+  }
+
+  // TODO: Re-enable after removing the temporary Maven Central rate limiting workaround.
+  @Test
+  @Disabled("Temporarily using the configured proxy without a Maven Central fallback")
+  @EnabledIfEnvironmentVariable(named = "MAVEN_REPOSITORY_PROXY", matches = ".*")
+  fun `defaultMuzzleRepos queries the configured proxy before Maven Central`() {
+    val proxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
+
+    // Central stays in the list as a fallback, but the proxy is consulted first.
+    assertThat(MuzzleMavenRepoUtils.defaultMuzzleRepos().map { it.id to it.url })
+      .containsExactly("central-proxy" to proxyUrl, "central" to MAVEN_CENTRAL_URL)
   }
 
   @Test
