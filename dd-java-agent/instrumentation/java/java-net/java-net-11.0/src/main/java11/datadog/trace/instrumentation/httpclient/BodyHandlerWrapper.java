@@ -10,7 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public class BodyHandlerWrapper<T> implements BodyHandler<T> {
   private final BodyHandler<T> delegate;
@@ -32,9 +32,13 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
   }
 
   static class BodySubscriberWrapper<T> implements BodySubscriber<T> {
+    private static final AtomicReferenceFieldUpdater<BodySubscriberWrapper, ContextContinuation>
+        CONTINUATION =
+            AtomicReferenceFieldUpdater.newUpdater(
+                BodySubscriberWrapper.class, ContextContinuation.class, "continuation");
+
     private final BodySubscriber<T> delegate;
-    private final ContextContinuation continuation;
-    private final AtomicBoolean continuationReleased = new AtomicBoolean();
+    private volatile ContextContinuation continuation;
 
     public BodySubscriberWrapper(BodySubscriber<T> delegate, ContextContinuation continuation) {
       this.delegate = delegate;
@@ -52,20 +56,36 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
     @Override
     public void onSubscribe(Flow.Subscription subscription) {
-      delegate.onSubscribe(new SubscriptionWrapper(subscription, this));
+      boolean completed = false;
+      try {
+        delegate.onSubscribe(new SubscriptionWrapper(subscription, this));
+        completed = true;
+      } finally {
+        if (!completed) {
+          releaseContinuation();
+        }
+      }
     }
 
     @Override
     public void onNext(List<ByteBuffer> item) {
-      try (ContextScope ignore = continuation.resume()) {
-        delegate.onNext(item);
+      boolean completed = false;
+      try {
+        try (ContextScope ignore = resumeContinuation()) {
+          delegate.onNext(item);
+        }
+        completed = true;
+      } finally {
+        if (!completed) {
+          releaseContinuation();
+        }
       }
     }
 
     @Override
     public void onError(Throwable throwable) {
       try {
-        try (ContextScope ignore = continuation.resume()) {
+        try (ContextScope ignore = resumeContinuation()) {
           delegate.onError(throwable);
         }
       } finally {
@@ -76,7 +96,7 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
     @Override
     public void onComplete() {
       try {
-        try (ContextScope ignore = continuation.resume()) {
+        try (ContextScope ignore = resumeContinuation()) {
           delegate.onComplete();
         }
       } finally {
@@ -84,8 +104,14 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
       }
     }
 
+    private ContextScope resumeContinuation() {
+      ContextContinuation continuation = this.continuation;
+      return continuation == null ? null : continuation.resume();
+    }
+
     private void releaseContinuation() {
-      if (continuationReleased.compareAndSet(false, true)) {
+      ContextContinuation continuation = CONTINUATION.getAndSet(this, null);
+      if (continuation != null) {
         continuation.release();
       }
     }

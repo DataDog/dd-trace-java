@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.httpclient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.context.Context;
 import datadog.context.ContextContinuation;
@@ -18,17 +19,39 @@ import org.junit.jupiter.api.Test;
 class BodyHandlerWrapperTest {
 
   @Test
+  void releasesContinuationWhenOnSubscribeThrows() {
+    RecordingContinuation continuation = new RecordingContinuation();
+    RecordingSubscriber subscriber = new RecordingSubscriber();
+    subscriber.throwOnSubscribe = true;
+    BodySubscriber<Void> wrapper = wrap(subscriber, continuation);
+
+    assertThrows(
+        IllegalStateException.class, () -> wrapper.onSubscribe(new RecordingSubscription()));
+    assertEquals(1, continuation.released);
+    wrapper.onComplete();
+
+    assertEquals(1, continuation.released);
+  }
+
+  @Test
+  void releasesContinuationWhenOnNextThrows() {
+    RecordingContinuation continuation = new RecordingContinuation();
+    RecordingSubscriber subscriber = new RecordingSubscriber();
+    subscriber.throwOnNext = true;
+    BodySubscriber<Void> wrapper = wrap(subscriber, continuation);
+
+    assertThrows(IllegalStateException.class, () -> wrapper.onNext(List.of()));
+    assertEquals(1, continuation.released);
+    wrapper.onComplete();
+
+    assertEquals(1, continuation.released);
+  }
+
+  @Test
   void releasesContinuationWhenSubscriptionIsCancelled() {
     RecordingContinuation continuation = new RecordingContinuation();
-    AgentSpan span =
-        (AgentSpan)
-            Proxy.newProxyInstance(
-                AgentSpan.class.getClassLoader(),
-                new Class<?>[] {AgentSpan.class},
-                (proxy, method, args) -> continuation);
     RecordingSubscriber subscriber = new RecordingSubscriber();
-    BodySubscriber<Void> wrapper =
-        new BodyHandlerWrapper<>(ignored -> subscriber, span).apply(null);
+    BodySubscriber<Void> wrapper = wrap(subscriber, continuation);
     RecordingSubscription subscription = new RecordingSubscription();
 
     wrapper.onSubscribe(subscription);
@@ -41,10 +64,23 @@ class BodyHandlerWrapperTest {
     assertEquals(1, continuation.released);
   }
 
+  private static BodySubscriber<Void> wrap(
+      RecordingSubscriber subscriber, RecordingContinuation continuation) {
+    AgentSpan span =
+        (AgentSpan)
+            Proxy.newProxyInstance(
+                AgentSpan.class.getClassLoader(),
+                new Class<?>[] {AgentSpan.class},
+                (proxy, method, args) -> continuation);
+    return new BodyHandlerWrapper<>(ignored -> subscriber, span).apply(null);
+  }
+
   private static final class RecordingSubscriber
       implements java.net.http.HttpResponse.BodySubscriber<Void> {
     private final CompletableFuture<Void> body = new CompletableFuture<>();
     private Flow.Subscription subscription;
+    private boolean throwOnSubscribe;
+    private boolean throwOnNext;
 
     @Override
     public CompletionStage<Void> getBody() {
@@ -54,10 +90,17 @@ class BodyHandlerWrapperTest {
     @Override
     public void onSubscribe(Flow.Subscription subscription) {
       this.subscription = subscription;
+      if (throwOnSubscribe) {
+        throw new IllegalStateException("onSubscribe");
+      }
     }
 
     @Override
-    public void onNext(List<ByteBuffer> item) {}
+    public void onNext(List<ByteBuffer> item) {
+      if (throwOnNext) {
+        throw new IllegalStateException("onNext");
+      }
+    }
 
     @Override
     public void onError(Throwable throwable) {
