@@ -123,6 +123,11 @@ public class W3CPTagsCodec extends PTagsCodec {
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
     TagValue orgPropagationMarkerTagValue = null;
+    TagValue llmObsMlAppTagValue = null;
+    TagValue llmObsSessionIdTagValue = null;
+    TagValue llmObsParentAgentSpanIdTagValue = null;
+    TagValue llmObsParentAgentNameTagValue = null;
+    TagValue llmObsParentIdTagValue = null;
     while (tagPos < ddMemberValueEnd) {
       tagPos = skipEmptyElements(value, tagPos, ddMemberValueEnd);
       if (tagPos >= ddMemberValueEnd) {
@@ -198,6 +203,16 @@ public class W3CPTagsCodec extends PTagsCodec {
               traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
             } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
               orgPropagationMarkerTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_ML_APP_TAG)) {
+              llmObsMlAppTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_SESSION_ID_TAG)) {
+              llmObsSessionIdTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_PAGENT_SPAN_ID_TAG)) {
+              llmObsParentAgentSpanIdTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_PAGENT_NAME_TAG)) {
+              llmObsParentAgentNameTagValue = tagValue;
+            } else if (tagKey.equals(LLMOBS_PARENT_ID_TAG)) {
+              llmObsParentIdTagValue = tagValue;
             } else {
               if (tagPairs == null) {
                 // This is roughly the size of a two element linked list but can hold six
@@ -232,6 +247,12 @@ public class W3CPTagsCodec extends PTagsCodec {
         maxUnknownSize,
         lastParentId,
         orgPropagationMarkerTagValue,
+        LLMObsTagValues.of(
+            llmObsMlAppTagValue,
+            llmObsSessionIdTagValue,
+            llmObsParentAgentSpanIdTagValue,
+            llmObsParentAgentNameTagValue,
+            llmObsParentIdTagValue),
         otelTraceState);
   }
 
@@ -883,6 +904,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         0,
         null,
         null,
+        LLMObsTagValues.EMPTY,
         otelTraceState);
   }
 
@@ -919,6 +941,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         int maxUnknownSize,
         CharSequence lastParentId,
         TagValue orgPropagationMarkerTagValue,
+        LLMObsTagValues llmObsTagValues,
         OtelTraceState otelTraceState) {
       super(
           factory,
@@ -929,7 +952,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           samplingPriority,
           origin,
           lastParentId,
-          orgPropagationMarkerTagValue);
+          orgPropagationMarkerTagValue,
+          llmObsTagValues);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;
