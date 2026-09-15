@@ -5,8 +5,6 @@ import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Catalina-independent counterpart of {@link TomcatBlockingHelper}: commits a blocking response
@@ -21,7 +19,6 @@ import org.slf4j.LoggerFactory;
  * every version in that range.
  */
 public class BlockFailureReporter {
-  private static final Logger log = LoggerFactory.getLogger(BlockFailureReporter.class);
 
   /**
    * Commits a blocking response through the {@link BlockResponseFunction} registered on the given
@@ -31,9 +28,18 @@ public class BlockFailureReporter {
    * <p>This is the single choke point shared by all Tomcat blocking call sites so the {@code
    * block_failure} telemetry is not duplicated inline.
    *
+   * <p>Exceptions thrown by the commit attempt are deliberately propagated instead of being
+   * converted into a {@code false} return: the calling advice methods declare {@code suppress =
+   * Throwable.class} and rely on the whole advice being aborted so that their blocking success-path
+   * side effects (closing the connection, injecting a {@link
+   * datadog.appsec.api.blocking.BlockingException}, marking the trace segment effectively blocked)
+   * are skipped when no response was committed. Such exception-based commit failures are therefore
+   * not reported to the {@code block_failure} telemetry, which is the same known gap as the Netty
+   * implementation this mirrors.
+   *
    * @return {@code true} if the blocking response was committed, {@code false} otherwise (including
    *     when no {@link BlockResponseFunction} is registered, in which case nothing was attempted
-   *     and no failure is reported, or when the commit attempt threw).
+   *     and no failure is reported).
    */
   public static boolean tryCommitAndReport(
       RequestContext reqCtx, Flow.Action.RequestBlockingAction rba) {
@@ -42,14 +48,8 @@ public class BlockFailureReporter {
       // nothing was attempted, so this is not a block failure
       return false;
     }
-    try {
-      if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
-        return true;
-      }
-    } catch (Exception e) {
-      log.debug("Error committing blocking response", e);
-      reportBlockFailure(reqCtx);
-      return false;
+    if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+      return true;
     }
     reportBlockFailure(reqCtx);
     return false;
