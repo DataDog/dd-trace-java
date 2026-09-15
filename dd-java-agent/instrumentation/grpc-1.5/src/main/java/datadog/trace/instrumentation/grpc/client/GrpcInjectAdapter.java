@@ -20,8 +20,7 @@ public final class GrpcInjectAdapter implements CarrierSetter<Metadata> {
   public void set(final Metadata carrier, final String key, final String value) {
     Metadata.Key<String> metadataKey = KEY_CACHE.computeIfAbsent(key, KEY_MAKER);
     if (carrier.containsKey(metadataKey)) {
-      carrier.removeAll(
-          metadataKey); // Remove existing to ensure identical behavior with other carriers
+      carrier.removeAll(metadataKey);
     }
     carrier.put(metadataKey, value);
   }

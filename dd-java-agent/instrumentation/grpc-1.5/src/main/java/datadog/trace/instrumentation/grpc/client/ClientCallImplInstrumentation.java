@@ -129,7 +129,6 @@ public final class ClientCallImplInstrumentation
   public static final class SendMessage {
     @Advice.OnMethodEnter
     public static AgentScope before(@Advice.This ClientCall<?, ?> call) {
-      // could create a message span here for the request
       AgentSpan span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (span != null) {
         return activateSpan(span);

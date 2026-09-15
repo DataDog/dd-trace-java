@@ -67,12 +67,6 @@ public final class QueuedCommandInstrumentation extends InstrumenterModule.Profi
     public static void after(@Advice.This Object command) {
       ContextStore<Object, State> contextStore = InstrumentationContext.get(QUEUED_COMMAND, STATE);
       capture(contextStore, command);
-      // FIXME hard to handle both the lifecyle and get access to the queue instance in the same
-      // frame within the WriteQueue class.
-      //  This means we can't get the queue length. A (bad) alternative would be to instrument
-      // ConcurrentLinkedQueue broadly,
-      //  or we could write more brittle instrumentation targeting code patterns in different gRPC
-      // versions.
       QueueTimerHelper.startQueuingTimer(
           contextStore, Channel.class, ConcurrentLinkedQueue.class, 0, command);
     }
