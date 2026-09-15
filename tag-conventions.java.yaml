@@ -1,0 +1,77 @@
+# Tag conventions — JAVA OVERLAY (set-path routing; NOT part of the domain spec)
+# ---------------------------------------------------------------------------
+# tag-conventions.yaml is the language-agnostic domain spec: what a tag IS. This file is the Java
+# tracer's overlay alongside it, and holds the keys that exist only because THIS tracer routes them
+# somewhere on the set-path. It is the "per-language overlay" the domain spec's header defers to.
+#
+# Why these are not in the domain spec: a key belongs there when it needs an id AND a cross-language
+# name. Every key below needs only an id — an identity to dispatch on. `manual.keep` and
+# `_dd1.sr.eausr` are Java-tracer routing vocabulary, not shared semantics, and exporting them into
+# a cross-language contract would be claiming agreement that does not exist.
+#
+# RESERVED means: accepted by setTag, but the tracer diverts it to a span field or a trace directive
+# instead of (or as well as) tag storage. TagInterceptor owns that routing, and its dispatch table
+# is the authority on it. Nothing here says whether a reserved key is also STORED: that is decided per
+# call from the value (`http.method` is routed and stored; `manual.keep` is consumed only when its
+# value coerces to a boolean), so it cannot be a static property of the tag. Mirroring it here as a
+# flag is exactly the drift that got an earlier classification bit deleted — see KnownTagCodec.
+#
+# A key that IS in the domain spec must not be REDECLARED here; it already has an id, and a second
+# declaration would be a second identity for one tag (the generator fails the build on overlap).
+# Eight of TagInterceptor's keys are domain tags, so they are named in `intercepted` below instead
+# — which marks them as routed without the domain file having to know that this tracer routes them.
+# `service` is also why the interceptor's `service.name`/`service` case pair collapses to one serial:
+# the domain spec declares `service` with otel-name `service.name`, so both names already resolve to
+# the same id.
+#
+# Every key named here — in either section — gets the INTERCEPTED flag on its id. That is what makes
+# the set-path pre-screen a single mask test on an id the caller already holds: a TagMap entry
+# carries its own tag id, so screening a stored bundle needs no name lookup at all. The flag is a
+# CLASSIFICATION, and a classification that disagrees with the dispatch switch is worse than none —
+# an earlier attempt at this bit was deleted for exactly that drift (see KnownTagCodec). What makes
+# it safe here is that the agreement is a test, not a convention: the flagged set must equal the set
+# TagInterceptor actually handles, and CI fails if they diverge.
+#
+# Serials for these are assigned AFTER every domain serial, so adding a Java-only key here cannot
+# renumber the domain block or churn the shared spec's generated output.
+#
+# tag fields: dd-name | type (string|int|long|boolean|double). No `required` (that grades how a tag
+# is STORED, and these are routing identities) and no `otel-name` (that is a domain concern).
+# ---------------------------------------------------------------------------
+
+reserved:
+  tags:
+    # resource name / span type — routed to span fields.
+    - { dd-name: resource.name,  type: string }
+    - { dd-name: span.type,      type: string }
+    # error flag — routed to the span's error field.
+    - { dd-name: error,          type: boolean }
+    # sampling directives — routed to trace-level sampling decisions, never stored as tags.
+    - { dd-name: manual.keep,    type: boolean }
+    - { dd-name: manual.drop,    type: boolean }
+    - { dd-name: asm.keep,       type: boolean }
+    - { dd-name: ai_guard.keep,  type: boolean }
+    - { dd-name: sampling.priority, type: int }
+    # legacy app-analytics sample rate — routed to a metric.
+    - { dd-name: _dd1.sr.eausr,  type: double }
+    # propagation-tag writes — routed into the propagated tag set.
+    - { dd-name: _dd.p.ts,       type: int }
+    - { dd-name: _dd.p.debug,    type: string }
+    # span bookkeeping — routed to span fields.
+    - { dd-name: _dd.origin,     type: string }
+    - { dd-name: _dd.measured,   type: boolean }
+
+# Domain tags that THIS tracer also routes on the set-path. Named, not redeclared: they already have
+# an identity from the domain spec, and this only adds the INTERCEPTED flag to it. Being routed does
+# not mean being consumed — `http.method`, `http.url` and `span.kind` are routed AND still stored —
+# which is why nothing here says anything about storage.
+intercepted:
+  tags:
+    - db.statement       # -> resource name
+    - service            # -> service name (also matches its otel-name, service.name)
+    - peer.service       # -> peer service name
+    - servlet.context    # -> service name, when splitting by servlet context
+    - http.status_code   # -> the span's status field
+    - http.method        # -> resource name, with http.url  (still stored)
+    - http.url           # -> resource name, with http.method  (still stored)
+    - span.kind          # -> cached span-kind ordinal  (still stored)

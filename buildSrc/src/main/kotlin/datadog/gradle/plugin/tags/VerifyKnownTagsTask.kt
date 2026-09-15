@@ -9,6 +9,7 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -24,6 +25,11 @@ abstract class VerifyKnownTagsTask @Inject constructor(objects: ObjectFactory) :
   @get:PathSensitive(PathSensitivity.NONE)
   val domainYaml: RegularFileProperty = objects.fileProperty()
 
+  @get:InputFile
+  @get:Optional
+  @get:PathSensitive(PathSensitivity.NONE)
+  val overlayYaml: RegularFileProperty = objects.fileProperty()
+
 
   @get:InputDirectory
   @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -34,7 +40,8 @@ abstract class VerifyKnownTagsTask @Inject constructor(objects: ObjectFactory) :
     val committed = committedDirectory.get().asFile
     val scratch = File(temporaryDir, "generated")
     scratch.deleteRecursively()
-    TagRegistryGenerator.generate(domainYaml.get().asFile, scratch)
+    TagRegistryGenerator.generate(
+      domainYaml.get().asFile, overlayYaml.orNull?.asFile, scratch)
 
     val diffs = ArrayList<String>()
     val freshFiles = scratch.walkTopDown().filter { it.isFile }.toList()
@@ -55,7 +62,8 @@ abstract class VerifyKnownTagsTask @Inject constructor(objects: ObjectFactory) :
     if (diffs.isNotEmpty()) {
       throw GradleException(
         buildString {
-          appendLine("Generated tag registry is out of date with tag-conventions.yaml:")
+          appendLine(
+            "Generated tag registry is out of date with tag-conventions.yaml / the routing overlay:")
           diffs.forEach { appendLine("  - $it") }
           append("Run `./gradlew :internal-api:generateKnownTags` and commit the result.")
         })

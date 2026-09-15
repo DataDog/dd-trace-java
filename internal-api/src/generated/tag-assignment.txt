@@ -1,4 +1,4 @@
-# Tag id assignment.  tags=51
+# Tag id assignment.  tags=64
 
 # TAGS     serial lvl id                 required     name
        1   T  0x0001000000000004 recommended  _dd.appsec.enabled
@@ -19,7 +19,7 @@
       16   -  0x0010000000000000 recommended  db.instance
       17   -  0x0011000000000000 recommended  db.operation
       18   -  0x0012000000000000 optional     db.pool.name
-      19   -  0x0013000000000000 recommended  db.statement
+      19   -  0x0013000000000008 recommended  db.statement
       20   -  0x0014000000000000 required     db.type
       21   -  0x0015000000000000 recommended  db.user
       22   T  0x0016000000000004 recommended  env
@@ -27,12 +27,12 @@
       24   -  0x0018000000000000 recommended  error.stack
       25   -  0x0019000000000000 recommended  error.type
       26   -  0x001A000000000000 required     http.hostname
-      27   -  0x001B000000000000 required     http.method
+      27   -  0x001B000000000008 required     http.method
       28   -  0x001C000000000000 recommended  http.query.string
       29   -  0x001D000000000000 recommended  http.resend_count
       30   -  0x001E000000000000 conditional  http.route
-      31   -  0x001F000000000000 conditional  http.status_code
-      32   -  0x0020000000000000 required     http.url
+      31   -  0x001F000000000008 conditional  http.status_code
+      32   -  0x0020000000000008 required     http.url
       33   -  0x0021000000000000 recommended  http.useragent
       34   T  0x0022000000000004 required     language
       35   -  0x0023000000000000 recommended  network.protocol.version
@@ -40,18 +40,36 @@
       37   -  0x0025000000000000 optional     peer.ipv4
       38   -  0x0026000000000000 optional     peer.ipv6
       39   -  0x0027000000000000 optional     peer.port
-      40   -  0x0028000000000000 recommended  peer.service
+      40   -  0x0028000000000008 recommended  peer.service
       41   T  0x0029000000000004 required     runtime-id
-      42   -  0x002A000000000000 required     service
-      43   -  0x002B000000000000 optional     servlet.context
+      42   -  0x002A000000000008 required     service
+      43   -  0x002B000000000008 optional     servlet.context
       44   -  0x002C000000000000 optional     servlet.path
-      45   -  0x002D000000000000 required     span.kind
+      45   -  0x002D000000000008 required     span.kind
       46   -  0x002E000000000000 recommended  test.framework
       47   -  0x002F000000000000 recommended  test.name
       48   -  0x0030000000000000 recommended  test.status
       49   -  0x0031000000000000 recommended  test.suite
       50   T  0x0032000000000004 recommended  version
       51   -  0x0033000000000000 recommended  view.name
+
+# RESERVED KEYS (java overlay). Set-path routing identities: accepted by setTag but
+# diverted to a span field or a trace directive. They have no `required` grade (that
+# grades storage) and belong to no span type's resolved set. Serials continue after
+# the domain block, so adding one cannot renumber the tags above.
+      52   -  0x0034000000000008 reserved     _dd.measured
+      53   -  0x0035000000000008 reserved     _dd.origin
+      54   -  0x0036000000000008 reserved     _dd.p.debug
+      55   -  0x0037000000000008 reserved     _dd.p.ts
+      56   -  0x0038000000000008 reserved     _dd1.sr.eausr
+      57   -  0x0039000000000008 reserved     ai_guard.keep
+      58   -  0x003A000000000008 reserved     asm.keep
+      59   -  0x003B000000000008 reserved     error
+      60   -  0x003C000000000008 reserved     manual.drop
+      61   -  0x003D000000000008 reserved     manual.keep
+      62   -  0x003E000000000008 reserved     resource.name
+      63   -  0x003F000000000008 reserved     sampling.priority
+      64   -  0x0040000000000008 reserved     span.type
 
 # OPENTELEMETRY NAMES. keyOf(otelName) resolves to the canonical tag's id; nameOf still
 # returns the Datadog name, openTelemetryNameOf returns the name below. (No distinct id.)
