@@ -12,6 +12,7 @@ import datadog.trace.agent.tooling.bytebuddy.iast.TaintableRedefinitionStrategyL
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers;
 import datadog.trace.agent.tooling.bytebuddy.memoize.MemoizedMatchers;
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
+import datadog.trace.agent.tooling.bytebuddy.profiling.TaskWrapperRedefinitionStrategyListener;
 import datadog.trace.agent.tooling.usm.UsmExtractorImpl;
 import datadog.trace.agent.tooling.usm.UsmMessageFactoryImpl;
 import datadog.trace.api.InstrumenterConfig;
@@ -403,7 +404,7 @@ public class AgentInstaller {
     if (enabledSystems.contains(InstrumenterModule.TargetSystem.IAST)) {
       return TaintableRedefinitionStrategyListener.INSTANCE;
     } else {
-      return AgentBuilder.RedefinitionStrategy.Listener.NoOp.INSTANCE;
+      return TaskWrapperRedefinitionStrategyListener.INSTANCE;
     }
   }
 
