@@ -4,8 +4,7 @@ import datadog.trace.api.civisibility.execution.ExecutionAggregation;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import datadog.trace.civisibility.config.ExecutionsByDuration;
-import java.util.List;
+import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 
 /**
  * Execution policy for Early Flake Detection. Runs a new or modified test case multiple times to
@@ -15,18 +14,18 @@ import java.util.List;
 public class EarlyFlakeDetection implements TestExecutionPolicy {
 
   private final boolean suppressFailures;
-  private final List<ExecutionsByDuration> executionsByDuration;
+  private final EarlyFlakeDetectionSettings efdSettings;
   private int executions;
   private int maxExecutions;
   private ExecutionAggregation results;
   private TestStatus lastStatus;
 
   public EarlyFlakeDetection(
-      List<ExecutionsByDuration> executionsByDuration, boolean suppressFailures) {
+      EarlyFlakeDetectionSettings efdSettings, boolean suppressFailures) {
     this.suppressFailures = suppressFailures;
-    this.executionsByDuration = executionsByDuration;
+    this.efdSettings = efdSettings;
     this.executions = 0;
-    this.maxExecutions = getExecutions(0);
+    this.maxExecutions = efdSettings.retriesForDuration(0);
     this.results = ExecutionAggregation.NONE;
   }
 
@@ -35,7 +34,7 @@ public class EarlyFlakeDetection implements TestExecutionPolicy {
     lastStatus = status;
     ++executions;
     results = results.withExecution(status);
-    int maxExecutionsForGivenDuration = getExecutions(durationMillis);
+    int maxExecutionsForGivenDuration = efdSettings.retriesForDuration(durationMillis);
     maxExecutions = Math.min(maxExecutions, maxExecutionsForGivenDuration);
 
     boolean lastExecution = !retriesLeft();
@@ -78,15 +77,6 @@ public class EarlyFlakeDetection implements TestExecutionPolicy {
     // pass + fail -> fail (correct)
     // fail + pass -> pass (incorrect)
     return !suppressFailures && results == ExecutionAggregation.MIXED;
-  }
-
-  private int getExecutions(long durationMillis) {
-    for (ExecutionsByDuration e : executionsByDuration) {
-      if (durationMillis <= e.getDurationMillis()) {
-        return e.getExecutions();
-      }
-    }
-    return 0;
   }
 
   @Override

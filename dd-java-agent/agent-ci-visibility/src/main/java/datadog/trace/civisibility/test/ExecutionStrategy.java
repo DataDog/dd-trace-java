@@ -6,6 +6,9 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.tag.HasCustomBuckets;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
@@ -13,6 +16,7 @@ import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.config.TestSetting;
 import datadog.trace.civisibility.execution.AttemptToFix;
 import datadog.trace.civisibility.execution.AutoTestRetry;
+import datadog.trace.civisibility.execution.DynamicAutoTestRetry;
 import datadog.trace.civisibility.execution.EarlyFlakeDetection;
 import datadog.trace.civisibility.execution.Quarantine;
 import datadog.trace.civisibility.execution.Regular;
@@ -38,16 +42,29 @@ public class ExecutionStrategy {
   @Nonnull private final ExecutionSettings executionSettings;
   @Nonnull private final SourcePathResolver sourcePathResolver;
   @Nonnull private final LinesResolver linesResolver;
+  @Nonnull private final CiVisibilityMetricCollector metricCollector;
+  private final int[] dynamicAtrBuckets;
 
   public ExecutionStrategy(
       @Nonnull Config config,
       @Nonnull ExecutionSettings executionSettings,
       @Nonnull SourcePathResolver sourcePathResolver,
-      @Nonnull LinesResolver linesResolver) {
+      @Nonnull LinesResolver linesResolver,
+      @Nonnull CiVisibilityMetricCollector metricCollector) {
     this.config = config;
     this.executionSettings = executionSettings;
     this.sourcePathResolver = sourcePathResolver;
     this.linesResolver = linesResolver;
+    this.metricCollector = metricCollector;
+    this.dynamicAtrBuckets = parseDynamicAtrBuckets(config.getCiVisibilityDynamicAtrBuckets());
+
+    if (config.isCiVisibilityDynamicAtrEnabled()
+        && executionSettings.isFlakyTestRetriesEnabled()) {
+      metricCollector.add(
+          CiVisibilityCountMetric.DYNAMIC_ATR_RETRIES_ENABLED,
+          1,
+          dynamicAtrBuckets != null ? HasCustomBuckets.TRUE : null);
+    }
   }
 
   @Nonnull
@@ -135,13 +152,20 @@ public class ExecutionStrategy {
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
       earlyFlakeDetectionsUsed.incrementAndGet();
       return new EarlyFlakeDetection(
-          executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
+          executionSettings.getEarlyFlakeDetectionSettings(),
           isQuarantined(test));
     }
 
     if (isAutoRetryApplicable(test)) {
       // check-then-act with "autoRetriesUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
+      if (config.isCiVisibilityDynamicAtrEnabled()) {
+        return new DynamicAutoTestRetry(
+            executionSettings.getEarlyFlakeDetectionSettings(),
+            dynamicAtrBuckets,
+            isQuarantined(test),
+            autoRetriesUsed);
+      }
       return new AutoTestRetry(
           config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
     }
@@ -246,5 +270,51 @@ public class ExecutionStrategy {
     }
     // then the rest
     return 0;
+  }
+
+  private static final int RETRY_BUCKET_COUNT = 5;
+  private static final int MAX_RETRIES_PER_BUCKET = 20;
+
+  /**
+   * Parses the {@code DD_CIVISIBILITY_DYNAMIC_ATR_BUCKETS} env var into five positive integers in
+   * [1, 20]. Returns {@code null} if the value is unset/empty or invalid (wrong count,
+   * non-integer, out of range) — in which case the EFD retry settings are used as fallback.
+   */
+  private static int[] parseDynamicAtrBuckets(String rawBuckets) {
+    if (rawBuckets == null || rawBuckets.isEmpty()) {
+      return null;
+    }
+    String[] parts = rawBuckets.split(",", -1);
+    if (parts.length != RETRY_BUCKET_COUNT) {
+      LOGGER.warn(
+          "Invalid {} value '{}'; expected five comma-separated integers in [1, {}]",
+          "DD_CIVISIBILITY_DYNAMIC_ATR_BUCKETS",
+          rawBuckets,
+          MAX_RETRIES_PER_BUCKET);
+      return null;
+    }
+    int[] buckets = new int[RETRY_BUCKET_COUNT];
+    try {
+      for (int i = 0; i < RETRY_BUCKET_COUNT; i++) {
+        int value = Integer.parseInt(parts[i].trim());
+        if (value < 1 || value > MAX_RETRIES_PER_BUCKET) {
+          LOGGER.warn(
+              "Invalid {} value '{}'; expected five comma-separated integers in [1, {}]",
+              "DD_CIVISIBILITY_DYNAMIC_ATR_BUCKETS",
+              rawBuckets,
+              MAX_RETRIES_PER_BUCKET);
+          return null;
+        }
+        buckets[i] = value;
+      }
+    } catch (NumberFormatException e) {
+      LOGGER.warn(
+          "Invalid {} value '{}'; expected five comma-separated integers in [1, {}]",
+          "DD_CIVISIBILITY_DYNAMIC_ATR_BUCKETS",
+          rawBuckets,
+          MAX_RETRIES_PER_BUCKET);
+      return null;
+    }
+    return buckets;
   }
 }

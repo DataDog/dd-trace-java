@@ -5,6 +5,7 @@ import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
+import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector
 import datadog.trace.api.civisibility.telemetry.tag.Provider
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.codeowners.Codeowners
@@ -47,7 +48,7 @@ class HeadlessTestSessionTest extends SpanWriterTest {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getTestManagementSettings() >> new TestManagementSettings(true, 10)
 
-    def executionStrategy = new ExecutionStrategy(Stub(Config), executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
+    def executionStrategy = new ExecutionStrategy(Stub(Config), executionSettings, Stub(SourcePathResolver), Stub(LinesResolver), NoOpMetricCollector.INSTANCE)
 
     new HeadlessTestSession(
       "project-name",

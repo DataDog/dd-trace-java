@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
         "TestExecutionPolicy instances are confined to a single thread and are not meant to be thread-safe")
 public class AutoTestRetry implements TestExecutionPolicy {
 
-  private final int maxExecutions;
+  protected int maxExecutions;
   private final boolean suppressFailures;
   private int executions;
   private ExecutionAggregation results;

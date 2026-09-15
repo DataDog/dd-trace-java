@@ -40,6 +40,40 @@ public class EarlyFlakeDetectionSettings {
     return executionsByDuration;
   }
 
+  /**
+   * Returns the EFD retry-bucket index for an initial test duration. Bucket boundaries match the EFD
+   * duration buckets: {@code <=5s -> 0, <=10s -> 1, <=30s -> 2, <=5m -> 3, >5m -> 4}.
+   */
+  public int retryBucketIndexForDuration(long durationMillis) {
+    if (durationMillis <= 5_000) {
+      return 0;
+    }
+    if (durationMillis <= 10_000) {
+      return 1;
+    }
+    if (durationMillis <= 30_000) {
+      return 2;
+    }
+    if (durationMillis <= 300_000) {
+      return 3;
+    }
+    return 4;
+  }
+
+  /**
+   * Returns the configured retry budget for an initial test duration, based on the backend-provided
+   * {@code executionsByDuration} list. Returns 0 if no bucket matches (e.g. test ran longer than the
+   * longest configured duration).
+   */
+  public int retriesForDuration(long durationMillis) {
+    for (ExecutionsByDuration e : executionsByDuration) {
+      if (durationMillis <= e.getDurationMillis()) {
+        return e.getExecutions();
+      }
+    }
+    return 0;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
