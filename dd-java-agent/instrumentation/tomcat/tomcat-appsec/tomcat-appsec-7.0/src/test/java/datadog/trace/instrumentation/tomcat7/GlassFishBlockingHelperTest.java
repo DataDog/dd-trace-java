@@ -221,6 +221,19 @@ class GlassFishBlockingHelperTest {
   }
 
   @Test
+  void tryBlock_noBrf_nullFallbackResponse_doesNotReportBlockFailure() {
+    TraceSegment segment = mock(TraceSegment.class);
+    RequestContext reqCtx = mockReqCtx(null, segment);
+    AppSecContext appSecCtx = mockAppSecCtx(reqCtx);
+
+    // brf == null and fallbackResp == null: no response was ever available to commit through,
+    // so nothing was genuinely attempted and no block_failure should be reported.
+    assertFalse(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
+
+    verify(appSecCtx, never()).reportBlockFailure();
+  }
+
+  @Test
   void tryBlock_commitThrows_reportsBlockFailure() throws Exception {
     TraceSegment segment = mock(TraceSegment.class);
     BlockResponseFunction brf = mock(BlockResponseFunction.class);
