@@ -129,8 +129,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       }
     })
 
-    // create a thread safe queue to store the received message
-    kafkaReceiver.receive()
+    // Complete after the expected records and their asynchronous commits have drained.
+    def receiverCompletion = kafkaReceiver.receive()
+    .take(100)
     // publish on another thread to be sure we're propagating that receive span correctly
     .publishOn(Schedulers.parallel())
     .flatMap {
@@ -139,7 +140,8 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       }
     }
     .subscribeOn(Schedulers.parallel())
-    .subscribe()
+    .then()
+    .toFuture()
 
 
     // wait until the container has the required number of assigned partitions
@@ -152,7 +154,8 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       kafkaSender.send(Mono.just(SenderRecord.create(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, greeting), null)))
     }
     .publishOn(Schedulers.parallel())
-    .subscribe()
+    .blockLast()
+    receiverCompletion.get(30, TimeUnit.SECONDS)
     then:
     // check that the all the consume (100) and the send (100) are reported
     TEST_WRITER.waitForTraces(200)
@@ -174,6 +177,9 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
       assert it.get(consumeIndex).getParentId() == it.get(produceIndex).getSpanId()
       assert it.get(produceIndex).getParentId() == 0
     }
+    cleanup:
+    receiverCompletion?.cancel(true)
+    kafkaSender?.close()
   }
 
   def producerSpan(
