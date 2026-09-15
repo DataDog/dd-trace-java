@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.robolectric;
 
+import android.os.Build;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -13,7 +14,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.versioning.AndroidVersions;
 
 public final class RobolectricTestAnnotator {
 
@@ -40,10 +40,10 @@ public final class RobolectricTestAnnotator {
     }
 
     span.setTag(Tags.TEST_ANDROID_API_LEVEL, apiLevel);
-    AndroidVersions.AndroidRelease release = AndroidVersions.getReleaseForSdkInt(apiLevel);
-    if (release != null) {
-      span.setTag(Tags.TEST_ANDROID_RELEASE, release.getVersion());
-      span.setTag(Tags.TEST_ANDROID_CODENAME, release.getShortCode());
+    span.setTag(Tags.TEST_ANDROID_RELEASE, Build.VERSION.RELEASE);
+    String androidCodename = AndroidVersionUtils.codename(apiLevel);
+    if (androidCodename != null) {
+      span.setTag(Tags.TEST_ANDROID_CODENAME, androidCodename);
     }
     String robolectricVersion = robolectricVersion();
     if (robolectricVersion != null) {
