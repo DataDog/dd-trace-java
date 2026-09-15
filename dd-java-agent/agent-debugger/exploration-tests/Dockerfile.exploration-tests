@@ -11,6 +11,7 @@ RUN curl -s "https://get.sdkman.io" | bash
 RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && \
     sdk env install && \
     sdk install java 17.0.10-tem && \
+    sdk install java 25.0.2-tem && \
     sdk flush"
 
 RUN mkdir exploration-tests
