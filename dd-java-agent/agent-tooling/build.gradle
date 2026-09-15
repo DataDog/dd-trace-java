@@ -50,6 +50,7 @@ dependencies {
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation libs.bytebuddy
+  testImplementation libs.bundles.junit5
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
 
   jmhImplementation("org.springframework.boot:spring-boot-starter-web:2.7.18")

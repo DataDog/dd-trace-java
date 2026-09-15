@@ -40,13 +40,6 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GoogleHttpClientDecorator", packageName + ".HeadersInjectAdapter"
-    };
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvices(
         isMethod().and(isPublic()).and(named("execute")).and(takesArguments(0)),
