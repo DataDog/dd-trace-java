@@ -24,6 +24,7 @@ import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import okhttp3.HttpUrl;
@@ -98,6 +99,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String debuggerSnapshotEndpoint;
     String debuggerDiagnosticsEndpoint;
     String evpProxyEndpoint;
+    Set<String> evpProxyAllowedHeaders = emptySet();
     String version;
     String telemetryProxyEndpoint;
     Set<String> peerTags = emptySet();
@@ -156,7 +158,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
       final Request request =
-          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
+          prepareRequest(appendPath(agentBaseUrl, "info"), emptyMap()).get().build();
       try (Response response = client.newCall(request).execute()) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
@@ -206,7 +208,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       try (Response response =
           client
               .newCall(
-                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
+                  prepareRequest(appendPath(agentBaseUrl, candidate), emptyMap())
                       .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .build())
               .execute()) {
@@ -288,6 +290,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
           newState.evpProxyEndpoint = endpoint;
           break;
         }
+      }
+      final Object allowedHeadersObj = map.get("evp_proxy_allowed_headers");
+      if (allowedHeadersObj instanceof List) {
+        final Set<String> allowedHeaders = new HashSet<>();
+        for (Object header : (List<?>) allowedHeadersObj) {
+          if (header instanceof String) {
+            allowedHeaders.add(((String) header).toLowerCase(Locale.ROOT));
+          }
+        }
+        newState.evpProxyAllowedHeaders = unmodifiableSet(allowedHeaders);
       }
 
       for (String endpoint : telemetryProxyEndpoints) {
@@ -424,7 +436,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   }
 
   public HttpUrl buildUrl(String endpoint) {
-    return agentBaseUrl.resolve(endpoint);
+    return appendPath(agentBaseUrl, endpoint);
   }
 
   public boolean supportsDataStreams() {
@@ -433,6 +445,17 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsEvpProxy() {
     return discoveryState.evpProxyEndpoint != null;
+  }
+
+  /** Returns whether the Agent advertises forwarding every required EVP request header. */
+  public boolean supportsEvpProxyHeaders(final Iterable<String> requiredHeaders) {
+    final Set<String> allowedHeaders = discoveryState.evpProxyAllowedHeaders;
+    for (String requiredHeader : requiredHeaders) {
+      if (!allowedHeaders.contains(requiredHeader.toLowerCase(Locale.ROOT))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public boolean supportsContentEncodingHeadersWithEvpProxy() {
@@ -468,5 +491,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public boolean supportsTelemetryProxy() {
     return discoveryState.telemetryProxyEndpoint != null;
+  }
+
+  private static HttpUrl appendPath(final HttpUrl baseUrl, final String path) {
+    int firstCharacter = 0;
+    while (firstCharacter < path.length() && path.charAt(firstCharacter) == '/') {
+      firstCharacter++;
+    }
+    return baseUrl.newBuilder().addPathSegments(path.substring(firstCharacter)).build();
   }
 }
