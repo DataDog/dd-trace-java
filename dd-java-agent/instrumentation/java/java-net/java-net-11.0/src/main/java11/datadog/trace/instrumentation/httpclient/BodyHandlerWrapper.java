@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BodyHandlerWrapper<T> implements BodyHandler<T> {
   private final BodyHandler<T> delegate;
@@ -27,12 +28,13 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
     if (subscriber instanceof BodySubscriberWrapper) {
       return subscriber;
     }
-    return new BodySubscriberWrapper<>(subscriber, span.captureWithContext());
+    return new BodySubscriberWrapper<>(subscriber, span.captureWithContext().hold());
   }
 
   static class BodySubscriberWrapper<T> implements BodySubscriber<T> {
     private final BodySubscriber<T> delegate;
     private final ContextContinuation continuation;
+    private final AtomicBoolean continuationReleased = new AtomicBoolean();
 
     public BodySubscriberWrapper(BodySubscriber<T> delegate, ContextContinuation continuation) {
       this.delegate = delegate;
@@ -50,7 +52,7 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
     @Override
     public void onSubscribe(Flow.Subscription subscription) {
-      delegate.onSubscribe(subscription);
+      delegate.onSubscribe(new SubscriptionWrapper(subscription, this));
     }
 
     @Override
@@ -62,15 +64,53 @@ public class BodyHandlerWrapper<T> implements BodyHandler<T> {
 
     @Override
     public void onError(Throwable throwable) {
-      try (ContextScope ignore = continuation.resume()) {
-        delegate.onError(throwable);
+      try {
+        try (ContextScope ignore = continuation.resume()) {
+          delegate.onError(throwable);
+        }
+      } finally {
+        releaseContinuation();
       }
     }
 
     @Override
     public void onComplete() {
-      try (ContextScope ignore = continuation.resume()) {
-        delegate.onComplete();
+      try {
+        try (ContextScope ignore = continuation.resume()) {
+          delegate.onComplete();
+        }
+      } finally {
+        releaseContinuation();
+      }
+    }
+
+    private void releaseContinuation() {
+      if (continuationReleased.compareAndSet(false, true)) {
+        continuation.release();
+      }
+    }
+  }
+
+  static final class SubscriptionWrapper implements Flow.Subscription {
+    private final Flow.Subscription delegate;
+    private final BodySubscriberWrapper<?> subscriber;
+
+    SubscriptionWrapper(Flow.Subscription delegate, BodySubscriberWrapper<?> subscriber) {
+      this.delegate = delegate;
+      this.subscriber = subscriber;
+    }
+
+    @Override
+    public void request(long count) {
+      delegate.request(count);
+    }
+
+    @Override
+    public void cancel() {
+      try {
+        delegate.cancel();
+      } finally {
+        subscriber.releaseContinuation();
       }
     }
   }
