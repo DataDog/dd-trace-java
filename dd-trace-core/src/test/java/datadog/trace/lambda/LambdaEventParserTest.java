@@ -270,13 +270,11 @@ class LambdaEventParserTest {
   // ============================================================================
 
   @Test
-  void nonHttpEventHasNoHostOrRoute() {
-    LambdaRequestData data =
-        parseEvent("{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\"}]}");
-
-    assertEquals(LambdaTriggerType.UNKNOWN, data.triggerType);
-    assertNull(data.host);
-    assertNull(data.route);
+  void nonHttpEventIsNotExtracted() {
+    // AppSec skips non-HTTP triggers entirely, so nothing is extracted from their payload
+    assertSame(
+        LambdaRequestData.EMPTY,
+        parseEvent("{\"Records\": [{\"eventSource\": \"aws:sqs\", \"body\": \"hello\"}]}"));
   }
 
   @Test

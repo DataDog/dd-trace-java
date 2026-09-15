@@ -85,6 +85,7 @@ import datadog.trace.civisibility.interceptor.CiVisibilityTraceInterceptor;
 import datadog.trace.common.GitMetadataTraceInterceptor;
 import datadog.trace.common.metrics.MetricsAggregator;
 import datadog.trace.common.metrics.NoOpMetricsAggregator;
+import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
 import datadog.trace.common.sampling.SpanSamplingRules;
@@ -135,6 +136,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -180,6 +182,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   /** Sampler defines the sampling policy in order to reduce the number of traces for instance */
   final Sampler initialSampler;
+
+  /**
+   * The sampler registered to receive agent published rates, reused across sampler rebuilds so
+   * learned rates survive.
+   */
+  @Nullable final RateByServiceTraceSampler agentSampler;
 
   /** Scope manager is in charge of managing the scopes from which spans are created */
   final ContinuableScopeManager scopeManager;
@@ -679,6 +687,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.initialConfig = config;
     this.apmTracingEnabled = config.isApmTracingEnabled();
     this.initialSampler = sampler;
+    this.agentSampler = sampler.agentSampler();
 
     // Get initial Trace Sampling Rules from config
     String traceSamplingRulesJson = config.getTraceSamplingRules();
@@ -1230,17 +1239,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @SuppressWarnings("resource")
   public void activateSpanWithoutScope(AgentSpan span) {
     scopeManager.activateSpan(span);
-  }
-
-  @Override
-  @SuppressWarnings("deprecation")
-  public AgentScope.Continuation captureActiveSpan() {
-    return scopeManager.captureActiveSpan();
-  }
-
-  @Override
-  public ContextContinuation captureSpan(final AgentSpan span) {
-    return scopeManager.captureSpan(span);
   }
 
   @Override
@@ -2558,7 +2556,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           && Objects.equals(getTraceSamplingRules(), oldSnapshot.getTraceSamplingRules())) {
         sampler = oldSnapshot.sampler;
       } else {
-        sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this);
+        // Reuse the agent sampler: registration for agent rates happens once, at construction.
+        sampler = Sampler.Builder.forConfig(CoreTracer.this.initialConfig, this, agentSampler);
       }
 
       if (null == oldSnapshot) {

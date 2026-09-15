@@ -38,7 +38,8 @@ internal object MuzzleMavenRepoUtils {
       listOf(central)
     } else {
       val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
-      listOf(proxy, central)
+      // TODO: temporary hack for Maven Central rate limiting
+      listOf(proxy /*, central*/)
     }
   }
 

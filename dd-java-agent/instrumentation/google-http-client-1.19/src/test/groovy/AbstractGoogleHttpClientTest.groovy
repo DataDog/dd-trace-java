@@ -33,9 +33,12 @@ abstract class AbstractGoogleHttpClientTest extends HttpClientTest {
     request.setThrowExceptionOnExecuteError(throwExceptionOnError)
 
     HttpResponse response = executeRequest(request)
-    callback?.call()
-
-    return response.getStatusCode()
+    try {
+      callback?.call()
+      return response.getStatusCode()
+    } finally {
+      response.disconnect()
+    }
   }
 
   abstract HttpResponse executeRequest(HttpRequest request)

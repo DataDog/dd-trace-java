@@ -23,6 +23,7 @@ import datadog.trace.api.internal.InternalTracer;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.api.scopemanager.ScopeListener;
+import datadog.trace.context.NoopTraceScope;
 import datadog.trace.context.TraceScope;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
@@ -68,6 +69,14 @@ public class AgentTracer {
     return get().startSpan(instrumentationName, spanName, parent, startTimeMicros);
   }
 
+  /**
+   * @see TracerAPI#startSpan(SpanPrototype, CharSequence)
+   */
+  public static AgentSpan startSpan(
+      @Nonnull final SpanPrototype prototype, final CharSequence operationName) {
+    return get().startSpan(prototype, operationName);
+  }
+
   public static AgentScope activateSpan(final AgentSpan span) {
     return get().activateSpan(span);
   }
@@ -80,34 +89,6 @@ public class AgentTracer {
   @Deprecated
   public static void activateSpanWithoutScope(final AgentSpan span) {
     get().activateSpanWithoutScope(span);
-  }
-
-  /**
-   * When asynchronous propagation is enabled, prevent the currently active trace from reporting
-   * until the returned Continuation is either activated (and the returned scope is closed) or the
-   * continuation is canceled.
-   *
-   * <p>Should be called on the parent thread.
-   *
-   * @return Continuation of the active span, no-op continuation if there's no active span or
-   *     asynchronous propagation is disabled.
-   */
-  @Nonnull
-  public static ContextContinuation captureActiveSpan() {
-    return get().captureActiveSpan();
-  }
-
-  /**
-   * Prevent the trace of the given span from reporting until the returned Continuation is either
-   * activated (and the returned scope is closed) or the continuation is canceled.
-   *
-   * <p>Should be called on the parent thread.
-   *
-   * @return Continuation of the given span.
-   */
-  @Nonnull
-  public static ContextContinuation captureSpan(final AgentSpan span) {
-    return get().captureSpan(span);
   }
 
   /**
@@ -316,10 +297,14 @@ public class AgentTracer {
     void activateSpanWithoutScope(AgentSpan span);
 
     @Override
-    @SuppressWarnings("deprecation")
-    AgentScope.Continuation captureActiveSpan();
-
-    ContextContinuation captureSpan(AgentSpan span);
+    default TraceScope.Continuation captureActiveSpan() {
+      Context current = currentContext();
+      if (AgentSpan.fromContext(current) == null) {
+        return NoopTraceScope.NoopContinuation.INSTANCE;
+      }
+      // captureActiveSpan is deprecated; use a best-effort wrapper
+      return new TraceScopeContinuationWrapper(capture(current));
+    }
 
     void checkpointActiveForRollback();
 
@@ -514,17 +499,6 @@ public class AgentTracer {
 
     @Override
     public void activateSpanWithoutScope(final AgentSpan span) {}
-
-    @Override
-    @SuppressWarnings("deprecation")
-    public AgentScope.Continuation captureActiveSpan() {
-      return NoopContinuation.INSTANCE;
-    }
-
-    @Override
-    public ContextContinuation captureSpan(final AgentSpan span) {
-      return NoopContinuation.INSTANCE;
-    }
 
     @Override
     public boolean isAsyncPropagationEnabled() {
@@ -849,6 +823,33 @@ public class AgentTracer {
     @Override
     public void addListener(@Nonnull ContextListener listener) {
       // this method is never used in legacy mode...
+    }
+  }
+
+  /** Adapts a {@link ContextContinuation} to the deprecated {@link TraceScope.Continuation} SPI. */
+  private static final class TraceScopeContinuationWrapper implements TraceScope.Continuation {
+    private final ContextContinuation continuation;
+
+    TraceScopeContinuationWrapper(ContextContinuation continuation) {
+      this.continuation = continuation;
+    }
+
+    @Override
+    public TraceScope.Continuation hold() {
+      continuation.hold();
+      return this;
+    }
+
+    @Override
+    @SuppressWarnings("resource")
+    public TraceScope activate() {
+      ContextScope scope = continuation.resume();
+      return scope instanceof TraceScope ? (TraceScope) scope : scope::close;
+    }
+
+    @Override
+    public void cancel() {
+      continuation.release();
     }
   }
 }
