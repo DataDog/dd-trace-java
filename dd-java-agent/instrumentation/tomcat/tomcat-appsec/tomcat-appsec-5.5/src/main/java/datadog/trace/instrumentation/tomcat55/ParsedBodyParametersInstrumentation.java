@@ -20,6 +20,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.tomcat.TomcatBlockingHelper;
 import java.util.Hashtable;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
@@ -143,7 +144,7 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            TomcatBlockingHelper.tryCommitAndReport(reqCtx, rba);
             if (t == null) {
               t = new BlockingException("Blocked request (for processParameters)");
             }
