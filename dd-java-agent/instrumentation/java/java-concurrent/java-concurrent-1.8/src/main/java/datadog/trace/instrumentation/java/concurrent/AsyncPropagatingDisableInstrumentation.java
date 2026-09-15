@@ -90,6 +90,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "rx.internal.util.ObjectPool",
       "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
       "okhttp3.ConnectionPool",
+      "okhttp3.internal.connection.RealConnectionPool",
       "com.squareup.okhttp.ConnectionPool",
       "org.elasticsearch.transport.netty4.Netty4TcpChannel",
       "org.springframework.cglib.core.internal.LoadingCache",
@@ -157,10 +158,14 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
     transformer.applyAdvice(
-        named("addConnection").and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
+        namedOneOf("addConnection", "put")
+            .and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
         advice);
     transformer.applyAdvice(
         named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
+    transformer.applyAdvice(
+        named("put").and(isDeclaredBy(named("okhttp3.internal.connection.RealConnectionPool"))),
+        advice);
     transformer.applyAdvice(
         named("sendMessage")
             .and(isDeclaredBy(named("org.elasticsearch.transport.netty4.Netty4TcpChannel"))),
