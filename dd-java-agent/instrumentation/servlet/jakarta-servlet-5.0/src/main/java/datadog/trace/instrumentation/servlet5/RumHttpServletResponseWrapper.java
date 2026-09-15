@@ -166,19 +166,48 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void reset() {
+    super.reset();
+    discardBufferedContent();
+    setActiveFilters(false);
     this.outputStream = null;
     this.wrappedPipeWriter = null;
     this.printWriter = null;
-    this.shouldInject = false;
-    super.reset();
+    this.shouldInject = true;
+    this.contentEncoding = null;
   }
 
   @Override
   public void resetBuffer() {
-    this.outputStream = null;
-    this.wrappedPipeWriter = null;
-    this.printWriter = null;
     super.resetBuffer();
+    discardBufferedContent();
+    setActiveFilters(shouldInject);
+  }
+
+  @Override
+  public void flushBuffer() throws IOException {
+    flushBufferedContent();
+    super.flushBuffer();
+  }
+
+  @Override
+  public void sendError(int sc) throws IOException {
+    super.sendError(sc);
+    discardBufferedContent();
+    stopFiltering();
+  }
+
+  @Override
+  public void sendError(int sc, String msg) throws IOException {
+    super.sendError(sc, msg);
+    discardBufferedContent();
+    stopFiltering();
+  }
+
+  @Override
+  public void sendRedirect(String location) throws IOException {
+    super.sendRedirect(location);
+    discardBufferedContent();
+    stopFiltering();
   }
 
   public void onInjected() {
@@ -226,11 +255,33 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
   @Override
   public void stopFiltering() {
     shouldInject = false;
+    setActiveFilters(false);
+  }
+
+  private void flushBufferedContent() throws IOException {
     if (wrappedPipeWriter != null) {
-      wrappedPipeWriter.setFilter(false);
+      wrappedPipeWriter.commit();
     }
     if (outputStream != null) {
-      outputStream.setFilter(false);
+      outputStream.commit();
+    }
+  }
+
+  private void discardBufferedContent() {
+    if (wrappedPipeWriter != null) {
+      wrappedPipeWriter.discard();
+    }
+    if (outputStream != null) {
+      outputStream.discard();
+    }
+  }
+
+  private void setActiveFilters(boolean filter) {
+    if (wrappedPipeWriter != null) {
+      wrappedPipeWriter.setFilter(filter);
+    }
+    if (outputStream != null) {
+      outputStream.setFilter(filter);
     }
   }
 }
