@@ -17,7 +17,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.instrumentation.tomcat.TomcatBlockingHelper;
+import datadog.trace.instrumentation.tomcat.BlockFailureReporter;
 import java.util.List;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
@@ -58,7 +58,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
   public String[] helperClassNames() {
     return new String[] {
       // referenced by the inlined advice below to commit the blocking response
-      "datadog.trace.instrumentation.tomcat.TomcatBlockingHelper",
+      "datadog.trace.instrumentation.tomcat.BlockFailureReporter",
       "datadog.trace.instrumentation.tomcat7.ParameterCollector",
       "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
       "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
@@ -125,7 +125,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
             Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
             BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
             if (blockResponseFunction != null) {
-              TomcatBlockingHelper.tryCommitAndReport(reqCtx, rba);
+              BlockFailureReporter.tryCommitAndReport(reqCtx, rba);
               t = new BlockingException("Blocked request (for Request/parseParts)");
               reqCtx.getTraceSegment().effectivelyBlocked();
             }
@@ -145,7 +145,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
-              TomcatBlockingHelper.tryCommitAndReport(reqCtx, rba);
+              BlockFailureReporter.tryCommitAndReport(reqCtx, rba);
               t = new BlockingException("Blocked request (multipart file upload)");
               reqCtx.getTraceSegment().effectivelyBlocked();
             }
@@ -166,7 +166,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
                   (Flow.Action.RequestBlockingAction) contentAction;
               BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
               if (brf != null) {
-                TomcatBlockingHelper.tryCommitAndReport(reqCtx, rba);
+                BlockFailureReporter.tryCommitAndReport(reqCtx, rba);
                 t = new BlockingException("Blocked request (multipart file upload content)");
                 reqCtx.getTraceSegment().effectivelyBlocked();
               }
