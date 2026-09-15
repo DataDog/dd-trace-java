@@ -265,7 +265,7 @@ class SmokeTestAppEndToEndTest {
   }
 
   @Test
-  fun `local proxy property prepends Maven proxy repositories exactly once`() {
+  fun `Maven proxy replaces Maven Central in nested repositories`() {
     writeOuterSettings()
     val proxyRepository = projectDir.resolve("proxy-maven-repo").toFile()
     val projectRepository = projectDir.resolve("project-maven-repo").toFile()
@@ -279,10 +279,29 @@ class SmokeTestAppEndToEndTest {
         sysProperty = "resolved.repositories.path",
       ),
     )
-    writeInnerSettings()
+    writeInnerSettings(
+      """
+      pluginManagement {
+        repositories {
+          mavenCentral()
+        }
+      }
+
+      gradle.settingsEvaluated {
+        val outputDir = java.io.File(providers.gradleProperty("appBuildDir").get())
+        outputDir.mkdirs()
+        outputDir.resolve("plugin-repositories.txt").writeText(
+          pluginManagement.repositories
+            .withType(org.gradle.api.artifacts.repositories.MavenArtifactRepository::class.java)
+            .joinToString(System.lineSeparator()) { "repository=" + it.url }
+        )
+      }
+      """.trimIndent(),
+    )
     writeInnerBuild(
       """
       repositories {
+        mavenCentral()
         maven {
           url = uri("${projectRepository.toURI()}")
         }
@@ -301,8 +320,12 @@ class SmokeTestAppEndToEndTest {
           val artifacts = configurations.compileClasspath.get()
             .sortedBy { it.name }
             .map { it.name + "=" + it.readText() }
+          val repositoryUrls = repositories
+            .withType(org.gradle.api.artifacts.repositories.MavenArtifactRepository::class.java)
+            .map { "repository=" + it.url }
           resolved.get().asFile.writeText(
-            (listOf("init-script-count=" + gradle.startParameter.initScripts.size) + artifacts)
+            (listOf("init-script-count=" + gradle.startParameter.initScripts.size) +
+              repositoryUrls + artifacts)
               .joinToString(System.lineSeparator())
           )
         }
@@ -319,10 +342,30 @@ class SmokeTestAppEndToEndTest {
     assertThat(result.task(":resolveRepositories")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val resolvedFile = applicationOutput("resolved-repositories.txt")
     assertThat(resolvedFile).exists()
-    assertThat(resolvedFile.readLines()).containsExactly(
+    val resolvedLines = resolvedFile.readLines()
+    assertThat(resolvedLines).contains(
       "init-script-count=1",
+      "repository=${proxyRepository.toURI()}",
       "project-only-1.0.jar=project-only",
       "shared-1.0.jar=proxy",
+    )
+    assertThat(resolvedLines).containsOnlyOnce(
+      "repository=${proxyRepository.toURI()}",
+    )
+    assertThat(resolvedLines).doesNotContain(
+      "repository=https://repo.maven.apache.org/maven2/",
+    )
+    val pluginRepositoriesFile = applicationOutput("plugin-repositories.txt")
+    assertThat(pluginRepositoriesFile).exists()
+    val pluginRepositoryLines = pluginRepositoriesFile.readLines()
+    assertThat(pluginRepositoryLines).contains(
+      "repository=${proxyRepository.toURI()}",
+    )
+    assertThat(pluginRepositoryLines).containsOnlyOnce(
+      "repository=${proxyRepository.toURI()}",
+    )
+    assertThat(pluginRepositoryLines).doesNotContain(
+      "repository=https://repo.maven.apache.org/maven2/",
     )
   }
 
@@ -649,10 +692,11 @@ class SmokeTestAppEndToEndTest {
       "fake-mvnw"
     }
 
-  private fun writeInnerSettings() {
+  private fun writeInnerSettings(additionalContent: String = "") {
     File(applicationDir, "settings.gradle.kts").writeText(
       """
       rootProject.name = "smoke-test-app-fixture-application"
+      $additionalContent
       """.trimIndent(),
     )
   }

@@ -1,10 +1,38 @@
 import org.gradle.api.Action
 import org.gradle.api.Project
+import org.gradle.api.artifacts.dsl.RepositoryHandler
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.initialization.Settings
 
 gradle.beforeSettings(Action<Settings> {
   val gradlePluginProxy = providers.gradleProperty("gradlePluginProxy").orNull
   val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
+  val mavenCentralUrls = setOf(
+    "https://repo.maven.apache.org/maven2",
+    "https://repo1.maven.org/maven2",
+  )
+
+  fun RepositoryHandler.redirectMavenCentral() {
+    val proxy = mavenRepositoryProxy?.takeIf { it.isNotBlank() } ?: return
+    withType(MavenArtifactRepository::class.java).configureEach {
+      if (url.toString().trimEnd('/') in mavenCentralUrls) {
+        url = java.net.URI(proxy)
+        isAllowInsecureProtocol = true
+      }
+    }
+  }
+
+  fun RepositoryHandler.removeDuplicateMavenProxy() {
+    val proxyUrl = mavenRepositoryProxy?.takeIf { it.isNotBlank() }?.trimEnd('/') ?: return
+    withType(MavenArtifactRepository::class.java)
+      .filter { it.url.toString().trimEnd('/') == proxyUrl }
+      .drop(1)
+      .forEach { remove(it) }
+  }
+
+  buildscript.repositories.redirectMavenCentral()
+  pluginManagement.repositories.redirectMavenCentral()
+  dependencyResolutionManagement.repositories.redirectMavenCentral()
 
   pluginManagement {
     repositories {
@@ -22,11 +50,19 @@ gradle.beforeSettings(Action<Settings> {
         }
       }
       gradlePluginPortal()
-      mavenCentral()
+      if (mavenRepositoryProxy.isNullOrBlank()) {
+        mavenCentral()
+      }
     }
   }
 
+  gradle.settingsEvaluated(Action<Settings> {
+    pluginManagement.repositories.removeDuplicateMavenProxy()
+  })
+
   gradle.beforeProject(Action<Project> {
+    repositories.redirectMavenCentral()
+    buildscript.repositories.redirectMavenCentral()
     repositories {
       mavenLocal()
       mavenRepositoryProxy?.takeIf { it.isNotBlank() }?.let { proxy ->
@@ -35,7 +71,13 @@ gradle.beforeSettings(Action<Settings> {
           isAllowInsecureProtocol = true
         }
       }
-      mavenCentral()
+      if (mavenRepositoryProxy.isNullOrBlank()) {
+        mavenCentral()
+      }
     }
+  })
+
+  gradle.afterProject(Action<Project> {
+    repositories.removeDuplicateMavenProxy()
   })
 })
