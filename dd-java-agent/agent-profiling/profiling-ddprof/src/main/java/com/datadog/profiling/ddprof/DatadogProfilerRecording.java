@@ -47,7 +47,7 @@ final class DatadogProfilerRecording implements OngoingRecording {
   @Override
   public RecordingData snapshot(@Nonnull Instant start, @Nonnull ProfilingSnapshot.Kind kind) {
     try {
-      Path recFile = Files.createTempFile("dd-profiler-snapshot-", ".jfr");
+      Path recFile = profiler.newSnapshotFile();
       profiler.dump(recFile);
       return new DatadogProfilerRecordingData(recFile, start, Instant.now(), kind);
     } catch (Throwable t) {

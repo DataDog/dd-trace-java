@@ -140,7 +140,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
       Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
       return probeCondition.execute(capture, TimeoutChecker.create(Config.get(), timeout));
     } catch (Exception ex) {
-      DebuggerAgent.getSink().getProbeStatusSink().addError(probeId, ex);
+      DebuggerAgent.getSink().getProbeStatusSink().addError(getProbeId(), ex);
       return false;
     } finally {
       LOGGER.debug(
@@ -199,7 +199,7 @@ public class TriggerProbe extends ProbeDefinition implements Sampled, CapturedCo
         language,
         location,
         probeCondition,
-        probeId,
+        getProbeId(),
         sampling,
         tagMap,
         Arrays.toString(tags),
