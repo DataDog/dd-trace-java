@@ -20,6 +20,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
+import datadog.trace.instrumentation.kafka_common.Utils;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -29,6 +30,10 @@ import org.apache.kafka.common.record.TimestampType;
 
 public class KafkaDecorator extends MessagingClientDecorator {
   private static final String KAFKA = "kafka";
+  // Kept in sync with the names each kafka-clients-0.11 instrumentation module passes to its own
+  // super(...) constructor call, so TRACING_ENABLED can't drift from what is actually registered.
+  public static final String INTEGRATION_NAME = KAFKA;
+  public static final String LEGACY_INTEGRATION_NAME = "kafka-0.11";
   public static final CharSequence JAVA_KAFKA = UTF8BytesString.create("java-kafka");
   public static final CharSequence KAFKA_CONSUME =
       UTF8BytesString.create(
@@ -42,6 +47,8 @@ public class KafkaDecorator extends MessagingClientDecorator {
   public static final boolean KAFKA_LEGACY_TRACING = Config.get().isKafkaLegacyTracingEnabled();
   public static final boolean TIME_IN_QUEUE_ENABLED =
       Config.get().isTimeInQueueEnabled(!KAFKA_LEGACY_TRACING, KAFKA);
+  public static final boolean TRACING_ENABLED =
+      Utils.isTracingEnabled(INTEGRATION_NAME, LEGACY_INTEGRATION_NAME);
   public static final String KAFKA_PRODUCED_KEY = "x_datadog_kafka_produced";
   private final String spanKind;
   private final CharSequence spanType;

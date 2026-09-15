@@ -15,11 +15,11 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class MetadataInstrumentation extends InstrumenterModule.Tracing
+public class MetadataInstrumentation extends InstrumenterModule.DataStreams
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public MetadataInstrumentation() {
-    super("kafka", "kafka-3.8");
+    super(KafkaDecorator.INTEGRATION_NAME, KafkaDecorator.LEGACY_INTEGRATION_NAME);
   }
 
   @Override
@@ -44,6 +44,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
       "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
       "datadog.trace.instrumentation.kafka_common.PendingConfig",
       "datadog.trace.instrumentation.kafka_common.MetadataState",
+      "datadog.trace.instrumentation.kafka_common.Utils",
     };
   }
 
