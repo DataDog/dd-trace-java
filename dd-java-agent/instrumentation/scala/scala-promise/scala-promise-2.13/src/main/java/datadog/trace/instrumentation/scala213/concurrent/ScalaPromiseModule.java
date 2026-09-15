@@ -14,7 +14,6 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +60,7 @@ public final class ScalaPromiseModule extends InstrumenterModule.ContextTracking
     final InstrumenterConfig config = InstrumenterConfig.get();
     // Only enable this if integrations have been enabled and the extra "integration"
     // scala_promise_completion_priority has been enabled specifically
-    if (config.isIntegrationEnabled(
-        Collections.singletonList("scala_promise_completion_priority"), false)) {
+    if (config.isScalaPromiseCompletionPriorityEnabled()) {
       ret.add(new DefaultPromiseInstrumentation());
       ret.add(new PromiseObjectInstrumentation());
     }
