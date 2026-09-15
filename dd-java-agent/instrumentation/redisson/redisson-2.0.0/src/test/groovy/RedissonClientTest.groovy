@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import org.testcontainers.utility.DockerImageName
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
@@ -17,6 +20,9 @@ import org.redisson.client.protocol.RedisCommands
 import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class RedissonClientTest extends VersionedNamingTestBase {
   @Shared
   RedisServer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6")).waitingFor(Wait.forListeningPort())

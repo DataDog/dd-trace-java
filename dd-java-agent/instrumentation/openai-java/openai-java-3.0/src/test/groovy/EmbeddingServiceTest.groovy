@@ -43,6 +43,7 @@ class EmbeddingServiceTest extends OpenAiTest {
     List<LLMObs.Document> inputTagsOut = []
     Map<String, Object> metadataOut = [:]
 
+    waitForTraces()
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()

@@ -13,6 +13,7 @@ import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -52,10 +55,7 @@ public class TempLocationManagerTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "test1"})
   void testFromConfig(String subPath) throws Exception {
-    Path myDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    Path myDir = createSecureTempDirectory();
     myDir.toFile().deleteOnExit();
     Properties props = new Properties();
     props.put(ProfilingConfig.PROFILING_TEMP_DIR, myDir.toString());
@@ -77,6 +77,7 @@ public class TempLocationManagerTest {
   }
 
   @Test
+  @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Requires POSIX file permissions")
   void testFromConfigNotWritable() throws Exception {
     Path myDir =
         Files.createTempDirectory(
@@ -92,10 +93,7 @@ public class TempLocationManagerTest {
   @ParameterizedTest
   @ValueSource(strings = {"", "test1"})
   void testCleanup(String subPath) throws Exception {
-    Path myDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    Path myDir = createSecureTempDirectory();
     myDir.toFile().deleteOnExit();
     TempLocationManager tempLocationManager =
         instance(myDir, false, TempLocationManager.CleanupHook.EMPTY);
@@ -131,17 +129,12 @@ public class TempLocationManagerTest {
      * 2. Main thread deletes file, signals via proceedSignal latch
      * 3. Cleanup thread continues and completes
      */
-    Path baseDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    Path baseDir = createSecureTempDirectory();
     baseDir.toFile().deleteOnExit();
 
     Path fakeTempDir =
         baseDir.resolve(TempLocationManager.getBaseTempDirName() + "/pid_fake/scratch");
-    Files.createDirectories(
-        fakeTempDir,
-        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    createSecureDirectories(fakeTempDir);
     Path fakeTempFile = fakeTempDir.resolve("libxxx.so");
     Files.createFile(fakeTempFile);
 
@@ -286,10 +279,7 @@ public class TempLocationManagerTest {
             return TempLocationManager.CleanupHook.super.visitFile(file, attrs, timeout);
           }
         };
-    Path baseDir =
-        Files.createTempDirectory(
-            "ddprof-test-",
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    Path baseDir = createSecureTempDirectory();
     baseDir.toFile().deleteOnExit();
     TempLocationManager instance = instance(baseDir, false, delayer, timeSource);
     Path mytempdir = instance.getTempDir();
@@ -312,6 +302,27 @@ public class TempLocationManagerTest {
       argumentsList.add(Arguments.of(false, intercepted));
     }
     return argumentsList.stream();
+  }
+
+  private static Path createSecureTempDirectory() throws IOException {
+    return supportsPosixPermissions()
+        ? Files.createTempDirectory(
+            "ddprof-test-",
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")))
+        : Files.createTempDirectory("ddprof-test-");
+  }
+
+  private static void createSecureDirectories(Path path) throws IOException {
+    if (supportsPosixPermissions()) {
+      Files.createDirectories(
+          path, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    } else {
+      Files.createDirectories(path);
+    }
+  }
+
+  private static boolean supportsPosixPermissions() {
+    return FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
   }
 
   private TempLocationManager instance(

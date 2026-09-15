@@ -18,7 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides access to Datadog internal classes. */
-public final class DatadogClassLoader extends SecureClassLoader {
+public final class DatadogClassLoader extends SecureClassLoader implements AutoCloseable {
   static {
     ClassLoader.registerAsParallelCapable();
   }
@@ -165,6 +165,13 @@ public final class DatadogClassLoader extends SecureClassLoader {
       }
     }
     throw new ClassNotFoundException(name);
+  }
+
+  @Override
+  public void close() throws IOException {
+    if (agentJarFile != null) {
+      agentJarFile.close();
+    }
   }
 
   @Override

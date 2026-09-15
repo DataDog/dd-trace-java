@@ -1,3 +1,6 @@
+import datadog.environment.OperatingSystem
+import spock.lang.IgnoreIf
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.Config
@@ -22,6 +25,9 @@ import java.time.Duration
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
+@IgnoreIf(reason = "Requires a Docker environment capable of running Linux Testcontainers", inherited = true, value = {
+  OperatingSystem.isWindows()
+})
 abstract class AbstractPayloadTaggingTest extends InstrumentationSpecification {
   static final Object NA = {}
 
@@ -364,4 +370,3 @@ class PayloadTaggingMaxTagsForkedTest extends AbstractPayloadTaggingTest {
     ]
   }
 }
-
