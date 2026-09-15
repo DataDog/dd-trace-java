@@ -51,7 +51,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
   public String[] helperClassNames() {
     return new String[] {
       // referenced by GlassFishBlockingHelper.tryBlock() to commit the blocking response
-      "datadog.trace.instrumentation.tomcat.TomcatBlockingHelper",
+      "datadog.trace.instrumentation.tomcat.BlockFailureReporter",
       "datadog.trace.instrumentation.tomcat7.GlassFishBlockingHelper",
     };
   }

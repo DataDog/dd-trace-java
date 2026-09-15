@@ -7,7 +7,7 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.MultipartContentDecoder;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
-import datadog.trace.instrumentation.tomcat.TomcatBlockingHelper;
+import datadog.trace.instrumentation.tomcat.BlockFailureReporter;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,17 +44,17 @@ public final class GlassFishBlockingHelper {
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
         // tryCommitAndReport already reports the block failure when the commit fails
-        if (!TomcatBlockingHelper.tryCommitAndReport(reqCtx, rba)) {
+        if (!BlockFailureReporter.tryCommitAndReport(reqCtx, rba)) {
           return false;
         }
       } else if (!commitBlocking(fallbackReq, fallbackResp, rba)) {
-        TomcatBlockingHelper.reportBlockFailure(reqCtx);
+        BlockFailureReporter.reportBlockFailure(reqCtx);
         return false;
       }
     } catch (Exception e) {
       // commit failed - response not sent, cannot block this request
       log.debug("Error committing blocking response", e);
-      TomcatBlockingHelper.reportBlockFailure(reqCtx);
+      BlockFailureReporter.reportBlockFailure(reqCtx);
       return false;
     }
     // Response was committed — mark as blocked on a best-effort basis.

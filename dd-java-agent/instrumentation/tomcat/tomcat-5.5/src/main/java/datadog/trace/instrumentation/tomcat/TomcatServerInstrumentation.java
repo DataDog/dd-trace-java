@@ -56,6 +56,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
       packageName + ".TomcatDecorator$TomcatBlockResponseFunction",
       packageName + ".RequestURIDataAdapter",
       packageName + ".TomcatBlockingHelper",
+      packageName + ".BlockFailureReporter",
     };
   }
 
@@ -200,7 +201,7 @@ public final class TomcatServerInstrumentation extends InstrumenterModule.Tracin
           DECORATE.onRequest(span, req, req, parentContext);
           Flow.Action.RequestBlockingAction rba = span.getRequestBlockingAction();
           if (rba != null) {
-            TomcatBlockingHelper.tryCommitAndReport(span.getRequestContext(), rba);
+            BlockFailureReporter.tryCommitAndReport(span.getRequestContext(), rba);
             ret = false; // skip pipeline
           }
         }
