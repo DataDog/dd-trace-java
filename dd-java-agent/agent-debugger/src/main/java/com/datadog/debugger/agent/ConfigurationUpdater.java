@@ -126,17 +126,18 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   // the exception will be reported in the next request to the conf service
   @Override
   public void accept(Source source, Collection<? extends ProbeDefinition> definitions) {
+    configurationLock.lock();
     try {
       LOGGER.debug("Received new definitions from {}", source);
       Configuration newConfiguration;
-      synchronized (definitionSources) {
-        definitionSources.put(source, definitions);
-        newConfiguration = createConfiguration(definitionSources);
-      }
+      definitionSources.put(source, definitions);
+      newConfiguration = createConfiguration(definitionSources);
       applyNewConfiguration(newConfiguration);
     } catch (RuntimeException e) {
       ExceptionHelper.logException(LOGGER, e, "Error during accepting new debugger configuration:");
       throw e;
+    } finally {
+      configurationLock.unlock();
     }
   }
 
@@ -170,24 +171,18 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
   }
 
   private void applyNewConfiguration(Configuration newConfiguration) {
-    configurationLock.lock();
-    try {
-      Configuration originalConfiguration = currentConfiguration;
-      ConfigurationComparer changes =
-          new ConfigurationComparer(
-              originalConfiguration, newConfiguration, instrumentationResults);
-      if (changes.hasRateLimitRelatedChanged()) {
-        // apply rate limit config first to avoid racing with execution/instrumentation
-        // of probes requiring samplers
-        applyRateLimiter(newConfiguration.getSampling());
-      }
-      currentConfiguration = newConfiguration;
-      if (changes.hasProbeRelatedChanges()) {
-        LOGGER.debug("Applying new probe configuration, changes: {}", changes);
-        handleProbesChanges(changes, newConfiguration);
-      }
-    } finally {
-      configurationLock.unlock();
+    Configuration originalConfiguration = currentConfiguration;
+    ConfigurationComparer changes =
+        new ConfigurationComparer(originalConfiguration, newConfiguration, instrumentationResults);
+    if (changes.hasRateLimitRelatedChanged()) {
+      // apply rate limit config first to avoid racing with execution/instrumentation
+      // of probes requiring samplers
+      applyRateLimiter(newConfiguration.getSampling());
+    }
+    currentConfiguration = newConfiguration;
+    if (changes.hasProbeRelatedChanges()) {
+      LOGGER.debug("Applying new probe configuration, changes: {}", changes);
+      handleProbesChanges(changes, newConfiguration);
     }
   }
 
