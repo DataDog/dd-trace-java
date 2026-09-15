@@ -2,7 +2,6 @@ package datadog.trace.bootstrap.instrumentation.decorator
 
 import datadog.appsec.api.blocking.BlockingException
 import datadog.context.Context
-import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
