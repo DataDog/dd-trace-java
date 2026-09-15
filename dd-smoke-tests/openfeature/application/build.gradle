@@ -16,6 +16,16 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+configurations.configureEach {
+  resolutionStrategy.componentSelection.all { selection ->
+    if (selection.candidate.group == 'dev.openfeature' &&
+      selection.candidate.module == 'sdk' &&
+      selection.candidate.version.endsWith('-SNAPSHOT')) {
+      selection.reject('Compatibility tests require the latest stable release')
+    }
+  }
+}
+
 // Java 11 (not Java 8 like the other Spring Boot 2.x smoke tests): the OpenFeature SDK
 // requires Java 11+. This matches what the outer (pre-nested) build was doing before
 // the application was extracted into this nested build.
@@ -24,15 +34,25 @@ java {
   targetCompatibility = 11
 }
 
+if (hasProperty('featureFlaggingApiJar') && hasProperty('ddOpenFeatureVersion')) {
+  throw new GradleException('Specify either featureFlaggingApiJar or ddOpenFeatureVersion, not both')
+}
+
 if (hasProperty('featureFlaggingApiJar')) {
   dependencies {
     implementation files(property('featureFlaggingApiJar'))
   }
+} else if (hasProperty('ddOpenFeatureVersion')) {
+  dependencies {
+    implementation "com.datadoghq:dd-openfeature:${property('ddOpenFeatureVersion')}"
+  }
+} else {
+  throw new GradleException('featureFlaggingApiJar or ddOpenFeatureVersion is required')
 }
 
 dependencies {
   // OpenFeature SDK is an API dependency of feature-flagging-api but is not
   // transitively resolved when the jar is passed as a files() dependency.
-  implementation 'dev.openfeature:sdk:1.20.1'
+  implementation "dev.openfeature:sdk:${findProperty('openFeatureSdkVersion') ?: '1.20.1'}"
   implementation 'org.springframework.boot:spring-boot-starter-web'
 }
