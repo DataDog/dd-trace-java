@@ -12,7 +12,6 @@ import datadog.trace.agent.tooling.muzzle.MuzzleGeneratorFixtures.ManualHelperFi
 import datadog.trace.agent.tooling.muzzle.MuzzleGeneratorFixtures.ManualModule;
 import datadog.trace.agent.tooling.muzzle.MuzzleGeneratorFixtures.OwnerWithMuzzleFixture;
 import java.io.File;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,7 +21,7 @@ import java.util.Set;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import org.junit.jupiter.api.Test;
 
-class MuzzleGeneratorTest {
+class HelperResolverTest {
 
   private static final String INFERRED = InferredHelperFixture.class.getName();
   private static final String MANUAL = ManualHelperFixture.class.getName();
@@ -33,10 +32,10 @@ class MuzzleGeneratorTest {
   void isBuildTimeOnlyDetectsMuzzleReferenceProviders() {
     ClassFileLocator locator = ClassFileLocator.ForClassLoader.of(getClass().getClassLoader());
     // classes that use the muzzle Reference API are build-time only and must not be injected
-    assertTrue(MuzzleGenerator.isBuildTimeOnly(BuildTimeProviderFixture.class.getName(), locator));
-    assertTrue(MuzzleGenerator.isBuildTimeOnly(MUZZLE_HELPER, locator));
+    assertTrue(HelperResolver.isBuildTimeOnly(BuildTimeProviderFixture.class.getName(), locator));
+    assertTrue(HelperResolver.isBuildTimeOnly(MUZZLE_HELPER, locator));
     // ordinary helper is injectable
-    assertFalse(MuzzleGenerator.isBuildTimeOnly(INFERRED, locator));
+    assertFalse(HelperResolver.isBuildTimeOnly(INFERRED, locator));
   }
 
   @Test
@@ -64,13 +63,11 @@ class MuzzleGeneratorTest {
   }
 
   private static List<String> injectedHelpers(InstrumenterModule module) throws Exception {
-    // Point the generator's "ownOutput" at this module's compiled test classes so the fixtures
-    // count as this subproject's own helpers.
-    File sourceDir = classesRootOf(MuzzleGeneratorFixtures.class);
-    File targetDir = Files.createTempDirectory("muzzle-generator-test").toFile();
-    MuzzleGenerator generator = new MuzzleGenerator(targetDir);
+    // Point "ownOutput" at this module's compiled test classes so the fixtures count as this
+    // subproject's own helpers.
+    File sourceRoot = classesRootOf(MuzzleGeneratorFixtures.class);
 
-    ClassLoader loader = MuzzleGeneratorTest.class.getClassLoader();
+    ClassLoader loader = HelperResolverTest.class.getClassLoader();
     Map<String, Reference> crawled =
         ReferenceCreator.createReferencesFrom(CombineAdvice.class.getName(), loader);
     List<Reference> references = new ArrayList<>(crawled.values());
@@ -81,7 +78,7 @@ class MuzzleGeneratorTest {
     Thread.currentThread().setContextClassLoader(loader);
     try {
       return Arrays.asList(
-          generator.computeInjectedHelpers(module, references, adviceClasses, sourceDir));
+          HelperResolver.computeInjectedHelpers(module, references, adviceClasses, sourceRoot));
     } finally {
       Thread.currentThread().setContextClassLoader(previous);
     }
