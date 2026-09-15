@@ -7,9 +7,11 @@ import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import datadog.trace.util.SubSequence;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -54,7 +56,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     int otelMemberStart = -1;
     int otelMemberValueStart = -1;
     int otelMemberValueEnd = -1;
-    int otelMemberPosition = -1;
     while (memberStart < len) {
       if (memberIndex == MAX_MEMBER_COUNT) {
         // TODO should we return one with an error?
@@ -87,7 +88,6 @@ public class W3CPTagsCodec extends PTagsCodec {
         otelMemberStart = memberStart;
         otelMemberValueStart = memberValueStart;
         otelMemberValueEnd = memberValueEnd;
-        otelMemberPosition = memberIndex;
       }
 
       memberIndex++;
@@ -104,7 +104,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       otelTraceState =
           OtelTraceState.parse(
               SubSequence.of(value, otelMemberValueStart, valueEnd),
-              otelMemberPosition,
               memberContributionSize(value, firstMemberStart, otelMemberStart, otelMemberValueEnd));
     }
 
@@ -236,50 +235,63 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int estimateHeaderSize(PTags pTags) {
-    int size = EMPTY_SIZE + 1; // 'dd=' and delimiter;
-    // Yes, this is a bit much, but better safe than sorry
-    size += pTags.getXDatadogTagsSize();
+  @SuppressWarnings("StringEquality")
+  @SuppressFBWarnings(
+      value = "ES_COMPARING_STRINGS_WITH_EQ",
+      justification =
+          "Identity determines whether the sampling state retains this PTags instance's raw "
+              + "tracestate, allowing its parsed size metadata to be reused.")
+  protected int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState) {
+    int size = EMPTY_SIZE + 1;
+    size += pTags.getXDatadogTagsSize(samplingState);
     if (pTags.getOrigin() != null) {
-      size += pTags.getOrigin().length() + 3; // 'o:' + delimiter
+      size += pTags.getOrigin().length() + 3;
     }
-    if (pTags.getSamplingPriority() != PrioritySampling.UNSET) {
-      size += 5; // 's:-?[0-9]' + delimiter
+    if (samplingState.getSamplingPriority() != PrioritySampling.UNSET) {
+      size += 5;
     }
+    CharSequence lastParent =
+        lastParentIdOverride != null ? lastParentIdOverride : pTags.getLastParentId();
+    if (lastParent != null) {
+      size += lastParent.length() + 3;
+    }
+    String originalTracestate = samplingState.getTracestate();
     boolean includesOriginalTracestate = false;
-    if (pTags instanceof W3CPTags) {
+    if (originalTracestate != null
+        && pTags instanceof W3CPTags
+        && originalTracestate == pTags.tracestate) {
       W3CPTags w3CPTags = (W3CPTags) pTags;
       size += w3CPTags.maxUnknownSize;
       if (w3CPTags.ddMemberStart != -1) {
-        size +=
-            (w3CPTags.tracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart));
+        size += originalTracestate.length() - (w3CPTags.ddMemberValueEnd - w3CPTags.ddMemberStart);
         includesOriginalTracestate = true;
       }
-    } else if (pTags.tracestate != null) {
-      // We assume there is no Datadog list-member
-      size += pTags.tracestate.length();
+    } else if (originalTracestate != null) {
+      size += originalTracestate.length();
       includesOriginalTracestate = true;
     }
-    OtelTraceState otelTraceState = pTags.getOtelTraceState();
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
     if (otelTraceState != null) {
-      size -= includesOriginalTracestate ? otelTraceState.getOriginalSize() : 0;
+      if (includesOriginalTracestate && otelTraceState instanceof OtelTraceState) {
+        size -= ((OtelTraceState) otelTraceState).getOriginalSize();
+      }
       size += OTEL_MEMBER_KEY.length() + otelTraceState.length() + 1;
     }
-    return size;
+    return Math.min(size, MAX_HEADER_SIZE);
   }
 
   @Override
-  protected int appendPrefix(StringBuilder sb, PTags ptags) {
-    return appendPrefix(sb, ptags, null);
-  }
-
-  @Override
-  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
+  protected int appendPrefix(
+      StringBuilder sb,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState) {
     sb.append(DATADOG_MEMBER_KEY);
     // Append sampling priority (s)
-    if (ptags.getSamplingPriority() != PrioritySampling.UNSET) {
+    if (samplingState.getSamplingPriority() != PrioritySampling.UNSET) {
       sb.append("s:");
-      sb.append(ptags.getSamplingPriority());
+      sb.append(samplingState.getSamplingPriority());
     }
     // Append origin (o)
     CharSequence origin = ptags.getOrigin();
@@ -317,7 +329,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   @Override
-  protected int appendSuffix(StringBuilder sb, PTags ptags, int size) {
+  protected int appendSuffix(StringBuilder sb, PTags ptags, int size, SamplingState samplingState) {
     // If there is room for appending unknown from W3CPTags
     if (size < MAX_HEADER_SIZE && ptags instanceof W3CPTags) {
       W3CPTags w3cPTags = (W3CPTags) ptags;
@@ -329,13 +341,64 @@ public class W3CPTagsCodec extends PTagsCodec {
       sb.setLength(0);
       size = 0;
     }
+    if (size == 0 && canForwardRawTracestate(samplingState)) {
+      sb.append(samplingState.getTracestate().trim());
+      return EMPTY_SIZE + 1;
+    }
     // Append the managed OTel member and all other non-Datadog list-members
-    if (appendOtelAndVendorMembers(sb, ptags, size != 0)) {
+    if (appendOtelAndVendorMembers(sb, samplingState, size != 0)) {
       // We don't care about the total size in bytes here, but only the fact that we added something
       // that should be returned
       size = Math.max(size, EMPTY_SIZE + 1);
     }
     return size;
+  }
+
+  private static boolean canForwardRawTracestate(SamplingState samplingState) {
+    String original = samplingState.getTracestate();
+    if (original == null || original.isEmpty()) {
+      return false;
+    }
+    String trimmed = original.trim();
+    if (trimmed.isEmpty() || findNextMember(trimmed, 0) != 0) {
+      return false;
+    }
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    int otelMemberCount = 0;
+    int memberStart = 0;
+    while (memberStart < trimmed.length()) {
+      int memberEnd = trimmed.indexOf(MEMBER_SEPARATOR, memberStart);
+      if (memberEnd < 0) {
+        memberEnd = trimmed.length();
+      }
+      if (trimmed.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
+        return false;
+      }
+      if (trimmed.startsWith(OTEL_MEMBER_KEY, memberStart)) {
+        if (++otelMemberCount > 1 || otelTraceState == null) {
+          return false;
+        }
+        int valueStart = memberStart + OTEL_MEMBER_KEY.length();
+        int valueEnd = stripTrailingOWC(trimmed, valueStart, memberEnd);
+        if (!contentEquals(trimmed, valueStart, valueEnd, otelTraceState)) {
+          return false;
+        }
+      }
+      memberStart = findNextMember(trimmed, memberEnd + 1);
+    }
+    return (otelTraceState == null) == (otelMemberCount == 0);
+  }
+
+  private static boolean contentEquals(String value, int start, int end, CharSequence expected) {
+    if (end - start != expected.length()) {
+      return false;
+    }
+    for (int i = 0; i < expected.length(); i++) {
+      if (value.charAt(start + i) != expected.charAt(i)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override
@@ -737,60 +800,112 @@ public class W3CPTagsCodec extends PTagsCodec {
   }
 
   private static boolean appendOtelAndVendorMembers(
-      StringBuilder sb, PTags ptags, boolean hasDatadogMember) {
-    String original = ptags.tracestate;
-    OtelTraceState otelTraceState = ptags.getOtelTraceState();
+      StringBuilder sb, SamplingState samplingState, boolean hasDatadogMember) {
+    String original = samplingState.getTracestate();
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
     int remainingMembers = MAX_MEMBER_COUNT - (hasDatadogMember ? 1 : 0);
-    int otherMemberPosition = 0;
-    int originalMemberPosition = 0;
-    int otelMemberPositionOffset = 0;
-    int otelMemberOriginalPosition =
-        otelTraceState == null ? -1 : otelTraceState.getOriginalPosition();
-    boolean otelTraceStateAppended = false;
     boolean memberAppended = false;
+    boolean preserveOtelPosition = isUnchangedInheritedOtelMember(original, otelTraceState);
+    if (!preserveOtelPosition && otelTraceState != null && remainingMembers > 0) {
+      appendMember(sb, OTEL_MEMBER_KEY, otelTraceState);
+      remainingMembers--;
+      memberAppended = true;
+    }
     int len = original == null ? 0 : original.length();
     int memberStart = original == null ? 0 : findNextMember(original, 0);
     while (memberStart < len && remainingMembers > 0) {
-      // Look for member end position
       int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
       if (memberEnd < 0) {
         memberEnd = len;
       }
       boolean datadogMember = original.startsWith(DATADOG_MEMBER_KEY, memberStart);
-      boolean managedMember = datadogMember || original.startsWith(OTEL_MEMBER_KEY, memberStart);
-      // offset to correct for dd members that were dropped/relocated before ot's original position
-      if (datadogMember && originalMemberPosition < otelMemberOriginalPosition) {
-        otelMemberPositionOffset++;
-      }
-      if (!managedMember) {
-        if (otelTraceState != null
-            && !otelTraceStateAppended
-            && otelMemberOriginalPosition - otelMemberPositionOffset == otherMemberPosition) {
-          appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.getValue());
-          remainingMembers--;
-          otelTraceStateAppended = true;
-          memberAppended = true;
-          if (remainingMembers == 0) {
-            break;
-          }
-        }
+      boolean otelMember = original.startsWith(OTEL_MEMBER_KEY, memberStart);
+      if (!datadogMember && (!otelMember || preserveOtelPosition)) {
         int end = stripTrailingOWC(original, memberStart, memberEnd);
         appendMember(sb, original, memberStart, end);
         remainingMembers--;
-        otherMemberPosition++;
         memberAppended = true;
       }
-      originalMemberPosition++;
       memberStart = findNextMember(original, memberEnd + 1);
     }
-    if (otelTraceState != null
-        && !otelTraceStateAppended
-        && remainingMembers > 0
-        && otelMemberOriginalPosition - otelMemberPositionOffset == otherMemberPosition) {
-      appendMember(sb, OTEL_MEMBER_KEY, otelTraceState.getValue());
-      memberAppended = true;
-    }
     return memberAppended;
+  }
+
+  private static boolean isUnchangedInheritedOtelMember(
+      String original, CharSequence otelTraceState) {
+    if (original == null || otelTraceState == null) {
+      return false;
+    }
+    int otelMemberCount = 0;
+    int memberStart = findNextMember(original, 0);
+    while (memberStart < original.length()) {
+      int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
+      if (memberEnd < 0) {
+        memberEnd = original.length();
+      }
+      if (original.startsWith(OTEL_MEMBER_KEY, memberStart)) {
+        if (++otelMemberCount > 1) {
+          return false;
+        }
+        int valueStart = memberStart + OTEL_MEMBER_KEY.length();
+        int valueEnd = stripTrailingOWC(original, valueStart, memberEnd);
+        if (!contentEquals(original, valueStart, valueEnd, otelTraceState)) {
+          return false;
+        }
+      }
+      memberStart = findNextMember(original, memberEnd + 1);
+    }
+    return otelMemberCount == 1;
+  }
+
+  public static String rebuildTracestate(SamplingState samplingState) {
+    String original = samplingState.getTracestate();
+    CharSequence otelTraceState = samplingState.getOtelTraceState();
+    // TODO Consider a raw passthrough for unchanged state after checking dd= is not duplicated.
+    StringBuilder result = new StringBuilder(MAX_HEADER_SIZE);
+    int memberCount = 0;
+
+    if (original != null) {
+      int memberStart = findNextMember(original, 0);
+      while (memberStart < original.length()) {
+        int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
+        if (memberEnd < 0) {
+          memberEnd = original.length();
+        }
+        if (original.startsWith(DATADOG_MEMBER_KEY, memberStart)) {
+          int end = stripTrailingOWC(original, memberStart, memberEnd);
+          appendMember(result, original, memberStart, end);
+          memberCount++;
+          break;
+        }
+        memberStart = findNextMember(original, memberEnd + 1);
+      }
+    }
+
+    if (otelTraceState != null && memberCount < MAX_MEMBER_COUNT) {
+      appendMember(result, OTEL_MEMBER_KEY, otelTraceState);
+      memberCount++;
+    }
+
+    if (original != null) {
+      int memberStart = findNextMember(original, 0);
+      while (memberStart < original.length() && memberCount < MAX_MEMBER_COUNT) {
+        int memberEnd = original.indexOf(MEMBER_SEPARATOR, memberStart);
+        if (memberEnd < 0) {
+          memberEnd = original.length();
+        }
+        boolean managed =
+            original.startsWith(DATADOG_MEMBER_KEY, memberStart)
+                || original.startsWith(OTEL_MEMBER_KEY, memberStart);
+        if (!managed) {
+          int end = stripTrailingOWC(original, memberStart, memberEnd);
+          appendMember(result, original, memberStart, end);
+          memberCount++;
+        }
+        memberStart = findNextMember(original, memberEnd + 1);
+      }
+    }
+    return result.length() == 0 ? null : result.toString();
   }
 
   private static void appendMember(StringBuilder sb, String member, int start, int end) {
@@ -811,7 +926,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     if (tracestate == null || tracestate.isEmpty()) {
       return null;
     }
-    int memberPosition = 0;
     int firstMemberStart = findNextMember(tracestate, 0);
     int memberStart = firstMemberStart;
     int otelMemberStart = -1;
@@ -832,7 +946,6 @@ public class W3CPTagsCodec extends PTagsCodec {
         otelMemberValueEnd = memberValueEnd;
         break;
       }
-      memberPosition++;
       memberStart = findNextMember(tracestate, memberValueEnd);
     }
     if (otelMemberStart == -1) {
@@ -841,7 +954,6 @@ public class W3CPTagsCodec extends PTagsCodec {
     int valueEnd = stripTrailingOWC(tracestate, otelMemberValueStart, otelMemberValueEnd);
     return OtelTraceState.parse(
         SubSequence.of(tracestate, otelMemberValueStart, valueEnd),
-        memberPosition,
         memberContributionSize(tracestate, firstMemberStart, otelMemberStart, otelMemberValueEnd));
   }
 
@@ -852,8 +964,9 @@ public class W3CPTagsCodec extends PTagsCodec {
     return isOnlyMember ? memberSize : memberSize + 1;
   }
 
+  /** Creates tags that preserve unmanaged W3C tracestate members without sampling state. */
   static W3CPTags empty(PTagsFactory factory, String original) {
-    return empty(factory, original, extractOtelTraceState(original));
+    return empty(factory, original, null);
   }
 
   private static W3CPTags empty(

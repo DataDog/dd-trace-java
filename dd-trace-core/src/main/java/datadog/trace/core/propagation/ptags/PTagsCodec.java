@@ -4,6 +4,7 @@ import static datadog.trace.core.propagation.ptags.PTagsFactory.PROPAGATION_ERRO
 
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.propagation.PropagationTags.SamplingState;
 import datadog.trace.core.propagation.ptags.PTagsFactory.PTags;
 import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import java.util.Iterator;
@@ -24,22 +25,23 @@ abstract class PTagsCodec {
   protected static final String PROPAGATION_ERROR_INCONSISTENT_TID = "inconsistent_tid ";
   protected static final TagKey UPSTREAM_SERVICES_DEPRECATED_TAG = TagKey.from("upstream_services");
 
-  static String headerValue(PTagsCodec codec, PTags ptags) {
-    return headerValue(codec, ptags, null);
-  }
-
-  static String headerValue(PTagsCodec codec, PTags ptags, CharSequence lastParentIdOverride) {
-    int estimate = codec.estimateHeaderSize(ptags);
+  static String headerValue(
+      PTagsCodec codec,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState) {
+    int estimate = codec.estimateHeaderSize(ptags, lastParentIdOverride, samplingState);
     if (estimate == 0) {
       return "";
     }
 
     // No encoding validation here because we don't allow arbitrary tag change
     StringBuilder sb = new StringBuilder(estimate);
-    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride);
+    int size = codec.appendPrefix(sb, ptags, lastParentIdOverride, samplingState);
     if (!ptags.isPropagationTagsDisabled()) {
-      if (ptags.getDecisionMakerTagValue() != null) {
-        size = codec.appendTag(sb, DECISION_MAKER_TAG, ptags.getDecisionMakerTagValue(), size);
+      TagValue decisionMakerTagValue = ptags.getDecisionMakerTagValue(samplingState);
+      if (decisionMakerTagValue != null) {
+        size = codec.appendTag(sb, DECISION_MAKER_TAG, decisionMakerTagValue, size);
       }
       if (ptags.getTraceIdHighOrderBitsHexTagValue() != null) {
         size = codec.appendTag(sb, TRACE_ID_TAG, ptags.getTraceIdHighOrderBitsHexTagValue(), size);
@@ -55,10 +57,9 @@ abstract class PTagsCodec {
       if (ptags.getDebugPropagation() != null) {
         size = codec.appendTag(sb, DEBUG_TAG, TagValue.from(ptags.getDebugPropagation()), size);
       }
-      if (ptags.getKnuthSamplingRateTagValue() != null) {
-        size =
-            codec.appendTag(
-                sb, KNUTH_SAMPLING_RATE_TAG, ptags.getKnuthSamplingRateTagValue(), size);
+      TagValue knuthSamplingRateTagValue = ptags.getKnuthSamplingRateTagValue(samplingState);
+      if (knuthSamplingRateTagValue != null) {
+        size = codec.appendTag(sb, KNUTH_SAMPLING_RATE_TAG, knuthSamplingRateTagValue, size);
       }
       if (ptags.getOrgPropagationMarkerTagValue() != null) {
         size =
@@ -72,7 +73,7 @@ abstract class PTagsCodec {
         size = codec.appendTag(sb, tagKey, tagValue, size);
       }
     }
-    size = codec.appendSuffix(sb, ptags, size);
+    size = codec.appendSuffix(sb, ptags, size, samplingState);
     if (codec.isTooLarge(sb, size)) {
       return null;
     } else {
@@ -81,7 +82,8 @@ abstract class PTagsCodec {
   }
 
   static void fillTagMap(PTags propagationTags, Map<String, String> tagMap) {
-    int newSize = propagationTags.getXDatadogTagsSize();
+    SamplingState samplingState = propagationTags.samplingState();
+    int newSize = propagationTags.getXDatadogTagsSize(samplingState);
 
     if (newSize > propagationTags.getxDatadogTagsLimit()) {
       // Outgoing x-datadog-tags value length exceeds the configured limit
@@ -103,10 +105,11 @@ abstract class PTagsCodec {
           tagKey.forType(Encoding.DATADOG).toString(),
           tagValue.forType(Encoding.DATADOG).toString());
     }
-    if (propagationTags.getDecisionMakerTagValue() != null) {
+    TagValue decisionMakerTagValue = propagationTags.getDecisionMakerTagValue(samplingState);
+    if (decisionMakerTagValue != null) {
       tagMap.put(
           DECISION_MAKER_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getDecisionMakerTagValue().forType(Encoding.DATADOG).toString());
+          decisionMakerTagValue.forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getTraceSource() != ProductTraceSource.UNSET) {
       tagMap.put(
@@ -119,10 +122,12 @@ abstract class PTagsCodec {
       tagMap.put(
           DEBUG_TAG.forType(Encoding.DATADOG).toString(), propagationTags.getDebugPropagation());
     }
-    if (propagationTags.getKnuthSamplingRateTagValue() != null) {
+    TagValue knuthSamplingRateTagValue =
+        propagationTags.getKnuthSamplingRateTagValue(samplingState);
+    if (knuthSamplingRateTagValue != null) {
       tagMap.put(
           KNUTH_SAMPLING_RATE_TAG.forType(Encoding.DATADOG).toString(),
-          propagationTags.getKnuthSamplingRateTagValue().forType(Encoding.DATADOG).toString());
+          knuthSamplingRateTagValue.forType(Encoding.DATADOG).toString());
     }
     if (propagationTags.getOrgPropagationMarkerTagValue() != null) {
       tagMap.put(
@@ -174,21 +179,19 @@ abstract class PTagsCodec {
 
   abstract PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value);
 
-  protected abstract int estimateHeaderSize(PTags pTags);
+  protected abstract int estimateHeaderSize(
+      PTags pTags, CharSequence lastParentIdOverride, SamplingState samplingState);
 
-  protected abstract int appendPrefix(StringBuilder sb, PTags ptags);
-
-  /**
-   * Encode the prefix, using {@code lastParentIdOverride} for the W3C {@code p:} when non-null
-   * (inject-time). Codecs without a last-parent-id (e.g. Datadog) ignore the override.
-   */
-  protected int appendPrefix(StringBuilder sb, PTags ptags, CharSequence lastParentIdOverride) {
-    return appendPrefix(sb, ptags);
-  }
+  protected abstract int appendPrefix(
+      StringBuilder sb,
+      PTags ptags,
+      CharSequence lastParentIdOverride,
+      SamplingState samplingState);
 
   protected abstract int appendTag(StringBuilder sb, TagElement key, TagElement value, int size);
 
-  protected abstract int appendSuffix(StringBuilder sb, PTags ptags, int size);
+  protected abstract int appendSuffix(
+      StringBuilder sb, PTags ptags, int size, SamplingState samplingState);
 
   protected abstract boolean isTooLarge(StringBuilder sb, int size);
 

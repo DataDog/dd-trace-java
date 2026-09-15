@@ -127,7 +127,10 @@ class OT31ApiTest extends DDJavaSpecification {
             + (propagatedPriority > 0 ? ";t.dm:-" + effectiveSamplingMechanism : "")
             + ";t.tid:"
             + traceId.toHexStringPadded(32).substring(0, 16)
-            + (contextPriority == UNSET ? ";t.ksr:1" : "");
+            + (contextPriority == UNSET
+                ? ";t.ksr:1,ot="
+                    + ddContext.getPropagationTags().samplingState().getOtelTraceState()
+                : "");
 
     Map<String, String> expectedTextMap = new HashMap<>();
     OTSpanContext otContext = (OTSpanContext) context;
