@@ -9,7 +9,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_A
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
@@ -38,6 +37,8 @@ import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagCodec;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -52,10 +53,27 @@ import datadog.trace.core.propagation.PropagationTags;
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
 
-  private static final UTF8BytesString SERVICE_NAME = UTF8BytesString.create("service.name");
   private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
+
+  /*
+   * Keys for tags the tracer intercepts into first-class Metadata fields rather than leaving in the
+   * TagMap. Those never reach the per-entry projection in writeSpanTag, so their OpenTelemetry name
+   * is resolved here instead -- once each, since the set is fixed. The names come from the registry,
+   * so a rename declared in tag-conventions.yaml reaches OTLP with no second mapping table to keep
+   * in sync.
+   *
+   */
+  private static final UTF8BytesString SERVICE_NAME_KEY = otelKey(KnownTags.SERVICE_ID);
+
+  private static final UTF8BytesString HTTP_STATUS_CODE_KEY =
+      otelKey(KnownTags.HTTP_STATUS_CODE_ID);
+
+  /** The OpenTelemetry-namespace key for a known tag, as named by the registry. */
+  private static UTF8BytesString otelKey(long tagId) {
+    return UTF8BytesString.create(KnownTagCodec.openTelemetryTagOf(tagId));
+  }
 
   private OtlpTraceProto() {}
 
@@ -132,7 +150,7 @@ public final class OtlpTraceProto {
     writeI64(buf, span.getStartTime() + PendingTrace.getDurationNano(span));
 
     if (!Config.get().getServiceName().equals(span.getServiceName())) {
-      writeSpanTag(buf, SERVICE_NAME, span.getServiceName());
+      writeSpanTag(buf, SERVICE_NAME_KEY, span.getServiceName());
     }
     writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(buf, OPERATION_NAME, span.getOperationName());
@@ -206,20 +224,26 @@ public final class OtlpTraceProto {
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
+    // OTLP is the OpenTelemetry wire format, so ask each entry for its name in that namespace —
+    // the same registry policy the fixed metadata keys above resolve through, with the reader
+    // supplying its own key for a custom tag the registry does not name. This is the straight
+    // rename projection only: suppressing a Datadog-only tag from OpenTelemetry, per-exporter
+    // opt-in, and additional namespaces are deferred to the OpenTelemetry follow-on.
+    String key = tagEntry.openTelemetryTag();
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(buf, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, BOOLEAN_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(buf, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, LONG_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(buf, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, DOUBLE_ATTRIBUTE, key, tagEntry.objectValue());
         break;
       default:
-        writeAttribute(buf, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(buf, STRING_ATTRIBUTE, key, tagEntry.stringValue());
     }
   }
 
@@ -286,7 +310,7 @@ public final class OtlpTraceProto {
       writeSpanTag(buf, THREAD_ID, metadata.getThreadId());
       writeSpanTag(buf, THREAD_NAME, metadata.getThreadName());
       if (metadata.getHttpStatusCode() != UNSET_STATUS) {
-        writeSpanTag(buf, HTTP_STATUS, metadata.getHttpStatusCodeString());
+        writeSpanTag(buf, HTTP_STATUS_CODE_KEY, metadata.getHttpStatusCode());
       }
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());

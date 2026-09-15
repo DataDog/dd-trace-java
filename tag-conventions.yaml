@@ -1,0 +1,154 @@
+# Tag conventions — LANGUAGE-AGNOSTIC domain spec (structure + semantics only)
+# ---------------------------------------------------------------------------
+# The code generator consumes THIS file to emit each language's tag-id constants and its
+# id<->name resolver. A tag id is IDENTITY (a globally unique serial + the trace-level bit);
+# storage layout (the dense store's slot assignment) and set-path routing (which keys the tracer
+# intercepts into span fields or sampling directives) are per-language concerns that arrive with
+# the code that consumes them, via a per-language overlay alongside this file.
+#
+# TRACE-LEVEL is its own thing (its own TagMap "type" on the TraceSegment) — the process/trace
+# constants + product flags that are set once per trace, NOT per span. Declared explicitly in the
+# `trace_level` section below (a distinct tier), never inferred from `source`.
+#
+# SPAN TYPES compose three ways:
+#   extends  — structural is-a inheritance (http.server is-a http is-a base). `base` is implicitly
+#              in every span; abstract layers exist only to be extended.
+#   include  — a span type PULLS in a mixin it intrinsically has (has-a; core-owned).
+#   applies  — a mixin PUSHES itself onto span types, gated by `enabled_by`.
+#   resolved_tags(type) = own + extends-chain (incl base) + included mixins + applied mixins (de-duped).
+#
+# tag fields (DOMAIN only): dd-name | type (string|int|long|boolean|double)
+#   | required (required|conditional|recommended|optional|opt_in) | otel-name.
+# dd-name is the canonical Datadog-namespace name AND the tag's identity. otel-name is OPTIONAL and
+# tri-state:
+#   - absent          => the OpenTelemetry name is IMPLICITLY the dd-name (the tag passes through under
+#                        its Datadog name; this is the RFC "retain" default for tags with no rename).
+#   - a name          => rename: the tag is emitted under that OpenTelemetry-namespace name instead.
+#   - the literal none => Datadog-only: the tag has NO OpenTelemetry name (suppressed from OTel). This
+#                        value is reserved — no tag uses it today (the RFC renames or retains, never
+#                        suppresses), and real suppression is a follow-on; it currently behaves as
+#                        pass-through.
+# A tag is one identity across span types/mixins, so it may carry only one otel-name — declaring it
+# two different ways fails the build (a span-kind-dependent mapping is a derivation, not a rename).
+# The id coordinate (group-decl / field-decl) is NOT authored here — the generator assigns it: each
+# declaration source (the trace-level tier, each span type, each mixin) is a group, and within a
+# group `field-decl` numbers the dense (required/conditional/recommended) tags; the rest are
+# bucketed. See the design doc.
+# ---------------------------------------------------------------------------
+
+# Trace-level tier: its own TagMap on the TraceSegment. Set once per trace, not per span.
+# (Their OTel mapping is a resource-attribute follow-on; they pass through under dd-name for now.)
+trace_level:
+  tags:
+    - { dd-name: _dd.base_service,       type: string,  required: required }
+    - { dd-name: version,                type: string,  required: recommended }
+    - { dd-name: env,                    type: string,  required: recommended }
+    - { dd-name: language,               type: string,  required: required }
+    - { dd-name: runtime-id,             type: string,  required: required }
+    - { dd-name: _dd.tracer_host,        type: string,  required: recommended }
+    - { dd-name: _dd.git.commit.sha,     type: string,  required: recommended }
+    - { dd-name: _dd.git.repository_url, type: string,  required: recommended }
+    # product .enabled flags — process-constant; present on the trace segment regardless of whether
+    # the product is enabled (the flag carries the state), so always-present => recommended.
+    - { dd-name: _dd.profiling.enabled,  type: boolean, required: recommended }
+    - { dd-name: _dd.dsm.enabled,        type: boolean, required: recommended }
+    - { dd-name: _dd.appsec.enabled,     type: boolean, required: recommended }
+    - { dd-name: _dd.djm.enabled,        type: boolean, required: recommended }
+    - { dd-name: _dd.civisibility.enabled, type: boolean, required: recommended }
+
+span_types:
+  # root: per-span tags every span has (incl. the per-span core tags parent_id / integration / svc_src
+  # — core-set but per-span, so NOT trace-level).
+  base:
+    abstract: true
+    tags:
+      - { dd-name: _dd.parent_id,   type: string, required: required }
+      - { dd-name: service,         type: string, required: required,    otel-name: service.name }
+      - { dd-name: component,       type: string, required: required }
+      - { dd-name: span.kind,       type: string, required: required }     # OTel span kind is a first-class field, not an attribute
+      - { dd-name: _dd.integration, type: string, required: recommended }
+      - { dd-name: _dd.svc_src,     type: string, required: optional }
+      - { dd-name: error.type,      type: string, required: recommended }  # TODO(otel): map error.* to exception.* semconv
+      - { dd-name: error.message,   type: string, required: recommended }
+      - { dd-name: error.stack,     type: string, required: recommended }
+
+  http:
+    abstract: true
+    extends: base
+    tags:
+      - { dd-name: http.method,              type: string, required: required,    otel-name: http.request.method }
+      - { dd-name: http.status_code,         type: int,    required: conditional, otel-name: http.response.status_code }
+      - { dd-name: network.protocol.version, type: string, required: recommended }  # passes through: dd-name already is the OTel name
+
+  http.server:
+    extends: http
+    tags:
+      - { dd-name: http.url,          type: string, required: required,    otel-name: url.full }  # single http.url identity (shared w/ http.client) => one otel-name. url.full is the client-correct rename; server's spec mapping (url.path + url.scheme + url.query) is a one-to-many split reserved for the derivation layer (needs span.kind). TODO(otel): server split.
+      - { dd-name: http.route,        type: string, required: conditional }  # passes through: dd-name already is the OTel name
+      - { dd-name: http.hostname,     type: string, required: required,    otel-name: server.address }
+      - { dd-name: http.useragent,    type: string, required: recommended, otel-name: user_agent.original }
+      - { dd-name: http.query.string, type: string, required: recommended, otel-name: url.query }
+      - { dd-name: servlet.path,      type: string, required: optional }
+      - { dd-name: servlet.context,   type: string, required: optional }
+
+  http.client:
+    extends: http
+    include: [ peer ]
+    tags:
+      - { dd-name: http.url,          type: string, required: required,    otel-name: url.full }
+      - { dd-name: http.resend_count, type: int,    required: recommended }
+
+  db.client:
+    extends: base
+    include: [ peer ]
+    tags:
+      - { dd-name: db.type,      type: string, required: required,    otel-name: db.system }
+      - { dd-name: db.instance,  type: string, required: recommended }  # TODO(otel): db.namespace
+      - { dd-name: db.operation, type: string, required: recommended, otel-name: db.operation.name }
+      - { dd-name: db.user,      type: string, required: recommended }
+      - { dd-name: db.pool.name, type: string, required: optional }
+      - { dd-name: db.statement, type: string, required: recommended, otel-name: db.query.text }
+
+  view.render:
+    extends: base
+    tags:
+      - { dd-name: view.name, type: string, required: recommended }
+
+mixins:
+  # peer — outbound/remote-peer capability, PULLED via `include` by client span types.
+  peer:
+    tags:
+      - { dd-name: peer.service,                   type: string, required: recommended }
+      - { dd-name: _dd.peer.service.source,        type: string, required: recommended }
+      - { dd-name: _dd.peer.service.remapped_from, type: string, required: recommended }
+      - { dd-name: peer.hostname,                  type: string, required: recommended }
+      - { dd-name: peer.ipv4,                      type: string }
+      - { dd-name: peer.ipv6,                      type: string }
+      - { dd-name: peer.port,                      type: int }
+
+  # ci_visibility — per-span test tags. Its capability flag (_dd.civisibility.enabled) lives in
+  # trace_level, outside this mixin (general rule: capability flags are trace-level, mixins hold the
+  # per-span tags). Applies to the `test` span type, which is not modeled here yet — so these tags
+  # get ids (identity does not depend on layout) but contribute to no type's resolved set until it
+  # is. The generator reports that gap in resolved-tags.txt.
+  ci_visibility:
+    enabled_by: dd.civisibility.enabled
+    applies: [ test ]
+    tags:
+      - { dd-name: test.name,      type: string, required: recommended }
+      - { dd-name: test.suite,     type: string, required: recommended }
+      - { dd-name: test.status,    type: string, required: recommended }
+      - { dd-name: test.framework, type: string, required: recommended }
+
+# ---------------------------------------------------------------------------
+# Notes
+# - Product .enabled flags moved to `trace_level` (process-constant) — the old product mixins held
+#   only those flags, so they dissolved. `enabled_by`/attachment gating is a runtime concern.
+# - span.kind enumerates: server | client | producer | consumer | internal | broker.
+# - Some keys (resource.name, error, sampling.priority, ...) are accepted by setTag but routed to a
+#   span field or a trace directive instead of tag storage. That routing is a per-language tracer
+#   concern, so it is NOT modelled here; such a key appears above only when it also needs an id and
+#   a name (service does, for OpenTelemetry's service.name).
+# - Tags with no otel-name pass through under their Datadog name (RFC "retain"). A `# TODO(otel)` note
+#   marks a pending OpenTelemetry-team review of a mapping that is not yet a settled rename.
+# ---------------------------------------------------------------------------

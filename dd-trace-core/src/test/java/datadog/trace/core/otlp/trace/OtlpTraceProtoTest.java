@@ -25,6 +25,7 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagCodec;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -1027,11 +1028,50 @@ class OtlpTraceProtoTest {
           "attributes must include 'service.name' when service is overridden [" + caseName + "]");
     }
 
-    // extra user tags must appear as attributes
+    // extra user tags must appear as attributes, under their OpenTelemetry name when the registry
+    // declares a rename (e.g. http.method -> http.request.method) and under their Datadog name
+    // otherwise (pass-through, the default). Asserted EXACTLY, on the one name we expect: accepting
+    // either would let a rename silently stop firing -- which is precisely how the http.status_code
+    // rename hid, since that tag is intercepted into span metadata rather than left in the tag map.
     for (String key : spec.extraTags.keySet()) {
+      if ("http.status_code".equals(key)) {
+        // Not a tag-map entry by the time it is serialized: the set path intercepts it into
+        // Metadata.httpStatusCode, so it never reaches the per-entry projection and instead is
+        // resolved through the fixed HTTP_STATUS_CODE_KEY constant (see the intercepted-status
+        // assertion below).
+        assertTrue(
+            attrKeys.contains("http.response.status_code"),
+            "intercepted status must be emitted as 'http.response.status_code' ["
+                + caseName
+                + "]; got "
+                + attrKeys);
+        assertFalse(
+            attrKeys.contains("http.status_code"),
+            "intercepted status must not also appear under its Datadog name [" + caseName + "]");
+        continue;
+      }
+      long id = KnownTagCodec.keyOf(key);
+      String otelName = id != 0L ? KnownTagCodec.openTelemetryNameOf(id) : null;
+      String expected = otelName != null ? otelName : key;
       assertTrue(
-          attrKeys.contains(key),
-          "attributes must include extra tag '" + key + "' [" + caseName + "]");
+          attrKeys.contains(expected),
+          "attributes must include extra tag '"
+              + key
+              + "' as '"
+              + expected
+              + "' ["
+              + caseName
+              + "]; got "
+              + attrKeys);
+      if (otelName != null) {
+        assertFalse(
+            attrKeys.contains(key),
+            "renamed tag '"
+                + key
+                + "' must not also appear under its Datadog name ["
+                + caseName
+                + "]");
+      }
     }
 
     if (spec.measured) {
@@ -1040,11 +1080,19 @@ class OtlpTraceProtoTest {
           "attributes must include '_dd.measured' for measured spans [" + caseName + "]");
     }
     if (spec.httpStatusCode != 0) {
+      // Intercepted into Metadata.httpStatusCode rather than left in the tag map, so its name comes
+      // from a key constant in OtlpTraceProto (HTTP_STATUS_CODE_KEY) and not from the per-entry
+      // projection. Emitted under its OpenTelemetry name as an int attribute, matching the
+      // semantic-conventions type, since Metadata now carries the status as an int.
       assertTrue(
-          attrKeys.contains("http.status_code"),
-          "attributes must include 'http.status_code' when set via setHttpStatusCode ["
+          attrKeys.contains("http.response.status_code"),
+          "attributes must include 'http.response.status_code' when set via setHttpStatusCode ["
               + caseName
-              + "]");
+              + "]; got "
+              + attrKeys);
+      assertFalse(
+          attrKeys.contains("http.status_code"),
+          "status code must not also be emitted under its Datadog name [" + caseName + "]");
     }
     if (spec.origin != null) {
       assertTrue(
