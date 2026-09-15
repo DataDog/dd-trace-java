@@ -1067,19 +1067,6 @@ public final class ConcurrentHashtable {
   }
 
   /**
-   * Reserves one slot in {@code state} without evicting; see {@link SizeManager#tryReserve()}.
-   * Lock-free — does not acquire the table write lock. Returns {@code false} with the table
-   * unchanged when it is full.
-   *
-   * <p>Complete it with {@link #insertReserved}, or prefer {@link #tryReserve} for a higher-level,
-   * auto-cancelling handle that also defers entry construction until the reservation succeeds.
-   */
-  public static <TEntry extends Entry<TEntry>> boolean tryReserveSlot(
-      @Nonnull State<TEntry> state) {
-    return state.sizeManager.tryReserve();
-  }
-
-  /**
    * Claims one slot in {@code state} for {@code keyHash} and returns a handle for completing the
    * find-or-insert protocol, or an empty handle if the table is full. Never returns {@code null},
    * so this always composes with try-with-resources:
