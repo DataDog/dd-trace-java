@@ -131,10 +131,12 @@ public abstract class BaseDecorator {
   }
 
   protected void doAfterStart(final AgentSpan span) {
-    // Stamps the prototype's constant span type, tags, and integration name as fallback defaults.
-    // apply is the single seam the construction-seeding path shares; because it never clobbers, it
-    // self-neutralizes once construction has already seeded the same prototype.
-    span.apply(spanPrototype());
+    // Stamps the prototype's constant span type, tags, and integration name, overwriting whatever
+    // is already present: this decorator's identity is authoritative and must win over anything
+    // seeded earlier, e.g. a global tag from DD_TAGS / DD_TRACE_SPAN_TAGS applied at construction
+    // --
+    // matching the unconditional setTag/setSpanType calls this replaced.
+    span.applyOverwriting(spanPrototype());
 
     // null handled by setMetric
     span.setMetric(traceAnalyticsEntry);
