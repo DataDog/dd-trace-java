@@ -239,6 +239,20 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
     1 * mockTelemetryCollector.onInjectionSucceed(SERVLET_VERSION)
   }
 
+  void 'reset does not reactivate a retired nested wrapper'() {
+    setup:
+    wrapper.stopFiltering()
+    def outerWrapper = new RumHttpServletResponseWrapper(mockRequest, wrapper)
+
+    when:
+    outerWrapper.reset()
+
+    then:
+    !wrapper.@shouldInject
+    outerWrapper.@shouldInject
+    1 * mockResponse.reset()
+  }
+
   void 'sendError discards buffered content and stops filtering'() {
     setup:
     def downstream = new StringWriter()

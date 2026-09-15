@@ -23,6 +23,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
   private PrintWriter printWriter;
   private InjectingPipeWriter wrappedPipeWriter;
   private boolean shouldInject = true;
+  private boolean retired;
   private String contentEncoding = null;
 
   private static final MethodHandle SET_CONTENT_LENGTH_LONG = getMh("setContentLengthLong");
@@ -189,7 +190,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
     this.outputStream = null;
     this.wrappedPipeWriter = null;
     this.printWriter = null;
-    this.shouldInject = true;
+    this.shouldInject = !retired;
     this.contentEncoding = null;
   }
 
@@ -243,7 +244,7 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
     }
     if (wasInjecting && !shouldInject) {
       commit();
-      stopFiltering();
+      disableFiltering();
     }
   }
 
@@ -277,6 +278,11 @@ public class RumHttpServletResponseWrapper extends HttpServletResponseWrapper
 
   @Override
   public void stopFiltering() {
+    retired = true;
+    disableFiltering();
+  }
+
+  private void disableFiltering() {
     shouldInject = false;
     setActiveFilters(false);
   }
