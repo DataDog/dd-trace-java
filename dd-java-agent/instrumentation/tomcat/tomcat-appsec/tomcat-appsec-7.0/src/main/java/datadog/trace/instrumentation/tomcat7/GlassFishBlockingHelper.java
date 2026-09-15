@@ -48,7 +48,10 @@ public final class GlassFishBlockingHelper {
           return false;
         }
       } else if (!commitBlocking(fallbackReq, fallbackResp, rba)) {
-        BlockFailureReporter.reportBlockFailure(reqCtx);
+        if (fallbackResp != null) {
+          // a commit was genuinely attempted (there was a response to write to) and failed
+          BlockFailureReporter.reportBlockFailure(reqCtx);
+        }
         return false;
       }
     } catch (Exception e) {
