@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +48,23 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       final List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules,
       final Double defaultRate,
       final int rateLimit) {
+    return build(serviceRules, operationRules, traceSamplingRules, defaultRate, rateLimit, null);
+  }
+
+  /**
+   * Builds a rule based sampler delegating to {@code fallbackSampler} for unmatched spans
+   * (defaulting to a new {@link RateByServiceTraceSampler} when there's no fallback.)
+   *
+   * <p>Callers rebuilding the sampler must reuse the same {@code fallbackSampler} value: it's
+   * registered once for agent rates, and a fresh one would reset its learned rates to 1.0.
+   */
+  public static RuleBasedTraceSampler build(
+      @Deprecated final Map<String, String> serviceRules,
+      @Deprecated final Map<String, String> operationRules,
+      final List<? extends SamplingRule.TraceSamplingRule> traceSamplingRules,
+      final Double defaultRate,
+      final int rateLimit,
+      @Nullable final PrioritySampler fallbackSampler) {
 
     final List<RateSamplingRule> samplingRules = new ArrayList<>();
 
@@ -113,7 +131,17 @@ public class RuleBasedTraceSampler<T extends CoreSpan<T>> implements Sampler, Pr
       samplingRules.add(samplingRule);
     }
 
-    return new RuleBasedTraceSampler(samplingRules, rateLimit, new RateByServiceTraceSampler());
+    return new RuleBasedTraceSampler(
+        samplingRules,
+        rateLimit,
+        fallbackSampler != null ? fallbackSampler : new RateByServiceTraceSampler());
+  }
+
+  /** Returns the fallback's agent rate sampler, if it uses agent rates. */
+  @Override
+  @Nullable
+  public RateByServiceTraceSampler agentSampler() {
+    return fallbackSampler instanceof Sampler ? ((Sampler) fallbackSampler).agentSampler() : null;
   }
 
   private static byte samplingMechanism(SamplingRule.Provenance provenance) {
