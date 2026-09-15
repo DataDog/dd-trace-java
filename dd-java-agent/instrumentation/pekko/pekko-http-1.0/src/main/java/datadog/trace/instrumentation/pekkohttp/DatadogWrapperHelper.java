@@ -23,8 +23,7 @@ public class DatadogWrapperHelper {
     if (LEGACY_CONTEXT_MANAGER_ENABLED) {
       return context.attach();
     }
-    context.swap();
-    return context.asScope();
+    return new SwappedContextScope(context);
   }
 
   private static Context startSpan(final HttpRequest request) {
@@ -35,6 +34,32 @@ public class DatadogWrapperHelper {
     DECORATE.onRequest(span, request, request, parentContext);
 
     return context;
+  }
+
+  static final class SwappedContextScope implements ContextScope {
+    private final Context context;
+    private final Context previousContext;
+    private final Thread ownerThread;
+    private boolean closed;
+
+    SwappedContextScope(final Context context) {
+      this.context = context;
+      this.ownerThread = Thread.currentThread();
+      this.previousContext = context.swap();
+    }
+
+    @Override
+    public Context context() {
+      return context;
+    }
+
+    @Override
+    public void close() {
+      if (!closed && ownerThread == Thread.currentThread() && context == Context.current()) {
+        closed = true;
+        previousContext.swap();
+      }
+    }
   }
 
   public static void finishSpan(final Context context, final HttpResponse response) {
