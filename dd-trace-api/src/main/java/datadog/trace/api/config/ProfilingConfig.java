@@ -287,5 +287,21 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_SCRUB_EXCLUDE_EVENTS = "profiling.scrub.exclude-events";
 
+  // OTLP Profiles Format Support
+  public static final String PROFILING_OTLP_ENABLED = "profiling.otlp.enabled";
+  public static final boolean PROFILING_OTLP_ENABLED_DEFAULT = false;
+
+  // LIGHT = raw JFR as the original_payload blob, no conversion;
+  // FULL = converted samples + raw JFR blob; CONVERTED = converted samples only
+  public static final String PROFILING_OTLP_MODE = "profiling.otlp.mode";
+
+  public enum OtlpMode {
+    LIGHT,
+    FULL,
+    CONVERTED
+  }
+
+  public static final ProfilingConfig.OtlpMode PROFILING_OTLP_MODE_DEFAULT = OtlpMode.LIGHT;
+
   private ProfilingConfig() {}
 }
