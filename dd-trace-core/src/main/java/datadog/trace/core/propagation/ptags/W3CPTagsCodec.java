@@ -983,8 +983,9 @@ public class W3CPTagsCodec extends PTagsCodec {
     return isOnlyMember ? memberSize : memberSize + 1;
   }
 
+  /** Creates tags that preserve unmanaged W3C tracestate members without sampling state. */
   static W3CPTags empty(PTagsFactory factory, String original) {
-    return empty(factory, original, extractOtelTraceState(original));
+    return empty(factory, original, null);
   }
 
   private static W3CPTags empty(
