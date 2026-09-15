@@ -262,7 +262,12 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
     processBuilder.directory(projectHome.toFile());
 
     processBuilder.environment().put("JAVA_HOME", JAVA_HOME);
-    processBuilder.environment().put("JAVA_TOOL_OPTIONS", javaToolOptions(additionalAgentArgs));
+    String testJavaToolOptions = javaToolOptions(additionalAgentArgs);
+    String inheritedJavaToolOptions = processBuilder.environment().get("JAVA_TOOL_OPTIONS");
+    if (inheritedJavaToolOptions != null && !inheritedJavaToolOptions.isEmpty()) {
+      testJavaToolOptions = inheritedJavaToolOptions + " " + testJavaToolOptions;
+    }
+    processBuilder.environment().put("JAVA_TOOL_OPTIONS", testJavaToolOptions);
     for (Map.Entry<String, String> envVar : additionalEnvVars.entrySet()) {
       processBuilder.environment().put(envVar.getKey(), envVar.getValue());
     }
