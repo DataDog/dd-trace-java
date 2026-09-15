@@ -2,6 +2,7 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.otBaggageHeaders;
 import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY;
@@ -23,8 +24,11 @@ import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.junit.utils.converter.SamplingMechanismConverter;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,6 +51,19 @@ class W3CHttpExtractorTest extends AbstractHttpExtractorTest {
   protected HttpCodec.Extractor newExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return W3CHttpCodec.newExtractor(config, traceConfigSupplier);
+  }
+
+  @Nested
+  class BaggageLimits extends AbstractOTBaggageTest {
+    @Override
+    protected HttpCodec.Extractor extractor() {
+      return W3CHttpExtractorTest.this.extractor;
+    }
+
+    @Override
+    protected Map<String, String> baggageHeaders(List<Entry<String, String>> items) {
+      return otBaggageHeaders(OT_BAGGAGE_PREFIX, items);
+    }
   }
 
   @TableTest({

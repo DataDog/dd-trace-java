@@ -14,7 +14,7 @@ import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
-import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore;
+import datadog.trace.civisibility.utils.StrongMapContextStore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -89,8 +89,8 @@ class TestEventsHandlerImplTest {
 
   private static TestEventsHandlerImpl<Object, Object> handler(
       Supplier<TestFrameworkSession> testSessionSupplier, boolean eagerSessionStart) {
-    ContextStore<Object, DDTestSuite> suiteStore = new ConcurrentHashMapContextStore<>();
-    ContextStore<Object, DDTest> testStore = new ConcurrentHashMapContextStore<>();
+    ContextStore<Object, DDTestSuite> suiteStore = new StrongMapContextStore<>();
+    ContextStore<Object, DDTest> testStore = new StrongMapContextStore<>();
     return new TestEventsHandlerImpl<>(
         NoOpMetricCollector.INSTANCE,
         testSessionSupplier,

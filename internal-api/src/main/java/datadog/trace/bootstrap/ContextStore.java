@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap;
 
+import java.util.function.Function;
+import javax.annotation.Nullable;
+
 /**
  * Interface to represent context storage for instrumentations.
  *
@@ -16,82 +19,73 @@ public interface ContextStore<K, C> {
    *
    * @param <C> context type
    */
-  interface Factory<C> extends KeyAwareFactory<Object, C> {
+  interface Factory<C> extends Function<Object, C> {
 
     /**
      * @return new context instance
      */
     C create();
 
-    default C create(Object key) {
+    default C apply(Object key) {
       return create();
     }
   }
 
   /**
-   * Factory interface to create context instances using context key instances
+   * Get context instance for the given key.
    *
-   * @param <K> context key type
-   * @param <C> context value type
+   * @param key the context key
+   * @return context instance; {@code null} if the key had no context
    */
-  interface KeyAwareFactory<K, C> {
-
-    /**
-     * @return new context instance
-     */
-    C create(K key);
-  }
-
-  /**
-   * Get context given the key
-   *
-   * @param key the key to lookup
-   * @return context object
-   */
+  @Nullable
   C get(K key);
 
   /**
-   * Put new context instance for given key
+   * Unconditionally put new context instance for the given key.
    *
-   * @param key key to use
+   * @param key the context key
    * @param context context instance to save
    */
   void put(K key, C context);
 
   /**
-   * Put new context instance if key is absent
+   * Gets the context instance for the given key. If no context exists then associate it with the
+   * new context.
    *
-   * @param key key to use
-   * @param context new context instance to put
-   * @return old instance if it was present, or new instance
+   * @param key the context key
+   * @param context new context instance
+   * @return existing context instance if present; otherwise new instance
    */
-  C putIfAbsent(K key, C context);
+  C getOrPut(K key, C context);
 
   /**
-   * Put new context instance if key is absent. Uses context factory to avoid creating objects if
-   * not needed.
+   * Gets the context instance for the given key. If no context exists then create one using the
+   * given factory and associate it with the key.
    *
-   * @param key key to use
-   * @param contextFactory factory instance to produce new context object
-   * @return old instance if it was present, or new instance
+   * @param key the context key
+   * @param contextFactory factory instance to produce new context instances
+   * @return existing context instance if present; otherwise new instance
    */
-  C putIfAbsent(K key, Factory<C> contextFactory);
+  default C getOrCreate(K key, Factory<C> contextFactory) {
+    return getOrCompute(key, contextFactory);
+  }
 
   /**
-   * Put new context instance if key is absent. Uses context factory to avoid creating objects if
-   * not needed.
+   * Gets the context instance for the given key. If no context exists then create one using the
+   * given factory and associate it with the key.
    *
-   * @param key key to use
-   * @param contextFactory factory instance to produce new context object
-   * @return old instance if it was present, or new instance
+   * @param key the context key
+   * @param contextFactory factory instance to produce new context instances
+   * @return existing context instance if present; otherwise new instance
    */
-  C computeIfAbsent(K key, KeyAwareFactory<? super K, C> contextFactory);
+  C getOrCompute(K key, Function<? super K, C> contextFactory);
 
   /**
-   * Removes the existing value for key and return it.
+   * Removes the context instance for the given key.
    *
-   * @param key the key remove
-   * @return removed context object
+   * @param key the context key
+   * @return removed context instance; {@code null} if the key had no context
    */
+  @Nullable
   C remove(K key);
 }

@@ -58,6 +58,11 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
    * not be traced to avoid self-tracing loops.
    */
   public boolean isAgentRequest(final REQUEST request) {
+    // Advice runs before the instrumented method's own argument validation, so a caller
+    // passing a null request must not NPE here — let the real method report that itself.
+    if (request == null) {
+      return false;
+    }
     return getRequestHeader(request, DATADOG_META_LANG_HEADER_NAME) != null
         || getRequestHeader(request, DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME) != null;
   }

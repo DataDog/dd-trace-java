@@ -40,6 +40,28 @@ public class LLMObs {
     return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionId);
   }
 
+  /**
+   * Starts an agent span, optionally tagging it with a version.
+   *
+   * <p>The version is set as an {@code agent_version} tag on this span and propagated to every
+   * descendant LLMObs span started under it.
+   *
+   * <p>Propagation only happens via this {@code version} parameter, evaluated once when this span
+   * is created. Calling {@link LLMObsSpan#setTag} with {@code agent_version} afterwards — including
+   * on the span returned here — only sets that span's own tag and does not propagate to
+   * descendants.
+   *
+   * @param version the version of this agent, or {@code null}/empty to leave it untagged
+   */
+  public static LLMObsSpan startAgentSpan(
+      String spanName,
+      @Nullable String mlApp,
+      @Nullable String sessionId,
+      @Nullable String version) {
+
+    return SPAN_FACTORY.startAgentSpan(spanName, mlApp, sessionId, version);
+  }
+
   public static LLMObsSpan startToolSpan(
       String spanName, @Nullable String mlApp, @Nullable String sessionId) {
 
@@ -169,6 +191,14 @@ public class LLMObs {
         @Nullable String sessionId);
 
     LLMObsSpan startAgentSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
+
+    default LLMObsSpan startAgentSpan(
+        String spanName,
+        @Nullable String mlApp,
+        @Nullable String sessionId,
+        @Nullable String version) {
+      return startAgentSpan(spanName, mlApp, sessionId);
+    }
 
     LLMObsSpan startToolSpan(String spanName, @Nullable String mlApp, @Nullable String sessionId);
 

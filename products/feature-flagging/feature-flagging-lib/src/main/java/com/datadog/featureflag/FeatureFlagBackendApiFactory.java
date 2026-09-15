@@ -90,7 +90,7 @@ final class FeatureFlagBackendApiFactory {
     }
     try {
       return backendApiFactory.createDirectIntakeApi(
-          Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled());
+          Intake.EVENT_PLATFORM, eventType.responseCompressionEnabled(), false);
     } catch (final IllegalArgumentException exception) {
       LOGGER.debug(
           "Cannot configure direct Feature Flagging {} delivery", eventType.logName(), exception);

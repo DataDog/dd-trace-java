@@ -4,7 +4,7 @@
 # To regenerate this file, run: ./gradlew :dd-java-agent:agent-otel:otel-bootstrap:dependencies --write-locks
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
 ch.qos.logback:logback-core:1.2.13=testCompileClasspath,testRuntimeClasspath
-com.datadoghq:dd-instrument-java:0.0.4=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+com.datadoghq:dd-instrument-java:0.0.5=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.datadoghq:dd-javac-plugin-client:0.2.2=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.javaparser:javaparser-core:3.25.6=codenarc
 com.github.spotbugs:spotbugs-annotations:4.10.3=compileClasspath,spotbugs
@@ -34,10 +34,10 @@ io.opentelemetry:opentelemetry-sdk-trace:1.38.0=compileClasspath,embeddedClasspa
 io.opentelemetry:opentelemetry-sdk:1.38.0=compileClasspath,embeddedClasspath
 jaxen:jaxen:2.0.6=spotbugs
 net.bytebuddy:byte-buddy-agent:1.12.8=testRuntimeClasspath
-net.bytebuddy:byte-buddy-agent:1.18.10=buildTimeInstrumentationPlugin
+net.bytebuddy:byte-buddy-agent:1.18.12=buildTimeInstrumentationPlugin
 net.bytebuddy:byte-buddy-dep:1.14.15=compileClasspath,embeddedClasspath
 net.bytebuddy:byte-buddy:1.12.8=testRuntimeClasspath
-net.bytebuddy:byte-buddy:1.18.10=buildTimeInstrumentationPlugin
+net.bytebuddy:byte-buddy:1.18.12=buildTimeInstrumentationPlugin
 net.sf.saxon:Saxon-HE:12.10=spotbugs
 org.apache.ant:ant-antlr:1.10.14=codenarc
 org.apache.ant:ant-junit:1.10.14=codenarc
