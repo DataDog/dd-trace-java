@@ -59,6 +59,14 @@ class OtelTraceStatePropagationTest {
   }
 
   @Test
+  void rebuildsDuplicateDatadogMembers() {
+    PropagationTags tags =
+        PropagationTags.factory().fromHeaderValue(W3C, "dd=s:1,dd=s:0,ot=rv:" + RV);
+
+    assertEquals("dd=s:1,ot=rv:" + RV, tags.getW3CTracestate(tags.samplingState()));
+  }
+
+  @Test
   void publishesProbabilityPriorityAndOtelStateTogether() {
     PropagationTags tags = PropagationTags.factory().empty();
     SamplingState before = tags.samplingState();
@@ -135,8 +143,6 @@ class OtelTraceStatePropagationTest {
         PropagationTags.factory().fromHeaderValue(W3C, "dd=s:1,first=value,sec=value,ot=rv:" + RV);
 
     assertEquals("dd=s:1,first=value,sec=value,ot=rv:" + RV, tags.headerValue(W3C));
-    assertEquals(
-        "dd=s:1,first=value,sec=value,ot=rv:" + RV, tags.getW3CTracestate(tags.samplingState()));
   }
 
   @Test

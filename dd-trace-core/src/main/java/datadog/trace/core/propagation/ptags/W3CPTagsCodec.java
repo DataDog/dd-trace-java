@@ -861,11 +861,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   public static String rebuildTracestate(SamplingState samplingState) {
     String original = samplingState.getTracestate();
     CharSequence otelTraceState = samplingState.getOtelTraceState();
-    if (original != null
-        && (isUnchangedInheritedOtelMember(original, otelTraceState)
-            || otelTraceState == null && !containsMember(original, OTEL_MEMBER_KEY))) {
-      return original;
-    }
+    // TODO Consider a raw passthrough for unchanged state after checking dd= is not duplicated.
     StringBuilder result = new StringBuilder(MAX_HEADER_SIZE);
     int memberCount = 0;
 
@@ -910,21 +906,6 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
     }
     return result.length() == 0 ? null : result.toString();
-  }
-
-  private static boolean containsMember(String tracestate, String memberKey) {
-    int memberStart = findNextMember(tracestate, 0);
-    while (memberStart < tracestate.length()) {
-      int memberEnd = tracestate.indexOf(MEMBER_SEPARATOR, memberStart);
-      if (memberEnd < 0) {
-        memberEnd = tracestate.length();
-      }
-      if (tracestate.startsWith(memberKey, memberStart)) {
-        return true;
-      }
-      memberStart = findNextMember(tracestate, memberEnd + 1);
-    }
-    return false;
   }
 
   private static void appendMember(StringBuilder sb, String member, int start, int end) {
