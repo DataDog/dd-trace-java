@@ -295,6 +295,7 @@ class OpenTracing31Test extends InstrumentationSpecification {
     }
     if (contextPriority == UNSET) {
       expectedTracestate += ";t.ksr:1"
+      expectedTracestate += ",ot=${context.delegate.propagationTags.samplingState().otelTraceState}"
       datadogTags << "_dd.p.ksr=1"
     }
     def expectedTextMap = [
