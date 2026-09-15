@@ -27,6 +27,8 @@ public final class SingleThreadEventExecutorStartThreadInstrumentation
     return new String[] {
       "io.netty.util.concurrent.SingleThreadEventExecutor",
       "io.grpc.netty.shaded.io.netty.util.concurrent.SingleThreadEventExecutor",
+      "com.couchbase.client.deps.io.netty.util.concurrent.SingleThreadEventExecutor",
+      "play.shaded.ahc.io.netty.util.concurrent.SingleThreadEventExecutor",
     };
   }
 
