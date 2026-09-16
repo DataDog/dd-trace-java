@@ -46,21 +46,16 @@ public final class GenAiApmTags {
     {LLMOBS_METRIC_PREFIX + "reasoning_output_tokens", USAGE_REASONING_OUTPUT_TOKENS},
   };
 
-  public static void apply(AgentSpan span) {
-    apply(span, null, null, null);
-  }
-
   /**
    * Writes the attributes onto a span that is not yet finished, reading them from its {@code
-   * _ml_obs_tag.} / {@code _ml_obs_metric.} tags. The arguments take precedence over those tags and
-   * cover instrumentation that traces with LLM Observability disabled, where they are not all set.
-   * No-op for a span with no resolvable operation.
+   * _ml_obs_tag.} / {@code _ml_obs_metric.} tags. No-op for a span with no LLM Observability span
+   * kind.
    */
-  public static void apply(AgentSpan span, String operationName, String modelName, String mlApp) {
+  public static void apply(AgentSpan span) {
     if (span == null) {
       return;
     }
-    String operation = firstNonEmpty(operationName, stringTag(span, SPAN_KIND_TAG));
+    String operation = stringTag(span, SPAN_KIND_TAG);
     if (operation == null) {
       return;
     }
@@ -70,7 +65,7 @@ public final class GenAiApmTags {
         Tags.LLMOBS_LLM_SPAN_KIND.equals(operation)
             || Tags.LLMOBS_EMBEDDING_SPAN_KIND.equals(operation);
 
-    String model = firstNonEmpty(modelName, stringTag(span, MODEL_NAME_TAG));
+    String model = stringTag(span, MODEL_NAME_TAG);
     if (model != null || modelBacked) {
       span.setTag(REQUEST_MODEL, model == null ? DEFAULT_MODEL : model);
     }
@@ -79,7 +74,7 @@ public final class GenAiApmTags {
       span.setTag(
           PROVIDER_NAME, (provider == null ? DEFAULT_MODEL : provider).toLowerCase(Locale.ROOT));
     }
-    String application = firstNonEmpty(mlApp, stringTag(span, ML_APP_TAG));
+    String application = stringTag(span, ML_APP_TAG);
     if (application != null) {
       span.setTag(APPLICATION_NAME, application);
     }
@@ -100,17 +95,13 @@ public final class GenAiApmTags {
   }
 
   /** The value of {@code key} as a non-empty string, or null. */
-  public static String stringTag(AgentSpan span, String key) {
+  private static String stringTag(AgentSpan span, String key) {
     Object value = span.getTag(key);
     if (value == null) {
       return null;
     }
     String string = String.valueOf(value);
     return string.isEmpty() ? null : string;
-  }
-
-  private static String firstNonEmpty(String preferred, String fallback) {
-    return preferred == null || preferred.isEmpty() ? fallback : preferred;
   }
 
   private GenAiApmTags() {}

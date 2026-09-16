@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.openai_java;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -329,51 +330,42 @@ class LlmObsZeroSampleRateForkedTest extends AbstractLlmObsOpenAiForkedTest {
 }
 
 /**
- * Verifies the gen_ai.* attributes an openai.request span carries with LLM Observability disabled:
- * operation, model, provider and application, but never token usage or conversation id.
+ * Verifies that an openai.request span carries no gen_ai.* attributes at all with LLM Observability
+ * disabled. The attributes are derived from the LLMObs tag set, which the decorator does not build
+ * in that configuration.
  */
 @WithConfig(key = "llmobs.enabled", value = "false")
 class LlmObsDisabledForkedTest extends AbstractLlmObsOpenAiForkedTest {
 
   @Test
-  void chatCompletionEmitsTheGenAiAttributesAvailableWithoutLlmObs() {
+  void chatCompletionEmitsNoGenAiAttributes() {
     try {
       openAiClient.chat().completions().create(buildMinimalChatParams());
     } catch (Exception ignored) {
       // The mock server returns no body, so the SDK may throw while parsing the response.
     }
 
-    DDSpan openAiSpan = awaitOpenAiSpan("/v1/chat/completions");
-
-    assertEquals("llm", openAiSpan.getTag("gen_ai.operation.name"));
-    // The mock returns no body, so the request model stands in for the absent response model.
-    assertEquals(
-        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
-    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
-    assertNotNull(openAiSpan.getTag("gen_ai.application.name"));
-
-    assertNull(openAiSpan.getTag("gen_ai.conversation.id"));
-    assertNull(openAiSpan.getTag("gen_ai.usage.input_tokens"));
-    assertNull(openAiSpan.getTag("gen_ai.usage.output_tokens"));
-    assertNull(openAiSpan.getTag("gen_ai.usage.total_tokens"));
-
-    assertNull(openAiSpan.getTag("_ml_obs_tag.span.kind"));
+    assertNoGenAiTags(awaitOpenAiSpan("/v1/chat/completions"));
   }
 
   @Test
-  void embeddingMapsToTheEmbeddingOperation() {
+  void embeddingEmitsNoGenAiAttributes() {
     try {
       openAiClient.embeddings().create(buildMinimalEmbeddingParams());
     } catch (Exception ignored) {
       // The mock server returns no body, so the SDK may throw while parsing the response.
     }
 
-    DDSpan openAiSpan = awaitOpenAiSpan("/v1/embeddings");
+    assertNoGenAiTags(awaitOpenAiSpan("/v1/embeddings"));
+  }
 
-    assertEquals("embedding", openAiSpan.getTag("gen_ai.operation.name"));
-    assertEquals(
-        openAiSpan.getTag("openai.request.model"), openAiSpan.getTag("gen_ai.request.model"));
-    assertEquals("openai", openAiSpan.getTag("gen_ai.provider.name"));
+  private static void assertNoGenAiTags(DDSpan span) {
+    // The endpoint and model the span was selected by are APM tags of their own, still present.
+    assertNotNull(span.getTag("openai.request.model"));
+    assertTrue(
+        span.getTags().keySet().stream().noneMatch(key -> key.startsWith("gen_ai.")),
+        "openai.request span should carry no gen_ai.* tags");
+    assertNull(span.getTag("_ml_obs_tag.span.kind"));
   }
 
   // Both tests here produce an openai.request span, so match on the endpoint rather than take the
