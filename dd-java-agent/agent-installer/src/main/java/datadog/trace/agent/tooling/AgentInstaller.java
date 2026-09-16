@@ -45,6 +45,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.builder.AgentBuilder;
+import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.NexusAccessor;
@@ -297,13 +298,35 @@ public class AgentInstaller {
 
     InstrumenterState.resetDefaultState();
     try {
-      ClassFileTransformer classFileTransformer = transformerBuilder.installOn(inst);
-      registerLambdaTransformer(
-          lambdaTransformationEnabled, classFileTransformer, transformerBuilder.lambdaInterfaces());
-      return classFileTransformer;
+      return transformerBuilder.installOn(
+          inst,
+          lambdaInstallationListener(
+              lambdaTransformationEnabled, transformerBuilder.lambdaInterfaces()));
     } finally {
       SharedTypePools.endInstall();
     }
+  }
+
+  /** Publishes the completed transformer before installation can trigger retransformation. */
+  static AgentBuilder.InstallationListener lambdaInstallationListener(
+      final boolean enabled, final String[] lambdaInterfaces) {
+    return new AgentBuilder.InstallationListener.Adapter() {
+      @Override
+      public void onBeforeInstall(
+          final Instrumentation instrumentation,
+          final ResettableClassFileTransformer classFileTransformer) {
+        registerLambdaTransformer(enabled, classFileTransformer, lambdaInterfaces);
+      }
+
+      @Override
+      public Throwable onError(
+          final Instrumentation instrumentation,
+          final ResettableClassFileTransformer classFileTransformer,
+          final Throwable throwable) {
+        LambdaTransformerHolder.set(null);
+        return throwable;
+      }
+    };
   }
 
   /** Registers the installed class-file transformer for generated lambdas. */

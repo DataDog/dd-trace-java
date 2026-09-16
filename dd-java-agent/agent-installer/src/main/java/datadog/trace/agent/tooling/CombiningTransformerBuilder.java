@@ -335,7 +335,8 @@ public final class CombiningTransformerBuilder
     advice.add(forAdvice.advice(not(ignoredMethods).and(matcher), adviceClass));
   }
 
-  public ClassFileTransformer installOn(Instrumentation instrumentation) {
+  public ClassFileTransformer installOn(
+      Instrumentation instrumentation, AgentBuilder.InstallationListener installationListener) {
     if (InstrumenterConfig.get().isRuntimeContextFieldInjection()) {
       applyContextStoreInjection();
     }
@@ -345,6 +346,7 @@ public final class CombiningTransformerBuilder
         .and(NOT_DECORATOR_MATCHER)
         .transform(defaultTransformers())
         .transform(new SplittingTransformer(transformers))
+        .with(installationListener)
         .installOn(instrumentation);
   }
 
