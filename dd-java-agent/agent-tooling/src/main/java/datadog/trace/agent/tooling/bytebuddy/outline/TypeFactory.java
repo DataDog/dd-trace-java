@@ -186,7 +186,10 @@ final class TypeFactory {
     return wasEnabled;
   }
 
-  /** Cleans up local caches if this callback owns the active transformation. */
+  /**
+   * Cleans up local caches if this callback owns the active transformation. Reference identity is
+   * the ownership token, so transformer wrappers must pass the original callback buffer unchanged.
+   */
   void endTransform(byte[] classFileBuffer) {
     if (targetBytecode == classFileBuffer) {
       endTransform();
@@ -284,7 +287,7 @@ final class TypeFactory {
     boolean isOutline = typeParser == outlineTypeParser;
     long fromTick = InstrumenterMetrics.tick();
     // Hidden lambda names may later be reused by an ordinary class definition.
-    boolean cacheable = !isLambdaTarget(name);
+    boolean cacheable = request.isCacheable();
 
     SharedTypeInfo<TypeDescription> sharedType = cacheable ? types.find(name) : null;
     if (null != sharedType

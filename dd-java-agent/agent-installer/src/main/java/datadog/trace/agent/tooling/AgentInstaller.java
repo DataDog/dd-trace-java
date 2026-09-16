@@ -378,7 +378,11 @@ public class AgentInstaller {
               null,
               targetClass.getProtectionDomain(),
               classBytes);
-        } catch (Throwable ignored) {
+        } catch (Throwable error) {
+          log.debug(
+              "Problem transforming generated lambda {}, leaving it unchanged",
+              slashClassName,
+              error);
           return null;
         } finally {
           TypePoolFacade.endLambdaTransform();

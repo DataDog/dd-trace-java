@@ -4,9 +4,12 @@ import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade;
 import datadog.trace.bootstrap.instrumentation.java.lang.invoke.LambdaTransformer;
 import java.lang.instrument.ClassFileTransformer;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Routes generated lambdas through the module-aware Java 9+ transformer overload. */
 public final class DDJava9LambdaTransformer implements LambdaTransformer {
+  private static final Logger log = LoggerFactory.getLogger(DDJava9LambdaTransformer.class);
 
   /** Read reflectively by the agent installer, which cannot name {@link Module} itself. */
   public static final Function<ClassFileTransformer, LambdaTransformer> FACTORY =
@@ -35,7 +38,9 @@ public final class DDJava9LambdaTransformer implements LambdaTransformer {
           null,
           targetClass.getProtectionDomain(),
           classBytes);
-    } catch (Throwable ignored) {
+    } catch (Throwable error) {
+      log.debug(
+          "Problem transforming generated lambda {}, leaving it unchanged", slashClassName, error);
       return null;
     } finally {
       TypePoolFacade.endLambdaTransform();
