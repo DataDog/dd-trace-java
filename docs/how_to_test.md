@@ -12,6 +12,7 @@ The project leverages different types of tests:
 2. A variant of unit tests is **instrumented tests**.  
    Their purpose is similar to unit tests, but the tested code is instrumented by the java agent (`:dd-trace-java:java-agent`) while running.
    They extend the Spock specification `datadog.trace.agent.test.InstrumentationSpecification` which produces traces and metrics for testing.
+   Instrumentation test harnesses always use strict trace writes so unfinished asynchronous work fails visibly instead of producing an incomplete trace.
 
 3. The third type of tests is **Muzzle checks**.  
    Their goal is to check the [Muzzle directives](./how_instrumentations_work.md#muzzle), making sure instrumentations are safe to load against specific library versions.
@@ -51,6 +52,20 @@ In order to identify such tests and avoid the continuous integration to fail, th
 >    ![Re run workflow from failed](how_to_test/run-again-job.png)
 > * using the `Retry` button from the job view:
 >    ![Rerun workflow from failed](how_to_test/retry-failed-job.png)
+
+### Continuation lifecycle failures
+
+Instrumentation test harnesses always enable strict trace writes; there is no harness opt-out. Do
+not replace the harness tracer or introduce another way to disable strict writes.
+
+Fix continuation leaks when possible. If a fix cannot be included immediately, quarantine the test
+with `@Flaky` and a useful reason or tracked issue so the failure remains visible. Keep continuation
+tracking enabled so the diagnostic evidence is preserved.
+
+Disable tracking with
+`@TrackScopeContinuations(enabled = false, reason = "...")` only for a proven incompatibility with
+the diagnostic itself, never for an unresolved leak. Keep the opt-out narrow and document the
+incompatibility and its removal condition. Strict trace writes remain enabled.
 
 ## Running Tests
 
