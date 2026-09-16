@@ -365,6 +365,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     thrown(UnsupportedOperationException)
   }
 
+  @SuppressWarnings('UnnecessaryBooleanExpression')
   void 'hasDerivativeKeyStartingWith: #scenario'() {
     setup:
     final ctx = new AppSecRequestContext()
