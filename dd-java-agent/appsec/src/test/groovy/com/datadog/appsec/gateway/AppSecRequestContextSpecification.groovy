@@ -261,8 +261,8 @@ class AppSecRequestContextSpecification extends DDSpecification {
     final ctx = new AppSecRequestContext()
 
     when:
-    ctx.requestHeaders.put('Accept', ['*'])
-    ctx.responseHeaders.put('Content-Type', ['text/plain'])
+    ctx.addRequestHeader('Accept', '*')
+    ctx.addResponseHeader('Content-Type', 'text/plain')
     ctx.collectedCookies = [cookie : ['test']]
     ctx.persistentData.put(KnownAddresses.REQUEST_METHOD, 'GET')
     // Use reportDerivatives to properly set values via AtomicReference
@@ -302,8 +302,8 @@ class AppSecRequestContextSpecification extends DDSpecification {
   void 'close releases the header maps without mutating the reader snapshots'() {
     setup:
     final ctx = new AppSecRequestContext()
-    ctx.requestHeaders.put('accept', ['*'])
-    ctx.responseHeaders.put('content-type', ['text/plain'])
+    ctx.addRequestHeader('accept', '*')
+    ctx.addResponseHeader('content-type', 'text/plain')
     final requestHeaders = ctx.requestHeaders
     final responseHeaders = ctx.responseHeaders
 
@@ -315,10 +315,48 @@ class AppSecRequestContextSpecification extends DDSpecification {
     responseHeaders == ['content-type': ['text/plain']]
 
     and: 'the context dropped its own reference, so the contents are collectable'
-    !ctx.requestHeaders.is(requestHeaders)
-    !ctx.responseHeaders.is(responseHeaders)
-    ctx.requestHeaders.isEmpty()
-    ctx.responseHeaders.isEmpty()
+    // Field access, not the getter: it null-coalesces, so emptiness proves nothing here.
+    ctx.@requestHeaders == null
+    ctx.@responseHeaders == null
+  }
+
+  void 'close releases the header maps without allocating replacements'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+
+    expect: 'an untouched context holds no header maps at all'
+    ctx.@requestHeaders == null
+    ctx.@responseHeaders == null
+
+    when: 'close runs twice, as it does per request (onRequestEnded then onRootSpanPublished)'
+    ctx.addRequestHeader('accept', '*')
+    ctx.addResponseHeader('content-type', 'text/plain')
+    ctx.close()
+    ctx.close()
+
+    then: 'neither close allocated a replacement map'
+    ctx.@requestHeaders == null
+    ctx.@responseHeaders == null
+  }
+
+  void 'address extraction after close does not rematerialise the header maps'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    ctx.addRequestHeader('user-agent', 'foo')
+    ctx.close()
+
+    when: 'a late WAF result extracts an attribute from a header address'
+    ctx.reportDerivatives([
+      '_dd.appsec.s.res.user_agent': [
+        'address': 'server.request.headers',
+        'key_path': ['user-agent']
+      ]
+    ])
+
+    then: 'the address lookup read the released field instead of allocating a new map'
+    noExceptionThrown()
+    ctx.@requestHeaders == null
+    ctx.getDerivativeKeys().isEmpty()
   }
 
   void 'headers can still be recorded after close'() {
@@ -326,7 +364,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
     final ctx = new AppSecRequestContext()
     ctx.close()
 
-    when: 'a late header arrives on the replacement map'
+    when: 'a late header arrives after the maps were released'
     ctx.addRequestHeader('accept', '*')
     ctx.addResponseHeader('content-type', 'text/plain')
 

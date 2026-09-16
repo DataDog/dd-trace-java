@@ -1,6 +1,7 @@
 package com.datadog.appsec.gateway;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.unmodifiableMap;
 
@@ -128,13 +129,16 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private String apiSecurityFramework;
   private String endpoint;
   private boolean endpointComputed = false;
-  // Published live to readers that may run on the trace-processing thread (API Security schema
-  // extraction), so close() replaces these references rather than clearing the maps in place:
-  // mutating a snapshot mid-iteration corrupts it (APPSEC-70134). Replacing still drops the
-  // context's own reference, so the contents are collectable once no reader holds them. Volatile
-  // because that replacement can happen on a different thread than the header writes.
-  private volatile Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
-  private volatile Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
+  // Handed out live to readers that may run on the trace-processing thread (API Security schema
+  // extraction), so close() must release these by nulling the reference, never by clearing the map:
+  // mutating a snapshot mid-iteration corrupts it (APPSEC-70134). Volatile because that release can
+  // happen on a different thread than the header writes.
+  //
+  // null also means "no header seen yet", so an untouched context allocates nothing. Only
+  // addRequestHeader/addResponseHeader materialize, which assumes the single writer the plain
+  // LinkedHashMap already assumes; the getters null-coalesce so no reader allocates.
+  private volatile Map<String, List<String>> requestHeaders;
+  private volatile Map<String, List<String>> responseHeaders;
   private volatile Map<String, List<String>> collectedCookies;
   private boolean finishedRequestHeaders;
   private boolean finishedResponseHeaders;
@@ -158,10 +162,10 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private boolean pathParamsPublished;
 
   /**
-   * WAF-reported attributes, published copy-on-write. A map stored here is never mutated in place:
-   * writers publish a fresh unmodifiable copy and readers may keep the instance they read for as
-   * long as they need it, without synchronization. Mutating a published map would break concurrent
-   * readers running on the trace-processing thread (APPSEC-70134).
+   * WAF-reported attributes, published copy-on-write: writers publish a fresh unmodifiable copy
+   * instead of mutating in place, so a reader can keep the instance it read without
+   * synchronization. Mutating a published map would break readers running on the trace-processing
+   * thread (APPSEC-70134).
    */
   private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
 
@@ -568,9 +572,12 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       return;
     }
 
-    List<String> strings =
-        requestHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
-    strings.add(value);
+    Map<String, List<String>> headers = requestHeaders;
+    if (headers == null) {
+      headers = new LinkedHashMap<>();
+      requestHeaders = headers;
+    }
+    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
   }
 
   void finishRequestHeaders() {
@@ -582,7 +589,8 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   Map<String, List<String>> getRequestHeaders() {
-    return requestHeaders;
+    Map<String, List<String>> headers = requestHeaders;
+    return headers != null ? headers : emptyMap();
   }
 
   void addResponseHeader(String name, String value) {
@@ -594,9 +602,12 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       return;
     }
 
-    List<String> strings =
-        responseHeaders.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1));
-    strings.add(value);
+    Map<String, List<String>> headers = responseHeaders;
+    if (headers == null) {
+      headers = new LinkedHashMap<>();
+      responseHeaders = headers;
+    }
+    headers.computeIfAbsent(name.toLowerCase(Locale.ROOT), h -> new ArrayList<>(1)).add(value);
   }
 
   public void finishResponseHeaders() {
@@ -608,7 +619,8 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   Map<String, List<String>> getResponseHeaders() {
-    return responseHeaders;
+    Map<String, List<String>> headers = responseHeaders;
+    return headers != null ? headers : emptyMap();
   }
 
   void addCookies(Map<String, List<String>> cookies) {
@@ -775,10 +787,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       closeWafContext();
       collectedCookies = null;
       persistentData.clear();
-      // Release by replacing the reference, never by clearing in place: a concurrent reader may
-      // still be iterating these (APPSEC-70134). See the field declarations for the full rationale.
-      this.requestHeaders = new LinkedHashMap<>();
-      this.responseHeaders = new LinkedHashMap<>();
+      // Null the reference, never clear in place (APPSEC-70134): see the field declarations.
+      this.requestHeaders = null;
+      this.responseHeaders = null;
       this.derivatives.set(null);
     }
   }
@@ -900,7 +911,7 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
             }
           }
 
-          // Published unmodifiable: concurrent readers may hold this instance indefinitely.
+          // Unmodifiable: readers may hold this instance indefinitely.
           return unmodifiableMap(updated);
         });
   }
@@ -945,9 +956,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     // Map common addresses to our data structures
     switch (address) {
       case "server.request.headers":
-        return requestHeaders;
+        return getRequestHeaders();
       case "server.response.headers":
-        return responseHeaders;
+        return getResponseHeaders();
       case "server.request.cookies":
         return collectedCookies;
       case "server.request.uri.raw":
@@ -1088,8 +1099,8 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   }
 
   /**
-   * Mainly used for testing and debug logging. The published map is unmodifiable and never mutated
-   * in place, so its key set is returned directly as a stable view.
+   * Mainly used for testing and debug logging. The published map is unmodifiable, so its key set is
+   * returned directly as a stable view.
    */
   public Set<String> getDerivativeKeys() {
     Map<String, Object> current = derivatives.get();
@@ -1099,16 +1110,9 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   /**
    * Whether any currently reported derivative key starts with the given prefix. Must be called
    * before {@link #commitDerivatives(TraceSegment)}, which detaches the derivatives map.
-   *
-   * @param prefix the key prefix to look for
-   * @return {@code true} if at least one key starts with {@code prefix}
    */
   public boolean hasDerivativeKeyStartingWith(final String prefix) {
-    final Map<String, Object> current = derivatives.get();
-    if (current == null) {
-      return false;
-    }
-    for (String key : current.keySet()) {
+    for (String key : getDerivativeKeys()) {
       if (key != null && key.startsWith(prefix)) {
         return true;
       }
