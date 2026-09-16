@@ -55,8 +55,8 @@ variables:
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
-  BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "9.7.1" # must match gradle-wrapper.properties
+  S3_BUILD_CACHE_BUCKET: "dd-trace-java-gradle-build-cache"
+  S3_BUILD_CACHE_REGION: "us-east-1"
   MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
@@ -235,14 +235,6 @@ default:
       fallback_keys: # Use fallback keys because all cache types are not populated. See note under: populate_dep_cache
         - 'dependency-base'
         - 'dependency-lib'
-    - &build_cache
-      key: $CI_PIPELINE_ID-$CACHE_TYPE # Incremental build cache. Shared by all jobs in the pipeline of the same type
-      paths:
-        - .gradle/caches/$GRADLE_VERSION
-        - .gradle/$GRADLE_VERSION/executionHistory
-        - workspace
-      policy: $BUILD_CACHE_POLICY
-      unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
     - *container_info
@@ -349,7 +341,6 @@ build:
       optional: true
   extends: .gradle_build
   variables:
-    BUILD_CACHE_POLICY: push
     CACHE_TYPE: "lib"
     DEPENDENCY_CACHE_POLICY: pull
   script:
@@ -375,7 +366,6 @@ build_tests:
   extends: .gradle_build
   variables:
     <<: *tier_xl_variables
-    BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
   parallel:
     matrix:
@@ -433,13 +423,11 @@ populate_dep_cache:
     - job: build_tests
       artifacts: false
   variables:
-    BUILD_CACHE_POLICY: pull
     DEPENDENCY_CACHE_POLICY: push
   cache:
     - <<: *plugin_cache
       policy: pull
     - *dependency_cache
-    - *build_cache
   rules:
     - if: '$POPULATE_CACHE'
       when: on_success

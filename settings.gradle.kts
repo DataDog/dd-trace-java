@@ -32,11 +32,15 @@ pluginManagement {
 }
 
 plugins {
+  id("com.github.burrunan.s3-build-cache") version "1.9.9"
   id("com.gradle.develocity") version "4.5.0"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
 val isCI = providers.environmentVariable("CI")
+val isGitLabCI = providers.environmentVariable("GITLAB_CI")
+val isGitLabTag = providers.environmentVariable("CI_COMMIT_TAG")
+val gitLabRefSlug = providers.environmentVariable("CI_COMMIT_REF_SLUG")
 val skipBuildscan = providers.environmentVariable("SKIP_BUILDSCAN").map { it.toBoolean() }.orElse(false)
 
 develocity {
@@ -52,6 +56,17 @@ if (isCI.isPresent) {
   buildCache {
     local {
       directory = File(rootDir, "workspace/build-cache")
+    }
+    if (isGitLabCI.isPresent && !isGitLabTag.isPresent) {
+      remote<com.github.burrunan.s3cache.AwsS3BuildCache> {
+        region = providers.environmentVariable("S3_BUILD_CACHE_REGION").get()
+        bucket = providers.environmentVariable("S3_BUILD_CACHE_BUCKET").get()
+        prefix =
+          "trial/v1/${gitLabRefSlug.get()}/${System.getProperty("os.arch")}/"
+        isPush = true
+        lookupDefaultAwsCredentials = true
+        isReducedRedundancy = false
+      }
     }
   }
 }
