@@ -88,7 +88,7 @@ public abstract class AbstractInstrumentationTest {
         CoreTracer.builder()
             .writer(writer)
             .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
-            .strictTraceWrites(testConfig.strictTraceWrites)
+            .strictTraceWrites(true)
             .build();
     TracerInstaller.forceInstallGlobalTracer(coreTracer);
     tracer = coreTracer;
@@ -230,15 +230,9 @@ public abstract class AbstractInstrumentationTest {
   /** Configuration for {@link AbstractInstrumentationTest}. */
   protected static class InstrumentationTestConfig {
     private String idGenerationStrategy = "SEQUENTIAL";
-    private boolean strictTraceWrites = true;
 
     public InstrumentationTestConfig idGenerationStrategy(String strategy) {
       this.idGenerationStrategy = strategy;
-      return this;
-    }
-
-    public InstrumentationTestConfig strictTraceWrites(boolean strict) {
-      this.strictTraceWrites = strict;
       return this;
     }
   }

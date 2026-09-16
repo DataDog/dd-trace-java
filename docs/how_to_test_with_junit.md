@@ -323,7 +323,9 @@ Keep strict trace writes enabled in instrumentation tests; disabling them is not
 resolve a lifecycle failure. Production buffering can publish finished spans despite unresolved
 continuations, so a successful trace assertion alone does not prove cleanup. See
 [continuation effects](how_instrumentations_work.md#continuation-effects) and the
-[continuation investigation skill](../.agents/skills/fix-continuation-leakage/SKILL.md).
+[continuation investigation skill](../.agents/skills/fix-continuation-leakage/SKILL.md). For
+quarantine and diagnostic opt-out policy, see the
+[general testing guidance](how_to_test.md#continuation-lifecycle-failures).
 
 ### Basic test
 
