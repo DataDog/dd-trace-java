@@ -2,6 +2,7 @@ package com.datadog.appsec.gateway;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Collections.emptySet;
+import static java.util.Collections.unmodifiableMap;
 
 import com.datadog.appsec.event.data.Address;
 import com.datadog.appsec.event.data.DataBundle;
@@ -127,8 +128,13 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private String apiSecurityFramework;
   private String endpoint;
   private boolean endpointComputed = false;
-  private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
-  private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
+  // Published live to readers that may run on the trace-processing thread (API Security schema
+  // extraction), so close() replaces these references rather than clearing the maps in place:
+  // mutating a snapshot mid-iteration corrupts it (APPSEC-70134). Replacing still drops the
+  // context's own reference, so the contents are collectable once no reader holds them. Volatile
+  // because that replacement can happen on a different thread than the header writes.
+  private volatile Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
+  private volatile Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
   private boolean finishedRequestHeaders;
   private boolean finishedResponseHeaders;
@@ -150,6 +156,13 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
   private boolean responseBodyPublished;
   private boolean respDataPublished;
   private boolean pathParamsPublished;
+
+  /**
+   * WAF-reported attributes, published copy-on-write. A map stored here is never mutated in place:
+   * writers publish a fresh unmodifiable copy and readers may keep the instance they read for as
+   * long as they need it, without synchronization. Mutating a published map would break concurrent
+   * readers running on the trace-processing thread (APPSEC-70134).
+   */
   private final AtomicReference<Map<String, Object>> derivatives = new AtomicReference<>();
 
   private final AtomicBoolean rateLimited = new AtomicBoolean(false);
@@ -761,13 +774,12 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
       // a late/async caller of getOrCreateWafContext() cannot resurrect a context (APPSEC-69085).
       closeWafContext();
       collectedCookies = null;
-      requestHeaders.clear();
-      responseHeaders.clear();
       persistentData.clear();
-      final Map<String, Object> derivatives = this.derivatives.getAndSet(null);
-      if (derivatives != null) {
-        derivatives.clear();
-      }
+      // Release by replacing the reference, never by clearing in place: a concurrent reader may
+      // still be iterating these (APPSEC-70134). See the field declarations for the full rationale.
+      this.requestHeaders = new LinkedHashMap<>();
+      this.responseHeaders = new LinkedHashMap<>();
+      this.derivatives.set(null);
     }
   }
 
@@ -888,7 +900,8 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
             }
           }
 
-          return updated;
+          // Published unmodifiable: concurrent readers may hold this instance indefinitely.
+          return unmodifiableMap(updated);
         });
   }
 
@@ -1074,10 +1087,33 @@ public class AppSecRequestContext implements DataBundle, Closeable, AppSecContex
     return true;
   }
 
-  // Mainly used for testing and logging
+  /**
+   * Mainly used for testing and debug logging. The published map is unmodifiable and never mutated
+   * in place, so its key set is returned directly as a stable view.
+   */
   public Set<String> getDerivativeKeys() {
     Map<String, Object> current = derivatives.get();
-    return current == null ? emptySet() : new HashSet<>(current.keySet());
+    return current == null ? emptySet() : current.keySet();
+  }
+
+  /**
+   * Whether any currently reported derivative key starts with the given prefix. Must be called
+   * before {@link #commitDerivatives(TraceSegment)}, which detaches the derivatives map.
+   *
+   * @param prefix the key prefix to look for
+   * @return {@code true} if at least one key starts with {@code prefix}
+   */
+  public boolean hasDerivativeKeyStartingWith(final String prefix) {
+    final Map<String, Object> current = derivatives.get();
+    if (current == null) {
+      return false;
+    }
+    for (String key : current.keySet()) {
+      if (key != null && key.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public boolean isThrottled(RateLimiter rateLimiter) {

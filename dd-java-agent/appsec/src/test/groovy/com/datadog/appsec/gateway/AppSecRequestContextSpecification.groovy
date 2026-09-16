@@ -256,7 +256,7 @@ class AppSecRequestContextSpecification extends DDSpecification {
   }
 
 
-  void 'test that internal data is cleared on close'() {
+  void 'test that internal data is released on close'() {
     setup:
     final ctx = new AppSecRequestContext()
 
@@ -279,6 +279,110 @@ class AppSecRequestContextSpecification extends DDSpecification {
     ctx.responseHeaders.isEmpty()
     ctx.cookies.isEmpty()
     ctx.persistentData.isEmpty()
+  }
+
+  void 'close does not mutate the published derivatives map'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    ctx.reportDerivatives(['test_attr': ['value': 'test_value']])
+    final published = ctx.derivatives.get()
+
+    expect:
+    published.keySet() == ['test_attr'] as Set
+
+    when:
+    ctx.close()
+
+    then: 'the reference is detached but the instance a concurrent reader holds is untouched'
+    ctx.derivatives.get() == null
+    published.keySet() == ['test_attr'] as Set
+    published['test_attr'] == 'test_value'
+  }
+
+  void 'close releases the header maps without mutating the reader snapshots'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    ctx.requestHeaders.put('accept', ['*'])
+    ctx.responseHeaders.put('content-type', ['text/plain'])
+    final requestHeaders = ctx.requestHeaders
+    final responseHeaders = ctx.responseHeaders
+
+    when:
+    ctx.close()
+
+    then: 'readers holding these maps (e.g. async schema extraction) still see their contents'
+    requestHeaders == ['accept': ['*']]
+    responseHeaders == ['content-type': ['text/plain']]
+
+    and: 'the context dropped its own reference, so the contents are collectable'
+    !ctx.requestHeaders.is(requestHeaders)
+    !ctx.responseHeaders.is(responseHeaders)
+    ctx.requestHeaders.isEmpty()
+    ctx.responseHeaders.isEmpty()
+  }
+
+  void 'headers can still be recorded after close'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    ctx.close()
+
+    when: 'a late header arrives on the replacement map'
+    ctx.addRequestHeader('accept', '*')
+    ctx.addResponseHeader('content-type', 'text/plain')
+
+    then: 'it is accepted, as it was when close() cleared the maps in place'
+    noExceptionThrown()
+    ctx.requestHeaders == ['accept': ['*']]
+    ctx.responseHeaders == ['content-type': ['text/plain']]
+  }
+
+  void 'reportDerivatives publishes a new map and leaves earlier snapshots untouched'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    ctx.reportDerivatives(['attr1': ['value': 'value1']])
+    final first = ctx.derivatives.get()
+
+    when:
+    ctx.reportDerivatives(['attr2': ['value': 'value2']])
+    final second = ctx.derivatives.get()
+
+    then:
+    !first.is(second)
+    first.keySet() == ['attr1'] as Set
+    second.keySet() == ['attr1', 'attr2'] as Set
+  }
+
+  void 'published derivatives map rejects mutation'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    ctx.reportDerivatives(['test_attr': ['value': 'test_value']])
+    final published = ctx.derivatives.get()
+
+    when:
+    published.clear()
+
+    then:
+    thrown(UnsupportedOperationException)
+  }
+
+  void 'hasDerivativeKeyStartingWith: #scenario'() {
+    setup:
+    final ctx = new AppSecRequestContext()
+    if (derivatives != null) {
+      ctx.reportDerivatives(derivatives)
+    }
+
+    expect:
+    ctx.hasDerivativeKeyStartingWith(prefix) == expected
+
+    where:
+    scenario                  | derivatives                                  | prefix          || expected
+    'no derivatives reported' | null                                         | '_dd.appsec.s.' || false
+    'matching key'            | ['_dd.appsec.s.req.body': ['value': 'x']]    | '_dd.appsec.s.' || true
+    'non-matching key'        | ['_dd.appsec.fp.http.header': ['value': 'x']]| '_dd.appsec.s.' || false
+    'one of several matches'  | ['_dd.appsec.fp.http.header': ['value': 'x'],
+      '_dd.appsec.s.req.body': ['value': 'y']]     | '_dd.appsec.s.' || true
+    'null key'                | [(null): ['value': 'x']]                     | '_dd.appsec.s.' || false
   }
 
   def "test increase and get WafTimeouts"() {
