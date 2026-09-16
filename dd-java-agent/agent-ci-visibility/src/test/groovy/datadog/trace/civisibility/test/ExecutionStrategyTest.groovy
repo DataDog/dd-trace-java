@@ -8,11 +8,12 @@ import datadog.trace.api.civisibility.config.TestSourceData
 import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.api.civisibility.telemetry.tag.RetryReason
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason
+import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.config.TestManagementSettings
-import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector
 import datadog.trace.civisibility.execution.AttemptToFix
+import datadog.trace.civisibility.execution.DynamicAutoTestRetry
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import spock.lang.Specification
@@ -118,6 +119,32 @@ class ExecutionStrategyTest extends Specification {
     secondOutcome.retryReason() == RetryReason.attemptToFix
   }
 
+  def "test dynamic ATR"() {
+    setup:
+    def testFQN = new TestFQN("suite", "name")
+    def testID = new TestIdentifier(testFQN, null)
+
+    def dynamicAtrSettings = DynamicAutoTestRetrySettings.create(true, null, [])
+
+    def executionSettings = Stub(ExecutionSettings)
+    executionSettings.getTestManagementSettings() >> TestManagementSettings.DEFAULT
+    executionSettings.isFlakyTestRetriesEnabled() >> true
+    executionSettings.isFlakyTestsDataAvailable() >> false
+    executionSettings.getDynamicAutoTestRetrySettings() >> dynamicAtrSettings
+
+    def config = Stub(Config)
+    config.getCiVisibilityTotalFlakyRetryCount() >> 1000
+    def strategy = new ExecutionStrategy(
+      config,
+      executionSettings,
+      Stub(SourcePathResolver),
+      Stub(LinesResolver)
+      )
+
+    expect:
+    strategy.executionPolicy(testID, TestSourceData.UNKNOWN, []).class == DynamicAutoTestRetry
+  }
+
   private ExecutionStrategy givenAnExecutionStrategy(ExecutionSettings executionSettings = ExecutionSettings.EMPTY) {
     def config = Config.get()
     def resolver = Stub(SourcePathResolver)
@@ -127,8 +154,7 @@ class ExecutionStrategyTest extends Specification {
       config,
       executionSettings,
       resolver,
-      linesResolver,
-      NoOpMetricCollector.INSTANCE
+      linesResolver
       )
   }
 }

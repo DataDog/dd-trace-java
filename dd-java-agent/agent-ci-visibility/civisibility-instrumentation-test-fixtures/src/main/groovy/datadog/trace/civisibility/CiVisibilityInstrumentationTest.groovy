@@ -161,8 +161,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       config,
       executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
       sourcePathResolver,
-      linesResolver,
-      metricCollector),
+      linesResolver),
       capabilities
       )
     }
@@ -239,6 +238,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       false,
       settings.failedTestReplayEnabled,
       earlyFlakinessDetectionSettings,
+      DynamicAutoTestRetrySettings.DEFAULT,
       testManagementSettings,
       settings.itrEnabled ? "itrCorrelationId" : null,
       skippableTestsWithMetadata,

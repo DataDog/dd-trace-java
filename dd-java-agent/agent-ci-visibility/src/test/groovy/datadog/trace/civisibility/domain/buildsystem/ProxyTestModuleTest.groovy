@@ -5,11 +5,11 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.api.civisibility.config.TestSourceData
 import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
+import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.api.civisibility.config.TestIdentifier
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
-import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector
 import datadog.trace.civisibility.codeowners.Codeowners
 import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.coverage.report.child.ChildProcessCoverageReporter
@@ -25,13 +25,14 @@ class ProxyTestModuleTest extends DDSpecification {
   def "test total retries limit is applied across test cases"() {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
+    executionSettings.getDynamicAutoTestRetrySettings() >> DynamicAutoTestRetrySettings.DEFAULT
     executionSettings.isFlakyTestRetriesEnabled() >> true
 
     def config = Stub(Config)
     config.getCiVisibilityFlakyRetryCount() >> 2 // this counts all executions of a test case (first attempt is counted too)
     config.getCiVisibilityTotalFlakyRetryCount() >> 2 // this counts retries across all tests (first attempt is not a retry, so it is not counted)
 
-    def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver), NoOpMetricCollector.INSTANCE)
+    def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
 
     def traceId = Stub(DDTraceId)
     traceId.toLong() >> 123

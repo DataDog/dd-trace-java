@@ -276,8 +276,7 @@ public class CiVisibilitySystem {
               services.config,
               executionSettings,
               repoServices.sourcePathResolver,
-              services.linesResolver,
-              services.metricCollector);
+              services.linesResolver);
 
       // only add report upload capability for children sessions,
       // because report upload is only supported when the build system is instrumented
@@ -320,8 +319,7 @@ public class CiVisibilitySystem {
               services.config,
               executionSettings,
               repoServices.sourcePathResolver,
-              services.linesResolver,
-              services.metricCollector);
+              services.linesResolver);
       return new HeadlessTestSession(
           projectName,
           startTime,

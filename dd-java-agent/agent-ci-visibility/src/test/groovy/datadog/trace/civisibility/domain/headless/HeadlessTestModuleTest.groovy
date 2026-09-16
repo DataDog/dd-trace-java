@@ -6,9 +6,9 @@ import datadog.trace.api.civisibility.config.TestSourceData
 import datadog.trace.api.civisibility.coverage.CoverageStore
 import datadog.trace.api.civisibility.execution.TestStatus
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector
-import datadog.trace.api.civisibility.telemetry.NoOpMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.civisibility.codeowners.Codeowners
+import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.decorator.TestDecorator
@@ -51,6 +51,7 @@ class HeadlessTestModuleTest extends SpanWriterTest {
   private HeadlessTestModule givenAHeadlessTestModule() {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
+    executionSettings.getDynamicAutoTestRetrySettings() >> DynamicAutoTestRetrySettings.DEFAULT
     executionSettings.isFlakyTestRetriesEnabled() >> true
 
     def config = Stub(Config)
@@ -59,7 +60,7 @@ class HeadlessTestModuleTest extends SpanWriterTest {
     config.getCiVisibilityTotalFlakyRetryCount() >> 2
     // this counts retries across all tests (first attempt is not a retry, so it is not counted)
 
-    def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver), NoOpMetricCollector.INSTANCE)
+    def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
 
     new HeadlessTestModule(
     Stub(AgentSpanContext),

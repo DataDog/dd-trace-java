@@ -1,49 +1,40 @@
 package datadog.trace.civisibility.execution;
 
 import datadog.trace.api.civisibility.execution.TestStatus;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
+import datadog.trace.civisibility.config.DynamicAutoTestRetrySettings;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Execution policy for dynamic Auto Test Retries (ATR). Instead of a flat per-test retry limit, the
- * number of retries is determined by the duration of the initial attempt, using the same duration
- * buckets as Early Flake Detection. When custom buckets are provided they override the EFD retry
- * settings; otherwise the EFD settings from the backend are used.
+ * number of retries is determined by the duration of the initial attempt.
  */
-public class DynamicAutoTestRetry extends AutoTestRetry {
+public class DynamicAutoTestRetry extends AbstractAutoTestRetry {
 
-  private final EarlyFlakeDetectionSettings efdSettings;
-  private final int[] customBuckets; // null = use EFD settings
-  private boolean maxExecutionsDetermined = false;
+  private final DynamicAutoTestRetrySettings settings;
+  private int maxExecutions = 2;
+  private boolean maxExecutionsDetermined;
 
   public DynamicAutoTestRetry(
-      EarlyFlakeDetectionSettings efdSettings,
-      int[] customBuckets,
+      DynamicAutoTestRetrySettings settings,
       boolean suppressFailures,
       AtomicInteger totalRetryCount) {
-    super(Integer.MAX_VALUE, suppressFailures, totalRetryCount);
-    this.efdSettings = efdSettings;
-    this.customBuckets = customBuckets;
+    super(suppressFailures, totalRetryCount);
+    this.settings = settings;
   }
 
   @Override
   public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
     if (!maxExecutionsDetermined) {
-      maxExecutions = computeMaxExecutions(durationMillis);
+      int retries = Math.max(1, settings.retriesForDuration(durationMillis));
+      // Duration buckets count retries only; the execution limit also includes the initial attempt.
+      maxExecutions = retries + 1;
       maxExecutionsDetermined = true;
     }
     return super.registerExecution(status, durationMillis);
   }
 
-  private int computeMaxExecutions(long durationMillis) {
-    int retries;
-    if (customBuckets != null) {
-      int index = efdSettings.retryBucketIndexForDuration(durationMillis);
-      retries = customBuckets[index];
-    } else {
-      retries = efdSettings.retriesForDuration(durationMillis);
-    }
-    return Math.max(1, retries) + 1; // +1 for the initial attempt
+  @Override
+  protected int maxExecutions() {
+    return maxExecutions;
   }
 }

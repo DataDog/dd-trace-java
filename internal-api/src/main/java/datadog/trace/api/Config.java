@@ -266,12 +266,12 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVE
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_LINES_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_DUMP_DIR;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_REPORT_UPLOAD_ENABLED;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_BUCKETS;
-import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_CODE_COVERAGE_ROOT_PACKAGES_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_COMPILER_PLUGIN_VERSION;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_BUCKETS;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_DYNAMIC_ATR_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_EXECUTION_SETTINGS_CACHE_SIZE;
@@ -850,6 +850,8 @@ public class Config {
 
   private static final Logger log = LoggerFactory.getLogger(Config.class);
   private static final int MAX_CODE_COVERAGE_FLAGS = 32;
+  private static final int DYNAMIC_ATR_BUCKET_COUNT = 5;
+  private static final int MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET = 20;
 
   private static final Pattern COLON = Pattern.compile(":");
 
@@ -1219,7 +1221,7 @@ public class Config {
   private final int ciVisibilityFlakyRetryCount;
   private final int ciVisibilityTotalFlakyRetryCount;
   private final boolean ciVisibilityDynamicAtrEnabled;
-  private final String ciVisibilityDynamicAtrBuckets;
+  private final List<Integer> ciVisibilityDynamicAtrBuckets;
   private final boolean ciVisibilityEarlyFlakeDetectionEnabled;
   private final int ciVisibilityEarlyFlakeDetectionLowerLimit;
   private final String ciVisibilitySessionName;
@@ -2880,7 +2882,10 @@ public class Config {
         configProvider.getInteger(CIVISIBILITY_TOTAL_FLAKY_RETRY_COUNT, 1000);
     ciVisibilityDynamicAtrEnabled =
         configProvider.getBoolean(CIVISIBILITY_DYNAMIC_ATR_ENABLED, false);
-    ciVisibilityDynamicAtrBuckets = configProvider.getString(CIVISIBILITY_DYNAMIC_ATR_BUCKETS);
+    ciVisibilityDynamicAtrBuckets =
+        ciVisibilityDynamicAtrEnabled
+            ? parseDynamicAtrBuckets(configProvider.getString(CIVISIBILITY_DYNAMIC_ATR_BUCKETS))
+            : null;
     ciVisibilitySessionName = configProvider.getString(TEST_SESSION_NAME);
     ciVisibilityModuleName = configProvider.getString(CIVISIBILITY_MODULE_NAME);
     ciVisibilityTestCommand = configProvider.getString(CIVISIBILITY_TEST_COMMAND);
@@ -4789,7 +4794,7 @@ public class Config {
     return ciVisibilityDynamicAtrEnabled;
   }
 
-  public String getCiVisibilityDynamicAtrBuckets() {
+  public List<Integer> getCiVisibilityDynamicAtrBuckets() {
     return ciVisibilityDynamicAtrBuckets;
   }
 
@@ -6365,6 +6370,43 @@ public class Config {
     return Collections.unmodifiableSet(result);
   }
 
+  private static List<Integer> parseDynamicAtrBuckets(String configuredBuckets) {
+    if (configuredBuckets == null || configuredBuckets.isEmpty()) {
+      return null;
+    }
+
+    String[] values = configuredBuckets.split(",", -1);
+    if (values.length != DYNAMIC_ATR_BUCKET_COUNT) {
+      logInvalidDynamicAtrBuckets(configuredBuckets);
+      return null;
+    }
+
+    List<Integer> buckets = new ArrayList<>(values.length);
+    try {
+      for (String value : values) {
+        int retries = Integer.parseInt(value.trim());
+        if (retries < 1 || retries > MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET) {
+          logInvalidDynamicAtrBuckets(configuredBuckets);
+          return null;
+        }
+        buckets.add(retries);
+      }
+      return Collections.unmodifiableList(buckets);
+
+    } catch (NumberFormatException e) {
+      logInvalidDynamicAtrBuckets(configuredBuckets);
+      return null;
+    }
+  }
+
+  private static void logInvalidDynamicAtrBuckets(String configuredBuckets) {
+    log.warn(
+        "Invalid {} value '{}'; expected five comma-separated integers in [1, {}]",
+        propertyNameToEnvironmentVariableName(CIVISIBILITY_DYNAMIC_ATR_BUCKETS),
+        configuredBuckets,
+        MAX_DYNAMIC_ATR_RETRIES_PER_BUCKET);
+  }
+
   private static List<String> parseCodeCoverageFlags(List<String> configuredFlags) {
     if (configuredFlags.isEmpty()) {
       return Collections.emptyList();
@@ -7109,9 +7151,8 @@ public class Config {
         + ciVisibilityGradleDependencyVerificationEnabled
         + ", ciVisibilityDynamicAtrEnabled="
         + ciVisibilityDynamicAtrEnabled
-        + ", ciVisibilityDynamicAtrBuckets='"
+        + ", ciVisibilityDynamicAtrBuckets="
         + ciVisibilityDynamicAtrBuckets
-        + '\''
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
         + ", sfnInjectDatadogAttributeEnabled="
