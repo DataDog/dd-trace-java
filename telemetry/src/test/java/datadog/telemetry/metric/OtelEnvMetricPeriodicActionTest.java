@@ -21,6 +21,7 @@ class OtelEnvMetricPeriodicActionTest {
   private final TelemetryService telemetryService = mock(TelemetryService.class);
   private final OtelEnvMetricPeriodicAction action = new OtelEnvMetricPeriodicAction();
   private final OtelEnvMetricCollectorImpl collector = OtelEnvMetricCollectorImpl.getInstance();
+  private ArgumentCaptor<Metric> metricCaptor = forClass(Metric.class);
 
   @Test
   void testOtelEnvVarHidingMetric() {
@@ -28,11 +29,10 @@ class OtelEnvMetricPeriodicActionTest {
     collector.prepareMetrics();
     action.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> captor = forClass(Metric.class);
-    verify(telemetryService, times(1)).addMetric(captor.capture());
+    verify(telemetryService, times(1)).addMetric(metricCaptor.capture());
     verifyNoMoreInteractions(telemetryService);
 
-    Metric metric = captor.getValue();
+    Metric metric = metricCaptor.getValue();
     assertEquals("tracers", metric.getNamespace());
     assertEquals("otel.env.hiding", metric.getMetric());
     assertEquals(1L, metric.getPoints().get(0).get(1).longValue());
@@ -48,11 +48,10 @@ class OtelEnvMetricPeriodicActionTest {
     collector.prepareMetrics();
     action.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> captor = forClass(Metric.class);
-    verify(telemetryService, times(1)).addMetric(captor.capture());
+    verify(telemetryService, times(1)).addMetric(metricCaptor.capture());
     verifyNoMoreInteractions(telemetryService);
 
-    Metric metric = captor.getValue();
+    Metric metric = metricCaptor.getValue();
     assertEquals("tracers", metric.getNamespace());
     assertEquals("otel.env.unsupported", metric.getMetric());
     assertEquals(1L, metric.getPoints().get(0).get(1).longValue());
@@ -66,11 +65,10 @@ class OtelEnvMetricPeriodicActionTest {
     collector.prepareMetrics();
     action.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> captor = forClass(Metric.class);
-    verify(telemetryService, times(1)).addMetric(captor.capture());
+    verify(telemetryService, times(1)).addMetric(metricCaptor.capture());
     verifyNoMoreInteractions(telemetryService);
 
-    Metric metric = captor.getValue();
+    Metric metric = metricCaptor.getValue();
     assertEquals("tracers", metric.getNamespace());
     assertEquals("otel.env.invalid", metric.getMetric());
     assertEquals(1L, metric.getPoints().get(0).get(1).longValue());
@@ -89,13 +87,12 @@ class OtelEnvMetricPeriodicActionTest {
     collector.prepareMetrics();
     action.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> captor = forClass(Metric.class);
-    verify(telemetryService, times(4)).addMetric(captor.capture());
+    verify(telemetryService, times(4)).addMetric(metricCaptor.capture());
     verifyNoMoreInteractions(telemetryService);
 
     // MetricPeriodicAction aggregates metrics through a HashMap, so the emission order is not
     // guaranteed; match each expected metric by its tags rather than by capture position.
-    List<Metric> metrics = captor.getAllValues();
+    List<Metric> metrics = metricCaptor.getAllValues();
     assertMetric(
         metrics,
         "otel.env.invalid",

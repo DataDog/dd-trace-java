@@ -1,6 +1,7 @@
 package datadog.telemetry.rum;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -31,7 +32,7 @@ class RumPeriodicActionTest {
 
     periodicAction.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> metricCaptor = ArgumentCaptor.forClass(Metric.class);
+    ArgumentCaptor<Metric> metricCaptor = forClass(Metric.class);
     verify(telemetryService, times(2)).addMetric(metricCaptor.capture());
     Metric succeedMetric = metricCaptor.getAllValues().get(0);
     assertEquals("rum", succeedMetric.getNamespace());
@@ -43,8 +44,7 @@ class RumPeriodicActionTest {
     assertEquals("injection.failed", failedMetric.getMetric());
     assertEquals(Metric.TypeEnum.COUNT, failedMetric.getType());
 
-    ArgumentCaptor<DistributionSeries> distributionCaptor =
-        ArgumentCaptor.forClass(DistributionSeries.class);
+    ArgumentCaptor<DistributionSeries> distributionCaptor = forClass(DistributionSeries.class);
     verify(telemetryService, times(1)).addDistributionSeries(distributionCaptor.capture());
     DistributionSeries distribution = distributionCaptor.getValue();
     assertEquals("rum", distribution.getNamespace());

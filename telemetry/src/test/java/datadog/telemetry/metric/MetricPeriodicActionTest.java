@@ -3,6 +3,7 @@ package datadog.telemetry.metric;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentCaptor.forClass;
+import static org.mockito.Mockito.ignoreStubs;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -25,6 +26,10 @@ import org.tabletest.junit.TypeConverter;
 
 public class MetricPeriodicActionTest {
 
+  private ArgumentCaptor<Metric> metricCaptor = forClass(Metric.class);
+  private ArgumentCaptor<DistributionSeries> distributionSeriesCaptor =
+      forClass(DistributionSeries.class);
+
   @TableTest({
     "scenario                                                   | metrics                                                                    | expected                                                          ",
     "single raw metric produces a single telemetry point        | ['col(counter: 2)']                                                        | ['tel(points: [2])']                                              ",
@@ -46,11 +51,10 @@ public class MetricPeriodicActionTest {
 
     action.doIteration(telemetryService);
 
-    ArgumentCaptor<Metric> captor = forClass(Metric.class);
-    verify(telemetryService, times(expected.size())).addMetric(captor.capture());
-    verifyNoMoreInteractions(telemetryService);
+    verify(telemetryService, times(expected.size())).addMetric(metricCaptor.capture());
+    verifyNoMoreInteractions(ignoreStubs(telemetryService, metricCollector));
 
-    List<Metric> actualMetrics = captor.getAllValues();
+    List<Metric> actualMetrics = metricCaptor.getAllValues();
     for (ExpectedMetric expectedMetric : expected) {
       assertMatchingMetric(actualMetrics, expectedMetric);
     }
@@ -78,11 +82,11 @@ public class MetricPeriodicActionTest {
 
     action.doIteration(telemetryService);
 
-    ArgumentCaptor<DistributionSeries> captor = forClass(DistributionSeries.class);
-    verify(telemetryService, times(expected.size())).addDistributionSeries(captor.capture());
-    verifyNoMoreInteractions(telemetryService);
+    verify(telemetryService, times(expected.size()))
+        .addDistributionSeries(distributionSeriesCaptor.capture());
+    verifyNoMoreInteractions(ignoreStubs(telemetryService, metricCollector));
 
-    List<DistributionSeries> actualSeries = captor.getAllValues();
+    List<DistributionSeries> actualSeries = distributionSeriesCaptor.getAllValues();
     for (ExpectedSeries expectedSeries : expected) {
       assertMatchingSeries(actualSeries, expectedSeries);
     }
