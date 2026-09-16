@@ -36,6 +36,7 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import datadog.trace.instrumentation.kafka_common.Utils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.function.Supplier;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.streams.processor.internals.ProcessorNode;
@@ -300,6 +301,13 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "BC_IMPOSSIBLE_INSTANCEOF",
+      justification =
+          "ProcessorRecordContext only implements RecordMetadata from kafka-streams 2.7 onward,"
+              + " which this class is compiled/used against, so the check is always true at"
+              + " runtime; SpotBugs can't see that version constraint and flags the cast-through-"
+              + "Object as impossible.")
   private static long payloadSizeBytes(final ProcessorRecordContext record) {
     // we have to go through Object to get the RecordMetadata here because the class of `record`
     // only implements it after 2.7 (and this class is only used if v >= 2.7)
