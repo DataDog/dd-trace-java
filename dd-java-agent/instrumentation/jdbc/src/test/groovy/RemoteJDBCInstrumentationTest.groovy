@@ -68,12 +68,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   ]
 
   @Shared
-  private Map<DbType, String> jdbcUrls = [
-    (POSTGRESQL): "jdbc:postgresql://localhost:5432/${dbName.get(POSTGRESQL)}",
-    (MYSQL)     : "jdbc:mysql://localhost:3306/${dbName.get(MYSQL)}",
-    (SQLSERVER) : "jdbc:sqlserver://localhost:1433/${dbName.get(SQLSERVER)}",
-    (ORACLE)    : "jdbc:oracle:thin:@//localhost:1521/${dbName.get(ORACLE)}"
-  ]
+  private Map<DbType, String> jdbcUrls = new EnumMap<>(DbType)
 
   @Shared
   private Map<DbType, String> jdbcDriverClassNames = [
@@ -159,13 +154,14 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       return
     }
 
-    postgres = new PostgreSQLContainer("postgres:11.2")
+    PostgreSQLContainer server = new PostgreSQLContainer("postgres:11.2")
       .withDatabaseName(dbName.get(POSTGRESQL))
       .withUsername(jdbcUserNames.get(POSTGRESQL))
       .withPassword(jdbcPasswords.get(POSTGRESQL))
-    postgres.start()
-    PortUtils.waitForPortToOpen(postgres.getHost(), postgres.getMappedPort(POSTGRESQL_PORT), 5, SECONDS)
-    jdbcUrls.put(POSTGRESQL, "${postgres.getJdbcUrl()}")
+    server.start()
+    PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(POSTGRESQL_PORT), 5, SECONDS)
+    jdbcUrls.put(POSTGRESQL, "${server.getJdbcUrl()}")
+    postgres = server
   }
 
   private void startMysql() {
@@ -173,15 +169,16 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       return
     }
 
-    mysql = new MySQLContainer("mysql:8.0")
+    MySQLContainer server = new MySQLContainer("mysql:8.0")
       .withDatabaseName(dbName.get(MYSQL))
       .withUsername(jdbcUserNames.get(MYSQL))
       .withPassword(jdbcPasswords.get(MYSQL))
     // https://github.com/testcontainers/testcontainers-java/issues/914
-    mysql.addParameter("TC_MY_CNF", null)
-    mysql.start()
-    PortUtils.waitForPortToOpen(mysql.getHost(), mysql.getMappedPort(MYSQL_PORT), 5, SECONDS)
-    jdbcUrls.put(MYSQL, "${mysql.getJdbcUrl()}")
+    server.addParameter("TC_MY_CNF", null)
+    server.start()
+    PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(MYSQL_PORT), 5, SECONDS)
+    jdbcUrls.put(MYSQL, "${server.getJdbcUrl()}")
+    mysql = server
   }
 
   private void startSqlserver() {
@@ -189,12 +186,15 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       return
     }
 
-    sqlserver = new MSSQLServerContainer(MSSQLServerContainer.IMAGE)
+    MSSQLServerContainer server = new MSSQLServerContainer(MSSQLServerContainer.IMAGE)
       .acceptLicense()
       .withPassword(jdbcPasswords.get(SQLSERVER))
-    sqlserver.start()
-    PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MS_SQL_SERVER_PORT), 5, SECONDS)
-    jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
+      // SQL Server can occasionally abort while booting on virtualized CI hosts.
+      .withStartupAttempts(3)
+    server.start()
+    PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(MS_SQL_SERVER_PORT), 5, SECONDS)
+    jdbcUrls.put(SQLSERVER, "${server.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
+    sqlserver = server
   }
 
   private void startOracle() {
@@ -204,12 +204,13 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
     // Earlier Oracle version images (oracle-xe) don't work on arm64
     DockerImageName oracleImage = DockerImageName.parse("gvenzl/oracle-free:23.5-slim-faststart").asCompatibleSubstituteFor("gvenzl/oracle-xe")
-    oracle = new OracleContainer(oracleImage)
+    OracleContainer server = new OracleContainer(oracleImage)
       .withStartupTimeout(Duration.ofMinutes(5))
       .withUsername(jdbcUserNames.get(ORACLE))
       .withPassword(jdbcPasswords.get(ORACLE))
-    oracle.start()
-    jdbcUrls.put(ORACLE, "${oracle.getJdbcUrl()}".replace("xepdb1", dbName.get(ORACLE)))
+    server.start()
+    jdbcUrls.put(ORACLE, "${server.getJdbcUrl()}".replace("xepdb1", dbName.get(ORACLE)))
+    oracle = server
   }
 
   def createTomcatDS(DbType dbType, String jdbcUrl) {
