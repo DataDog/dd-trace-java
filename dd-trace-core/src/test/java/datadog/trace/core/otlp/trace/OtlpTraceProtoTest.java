@@ -640,7 +640,7 @@ class OtlpTraceProtoTest {
     assertEquals(SAMPLED_TRACE_FLAG, localFallback.flags);
 
     EncodedSamplingState inherited = exportSamplingState(inheritedSamplingSpan());
-    assertEquals("dd=s:1,vendor=state,ot=rv:ef284ace7a91e1;th:8", inherited.traceState);
+    assertEquals("dd=s:1,ot=rv:ef284ace7a91e1;th:8,vendor=state", inherited.traceState);
     assertEquals(SAMPLED_TRACE_FLAG, inherited.flags);
 
     EncodedSamplingState probabilityDrop = exportSamplingState(localProbabilitySpan(0.0, false));

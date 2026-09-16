@@ -191,7 +191,7 @@ class OtlpTraceJsonCollectorTest {
     assertEquals(SAMPLED_TRACE_FLAG, ((Number) localFallback.get("flags")).intValue());
 
     Map<String, Object> inherited = exportSamplingSpan(inheritedSamplingSpan());
-    assertEquals("dd=s:1,vendor=state,ot=rv:ef284ace7a91e1;th:8", inherited.get("traceState"));
+    assertEquals("dd=s:1,ot=rv:ef284ace7a91e1;th:8,vendor=state", inherited.get("traceState"));
     assertEquals(SAMPLED_TRACE_FLAG, ((Number) inherited.get("flags")).intValue());
 
     Map<String, Object> probabilityDrop = exportSamplingSpan(localProbabilitySpan(0.0, false));
