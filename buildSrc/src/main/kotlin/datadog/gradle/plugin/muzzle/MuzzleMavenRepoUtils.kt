@@ -155,15 +155,22 @@ internal object MuzzleMavenRepoUtils {
     var attemptCount = 0
     var range: VersionRangeResult? = null
     var failure: VersionRangeResolutionException? = null
+    val resultExceptions = mutableListOf<Pair<Int, List<Exception>>>()
     fun attemptResolve(): VersionRangeResult? {
       attemptCount++
       return try {
         range = system.resolveVersionRange(session, rangeRequest)
         failure = null
+        range?.exceptions?.takeIf { it.isNotEmpty() }?.let { exceptions ->
+          resultExceptions += attemptCount to exceptions.toList()
+        }
         range?.takeIf { it.hasBounds() }
       } catch (e: VersionRangeResolutionException) {
         failure = e
         range = e.result ?: range
+        e.result?.exceptions?.takeIf { it.isNotEmpty() }?.let { exceptions ->
+          resultExceptions += attemptCount to exceptions.toList()
+        }
         null
       }
     }
@@ -195,6 +202,7 @@ internal object MuzzleMavenRepoUtils {
         rangeRequest.repositories,
         range,
         failure,
+        resultExceptions,
         attemptCount,
         waitedSeconds,
         enableBackoffRetries
@@ -275,6 +283,7 @@ internal object MuzzleMavenRepoUtils {
     repositories: List<RemoteRepository>,
     range: VersionRangeResult?,
     failure: VersionRangeResolutionException?,
+    resultExceptions: List<Pair<Int, List<Exception>>>,
     attemptCount: Int,
     waitedSeconds: Long,
     enableBackoffRetries: Boolean
@@ -303,6 +312,15 @@ internal object MuzzleMavenRepoUtils {
         appendLine("  highestVersion=${range.highestVersion ?: "<missing>"}")
         appendLine("  versionCount=${range.versions.size}")
       }
+      if (resultExceptions.isNotEmpty()) {
+        appendLine("Resolution result exceptions:")
+        resultExceptions.forEach { (attempt, exceptions) ->
+          appendLine("  Attempt $attempt:")
+          exceptions.forEach { exception ->
+            appendException(exception, "    ")
+          }
+        }
+      }
       if (failure != null) {
         appendLine("Last resolution failure:")
         appendLine("  ${failure.javaClass.name}: ${failure.message ?: "<no message>"}")
@@ -311,6 +329,20 @@ internal object MuzzleMavenRepoUtils {
       appendLine("Maven metadata resolution may have returned an incomplete range, especially through a proxy.")
       appendLine("Restart the job later if the repositories above are reachable.")
     }.trimEnd()
+  }
+
+  private fun StringBuilder.appendException(exception: Throwable, indent: String) {
+    var current: Throwable? = exception
+    var currentIndent = indent
+    var depth = 0
+    while (current != null && depth < 10) {
+      val prefix = if (depth == 0) "" else "Caused by: "
+      appendLine("$currentIndent$prefix${current.javaClass.name}: ${current.message ?: "<no message>"}")
+      val cause = current.cause
+      current = cause?.takeUnless { it === current }
+      currentIndent += "  "
+      depth++
+    }
   }
 
   private fun artifactCoordinates(artifact: Artifact): String {
