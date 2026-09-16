@@ -15,12 +15,14 @@ import akka.japi.JavaPartialFunction;
 import akka.stream.Materializer;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.http.MultipartContentDecoder;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Field;
@@ -607,7 +609,8 @@ public class UnmarshallerHelpers {
     executeCallback(reqCtx, callback, o, source);
   }
 
-  private static BlockingException tryBlock(
+  @VisibleForTesting
+  static BlockingException tryBlock(
       RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
     BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
     if (brf == null) {
@@ -615,6 +618,19 @@ public class UnmarshallerHelpers {
     }
     boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
     if (!success) {
+      // Conditional async-race gap (same class as netty-blocking.md §10/§11, but via
+      // Future.map/.recover/.thenApply on a Scala ExecutionContext instead of
+      // eventLoop().execute()): reportBlockFailure() below is only guaranteed to run before
+      // GatewayBridge.onRequestEnded/end-of-request telemetry is emitted when the route's
+      // response Future causally depends (via flatMap) on this same unmarshalling Future - the
+      // idiomatic Akka HTTP usage. If the app decouples unmarshalling (used only for a side
+      // effect) from response production, or triggers toStrict() conversions independently of
+      // the main response chain, this report can arrive after end-of-request telemetry has
+      // already been emitted. This is not fixed here; see the KB entry for akka-http.
+      Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+      if (rawAppSecCtx instanceof AppSecContext) {
+        ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+      }
       return null;
     }
     if (brf instanceof AkkaBlockResponseFunction) {

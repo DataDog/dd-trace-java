@@ -15,6 +15,7 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -129,7 +130,12 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (!brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+            Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+            if (rawAppSecCtx instanceof AppSecContext) {
+              ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+            }
+          }
         }
         t = new BlockingException("Blocked request (for HttpMessageConverter/read)");
       }
@@ -158,7 +164,12 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (!brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+            Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+            if (rawAppSecCtx instanceof AppSecContext) {
+              ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+            }
+          }
         }
         throw new BlockingException("Blocked response (for HttpMessageConverter/write)");
       }

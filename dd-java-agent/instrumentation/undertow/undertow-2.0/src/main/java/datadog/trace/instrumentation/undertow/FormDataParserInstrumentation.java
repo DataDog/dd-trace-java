@@ -14,6 +14,7 @@ import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -91,7 +92,14 @@ public class FormDataParserInstrumentation extends InstrumenterModule.AppSec
         Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
         BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
         if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (!blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+            // NOTE: UndertowBlockResponseFunction currently always returns true; this branch is
+            // expected to be unreachable until that is fixed separately (tech-debt follow-up).
+            Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+            if (rawAppSecCtx instanceof AppSecContext) {
+              ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+            }
+          }
           if (t == null) {
             t = new BlockingException("Blocked request (for FormEncodedDataParser/doParse)");
           }
