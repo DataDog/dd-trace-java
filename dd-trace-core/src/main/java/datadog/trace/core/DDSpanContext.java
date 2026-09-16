@@ -1266,7 +1266,9 @@ public class DDSpanContext
       // maintain previously observable type of the thread name :|
       tags.put(DDTags.THREAD_NAME, threadName.toString());
       int currentSamplingPriority = getSamplingPriority();
-      if (currentSamplingPriority != PrioritySampling.UNSET) {
+      // add _sample_rate tag only on the root/local span owning the decision
+      if (getRootSpanContextIfDifferent() == null
+          && currentSamplingPriority != PrioritySampling.UNSET) {
         tags.put(SAMPLE_RATE_KEY, currentSamplingPriority);
       }
       if (httpStatusCode != 0) {
