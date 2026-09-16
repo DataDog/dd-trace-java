@@ -418,7 +418,7 @@ public class DDLLMObsSpan implements LLMObsSpan {
       return;
     }
     // The manifest rides inside metadata under the reserved _dd namespace, serializing to
-    // meta.metadata._dd.agent_manifest, which is where the backend reads it from.
+    // meta.metadata._dd.agent_manifest
     Map<String, Object> metadata = copyStringKeyedMap(span.getTag(METADATA));
     Map<String, Object> dd = copyStringKeyedMap(metadata.get(METADATA_DD));
     // Empty on the first call; merges with itself on subsequent ones.
