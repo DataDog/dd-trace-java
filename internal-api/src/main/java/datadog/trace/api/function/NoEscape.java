@@ -49,8 +49,9 @@ import java.lang.annotation.Target;
  * fine -- what needs a reason is anything that keeps it alive past the operation using it.
  *
  * <p><b>Checker contract.</b> The rule below is written to be machine-checkable -- by a future
- * static checker, or in the meantime by an AI reviewer (see the perf-review skill's {@code
- * checks.md}) -- without needing to read this class's prose above. Because the underlying rule is
+ * static checker, or in the meantime by an AI reviewer (see {@code
+ * .agents/dd-apm-sdk-review-overrides/reviewers/performance.md}, addendum J16) -- without needing
+ * to read this class's prose above. Because the underlying rule is
  * "should" rather than "must", a trigger is a presumptive finding to raise, not an automatic
  * failure: a field that carries a comment explaining the deliberate exception is compliant.
  *

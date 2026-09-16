@@ -12,6 +12,7 @@ cases:
       .agents/dd-apm-sdk-review-overrides/reviewers/performance.md override, and _common.md) to the
       following method. No git checkout available — this snippet is the entire change to
       review. Lookup is by key only; insertion order is not part of the contract.
+      `describe()` is invoked on the per-span write path (hot).
 
       ```java
       private final Map<String, Object> sessionCache = new LinkedHashMap<>();
@@ -23,14 +24,21 @@ cases:
       Object getSession(String sessionId) {
         return sessionCache.get(sessionId);
       }
+
+      String describe(String sessionId) {
+        return String.format("session=%s", sessionId);
+      }
       ```
     expected_criteria:
       - "Flags the LinkedHashMap as the wrong collection type per addendum J12 — order isn't relied on here, so a plain HashMap is the lighter fix."
       - "Also flags, independently or as part of the same finding, that the map is unbounded and keyed by a high-cardinality value (sessionId) — a SEV-1 concern under universal check three, mapped to P0 or P1 per performance.md's SEV-to-P mapping section."
-      - "Names HashMap as the concrete fix, not just \"reconsider the data structure.\""
+      - "Names HashMap as the concrete J12 collection-type fix, not just \"reconsider the data structure.\""
+      - "For the unbounded / high-cardinality finding, the remedy is a count-and-byte bound, an eviction policy, or not caching sessionId — HashMap alone does not bound the cache."
+      - "Flags the hot-path String.format in describe() per addendum J10."
     bad_signals:
       - "Treats the LinkedHashMap choice as a pure style nit with no cost explanation."
       - "Misses the unbounded / high-cardinality aspect entirely."
+      - "Recommends HashMap as the only fix and never asks for a bound, eviction policy, or dropping the sessionId cache."
       - "Invents a Datadog-internal collection type name that doesn't exist in this repo's toolkit (Strings, SubSequence, HashingUtils, Hashtable, ConcurrentHashtable, StringIndex, RE2J)."
 
   - id: java-perf-pipeline-full-review-002
