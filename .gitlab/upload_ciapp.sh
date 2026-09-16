@@ -78,9 +78,15 @@ junit_upload() {
         custom_tags_args+=(--tags "test.configuration.job_name:${job_base_name}")
     fi
 
-    DD_API_KEY=$1 \
+    if [[ "${CI_COMMIT_MESSAGE:-}" == *"[ci: DEBUG_LOGS]"* ]]; then
+        DD_CIVISIBILITY_LOGS_ENABLED=true
+    fi
+    if [[ "${DD_CIVISIBILITY_LOGS_ENABLED:-false}" == "true" ]]; then
+        echo "Datadog JUnit log forwarding is enabled"
+    fi
+
+    DD_API_KEY=$1 DD_CIVISIBILITY_LOGS_ENABLED=${DD_CIVISIBILITY_LOGS_ENABLED:-false} \
         datadog-ci junit upload --service $SERVICE_NAME \
-        --logs \
         --tags "test.traits:{\"category\":[\"$CACHE_TYPE\"]}" \
         --tags "git.repository_url:https://github.com/DataDog/dd-trace-java" \
         "${custom_tags_args[@]}" \
