@@ -1,5 +1,4 @@
 import org.gradle.api.GradleException
-import org.gradle.api.internal.TaskInternal
 import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -37,21 +36,20 @@ val skipTestsProvider = rootProject.providers.gradleProperty("skipTests")
 val skipForkedTestsProvider = rootProject.providers.gradleProperty("skipForkedTests")
 val skipFlakyTestsProvider = rootProject.providers.gradleProperty("skipFlakyTests")
 val runFlakyTestsProvider = rootProject.providers.gradleProperty("runFlakyTests")
-val testcontainersModeProvider = rootProject.providers.gradleProperty("testcontainersMode").orElse("all")
+val testcontainerTestsProvider = rootProject.providers.gradleProperty("testcontainerTests").orElse("include")
 
-fun Test.matchesTestcontainersMode(): Boolean =
-  when (val mode = testcontainersModeProvider.get()) {
-    "all" -> true
-    "exclude", "only" -> {
+fun Test.allowTestcontainerTests(): Boolean =
+  when (val selection = testcontainerTestsProvider.get()) {
+    "include" -> true
+    "skip", "only" -> {
       val testcontainersLimit =
         project.gradle.sharedServices.registrations.getByName("testcontainersLimit").service
-      val usesTestcontainers =
-        (this as TaskInternal).requiredServices.isServiceRequired(testcontainersLimit)
-      usesTestcontainers == (mode == "only")
+      val usesTestcontainers = requiredServices.isServiceRequired(testcontainersLimit)
+      usesTestcontainers == (selection == "only")
     }
     else ->
       throw GradleException(
-        "Invalid testcontainersMode '$mode'; expected one of: all, exclude, only"
+        "Invalid testcontainerTests '$selection'; expected one of: include, skip, only"
       )
   }
 
@@ -59,7 +57,7 @@ fun Test.matchesTestcontainersMode(): Boolean =
 tasks.withType<Test>().configureEach {
   // Disable all tests if skipTests property was specified
   onlyIf("skipTests are undefined or false") { !skipTestsProvider.isPresent }
-  onlyIf("test task matches testcontainersMode") { matchesTestcontainersMode() }
+  onlyIf("test task is allowed by testcontainerTests") { allowTestcontainerTests() }
 
   // Enable force rerun of tests with -Prerun.tests.${project.name}
   outputs.upToDateWhen {
@@ -107,7 +105,7 @@ tasks.register("allTests") {
     tasks.withType<Test>().filter { testTask ->
       !testTask.name.contains("latest", ignoreCase = true) &&
         testTask.name != "traceAgentTest" &&
-        testTask.matchesTestcontainersMode()
+        testTask.allowTestcontainerTests()
     }
   })
 }
@@ -117,7 +115,7 @@ tasks.register("allTests") {
 tasks.register("allLatestDepTests") {
   dependsOn(providers.provider {
     tasks.withType<Test>().filter { testTask ->
-      testTask.name.contains("latest", ignoreCase = true) && testTask.matchesTestcontainersMode()
+      testTask.name.contains("latest", ignoreCase = true) && testTask.allowTestcontainerTests()
     }
   })
 }

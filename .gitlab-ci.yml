@@ -1003,13 +1003,13 @@ test_inst:
         CI_SPLIT: ["1/4", "2/4", "3/4", "4/4"]
         RUNNER_TAG: ["docker-in-docker:amd64"]
   script:
-    - &set_testcontainers_mode |
+    - &set_testcontainer_tests |
       case "$RUNNER_TAG" in
-        "arch:amd64") export TESTCONTAINERS_MODE="exclude" ;;
-        "docker-in-docker:amd64") export TESTCONTAINERS_MODE="only" ;;
+        "arch:amd64") export TESTCONTAINER_TESTS="skip" ;;
+        "docker-in-docker:amd64") export TESTCONTAINER_TESTS="only" ;;
         *) echo "Unsupported RUNNER_TAG: $RUNNER_TAG" >&2; exit 1 ;;
       esac
-      export GRADLE_PARAMS="$GRADLE_PARAMS -PtestcontainersMode=$TESTCONTAINERS_MODE"
+      export GRADLE_PARAMS="$GRADLE_PARAMS -PtestcontainerTests=$TESTCONTAINER_TESTS"
     - !reference [.test_job_common, script]
 
 test_inst_arm64:
@@ -1048,7 +1048,7 @@ test_inst_latest:
         CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4"]
         RUNNER_TAG: ["docker-in-docker:amd64"]
   script:
-    - *set_testcontainers_mode
+    - *set_testcontainer_tests
     - !reference [.test_job_common, script]
 
 test_inst_latest_arm64:
