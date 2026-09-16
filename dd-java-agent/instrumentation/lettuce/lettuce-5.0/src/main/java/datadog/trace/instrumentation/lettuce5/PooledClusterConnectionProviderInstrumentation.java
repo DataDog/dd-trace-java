@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -14,37 +15,29 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulConnection;
-import io.lettuce.core.api.StatefulRedisConnection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import net.bytebuddy.asm.Advice;
 
 /**
- * Master/replica APIs expose a routing connection ({@code
- * StatefulRedisMasterReplicaConnectionImpl}; legacy {@code MasterSlave} wraps it in {@code
- * MasterSlaveConnectionWrapper}). The real node connection is selected only after a command span
- * has started and the command is dispatched, so this decorates the active span with the RedisURI
- * that is available on the real connection, not the wrapper.
+ * Decorates Redis cluster command spans with the physical node selected for the command key slot.
+ *
+ * <p>Cluster command spans are started before Lettuce resolves the slot owner and applies {@code
+ * ReadFrom}. This tracks the {@link RedisURI} of physical cluster node connections, then tags the
+ * active command span when Lettuce returns the selected connection.
  */
 @AutoService(InstrumenterModule.class)
-public class MasterReplicaConnectionProviderInstrumentation extends InstrumenterModule.Tracing
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+public class PooledClusterConnectionProviderInstrumentation extends InstrumenterModule.Tracing
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public MasterReplicaConnectionProviderInstrumentation() {
+  public PooledClusterConnectionProviderInstrumentation() {
     super("lettuce", "lettuce-5");
   }
 
   @Override
-  public String[] knownMatchingTypes() {
-    return new String[] {
-      // Legacy Lettuce 5.x
-      "io.lettuce.core.masterslave.MasterSlaveConnectionProvider",
-      // Transitional Lettuce 6.0 provider
-      "io.lettuce.core.masterreplica.UpstreamReplicaConnectionProvider",
-      // Lettuce 6.1+
-      "io.lettuce.core.masterreplica.MasterReplicaConnectionProvider"
-    };
+  public String instrumentedType() {
+    return "io.lettuce.core.cluster.PooledClusterConnectionProvider";
   }
 
   @Override
@@ -64,38 +57,18 @@ public class MasterReplicaConnectionProviderInstrumentation extends Instrumenter
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    // Intent argument types move across Lettuce versions, but only the returned connection is used.
     transformer.applyAdvice(
         isMethod()
             .and(isPublic())
-            .and(named("getConnection"))
-            .and(takesArguments(1))
-            .and(returns(named("io.lettuce.core.api.StatefulRedisConnection"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$SyncAdvice");
-    transformer.applyAdvice(
-        isMethod()
-            .and(isPublic())
+            // Synchronous getConnection delegates here after resolving the command slot.
             .and(named("getConnectionAsync"))
-            .and(takesArguments(1))
+            .and(takesArguments(2))
+            .and(takesArgument(1, int.class))
             .and(returns(named("java.util.concurrent.CompletableFuture"))),
-        MasterReplicaConnectionProviderInstrumentation.class.getName() + "$AsyncAdvice");
+        PooledClusterConnectionProviderInstrumentation.class.getName() + "$ConnectionAdvice");
   }
 
-  public static class SyncAdvice {
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onExit(@Advice.Return final StatefulRedisConnection<?, ?> connection) {
-      final AgentSpan span = activeSpan();
-      if (!MasterReplicaConnectionHelper.isRedisClientSpan(span)) {
-        return;
-      }
-
-      MasterReplicaConnectionHelper.onConnection(
-          span, connection, InstrumentationContext.get(StatefulConnection.class, RedisURI.class));
-    }
-  }
-
-  public static class AsyncAdvice {
+  public static class ConnectionAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static <T extends StatefulConnection> void onExit(
