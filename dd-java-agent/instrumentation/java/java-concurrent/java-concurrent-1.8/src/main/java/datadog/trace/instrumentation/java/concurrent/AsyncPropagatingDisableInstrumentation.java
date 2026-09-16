@@ -10,6 +10,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPr
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
@@ -61,6 +63,10 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
           "io.netty.util.concurrent.GlobalEventExecutor",
           // shaded version
           "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor");
+  private static final ElementMatcher<TypeDescription> NETTY_IDLE_STATE_HANDLER =
+      namedOneOf(
+          "io.netty.handler.timeout.IdleStateHandler",
+          "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler");
   private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
       extendsClass(named("java.net.http.HttpClient"));
   private static final String LETTUCE_HANDSHAKE_HANDLER =
@@ -108,6 +114,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       LETTUCE_HANDSHAKE_HANDLER,
       "io.netty.util.concurrent.GlobalEventExecutor",
       "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
+      "io.netty.handler.timeout.IdleStateHandler",
+      "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler",
       "com.linecorp.armeria.client.HttpClientFactory",
       "com.linecorp.armeria.client.HttpChannelPool"
     };
@@ -220,6 +228,17 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         isTypeInitializer().and(isDeclaredBy(RXJAVA3_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(NETTY_GLOBAL_EVENT_EXECUTOR)), advice);
+    transformer.applyAdvice(
+        named("initialize")
+            .and(returns(void.class))
+            .and(
+                takesArgument(
+                    0,
+                    namedOneOf(
+                        "io.netty.channel.ChannelHandlerContext",
+                        "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext")))
+            .and(isDeclaredBy(NETTY_IDLE_STATE_HANDLER)),
+        advice);
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
     transformer.applyAdvice(
         named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
