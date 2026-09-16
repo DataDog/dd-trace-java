@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.git.tree;
 
 import datadog.trace.civisibility.diff.LineDiff;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 
 public class GitDiffParser {
 
@@ -20,7 +20,7 @@ public class GitDiffParser {
   private static final Pattern CHANGED_LINES_PATTERN =
       Pattern.compile("^@@ -\\d+(,\\d+)? \\+(?<startline>\\d+)(,(?<count>\\d+))? @@");
 
-  public static @NonNull LineDiff parse(InputStream input) throws IOException {
+  public static @Nonnull LineDiff parse(InputStream input) throws IOException {
     Map<String, BitSet> linesByRelativePath = new HashMap<>();
 
     BufferedReader bufferedReader =

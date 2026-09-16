@@ -1,5 +1,8 @@
 package datadog.trace.util;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * This class is intended to be a drop-in replacement for the hashing portions of java.util.Objects.
  * This class provides more convenience methods for hashing primitives and includes overrides for
@@ -52,7 +55,7 @@ public final class LongHashingUtils {
     return 31L * hash0 + hash1;
   }
 
-  private static final int intHash(Object obj) {
+  private static final int intHash(@Nullable Object obj) {
     return obj == null ? 0 : obj.hashCode();
   }
 
@@ -106,7 +109,7 @@ public final class LongHashingUtils {
     return 31L * hash + value;
   }
 
-  public static final long addToHash(long hash, Object obj) {
+  public static final long addToHash(long hash, @Nullable Object obj) {
     return addToHash(hash, intHash(obj));
   }
 
@@ -136,6 +139,18 @@ public final class LongHashingUtils {
 
   public static final long addToHash(long hash, double value) {
     return addToHash(hash, Double.hashCode(value));
+  }
+
+  /** Folds {@code arr[0..len)}; the array must be non-null, but its elements may be null. */
+  public static final long addToHash(long hash, @Nonnull Object[] arr, int len) {
+    for (int i = 0; i < len; i++) {
+      hash = addToHash(hash, arr[i]);
+    }
+    return hash;
+  }
+
+  public static final long addToHash(long hash, @Nonnull Object[] arr) {
+    return addToHash(hash, arr, arr.length);
   }
 
   public static final long hash(Iterable<?> objs) {

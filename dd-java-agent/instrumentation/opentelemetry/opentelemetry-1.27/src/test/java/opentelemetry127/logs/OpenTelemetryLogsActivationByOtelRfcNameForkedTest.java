@@ -1,6 +1,6 @@
 package opentelemetry127.logs;
 
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 
 // Forked test: runs in an isolated JVM with opentelemetry-logs instrumentation enabled
 // by OTel RFC config name. GlobalOpenTelemetry holds static state that must reset between variants.

@@ -12,11 +12,11 @@ import com.mongodb.event.CommandFailedEvent;
 import com.mongodb.event.CommandListener;
 import com.mongodb.event.CommandStartedEvent;
 import com.mongodb.event.CommandSucceededEvent;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -121,7 +121,7 @@ public final class MongoCommandListener implements CommandListener {
   @Override
   public void commandStarted(final CommandStartedEvent event) {
     if (listenerAccessor != null) {
-      listenerAccessor.putIfAbsent(event.getConnectionDescription(), this);
+      listenerAccessor.getOrPut(event.getConnectionDescription(), this);
     }
 
     // If DBM comment injection is enabled, the span is created on the connection instrumentation
@@ -133,7 +133,7 @@ public final class MongoCommandListener implements CommandListener {
       shouldForceCloseSpanScope = false;
     }
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       decorator.afterStart(span);
       decorator.onConnection(span, event);
       // overlay Mongo application name if we have it (replaces the deprecated cluster description)

@@ -12,6 +12,11 @@ class PlayServerTest extends AbstractPlayServerTest {
     true
   }
 
+  @Override
+  boolean testBodyFilesContent() {
+    true
+  }
+
   def 'test instrumentation gateway xml request body'() {
     setup:
     def request = request(

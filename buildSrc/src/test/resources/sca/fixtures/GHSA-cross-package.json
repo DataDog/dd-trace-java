@@ -1,0 +1,18 @@
+[
+  {
+    "targets": [
+      "zserio.runtime.array:Array.read",
+      "zserio.runtime.io:ByteArrayBitStreamReader.readBitBuffer"
+    ],
+    "lang": "maven",
+    "dependency_name": "io.github.ndsev:zserio-runtime",
+    "package_versions": [
+      "< 2.18.1"
+    ],
+    "vulnerability": {
+      "id": "GHSA-cross-package",
+      "severity": "HIGH",
+      "description": "Entry with targets from different packages within the same artifact"
+    }
+  }
+]

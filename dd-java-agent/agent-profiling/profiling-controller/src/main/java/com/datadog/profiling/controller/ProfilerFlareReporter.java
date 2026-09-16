@@ -352,6 +352,13 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
             ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
             ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT),
         ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT);
+    appendConfig(
+        sb,
+        "DDProf Force Preload jmethodIDs",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED,
+            ProfilingConfig.PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_DATADOG_PROFILER_JMETHODID_OPTIM_ENABLED_DEFAULT);
     sb.append("\n=== DDProf Allocation Profiling ===\n");
     appendConfig(
         sb,

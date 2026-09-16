@@ -18,7 +18,14 @@ abstract class MuzzleAction : WorkAction<MuzzleWorkParameters> {
         @Volatile
         private var lastBuildPathCount: Int = 0
 
-        fun createClassLoader(cp: FileCollection, parent: ClassLoader = ClassLoader.getSystemClassLoader()): ClassLoader {
+        /**
+         * Creates a classloader for [cp] with the given [parent]. By default, the platform
+         * classloader keeps JDK classes visible without exposing Gradle's bundled libraries.
+         */
+        fun createClassLoader(
+          cp: FileCollection,
+          parent: ClassLoader = ClassLoader.getPlatformClassLoader()
+        ): ClassLoader {
             val urls = cp.map { it.toURI().toURL() }.toTypedArray()
             return URLClassLoader(urls, parent)
         }

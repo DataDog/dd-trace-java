@@ -7,7 +7,9 @@ public enum ProfilingMode {
   CPU(1 << 0),
   WALL(1 << 1),
   ALLOCATION(1 << 2),
-  MEMLEAK(1 << 3);
+  MEMLEAK(1 << 3),
+  NATIVEMEM(1 << 4),
+  NATIVESOCKET(1 << 5);
 
   public final int bitmask;
 

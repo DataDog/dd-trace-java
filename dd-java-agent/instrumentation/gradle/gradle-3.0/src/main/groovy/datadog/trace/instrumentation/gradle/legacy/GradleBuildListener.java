@@ -7,6 +7,7 @@ import datadog.trace.api.civisibility.domain.BuildModuleSettings;
 import datadog.trace.api.civisibility.domain.BuildSessionSettings;
 import datadog.trace.api.civisibility.domain.JavaAgent;
 import datadog.trace.api.civisibility.events.BuildEventsHandler;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
@@ -111,9 +112,22 @@ public class GradleBuildListener extends BuildAdapter {
       List<Path> classpath = GradleUtils.getClasspath(task);
       JavaAgent jacocoAgent = GradleUtils.getJacocoAgent(task);
 
+      // "com.android.base" is applied transitively by every Android Gradle Plugin, so it is a
+      // reliable single marker for an Android project regardless of how its tests are executed.
+      Map<String, Object> additionalTags =
+          project.getPluginManager().hasPlugin("com.android.base")
+              ? Collections.singletonMap(Tags.TEST_IS_ANDROID, true)
+              : Collections.emptyMap();
+
       BuildModuleSettings moduleSettings =
           buildEventsHandler.onTestModuleStart(
-              gradle, taskPath, moduleLayout, jvmExecutable, classpath, jacocoAgent, null);
+              gradle,
+              taskPath,
+              moduleLayout,
+              jvmExecutable,
+              classpath,
+              jacocoAgent,
+              additionalTags);
       Map<String, String> systemProperties = moduleSettings.getSystemProperties();
       GradleProjectConfigurator.INSTANCE.configureTracer(task, systemProperties);
     }

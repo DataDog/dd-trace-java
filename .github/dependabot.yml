@@ -36,3 +36,14 @@ updates:
       prefix: 'chore(build): '
     cooldown:
       default-days: 2
+
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: dd-smoke-tests/openfeature/src/test/resources/ffe-system-test-data
+    labels:
+      - 'comp: openfeature'
+      - 'tag: dependencies'
+      - 'tag: no release notes'

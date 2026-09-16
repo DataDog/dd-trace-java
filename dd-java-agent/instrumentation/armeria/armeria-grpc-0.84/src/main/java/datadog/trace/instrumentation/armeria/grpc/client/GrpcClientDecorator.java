@@ -104,7 +104,8 @@ public class GrpcClientDecorator extends ClientDecorator {
                 RPC_SERVICE_CACHE.computeIfAbsent(
                     method.getFullMethodName(), MethodDescriptor::extractFullServiceName));
     span.setResourceName(method.getFullMethodName());
-    return afterStart(span);
+    afterStart(span);
+    return span;
   }
 
   public <C> void injectContext(Context context, final C request, CarrierSetter<C> setter) {
@@ -114,7 +115,7 @@ public class GrpcClientDecorator extends ClientDecorator {
     defaultPropagator().inject(context, request, setter);
   }
 
-  public AgentSpan onClose(final AgentSpan span, final Status status) {
+  public void onClose(final AgentSpan span, final Status status) {
 
     span.setTag("status.code", status.getCode().name());
     span.setTag("grpc.status.code", status.getCode().name());
@@ -124,6 +125,5 @@ public class GrpcClientDecorator extends ClientDecorator {
     // TODO why is there a mismatch between client / server for calling the onError method?
     onError(span, status.getCause());
     span.setError(CLIENT_ERROR_STATUSES.get(status.getCode().value()));
-    return span;
   }
 }

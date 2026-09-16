@@ -1,8 +1,8 @@
 package datadog.trace.core;
 
+import datadog.context.ContextContinuation;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.time.TimeSource;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import javax.annotation.Nonnull;
@@ -76,12 +76,12 @@ public class StreamingTraceCollector extends TraceCollector {
   }
 
   @Override
-  public void registerContinuation(AgentScope.Continuation continuation) {
+  public void registerContinuation(ContextContinuation continuation) {
     // do nothing
   }
 
   @Override
-  public void removeContinuation(AgentScope.Continuation continuation) {
+  public void removeContinuation(ContextContinuation continuation) {
     // do nothing
   }
 }

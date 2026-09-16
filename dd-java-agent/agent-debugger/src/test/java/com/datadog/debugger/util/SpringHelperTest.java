@@ -1,6 +1,9 @@
 package com.datadog.debugger.util;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -34,5 +37,13 @@ class SpringHelperTest {
     Instrumentation inst = mock(Instrumentation.class);
     when(inst.getAllLoadedClasses()).thenReturn(new Class[0]);
     assertFalse(SpringHelper.isSpringUsingOnlyMethodParameters(inst));
+  }
+
+  @Test
+  void invalidSpringVersion() {
+    IllegalArgumentException illegalArgumentException =
+        assertThrows(
+            IllegalArgumentException.class, () -> new SpringHelper.ParsedSpringVersion("foo"));
+    assertEquals("Cannot parse SpringVersion: foo", illegalArgumentException.getMessage());
   }
 }

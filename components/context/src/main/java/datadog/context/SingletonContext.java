@@ -5,11 +5,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
 
 /** {@link Context} containing a single value. */
-@ParametersAreNonnullByDefault
-final class SingletonContext implements Context {
+final class SingletonContext implements SelfScopedContext {
   final int index;
   final Object value;
 
@@ -31,9 +29,13 @@ final class SingletonContext implements Context {
     requireNonNull(secondKey, "Context key cannot be null");
     int secondIndex = secondKey.index;
     if (this.index == secondIndex) {
-      return secondValue == null
-          ? EmptyContext.INSTANCE
-          : new SingletonContext(this.index, secondValue);
+      if (secondValue == null) {
+        return EmptyContext.INSTANCE;
+      } else if (secondValue != this.value) {
+        return new SingletonContext(this.index, secondValue);
+      } else {
+        return this;
+      }
     } else {
       Object[] store = new Object[max(this.index, secondIndex) + 1];
       store[this.index] = this.value;

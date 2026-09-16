@@ -4,7 +4,6 @@ import datadog.trace.api.Trace;
 import datadog.trace.api.profiling.Profiling;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.util.List;
@@ -54,7 +53,6 @@ public class ProfilingTestApplication {
   }
 
   @Trace
-  @SuppressFBWarnings("DM_GC")
   private static void tracedMethod() throws InterruptedException {
     System.out.println("Tracing");
     tracedBusyMethod();
@@ -68,7 +66,6 @@ public class ProfilingTestApplication {
   }
 
   @Trace
-  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
   private static void tracedBusyMethod() {
     long startTime = THREAD_MX_BEAN.getCurrentThreadCpuTime();
     Random random = new Random();

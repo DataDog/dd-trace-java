@@ -7,6 +7,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.util.SubSequence;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +34,19 @@ public class SharedDBCommenter {
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
 
+  // Pre-built "<key>=" needles for containsTraceComment, computed once at class init. The keys
+  // are assigned via encode(...), so "KEY + =" is a runtime concat, not a compile-time constant;
+  // doing it per call allocated nine throwaway Strings on every non-matching check.
+  private static final String PARENT_SERVICE_EQ = PARENT_SERVICE + "=";
+  private static final String DATABASE_SERVICE_EQ = DATABASE_SERVICE + "=";
+  private static final String DD_HOSTNAME_EQ = DD_HOSTNAME + "=";
+  private static final String DD_DB_NAME_EQ = DD_DB_NAME + "=";
+  private static final String DD_PEER_SERVICE_EQ = DD_PEER_SERVICE + "=";
+  private static final String DD_ENV_EQ = DD_ENV + "=";
+  private static final String DD_VERSION_EQ = DD_VERSION + "=";
+  private static final String TRACEPARENT_EQ = TRACEPARENT + "=";
+  private static final String DD_SERVICE_HASH_EQ = DD_SERVICE_HASH + "=";
+
   // Pre-encoded "key='encoded_value'" fragments for the invariant fields (the values
   // come from Config are effectively immutable post-init in production).
   // Note about the visibility: needs to be visible but can tolerate races (reason why it's not
@@ -40,18 +54,29 @@ public class SharedDBCommenter {
   private static volatile boolean staticPrefixComputed = false;
   private static volatile String staticPrefix;
 
-  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection
-  // Note: this should be "better" done and avoid this bunch of string contains/concatenation
+  // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection. Mongo
+  // passes the already-extracted comment body; SQLCommenter uses the range overload to check it
+  // in place. Both run the same nine "<key>=" needle checks.
   public static boolean containsTraceComment(String commentContent) {
-    return commentContent.contains(PARENT_SERVICE + "=")
-        || commentContent.contains(DATABASE_SERVICE + "=")
-        || commentContent.contains(DD_HOSTNAME + "=")
-        || commentContent.contains(DD_DB_NAME + "=")
-        || commentContent.contains(DD_PEER_SERVICE + "=")
-        || commentContent.contains(DD_ENV + "=")
-        || commentContent.contains(DD_VERSION + "=")
-        || commentContent.contains(TRACEPARENT + "=")
-        || commentContent.contains(DD_SERVICE_HASH + "=");
+    return containsTraceComment(commentContent, 0, commentContent.length());
+  }
+
+  /**
+   * Range overload: true if {@code sql} contains a trace-comment needle fully within {@code [from,
+   * to)} -- checks the comment body in place, with no substring allocation of the region.
+   */
+  public static boolean containsTraceComment(String sql, int from, int to) {
+    // Zero-copy view of the comment body; reads like ordinary String.contains, no substring.
+    SubSequence comment = SubSequence.of(sql, from, to);
+    return comment.contains(PARENT_SERVICE_EQ)
+        || comment.contains(DATABASE_SERVICE_EQ)
+        || comment.contains(DD_HOSTNAME_EQ)
+        || comment.contains(DD_DB_NAME_EQ)
+        || comment.contains(DD_PEER_SERVICE_EQ)
+        || comment.contains(DD_ENV_EQ)
+        || comment.contains(DD_VERSION_EQ)
+        || comment.contains(TRACEPARENT_EQ)
+        || comment.contains(DD_SERVICE_HASH_EQ);
   }
 
   // Build database comment content without comment delimiters such as /* */

@@ -165,7 +165,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     container.setupMessageListener(new MessageListener<String, String>() {
         @Override
         void onMessage(ConsumerRecord<String, String> record) {
-          TEST_WRITER.waitForTraces(1) // ensure consistent ordering of traces
           records.add(record)
         }
       })
@@ -283,8 +282,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     Map<String, ?> config,
     DDSpan parentSpan = null,
     boolean partitioned = true,
-    boolean tombstone = false,
-    String schema = null
+    boolean tombstone = false
   ) {
     trace.span {
       serviceName service()
@@ -312,13 +310,6 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
-          if (schema != null) {
-            "$DDTags.SCHEMA_DEFINITION" schema
-            "$DDTags.SCHEMA_WEIGHT" 1
-            "$DDTags.SCHEMA_TYPE" "avro"
-            "$DDTags.SCHEMA_OPERATION" "serialization"
-            "$DDTags.SCHEMA_ID" "10810872322569724838"
-          }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         if (isV0) {

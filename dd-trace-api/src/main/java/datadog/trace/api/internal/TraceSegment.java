@@ -132,8 +132,8 @@ public interface TraceSegment {
    *
    * @param field field name
    * @param value value of the data
-   * @see datadog.trace.common.writer.ddagent.TraceMapperV0_4.MetaStructWriter
-   * @see datadog.trace.core.CoreSpan#setMetaStruct(String, Object)
+   * @see "datadog.trace.common.writer.ddagent.TraceMapperV0_4.MetaStructWriter"
+   * @see "datadog.trace.core.CoreSpan#setMetaStruct(String, Object)"
    */
   void setMetaStructCurrent(String field, Object value);
 

@@ -1,23 +1,25 @@
 package datadog.trace.instrumentation.redisson30;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.BiConsumer;
 
 public class SpanFinishListener implements BiConsumer<Object, Throwable> {
-  private final AgentScope.Continuation continuation;
+  private final ContextContinuation continuation;
 
-  public SpanFinishListener(final AgentScope.Continuation continuation) {
+  public SpanFinishListener(final ContextContinuation continuation) {
     this.continuation = continuation;
   }
 
   @Override
   public void accept(Object o, Throwable throwable) {
-    try (final AgentScope scope = continuation.activate()) {
+    try (final ContextScope scope = continuation.resume()) {
       if (throwable != null) {
         RedissonClientDecorator.DECORATE.onError(scope, throwable);
       }
       RedissonClientDecorator.DECORATE.beforeFinish(scope);
-      scope.span().finish();
+      AgentSpan.fromContext(scope.context()).finish();
     }
   }
 }

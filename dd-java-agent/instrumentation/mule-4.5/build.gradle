@@ -1,3 +1,8 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
+}
+
 def muleVersion = '4.5.0'
 def appDir = "$projectDir/application"
 
@@ -39,9 +44,6 @@ muzzle {
     excludeDependency 'com.google.code.findbugs:jsr305'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
 
 addTestSuiteForDir('mule46ForkedTest', 'test')
 addTestSuiteForDir('latestDepForkedTest', 'test')

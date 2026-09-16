@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+target=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -Dtarget.dir=*) target="${1#-Dtarget.dir=}" ;;
+  esac
+  shift
+done
+
+[ -n "$target" ] || exit 2
+mkdir -p "$target"
+printf "jar" > "$target/sample.jar"
+{
+  printf "MAVEN_OPTS=%s\n" "${MAVEN_OPTS:-}"
+  printf "MVNW_REPOURL=%s\n" "${MVNW_REPOURL:-}"
+} > "$target/maven-env.txt"

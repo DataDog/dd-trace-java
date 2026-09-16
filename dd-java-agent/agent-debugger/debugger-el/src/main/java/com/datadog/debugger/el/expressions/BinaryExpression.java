@@ -1,7 +1,7 @@
 package com.datadog.debugger.el.expressions;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Visitor;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
 /**
  * Takes two {@linkplain BooleanExpression} instances and combines them with the given {@link
@@ -20,8 +20,8 @@ public final class BinaryExpression implements BooleanExpression {
   }
 
   @Override
-  public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-    return operator.apply(left, right, valueRefResolver);
+  public Boolean evaluate(EvalContext evalContext) {
+    return operator.apply(left, right, evalContext);
   }
 
   @Override

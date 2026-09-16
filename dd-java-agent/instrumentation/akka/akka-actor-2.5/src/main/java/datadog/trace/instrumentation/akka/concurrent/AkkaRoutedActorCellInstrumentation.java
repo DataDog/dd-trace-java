@@ -8,10 +8,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import akka.dispatch.Envelope;
 import akka.routing.RoutedActorCell;
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import java.util.Map;
@@ -48,7 +48,7 @@ public class AkkaRoutedActorCellInstrumentation extends InstrumenterModule.Conte
    */
   public static class SendMessageAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(
+    public static ContextScope enter(
         @Advice.This RoutedActorCell zis, @Advice.Argument(value = 0) Envelope envelope) {
       // If this isn't a management message, it will be deconstructed before being routed through
       // the routing logic, so activate the Scope
@@ -61,7 +61,7 @@ public class AkkaRoutedActorCellInstrumentation extends InstrumenterModule.Conte
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter AgentScope scope) {
+    public static void exit(@Advice.Enter ContextScope scope) {
       if (null != scope) {
         scope.close();
         // then we have invoked an Envelope and need to mark the work complete

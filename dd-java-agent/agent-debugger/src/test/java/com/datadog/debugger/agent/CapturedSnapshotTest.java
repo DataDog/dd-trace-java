@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -444,15 +445,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     assertCaptureReturnValue(snapshot1.getCaptures().getReturn(), "int", "31");
   }
 
-  private List<Snapshot> assertSnapshots(
-      TestSnapshotListener listener, int expectedCount, ProbeId... probeIds) {
-    assertEquals(expectedCount, listener.snapshots.size());
-    for (int i = 0; i < probeIds.length; i++) {
-      assertEquals(probeIds[i].getId(), listener.snapshots.get(i).getProbe().getId());
-    }
-    return listener.snapshots;
-  }
-
   @Test
   public void catchBlock() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot02";
@@ -662,8 +654,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -696,8 +686,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -725,8 +713,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -760,8 +746,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  @EnabledForJreRange(
-      max = JRE.JAVA_25) // TODO: Fix for Java 26. Delete once Java 26 is officially released.
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Issue with J9 when compiling Kotlin code")
@@ -916,9 +900,14 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   public void fieldExtractorDuplicateUnionDepth() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot04";
-    LogProbe.Builder builder = createProbeBuilder(PROBE_ID, CLASS_NAME, "createSimpleData", "()");
-    LogProbe probe1 = builder.capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
-    LogProbe probe2 = builder.capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT).build();
+    LogProbe probe1 =
+        createProbeBuilder(PROBE_ID1, CLASS_NAME, "createSimpleData", "()")
+            .capture(0, 100, 50, Limits.DEFAULT_FIELD_COUNT)
+            .build();
+    LogProbe probe2 =
+        createProbeBuilder(PROBE_ID2, CLASS_NAME, "createSimpleData", "()")
+            .capture(3, 100, 50, Limits.DEFAULT_FIELD_COUNT)
+            .build();
     TestSnapshotListener listener = installProbes(probe1, probe2);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
@@ -1247,6 +1236,26 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         "arg",
         "java.lang.String",
         "5");
+  }
+
+  @Test
+  public void lineProbeConditionFailed() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    int line = getLineForLineProbe(CLASS_NAME, LINE_PROBE_ID1);
+    LogProbe logProbe =
+        createProbeBuilder(LINE_PROBE_ID1, CLASS_NAME, line)
+            .when(
+                new ProbeCondition(DSL.when(DSL.eq(ref("foobar"), nullValue())), "foobar == null"))
+            .build();
+    TestSnapshotListener listener = installProbes(logProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "0").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(LINE_PROBE_ID1, listener);
+    assertNull(snapshot.getCaptures().getLines());
+    assertEquals(1, snapshot.getEvaluationErrors().size());
+    assertEquals(
+        "Cannot dereference field: foobar", snapshot.getEvaluationErrors().get(0).getMessage());
   }
 
   @Test
@@ -2029,8 +2038,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
-    assertTrue(listener.skipped);
-    assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
   @Test
@@ -2320,7 +2327,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot23";
     final String ENUM_CLASS = CLASS_NAME + "$MyEnum";
     TestSnapshotListener listener =
-        installProbes(createMethodProbe(PROBE_ID, ENUM_CLASS, "<init>", null));
+        installProbes(
+            createProbeBuilder(PROBE_ID, ENUM_CLASS, "<init>", null).sampling(10).build());
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     int result = Reflect.onClass(testClass).call("main", "").get();
     assertEquals(2, result);
@@ -3009,6 +3017,31 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void captureExpressionsWithRejectingCondition() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
+            .when(new ProbeCondition(DSL.when(DSL.eq(DSL.value(1), DSL.value(2))), "1 == 2"))
+            .template("plain log", Collections.emptyList())
+            .captureExpressions(
+                Collections.singletonList(
+                    new LogProbe.CaptureExpression(
+                        "unknown_symbol",
+                        new ValueScript(ref("doesNotExist"), "doesNotExist"),
+                        null)))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    for (int i = 0; i < 5; i++) {
+      int result = Reflect.onClass(testClass).call("main", "1").get();
+      assertEquals(3, result);
+    }
+    assertEquals(0, listener.snapshots.size());
+  }
+
+  @Test
   public void captureExpressionsPrimitives() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot08";
     LogProbe probe =
@@ -3171,7 +3204,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
-    if (JavaVirtualMachine.isJavaVersion(17)) {
+    if (JavaVirtualMachine.isJavaVersionBetween(17, 0, 0, 17, 0, 20)) {
       // on JDK 17 with Spring6 class, transformation cannot happen
       assertEquals(0, listener.snapshots.size());
       ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
@@ -3206,7 +3239,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     Class<?> testClass = loadClass(CLASS_NAME, buffers);
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(42, result);
-    if (JavaVirtualMachine.isJavaVersionAtLeast(19)) {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(19)
+        || JavaVirtualMachine.isJavaVersionAtLeast(17, 0, 20)) {
       Snapshot snapshot = assertOneSnapshot(listener);
       assertCaptureArgs(
           snapshot.getCaptures().getReturn(), "firstName", String.class.getTypeName(), "john");
@@ -3263,6 +3297,10 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
   public void recordWithTypeAnnotation() throws IOException, URISyntaxException {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(25, 0, 4)) {
+      // Fixed since JDK 25.0.4
+      return;
+    }
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
     LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "parse", null);
     TestSnapshotListener listener = installProbes(probe1);

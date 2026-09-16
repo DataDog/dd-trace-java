@@ -154,7 +154,7 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
       @Nullable JavaAgent jacocoAgent) {
     ExecutionSettings executionSettings = executionSettingsFactory.create(jvmInfo, moduleName);
     return new BuildSystemModuleImpl(
-        span.context(),
+        span.spanContext(),
         moduleName,
         startCommand,
         startTime,
@@ -178,7 +178,7 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
 
   @Override
   public AgentSpan testTaskStart(String taskName) {
-    return startSpan("ci_visibility", taskName, span.context());
+    return startSpan("ci_visibility", taskName, span.spanContext());
   }
 
   private void onModuleFinish(AgentSpan moduleSpan) {
@@ -194,6 +194,7 @@ public class BuildSystemSessionImpl<T extends CoverageProcessor> extends Abstrac
         TagMergeSpec.of(Tags.TEST_ITR_TESTS_SKIPPING_COUNT, Long::sum),
         TagMergeSpec.of(DDTags.CI_ITR_TESTS_SKIPPED, Boolean::logicalOr),
         TagMergeSpec.of(Tags.TEST_TEST_MANAGEMENT_ENABLED, Boolean::logicalOr),
+        TagMergeSpec.of(Tags.TEST_IS_ANDROID, Boolean::logicalOr),
         TagMergeSpec.of(DDTags.TEST_HAS_FAILED_TEST_REPLAY, Boolean::logicalOr),
         TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SETTINGS, Boolean::logicalOr),
         TagMergeSpec.of(DDTags.CI_LIBRARY_CONFIGURATION_ERROR_SKIPPABLE_TESTS, Boolean::logicalOr),

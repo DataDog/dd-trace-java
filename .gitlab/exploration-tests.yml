@@ -7,8 +7,19 @@ build-exploration-tests-image:
   needs: []
   tags: [ "arch:amd64" ]
   image: $REGISTRY/docker:27.3.1
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
   script:
-    - docker buildx build --tag $EXPLORATION_TESTS_IMAGE -f dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests --push dd-java-agent/agent-debugger/exploration-tests
+    - METADATA_FILE=$(mktemp)
+    - >
+      docker buildx build 
+      --tag $EXPLORATION_TESTS_IMAGE 
+      --file dd-java-agent/agent-debugger/exploration-tests/Dockerfile.exploration-tests 
+      --push 
+      --metadata-file ${METADATA_FILE}
+      dd-java-agent/agent-debugger/exploration-tests
+    - ddsign sign $EXPLORATION_TESTS_IMAGE --docker-metadata-file ${METADATA_FILE}
 
 .common-exploration-tests: &common-exploration-tests
   rules:
@@ -103,3 +114,17 @@ exploration-tests-line-jackson-databind:
     PROJECT: jackson-databind
   script:
     - ./run-exploration-tests.sh "line" "$PROJECT" "./mvnw verify" "include_${PROJECT}.txt" "exclude_line_$PROJECT.txt"
+
+exploration-tests-method-okhttp:
+  needs: [ build ]
+  dependencies:
+    - build
+  <<: *common-exploration-tests
+  variables:
+    PROJECT: okhttp
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
+  script:
+    - sdk use java 17.0.10-tem
+    - java -XshowSettings:system -version
+    - ./run-exploration-tests.sh "method" "$PROJECT" "GRADLE_OPTS=-XX:ActiveProcessorCount=4 ./gradlew --max-workers 4 jvmTest -Dtest.java.version=11" "include_${PROJECT}.txt" "exclude_$PROJECT.txt"

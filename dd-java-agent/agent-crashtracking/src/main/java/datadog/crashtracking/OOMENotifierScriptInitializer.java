@@ -5,7 +5,11 @@ import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.getScriptPathFromArg;
+import static datadog.crashtracking.Initializer.isSafeToRepair;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
+import static datadog.crashtracking.Initializer.restrictDirectoryToOwnerOnly;
+import static datadog.crashtracking.Initializer.restrictScriptToOwnerOnly;
+import static datadog.crashtracking.Initializer.stripGroupAndWorldBits;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
 import datadog.trace.api.internal.VisibleForTesting;
@@ -22,12 +26,12 @@ public final class OOMENotifierScriptInitializer {
   private OOMENotifierScriptInitializer() {}
 
   @VisibleForTesting
-  static void initialize(String onOutOfMemoryVal) {
+  static boolean initialize(String onOutOfMemoryVal) {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY,
           "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
-      return;
+      return false;
     }
     File scriptFile = getOOMEScriptFile(onOutOfMemoryVal);
     if (scriptFile == null) {
@@ -35,19 +39,20 @@ public final class OOMENotifierScriptInitializer {
           SEND_TELEMETRY,
           "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
           onOutOfMemoryVal);
-      return;
+      return false;
     }
     String agentJar = findAgentJar();
     if (agentJar == null) {
       LOG.warn(
           SEND_TELEMETRY,
           "Unable to locate the agent jar. OOME notification will not work properly.");
-      return;
+      return false;
     }
     if (!copyOOMEscript(scriptFile)) {
-      return;
+      return false;
     }
     writeConfigToPath(scriptFile, "agent", agentJar);
+    return true;
   }
 
   private static File getOOMEScriptFile(String onOutOfMemoryVal) {
@@ -58,12 +63,27 @@ public final class OOMENotifierScriptInitializer {
   private static boolean copyOOMEscript(File scriptFile) {
     File scriptDirectory = scriptFile.getParentFile();
 
-    // cleanup all stale process-specific generated files in the parent folder of the given OOME
-    // notifier script
-    runScriptCleanup(scriptDirectory);
-
     if (scriptDirectory.exists()) {
-      // can be safely ignored; if the folder exists we will just reuse it
+      if (!isSafeToRepair(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Untrusted OOME script folder {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
+      // owned by us but possibly left over from an older, less restrictive version: strip any
+      // stray group/world bits without touching the owner's own bits, so a directory an operator
+      // deliberately made non-writable stays non-writable
+      if (!stripGroupAndWorldBits(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Unable to strip group/world permissions from OOME script folder {}. OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
+      // cleanup all stale process-specific generated files in the parent folder of the given OOME
+      // notifier script
+      runScriptCleanup(scriptDirectory);
       if (!scriptDirectory.canWrite()) {
         LOG.warn(
             SEND_TELEMETRY,
@@ -79,24 +99,55 @@ public final class OOMENotifierScriptInitializer {
             scriptDirectory);
         return false;
       }
-      scriptDirectory.setReadable(true, false);
-      scriptDirectory.setWritable(true, false);
-      scriptDirectory.setExecutable(true, false);
+      if (!restrictDirectoryToOwnerOnly(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Unable to restrict OOME script folder {} to owner-only permissions. OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
     }
 
     try {
       // do not overwrite existing
       if (!scriptFile.exists()) {
-        copyStream(getOomeNotifierTemplate(), scriptFile);
+        try {
+          copyStream(getOomeNotifierTemplate(), scriptFile);
+        } catch (IOException e) {
+          // fail closed: never leave a partially written script that a later JVM start would
+          // silently reuse (it passes isSafeToRepair because it carries no group/world write bits)
+          scriptFile.delete();
+          throw e;
+        }
+        // fail closed: never leave a freshly written script we could not lock down
+        if (!restrictScriptToOwnerOnly(scriptFile)) {
+          scriptFile.delete();
+          throw new IOException("Unable to restrict OOME script permissions");
+        }
+      } else {
+        // owned by us but possibly left over from an older, less restrictive version: repair in
+        // place by stripping stray group/world bits, preserving the owner's own bits
+        if (!isSafeToRepair(scriptFile)) {
+          LOG.warn(
+              SEND_TELEMETRY,
+              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+              scriptFile);
+          return false;
+        }
+        if (!stripGroupAndWorldBits(scriptFile)) {
+          LOG.warn(
+              SEND_TELEMETRY,
+              "Unable to strip group/world permissions from OOME script {}. OOME notification will not work properly.",
+              scriptFile);
+          return false;
+        }
       }
-      scriptFile.setReadable(true, false);
-      scriptFile.setWritable(false, false);
-      scriptFile.setExecutable(true, false);
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
-          "Failed to copy OOME script {}. OOME notification will not work properly.",
-          scriptFile);
+          "Failed to copy OOME script {} ({}). OOME notification will not work properly.",
+          scriptFile,
+          e.getMessage());
       return false;
     }
     return true;

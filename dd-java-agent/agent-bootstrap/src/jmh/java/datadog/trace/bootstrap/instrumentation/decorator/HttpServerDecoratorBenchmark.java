@@ -32,6 +32,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
 @State(Scope.Benchmark)
 @Warmup(iterations = 4, time = 30, timeUnit = SECONDS)
@@ -64,8 +65,9 @@ public class HttpServerDecoratorBenchmark {
   }
 
   @Benchmark
-  public AgentSpan onRequest() {
-    return decorator.onRequest(span, null, request, root());
+  public void onRequest(Blackhole bh) {
+    decorator.onRequest(span, null, request, root());
+    bh.consume(span);
   }
 
   public static class Request {

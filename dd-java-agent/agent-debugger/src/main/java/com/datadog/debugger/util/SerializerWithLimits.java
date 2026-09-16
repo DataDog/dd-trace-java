@@ -137,7 +137,7 @@ public class SerializerWithLimits {
       tokenWriter.epilogue(value);
       return;
     }
-    if (timeoutChecker.isTimedOut(System.currentTimeMillis())) {
+    if (timeoutChecker.isTimedOut()) {
       tokenWriter.notCaptured(NotCapturedReason.TIMEOUT);
       tokenWriter.epilogue(value);
       return;

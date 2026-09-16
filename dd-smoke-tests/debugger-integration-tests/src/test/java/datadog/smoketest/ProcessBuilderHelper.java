@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import datadog.environment.OperatingSystem;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -56,6 +57,10 @@ class ProcessBuilderHelper {
 
     List<String> command = new ArrayList<>();
     command.addAll(baseCommand);
+    if (OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64()) {
+      // Disable CDS to avoid SIGSEGVs on Linux arm64.
+      command.add(1, "-Xshare:off");
+    }
     command.addAll(additionalCommandParams);
     command.addAll(Arrays.asList("-cp", classpath, mainClassName));
     command.addAll(Arrays.asList(params));

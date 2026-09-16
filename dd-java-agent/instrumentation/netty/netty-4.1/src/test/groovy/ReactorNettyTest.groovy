@@ -15,12 +15,6 @@ import java.util.concurrent.TimeUnit
 
 class ReactorNettyTest extends HttpClientTest implements TestingNettyHttpNamingConventions.ClientV0 {
   @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
-
-  @Override
   boolean testCircularRedirects() {
     false
   }

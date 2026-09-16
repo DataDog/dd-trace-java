@@ -14,11 +14,13 @@ import akka.http.scaladsl.unmarshalling.Unmarshaller$;
 import akka.japi.JavaPartialFunction;
 import akka.stream.Materializer;
 import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.api.http.MultipartContentDecoder;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Field;
@@ -44,6 +46,8 @@ import scala.concurrent.Future;
 public class UnmarshallerHelpers {
 
   public static final int MAX_CONVERSION_DEPTH = 10;
+  static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
+  static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
   private static final Logger log = LoggerFactory.getLogger(UnmarshallerHelpers.class);
 
   private static final MediaType APPLICATION_X_WWW_FORM_URLENCODED;
@@ -196,7 +200,9 @@ public class UnmarshallerHelpers {
         cbp.getCallback(EVENTS.requestBodyProcessed());
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
         cbp.getCallback(EVENTS.requestFilesFilenames());
-    if (bodyCallback == null && filenamesCallback == null) {
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+        cbp.getCallback(EVENTS.requestFilesContent());
+    if (bodyCallback == null && filenamesCallback == null && contentCallback == null) {
       return;
     }
 
@@ -204,13 +210,19 @@ public class UnmarshallerHelpers {
         st.getStrictParts();
     Map<String, List<String>> conv = new HashMap<>();
     List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
+    List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
     for (akka.http.javadsl.model.Multipart.FormData.BodyPart.Strict part : strictParts) {
       Optional<String> filenameOpt = part.getFilename();
       if (filenames != null && filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
         filenames.add(filenameOpt.get());
       }
 
-      if (bodyCallback == null) {
+      boolean needsEntity =
+          bodyCallback != null
+              || (filesContent != null
+                  && filenameOpt.isPresent()
+                  && filesContent.size() < MAX_FILES_TO_INSPECT);
+      if (!needsEntity) {
         continue;
       }
 
@@ -221,19 +233,30 @@ public class UnmarshallerHelpers {
 
       HttpEntity.Strict sentity = (HttpEntity.Strict) entity;
 
-      String name = part.getName();
-      List<String> curStrings = conv.get(name);
-      if (curStrings == null) {
-        curStrings = new ArrayList<>();
-        conv.put(name, curStrings);
+      if (bodyCallback != null) {
+        String name = part.getName();
+        List<String> curStrings = conv.get(name);
+        if (curStrings == null) {
+          curStrings = new ArrayList<>();
+          conv.put(name, curStrings);
+        }
+
+        String s =
+            sentity
+                .getData()
+                .decodeString(
+                    Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
+        curStrings.add(s);
       }
 
-      String s =
-          sentity
-              .getData()
-              .decodeString(
-                  Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
-      curStrings.add(s);
+      if (filesContent != null
+          && filenameOpt.isPresent()
+          && filesContent.size() < MAX_FILES_TO_INSPECT) {
+        byte[] bytes = sentity.getData().take(MAX_CONTENT_BYTES).toArray();
+        filesContent.add(
+            MultipartContentDecoder.decodeBytes(
+                bytes, bytes.length, entity.getContentType().toString()));
+      }
     }
 
     BlockingException pendingBlock = null;
@@ -257,6 +280,18 @@ public class UnmarshallerHelpers {
           pendingBlock =
               tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
         }
+      }
+    }
+
+    if (pendingBlock == null && filesContent != null && !filesContent.isEmpty()) {
+      Flow<Void> flow = contentCallback.apply(reqCtx, filesContent);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        pendingBlock =
+            tryBlock(
+                reqCtx,
+                (Flow.Action.RequestBlockingAction) action,
+                "multipart file upload content");
       }
     }
 
@@ -417,12 +452,20 @@ public class UnmarshallerHelpers {
 
   private static void handleStrictFormData(StrictForm sf) {
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, Object, Flow<Void>> bodyCb =
+        cbp.getCallback(EVENTS.requestBodyProcessed());
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
         cbp.getCallback(EVENTS.requestFilesFilenames());
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+        cbp.getCallback(EVENTS.requestFilesContent());
+    if (bodyCb == null && filenamesCb == null && contentCb == null) {
+      return;
+    }
 
     Iterator<Tuple2<String, StrictForm.Field>> iterator = sf.fields().iterator();
     Map<String, List<String>> conv = new HashMap<>();
     List<String> filenames = filenamesCb != null ? new ArrayList<>() : null;
+    List<String> filesContent = contentCb != null ? new ArrayList<>() : null;
     while (iterator.hasNext()) {
       Tuple2<String, StrictForm.Field> next = iterator.next();
       String fieldName = next._1();
@@ -449,44 +492,68 @@ public class UnmarshallerHelpers {
           instanceof akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) {
         akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict bodyPart =
             (akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) strictFieldValue;
-        if (filenames != null) {
-          Optional<String> filenameOpt = bodyPart.getFilename();
-          if (filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
-            filenames.add(filenameOpt.get());
-          }
+        Optional<String> filenameOpt = bodyPart.getFilename();
+        if (filenames != null && filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
+          filenames.add(filenameOpt.get());
         }
         HttpEntity.Strict sentity = bodyPart.entity();
-        String s =
-            sentity
-                .getData()
-                .decodeString(
-                    Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
-        strings.add(s);
+        if (filesContent != null
+            && filenameOpt.isPresent()
+            && filesContent.size() < MAX_FILES_TO_INSPECT) {
+          byte[] bytes = sentity.getData().take(MAX_CONTENT_BYTES).toArray();
+          filesContent.add(
+              MultipartContentDecoder.decodeBytes(
+                  bytes, bytes.length, sentity.contentType().toString()));
+        }
+        if (bodyCb != null) {
+          String s =
+              sentity
+                  .getData()
+                  .decodeString(
+                      Unmarshaller$.MODULE$.bestUnmarshallingCharsetFor(sentity).nioCharset());
+          strings.add(s);
+        }
       }
     }
 
     BlockingException pendingBlock = null;
-    try {
-      handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
-    } catch (BlockingException e) {
-      pendingBlock = e;
+    if (bodyCb != null) {
+      try {
+        handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
+      } catch (BlockingException e) {
+        pendingBlock = e;
+      }
     }
 
-    if (filenamesCb != null && filenames != null && !filenames.isEmpty()) {
-      AgentSpan span = activeSpan();
-      RequestContext reqCtx;
-      if (span != null
-          && (reqCtx = span.getRequestContext()) != null
-          && reqCtx.getData(RequestContextSlot.APPSEC) != null) {
-        Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
-        if (pendingBlock == null) {
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            pendingBlock =
-                tryBlock(
-                    reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
-          }
+    AgentSpan span = activeSpan();
+    RequestContext reqCtx = null;
+    if (span != null) {
+      RequestContext ctx = span.getRequestContext();
+      if (ctx != null && ctx.getData(RequestContextSlot.APPSEC) != null) {
+        reqCtx = ctx;
+      }
+    }
+
+    if (reqCtx != null && filenamesCb != null && filenames != null && !filenames.isEmpty()) {
+      Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
+      if (pendingBlock == null) {
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          pendingBlock =
+              tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
         }
+      }
+    }
+
+    if (pendingBlock == null && reqCtx != null && contentCb != null && !filesContent.isEmpty()) {
+      Flow<Void> flow = contentCb.apply(reqCtx, filesContent);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        pendingBlock =
+            tryBlock(
+                reqCtx,
+                (Flow.Action.RequestBlockingAction) action,
+                "multipart file upload content");
       }
     }
 

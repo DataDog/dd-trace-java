@@ -7,7 +7,8 @@
       {"eq": [{"count": {"ref": "strArray"}}, 2]},
       {"eq": [{"count": {"ref": "strMap"}}, 2]},
       {"eq": [{"count": {"ref": "strSet"}}, 1]},
-      {"eq": [{"count": {"ref": "strList"}}, 1]}
+      {"eq": [{"count": {"ref": "strList"}}, 1]},
+      {"all": [{"ref":  "largeList"}, {"neq": [{"ref": "@it"}, "d"]}]}
     ]
   }
 }

@@ -97,8 +97,8 @@ public class ExecutionContextInstrumentation
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
 
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 
@@ -133,8 +133,8 @@ public class ExecutionContextInstrumentation
       DECORATE.onOperation(span, entity);
       DECORATE.beforeFinish(span);
 
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 
@@ -164,8 +164,8 @@ public class ExecutionContextInstrumentation
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
 
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 
@@ -195,8 +195,8 @@ public class ExecutionContextInstrumentation
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
 
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

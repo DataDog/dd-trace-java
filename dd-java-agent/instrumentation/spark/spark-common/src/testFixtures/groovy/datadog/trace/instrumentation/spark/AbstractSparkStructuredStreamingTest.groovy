@@ -92,8 +92,8 @@ class AbstractSparkStructuredStreamingTest extends InstrumentationSpecification 
           resourceName "test-query"
           spanType "spark"
           parent()
-          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
-          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
+          assert span.spanContext().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.spanContext().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           tags {
             defaultTags()
             // Streaming tags
@@ -201,8 +201,8 @@ class AbstractSparkStructuredStreamingTest extends InstrumentationSpecification 
           operationName "spark.streaming_batch"
           spanType "spark"
           assert span.tags["streaming_query.batch_id"] == 1
-          assert span.context().getSamplingPriority() == PrioritySampling.USER_KEEP
-          assert span.context().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
+          assert span.spanContext().getSamplingPriority() == PrioritySampling.USER_KEEP
+          assert span.spanContext().getPropagationTags().createTagMap()["_dd.p.dm"] == (-SamplingMechanism.DATA_JOBS).toString()
           parent()
         }
         span {

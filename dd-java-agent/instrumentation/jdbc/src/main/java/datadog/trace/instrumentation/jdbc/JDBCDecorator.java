@@ -6,8 +6,12 @@ import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_OPERATION;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_POOL_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_SCHEMA;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.DB_WAREHOUSE;
 
+import datadog.context.ContextScope;
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -15,7 +19,6 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
@@ -24,12 +27,15 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
+import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionContext;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.sql.ClientInfoStatus;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
+import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashSet;
@@ -54,6 +60,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       SpanNaming.instance().namingSchema().database().service("jdbc");
 
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
+  public static final String DD_ORACLE_SERVICE_HASH_PREFIX = "_DD_DDSH:";
+  private static final String ORACLE_ACTION_CLIENT_INFO = "OCSID.ACTION";
 
   public static final String DBM_PROPAGATION_MODE = Config.get().getDbmPropagationMode();
   private static final boolean DBM_INJECT_SQL_BASE_HASH = Config.get().isDbmInjectSqlBaseHash();
@@ -65,6 +73,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE);
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
+  private static final boolean INJECT_ORACLE_SERVICE_HASH_ACTION =
+      DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE)
+          && PROPAGATE_PROCESS_TAGS
+          && Config.get().isDbmPropagationOracleActionOnlyEnabled();
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =
       Config.get().isDbmTracePreparedStatements();
   public static final boolean DBM_ALWAYS_APPEND_SQL_COMMENT =
@@ -153,23 +165,24 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
   }
 
-  public AgentSpan onConnection(final AgentSpan span, DBInfo dbInfo) {
+  public void onConnection(final AgentSpan span, final JDBCConnectionContext connectionContext) {
+    final DBInfo dbInfo = connectionContext.getDbInfo();
     if (dbInfo != null) {
       processDatabaseType(span, dbInfo.getType());
 
       setTagIfPresent(span, DB_WAREHOUSE, dbInfo.getWarehouse());
       setTagIfPresent(span, DB_SCHEMA, dbInfo.getSchema());
-      setTagIfPresent(span, DB_POOL_NAME, dbInfo.getPoolName());
+      setTagIfPresent(span, DB_POOL_NAME, connectionContext.getPoolName());
     }
-    return super.onConnection(span, dbInfo);
+    super.onConnection(span, dbInfo);
   }
 
-  public static DBInfo parseDBInfo(
-      final Connection connection, ContextStore<Connection, DBInfo> contextStore) {
+  public static JDBCConnectionContext parseConnectionContext(
+      final Connection connection, ContextStore<Connection, JDBCConnectionContext> contextStore) {
     if (connection == null) {
-      return DBInfo.DEFAULT;
+      return JDBCConnectionContext.DEFAULT;
     }
-    DBInfo dbInfo = contextStore.get(connection);
+    JDBCConnectionContext connectionContext = contextStore.get(connection);
     /*
      * Logic to get the DBInfo from a JDBC Connection, if the connection was not created via
      * Driver.connect, or it has never seen before, the connectionInfo map will return null and will
@@ -178,32 +191,32 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
      * avoid retry overhead.
      */
     {
-      if (dbInfo == null) {
-        // first look for injected DBInfo in wrapped delegates
+      if (connectionContext == null) {
+        // first look for injected connection context in wrapped delegates
         Connection conn = connection;
         Set<Connection> connections = new HashSet<>();
         connections.add(conn);
         try {
-          while (dbInfo == null) {
+          while (connectionContext == null) {
             Connection delegate = conn.unwrap(Connection.class);
             if (delegate == null || !connections.add(delegate)) {
               // cycle detected, stop looking
               break;
             }
-            dbInfo = contextStore.get(delegate);
+            connectionContext = contextStore.get(delegate);
             conn = delegate;
           }
         } catch (Throwable ignore) {
         }
-        if (dbInfo == null) {
+        if (connectionContext == null) {
           // couldn't find DBInfo from a previous call anywhere, so we try to fetch it from the DB
-          dbInfo = parseDBInfoFromConnection(connection);
+          connectionContext = new JDBCConnectionContext(parseDBInfoFromConnection(connection));
         }
-        // store the DBInfo on the outermost connection instance to avoid future searches
-        contextStore.put(connection, dbInfo);
+        // store the context on the outermost connection instance to avoid future searches
+        contextStore.put(connection, connectionContext);
       }
     }
-    return dbInfo;
+    return connectionContext;
   }
 
   public String getDbService(final DBInfo dbInfo) {
@@ -242,42 +255,46 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
-    } catch (final SQLException se) {
+    } catch (final Throwable se) {
       log.debug("Could not get metadata from DB", se);
       dbInfo = DBInfo.DEFAULT;
     }
     return dbInfo;
   }
 
-  public AgentSpan onStatement(AgentSpan span, final String statement) {
+  public void onStatement(AgentSpan span, final String statement) {
     onRawStatement(span, statement);
     DBQueryInfo dbQueryInfo = DBQueryInfo.ofStatement(statement);
-    return withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
+    withQueryInfo(span, dbQueryInfo, JDBC_STATEMENT);
   }
 
-  public AgentSpan onPreparedStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
-    return withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
+  public void onPreparedStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
+    withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
   }
 
   /**
    * Sets the base hash tag on the span if DBM hash injection is enabled. This is necessary so that
    * the span (tags) and the query can be matched in the backend.
    */
-  public void withBaseHash(AgentSpan span) {
+  public void withBaseHash(AgentSpan span, DBInfo dbInfo, String oracleServiceHash) {
     if (INJECT_COMMENT && DBM_INJECT_SQL_BASE_HASH && PROPAGATE_PROCESS_TAGS) {
-      span.setTag(Tags.BASE_HASH, BaseHash.getBaseHashStr());
+      final String baseHash =
+          usesOracleServiceHashAction(dbInfo) ? oracleServiceHash : BaseHash.getBaseHashStr();
+      if (baseHash != null) {
+        span.setTag(Tags.BASE_HASH, baseHash);
+      }
     }
   }
 
-  private AgentSpan withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
+  private void withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
     if (null != info) {
       span.setResourceName(info.getSql());
       span.setTag(DB_OPERATION, info.getOperation());
     } else {
       span.setResourceName(DB_QUERY);
     }
-    span.context().setIntegrationName(component);
-    return span.setTag(Tags.COMPONENT, component);
+    span.spanContext().setIntegrationName(component);
+    span.setTag(Tags.COMPONENT, component);
   }
 
   public boolean isOracle(final DBInfo dbInfo) {
@@ -290,6 +307,69 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public boolean isSqlServer(final DBInfo dbInfo) {
     return "sqlserver".equals(dbInfo.getType());
+  }
+
+  public boolean shouldInjectSqlComment(final DBInfo dbInfo) {
+    return INJECT_COMMENT && !usesOracleServiceHashAction(dbInfo);
+  }
+
+  private boolean usesOracleServiceHashAction(final DBInfo dbInfo) {
+    return INJECT_ORACLE_SERVICE_HASH_ACTION && isOracle(dbInfo);
+  }
+
+  /**
+   * Sets the dynamic service hash in {@code v$session.action} once per Oracle session and hash.
+   *
+   * @return the hash in ACTION, or {@code null} if ACTION propagation is disabled or failed
+   */
+  public String setServiceHashAction(
+      Connection connection, JDBCConnectionContext connectionContext) {
+    if (!usesOracleServiceHashAction(connectionContext.getDbInfo())) {
+      return null;
+    }
+
+    String baseHash = BaseHash.getBaseHashStr();
+    if (baseHash == null) {
+      return null;
+    }
+    if (!connectionContext.shouldSetOracleServiceHash(baseHash)) {
+      return connectionContext.isOracleServiceHashSet(baseHash) ? baseHash : null;
+    }
+    synchronized (connectionContext) {
+      // Re-read after taking the lock so a waiting query does not restore a stale process hash.
+      baseHash = BaseHash.getBaseHashStr();
+      if (baseHash == null) {
+        return null;
+      }
+      if (!connectionContext.shouldSetOracleServiceHash(baseHash)) {
+        return connectionContext.isOracleServiceHashSet(baseHash) ? baseHash : null;
+      }
+      try {
+        connection.setClientInfo(
+            ORACLE_ACTION_CLIENT_INFO, DD_ORACLE_SERVICE_HASH_PREFIX + baseHash);
+        connectionContext.markOracleServiceHashSet(baseHash);
+        return baseHash;
+      } catch (Throwable e) {
+        if (isUnsupportedOracleAction(e)) {
+          connectionContext.markOracleServiceActionUnsupported();
+        }
+        logInjectionErrorOnce("service hash action", e);
+        return null;
+      }
+    }
+  }
+
+  private static boolean isUnsupportedOracleAction(Throwable error) {
+    if (error instanceof UnsupportedOperationException || error instanceof AbstractMethodError) {
+      return true;
+    }
+    if (error instanceof SQLClientInfoException) {
+      final SQLClientInfoException clientInfoException = (SQLClientInfoException) error;
+      return clientInfoException.getFailedProperties() != null
+          && ClientInfoStatus.REASON_UNKNOWN_PROPERTY.equals(
+              clientInfoException.getFailedProperties().get(ORACLE_ACTION_CLIENT_INFO));
+    }
+    return false;
   }
 
   /**
@@ -329,10 +409,10 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
    * Downsides: takes time.
    *
    * @param connection The same connection as the one that will be used for the actual statement
-   * @param dbInfo dbInfo of the instrumented database
+   * @param connectionContext metadata and state for the instrumented connection
    * @return spanID pre-created spanID
    */
-  public long setContextInfo(Connection connection, DBInfo dbInfo) {
+  public long setContextInfo(Connection connection, JDBCConnectionContext connectionContext) {
     final byte VERSION = 0;
     final long spanID = Config.get().getIdGenerationStrategy().generateSpanId();
     // potentially get build span like here
@@ -342,8 +422,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
             .withTag("dd.instrumentation", true)
             .start();
     DECORATE.afterStart(instrumentationSpan);
-    DECORATE.onConnection(instrumentationSpan, dbInfo);
-    try (AgentScope scope = activateSpan(instrumentationSpan)) {
+    DECORATE.onConnection(instrumentationSpan, connectionContext);
+    try (ContextScope scope = activateSpan(instrumentationSpan)) {
       final byte samplingDecision =
           (byte) (instrumentationSpan.forceSamplingDecision() > 0 ? 1 : 0);
       final byte versionAndSamplingDecision =

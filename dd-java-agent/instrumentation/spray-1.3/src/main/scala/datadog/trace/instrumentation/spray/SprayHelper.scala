@@ -4,7 +4,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import datadog.trace.instrumentation.spray.SprayHttpServerDecorator.DECORATE
 import spray.http.HttpResponse
 import spray.routing.{RequestContext, Route}
@@ -34,7 +34,7 @@ object SprayHelper {
 
   def wrapRoute(route: Route): Route = { ctx =>
     {
-      DECORATE.onRequest(activeSpan(), ctx, ctx.request, getRootContext())
+      DECORATE.onRequest(activeSpan(), ctx, ctx.request, rootContext())
       try route(ctx)
       catch {
         case NonFatal(e) =>

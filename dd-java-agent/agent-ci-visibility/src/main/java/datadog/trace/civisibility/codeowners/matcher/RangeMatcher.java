@@ -26,10 +26,10 @@ public class RangeMatcher implements Matcher {
   }
 
   @Override
-  public int consume(char[] line, int offset) {
-    if (offset < line.length) {
+  public int consume(String line, int offset) {
+    if (offset < line.length()) {
       for (Range range : ranges) {
-        if (range.matches(line[offset])) {
+        if (range.matches(line.charAt(offset))) {
           return 1;
         }
       }

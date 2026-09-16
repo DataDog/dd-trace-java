@@ -1,6 +1,7 @@
 package datadog.trace.bootstrap.debugger.util;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
 import java.lang.reflect.Field;
@@ -74,7 +75,7 @@ class RedactionTest {
     try {
       Field field = config.getClass().getDeclaredField(fieldName);
       field.setAccessible(true);
-      field.set(config, value);
+      field.set(config, value); // TODO: JEP 500 - avoid mutating final fields
     } catch (Throwable e) {
       e.printStackTrace();
     }

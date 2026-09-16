@@ -24,7 +24,6 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,8 +79,11 @@ class W3CHttpCodec {
 
     private <C> void injectTraceState(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
       PropagationTags propagationTags = context.getPropagationTags();
-      propagationTags.updateLastParentId(DDSpanId.toHexStringPadded(context.getSpanId()));
-      String tracestate = propagationTags.headerValue(W3C);
+      // Supply the injecting span's id for the W3C `p:` as a parameter rather than mutating it into
+      // the (possibly trace-level, shared) tags — keeps transient per-injection identity out of
+      // shared state, so concurrent sibling injects can't race on it.
+      String tracestate =
+          propagationTags.headerValue(W3C, DDSpanId.toHexStringPadded(context.getSpanId()));
       if (tracestate != null && !tracestate.isEmpty()) {
         setter.set(carrier, TRACE_STATE_KEY, tracestate);
       }
@@ -191,13 +193,7 @@ class W3CHttpCodec {
                 endToEndStartTime = extractEndToEndStartTime(firstHeaderValue(value));
                 break;
               case OT_BAGGAGE:
-                {
-                  if (baggage.isEmpty()) {
-                    baggage = new TreeMap<>();
-                  }
-                  baggage.put(
-                      lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), HttpCodec.decode(value));
-                }
+                addBaggageItem(lowerCaseKey.substring(OT_BAGGAGE_PREFIX.length()), value);
                 break;
               default:
             }

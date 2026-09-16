@@ -1,10 +1,13 @@
 package com.datadog.debugger.el;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.expressions.BooleanExpression;
 import com.datadog.debugger.el.values.BooleanValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import org.junit.jupiter.api.Test;
 
 class BooleanValueExpressionAdapterTest {
@@ -29,20 +32,14 @@ class BooleanValueExpressionAdapterTest {
   public void testExpression() {
     BooleanValueExpressionAdapter booleanValueExpressionAdapter =
         new BooleanValueExpressionAdapter(DSL.eq(DSL.value(1), DSL.value(1)));
-    BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(null);
+    BooleanValue resultValue = booleanValueExpressionAdapter.evaluate(createEvalContext(this));
     assertTrue(resultValue.getValue());
   }
 
   @Test
   public void testNull() {
     BooleanValueExpressionAdapter booleanValueExpressionAdapter =
-        new BooleanValueExpressionAdapter(
-            new BooleanExpression() {
-              @Override
-              public Boolean evaluate(ValueReferenceResolver valueRefResolver) {
-                return null;
-              }
-            });
+        new BooleanValueExpressionAdapter(evalContext -> null);
     EvaluationException ex =
         assertThrows(EvaluationException.class, () -> booleanValueExpressionAdapter.evaluate(null));
     assertEquals("Boolean expression returning null", ex.getMessage());

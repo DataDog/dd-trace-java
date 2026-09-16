@@ -1,8 +1,7 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
@@ -11,7 +10,7 @@ testJvmConstraints {
 description = 'Spring Boot 3.0 Webflux Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'webfluxBuild30'
     nestedTasks = ['bootJar']
     artifactPath = 'libs/webflux-3.0-smoketest.jar'

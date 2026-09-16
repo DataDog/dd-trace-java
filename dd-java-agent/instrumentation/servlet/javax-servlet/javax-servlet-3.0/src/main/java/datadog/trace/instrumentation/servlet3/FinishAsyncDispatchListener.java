@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.servlet3;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.TIMEOUT;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DECORATE;
 
 import datadog.context.ContextScope;
@@ -37,7 +36,7 @@ public class FinishAsyncDispatchListener implements AsyncListener, Runnable {
   public FinishAsyncDispatchListener(
       final ContextScope scope, AtomicBoolean activated, boolean doOnResponse) {
     this.scope = scope;
-    this.span = spanFromContext(scope.context());
+    this.span = AgentSpan.fromContext(scope.context());
     this.activated = activated;
     this.doOnResponse = doOnResponse;
   }

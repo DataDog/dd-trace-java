@@ -968,7 +968,6 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @EnabledForJreRange(max = JRE.JAVA_25)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
@@ -996,13 +995,13 @@ class SymbolExtractionTransformerTest {
           KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
       Object companion = Reflect.onClass(testClass).get("Companion");
       int result = Reflect.on(companion).call("main", "").get();
-      assertEquals(48, result);
+      assertEquals(73, result);
     } finally {
       filesToDelete.forEach(File::delete);
     }
-    assertEquals(2, symbolSinkMock.jarScopes.size());
+    assertEquals(4, symbolSinkMock.jarScopes.size());
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 23, SOURCE_FILE, 5, 1);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 28, SOURCE_FILE, 6, 1);
     assertLangSpecifics(
         classScope.getLanguageSpecifics(),
         asList("public", "final"),
@@ -1027,12 +1026,15 @@ class SymbolExtractionTransformerTest {
     Scope f3MethodScope = classScope.getScopes().get(3);
     assertScope(f3MethodScope, ScopeType.METHOD, "f3", 21, 23, SOURCE_FILE, 1, 1);
     assertLineRanges(f3MethodScope, "21-23");
+    Scope f4MethodScope = classScope.getScopes().get(4);
+    assertScope(f4MethodScope, ScopeType.METHOD, "f4", 27, 28, SOURCE_FILE, 1, 1);
+    assertLineRanges(f4MethodScope, "27-28");
     assertScope(
-        classScope.getScopes().get(4), ScopeType.METHOD, "<clinit>", 0, 0, SOURCE_FILE, 0, 0);
+        classScope.getScopes().get(5), ScopeType.METHOD, "<clinit>", 0, 0, SOURCE_FILE, 0, 0);
 
     Scope companionClassScope = symbolSinkMock.jarScopes.get(1).getScopes().get(0);
     assertScope(
-        companionClassScope, ScopeType.CLASS, CLASS_NAME + "$Companion", 28, 29, SOURCE_FILE, 3, 0);
+        companionClassScope, ScopeType.CLASS, CLASS_NAME + "$Companion", 33, 34, SOURCE_FILE, 3, 0);
     assertLangSpecifics(
         classScope.getLanguageSpecifics(),
         asList("public", "final"),
@@ -1050,8 +1052,8 @@ class SymbolExtractionTransformerTest {
         0,
         0);
     Scope mainMethodScope = companionClassScope.getScopes().get(1);
-    assertScope(mainMethodScope, ScopeType.METHOD, "main", 28, 29, SOURCE_FILE, 1, 1);
-    assertLineRanges(mainMethodScope, "28-29");
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 33, 34, SOURCE_FILE, 1, 1);
+    assertLineRanges(mainMethodScope, "33-34");
   }
 
   @Test

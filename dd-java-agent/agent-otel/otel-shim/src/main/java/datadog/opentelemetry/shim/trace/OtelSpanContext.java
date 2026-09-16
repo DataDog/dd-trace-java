@@ -24,7 +24,7 @@ public class OtelSpanContext implements SpanContext {
   }
 
   public static SpanContext fromLocalSpan(AgentSpan span) {
-    AgentSpanContext delegate = span.context();
+    AgentSpanContext delegate = span.spanContext();
     AgentSpan localRootSpan = span.getLocalRootSpan();
     Integer samplingPriority = localRootSpan.getSamplingPriority();
     boolean sampled = samplingPriority != null && samplingPriority > 0;

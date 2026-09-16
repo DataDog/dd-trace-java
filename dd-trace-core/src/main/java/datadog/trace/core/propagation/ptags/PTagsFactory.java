@@ -112,6 +112,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     private volatile TagValue orgPropagationMarkerTagValue;
 
+    private volatile OtelTraceState otelTraceState;
+
     // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
     // rate, so this eliminates the char[] + String allocation on every new PTags instance.
     // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
@@ -421,14 +423,6 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     @Override
-    public void updateLastParentId(CharSequence lastParentId) {
-      if (!Objects.equals(this.lastParentId, lastParentId)) {
-        clearCachedHeader(W3C);
-        this.lastParentId = TagValue.from(lastParentId);
-      }
-    }
-
-    @Override
     @SuppressWarnings("StringEquality")
     @SuppressFBWarnings("ES_COMPARING_STRINGS_WITH_EQ")
     public String headerValue(HeaderType headerType) {
@@ -446,6 +440,18 @@ public class PTagsFactory implements PropagationTags.Factory {
         return null;
       }
       return header;
+    }
+
+    @Override
+    public String headerValue(HeaderType headerType, CharSequence lastParentIdOverride) {
+      if (lastParentIdOverride == null) {
+        return headerValue(headerType);
+      }
+      // Inject-time path: encode fresh with the override; do NOT cache — the W3C `p:` is
+      // per-injecting-span and these tags may be shared across sibling spans.
+      String header =
+          PTagsCodec.headerValue(factory.getDecoderEncoder(headerType), this, lastParentIdOverride);
+      return (header == null || header.isEmpty()) ? null : header;
     }
 
     @Override
@@ -536,7 +542,34 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void updateW3CTracestate(String tracestate) {
+      setW3CTracestate(tracestate, W3CPTagsCodec.extractOtelTraceState(tracestate));
+    }
+
+    @Override
+    public void updateW3CTracestateFrom(PropagationTags source) {
+      if (!(source instanceof PTags)) {
+        super.updateW3CTracestateFrom(source);
+        return;
+      }
+      PTags sourcePTags = (PTags) source;
+      setW3CTracestate(sourcePTags.tracestate, sourcePTags.getOtelTraceState());
+    }
+
+    private void setW3CTracestate(String tracestate, OtelTraceState otelTraceState) {
+      clearCachedHeader(W3C);
       this.tracestate = tracestate;
+      this.otelTraceState = otelTraceState;
+    }
+
+    OtelTraceState getOtelTraceState() {
+      return otelTraceState;
+    }
+
+    void setOtelTraceState(OtelTraceState otelTraceState) {
+      if (this.otelTraceState != otelTraceState) {
+        this.otelTraceState = otelTraceState;
+        clearCachedHeader(W3C);
+      }
     }
 
     String getError() {

@@ -1,11 +1,14 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
 
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
+import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import javax.annotation.Nullable;
 
 /** Helper utils for Runnable/Callable instrumentation */
 public class AdviceUtils {
@@ -18,16 +21,17 @@ public class AdviceUtils {
    * @param <T> task's type
    * @return scope if scope was started, or null
    */
-  public static <T> AgentScope startTaskScope(
+  public static <T> ContextScope startTaskScope(
       final ContextStore<T, State> contextStore, final T task) {
     return startTaskScope(contextStore.get(task));
   }
 
-  public static AgentScope startTaskScope(State state) {
+  @Nullable
+  public static ContextScope startTaskScope(State state) {
     if (state != null) {
-      final AgentScope.Continuation continuation = state.getAndResetContinuation();
+      final ContextContinuation continuation = state.getAndResetContinuation();
       if (continuation != null) {
-        final AgentScope scope = continuation.activate();
+        final ContextScope scope = continuation.resume();
         // important - stop timing after the scope has been activated so the time in the queue can
         // be attributed to the correct context without duplicating the propagated information
         state.stopTiming();
@@ -37,7 +41,7 @@ public class AdviceUtils {
     return null;
   }
 
-  public static void endTaskScope(final AgentScope scope) {
+  public static void endTaskScope(final ContextScope scope) {
     if (null != scope) {
       scope.close();
     }
@@ -50,15 +54,32 @@ public class AdviceUtils {
     }
   }
 
+  /**
+   * Determines whether the given context should be captured for async propagation. The root context
+   * is never captured; similarly a context with an invalid span is deliberately excluded from async
+   * propagation to support {@link Tracer#muteTracing()}
+   *
+   * @param context the context to check
+   * @return {@code true} if the context should be captured; otherwise {@code false}
+   */
+  public static boolean shouldCapture(Context context) {
+    if (context == Context.root()) {
+      return false;
+    }
+    AgentSpan span = AgentSpan.fromContext(context);
+    // propagate contexts with no span or a valid span, when flag is on
+    return (span == null || span.isValid()) && isAsyncPropagationEnabled();
+  }
+
   public static <T> void capture(ContextStore<T, State> contextStore, T task) {
-    AgentSpan span = activeSpan();
-    if (span != null && span.isValid() && isAsyncPropagationEnabled()) {
+    Context context = Context.current();
+    if (shouldCapture(context)) {
       State state = contextStore.get(task);
       if (null == state) {
         state = State.FACTORY.create();
         contextStore.put(task, state);
       }
-      state.captureAndSetContinuation(span);
+      state.captureAndSetContinuation(context);
     }
   }
 }

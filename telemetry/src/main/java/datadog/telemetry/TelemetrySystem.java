@@ -12,17 +12,21 @@ import datadog.telemetry.log.LogPeriodicAction;
 import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
 import datadog.telemetry.metric.ConfigInversionMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
+import datadog.telemetry.metric.DebuggerMetricPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.LLMObsMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
 import datadog.telemetry.metric.OtelSpiMetricPeriodicAction;
+import datadog.telemetry.metric.OtlpTelemetryPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
+import datadog.telemetry.sca.ScaReachabilityPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
@@ -64,6 +68,8 @@ public class TelemetrySystem {
       actions.add(new ConfigInversionMetricPeriodicAction());
       actions.add(new IntegrationPeriodicAction());
       actions.add(new WafMetricPeriodicAction());
+      actions.add(new OtlpTelemetryPeriodicAction());
+      actions.add(new DebuggerMetricPeriodicAction());
       if (Verbosity.OFF != Config.get().getIastTelemetryVerbosity()) {
         actions.add(new IastMetricPeriodicAction());
       }
@@ -75,7 +81,14 @@ public class TelemetrySystem {
       }
     }
     if (null != dependencyService) {
-      actions.add(new DependencyPeriodicAction(dependencyService));
+      if (Config.get().isAppSecScaEnabled()) {
+        // ScaReachabilityPeriodicAction takes over all dep reporting when SCA is enabled:
+        // it merges DependencyService drains with CVE registry state into one entry per dep.
+        // DependencyPeriodicAction is skipped to avoid duplicate app-dependencies-loaded entries.
+        actions.add(new ScaReachabilityPeriodicAction(dependencyService));
+      } else {
+        actions.add(new DependencyPeriodicAction(dependencyService));
+      }
     }
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());
@@ -158,5 +171,10 @@ public class TelemetrySystem {
         log.warn("Telemetry thread join was not completed");
       }
     }
+  }
+
+  @VisibleForTesting
+  static Thread getTelemetryThread() {
+    return TELEMETRY_THREAD;
   }
 }

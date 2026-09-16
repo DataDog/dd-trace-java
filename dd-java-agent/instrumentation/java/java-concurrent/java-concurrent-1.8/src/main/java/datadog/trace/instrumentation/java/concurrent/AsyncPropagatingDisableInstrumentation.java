@@ -10,6 +10,9 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPr
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
+import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -47,8 +50,30 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
   private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
+
+  /**
+   * RxJava 3's AbstractDirectTask creates FINISHED/DISPOSED sentinel FutureTask instances in its
+   * static initializer.
+   */
+  private static final ElementMatcher<TypeDescription> RXJAVA3_DISABLED_TYPE_INITIALIZERS =
+      named("io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask");
+
+  private static final ElementMatcher<TypeDescription> NETTY_GLOBAL_EVENT_EXECUTOR =
+      namedOneOf(
+          "io.netty.util.concurrent.GlobalEventExecutor",
+          // shaded version
+          "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor");
+  private static final ElementMatcher<TypeDescription> NETTY_IDLE_STATE_HANDLER =
+      namedOneOf(
+          "io.netty.handler.timeout.IdleStateHandler",
+          "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler");
   private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
       extendsClass(named("java.net.http.HttpClient"));
+  private static final String LETTUCE_HANDSHAKE_HANDLER =
+      "io.lettuce.core.protocol.RedisHandshakeHandler";
+  private static final ElementMatcher<TypeDescription> PEKKO_HTTP_STREAM_STAGE =
+      nameStartsWith("org.apache.pekko.http.impl.util.StreamUtils$")
+          .and(extendsClass(named("org.apache.pekko.stream.stage.GraphStageLogic")));
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -75,6 +100,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "rx.internal.util.ObjectPool",
       "io.grpc.internal.ServerImpl$ServerTransportListenerImpl",
       "okhttp3.ConnectionPool",
+      "okhttp3.internal.connection.RealConnectionPool",
       "com.squareup.okhttp.ConnectionPool",
       "org.elasticsearch.transport.netty4.Netty4TcpChannel",
       "org.springframework.cglib.core.internal.LoadingCache",
@@ -87,7 +113,15 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
       "io.reactivex.internal.schedulers.AbstractDirectTask",
-      "jdk.internal.net.http.HttpClientImpl"
+      "io.reactivex.rxjava3.internal.schedulers.AbstractDirectTask",
+      "jdk.internal.net.http.HttpClientImpl",
+      LETTUCE_HANDSHAKE_HANDLER,
+      "io.netty.util.concurrent.GlobalEventExecutor",
+      "io.grpc.netty.shaded.io.netty.util.concurrent.GlobalEventExecutor",
+      "io.netty.handler.timeout.IdleStateHandler",
+      "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler",
+      "com.linecorp.armeria.client.HttpClientFactory",
+      "com.linecorp.armeria.client.HttpChannelPool"
     };
   }
 
@@ -102,7 +136,9 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
         .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
-        .or(JAVA_HTTP_CLIENT);
+        .or(RXJAVA3_DISABLED_TYPE_INITIALIZERS)
+        .or(JAVA_HTTP_CLIENT)
+        .or(PEKKO_HTTP_STREAM_STAGE);
   }
 
   @Override
@@ -142,10 +178,14 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         named("start").and(isDeclaredBy(named("rx.internal.util.ObjectPool"))), advice);
     transformer.applyAdvice(
-        named("addConnection").and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
+        namedOneOf("addConnection", "put")
+            .and(isDeclaredBy(named("com.squareup.okhttp.ConnectionPool"))),
         advice);
     transformer.applyAdvice(
         named("put").and(isDeclaredBy(named("okhttp3.ConnectionPool"))), advice);
+    transformer.applyAdvice(
+        named("put").and(isDeclaredBy(named("okhttp3.internal.connection.RealConnectionPool"))),
+        advice);
     transformer.applyAdvice(
         named("sendMessage")
             .and(isDeclaredBy(named("org.elasticsearch.transport.netty4.Netty4TcpChannel"))),
@@ -196,12 +236,40 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
+    transformer.applyAdvice(
+        isTypeInitializer().and(isDeclaredBy(RXJAVA3_DISABLED_TYPE_INITIALIZERS)), advice);
+    transformer.applyAdvice(
+        isTypeInitializer().and(isDeclaredBy(NETTY_GLOBAL_EVENT_EXECUTOR)), advice);
+    transformer.applyAdvice(
+        named("initialize")
+            .and(returns(void.class))
+            .and(
+                takesArgument(
+                    0,
+                    namedOneOf(
+                        "io.netty.channel.ChannelHandlerContext",
+                        "io.grpc.netty.shaded.io.netty.channel.ChannelHandlerContext")))
+            .and(isDeclaredBy(NETTY_IDLE_STATE_HANDLER)),
+        advice);
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
+    transformer.applyAdvice(
+        named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
+    transformer.applyAdvice(
+        named("preStart").and(takesNoArguments()).and(isDeclaredBy(PEKKO_HTTP_STREAM_STAGE)),
+        advice);
+    // armeria runs its own codec/pipeline, so the active request span captured during connection
+    // pool creation and channel connect will have no consumers.
+    transformer.applyAdvice(
+        named("pool").and(isDeclaredBy(named("com.linecorp.armeria.client.HttpClientFactory"))),
+        advice);
+    transformer.applyAdvice(
+        named("connect").and(isDeclaredBy(named("com.linecorp.armeria.client.HttpChannelPool"))),
+        advice);
   }
 
   public static class DisableAsyncAdvice {
 
-    @Advice.OnMethodEnter
+    @Advice.OnMethodEnter(suppress = Throwable.class)
     public static boolean before() {
       if (isAsyncPropagationEnabled()) {
         setAsyncPropagationEnabled(false);
@@ -210,7 +278,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       return false;
     }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter boolean wasDisabled) {
       if (wasDisabled) {
         setAsyncPropagationEnabled(true);

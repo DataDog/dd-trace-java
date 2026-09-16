@@ -4,7 +4,6 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_CONTINUATION_KEY;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_MESSAGE;
@@ -12,6 +11,8 @@ import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.api.Tracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -84,10 +85,10 @@ public final class AxisEngineInstrumentation
     public static AgentScope beginResumingMessage(
         @Advice.Argument(0) final MessageContext message) {
       Object continuation = message.getSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
-      if (null != continuation) {
+      if (continuation instanceof ContextContinuation) {
         message.removeSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY);
         // resuming is a distinct operation, so create a new span under the original request
-        try (AgentScope parentScope = ((AgentScope.Continuation) continuation).activate()) {
+        try (ContextScope parentScope = ((ContextContinuation) continuation).resume()) {
           AgentSpan span = startSpan("axis2", AXIS2_MESSAGE);
           DECORATE.afterStart(span);
           DECORATE.onMessage(span, message);
@@ -126,7 +127,8 @@ public final class AxisEngineInstrumentation
         if (null != span && DECORATE.sameTrace(span, message)) {
           // record continuation in the message so we can re-activate it on resume
           // we use the self-managed area of the message which is private/internal
-          message.setSelfManagedData(Tracer.class, AXIS2_CONTINUATION_KEY, captureSpan(span));
+          message.setSelfManagedData(
+              Tracer.class, AXIS2_CONTINUATION_KEY, span.captureWithContext());
         }
       }
     }

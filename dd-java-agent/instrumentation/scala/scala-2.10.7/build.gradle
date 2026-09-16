@@ -1,3 +1,9 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
+  id 'dd-trace-java.call-site-instrumentation'
+}
+
 muzzle {
   pass {
     group = 'org.scala-lang'
@@ -6,10 +12,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala'
-apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 dependencies {
   // First 2.10 version that accepts target 1.8

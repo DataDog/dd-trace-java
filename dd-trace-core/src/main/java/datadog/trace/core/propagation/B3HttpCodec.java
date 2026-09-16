@@ -282,7 +282,7 @@ class B3HttpCodec {
         if (LOG_EXTRACT_HEADER_NAMES) {
           log.debug("Header: {}", key);
         }
-        if (B3_KEY.equals(key)) {
+        if (B3_KEY.equalsIgnoreCase(key)) {
           return extractB3(firstHeaderValue(value));
         } else {
           char first = Character.toLowerCase(key.charAt(0));

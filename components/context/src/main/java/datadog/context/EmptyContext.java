@@ -3,12 +3,12 @@ package datadog.context;
 import static java.util.Objects.requireNonNull;
 
 import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
 
 /** {@link Context} containing no values. */
-@ParametersAreNonnullByDefault
-final class EmptyContext implements Context {
+final class EmptyContext implements SelfScopedContext {
   static final Context INSTANCE = new EmptyContext();
+
+  private EmptyContext() {}
 
   @Override
   @Nullable

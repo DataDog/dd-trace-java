@@ -22,6 +22,7 @@ import graphql.language.Value;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
+import javax.annotation.Nonnull;
 
 public class GraphQLDecorator extends BaseDecorator {
   public static final GraphQLDecorator DECORATE = new GraphQLDecorator();
@@ -54,12 +55,12 @@ public class GraphQLDecorator extends BaseDecorator {
   }
 
   @Override
-  public AgentSpan afterStart(final AgentSpan span) {
+  protected void doAfterStart(@Nonnull final AgentSpan span) {
     span.setMeasured(true);
-    return super.afterStart(span);
+    super.doAfterStart(span);
   }
 
-  public AgentSpan onRequest(final AgentSpan span, final ExecutionContext context) {
+  public void onRequest(final AgentSpan span, final ExecutionContext context) {
 
     if (ActiveSubsystems.APPSEC_ACTIVE) {
 
@@ -88,13 +89,13 @@ public class GraphQLDecorator extends BaseDecorator {
       CallbackProvider cbp = tracer().getCallbackProvider(RequestContextSlot.APPSEC);
       RequestContext ctx = span.getRequestContext();
       if (cbp == null || resolversArgs.isEmpty() || ctx == null) {
-        return null;
+        return;
       }
 
       BiFunction<RequestContext, Map<String, ?>, Flow<Void>> graphqlResolverCallback =
           cbp.getCallback(EVENTS.graphqlServerRequestMessage());
       if (graphqlResolverCallback == null) {
-        return null;
+        return;
       }
 
       Flow<Void> flow = graphqlResolverCallback.apply(ctx, resolversArgs);
@@ -103,7 +104,5 @@ public class GraphQLDecorator extends BaseDecorator {
         // span.setRequestBlockingAction((Flow.Action.RequestBlockingAction) flow.getAction());
       }
     }
-
-    return span;
   }
 }

@@ -7,10 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import io.lettuce.core.protocol.AsyncCommand;
 import io.lettuce.core.protocol.RedisCommand;
@@ -54,7 +54,7 @@ public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTra
   public static class Decode {
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.Argument(2) RedisCommand command) {
+    public static ContextScope before(@Advice.Argument(2) RedisCommand command) {
       // if it's something we're tracing, it will always be an AsyncCommand
       if (command instanceof AsyncCommand) {
         return startTaskScope(
@@ -63,8 +63,8 @@ public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTra
       return null;
     }
 
-    @Advice.OnMethodExit
-    public static void after(@Advice.Enter AgentScope scope) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class)
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

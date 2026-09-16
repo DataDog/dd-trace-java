@@ -15,7 +15,7 @@ public class PayloadSizeAdvice {
    */
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static void onEnter(@Advice.Argument(value = 0) int estimatedPayloadSize) {
-    StatsPoint saved = activeSpan().context().getPathwayContext().getSavedStats();
+    StatsPoint saved = activeSpan().spanContext().getPathwayContext().getSavedStats();
     if (saved != null) {
       // create new stats including the payload size
       StatsPoint updated =

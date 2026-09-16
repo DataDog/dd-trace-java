@@ -8,6 +8,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameEnd
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
+import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.DataStreamsTags.createWithExchange;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -207,8 +208,10 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       AgentSpan span = activeSpan();
       if (span == null) return;
       Config config = Config.get();
+      final boolean isDefaultExchange = exchange == null || exchange.isEmpty();
+      final String destination = isDefaultExchange ? routingKey : exchange;
       if (!config.isRabbitPropagationEnabled()
-          || config.isRabbitPropagationDisabledForDestination(exchange)) return;
+          || config.isRabbitPropagationDisabledForDestination(destination)) return;
       // This is the internal behavior when props are null.  We're just doing it earlier now.
       if (props == null) {
         props = MessageProperties.MINIMAL_BASIC;
@@ -219,9 +222,13 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
       if (TIME_IN_QUEUE_ENABLED) {
         RabbitDecorator.injectTimeInQueueStart(headers);
       }
-      DataStreamsTags tags =
-          createWithExchange(
-              "rabbitmq", OUTBOUND, exchange, routingKey != null && !routingKey.isEmpty());
+      final boolean hasRoutingKey = routingKey != null && !routingKey.isEmpty();
+      DataStreamsTags tags;
+      if (isDefaultExchange && hasRoutingKey) {
+        tags = create("rabbitmq", OUTBOUND, routingKey);
+      } else {
+        tags = createWithExchange("rabbitmq", OUTBOUND, exchange, hasRoutingKey);
+      }
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       defaultPropagator().inject(span.with(dsmContext), headers, SETTER);
       props =

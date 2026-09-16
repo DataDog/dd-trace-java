@@ -5,10 +5,10 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
-import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -41,14 +41,11 @@ public class BlockingPublisherInstrumentation
   public static class BlockingAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope before(@Advice.This final Publisher self) {
-      final Context context = InstrumentationContext.get(Publisher.class, Context.class).get(self);
-      if (context == null) {
-        return null;
-      }
-      return context.attach();
+      return ReactorContextBridge.activateForBlocking(
+          self, InstrumentationContext.get(Publisher.class, HandoffContext.class));
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(@Advice.Enter final ContextScope scope) {
       if (scope != null) {
         scope.close();

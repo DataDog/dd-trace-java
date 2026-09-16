@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.junit5;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
+import datadog.trace.instrumentation.junit5.execution.RetryDescriptorFactories;
 import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -43,6 +44,8 @@ public class SpockUtils {
         SpockUtils::toTestIdentifier,
         SpockUtils::toTestSourceData,
         SpockUtils::shouldBeTraced);
+    RetryDescriptorFactories.register(
+        JUnitPlatformUtils.ENGINE_ID_SPOCK, new SpockRetryDescriptorFactory());
   }
 
   /*

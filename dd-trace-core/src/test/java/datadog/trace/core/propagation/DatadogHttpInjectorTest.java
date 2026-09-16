@@ -17,48 +17,32 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
-import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.common.writer.ListWriter;
-import datadog.trace.core.CoreTracer;
-import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.test.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
-  private HttpCodec.Injector injector;
-  private CoreTracer tracer;
+class DatadogHttpInjectorTest extends AbstractHttpInjectorTest {
 
-  @BeforeEach
-  void setup() {
-    this.injector =
-        DatadogHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
-
-    ListWriter writer = new ListWriter();
-    this.tracer = tracerBuilder().writer(writer).build();
-  }
-
-  @AfterEach
-  void tearDown() {
-    this.tracer.close();
+  @Override
+  protected HttpCodec.Injector newInjector() {
+    return DatadogHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
   }
 
   @TableTest({
-    "scenario          | traceId                | spanId                 | samplingPriority              | origin  ",
-    "unset no origin   | '1'                    | '2'                    | PrioritySampling.UNSET        |         ",
-    "keep with origin  | '1'                    | '2'                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "uint64 max unset  | '18446744073709551615' | '18446744073709551614' | PrioritySampling.UNSET        | 'saipan'",
-    "uint64 max-1 keep | '18446744073709551614' | '18446744073709551615' | PrioritySampling.SAMPLER_KEEP |         "
+    "scenario          | traceId | spanId  | samplingPriority | origin  ",
+    "unset no origin   | '1'     | '2'     | UNSET            |         ",
+    "keep with origin  | '1'     | '2'     | SAMPLER_KEEP     | 'saipan'",
+    "uint64 max unset  | 'MAX'   | 'MAX-1' | UNSET            | 'saipan'",
+    "uint64 max-1 keep | 'MAX-1' | 'MAX'   | SAMPLER_KEEP     |         "
   })
   void injectHttpHeaders(
-      String traceId,
-      String spanId,
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin) {
     Map<String, String> baggage = new HashMap<>();
@@ -195,25 +179,7 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
         ddPTags == null
             ? PropagationTags.factory().empty()
             : PropagationTags.factory().fromHeaderValue(DATADOG, ddPTags);
-    return new DDSpanContext(
-        traceId,
-        DDSpanId.from(spanId),
-        DDSpanId.ZERO,
-        null,
-        "fakeService",
-        "fakeOperation",
-        "fakeResource",
-        samplingPriority,
-        origin,
-        baggage,
-        false,
-        "fakeType",
-        0,
-        this.tracer.createTraceCollector(DDTraceId.ONE),
-        null,
-        null,
-        NoopPathwayContext.INSTANCE,
-        false,
-        propagationTags);
+    return mockSpanContext(
+        traceId, DDSpanId.from(spanId), samplingPriority, origin, baggage, propagationTags);
   }
 }

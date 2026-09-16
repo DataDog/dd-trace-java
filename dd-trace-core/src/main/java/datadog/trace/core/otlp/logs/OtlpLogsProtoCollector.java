@@ -35,14 +35,13 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
 
   public static final OtlpLogsProtoCollector INSTANCE = new OtlpLogsProtoCollector();
 
-  private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
-
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
   private int scopedBytes;
+  private int logRecordCount;
 
   private OtelInstrumentationScope currentScope;
 
@@ -70,6 +69,7 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
 
   /** Prepare temporary elements to collect logs data. */
   private void start() {
+    logRecordCount = 0;
 
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
@@ -87,6 +87,11 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
   }
 
   @Override
+  public int getLogRecordCount() {
+    return logRecordCount;
+  }
+
+  @Override
   public OtlpScopedLogsVisitor visitScopedLogs(OtelInstrumentationScope scope) {
     if (currentScope != null) {
       completeScope();
@@ -98,6 +103,7 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
   @Override
   public void visitLogRecord(OtlpLogRecord logRecord) {
     scopedBytes += recordLogRecordMessage(buf, logRecord, protobuf);
+    logRecordCount++;
   }
 
   @Override

@@ -1,7 +1,9 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-public interface AgentTraceCollector {
-  void registerContinuation(AgentScope.Continuation continuation);
+import datadog.context.ContextContinuation;
 
-  void removeContinuation(AgentScope.Continuation continuation);
+public interface AgentTraceCollector {
+  void registerContinuation(ContextContinuation continuation);
+
+  void removeContinuation(ContextContinuation continuation);
 }

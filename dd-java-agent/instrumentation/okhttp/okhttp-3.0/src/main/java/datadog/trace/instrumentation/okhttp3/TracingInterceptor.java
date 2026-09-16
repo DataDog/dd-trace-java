@@ -7,7 +7,7 @@ import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.DECORA
 import static datadog.trace.instrumentation.okhttp3.OkHttpClientDecorator.OKHTTP_REQUEST;
 import static datadog.trace.instrumentation.okhttp3.RequestBuilderInjectAdapter.SETTER;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 import okhttp3.Interceptor;
@@ -23,7 +23,7 @@ public class TracingInterceptor implements Interceptor {
 
     final AgentSpan span = startSpan("okhttp", OKHTTP_REQUEST);
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, chain.request());
 

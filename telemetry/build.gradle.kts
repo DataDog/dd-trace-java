@@ -1,9 +1,8 @@
 plugins {
-  id("me.champeau.jmh")
+  id("dd-trace-java.jmh-conventions")
   id("java-library")
+  id("dd-trace-java.module.internal-library")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 val minimumBranchCoverage by extra(0.6)
 val minimumInstructionCoverage by extra(0.8)
@@ -18,17 +17,18 @@ val excludedClassesCoverage by extra(
     "datadog.telemetry.RequestBuilderSupplier",
     "datadog.telemetry.TelemetrySystem",
     "datadog.telemetry.api.*",
-    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction"
+    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction",
+    "datadog.telemetry.metric.OtelSpiMetricPeriodicAction",
+    "datadog.telemetry.metric.OtlpTelemetryPeriodicAction",
+    "datadog.telemetry.metric.DebuggerMetricPeriodicAction",
   )
 )
-val excludedClassesBranchCoverage by extra(
-  listOf(
-    "datadog.telemetry.PolymorphicAdapterFactory.1",
-    "datadog.telemetry.HostInfo",
-    "datadog.telemetry.HostInfo.Os"
-  )
+extra["excludedClassesBranchCoverage"] = listOf(
+  "datadog.telemetry.PolymorphicAdapterFactory.1",
+  "datadog.telemetry.HostInfo",
+  "datadog.telemetry.HostInfo.Os"
 )
-val excludedClassesInstructionCoverage by extra(emptyList<String>())
+extra["excludedClassesInstructionCoverage"] = emptyList<String>()
 
 dependencies {
   implementation(libs.slf4j)
@@ -45,10 +45,11 @@ dependencies {
   compileOnly(project(":utils:container-utils"))
   testImplementation(project(":utils:container-utils"))
 
-  api(libs.okhttp)
+  api(libs.datadog.okhttp)
   api(libs.moshi)
 
   testImplementation(project(":utils:test-utils"))
+  testImplementation(libs.bundles.mockito)
   testImplementation(group = "org.jboss", name = "jboss-vfs", version = "3.2.16.Final")
 }
 

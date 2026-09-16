@@ -4,6 +4,8 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_LOGS_EXPORT
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.telemetry.OtlpTelemetry;
+import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
@@ -23,7 +25,7 @@ public final class OtlpLogsService {
 
   private volatile Thread exporterThread;
 
-  private OtlpLogsService(Config config) {
+  OtlpLogsService(Config config) {
     intervalMillis = config.getLogsOtelInterval();
     switch (config.getOtlpLogsProtocol()) {
       case GRPC:
@@ -46,11 +48,29 @@ public final class OtlpLogsService {
                 config.getOtlpLogsTimeout(),
                 config.getOtlpLogsCompression());
         break;
+      case HTTP_JSON:
+        this.collector = OtlpLogsJsonCollector.INSTANCE;
+        this.sender =
+            new OtlpHttpSender(
+                config.getOtlpLogsEndpoint(),
+                "/v1/logs",
+                config.getOtlpLogsHeaders(),
+                config.getOtlpLogsTimeout(),
+                config.getOtlpLogsCompression());
+        break;
       default:
         LOGGER.debug("Unsupported OTLP logs protocol: {}", config.getOtlpLogsProtocol());
         this.collector = null;
         this.sender = null;
     }
+  }
+
+  OtlpSender getSender() {
+    return sender;
+  }
+
+  OtlpLogsCollector getCollector() {
+    return collector;
   }
 
   public void start() {
@@ -90,7 +110,11 @@ public final class OtlpLogsService {
       try {
         OtlpPayload payload = collector.waitForLogs(intervalMillis);
         if (payload != OtlpPayload.EMPTY) {
-          sender.send(payload);
+          int logRecordCount = collector.getLogRecordCount();
+          RemoteApi.Response response = sender.send(payload);
+          if (response.success()) {
+            OtlpTelemetry.getInstance().onLogRecordsSubmitted(logRecordCount);
+          }
         }
       } catch (RuntimeException e) {
         LOGGER.debug("Uncaught exception exporting logs", e);

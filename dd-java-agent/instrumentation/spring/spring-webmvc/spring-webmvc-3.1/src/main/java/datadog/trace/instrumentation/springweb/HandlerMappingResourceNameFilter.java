@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.springweb;
 
 import static datadog.context.Context.root;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DECORATE;
 
@@ -26,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMappi
 public class HandlerMappingResourceNameFilter extends OncePerRequestFilter implements Ordered {
 
   private static final Logger log = LoggerFactory.getLogger(HandlerMappingResourceNameFilter.class);
+
   private final List<HandlerMapping> handlerMappings = new CopyOnWriteArrayList<>();
 
   @Override
@@ -38,7 +38,7 @@ public class HandlerMappingResourceNameFilter extends OncePerRequestFilter imple
     final Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextObj instanceof Context) {
       Context context = (Context) contextObj;
-      AgentSpan parentSpan = spanFromContext(context);
+      AgentSpan parentSpan = AgentSpan.fromContext(context);
       if (parentSpan != null) {
         PathMatchingHttpServletRequestWrapper wrappedRequest =
             new PathMatchingHttpServletRequestWrapper(request);

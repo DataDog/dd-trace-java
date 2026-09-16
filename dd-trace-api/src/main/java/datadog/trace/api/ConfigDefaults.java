@@ -48,6 +48,9 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
   static final String DEFAULT_SITE = "datadoghq.com";
+  static final String DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE = "agentless";
+  static final int DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_POLL_INTERVAL_SECONDS = 30;
+  static final int DEFAULT_FEATURE_FLAGGING_CONFIGURATION_SOURCE_REQUEST_TIMEOUT_SECONDS = 5;
 
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
@@ -57,6 +60,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_RUNTIME_CONTEXT_FIELD_INJECTION = true;
   static final boolean DEFAULT_SERIALVERSIONUID_FIELD_INJECTION = true;
+  static final boolean DEFAULT_RUNTIME_CONTEXT_MAP_PER_STORE = true;
 
   static final boolean DEFAULT_EXPERIMENTATAL_JEE_SPLIT_BY_DEPLOYMENT = false;
   static final boolean DEFAULT_PRIORITY_SAMPLING_ENABLED = true;
@@ -70,6 +74,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_INSTANCE_TYPE_SUFFIX = false;
   static final boolean DEFAULT_DB_CLIENT_HOST_SPLIT_BY_HOST = false;
   static final String DEFAULT_DB_DBM_PROPAGATION_MODE_MODE = "disabled";
+  static final boolean DEFAULT_DB_DBM_PROPAGATION_ORACLE_ACTION_ONLY_ENABLED = false;
   static final boolean DEFAULT_DB_DBM_TRACE_PREPARED_STATEMENTS = false;
   static final boolean DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT = false;
   // Default value is set to 0, it disables the latency trace interceptor
@@ -82,6 +87,7 @@ public final class ConfigDefaults {
       new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT, BAGGAGE));
   static final Set<PropagationStyle> DEFAULT_PROPAGATION_STYLE =
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
+  public static final boolean DEFAULT_PROPAGATION_B3_PADDING_ENABLED = true;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
   static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
@@ -93,6 +99,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
   static final int DEFAULT_CLOCK_SYNC_PERIOD = 30; // seconds
+
+  static final boolean DEFAULT_TRACE_LAMBDA_SNAPSTART_CLOCK_RESYNC_ENABLED = false;
 
   static final TracePropagationBehaviorExtract DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT =
       TracePropagationBehaviorExtract.CONTINUE;
@@ -113,6 +121,8 @@ public final class ConfigDefaults {
   // Default recommended by Datadog; it differs from Otel’s  default of 30000 (30s)
   static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
   static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
+
+  static final int DEFAULT_TRACE_STATS_INTERVAL = 10_000; // ms
 
   public static final boolean DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED = true;
 
@@ -139,7 +149,7 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_APP_LOGS_COLLECTION_ENABLED = false;
 
   static final String DEFAULT_APPSEC_ENABLED = "inactive";
-  static final boolean DEFAULT_APPSEC_REPORTING_INBAND = false;
+  static final String DEFAULT_APPSEC_AGENTIC_ONBOARDING = "";
   static final int DEFAULT_APPSEC_TRACE_RATE_LIMIT = 100;
   static final boolean DEFAULT_APPSEC_WAF_METRICS = true;
   static final int DEFAULT_APPSEC_WAF_TIMEOUT = 100000; // 0.1 s
@@ -157,6 +167,7 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT = 10_000_000;
   static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES = 4096;
   static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT = 25;
+  static final int DEFAULT_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES = 1_000;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;
@@ -167,9 +178,9 @@ public final class ConfigDefaults {
   static final String DEFAULT_IAST_WEAK_CIPHER_ALGORITHMS =
       "^(?:PBEWITH(?:HMACSHA(?:2(?:24ANDAES_(?:128|256)|56ANDAES_(?:128|256))|384ANDAES_(?:128|256)|512ANDAES_(?:128|256)|1ANDAES_(?:128|256))|SHA1AND(?:RC(?:2_(?:128|40)|4_(?:128|40))|DESEDE)|MD5AND(?:TRIPLEDES|DES))|DES(?:EDE(?:WRAP)?)?|BLOWFISH|ARCFOUR|RC2).*$";
   static final boolean DEFAULT_IAST_REDACTION_ENABLED = true;
-  static final String DEFAULT_IAST_REDACTION_NAME_PATTERN =
+  public static final String DEFAULT_IAST_REDACTION_NAME_PATTERN =
       "(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)";
-  static final String DEFAULT_IAST_REDACTION_VALUE_PATTERN =
+  public static final String DEFAULT_IAST_REDACTION_VALUE_PATTERN =
       "(?:bearer\\s+[a-z0-9\\._\\-]+|glpat-[\\w\\-]{20}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L][\\w=\\-]+\\.ey[I-L][\\w=\\-]+(?:\\.[\\w.+/=\\-]+)?|(?:[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}[^\\-]+[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY[\\-]{5}|ssh-rsa\\s*[a-z0-9/\\.+]{100,}))";
   public static final int DEFAULT_IAST_MAX_RANGE_COUNT = 10;
   static final boolean DEFAULT_IAST_STACKTRACE_LEAK_SUPPRESS = false;
@@ -185,6 +196,7 @@ public final class ConfigDefaults {
 
   static final boolean DEFAULT_LLM_OBS_ENABLED = false;
   static final boolean DEFAULT_LLM_OBS_AGENTLESS_ENABLED = false;
+  static final double DEFAULT_LLM_OBS_SAMPLE_RATE = 1.0;
 
   static final boolean DEFAULT_USM_ENABLED = false;
 
@@ -194,8 +206,9 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_CIVISIBILITY_BUILD_INSTRUMENTATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_AUTO_CONFIGURATION_ENABLED = true;
   static final boolean DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_AUTO_CONFIGURATION_ENABLED = true;
+  static final boolean DEFAULT_CIVISIBILITY_GRADLE_DEPENDENCY_VERIFICATION_ENABLED = false;
   static final String DEFAULT_CIVISIBILITY_COMPILER_PLUGIN_VERSION = "0.2.4";
-  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.14";
+  static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_VERSION = "0.8.15";
   static final String DEFAULT_CIVISIBILITY_JACOCO_PLUGIN_EXCLUDES =
       "datadog.trace.*:org.apache.commons.*:org.mockito.*";
   static final boolean DEFAULT_CIVISIBILITY_GIT_UPLOAD_ENABLED = true;
@@ -228,7 +241,9 @@ public final class ConfigDefaults {
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_UPLOAD_BATCH_SIZE = 100;
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_MAX_PAYLOAD_SIZE = 1024; // KiB
   static final boolean DEFAULT_DYNAMIC_INSTRUMENTATION_VERIFY_BYTECODE = true;
+  static final String DEFAULT_DYNAMIC_INSTRUMENTATION_TIMEOUT_CHECKER_MODE = "WALL";
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT = 100; // milliseconds
+  static final int DEFAULT_DYNAMIC_INSTRUMENTATION_EVAL_TIMEOUT = 50; // milliseconds
   static final int DEFAULT_DYNAMIC_INSTRUMENTATION_LOCALVAR_HOISTING_LEVEL = 1;
   static final boolean DEFAULT_SYMBOL_DATABASE_ENABLED = true;
   static final boolean DEFAULT_SYMBOL_DATABASE_FORCE_UPLOAD = false;
@@ -291,7 +306,11 @@ public final class ConfigDefaults {
 
   static final Set<String> DEFAULT_TRACE_EXPERIMENTAL_FEATURES_ENABLED =
       new HashSet<>(
-          asList("DD_TAGS", "DD_LOGS_INJECTION", "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED"));
+          asList(
+              "DD_TAGS",
+              "DD_LOGS_INJECTION",
+              "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED",
+              "DD_TRACE_STATS_ADDITIONAL_TAGS"));
 
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED = true;
   static final boolean DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED = true;

@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.java.lang.jdk21;
 
-import static datadog.context.Context.current;
-import static datadog.context.Context.root;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadHelper.VIRTUAL_THREAD_CLASS_NAME;
 import static datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadHelper.VIRTUAL_THREAD_STATE_CLASS_NAME;
@@ -15,13 +14,13 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadState;
 import java.util.Collection;
@@ -32,14 +31,14 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 
 /**
  * Instruments {@code VirtualThread} to propagate the context across mount/unmount cycles using
- * {@link Context#swap()}, and {@link Continuation} to prevent context scope to complete before the
- * thread finishes.
+ * {@link Context#swap()}, and {@link ContextContinuation} to prevent context scope to complete
+ * before the thread finishes.
  *
  * <p>The lifecycle is as follows:
  *
  * <ol>
- *   <li>{@code init()}: captures the current {@link Context} and an {@link Continuation} to prevent
- *       the enclosing context scope from completing early.
+ *   <li>{@code init()}: captures the current {@link Context} and an {@link ContextContinuation} to
+ *       prevent the enclosing context scope from completing early.
  *   <li>{@code mount()}: swaps the virtual thread's saved context into the carrier thread, saving
  *       the carrier thread's context.
  *   <li>{@code unmount()}: swaps the carrier thread's original context back, saving the virtual
@@ -119,11 +118,11 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   public static final class Construct {
     @OnMethodExit(suppress = Throwable.class)
     public static void afterInit(@Advice.This Object virtualThread) {
-      Context context = current();
-      if (context == root()) {
+      Context context = currentContext();
+      if (context == rootContext()) {
         return; // No active context to propagate, avoid creating state
       }
-      VirtualThreadState state = new VirtualThreadState(context, captureActiveSpan());
+      VirtualThreadState state = new VirtualThreadState(context, context.capture());
       ContextStore<Object, Object> store =
           InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
       store.put(virtualThread, state);

@@ -15,20 +15,4 @@ public interface AgentScope extends ContextScope, TraceScope, Closeable {
 
   @Override
   void close();
-
-  interface Continuation extends TraceScope.Continuation {
-    @Override
-    Continuation hold();
-
-    @Override
-    AgentScope activate();
-
-    /** Provide access to the captured span */
-    AgentSpan span();
-
-    /** Provide access to the captured context */
-    default Context context() {
-      return span();
-    }
-  }
 }

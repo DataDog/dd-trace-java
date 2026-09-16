@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.springmessaging;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
@@ -8,6 +9,7 @@ import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -38,7 +40,8 @@ public class KotlinAwareHandlerInstrumentation extends InstrumenterModule.Tracin
 
   @Override
   public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.reactivestreams.Publisher", Context.class.getName());
+    return Collections.singletonMap(
+        "org.reactivestreams.Publisher", HandoffContext.class.getName());
   }
 
   @Override
@@ -58,8 +61,8 @@ public class KotlinAwareHandlerInstrumentation extends InstrumenterModule.Tracin
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return Object result) {
       if (result instanceof Publisher) {
-        InstrumentationContext.get(Publisher.class, Context.class)
-            .put((Publisher<?>) result, Context.current());
+        InstrumentationContext.get(Publisher.class, HandoffContext.class)
+            .put((Publisher<?>) result, HandoffContext.anyThread(currentContext()));
       }
     }
   }

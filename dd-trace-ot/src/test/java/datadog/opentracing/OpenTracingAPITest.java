@@ -21,7 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.context.TraceScope;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -304,7 +304,7 @@ class OpenTracingAPITest extends DDJavaSpecification {
     assertEquals(testSpan.context().toSpanId(), tracer.getSpanId());
     assertEquals(
         testSpan.context().toTraceId(),
-        tracer.getInternalTracer().activeSpan().context().getTraceId().toString());
+        tracer.getInternalTracer().activeSpan().spanContext().getTraceId().toString());
 
     scope.close();
     testSpan.finish();
@@ -442,7 +442,7 @@ class OpenTracingAPITest extends DDJavaSpecification {
     assertEquals("someService", serverSpanDD.getServiceName());
     assertEquals("serverOperation", serverSpanDD.getOperationName().toString());
     assertEquals("serverOperation", serverSpanDD.getResourceName().toString());
-    assertEquals(clientSpan.context().getSpanId(), serverSpanDD.getParentId());
+    assertEquals(clientSpan.spanContext().getSpanId(), serverSpanDD.getParentId());
   }
 
   @Test

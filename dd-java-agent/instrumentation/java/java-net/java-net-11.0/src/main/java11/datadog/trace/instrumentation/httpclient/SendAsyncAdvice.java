@@ -73,11 +73,12 @@ public class SendAsyncAdvice {
     if (throwable != null) {
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
+      scope.close();
       span.finish();
 
     } else {
       future = future.whenComplete(new ResponseConsumer(span));
+      scope.close();
     }
-    scope.close();
   }
 }

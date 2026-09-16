@@ -1,13 +1,16 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "com.amazonaws"
     module = "aws-java-sdk-sns"
     versions = "[1.12.113,2)"
     assertInverse = true
+    excludeDependency 'joda-time:joda-time'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')

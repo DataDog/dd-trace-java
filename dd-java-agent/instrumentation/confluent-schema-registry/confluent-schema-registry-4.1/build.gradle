@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 muzzle {
   extraRepository("confluent-releases", "https://packages.confluent.io/maven/")

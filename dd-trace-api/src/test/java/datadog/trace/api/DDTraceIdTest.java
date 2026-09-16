@@ -140,6 +140,33 @@ class DDTraceIdTest {
     assertEquals(Long.toUnsignedString(lowOrderBits), parsedId.toString());
   }
 
+  @TableTest({
+    "scenario             | hexId                                  | start | length | lowerCaseOnly | expectedHexId                   ",
+    "default bounds       | 0123456789abcdeffedcba9876543210       | 0     | 32     | true          | 0123456789abcdeffedcba9876543210",
+    "starting bounds      | 0123456789abcdeffedcba9876543210       | 0     | 16     | true          | 00000000000000000123456789abcdef",
+    "ending bounds        | 0123456789abcdeffedcba9876543210       | 16    | 16     | true          | 0000000000000000fedcba9876543210",
+    "middle bounds        | 0123456789abcdeffedcba9876543210       | 8     | 4      | true          | 000000000000000000000000000089ab",
+    "with padding         | ---0123456789abcdeffedcba9876543210--- | 3     | 32     | true          | 0123456789abcdeffedcba9876543210",
+    "upper case           | 0123456789ABCDEFFEDCBA9876543210       | 0     | 32     | false         | 0123456789abcdeffedcba9876543210",
+    "mixed case           | 0123456789ABCDEFfedcba9876543210       | 0     | 32     | false         | 0123456789abcdeffedcba9876543210",
+    "negative position    | 0123456789abcdeffedcba9876543210       | -1    | 32     | false         |                                 ",
+    "negative length      | 0123456789abcdeffedcba9876543210       | 0     | -1     | false         |                                 ",
+    "invalid length       | 0123456789abcdeffedcba9876543210       | 0     | 33     | false         |                                 ",
+    "invalid ending bound | 0123456789abcdeffedcba9876543210       | 1     | 32     | false         |                                 ",
+    "invalid case         | 0123456789ABCDEFFEDCBA9876543210       | 0     | 32     | true          |                                 "
+  })
+  void converting128BitIdsFromHexadecimalStringRepresentation(
+      String hexId, int start, int length, boolean lowerCaseOnly, String expectedHexId) {
+    if (expectedHexId == null) {
+      assertThrows(
+          NumberFormatException.class,
+          () -> DD128bTraceId.fromHex(hexId, start, length, lowerCaseOnly));
+      return;
+    }
+    DD128bTraceId parsedId = DD128bTraceId.fromHex(hexId, start, length, lowerCaseOnly);
+    assertEquals(expectedHexId, parsedId.toHexString());
+  }
+
   @ParameterizedTest(
       name = "fail parsing illegal 128-bit id hexadecimal String representation [{index}]")
   @NullSource
@@ -185,14 +212,12 @@ class DDTraceIdTest {
     if (value.length() >= size) {
       return value;
     }
-    return repeat("0", size - value.length()) + value;
-  }
-
-  private static String repeat(String value, int count) {
-    StringBuilder builder = new StringBuilder(value.length() * count);
+    StringBuilder builder = new StringBuilder(size);
+    int count = size - value.length();
     for (int index = 0; index < count; index++) {
-      builder.append(value);
+      builder.append('0');
     }
+    builder.append(value);
     return builder.toString();
   }
 }

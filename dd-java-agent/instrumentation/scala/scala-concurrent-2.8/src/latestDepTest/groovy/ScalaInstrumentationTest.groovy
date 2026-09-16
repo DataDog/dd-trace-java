@@ -19,10 +19,10 @@ class ScalaInstrumentationTest extends InstrumentationSpecification {
     expect:
     trace.size() == expectedNumberOfSpans
     trace[0].resourceName.toString() == "ScalaConcurrentTests.traceWithFutureAndCallbacks"
-    findSpan(trace, "goodFuture").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "badFuture").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "good complete").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "bad complete").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "goodFuture").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "badFuture").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "good complete").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "bad complete").spanContext().getParentId() == trace[0].spanContext().getSpanId()
   }
 
   def "scala propagates across futures with no traces"() {
@@ -35,7 +35,7 @@ class ScalaInstrumentationTest extends InstrumentationSpecification {
     expect:
     trace.size() == expectedNumberOfSpans
     trace[0].resourceName.toString() == "ScalaConcurrentTests.tracedAcrossThreadsWithNoTrace"
-    findSpan(trace, "callback").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "callback").spanContext().getParentId() == trace[0].spanContext().getSpanId()
   }
 
   def "scala either promise completion"() {
@@ -49,9 +49,9 @@ class ScalaInstrumentationTest extends InstrumentationSpecification {
     TEST_WRITER.size() == 1
     trace.size() == expectedNumberOfSpans
     trace[0].resourceName.toString() == "ScalaConcurrentTests.traceWithPromises"
-    findSpan(trace, "keptPromise").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "keptPromise2").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "brokenPromise").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "keptPromise").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "keptPromise2").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "brokenPromise").spanContext().getParentId() == trace[0].spanContext().getSpanId()
   }
 
   def "scala first completed future"() {
@@ -64,9 +64,9 @@ class ScalaInstrumentationTest extends InstrumentationSpecification {
     expect:
     TEST_WRITER.size() == 1
     trace.size() == expectedNumberOfSpans
-    findSpan(trace, "timeout1").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "timeout2").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "timeout3").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "timeout1").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "timeout2").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "timeout3").spanContext().getParentId() == trace[0].spanContext().getSpanId()
   }
 
   private DDSpan findSpan(List<DDSpan> trace, String opName) {

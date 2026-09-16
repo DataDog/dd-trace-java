@@ -4,6 +4,7 @@ import datadog.trace.api.iast.propagation.CodecModule;
 import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.propagation.StringModule;
 import datadog.trace.api.iast.sink.ApplicationModule;
+import datadog.trace.api.iast.sink.CodeInjectionModule;
 import datadog.trace.api.iast.sink.CommandInjectionModule;
 import datadog.trace.api.iast.sink.EmailInjectionModule;
 import datadog.trace.api.iast.sink.HardcodedSecretModule;
@@ -70,6 +71,7 @@ public abstract class InstrumentationBridge {
   public static ReflectionInjectionModule REFLECTION_INJECTION;
   public static UntrustedDeserializationModule UNTRUSTED_DESERIALIZATION;
   public static EmailInjectionModule EMAIL_INJECTION;
+  public static CodeInjectionModule CODE_INJECTION;
 
   private static final Map<Class<? extends IastModule>, Field> MODULE_MAP = buildModuleMap();
 

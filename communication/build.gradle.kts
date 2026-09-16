@@ -1,10 +1,9 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-library")
 }
 
 description = "communication"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
   implementation(libs.slf4j)
@@ -17,8 +16,8 @@ dependencies {
   implementation(project(":utils:socket-utils"))
   implementation(project(":utils:version-utils"))
 
-  api(libs.okio)
-  api(libs.okhttp)
+  api(libs.datadog.okio)
+  api(libs.datadog.okhttp)
   api(libs.moshi)
   // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
   // TODO Could help decoupling it later to only depend on metrics-api
@@ -29,55 +28,51 @@ dependencies {
   testImplementation(libs.bytebuddy)
   testImplementation("org.msgpack:msgpack-core:0.8.20")
   testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
-  testImplementation(
-    group = "com.squareup.okhttp3",
-    name = "mockwebserver",
-    version = libs.versions.okhttp.legacy.get() // actually a version range
-  )
+  testImplementation(libs.okhttp3.mockwebserver)
 }
 
-val minimumBranchCoverage by extra(0.5)
-val minimumInstructionCoverage by extra(0.8)
-val excludedClassesCoverage by extra(
-  listOf(
-    "datadog.communication.ddagent.ExternalAgentLauncher",
-    "datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck",
-    "datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier",
-    "datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier",
-    "datadog.communication.http.OkHttpUtils",
-    "datadog.communication.http.OkHttpUtils.1",
-    "datadog.communication.http.OkHttpUtils.ByteBufferRequestBody",
-    "datadog.communication.http.OkHttpUtils.CustomListener",
-    "datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody",
-    "datadog.communication.http.OkHttpUtils.GZipRequestBodyDecorator",
-    "datadog.communication.http.OkHttpUtils.JsonRequestBody",
-    "datadog.communication.BackendApiFactory",
-    "datadog.communication.BackendApiFactory.Intake",
-    "datadog.communication.EvpProxyApi",
-    "datadog.communication.IntakeApi",
-    "datadog.communication.util.IOUtils",
-    "datadog.communication.util.IOUtils.1",
-  )
+extra["minimumBranchCoverage"] = 0.5
+extra["minimumInstructionCoverage"] = 0.8
+extra["excludedClassesCoverage"] = listOf(
+  "okhttp3.internal.PatchUtil",
+  "okhttp3.internal.PatchUtil.1",
+  "okhttp3.internal.PatchUtil.2",
+  "okhttp3.internal.platform.PatchPlatform",
+  "datadog.communication.ddagent.ExternalAgentLauncher",
+  "datadog.communication.ddagent.NoopFeaturesDiscovery",
+  "datadog.communication.ddagent.ExternalAgentLauncher.NamedPipeHealthCheck",
+  "datadog.communication.ddagent.SharedCommunicationObjects.FixedConfigUrlSupplier",
+  "datadog.communication.ddagent.SharedCommunicationObjects.RetryConfigUrlSupplier",
+  "datadog.communication.http.OkHttpUtils",
+  "datadog.communication.http.OkHttpUtils.1",
+  "datadog.communication.http.OkHttpUtils.ByteBufferRequestBody",
+  "datadog.communication.http.OkHttpUtils.CustomListener",
+  "datadog.communication.http.OkHttpUtils.GZipByteBufferRequestBody",
+  "datadog.communication.http.OkHttpUtils.GZipRequestBodyDecorator",
+  "datadog.communication.http.OkHttpUtils.JsonRequestBody",
+  "datadog.communication.BackendApiFactory",
+  "datadog.communication.BackendApiFactory.Intake",
+  "datadog.communication.EvpProxyApi",
+  "datadog.communication.IntakeApi",
+  "datadog.communication.util.IOUtils",
+  "datadog.communication.util.IOUtils.1",
+  "datadog.communication.http.SocketUtils",
 )
-val excludedClassesBranchCoverage by extra(
-  listOf(
-    "datadog.communication.ddagent.TracerVersion",
-    "datadog.communication.BackendApiFactory",
-    "datadog.communication.EvpProxyApi",
-    "datadog.communication.IntakeApi",
-  )
+extra["excludedClassesBranchCoverage"] = listOf(
+  "datadog.communication.ddagent.TracerVersion",
+  "datadog.communication.BackendApiFactory",
+  "datadog.communication.EvpProxyApi",
+  "datadog.communication.IntakeApi",
 )
-val excludedClassesInstructionCoverage by extra(
-  listOf(
-    // can't reach the error condition now
-    "datadog.communication.fleet.FleetServiceImpl",
-    "datadog.communication.ddagent.SharedCommunicationObjects",
-    "datadog.communication.ddagent.TracerVersion",
-    "datadog.communication.BackendApiFactory",
-    "datadog.communication.BackendApiFactory.Intake",
-    "datadog.communication.EvpProxyApi",
-    "datadog.communication.IntakeApi",
-    "datadog.communication.util.IOUtils",
-    "datadog.communication.util.IOUtils.1",
-  )
+extra["excludedClassesInstructionCoverage"] = listOf(
+  // can't reach the error condition now
+  "datadog.communication.fleet.FleetServiceImpl",
+  "datadog.communication.ddagent.SharedCommunicationObjects",
+  "datadog.communication.ddagent.TracerVersion",
+  "datadog.communication.BackendApiFactory",
+  "datadog.communication.BackendApiFactory.Intake",
+  "datadog.communication.EvpProxyApi",
+  "datadog.communication.IntakeApi",
+  "datadog.communication.util.IOUtils",
+  "datadog.communication.util.IOUtils.1",
 )

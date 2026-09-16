@@ -5,8 +5,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.DECORATE;
 import static datadog.trace.bootstrap.instrumentation.httpurlconnection.HttpUrlConnectionDecorator.HTTP_URL_CONNECTION;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.net.HttpURLConnection;
 
@@ -18,7 +18,7 @@ public class HttpUrlState {
 
   public AgentSpan start(final HttpURLConnection connection) {
     span = startSpan(HTTP_URL_CONNECTION.toString(), DECORATE.operationName());
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, connection);
       return span;
@@ -39,7 +39,7 @@ public class HttpUrlState {
 
   public void finishSpan(
       final HttpURLConnection connection, final int responseCode, final Throwable throwable) {
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       if (responseCode > 0) {
         // safe to access response data as 'responseCode' is set
         DECORATE.onResponse(span, connection);
@@ -62,7 +62,7 @@ public class HttpUrlState {
      * (e.g. breaks getOutputStream).
      */
     if (responseCode > 0) {
-      try (final AgentScope scope = activateSpan(span)) {
+      try (final ContextScope scope = activateSpan(span)) {
         // safe to access response data as 'responseCode' is set
         DECORATE.onResponse(span, connection);
         DECORATE.beforeFinish(span);

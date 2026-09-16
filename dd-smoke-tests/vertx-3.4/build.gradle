@@ -1,15 +1,14 @@
 plugins {
   id 'dd-trace-java.smoke-test-app'
+  id 'dd-trace-java.module.smoke-test'
   id 'idea'
   id 'java-test-fixtures'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
-
 description = 'Vert.x 3.4 Smoke Tests.'
 
 smokeTestApp {
-  application {
+  gradleApp {
     taskName = 'vertxBuild'
     nestedTasks = ['assemble']
     artifactPath = 'libs/vertx-3.4-1.0.0-SNAPSHOT-fat.jar'

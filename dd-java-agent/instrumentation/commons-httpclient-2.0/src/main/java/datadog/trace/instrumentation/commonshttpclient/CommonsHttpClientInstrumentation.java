@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.commonshttpclient.CommonsHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.commonshttpclient.HttpHeadersInjectAdapter.SETTER;
@@ -89,15 +89,12 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       final AgentSpan span = scope.span();
-      try {
-        DECORATE.onResponse(span, httpMethod);
-        DECORATE.onError(span, throwable);
-        DECORATE.beforeFinish(span);
-      } finally {
-        scope.close();
-        span.finish();
-        CallDepthThreadLocalMap.reset(HttpClient.class);
-      }
+      DECORATE.onResponse(span, httpMethod);
+      DECORATE.onError(span, throwable);
+      DECORATE.beforeFinish(span);
+      scope.close();
+      span.finish();
+      CallDepthThreadLocalMap.reset(HttpClient.class);
     }
   }
 
@@ -105,7 +102,7 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
   public static class ContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
-      DECORATE.injectContext(getCurrentContext(), httpMethod, SETTER);
+      DECORATE.injectContext(currentContext(), httpMethod, SETTER);
     }
   }
 }

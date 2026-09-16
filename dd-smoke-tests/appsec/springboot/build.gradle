@@ -2,9 +2,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 description = 'SpringBoot Smoke Tests.'
 
 // The standard spring-boot plugin doesn't play nice with our project
@@ -24,6 +24,9 @@ dependencies {
   // Used by AIGuardController to set user/session tags on the local root span via the active OT span
   implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+
+  // SCA reachability smoke test target: junrar 7.5.5 is vulnerable under GHSA-hf5p-q87m-crj7
+  implementation group: 'com.github.junrar', name: 'junrar', version: '7.5.5'
 
   // file upload
   implementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'

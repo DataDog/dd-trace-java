@@ -1,0 +1,107 @@
+package datadog.trace.core.otlp.common;
+
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
+import static java.util.Arrays.asList;
+
+import datadog.trace.api.Config;
+import datadog.trace.api.ProcessTags;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.BiConsumer;
+
+/** Enumerates the resource attributes shared by the proto and JSON "resource.proto" encoders. */
+final class OtlpResourceAttributes {
+  private OtlpResourceAttributes() {}
+
+  /** Prefix applied to {@code datadog.runtime_id} and process-tag resource attributes. */
+  private static final String DATADOG_PREFIX = "datadog.";
+
+  /** Marks that the Agent should not recompute trace metrics from the exported spans. */
+  private static final String STATS_COMPUTED_KEY = "_dd.stats_computed";
+
+  private static final Set<String> IGNORED_GLOBAL_TAGS =
+      new HashSet<>(
+          asList(
+              "service",
+              "env",
+              "version",
+              "service.name",
+              "deployment.environment.name",
+              "service.version",
+              "telemetry.sdk.name",
+              "telemetry.sdk.version",
+              "telemetry.sdk.language"));
+
+  /**
+   * {@code value} is a {@link String}, except {@code datadog.process_tags}: a {@code List<String>}.
+   */
+  static void visitResourceAttributes(
+      Config config, Map<String, Object> extraAttributes, BiConsumer<String, Object> visitor) {
+    String serviceName = config.getServiceName();
+    String env = config.getEnv();
+    String version = config.getVersion();
+
+    visitor.accept("service.name", serviceName);
+    if (!env.isEmpty()) {
+      visitor.accept("deployment.environment.name", env);
+    }
+    if (!version.isEmpty()) {
+      visitor.accept("service.version", version);
+    }
+    if (config.isReportHostName()) {
+      String hostName = config.getHostName();
+      if (hostName != null && !hostName.isEmpty()) {
+        visitor.accept("host.name", hostName);
+      }
+    }
+    visitor.accept("telemetry.sdk.name", "datadog");
+    visitor.accept("telemetry.sdk.version", TRACER_VERSION);
+    visitor.accept("telemetry.sdk.language", "java");
+
+    config
+        .getGlobalTags()
+        .forEach(
+            (key, value) -> {
+              // ignore global tags replaced by canonical or extra resource attributes
+              if (!IGNORED_GLOBAL_TAGS.contains(key.toLowerCase(Locale.ROOT))
+                  && !extraAttributes.containsKey(key)) {
+                visitor.accept(key, value);
+              }
+            });
+
+    extraAttributes.forEach(visitor);
+  }
+
+  private static final String PROCESS_TAGS_KEY = DATADOG_PREFIX + "process_tags";
+
+  /**
+   * Builds the extra resource attributes for the OTLP trace export: the {@code _dd.stats_computed}
+   * marker when the SDK is computing OTLP span metrics, so a downstream Agent does not recompute
+   * them from the exported spans.
+   */
+  static Map<String, Object> traceResourceAttributes(Config config) {
+    Map<String, Object> attributes = new LinkedHashMap<>();
+    if (config.isOtelTracesSpanMetricsEnabled()) {
+      attributes.put(STATS_COMPUTED_KEY, "true");
+    }
+    return attributes;
+  }
+
+  static Map<String, Object> datadogResourceAttributes(Config config) {
+    Map<String, Object> attributes = new LinkedHashMap<>();
+    String runtimeId = config.getRuntimeId();
+    if (runtimeId != null && !runtimeId.isEmpty()) {
+      attributes.put(DATADOG_PREFIX + "runtime_id", runtimeId);
+    }
+    // Mirrors SerializingMetricWriter's v0.6 ProcessTags shape; keep both in sync if that changes.
+    List<String> processTags = ProcessTags.getTagsAsStringList();
+    if (processTags != null && !processTags.isEmpty()) {
+      attributes.put(PROCESS_TAGS_KEY, processTags);
+    }
+    return attributes;
+  }
+}

@@ -9,8 +9,6 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- *
- *
  * <ul>
  *   Benchmark comparing HashingUtils.hash to Objects.hash
  *   <li>(RECOMMENDED) HashingUtils.hash - avoids var-arg creation

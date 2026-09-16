@@ -1,19 +1,22 @@
 package com.datadog.debugger.el.expressions;
 
+import static com.datadog.debugger.el.EvalContextHelper.createEvalContext;
 import static com.datadog.debugger.el.PrettyPrintVisitor.print;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.el.DSL;
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.EvaluationException;
-import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.values.StringValue;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import java.net.URI;
 import org.junit.jupiter.api.Test;
 
 class StartsWithExpressionTest {
-  private final ValueReferenceResolver resolver = RefResolverHelper.createResolver(this);
+  private final EvalContext evalContext = createEvalContext(this);
   // used to ref lookup
   URI uri = URI.create("https://www.datadoghq.com");
 
@@ -21,7 +24,7 @@ class StartsWithExpressionTest {
   void nullExpression() {
     StartsWithExpression expression = new StartsWithExpression(null, null);
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for null value", exception.getMessage());
     assertEquals("startsWith(null, null)", print(expression));
   }
@@ -31,7 +34,7 @@ class StartsWithExpressionTest {
     StartsWithExpression expression =
         new StartsWithExpression(DSL.value(Values.UNDEFINED_OBJECT), new StringValue(null));
     EvaluationException exception =
-        assertThrows(EvaluationException.class, () -> expression.evaluate(resolver));
+        assertThrows(EvaluationException.class, () -> expression.evaluate(evalContext));
     assertEquals("Cannot evaluate the expression for undefined value", exception.getMessage());
     assertEquals("startsWith(UNDEFINED, \"null\")", print(expression));
   }
@@ -40,11 +43,11 @@ class StartsWithExpressionTest {
   void stringExpression() {
     StartsWithExpression expression =
         new StartsWithExpression(DSL.value("abc"), new StringValue("ab"));
-    assertTrue(expression.evaluate(resolver));
+    assertTrue(expression.evaluate(evalContext));
     assertEquals("startsWith(\"abc\", \"ab\")", print(expression));
 
     expression = new StartsWithExpression(DSL.value("abc"), new StringValue("bc"));
-    assertFalse(expression.evaluate(resolver));
+    assertFalse(expression.evaluate(evalContext));
     assertEquals("startsWith(\"abc\", \"bc\")", print(expression));
   }
 
@@ -52,7 +55,7 @@ class StartsWithExpressionTest {
   void stringPrimitives() {
     StartsWithExpression expression =
         new StartsWithExpression(DSL.ref("uri"), new StringValue("https"));
-    assertTrue(expression.evaluate(resolver));
+    assertTrue(expression.evaluate(evalContext));
     assertEquals("startsWith(uri, \"https\")", print(expression));
   }
 }

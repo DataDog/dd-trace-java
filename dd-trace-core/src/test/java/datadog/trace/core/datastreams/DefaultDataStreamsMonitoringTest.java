@@ -5,13 +5,14 @@ import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBri
 import static datadog.trace.core.datastreams.DefaultDataStreamsMonitoringTestBridge.isInboxEmpty;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -19,13 +20,18 @@ import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.datastreams.KafkaConfigReport;
+import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.api.time.ControllableTimeSource;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.common.metrics.EventListener;
 import datadog.trace.common.metrics.Sink;
 import datadog.trace.core.DDCoreJavaSpecification;
@@ -135,42 +141,6 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
 
     // cleanup
     dataStreams.close();
-  }
-
-  @Test
-  void schemaSamplerSamplesWithCorrectWeights() {
-    DDAgentFeaturesDiscovery features = stubFeatures(true);
-    ControllableTimeSource timeSource = new ControllableTimeSource();
-    timeSource.set(1000000000000L);
-    DatastreamsPayloadWriter payloadWriter = mock(DatastreamsPayloadWriter.class);
-    Sink sink = mock(Sink.class);
-    TraceConfig traceConfig = stubTraceConfig(true);
-
-    DefaultDataStreamsMonitoring dataStreams =
-        new DefaultDataStreamsMonitoring(
-            sink,
-            features,
-            timeSource,
-            () -> traceConfig,
-            payloadWriter,
-            DEFAULT_BUCKET_DURATION_NANOS);
-
-    // the first received schema is sampled, with a weight of one.
-    assertTrue(dataStreams.canSampleSchema("schema1"));
-    assertEquals(1, dataStreams.trySampleSchema("schema1"));
-    // the sampling is done by topic, so a schema on a different topic will also be sampled at once,
-    // also with a weight of one.
-    assertTrue(dataStreams.canSampleSchema("schema2"));
-    assertEquals(1, dataStreams.trySampleSchema("schema2"));
-    // no time has passed from the last sampling, so the same schema is not sampled again (two times
-    // in a row).
-    assertFalse(dataStreams.canSampleSchema("schema1"));
-    assertFalse(dataStreams.canSampleSchema("schema1"));
-    timeSource.advance((long) (30 * 1e9));
-    // now, 30 seconds have passed, so the schema is sampled again, with a weight of 3 (so it
-    // includes the two times the schema was not sampled).
-    assertTrue(dataStreams.canSampleSchema("schema1"));
-    assertEquals(3, dataStreams.trySampleSchema("schema1"));
   }
 
   @Test
@@ -1148,6 +1118,46 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void kafkaConsumerGroupMemberIsReportedInBucket() throws InterruptedException {
+    DDAgentFeaturesDiscovery features = stubFeatures(true);
+    ControllableTimeSource timeSource = new ControllableTimeSource();
+    Sink sink = mock(Sink.class);
+    CapturingPayloadWriter payloadWriter = new CapturingPayloadWriter();
+    TraceConfig traceConfig = stubTraceConfig(true);
+
+    DefaultDataStreamsMonitoring dataStreams =
+        new DefaultDataStreamsMonitoring(
+            sink,
+            features,
+            timeSource,
+            () -> traceConfig,
+            payloadWriter,
+            DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.start();
+    dataStreams.reportKafkaConsumerGroupMember(
+        "cluster-1", "test-group", "consumer-1-abc123", 7, "range");
+    timeSource.advance(DEFAULT_BUCKET_DURATION_NANOS);
+    dataStreams.report();
+
+    awaitBuckets(dataStreams, payloadWriter, 1);
+
+    StatsBucket bucket = payloadWriter.buckets.get(0);
+    List<KafkaConfigReport> kafkaConfigs = bucket.getKafkaConfigs();
+    assertEquals(1, kafkaConfigs.size());
+    KafkaConfigReport report = kafkaConfigs.get(0);
+    assertEquals("kafka_consumer", report.getType());
+    assertEquals("cluster-1", report.getKafkaClusterId());
+    assertEquals("test-group", report.getConsumerGroup());
+    assertEquals("consumer-1-abc123", report.getMemberId());
+    assertEquals(7, report.getGenerationId());
+    assertEquals("range", report.getMemberProtocol());
+    assertTrue(report.getConfig().isEmpty());
+
+    payloadWriter.close();
+    dataStreams.close();
+  }
+
+  @Test
   void duplicateKafkaConfigsAreEachReportedInTheBucket() throws InterruptedException {
     DDAgentFeaturesDiscovery features = stubFeatures(true);
     ControllableTimeSource timeSource = new ControllableTimeSource();
@@ -1557,6 +1567,67 @@ public class DefaultDataStreamsMonitoringTest extends DDCoreJavaSpecification {
       // Stop accepting new buckets so any late submissions by the reporting thread aren't seen
       accepting = false;
     }
+  }
+
+  private DefaultDataStreamsMonitoring newDataStreamsMonitoring() {
+    return new DefaultDataStreamsMonitoring(
+        mock(Sink.class),
+        stubFeatures(true),
+        new ControllableTimeSource(),
+        () -> stubTraceConfig(true),
+        mock(DatastreamsPayloadWriter.class),
+        DEFAULT_BUCKET_DURATION_NANOS);
+  }
+
+  @Test
+  void setCheckpointTagsTheSpanWithThePathwayHash() {
+    DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
+
+    // Negative so the signed and unsigned string representations differ, proving the tag uses
+    // Long.toUnsignedString (pathway hashes are unsigned 64-bit values).
+    long hash = -1234567890123456789L;
+    PathwayContext pathwayContext = mock(PathwayContext.class);
+    when(pathwayContext.getHash()).thenReturn(hash);
+    AgentSpanContext spanContext = mock(AgentSpanContext.class);
+    when(spanContext.getPathwayContext()).thenReturn(pathwayContext);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.spanContext()).thenReturn(spanContext);
+    DataStreamsContext context = mock(DataStreamsContext.class);
+
+    dataStreams.setCheckpoint(span, context);
+
+    verify(pathwayContext).setCheckpoint(eq(context), any());
+    verify(span).setTag(DDTags.PATHWAY_HASH, Long.toUnsignedString(hash));
+  }
+
+  @Test
+  void setCheckpointDoesNotTagTheSpanWhenThePathwayHashIsZero() {
+    DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
+
+    PathwayContext pathwayContext = mock(PathwayContext.class);
+    when(pathwayContext.getHash()).thenReturn(0L);
+    AgentSpanContext spanContext = mock(AgentSpanContext.class);
+    when(spanContext.getPathwayContext()).thenReturn(pathwayContext);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.spanContext()).thenReturn(spanContext);
+
+    dataStreams.setCheckpoint(span, mock(DataStreamsContext.class));
+
+    verify(span, never()).setTag(eq(DDTags.PATHWAY_HASH), any(String.class));
+  }
+
+  @Test
+  void setCheckpointDoesNotTagTheSpanWhenThereIsNoPathwayContext() {
+    DefaultDataStreamsMonitoring dataStreams = newDataStreamsMonitoring();
+
+    AgentSpanContext spanContext = mock(AgentSpanContext.class);
+    when(spanContext.getPathwayContext()).thenReturn(null);
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.spanContext()).thenReturn(spanContext);
+
+    dataStreams.setCheckpoint(span, mock(DataStreamsContext.class));
+
+    verify(span, never()).setTag(eq(DDTags.PATHWAY_HASH), any(String.class));
   }
 
   static class CustomContextCarrier implements DataStreamsContextCarrier {

@@ -4,7 +4,7 @@ import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEX
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameStartsWith;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.playws.HeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.playws.PlayWSClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -67,7 +67,7 @@ public abstract class BasePlayWSClientInstrumentation extends InstrumenterModule
   public static class ClientContextPropagationAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void methodEnter(@Advice.Argument(0) final Request request) {
-      DECORATE.injectContext(getCurrentContext(), request, SETTER);
+      DECORATE.injectContext(currentContext(), request, SETTER);
     }
   }
 }

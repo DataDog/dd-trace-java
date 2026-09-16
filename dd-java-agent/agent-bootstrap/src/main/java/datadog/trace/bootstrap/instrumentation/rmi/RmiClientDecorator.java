@@ -40,11 +40,10 @@ public class RmiClientDecorator extends ClientDecorator {
     return null;
   }
 
-  public AgentSpan onMethodInvocation(final AgentSpan span, final Method method) {
+  public void onMethodInvocation(final AgentSpan span, final Method method) {
     span.setResourceName(spanNameForMethod(method));
     span.setTag(
         Tags.RPC_SERVICE,
         METHOD_CACHE.computeIfAbsent(method, m -> m.getDeclaringClass().getName()));
-    return span;
   }
 }

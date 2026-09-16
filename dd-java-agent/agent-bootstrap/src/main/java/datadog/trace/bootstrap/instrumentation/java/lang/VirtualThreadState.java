@@ -1,7 +1,7 @@
 package datadog.trace.bootstrap.instrumentation.java.lang;
 
 import datadog.context.Context;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope.Continuation;
+import datadog.context.ContextContinuation;
 
 /**
  * This class holds the saved context and scope continuation for a virtual thread.
@@ -14,12 +14,12 @@ public final class VirtualThreadState {
   private Context context;
 
   /** Prevents the enclosing context scope from completing before the virtual thread finishes. */
-  private final Continuation continuation;
+  private final ContextContinuation continuation;
 
   /** The carrier thread's saved context, set between mount and unmount. */
   private Context previousContext;
 
-  public VirtualThreadState(Context context, Continuation continuation) {
+  public VirtualThreadState(Context context, ContextContinuation continuation) {
     this.context = context;
     this.continuation = continuation;
   }
@@ -40,7 +40,7 @@ public final class VirtualThreadState {
   /** Called on termination: releases the trace continuation. */
   public void onTerminate() {
     if (this.continuation != null) {
-      this.continuation.cancel();
+      this.continuation.release();
     }
   }
 }

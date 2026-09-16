@@ -1,10 +1,12 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     coreJdk()
   }
 }
-
-apply from: "${rootDir}/gradle/java.gradle"
 
 tasks.named("compileJava") {
   configureCompiler(it, 8)
@@ -43,10 +45,4 @@ dependencies {
 
   // Legacy netty version to test.
   legacyNettyTestImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
-}
-
-['legacyNettyTestCompileClasspath', 'legacyNettyTestRuntimeClasspath'].each { name ->
-  configurations.named(name).configure {
-    resolutionStrategy.force 'io.netty:netty-all:4.1.9.Final'
-  }
 }

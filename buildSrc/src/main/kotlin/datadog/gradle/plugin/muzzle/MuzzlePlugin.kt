@@ -134,6 +134,11 @@ class MuzzlePlugin : Plugin<Project> {
 
       val timingTask = project.tasks.register<MuzzleEndTask>("muzzle-end") {
         startTimeMs.set(startTime)
+        sourceFile.set(
+          project.projectDir
+            .relativeTo(project.rootProject.projectDir)
+            .invariantSeparatorsPath
+        )
         muzzleResultFiles.from(muzzleReportTasks.map { it.flatMap { task -> task.result } })
       }
       // last muzzle task to run

@@ -23,7 +23,7 @@ public final class BlackHoleSpan extends NoopSpan {
   }
 
   @Override
-  public AgentSpanContext context() {
+  public AgentSpanContext spanContext() {
     return Context.INSTANCE;
   }
 

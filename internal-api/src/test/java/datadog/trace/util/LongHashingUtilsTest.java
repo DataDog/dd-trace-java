@@ -147,6 +147,39 @@ class LongHashingUtilsTest {
     assertEquals(expected, hash(objs));
   }
 
+  @Test
+  void addToHashArrayFoldsFromSeedLikeChainedAddToHash() {
+    Object[] objs = new Object[] {"alpha", 7, null, true};
+
+    // Full-array overload folds every element onto the seed, matching an explicit chain.
+    long fromZero = 0L;
+    for (Object o : objs) {
+      fromZero = addToHash(fromZero, o);
+    }
+    assertEquals(fromZero, addToHash(0L, objs));
+
+    // A non-zero seed carries through, so the result differs from the zero-seed fold.
+    long fromSeed = 100L;
+    for (Object o : objs) {
+      fromSeed = addToHash(fromSeed, o);
+    }
+    assertEquals(fromSeed, addToHash(100L, objs));
+    assertNotEquals(addToHash(0L, objs), addToHash(100L, objs));
+  }
+
+  @Test
+  void addToHashArrayRespectsLen() {
+    Object[] objs = new Object[] {"alpha", 7, null, true};
+
+    // The len override folds only the first len elements.
+    long firstTwo = addToHash(addToHash(0L, objs[0]), objs[1]);
+    assertEquals(firstTwo, addToHash(0L, objs, 2));
+    assertNotEquals(addToHash(0L, objs), addToHash(0L, objs, 2));
+
+    // len==0 never enters the loop and returns the seed unchanged.
+    assertEquals(42L, addToHash(42L, objs, 0));
+  }
+
   // ----- intHash null behavior is observable via multi-arg overloads -----
 
   @Test

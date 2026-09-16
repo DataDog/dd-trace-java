@@ -75,7 +75,7 @@ class DDSpanJsonAdapter extends JsonAdapter<DDSpan> {
     writer.name("meta");
     writer.beginObject();
     final Map<String, Object> tags = span.getTags();
-    for (final Map.Entry<String, String> entry : span.context().getBaggageItems().entrySet()) {
+    for (final Map.Entry<String, String> entry : span.spanContext().getBaggageItems().entrySet()) {
       if (!tags.containsKey(entry.getKey())) {
         writer.name(entry.getKey());
         writer.value(entry.getValue());

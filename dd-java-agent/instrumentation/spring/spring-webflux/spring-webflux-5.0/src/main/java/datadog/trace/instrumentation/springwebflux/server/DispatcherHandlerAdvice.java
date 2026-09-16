@@ -6,10 +6,10 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DISPATCHER_HANDLE_HANDLER;
 
-import datadog.context.Context;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import java.util.function.Consumer;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
@@ -51,7 +51,8 @@ public class DispatcherHandlerAdvice {
       final AgentSpan span = scope.span();
       final Consumer finisher = new AdviceUtils.MonoSpanFinisher(span);
       mono = mono.doOnError(finisher).doFinally(finisher);
-      InstrumentationContext.get(Publisher.class, Context.class).put(mono, span);
+      InstrumentationContext.get(Publisher.class, HandoffContext.class)
+          .put(mono, HandoffContext.anyThread(span));
     }
     scope.close();
     // span finished in MonoSpanFinisher

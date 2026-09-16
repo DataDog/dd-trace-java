@@ -47,7 +47,7 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
       final ServletContainer container = ServletContainer.Factory.newInstance()
 
       DeploymentInfo builder = new DeploymentInfo()
-        .setDefaultMultipartConfig(new MultipartConfigElement(System.getProperty('java.io.tmpdir'), 1024, 1024, 1024))
+        .setDefaultMultipartConfig(new MultipartConfigElement(System.getProperty('java.io.tmpdir'), -1, -1, 1024))
         .setClassLoader(UndertowServletTest.getClassLoader())
         .setContextPath("/$CONTEXT")
         .setDeploymentName("servletContext.war")
@@ -198,6 +198,11 @@ abstract class UndertowServletTest extends HttpServerTest<Undertow> {
 
   @Override
   boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilesContent() {
     true
   }
 

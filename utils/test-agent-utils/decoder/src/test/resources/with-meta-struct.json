@@ -1,0 +1,19 @@
+[
+  [
+    {
+      "service": "s",
+      "name": "n",
+      "resource": "r",
+      "type": "web",
+      "trace_id": 1,
+      "span_id": 1,
+      "parent_id": 0,
+      "start": 0,
+      "duration": 0,
+      "error": 0,
+      "meta": {},
+      "metrics": {},
+      "meta_struct": {"appsec": {"triggers": 3}}
+    }
+  ]
+]

@@ -1,0 +1,58 @@
+# GitLab CODEOWNERS file exercising sections and default owners.
+# https://docs.gitlab.com/user/project/codeowners/reference/
+
+# Entries before any section behave like a plain (GitHub-style) CODEOWNERS file. They form an
+# unnamed section whose owners are combined with those of every other matching section.
+*  @global-owner
+# Exclusions can also apply to the unnamed section.
+!unowned.txt
+
+# A section with default owners: every entry inherits them unless it declares its own.
+[Documentation] @docs-team
+docs/
+README.md
+
+# Default owners can be a list; a specific entry can override them.
+[Database] @database-team @dba-lead
+model/db/
+config/db/setup.sql @special-owner
+
+# Optional sections (prefixed with '^') are parsed exactly like required ones for ownership.
+^[Optional Frontend] @frontend-team
+*.js
+*.css @css-owner
+
+# A section with no default owners: entries keep whatever owners they declare.
+[Tooling]
+scripts/ @scripts-team
+
+# The required-approvals count in the header ([N]) is accepted and ignored for ownership.
+[Requires Approvals][2] @security-team
+secrets/
+
+# A header immediately followed by a comment (no whitespace) is still a valid header, here with no
+# default owners; entries below must not inherit the previous section's owners.
+[Generated]# generated files, no specific owners
+generated/
+
+# A later section can match a path already owned elsewhere; owners from every section are combined.
+[Shared Config] @config-team
+config/
+
+# A section name repeated later (here with different capitalization) is combined into a single
+# case-insensitive section, with last-match precedence applied across all of its entries.
+[Backend] @backend-team-a
+service/
+
+[BACKEND] @backend-team-b
+service/api/
+
+# An exclusion suppresses its section even if a later entry matches the same path.
+[Generated Files] @generated-files-team
+generated-assets/
+!generated-assets/excluded/
+generated-assets/excluded/special.txt @special-owner
+
+# Exclusions do not suppress ownership from other sections.
+[Other Generated Files] @other-generated-files-team
+generated-assets/excluded/

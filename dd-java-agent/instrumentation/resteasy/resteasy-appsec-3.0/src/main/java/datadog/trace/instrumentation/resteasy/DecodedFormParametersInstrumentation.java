@@ -106,7 +106,7 @@ public class DecodedFormParametersInstrumentation extends InstrumenterModule.App
       return map == null;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.FieldValue("decodedFormParameters") final MultivaluedMap<String, String> map,
         @ActiveRequestContext RequestContext reqCtx,

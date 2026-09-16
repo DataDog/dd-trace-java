@@ -1,0 +1,32 @@
+[
+  {
+    "targets": [
+      "requests.api:get.get"
+    ],
+    "lang": "python",
+    "dependency_name": "requests",
+    "package_versions": [
+      "< 2.28.0"
+    ],
+    "vulnerability": {
+      "id": "GHSA-mixed-languages",
+      "severity": "LOW",
+      "description": "Python entry — should be ignored by the Maven filter"
+    }
+  },
+  {
+    "targets": [
+      "com.thoughtworks.xstream:XStream.fromXML"
+    ],
+    "lang": "maven",
+    "dependency_name": "com.thoughtworks.xstream:xstream",
+    "package_versions": [
+      "< 1.4.16"
+    ],
+    "vulnerability": {
+      "id": "GHSA-mixed-languages",
+      "severity": "HIGH",
+      "description": "JVM Maven entry — should be parsed"
+    }
+  }
+]

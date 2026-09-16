@@ -30,7 +30,7 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     expect:
     trace.size() == expectedNumberOfSpans
     trace[0].resourceName.toString() == "KotlinCoroutineTests.tracePreventedByCancellation"
-    findSpan(trace, "preLaunch").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "preLaunch").spanContext().getParentId() == trace[0].spanContext().getSpanId()
     findSpan(trace, "postLaunch") == null
 
     where:
@@ -47,7 +47,7 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     expect:
     trace.size() == expectedNumberOfSpans
     trace[0].resourceName.toString() == "KotlinCoroutineTests.tracedAcrossThreadsWithNested"
-    findSpan(trace, "nested").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "nested").spanContext().getParentId() == trace[0].spanContext().getSpanId()
 
     where:
     [dispatcherName, dispatcher] << dispatchersToTest
@@ -64,9 +64,9 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     TEST_WRITER.size() == 1
     trace.size() == expectedNumberOfSpans
     trace[0].resourceName.toString() == "KotlinCoroutineTests.traceWithDeferred"
-    findSpan(trace, "keptPromise").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "keptPromise2").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "brokenPromise").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "keptPromise").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "keptPromise2").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "brokenPromise").spanContext().getParentId() == trace[0].spanContext().getSpanId()
 
     where:
     [dispatcherName, dispatcher] << dispatchersToTest
@@ -82,9 +82,9 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     expect:
     TEST_WRITER.size() == 1
     trace.size() == expectedNumberOfSpans
-    findSpan(trace, "timeout1").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "timeout2").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "timeout3").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "timeout1").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "timeout2").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "timeout3").spanContext().getParentId() == trace[0].spanContext().getSpanId()
 
     where:
     [dispatcherName, dispatcher] << dispatchersToTest

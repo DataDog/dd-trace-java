@@ -105,6 +105,28 @@ public class KafkaConfigHelper {
     log.debug("Stored pending consumer config (cluster ID not yet known)");
   }
 
+  public static boolean reportConsumerGroupMember(
+      String clusterId,
+      String consumerGroup,
+      String memberId,
+      int generationId,
+      String memberProtocol) {
+    if (memberId == null || memberId.isEmpty() || clusterId == null || clusterId.isEmpty()) {
+      return false;
+    }
+    if (Config.get().isDataStreamsEnabled()) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .reportKafkaConsumerGroupMember(
+              clusterId,
+              consumerGroup != null ? consumerGroup : "",
+              memberId,
+              generationId,
+              memberProtocol != null ? memberProtocol : "");
+    }
+    return true;
+  }
+
   /** Called from metadata update advice when the cluster ID becomes available. */
   public static void reportPendingConfig(MetadataState state, String clusterId) {
     PendingConfig pending = state.takePendingConfig();

@@ -11,10 +11,10 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import io.lettuce.core.protocol.AsyncCommand;
@@ -72,13 +72,13 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTrack
   public static final class Activate {
     @SuppressWarnings("rawtypes")
     @Advice.OnMethodEnter
-    public static AgentScope before(@Advice.This AsyncCommand asyncCommand) {
+    public static ContextScope before(@Advice.This AsyncCommand asyncCommand) {
       return startTaskScope(
           InstrumentationContext.get(AsyncCommand.class, State.class), asyncCommand);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }

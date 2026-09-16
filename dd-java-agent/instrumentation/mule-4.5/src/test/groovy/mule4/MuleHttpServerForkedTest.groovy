@@ -9,12 +9,6 @@ import spock.lang.Shared
 
 class MuleHttpServerForkedTest extends HttpServerTest<MuleTestContainer> {
 
-  // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   @Override
   boolean testRedirect() {
     // Dynamic adding of headers to and HttpResponse from inside a mule application seems

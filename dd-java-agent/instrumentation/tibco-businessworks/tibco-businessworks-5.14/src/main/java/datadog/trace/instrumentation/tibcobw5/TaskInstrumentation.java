@@ -11,6 +11,7 @@ import com.tibco.pe.core.ActivityGroup;
 import com.tibco.pe.core.ProcessGroup;
 import com.tibco.pe.core.Task;
 import com.tibco.pe.plugin.ProcessContext;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers;
@@ -68,7 +69,7 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
         AgentSpan parent = map.getOrDefault(ddActivityInfo.parent, activeSpan());
         span =
             startSpan(
-                "tibco_bw", TIBCO_ACTIVITY_OPERATION, parent != null ? parent.context() : null);
+                "tibco_bw", TIBCO_ACTIVITY_OPERATION, parent != null ? parent.spanContext() : null);
         DECORATE.afterStart(span);
         DECORATE.onActivityStart(span, ddActivityInfo.name);
         map.put(ddActivityInfo.id, span);
@@ -87,7 +88,7 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
         @Advice.Enter boolean traced,
         @Advice.Local("ddActivityInfo") ActivityHelper.ActivityInfo ddActivityInfo,
         @Advice.Local("ddScope") AgentScope ddScope) {
-      try (AgentScope closeMe = ddScope) {
+      try (ContextScope closeMe = ddScope) {
         if (!traced) {
           return;
         }

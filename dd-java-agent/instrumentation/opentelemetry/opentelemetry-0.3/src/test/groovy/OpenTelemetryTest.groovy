@@ -82,7 +82,7 @@ class OpenTelemetryTest extends InstrumentationSpecification {
             }
             defaultTags()
           }
-          assert span.context().integrationName == "otel"
+          assert span.spanContext().integrationName == "otel"
         }
       }
     }

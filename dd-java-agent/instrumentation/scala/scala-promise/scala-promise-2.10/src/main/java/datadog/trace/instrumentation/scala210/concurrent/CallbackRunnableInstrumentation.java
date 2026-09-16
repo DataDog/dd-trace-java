@@ -7,10 +7,10 @@ import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.context.Context;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.instrumentation.scala.PromiseHelper;
 import net.bytebuddy.asm.Advice;
@@ -43,13 +43,13 @@ public final class CallbackRunnableInstrumentation
 
   public static final class Run {
     @Advice.OnMethodEnter
-    public static <T> AgentScope before(@Advice.This CallbackRunnable<T> task) {
-      return PromiseHelper.runActivateSpan(
+    public static <T> ContextScope before(@Advice.This CallbackRunnable<T> task) {
+      return PromiseHelper.runWithContext(
           InstrumentationContext.get(CallbackRunnable.class, State.class).get(task));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
-    public static void after(@Advice.Enter AgentScope scope) {
+    public static void after(@Advice.Enter ContextScope scope) {
       endTaskScope(scope);
     }
   }
@@ -64,7 +64,7 @@ public final class CallbackRunnableInstrumentation
       State state = contextStore.get(task);
       if (PromiseHelper.completionPriority) {
         state =
-            PromiseHelper.executeCaptureSpan(
+            PromiseHelper.executeCaptureContext(
                 InstrumentationContext.get(Try.class, Context.class),
                 resolved,
                 contextStore,

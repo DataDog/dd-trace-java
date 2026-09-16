@@ -3,20 +3,27 @@ package com.datadog.iast.sensitive;
 import static com.datadog.iast.util.CharUtils.fillCharArray;
 import static com.datadog.iast.util.CharUtils.newCharArray;
 import static com.datadog.iast.util.CharUtils.newString;
-import static java.util.regex.Pattern.CASE_INSENSITIVE;
-import static java.util.regex.Pattern.MULTILINE;
+import static com.google.re2j.Pattern.CASE_INSENSITIVE;
+import static com.google.re2j.Pattern.MULTILINE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_NAME_PATTERN;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_REDACTION_VALUE_PATTERN;
 
 import com.datadog.iast.model.Evidence;
 import com.datadog.iast.model.Source;
 import com.datadog.iast.model.VulnerabilityType;
+import com.google.re2j.Pattern;
+import com.google.re2j.PatternSyntaxException;
 import datadog.trace.api.Config;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SensitiveHandlerImpl implements SensitiveHandler {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SensitiveHandlerImpl.class);
 
   static final SensitiveHandler INSTANCE = new SensitiveHandlerImpl();
 
@@ -35,10 +42,17 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
   private final Map<VulnerabilityType, TokenizerSupplier> tokenizers;
 
   public SensitiveHandlerImpl() {
-    final Config config = Config.get();
-    namePattern = Pattern.compile(config.getIastRedactionNamePattern(), CASE_INSENSITIVE);
+    this(Config.get().getIastRedactionNamePattern(), Config.get().getIastRedactionValuePattern());
+  }
+
+  SensitiveHandlerImpl(final String configuredNamePattern, final String configuredValuePattern) {
+    namePattern =
+        safeCompile(configuredNamePattern, DEFAULT_IAST_REDACTION_NAME_PATTERN, CASE_INSENSITIVE);
     valuePattern =
-        Pattern.compile(config.getIastRedactionValuePattern(), CASE_INSENSITIVE | MULTILINE);
+        safeCompile(
+            configuredValuePattern,
+            DEFAULT_IAST_REDACTION_VALUE_PATTERN,
+            CASE_INSENSITIVE | MULTILINE);
     tokenizers = new HashMap<>();
     tokenizers.put(VulnerabilityType.SQL_INJECTION, SqlRegexpTokenizer::new);
     tokenizers.put(VulnerabilityType.LDAP_INJECTION, LdapRegexTokenizer::new);
@@ -75,8 +89,8 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
   @Override
   public Tokenizer tokenizeEvidence(
       @Nonnull final VulnerabilityType type, @Nonnull final Evidence evidence) {
-    final TokenizerSupplier supplier = tokenizers.computeIfAbsent(type, t -> emptyTokenizer());
-    return supplier.tokenizerFor(evidence);
+    final TokenizerSupplier supplier = tokenizers.get(type);
+    return supplier == null ? Tokenizer.EMPTY : supplier.tokenizerFor(evidence);
   }
 
   private int computeLength(@Nullable final String value) {
@@ -93,8 +107,18 @@ public class SensitiveHandlerImpl implements SensitiveHandler {
     return size;
   }
 
-  private TokenizerSupplier emptyTokenizer() {
-    return evidence -> Tokenizer.EMPTY;
+  private static Pattern safeCompile(
+      final String configured, final String fallback, final int flags) {
+    try {
+      return Pattern.compile(configured, flags);
+    } catch (final PatternSyntaxException e) {
+      LOG.error(
+          "Could not compile IAST redaction pattern with RE2J, falling back to the default: {} (configured: {})",
+          fallback,
+          configured,
+          e);
+      return Pattern.compile(fallback, flags);
+    }
   }
 
   private interface TokenizerSupplier {

@@ -76,9 +76,9 @@ public class AzureFunctionsDecorator
     return response.getStatusCode();
   }
 
-  public AgentSpan afterStart(final AgentSpan span, final String functionName) {
+  public void afterStart(final AgentSpan span, final String functionName) {
     span.setTag("aas.function.name", functionName);
     span.setTag("aas.function.trigger", "Http");
-    return super.afterStart(span);
+    super.afterStart(span);
   }
 }

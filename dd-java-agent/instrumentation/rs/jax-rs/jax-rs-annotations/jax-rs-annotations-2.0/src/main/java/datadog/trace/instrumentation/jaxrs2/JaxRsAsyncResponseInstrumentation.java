@@ -65,8 +65,9 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
 
   public static class AsyncResponseAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void stopSpan(@Advice.This final AsyncResponse asyncResponse) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
@@ -74,6 +75,7 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
         contextStore.put(asyncResponse, null);
+        DECORATE.onError(span, throwable);
         DECORATE.beforeFinish(span);
         span.finish();
       }
@@ -82,7 +84,7 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
 
   public static class AsyncResponseThrowableAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.This final AsyncResponse asyncResponse,
         @Advice.Argument(0) final Throwable throwable) {
@@ -102,8 +104,9 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
 
   public static class AsyncResponseCancelAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void stopSpan(@Advice.This final AsyncResponse asyncResponse) {
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+        @Advice.This final AsyncResponse asyncResponse, @Advice.Thrown Throwable throwable) {
 
       final ContextStore<AsyncResponse, AgentSpan> contextStore =
           InstrumentationContext.get(AsyncResponse.class, AgentSpan.class);
@@ -111,7 +114,11 @@ public final class JaxRsAsyncResponseInstrumentation extends InstrumenterModule.
       final AgentSpan span = contextStore.get(asyncResponse);
       if (span != null) {
         contextStore.put(asyncResponse, null);
-        span.setTag("canceled", true);
+        if (throwable != null) {
+          DECORATE.onError(span, throwable);
+        } else {
+          span.setTag("canceled", true);
+        }
         DECORATE.beforeFinish(span);
         span.finish();
       }

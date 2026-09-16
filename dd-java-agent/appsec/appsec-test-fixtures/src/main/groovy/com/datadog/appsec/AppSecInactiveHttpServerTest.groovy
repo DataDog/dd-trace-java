@@ -139,8 +139,13 @@ abstract class AppSecInactiveHttpServerTest extends WithHttpServer {
     }
   }
 
+  protected boolean supportsMultipart() {
+    true
+  }
+
   void multipart() {
     setup:
+    assumeTrue supportsMultipart()
     def body = new MultipartBody.Builder()
       .setType(MultipartBody.FORM)
       .addFormDataPart('a', 'x')

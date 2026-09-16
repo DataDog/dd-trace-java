@@ -1,5 +1,6 @@
 package com.datadog.appsec.config
 
+import com.datadog.appsec.AppSecModule
 import com.datadog.appsec.AppSecSystem
 import com.datadog.appsec.util.AbortStartupException
 import static datadog.remoteconfig.Capabilities.CAPABILITY_ASM_EXTENDED_DATA_COLLECTION
@@ -701,6 +702,49 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     then:
     noExceptionThrown()
+  }
+
+  void 'currentRuleVersion is updated from diagnostics when InvalidRuleSetException is thrown on RC update'() {
+    setup:
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    AppSecSystem.active = true
+    config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
+    AppSecModule wafModule = Mock()
+    wafModule.isWafBuilderSet() >> false
+    service.modulesToUpdateVersionIn([wafModule])
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+
+    when:
+    listeners.savedWafDataChangesListener.accept(
+      key,
+      '''{
+        "version": "2.2",
+        "metadata": {"rules_version": "1.99.0"},
+        "rules": [{
+          "id": "invalid-rule",
+          "name": "Invalid Rule",
+          "tags": {"type": "attack_attempt", "category": "attack_attempt"},
+          "conditions": [{
+            "operator": "invalid_operator",
+            "parameters": {"inputs": [{"address": "server.request.query"}]}
+          }]
+        }]
+      }'''.getBytes(),
+      NOOP)
+
+    then:
+    thrown RuntimeException
+    service.getCurrentRuleVersion() == '1.99.0'
+    1 * wafModule.setWafBuilder(_)
+    1 * wafModule.setRuleVersion('1.99.0')
   }
 
   void 'config keys are added and removed to the set when receiving ASM_DD payloads'() {

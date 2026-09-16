@@ -1,12 +1,16 @@
 package com.datadog.debugger.probe;
 
 import static com.datadog.debugger.probe.LogProbe.Capture.toLimits;
+import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.DROP;
+import static com.datadog.debugger.probe.LogProbe.CoordinatedSamplingState.Status.EMIT;
+import static datadog.trace.api.debugger.DebuggerMetricCollector.SkippedReason.RATE_LIMIT;
 import static java.lang.String.format;
 
 import com.datadog.debugger.agent.DebuggerAgent;
 import com.datadog.debugger.agent.Generated;
 import com.datadog.debugger.agent.StringTemplateBuilder;
 import com.datadog.debugger.el.EvaluationException;
+import com.datadog.debugger.el.EvaluationTimeOutException;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueScript;
@@ -22,13 +26,15 @@ import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonReader;
 import com.squareup.moshi.JsonWriter;
+import datadog.context.Context;
+import datadog.context.ContextKey;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.debugger.DebuggerMetricCollector;
 import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
-import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.EvaluationError;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -44,13 +50,14 @@ import datadog.trace.core.DDSpanContext;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
@@ -61,7 +68,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   private static final Logger LOGGER = LoggerFactory.getLogger(LogProbe.class);
   private static final Limits LIMITS = new Limits(1, 3, 8192, 5);
   private static final int LOG_MSG_LIMIT = 8192;
-
+  private static final ContextKey<CoordinatedSamplingState> SAMPLING_KEY =
+      ContextKey.named("debugger_sampling");
   public static final int CAPTURING_PROBE_BUDGET = 10;
   public static final int NON_CAPTURING_PROBE_BUDGET = 1000;
 
@@ -326,6 +334,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
   protected transient Sampler sampler;
   protected transient Sampler errorSampler;
+  protected final transient Duration evalTimeout;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -342,7 +351,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         null,
         null,
         null,
-        null);
+        null,
+        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout()));
   }
 
   public LogProbe(
@@ -357,7 +367,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling,
-      List<CaptureExpression> captureExpressions) {
+      List<CaptureExpression> captureExpressions,
+      Duration evalTimeout) {
     this(
         language,
         probeId,
@@ -370,7 +381,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         probeCondition,
         capture,
         sampling,
-        captureExpressions);
+        captureExpressions,
+        evalTimeout);
   }
 
   private LogProbe(
@@ -385,7 +397,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       ProbeCondition probeCondition,
       Capture capture,
       Sampling sampling,
-      List<CaptureExpression> captureExpressions) {
+      List<CaptureExpression> captureExpressions,
+      Duration evalTimeout) {
     super(language, probeId, tags, where, evaluateAt);
     this.template = template;
     this.segments = segments;
@@ -394,6 +407,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     this.capture = capture;
     this.sampling = sampling;
     this.captureExpressions = captureExpressions;
+    this.evalTimeout = evalTimeout;
   }
 
   public LogProbe(LogProbe.Builder builder) {
@@ -409,7 +423,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         builder.probeCondition,
         builder.capture,
         builder.sampling,
-        builder.captureExpressions);
+        builder.captureExpressions,
+        builder.evalTimeout);
     this.snapshotProcessor = builder.snapshotProcessor;
     initSamplers();
   }
@@ -427,7 +442,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         probeCondition,
         capture,
         sampling,
-        captureExpressions);
+        captureExpressions,
+        evalTimeout);
   }
 
   public String getTemplate() {
@@ -502,7 +518,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   public boolean isReadyToCapture() {
     if (!hasCondition()) {
       // we are sampling here to avoid creating CapturedContext when the sampling result is negative
-      return ProbeRateLimiter.tryProbe(sampler, isFullSnapshot());
+      boolean sampled = trySample(sampler);
+      if (!sampled) {
+        DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
+      }
+      return sampled;
     }
     return true;
   }
@@ -548,7 +568,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (!logStatus.isSampled() || !logStatus.getCondition()) {
       return;
     }
-    StringTemplateBuilder logMessageBuilder = new StringTemplateBuilder(segments, LIMITS);
+    StringTemplateBuilder logMessageBuilder =
+        new StringTemplateBuilder(segments, LIMITS, evalTimeout);
     String msg = logMessageBuilder.evaluate(context, logStatus);
     if (msg != null && msg.length() > LOG_MSG_LIMIT) {
       StringBuilder sb = new StringBuilder(LOG_MSG_LIMIT + 3);
@@ -567,21 +588,30 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (!MethodLocation.isSame(methodLocation, evaluateAt)) {
       return;
     }
-    // if condition has error and no capture Snapshot, the error is reported using errorSampler
-    // at 1/s rate instead of the log template one
-    Sampler localSampler =
-        logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
-    boolean sampled =
-        !logStatus.getDebugSessionStatus().isDisabled()
-            && ProbeRateLimiter.tryProbe(localSampler, isFullSnapshot());
+    DebugSessionStatus debugSessionStatus = logStatus.getDebugSessionStatus();
+    if (debugSessionStatus.isDisabled()) {
+      return;
+    }
+    boolean sampled;
+    if (debugSessionStatus.isActive()) {
+      // LogStatus.shouldSend() emits unconditionally when the debug session is ACTIVE, so this
+      // probe must not record a coordinated decision that shouldSend() would ignore anyway.
+      // Instead, make sure the shared trace-level state lets the other full-snapshot probes on
+      // this trace emit too, rather than leaving/recording a DROP that would suppress them.
+      sampled = true;
+      if (isFullSnapshot() && useCoordinatedSampling()) {
+        forceCoordinatedEmit();
+      }
+    } else {
+      // if condition has error and no capture Snapshot, the error is reported using errorSampler
+      // at 1/s rate instead of the log template one
+      Sampler localSampler =
+          logStatus.hasConditionErrors && !isFullSnapshot() ? errorSampler : sampler;
+      sampled = trySample(localSampler);
+    }
     logStatus.setSampled(sampled);
     if (!sampled) {
-      DebuggerAgent.getSink()
-          .skipSnapshot(
-              id,
-              logStatus.getDebugSessionStatus().isDisabled()
-                  ? DebuggerContext.SkipCause.DEBUG_SESSION_DISABLED
-                  : DebuggerContext.SkipCause.RATE);
+      DebuggerAgent.getSink().skipSnapshot(id, RATE_LIMIT);
     }
   }
 
@@ -590,9 +620,17 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return true;
     }
     try {
-      if (!probeCondition.execute(capture)) {
+      Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+      TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+      if (!probeCondition.execute(capture, timeoutChecker)) {
         return false;
       }
+    } catch (EvaluationTimeOutException ex) {
+      DebuggerAgent.getSink()
+          .skipSnapshot(id, DebuggerMetricCollector.SkippedReason.EVALUATION_TIME_OUT);
+      status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
+      status.setConditionErrors(true);
+      return false;
     } catch (EvaluationException ex) {
       status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
       status.setConditionErrors(true);
@@ -621,12 +659,106 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         if (snapshotProcessor != null) {
           snapshotProcessor.accept(snapshot);
         }
-      } else {
-        sink.skipSnapshot(id, DebuggerContext.SkipCause.BUDGET);
       }
-    } else {
-      sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
     }
+  }
+
+  /**
+   * Holds the once-per-trace coordinated sampling decision shared by all full-snapshot probes on a
+   * given local root span, so that either all of them emit or none of them do.
+   */
+  static class CoordinatedSamplingState {
+    /** Outcome of the first probe's sampling decision for the trace, cached on the root span. */
+    enum Status {
+      /** The trace was not sampled; every probe sharing this state must not emit. */
+      DROP,
+      /** The trace was sampled; probes sharing this state may emit, once each. */
+      EMIT
+    }
+
+    private final Set<String> emittedProbeIds;
+    private final Status status;
+
+    CoordinatedSamplingState(Status status) {
+      this.status = status;
+      if (status == EMIT) {
+        emittedProbeIds = ConcurrentHashMap.newKeySet();
+      } else {
+        emittedProbeIds = Collections.emptySet();
+      }
+    }
+
+    boolean tryEmit(String probeEncodedId) {
+      return status == EMIT && emittedProbeIds.add(probeEncodedId);
+    }
+  }
+
+  /**
+   * Whether this probe shares the trace-wide {@link CoordinatedSamplingState} with other
+   * full-snapshot probes on the same local root span, so they all emit together or not at all.
+   * Probes with their own independent sampling flow (e.g. {@link ExceptionProbe}) must not
+   * participate, or their unrelated decision would leak into (and be leaked into by) ordinary
+   * snapshot probes sharing the same trace.
+   */
+  protected boolean useCoordinatedSampling() {
+    return true;
+  }
+
+  private boolean trySample(Sampler sampler) {
+    if (!isFullSnapshot()) {
+      return ProbeRateLimiter.tryProbe(sampler, false);
+    }
+    if (!useCoordinatedSampling()) {
+      return ProbeRateLimiter.tryProbe(sampler, true);
+    }
+
+    AgentSpan localRootSpan = getActiveLocalRootSpan();
+    if (localRootSpan == null) {
+      return ProbeRateLimiter.tryProbe(sampler, true);
+    }
+
+    CoordinatedSamplingState state = Context.from(localRootSpan).get(SAMPLING_KEY);
+    if (state == null) {
+      synchronized (localRootSpan) {
+        Context traceContext = Context.from(localRootSpan);
+        state = traceContext.get(SAMPLING_KEY);
+        if (state == null) {
+          boolean sampled = ProbeRateLimiter.tryProbe(sampler, true);
+          state = new CoordinatedSamplingState(sampled ? EMIT : DROP);
+          traceContext.with(SAMPLING_KEY, state).attachTo(localRootSpan);
+        }
+      }
+    }
+    return state.tryEmit(getProbeId().getEncodedId());
+  }
+
+  /**
+   * Ensures the trace-level coordinated sampling state allows emission, upgrading a previously
+   * cached DROP (recorded by an ordinary probe before this debug session became active) so that
+   * every full-snapshot probe on this trace gets a chance to emit.
+   */
+  private void forceCoordinatedEmit() {
+    AgentSpan localRootSpan = getActiveLocalRootSpan();
+    if (localRootSpan == null) {
+      return;
+    }
+    synchronized (localRootSpan) {
+      Context traceContext = Context.from(localRootSpan);
+      CoordinatedSamplingState state = traceContext.get(SAMPLING_KEY);
+      if (state == null || state.status != EMIT) {
+        traceContext.with(SAMPLING_KEY, new CoordinatedSamplingState(EMIT)).attachTo(localRootSpan);
+      }
+    }
+  }
+
+  private AgentSpan getActiveLocalRootSpan() {
+    TracerAPI tracer = AgentTracer.get();
+    AgentSpan activeSpan = tracer != null ? tracer.activeSpan() : null;
+    if (activeSpan == null || activeSpan == AgentTracer.noopSpan()) {
+      return null;
+    }
+    AgentSpan localRootSpan = activeSpan.getLocalRootSpan();
+    return localRootSpan != AgentTracer.noopSpan() ? localRootSpan : null;
   }
 
   protected Snapshot createSnapshot() {
@@ -639,8 +771,9 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       CapturedContext exitContext,
       List<CapturedContext.CapturedThrowable> caughtExceptions,
       Snapshot snapshot) {
-    LogStatus entryStatus = convertStatus(entryContext.getStatus(probeId.getEncodedId()));
-    LogStatus exitStatus = convertStatus(exitContext.getStatus(probeId.getEncodedId()));
+    String probeEncodedId = getProbeId().getEncodedId();
+    LogStatus entryStatus = convertStatus(entryContext.getStatus(probeEncodedId));
+    LogStatus exitStatus = convertStatus(exitContext.getStatus(probeEncodedId));
     String message = null;
     switch (evaluateAt) {
       case ENTRY:
@@ -715,12 +848,14 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   }
 
   private void processCaptureExpressions(CapturedContext context, LogStatus logStatus) {
-    if (captureExpressions == null) {
+    if (captureExpressions == null || !logStatus.shouldSend()) {
       return;
     }
     for (CaptureExpression captureExpression : captureExpressions) {
       try {
-        Value<?> result = captureExpression.expr.execute(context);
+        Duration timeout = Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
+        TimeoutChecker timeoutChecker = TimeoutChecker.create(Config.get(), timeout);
+        Value<?> result = captureExpression.expr.execute(context, timeoutChecker);
         if (result.isUndefined()) {
           throw new EvaluationException("UNDEFINED", captureExpression.getExpr().getDsl());
         }
@@ -814,7 +949,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
   @Override
   public void commit(CapturedContext lineContext, int line) {
-    LogStatus status = (LogStatus) lineContext.getStatus(probeId.getEncodedId());
+    LogStatus status = (LogStatus) lineContext.getStatus(getProbeId().getEncodedId());
     if (status == null) {
       return;
     }
@@ -822,6 +957,13 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     Snapshot snapshot = createSnapshot();
     boolean shouldCommit = false;
     if (status.shouldSend()) {
+      if (isFullSnapshot()) {
+        // freeze context just before commit because line probes have only one context
+        Duration timeout =
+            Duration.ofMillis(Config.get().getDynamicInstrumentationCaptureTimeout());
+        lineContext.freeze(TimeoutChecker.create(Config.get(), timeout));
+        snapshot.addLine(lineContext, line);
+      }
       snapshot.setTraceId(CorrelationIdentifier.getTraceId());
       snapshot.setSpanId(CorrelationIdentifier.getSpanId());
       snapshot.setMessage(status.getMessage());
@@ -834,19 +976,10 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (shouldCommit) {
       incrementBudget();
       if (inBudget()) {
-        if (isFullSnapshot()) {
-          // freeze context just before commit because line probes have only one context
-          Duration timeout =
-              Duration.of(
-                  Config.get().getDynamicInstrumentationCaptureTimeout(), ChronoUnit.MILLIS);
-          lineContext.freeze(new TimeoutChecker(timeout));
-          snapshot.addLine(lineContext, line);
-        }
         commitSnapshot(snapshot, sink);
         return;
       }
     }
-    sink.skipSnapshot(id, DebuggerContext.SkipCause.CONDITION);
   }
 
   @Override
@@ -1121,6 +1254,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     private Sampling sampling;
     private List<CaptureExpression> captureExpressions;
     private Consumer<Snapshot> snapshotProcessor;
+    private Duration evalTimeout =
+        Duration.ofMillis(Config.get().getDynamicInstrumentationEvalTimeout());
 
     public Builder snapshotProcessor(Consumer<Snapshot> processor) {
       this.snapshotProcessor = processor;
@@ -1167,6 +1302,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return this;
     }
 
+    public Builder evalTimeout(Duration evalTimeout) {
+      this.evalTimeout = evalTimeout;
+      return this;
+    }
+
     public LogProbe build() {
       return new LogProbe(this);
     }
@@ -1179,8 +1319,8 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (tracer != null) {
       AgentSpan span = tracer.activeSpan();
       if (span instanceof DDSpan) {
-        DDSpanContext context = (DDSpanContext) span.context();
-        String debug = context.getPropagationTags().getDebugPropagation();
+        DDSpanContext spanContext = (DDSpanContext) span.spanContext();
+        String debug = spanContext.getPropagationTags().getDebugPropagation();
         if (debug != null) {
           String[] entries = debug.split(",");
           for (String entry : entries) {

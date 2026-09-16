@@ -67,7 +67,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
   @Override
   public HeadlessTestModule testModuleStart(String moduleName, @Nullable Long startTime) {
     return new HeadlessTestModule(
-        span.context(),
+        span.spanContext(),
         moduleName,
         startTime,
         config,

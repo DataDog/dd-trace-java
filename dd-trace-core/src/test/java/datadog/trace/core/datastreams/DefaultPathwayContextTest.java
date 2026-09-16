@@ -534,9 +534,9 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
       assertEquals("L+lDG/Pa9hRkZA==", encoded);
       if (dynamicConfigEnabled) {
         assertNotNull(extractedSpan);
-        assertNotNull(extractedSpan.context());
-        assertNotNull(extractedSpan.context().getPathwayContext());
-        assertTrue(extractedSpan.context().getPathwayContext().isStarted());
+        assertNotNull(extractedSpan.spanContext());
+        assertNotNull(extractedSpan.spanContext().getPathwayContext());
+        assertTrue(extractedSpan.spanContext().getPathwayContext().isStarted());
       }
     } finally {
       // cleanup
@@ -595,9 +595,9 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
       assertEquals("L+lDG/Pa9hRkZA==", encoded);
       if (globalDsmEnabled) {
         assertNotNull(extractedSpan);
-        assertNotNull(extractedSpan.context());
-        assertNotNull(extractedSpan.context().getPathwayContext());
-        assertTrue(extractedSpan.context().getPathwayContext().isStarted());
+        assertNotNull(extractedSpan.spanContext());
+        assertNotNull(extractedSpan.spanContext().getPathwayContext());
+        assertTrue(extractedSpan.spanContext().getPathwayContext().isStarted());
       } else {
         assertNull(extractedSpan);
       }
@@ -667,15 +667,15 @@ public class DefaultPathwayContextTest extends DDCoreJavaSpecification {
 
       assertNotNull(extractedSpan);
 
-      Object extracted = extractedSpan.context();
+      Object extracted = extractedSpan.spanContext();
 
       assertNotNull(extracted);
       assertEquals("L+lDG/Pa9hRkZA==", encoded);
       if (globalDsmEnabled) {
-        assertNotNull(extractedSpan.context().getPathwayContext());
-        assertTrue(extractedSpan.context().getPathwayContext().isStarted());
+        assertNotNull(extractedSpan.spanContext().getPathwayContext());
+        assertTrue(extractedSpan.spanContext().getPathwayContext().isStarted());
       } else {
-        assertNull(extractedSpan.context().getPathwayContext());
+        assertNull(extractedSpan.spanContext().getPathwayContext());
       }
     } finally {
       // cleanup

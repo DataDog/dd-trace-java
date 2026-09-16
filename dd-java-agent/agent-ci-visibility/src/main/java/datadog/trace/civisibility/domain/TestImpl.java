@@ -22,6 +22,7 @@ import datadog.trace.api.civisibility.telemetry.tag.BrowserDriver;
 import datadog.trace.api.civisibility.telemetry.tag.EventType;
 import datadog.trace.api.civisibility.telemetry.tag.FailedTestReplayEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.HasFailedAllRetries;
+import datadog.trace.api.civisibility.telemetry.tag.IsAndroidEmulated;
 import datadog.trace.api.civisibility.telemetry.tag.IsAttemptToFix;
 import datadog.trace.api.civisibility.telemetry.tag.IsDisabled;
 import datadog.trace.api.civisibility.telemetry.tag.IsModified;
@@ -323,7 +324,8 @@ public class TestImpl implements DDTest {
         span.getTag(Tags.TEST_IS_RUM_ACTIVE) != null ? IsRum.TRUE : null,
         CIConstants.SELENIUM_BROWSER_DRIVER.equals(span.getTag(Tags.TEST_BROWSER_DRIVER))
             ? BrowserDriver.SELENIUM
-            : null);
+            : null,
+        span.getTag(Tags.TEST_ANDROID_API_LEVEL) != null ? IsAndroidEmulated.TRUE : null);
   }
 
   /**

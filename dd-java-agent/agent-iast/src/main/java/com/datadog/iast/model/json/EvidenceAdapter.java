@@ -446,9 +446,12 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
 
     private List<ValuePart> split(final RedactionContext redaction) {
       final List<ValuePart> parts = new ArrayList<>();
+      // Identical sensitive chunks redact to the same pattern (the first occurrence in the source),
+      // so cache chunk -> offset to avoid an O(sourceLength) indexOf per repeated occurrence.
+      final Map<String, Integer> matchingOffsets = new HashMap<>();
       if (redaction.isSensitive()) {
         // redact the full tainted value as the source is sensitive (password, certificate, ...)
-        addValuePart(0, value.length(), redaction, true, parts);
+        addValuePart(0, value.length(), redaction, matchingOffsets, true, parts);
       } else {
         // redact only sensitive parts
         int index = 0;
@@ -456,13 +459,13 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
           final int start = sensitive.getStart();
           final int end = sensitive.getStart() + sensitive.getLength();
           // append previous tainted chunk (if any)
-          addValuePart(index, start, redaction, false, parts);
+          addValuePart(index, start, redaction, matchingOffsets, false, parts);
           // append current sensitive tainted chunk
-          addValuePart(start, end, redaction, true, parts);
+          addValuePart(start, end, redaction, matchingOffsets, true, parts);
           index = end;
         }
         // append last tainted chunk (if any)
-        addValuePart(index, value.length(), redaction, false, parts);
+        addValuePart(index, value.length(), redaction, matchingOffsets, false, parts);
       }
       return parts;
     }
@@ -471,6 +474,7 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
         final int start,
         final int end,
         final RedactionContext ctx,
+        final Map<String, Integer> matchingOffsets,
         final boolean redact,
         final List<ValuePart> valueParts) {
       if (start < end) {
@@ -484,7 +488,9 @@ public class EvidenceAdapter extends FormattingAdapter<Evidence> {
           final int length = chunk.length();
           final String sourceValue = source.getValue();
           final String redactedValue = ctx.getRedactedValue();
-          final int matching = (sourceValue == null) ? -1 : sourceValue.indexOf(chunk);
+          final int matching =
+              matchingOffsets.computeIfAbsent(
+                  chunk, c -> sourceValue == null ? -1 : sourceValue.indexOf(c));
           final String pattern;
           if (matching >= 0 && redactedValue != null) {
             // if matches append the matching part from the redacted value

@@ -28,11 +28,6 @@ public final class MultiPartHelper {
       Map<String, List<String>> bodyMap,
       List<String> filenames,
       List<String> filesContent) {
-    if (bodyMap != null
-        && MediaTypes.typeEqual(MediaType.TEXT_PLAIN_TYPE, bodyPart.getMediaType())) {
-      // BodyPartEntity allows re-reading the part without consuming the stream
-      bodyMap.computeIfAbsent(bodyPart.getName(), k -> new ArrayList<>()).add(bodyPart.getValue());
-    }
     FormDataContentDisposition cd;
     try {
       cd = bodyPart.getFormDataContentDisposition();
@@ -40,6 +35,16 @@ public final class MultiPartHelper {
       // IllegalArgumentException on malformed Content-Disposition: skip this part gracefully
       // so a single bad part does not abort processing of the remaining parts.
       cd = null;
+    }
+    if (bodyMap != null
+        && cd != null
+        && MediaTypes.typeEqual(MediaType.TEXT_PLAIN_TYPE, bodyPart.getMediaType())
+        && totalBodyMapValues(bodyMap) < MAX_FILES_TO_INSPECT) {
+      // readContent() reads the part through a byte-capped decoder (MAX_CONTENT_BYTES) instead of
+      // the unbounded getValue(); the cap counts total accumulated values across all field names,
+      // not distinct keys, so repeating the same field name cannot bypass the limit. cd.getName()
+      // is a safe field accessor, unlike bodyPart.getName() which re-parses the disposition header.
+      bodyMap.computeIfAbsent(cd.getName(), k -> new ArrayList<>()).add(readContent(bodyPart));
     }
     // rawFilename == null  → no filename attribute → form field → skip filenames and content
     // rawFilename == ""    → filename attribute present but empty → content YES, filenames NO
@@ -49,23 +54,50 @@ public final class MultiPartHelper {
       filenames.add(rawFilename);
     }
     if (filesContent != null && rawFilename != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
-      filesContent.add(readContent(bodyPart));
+      filesContent.add(readFileContent(bodyPart));
     }
   }
 
+  private static int totalBodyMapValues(Map<String, List<String>> bodyMap) {
+    int total = 0;
+    for (List<String> values : bodyMap.values()) {
+      total += values.size();
+    }
+    return total;
+  }
+
+  // Used for the body-map/text-field path: Jersey's own getValue() decodes undeclared-charset
+  // text parts as UTF-8, so this matches that default instead of MultipartContentDecoder's
+  // platform-dependent fallback.
   public static String readContent(FormDataBodyPart bodyPart) {
+    return read(bodyPart, contentTypeWithDefaultUtf8(bodyPart.getMediaType()));
+  }
+
+  // Used for the filesContent path: keeps parity with the other multipart helpers, which all
+  // rely on MultipartContentDecoder's own charset fallback for undeclared-charset file content.
+  public static String readFileContent(FormDataBodyPart bodyPart) {
+    MediaType mediaType = bodyPart.getMediaType();
+    return read(bodyPart, mediaType != null ? mediaType.toString() : null);
+  }
+
+  private static String read(FormDataBodyPart bodyPart, String contentType) {
     try {
       // getEntityAs(InputStream.class) is backed by BodyPartEntity which supports re-reading:
       // each call creates a fresh stream from the buffered MIME part data.
       try (InputStream is = bodyPart.getEntityAs(InputStream.class)) {
         if (is == null) return "";
-        String contentType =
-            bodyPart.getMediaType() != null ? bodyPart.getMediaType().toString() : null;
         return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
       }
     } catch (IOException ignored) {
       return "";
     }
+  }
+
+  private static String contentTypeWithDefaultUtf8(MediaType mediaType) {
+    String contentType = mediaType != null ? mediaType.toString() : null;
+    return MultipartContentDecoder.extractCharset(contentType) == null
+        ? (contentType == null ? "charset=UTF-8" : contentType + "; charset=UTF-8")
+        : contentType;
   }
 
   public static BlockingException tryBlock(RequestContext ctx, Flow<Void> flow, String message) {

@@ -91,7 +91,7 @@ public class ParseParametersInstrumentation extends InstrumenterModule.AppSec
       collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Local("collector") ParameterCollector collector,
         @Advice.Local("reqCtx") RequestContext reqCtx,

@@ -1,9 +1,10 @@
 plugins {
   id 'org.gradle.playframework'
+  id 'dd-trace-java.module.smoke-test'
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-routes.gradle"
+apply from: "$rootDir/dd-smoke-tests/play-common/fix-play-linux-arm64.gradle"
 
 def playVer = "2.8.15"
 def scalaVer = System.getProperty("scala.version", /* default = */ "2.13")

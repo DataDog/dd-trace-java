@@ -57,8 +57,8 @@ public final class PublisherInstrumentation
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       PRODUCER_DECORATE.onError(scope, throwable);
       PRODUCER_DECORATE.beforeFinish(scope);
-      scope.span().finish();
       scope.close();
+      scope.span().finish();
     }
   }
 

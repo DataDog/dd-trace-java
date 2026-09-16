@@ -4,6 +4,7 @@ import static com.datadog.debugger.symbol.JarScanner.trimPrefixes;
 
 import com.datadog.debugger.sink.SymbolSink;
 import datadog.instrument.utils.ClassNameTrie;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.Strings;
@@ -28,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -206,7 +208,7 @@ public class SymbolAggregator {
       scanDirectory(jarPath, alreadyScannedJars, baos, buffer, symDBReport);
     } else {
       try {
-        try (JarFile jarFile = new JarFile(jarPathFile)) {
+        try (JarFile jarFile = openJarFile(jarPathFile)) {
           jarFile.stream()
               .filter(jarEntry -> jarEntry.getName().endsWith(".class"))
               .filter(
@@ -225,14 +227,19 @@ public class SymbolAggregator {
     alreadyScannedJars.add(jarPath.toString());
   }
 
+  @VisibleForTesting
+  JarFile openJarFile(File file) throws IOException {
+    return new JarFile(file);
+  }
+
   private void scanDirectory(
       Path jarPath,
       Set<String> alreadyScannedJars,
       ByteArrayOutputStream baos,
       byte[] buffer,
       SymDBReport symDBReport) {
-    try {
-      Files.walk(jarPath)
+    try (Stream<Path> paths = Files.walk(jarPath)) {
+      paths
           // explicitly no follow links walking the directory to avoid cycles
           .filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
           .filter(path -> path.toString().endsWith(".class"))
@@ -276,11 +283,14 @@ public class SymbolAggregator {
       byte[] buffer) {
     LOGGER.debug("parsing jarEntry class: {}", jarEntry.getName());
     try {
-      InputStream inputStream = jarFile.getInputStream(jarEntry);
-      int readBytes;
-      baos.reset();
-      while ((readBytes = inputStream.read(buffer)) != -1) {
-        baos.write(buffer, 0, readBytes);
+      // must be closed so the JarFile returns its Inflater to the cache instead of allocating a
+      // new native zlib context per entry
+      try (InputStream inputStream = jarFile.getInputStream(jarEntry)) {
+        int readBytes;
+        baos.reset();
+        while ((readBytes = inputStream.read(buffer)) != -1) {
+          baos.write(buffer, 0, readBytes);
+        }
       }
       parseClass(symDBReport, jarEntry.getName(), baos.toByteArray(), jarPath.toString());
     } catch (IOException ex) {

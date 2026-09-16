@@ -3,13 +3,12 @@ import net.ltgt.gradle.errorprone.CheckSeverity
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'me.champeau.jmh'
+  id 'dd-trace-java.jmh-conventions'
   id 'com.google.protobuf' version '0.10.0'
   id 'net.ltgt.errorprone' version '3.1.0'
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.product-subsystem'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 tasks.withType(AbstractCompile).configureEach {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Ensure no APIs beyond JDK8 are used")
@@ -45,12 +44,13 @@ dependencies {
   implementation libs.moshi
   implementation libs.bundles.asm
   implementation libs.instrument.java
+  implementation libs.re2j
 
   testImplementation project(':utils:test-utils')
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation('org.skyscreamer:jsonassert:1.5.1')
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.guava)
+  testImplementation libs.bundles.mockito
 
   testImplementation(libs.groovy.yaml)
 

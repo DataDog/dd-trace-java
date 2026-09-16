@@ -11,6 +11,8 @@ import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -69,9 +71,9 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
         Message message = (Message) data;
         State state = InstrumentationContext.get(Message.class, State.class).get(message);
         if (null != state) {
-          AgentScope.Continuation continuation = state.getAndResetContinuation();
+          ContextContinuation continuation = state.getAndResetContinuation();
           if (null != continuation) {
-            try (AgentScope scope = continuation.activate()) {
+            try (ContextScope scope = continuation.resume()) {
               AgentSpan span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
               span.setMeasured(true);
               DECORATE.afterStart(span);

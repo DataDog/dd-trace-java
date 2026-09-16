@@ -7,12 +7,18 @@ import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
 import com.datadog.iast.model.Vulnerability;
 import com.datadog.iast.model.VulnerabilityBatch;
 import com.datadog.iast.taint.TaintedObjects;
+import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.internal.TraceSegment;
-import datadog.trace.bootstrap.instrumentation.api.*;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.TagContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import datadog.trace.util.stacktrace.StackTraceFrame;
@@ -61,7 +67,7 @@ public class Reporter {
     }
     if (span == null) {
       final AgentSpan newSpan = startNewSpan();
-      try (final AgentScope autoClosed = tracer().activateManualSpan(newSpan)) {
+      try (final ContextScope autoClosed = tracer().activateManualSpan(newSpan)) {
         vulnerability.updateSpan(newSpan);
         reportVulnerability(newSpan, vulnerability);
       } finally {

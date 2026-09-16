@@ -61,6 +61,14 @@ This can manifest when creating mocks.
 @DisableTestTrace(reason = "avoid self-tracing")
 class JUnit5Test extends CiVisibilityInstrumentationTest {
 
+  def "does not report a session when no tests are discovered"() {
+    when:
+    runTests([])
+
+    then:
+    TEST_WRITER.size() == 0
+  }
+
   def "test #testcaseName"() {
     runTests(tests, success)
 

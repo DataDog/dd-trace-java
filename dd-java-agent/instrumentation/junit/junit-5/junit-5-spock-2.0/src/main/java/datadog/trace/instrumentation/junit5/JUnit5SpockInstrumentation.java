@@ -39,6 +39,9 @@ public class JUnit5SpockInstrumentation extends InstrumenterModule.CiVisibility
     return new String[] {
       packageName + ".JUnitPlatformUtils",
       packageName + ".TestDataFactory",
+      packageName + ".execution.RetryDescriptorFactory",
+      packageName + ".execution.RetryDescriptorFactories",
+      packageName + ".SpockRetryDescriptorFactory",
       packageName + ".SpockUtils",
       packageName + ".TestEventsHandlerHolder",
       packageName + ".SpockTracingListener",

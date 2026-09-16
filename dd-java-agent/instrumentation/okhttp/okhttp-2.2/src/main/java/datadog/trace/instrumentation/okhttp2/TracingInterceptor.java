@@ -10,7 +10,7 @@ import static datadog.trace.instrumentation.okhttp2.RequestBuilderInjectAdapter.
 import com.squareup.okhttp.Interceptor;
 import com.squareup.okhttp.Request;
 import com.squareup.okhttp.Response;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.io.IOException;
 
@@ -19,7 +19,7 @@ public class TracingInterceptor implements Interceptor {
   public Response intercept(final Chain chain) throws IOException {
     final AgentSpan span = startSpan("okhttp", OKHTTP_REQUEST);
 
-    try (final AgentScope scope = activateSpan(span)) {
+    try (final ContextScope scope = activateSpan(span)) {
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, chain.request());
 

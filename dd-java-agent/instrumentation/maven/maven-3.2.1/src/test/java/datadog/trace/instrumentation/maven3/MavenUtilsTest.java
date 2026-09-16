@@ -15,18 +15,15 @@ import freemarker.template.TemplateExceptionHandler;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Stream;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenSession;
@@ -38,8 +35,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
 
 public class MavenUtilsTest extends AbstractMavenTest {
 
@@ -481,38 +476,27 @@ public class MavenUtilsTest extends AbstractMavenTest {
   }
 
   private static String getLatestMavenSurefireVersion() {
-    OkHttpClient client = new OkHttpClient();
-    Request request =
-        new Request.Builder()
-            .url(
-                "https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml")
-            .build();
-    try (Response response = client.newCall(request).execute()) {
-      if (response.isSuccessful()) {
-        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-        Document doc = dBuilder.parse(response.body().byteStream());
-        doc.getDocumentElement().normalize();
+    // The pinned value is bumped on a schedule by the update-smoke-test-latest-versions workflow.
+    // See latest-tool-versions.properties.
+    String version = loadLatestToolVersions().getProperty("maven-surefire.latest");
+    LOGGER.info("Will run the 'latest' tests with Maven Surefire version {}", version);
+    return version;
+  }
 
-        NodeList versionList = doc.getElementsByTagName("latest");
-        if (versionList.getLength() > 0) {
-          String version = versionList.item(0).getTextContent();
-          if (!version.contains("alpha") && !version.contains("beta")) {
-            LOGGER.info("Will run the 'latest' tests with version {}", version);
-            return version;
-          }
-        }
-      } else {
-        LOGGER.warn(
-            "Could not get latest Maven Surefire version, response from repo.maven.apache.org is {}:{}",
-            response.code(),
-            response.body().string());
+  private static Properties loadLatestToolVersions() {
+    Properties properties = new Properties();
+    try (InputStream stream =
+        MavenUtilsTest.class
+            .getClassLoader()
+            .getResourceAsStream("latest-tool-versions.properties")) {
+      if (stream == null) {
+        throw new IllegalStateException(
+            "Could not find latest-tool-versions.properties on classpath");
       }
-    } catch (Exception e) {
-      LOGGER.warn("Could not get latest Maven Surefire version", e);
+      properties.load(stream);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-    String hardcodedLatestVersion = "3.5.0"; // latest version that is known to work
-    LOGGER.info("Will run the 'latest' tests with hard-coded version {}", hardcodedLatestVersion);
-    return hardcodedLatestVersion;
+    return properties;
   }
 }

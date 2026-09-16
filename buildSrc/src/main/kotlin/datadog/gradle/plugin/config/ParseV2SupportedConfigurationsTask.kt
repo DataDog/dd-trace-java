@@ -15,6 +15,7 @@ import org.gradle.kotlin.dsl.property
 import java.io.File
 import java.io.FileInputStream
 import java.io.PrintWriter
+import java.util.Locale
 import javax.inject.Inject
 
 @CacheableTask
@@ -59,7 +60,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
           configMap["type"] as? String,
           configMap["default"] as? String,
           (configMap["aliases"] as? List<String>) ?: emptyList(),
-          (configMap["propertyKeys"] as? List<String>) ?: emptyList()
+          (configMap["propertyKeys"] as? List<String>) ?: emptyList(),
+          configMap["sensitive"] as? Boolean ?: false
         )
       }
     }
@@ -81,6 +83,12 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       }
     }.toMap()
 
+    val sensitiveKeys: Set<String> = supported.flatMap { (canonical, configList) ->
+      configList.filter { it.sensitive }.flatMap {
+        listOf(canonical) + it.aliases + it.propertyKeys.map(::toCanonicalEnvVar)
+      }
+    }.toSet()
+
     // Build the output .java path from the fully-qualified class name
     val pkgName = finalClassName.substringBeforeLast('.', "")
     val pkgPath = pkgName.replace('.', File.separatorChar)
@@ -97,8 +105,17 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       aliases,
       aliasMapping,
       deprecated,
-      reversePropertyKeysMap
+      reversePropertyKeysMap,
+      sensitiveKeys
     )
+  }
+
+  private fun toCanonicalEnvVar(key: String): String {
+    val env = key.replace('.', '_').replace('-', '_').uppercase(Locale.ROOT)
+    if (key.startsWith("otel.") || key.startsWith("OTEL_")) {
+      return env
+    }
+    return if (env.startsWith("DD_")) env else "DD_$env"
   }
 
   private fun generateJavaFile(
@@ -109,7 +126,8 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     aliases: Map<String, List<String>>,
     aliasMapping: Map<String, String>,
     deprecated: Map<String, String>,
-    reversePropertyKeysMap: Map<String, String>
+    reversePropertyKeysMap: Map<String, String>,
+    sensitiveKeys: Set<String>
   ) {
     val outFile = File(outputPath)
     outFile.parentFile?.mkdirs()
@@ -117,7 +135,17 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     PrintWriter(outFile).use { out ->
       out.println("package $packageName;")
       out.println()
-      out.println("import java.util.*;")
+      out.println("import java.util.HashMap;")
+      out.println("import java.util.HashSet;")
+      out.println("import java.util.List;")
+      out.println("import java.util.Map;")
+      out.println("import java.util.Set;")
+      out.println("import static java.util.Arrays.asList;")
+      out.println("import static java.util.Collections.emptyList;")
+      out.println("import static java.util.Collections.singletonList;")
+      out.println("import static java.util.Collections.unmodifiableList;")
+      out.println("import static java.util.Collections.unmodifiableMap;")
+      out.println("import static java.util.Collections.unmodifiableSet;")
       out.println()
       out.println("public final class $className {")
       out.println()
@@ -131,12 +159,15 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println()
       out.println("  public static final Map<String, String> REVERSE_PROPERTY_KEYS_MAP;")
       out.println()
+      out.println("  public static final Set<String> SENSITIVE_KEYS;")
+      out.println()
       out.println("  static {")
       out.println("    SUPPORTED = initSupported();")
       out.println("    ALIASES = initAliases();")
       out.println("    ALIAS_MAPPING = initAliasMapping();")
       out.println("    DEPRECATED = initDeprecated();")
       out.println("    REVERSE_PROPERTY_KEYS_MAP = initReversePropertyKeysMap();")
+      out.println("    SENSITIVE_KEYS = initSensitiveKeys();")
       out.println("  }")
       out.println()
 
@@ -145,7 +176,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("    Map<String, List<SupportedConfiguration>> supportedMap = new HashMap<>();")
       out.println("    initSupported1(supportedMap);")
       out.println("    initSupported2(supportedMap);")
-      out.println("    return Collections.unmodifiableMap(supportedMap);")
+      out.println("    return unmodifiableMap(supportedMap);")
       out.println("  }")
       out.println()
 
@@ -155,20 +186,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       // initSupported1() - first half
       out.println("  private static void initSupported1(Map<String, List<SupportedConfiguration>> supportedMap) {")
       for ((key, configList) in sortedSupported.take(midpoint)) {
-        out.print("    supportedMap.put(\"${esc(key)}\", Collections.unmodifiableList(Arrays.asList(")
-        val configIter = configList.iterator()
-        while (configIter.hasNext()) {
-          val config = configIter.next()
-          out.print("new SupportedConfiguration(")
-          out.print("${escNullableString(config.version)}, ")
-          out.print("${escNullableString(config.type)}, ")
-          out.print("${escNullableString(config.default)}, ")
-          out.print("Arrays.asList(${quoteList(config.aliases)}), ")
-          out.print("Arrays.asList(${quoteList(config.propertyKeys)})")
-          out.print(")")
-          if (configIter.hasNext()) out.print(", ")
-        }
-        out.println(")));")
+        out.println("    supportedMap.put(\"${esc(key)}\", ${supportedConfigListLiteral(configList)});")
       }
       out.println("  }")
       out.println()
@@ -176,20 +194,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       // initSupported2() - second half
       out.println("  private static void initSupported2(Map<String, List<SupportedConfiguration>> supportedMap) {")
       for ((key, configList) in sortedSupported.drop(midpoint)) {
-        out.print("    supportedMap.put(\"${esc(key)}\", Collections.unmodifiableList(Arrays.asList(")
-        val configIter = configList.iterator()
-        while (configIter.hasNext()) {
-          val config = configIter.next()
-          out.print("new SupportedConfiguration(")
-          out.print("${escNullableString(config.version)}, ")
-          out.print("${escNullableString(config.type)}, ")
-          out.print("${escNullableString(config.default)}, ")
-          out.print("Arrays.asList(${quoteList(config.aliases)}), ")
-          out.print("Arrays.asList(${quoteList(config.propertyKeys)})")
-          out.print(")")
-          if (configIter.hasNext()) out.print(", ")
-        }
-        out.println(")));")
+        out.println("    supportedMap.put(\"${esc(key)}\", ${supportedConfigListLiteral(configList)});")
       }
       out.println("  }")
       out.println()
@@ -200,12 +205,12 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       out.println("    Map<String, List<String>> aliasesMap = new HashMap<>();")
       for ((canonical, list) in aliases.toSortedMap()) {
         out.printf(
-          "    aliasesMap.put(\"%s\", Collections.unmodifiableList(Arrays.asList(%s)));\n",
+          "    aliasesMap.put(\"%s\", %s);\n",
           esc(canonical),
-          quoteList(list)
+          unmodifiableListLiteral(list)
         )
       }
-      out.println("    return Collections.unmodifiableMap(aliasesMap);")
+      out.println("    return unmodifiableMap(aliasesMap);")
       out.println("  }")
       out.println()
 
@@ -215,7 +220,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for ((alias, target) in aliasMapping.toSortedMap()) {
         out.printf("    aliasMappingMap.put(\"%s\", \"%s\");\n", esc(alias), esc(target))
       }
-      out.println("    return Collections.unmodifiableMap(aliasMappingMap);")
+      out.println("    return unmodifiableMap(aliasMappingMap);")
       out.println("  }")
       out.println()
 
@@ -225,7 +230,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for ((oldKey, note) in deprecated.toSortedMap()) {
         out.printf("    deprecatedMap.put(\"%s\", \"%s\");\n", esc(oldKey), esc(note))
       }
-      out.println("    return Collections.unmodifiableMap(deprecatedMap);")
+      out.println("    return unmodifiableMap(deprecatedMap);")
       out.println("  }")
       out.println()
 
@@ -235,14 +240,44 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
       for ((propertyKey, config) in reversePropertyKeysMap.toSortedMap()) {
         out.printf("    reversePropertyKeysMapping.put(\"%s\", \"%s\");\n", esc(propertyKey), esc(config))
       }
-      out.println("    return Collections.unmodifiableMap(reversePropertyKeysMapping);")
+      out.println("    return unmodifiableMap(reversePropertyKeysMapping);")
+      out.println("  }")
+      out.println()
+
+      out.println("  private static Set<String> initSensitiveKeys() {")
+      out.println("    Set<String> sensitiveKeys = new HashSet<>();")
+      for (key in sensitiveKeys.toSortedSet()) {
+        out.printf("    sensitiveKeys.add(\"%s\");\n", esc(key))
+      }
+      out.println("    return unmodifiableSet(sensitiveKeys);")
       out.println("  }")
       out.println("}")
     }
   }
 
+  private fun supportedConfigLiteral(config: SupportedConfigurationItem): String =
+    "new SupportedConfiguration(${escNullableString(config.version)}, ${escNullableString(config.type)}, ${escNullableString(config.default)}, ${listLiteral(config.aliases)}, ${listLiteral(config.propertyKeys)})"
+
+  private fun supportedConfigListLiteral(configList: List<SupportedConfigurationItem>): String = when (configList.size) {
+    0 -> "emptyList()"
+    1 -> "singletonList(${supportedConfigLiteral(configList[0])})"
+    else -> "unmodifiableList(asList(${configList.joinToString(", ") { supportedConfigLiteral(it) }}))"
+  }
+
   private fun quoteList(list: List<String>): String =
     list.joinToString(", ") { "\"${esc(it)}\"" }
+
+  private fun listLiteral(list: List<String>): String = when (list.size) {
+    0 -> "emptyList()"
+    1 -> "singletonList(${quoteList(list)})"
+    else -> "asList(${quoteList(list)})"
+  }
+
+  private fun unmodifiableListLiteral(list: List<String>): String = when (list.size) {
+    0 -> "emptyList()"
+    1 -> "singletonList(${quoteList(list)})"
+    else -> "unmodifiableList(asList(${quoteList(list)}))"
+  }
 
   private fun esc(s: String): String =
     s.replace("\\", "\\\\").replace("\"", "\\\"")
@@ -256,5 +291,6 @@ private data class SupportedConfigurationItem(
   val type: String?,
   val default: String?,
   val aliases: List<String>,
-  val propertyKeys: List<String>
+  val propertyKeys: List<String>,
+  val sensitive: Boolean
 )

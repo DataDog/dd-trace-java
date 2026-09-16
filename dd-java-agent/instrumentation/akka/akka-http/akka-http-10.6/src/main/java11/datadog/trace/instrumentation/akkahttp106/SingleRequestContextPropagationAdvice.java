@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.akkahttp106;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.currentContext;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.DECORATE;
 
 import akka.http.scaladsl.model.HttpRequest;
@@ -19,7 +19,7 @@ public class SingleRequestContextPropagationAdvice {
     final AkkaHttpClientHelpers.AkkaHttpHeaders headers =
         new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
 
-    DECORATE.injectContext(getCurrentContext(), request, headers);
+    DECORATE.injectContext(currentContext(), request, headers);
     request = headers.getRequest();
   }
 }

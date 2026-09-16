@@ -2,7 +2,6 @@ package datadog.opentelemetry.shim.trace;
 
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
@@ -12,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 
 public class OtelSpanEvent {
   public static final String EXCEPTION_SPAN_EVENT_NAME = "exception";
@@ -43,7 +43,7 @@ public class OtelSpanEvent {
     this.timestamp = unit.toNanos(timestamp);
   }
 
-  @NonNull
+  @Nonnull
   public static String toTag(List<OtelSpanEvent> events) {
     StringBuilder builder = new StringBuilder("[");
     for (OtelSpanEvent event : events) {

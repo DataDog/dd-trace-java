@@ -1,10 +1,10 @@
 package com.datadog.debugger.el.values;
 
+import com.datadog.debugger.el.EvalContext;
 import com.datadog.debugger.el.Value;
 import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
-import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.Values;
 import datadog.trace.bootstrap.debugger.util.WellKnownClasses;
 import java.util.Collection;
@@ -25,7 +25,7 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
   }
 
   @Override
-  public SetValue evaluate(ValueReferenceResolver valueRefResolver) {
+  public SetValue evaluate(EvalContext evalContext) {
     return this;
   }
 

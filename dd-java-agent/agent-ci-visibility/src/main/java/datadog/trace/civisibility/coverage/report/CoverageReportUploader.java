@@ -16,7 +16,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 import okhttp3.MediaType;
@@ -28,26 +31,32 @@ public class CoverageReportUploader {
 
   private final BackendApi backendApi;
   private final Map<String, String> ciTags;
+  private final List<String> flags;
   private final CiVisibilityMetricCollector metricCollector;
-  private final JsonAdapter<Map<String, String>> eventAdapter;
+  private final JsonAdapter<Map<String, Object>> eventAdapter;
 
   public CoverageReportUploader(
       BackendApi backendApi,
       Map<String, String> ciTags,
+      List<String> flags,
       CiVisibilityMetricCollector metricCollector) {
     this.backendApi = backendApi;
     this.ciTags = ciTags;
+    this.flags = Collections.unmodifiableList(new ArrayList<>(flags));
     this.metricCollector = metricCollector;
 
     Moshi moshi = new Moshi.Builder().build();
-    Type type = Types.newParameterizedType(Map.class, String.class, String.class);
+    Type type = Types.newParameterizedType(Map.class, String.class, Object.class);
     eventAdapter = moshi.adapter(type);
   }
 
   public void upload(String format, InputStream reportStream) throws IOException {
-    Map<String, String> event = new HashMap<>(ciTags);
+    Map<String, Object> event = new HashMap<>(ciTags);
     event.put("format", format);
     event.put("type", "coverage_report");
+    if (!flags.isEmpty()) {
+      event.put("report.flags", flags);
+    }
     String eventJson = eventAdapter.toJson(event);
     RequestBody eventBody = jsonRequestBodyOf(eventJson.getBytes(StandardCharsets.UTF_8));
 

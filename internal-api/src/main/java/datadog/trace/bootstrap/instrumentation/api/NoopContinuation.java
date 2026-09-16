@@ -1,25 +1,29 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
-final class NoopContinuation implements AgentScope.Continuation {
-  static final NoopContinuation INSTANCE = new NoopContinuation();
+import datadog.context.Context;
+import datadog.context.ContextContinuation;
+import datadog.context.ContextScope;
+
+public final class NoopContinuation implements ContextContinuation {
+  public static final NoopContinuation INSTANCE = new NoopContinuation();
 
   private NoopContinuation() {}
 
   @Override
-  public AgentScope.Continuation hold() {
+  public NoopContinuation hold() {
     return this;
   }
 
   @Override
-  public AgentScope activate() {
+  public ContextScope resume() {
     return NoopScope.INSTANCE;
   }
 
   @Override
-  public AgentSpan span() {
-    return NoopSpan.INSTANCE;
+  public Context context() {
+    return Context.root();
   }
 
   @Override
-  public void cancel() {}
+  public void release() {}
 }

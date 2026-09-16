@@ -1,17 +1,18 @@
 package datadog.trace.core.propagation;
 
-import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.api.sampling.SamplingMechanism;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
+
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.core.CoreSpan;
 
 public class ControllableSampler implements Sampler, PrioritySampler {
-  protected int nextSamplingPriority = PrioritySampling.SAMPLER_KEEP;
+  protected int nextSamplingPriority = SAMPLER_KEEP;
 
   @Override
   public <T extends CoreSpan<T>> void setSamplingPriority(T span) {
-    span.setSamplingPriority(nextSamplingPriority, SamplingMechanism.DEFAULT);
+    span.setSamplingPriority(nextSamplingPriority, DEFAULT);
   }
 
   @Override

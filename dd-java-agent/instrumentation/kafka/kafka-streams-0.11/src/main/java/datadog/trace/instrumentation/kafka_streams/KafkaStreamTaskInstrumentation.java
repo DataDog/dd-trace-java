@@ -10,7 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_C
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.rootContext;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static datadog.trace.instrumentation.kafka_streams.KafkaStreamsDecorator.BROKER_DECORATE;
@@ -233,7 +233,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        scope = defaultPropagator().extract(getRootContext(), record, SR_GETTER).attach();
+        scope = defaultPropagator().extract(rootContext(), record, SR_GETTER).attach();
       }
     }
 
@@ -254,7 +254,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
         return;
       }
       if (!Config.get().isKafkaClientPropagationDisabledForTopic(record.topic())) {
-        scope = defaultPropagator().extract(getRootContext(), record, PR_GETTER).attach();
+        scope = defaultPropagator().extract(rootContext(), record, PR_GETTER).attach();
       }
     }
 
@@ -288,7 +288,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
                 JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
         BROKER_DECORATE.afterStart(queueSpan);
         BROKER_DECORATE.onTimeInQueue(queueSpan, record);
-        span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.context());
+        span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.spanContext());
         BROKER_DECORATE.beforeFinish(queueSpan);
         // The queueSpan will be finished after inner span has been activated to ensure that
         // spans are written out together by TraceStructureWriter when running in strict mode
@@ -354,7 +354,7 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
                 JAVA_KAFKA.toString(), KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
         BROKER_DECORATE.afterStart(queueSpan);
         BROKER_DECORATE.onTimeInQueue(queueSpan, record);
-        span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.context());
+        span = startSpan(JAVA_KAFKA.toString(), KAFKA_CONSUME, queueSpan.spanContext());
         BROKER_DECORATE.beforeFinish(queueSpan);
         // The queueSpan will be finished after inner span has been activated to ensure that
         // spans are written out together by TraceStructureWriter when running in strict mode

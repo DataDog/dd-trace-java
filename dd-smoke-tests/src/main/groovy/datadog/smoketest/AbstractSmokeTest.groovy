@@ -252,6 +252,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
       // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
       // ret += "-Ddd.dogstatsd.start-delay=0"
     }
+
+    // Disable CDS to avoid SIGSEGVs on Linux arm64.
+    if (OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64()) {
+      ret += "-Xshare:off"
+    }
     ret as String[]
   }
 

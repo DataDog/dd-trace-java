@@ -109,7 +109,7 @@ public class PlayBodyParsersInstrumentation extends InstrumenterModule.AppSec
       CallDepthThreadLocalMap.incrementCallDepth(PlayBodyParsers.class);
     }
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     static void after(
         @Advice.Return(readOnly = false) BodyParser<String> parser, @Advice.Thrown Throwable t) {
       int depth = CallDepthThreadLocalMap.decrementCallDepth(PlayBodyParsers.class);

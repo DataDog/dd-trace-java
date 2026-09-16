@@ -34,7 +34,7 @@ public class QuartzDecorator extends BaseDecorator {
     return "quartz";
   }
 
-  public AgentSpan onExecute(final AgentSpan span, JobExecutionContext context) {
+  public void onExecute(final AgentSpan span, JobExecutionContext context) {
     if (context != null) {
       if (context.getJobInstance() != null) {
         span.setTag(DDTags.RESOURCE_NAME, context.getJobInstance().getClass()).toString();
@@ -52,6 +52,5 @@ public class QuartzDecorator extends BaseDecorator {
         }
       }
     }
-    return span;
   }
 }

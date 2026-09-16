@@ -12,6 +12,7 @@ import datadog.trace.core.servicediscovery.ForeignMemoryWriter;
 import datadog.trace.core.servicediscovery.ForeignMemoryWriterFactory;
 import datadog.trace.core.servicediscovery.ServiceDiscovery;
 import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,10 @@ public class TracerInstaller {
   private static final Logger log = LoggerFactory.getLogger(TracerInstaller.class);
 
   /** Register a global tracer if no global tracer is already registered. */
+  @SuppressFBWarnings(
+      value = "USO_UNSAFE_STATIC_METHOD_SYNCHRONIZATION",
+      justification =
+          "Agent-internal class; Class object does not escape to app code and lock only guards one-time tracer install.")
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects,
       ProfilingContextIntegration profilingContextIntegration) {

@@ -5,9 +5,9 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.reactivestreams.HandoffContext;
 import io.github.resilience4j.core.functions.CheckedSupplier;
 import java.util.function.Function;
 import net.bytebuddy.asm.Advice;
@@ -34,13 +34,15 @@ public class FallbackOperatorInstrumentation
 
   public static class DecorateAdvice {
 
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void after(
         @Advice.Return(readOnly = false) Function<Publisher<?>, Publisher<?>> result) {
 
       result =
           ReactorHelper.wrapFunction(
-              result, InstrumentationContext.get(Publisher.class, Context.class)::putIfAbsent);
+              result,
+              ReactorHelper.putIfAbsentInto(
+                  InstrumentationContext.get(Publisher.class, HandoffContext.class)));
     }
 
     // 2.0.0+

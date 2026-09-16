@@ -1,5 +1,7 @@
 package datadog.smoketest
 
+import static datadog.smoketest.KnownLogExclusion.isKnownFlakyTestLogEntry
+
 import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
@@ -178,31 +180,10 @@ abstract class ProcessManager extends Specification {
    * These will be checked on suite shutdown, or explicitly by calling {@link #assertNoErrorLogs()}.
    */
   boolean isErrorLog(String line) {
-    // FIXME: Flaky profiler exception. See PROF-11068.
-    if (line.contains('ERROR com.datadog.profiling.controller.ProfilingSystem - Fatal exception in profiling thread, trying to continue')) {
+    // Skip known log entries from flaky tests
+    if (isKnownFlakyTestLogEntry(line)) {
       return false
     }
-
-    // FIXME: Flaky on Spring Boot, e.g. IastSpringBootSmokeTest :dd-smoke-tests:spring-boot-2.6-webmvc:test semeru8
-    if (line.contains("I/O reactor terminated abnormally")) {
-      return false
-    }
-
-    // FIXME: Flaky profiler exception. See PROF-11072.
-    if (line.contains("ERROR com.datadog.profiling.controller.ProfilingSystem - Fatal exception during profiling startup")) {
-      return false
-    }
-
-    // FIXME: Observed in semeru8 datadog.smoketest.WildflySmokeTest
-    if (line.contains("ERROR datadog.trace.agent.jmxfetch.JMXFetch - jmx collector exited with result: 0")) {
-      return false
-    }
-
-    // FIXME: Spotted on multiple Spring Boot jobs, e.g. semeru11 IastSpringBootSmokeTest$WithGlobalContext
-    if (line.contains("I/O reactor terminated abnormally")) {
-      return false
-    }
-
     return line.contains("ERROR") || line.contains("ASSERTION FAILED")
     || line.contains("Failed to handle exception in instrumentation")
   }

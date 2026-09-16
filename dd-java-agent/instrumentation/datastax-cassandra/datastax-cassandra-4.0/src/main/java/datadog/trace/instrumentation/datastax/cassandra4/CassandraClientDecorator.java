@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Objects;
 import java.util.function.ToIntFunction;
+import javax.annotation.Nonnull;
 
 public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDecorator<Session> {
   private static final String DB_TYPE = "cassandra";
@@ -82,41 +83,33 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
     return null;
   }
 
-  public AgentSpan onStatement(final AgentSpan span, final CharSequence statement) {
+  public void onStatement(final AgentSpan span, final CharSequence statement) {
     span.setResourceName(normalizedQuery(statement));
-    return span;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final ResultSet result) {
+  public void onResponse(final AgentSpan span, final ResultSet result) {
     if (result != null) {
-      return onResponse(
-          span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
+      onResponse(span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
     }
-
-    return span;
   }
 
-  public AgentSpan onResponse(final AgentSpan span, final AsyncResultSet result) {
+  public void onResponse(final AgentSpan span, final AsyncResultSet result) {
     if (result != null) {
-      return onResponse(
-          span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
+      onResponse(span, result.getExecutionInfo().getCoordinator(), result.getColumnDefinitions());
     }
-
-    return span;
   }
 
   @Override
-  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
-    super.onError(span, throwable);
+  protected void doOnError(
+      @Nonnull final AgentSpan span, @Nonnull final Throwable throwable, byte errorPriority) {
+    super.doOnError(span, throwable, errorPriority);
 
     if (throwable instanceof CoordinatorException) {
       onResponse(span, ((CoordinatorException) throwable).getCoordinator(), null);
     }
-
-    return span;
   }
 
-  private AgentSpan onResponse(AgentSpan span, Node coordinator, ColumnDefinitions columns) {
+  private void onResponse(AgentSpan span, Node coordinator, ColumnDefinitions columns) {
     if (coordinator != null) {
       SocketAddress address = coordinator.getEndPoint().resolve();
       if (address instanceof InetSocketAddress) {
@@ -134,6 +127,5 @@ public class CassandraClientDecorator extends DBTypeProcessingDatabaseClientDeco
       }
     } catch (final Throwable ignored) {
     }
-    return span;
   }
 }

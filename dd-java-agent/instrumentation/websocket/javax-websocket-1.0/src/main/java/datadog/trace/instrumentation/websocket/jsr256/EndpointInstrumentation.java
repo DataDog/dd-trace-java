@@ -68,7 +68,7 @@ public class EndpointInstrumentation
           current.forceSamplingDecision();
         }
         InstrumentationContext.get(Session.class, HandlerContext.Sender.class)
-            .putIfAbsent(
+            .getOrPut(
                 session, new HandlerContext.Sender(current.getLocalRootSpan(), session.getId()));
       }
     }
@@ -89,7 +89,7 @@ public class EndpointInstrumentation
           new HandlerContext.Receiver(sessionState.getHandshakeSpan(), session.getId());
 
       return activateSpan(
-          DECORATE.onSessionCloseReceived(
+          DECORATE.startInboundCloseSpan(
               handlerContext, closeReason.getReasonPhrase(), closeReason.getCloseCode().getCode()));
     }
 

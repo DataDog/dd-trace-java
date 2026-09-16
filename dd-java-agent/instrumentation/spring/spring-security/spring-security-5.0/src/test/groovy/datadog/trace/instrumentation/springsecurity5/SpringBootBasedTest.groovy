@@ -279,7 +279,7 @@ class SpringBootBasedTest extends AppSecHttpServerTest<ConfigurableApplicationCo
 
     then:
     response.code() == CUSTOM.status
-    span.context().resourceName.contains(CUSTOM.path)
+    span.spanContext().resourceName.contains(CUSTOM.path)
     span.getTags().findAll { key, value -> key.startsWith('appsec.events.users.login') }.isEmpty()
     // single call to the appender
     1 * appender.doAppend(_) >> {

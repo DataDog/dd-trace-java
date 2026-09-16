@@ -70,7 +70,7 @@ class ParentBasedAlwaysOnSamplerTest {
     DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "root").start();
     sampler.setSamplingPriority(rootSpan);
     DDSpan childSpan =
-        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.context()).start();
+        (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(rootSpan.spanContext()).start();
     try {
       assertEquals(SAMPLER_KEEP, rootSpan.getSamplingPriority());
       assertEquals(SAMPLER_KEEP, childSpan.getSamplingPriority());

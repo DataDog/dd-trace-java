@@ -61,8 +61,8 @@ public class Blocking {
   }
 
   /**
-   * Equivalent to calling {@link #tryCommitBlockingResponse(int, BlockingContentType, Map<String,
-   * String>)} with the last parameter being an empty map.
+   * Equivalent to calling {@link #tryCommitBlockingResponse(int, BlockingContentType, Map)} with
+   * the last parameter being an empty map.
    *
    * @param statusCode the status code of the response
    * @param contentType the content-type of the response.

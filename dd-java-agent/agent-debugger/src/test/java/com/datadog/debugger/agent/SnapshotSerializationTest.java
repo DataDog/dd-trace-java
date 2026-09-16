@@ -31,6 +31,7 @@ import com.datadog.debugger.util.MoshiSnapshotHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
 import com.squareup.moshi.JsonAdapter;
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedStackFrame;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
@@ -54,6 +55,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -65,6 +67,8 @@ import java.util.OptionalLong;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import org.junit.jupiter.api.Assertions;
@@ -754,6 +758,52 @@ public class SnapshotSerializationTest {
     assertSize(locals, "strMap", "10");
   }
 
+  @Test
+  public void synchronizedMapLockedByAnotherThread() throws Exception {
+    Map<String, String> syncMap = Collections.synchronizedMap(new HashMap<>());
+    syncMap.put("foo", "bar");
+    CountDownLatch locked = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    Thread holder =
+        new Thread(
+            () -> {
+              synchronized (syncMap) {
+                locked.countDown();
+                try {
+                  release.await();
+                } catch (InterruptedException ignored) {
+                }
+              }
+            },
+            "mutex-holder");
+    // daemon: a failed await below would otherwise leave the mutex held and block the test JVM
+    holder.setDaemon(true);
+    holder.start();
+    try {
+      assertTrue(locked.await(5, TimeUnit.SECONDS));
+      JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
+      Snapshot snapshot = createSnapshot();
+      CapturedContext context = new CapturedContext();
+      context.addLocals(
+          new CapturedContext.CapturedValue[] {
+            capturedValueDepth("syncMap", syncMap.getClass().getTypeName(), syncMap, 1)
+          });
+      snapshot.setExit(context);
+      String buffer =
+          CompletableFuture.supplyAsync(() -> adapter.toJson(snapshot)).get(30, TimeUnit.SECONDS);
+      Map<String, Object> local = (Map<String, Object>) getLocalsFromJson(buffer).get("syncMap");
+      assertNull(local.get(ENTRIES));
+      assertNull(local.get(SIZE));
+      Map<String, Object> fields = (Map<String, Object>) local.get(FIELDS);
+      Assertions.assertNotNull(fields);
+      // serialized through the object path: the backing map is a field, not entries
+      assertTrue(fields.containsKey("m"));
+    } finally {
+      release.countDown();
+      holder.join();
+    }
+  }
+
   private Map<String, Object> doMapSize(int maxColSize) throws IOException {
     JsonAdapter<Snapshot> adapter = createSnapshotAdapter();
     Snapshot snapshot = createSnapshotForMapSize(maxColSize);
@@ -922,11 +972,9 @@ public class SnapshotSerializationTest {
   @Test
   @Flaky
   public void timeOut() throws IOException {
-    DebuggerContext.initValueSerializer(
-        new TimeoutSnapshotSerializer(Duration.of(150, ChronoUnit.MILLIS)));
+    DebuggerContext.initValueSerializer(new TimeoutSnapshotSerializer(Duration.ofMillis(150)));
     JsonAdapter<Snapshot> adapter =
-        MoshiHelper.createMoshiSnapshot(Duration.of(100, ChronoUnit.MILLIS))
-            .adapter(Snapshot.class);
+        MoshiHelper.createMoshiSnapshot(Duration.ofMillis(100)).adapter(Snapshot.class);
     Snapshot snapshot = createSnapshot();
     CapturedContext context = new CapturedContext();
     CapturedContext.CapturedValue arg1 = CapturedContext.CapturedValue.of("arg1", "int", 42);
@@ -949,7 +997,7 @@ public class SnapshotSerializationTest {
         new TimeoutSnapshotSerializer(Duration.of(20, ChronoUnit.MILLIS)));
     CapturedContext.CapturedValue arg1 =
         CapturedContext.CapturedValue.of("arg1", Random.class.getTypeName(), new Random(0));
-    arg1.freeze(new TimeoutChecker(Duration.ofMillis(10)));
+    arg1.freeze(TimeoutChecker.create(Config.get(), Duration.ofMillis(10)));
     String buffer = arg1.getStrValue();
     System.out.println(buffer);
     Map<String, Object> json = MoshiHelper.createGenericAdapter().fromJson(buffer);

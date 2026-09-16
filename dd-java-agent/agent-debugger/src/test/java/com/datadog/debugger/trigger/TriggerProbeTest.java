@@ -1,6 +1,9 @@
 package com.datadog.debugger.trigger;
 
-import static com.datadog.debugger.el.DSL.*;
+import static com.datadog.debugger.el.DSL.lt;
+import static com.datadog.debugger.el.DSL.ref;
+import static com.datadog.debugger.el.DSL.value;
+import static com.datadog.debugger.el.DSL.when;
 import static java.lang.String.format;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -79,7 +82,7 @@ public class TriggerProbeTest extends CapturingTestBase {
             .filter(
                 span -> {
                   DDSpan ddSpan = (DDSpan) span;
-                  PropagationTags tags = ddSpan.context().getPropagationTags();
+                  PropagationTags tags = ddSpan.spanContext().getPropagationTags();
                   return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                 })
             .count();
@@ -137,7 +140,7 @@ public class TriggerProbeTest extends CapturingTestBase {
               .filter(
                   span -> {
                     DDSpan ddSpan = (DDSpan) span;
-                    PropagationTags tags = ddSpan.context().getPropagationTags();
+                    PropagationTags tags = ddSpan.spanContext().getPropagationTags();
                     return (TRIGGER_PROBE_SESSION_ID + ":1").equals(tags.getDebugPropagation());
                   })
               .count();

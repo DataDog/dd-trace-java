@@ -15,7 +15,7 @@ import scala.collection.immutable.List;
  */
 @RequiresRequestContext(RequestContextSlot.APPSEC)
 public class SirdPathExtractorExtractAdvice {
-  @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   static void after(
       @Advice.Return scala.Option<List<String>> ret,
       @ActiveRequestContext RequestContext reqCtx,

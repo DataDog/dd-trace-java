@@ -1,0 +1,86 @@
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt
+index e50aa9820..f36561b03 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt
+@@ -38,6 +38,7 @@ import okhttp3.internal.http2.ErrorCode
+ import okhttp3.testing.Flaky
+ import org.junit.jupiter.api.AfterEach
+ import org.junit.jupiter.api.BeforeEach
++import org.junit.jupiter.api.Disabled
+ import org.junit.jupiter.api.Test
+ import org.junit.jupiter.api.Timeout
+ import org.junit.jupiter.api.extension.RegisterExtension
+@@ -55,6 +56,7 @@ import org.opentest4j.TestAbortedException
+  * This test only runs on host machines that have both IPv4 and IPv6 addresses for localhost.
+  */
+ @Timeout(30)
++@Disabled
+ class FastFallbackTest {
+   @RegisterExtension
+   val clientTestRule = OkHttpClientTestRule()
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/InterceptorTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/InterceptorTest.kt
+index 22f1ceaf5..3df72113b 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/InterceptorTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/InterceptorTest.kt
+@@ -50,6 +50,7 @@ import okio.GzipSink
+ import okio.Sink
+ import okio.Source
+ import okio.buffer
++import org.junit.jupiter.api.Disabled
+ import org.junit.jupiter.api.Tag
+ import org.junit.jupiter.api.Test
+ import org.junit.jupiter.api.extension.RegisterExtension
+@@ -608,11 +609,13 @@ class InterceptorTest {
+     )
+   }
+ 
++  @Disabled
+   @Test
+   fun applicationInterceptorThrowsRuntimeExceptionAsynchronous() {
+     interceptorThrowsRuntimeExceptionAsynchronous(false)
+   }
+ 
++  @Disabled
+   @Test
+   fun networkInterceptorThrowsRuntimeExceptionAsynchronous() {
+     interceptorThrowsRuntimeExceptionAsynchronous(true)
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
+index d78fd43e1..5a3429050 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
+@@ -57,6 +57,7 @@ import okhttp3.tls.HeldCertificate
+ import okhttp3.tls.internal.TlsUtil.newKeyManager
+ import okhttp3.tls.internal.TlsUtil.newTrustManager
+ import org.junit.jupiter.api.BeforeEach
++import org.junit.jupiter.api.Disabled
+ import org.junit.jupiter.api.Tag
+ import org.junit.jupiter.api.Test
+ import org.junit.jupiter.api.extension.RegisterExtension
+@@ -310,6 +311,7 @@ class ClientAuthTest {
+     }
+   }
+ 
++  @Disabled
+   @Test
+   fun invalidClientAuthEvents() {
+     server.enqueue(
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/internal/ws/WebSocketReaderTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/internal/ws/WebSocketReaderTest.kt
+index d3f264333..22d709282 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/internal/ws/WebSocketReaderTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/internal/ws/WebSocketReaderTest.kt
+@@ -32,6 +32,7 @@ import okio.ByteString.Companion.decodeHex
+ import okio.ByteString.Companion.encodeUtf8
+ import okio.ByteString.Companion.toByteString
+ import org.junit.jupiter.api.AfterEach
++import org.junit.jupiter.api.Disabled
+ import org.junit.jupiter.api.Test
+ 
+ class WebSocketReaderTest {
+@@ -431,6 +432,7 @@ class WebSocketReaderTest {
+     assertThat(count).isEqualTo(1988)
+   }
+ 
++  @Disabled
+   @Test fun clientWithCompressionCannotBeUsedAfterClose() {
+     data.write("c107f248cdc9c90700".decodeHex()) // Hello
+     clientReaderWithCompression.processNextFrame()

@@ -28,7 +28,6 @@ import io.opentracing.util.GlobalTracer
 import spock.lang.Subject
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation
 
 class OpenTracing31Test extends InstrumentationSpecification {
 
@@ -112,7 +111,7 @@ class OpenTracing31Test extends InstrumentationSpecification {
             }
             defaultTags(addReference != null)
           }
-          assert span.context().integrationName == "opentracing"
+          assert span.spanContext().integrationName == "opentracing"
         }
       }
     }
@@ -165,7 +164,6 @@ class OpenTracing31Test extends InstrumentationSpecification {
     span instanceof MutableSpan
     scope instanceof TraceScope
     !internalTracer.isAsyncPropagationEnabled()
-    (scope as TraceScope).capture() == noopContinuation()
     (tracer.scopeManager().active().span().delegate == span.delegate)
 
     when:

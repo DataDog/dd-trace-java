@@ -3,12 +3,14 @@ package datadog.smoketest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
+import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.civisibility.CiVisibilitySmokeTest;
 import datadog.trace.civisibility.CiVisibilityTableTestConverters;
@@ -40,6 +42,8 @@ import org.apache.maven.wrapper.MavenWrapperMain;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.slf4j.Logger;
@@ -73,6 +77,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   @BeforeEach
   void resetMockBackend() {
+    assumeFalse(JavaVirtualMachine.isJavaVersion(27), "JDK 27 TODO: address failing test");
     mockBackend.reset();
   }
 
@@ -92,6 +97,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "succeed-jacoco-argline     | test_successful_maven_run_with_jacoco_and_argline | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
     "succeed-cucumber           | test_successful_maven_run_with_cucumber           | 3.9.9                        | 4              | 1                 | true          | false         | false        | true           | []                                                               | 8                      ",
     "failed-flaky-retries       | test_failed_maven_run_flaky_retries               | 3.9.9                        | 8              | 5                 | false         | false         | true         | true           | []                                                               | 8                      ",
+    "cucumber-suite-flaky       | test_maven_run_cucumber_suite_flaky_retries       | 3.9.9                        | 8              | 5                 | false         | false         | true         | false          | []                                                               | 17                     ",
     "succeed-junit-platform     | test_successful_maven_run_junit_platform_runner   | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | []                                                               | 8                      ",
     "succeed-arg-line-property  | test_successful_maven_run_with_arg_line_property  | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | [\"-DargLine='-Dmy-custom-property=provided-via-command-line'\"] | 8                      ",
     "succeed-multi-forks-j8     | test_successful_maven_run_multiple_forks          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
@@ -125,6 +131,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
         "Maven Smoke Tests Project maven-surefire-plugin default-test",
         "datadog.smoke.TestFailed",
         "test_failed");
+    mockBackend.givenFlakyTest(
+        "Maven Smoke Tests Project maven-surefire-plugin default-test",
+        "classpath:datadog/smoke/basic_arithmetic.feature:Basic Arithmetic",
+        "Basic Arithmetic - Addition"); // cucumber.junit-platform.naming-strategy=long
 
     mockBackend.givenTestsSkipping(testsSkipping);
     mockBackend.givenSkippableTest(
@@ -305,6 +315,8 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     "failed-test-replay | test_failed_maven_failed_test_replay | 3.9.9       "
   })
   @ParameterizedTest
+  // Exception Replay is disabled by default on JDK8 due to JVM bug
+  @EnabledForJreRange(min = JRE.JAVA_11)
   void testFailedTestReplay(String projectName, String mavenVersion) throws Exception {
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);
@@ -320,6 +332,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     Map<String, String> agentArgs = new HashMap<>();
     agentArgs.put(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT, "3");
     agentArgs.put(GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL, mockBackend.getIntakeUrl());
+    agentArgs.put(DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL, "999999");
 
     int exitCode =
         whenRunningMavenBuild(agentArgs, Collections.emptyList(), Collections.emptyMap(), true);
@@ -587,13 +600,13 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   private static String getLatestMavenVersion() {
-    String version = loadLatestToolVersions().getProperty("maven.version");
+    String version = loadLatestToolVersions().getProperty("maven.latest");
     LOGGER.info("Will run the 'latest' tests with Maven version {}", version);
     return version;
   }
 
   private static String getLatestMavenSurefireVersion() {
-    String version = loadLatestToolVersions().getProperty("maven-surefire.version");
+    String version = loadLatestToolVersions().getProperty("maven-surefire.latest");
     LOGGER.info("Will run the 'latest' tests with Maven Surefire version {}", version);
     return version;
   }

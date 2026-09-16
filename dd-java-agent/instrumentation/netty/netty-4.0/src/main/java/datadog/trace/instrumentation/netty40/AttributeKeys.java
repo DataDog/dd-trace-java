@@ -3,8 +3,8 @@ package datadog.trace.instrumentation.netty40;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.trace.api.GenericClassValue;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.websocket.HandlerContext;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -23,9 +23,8 @@ public final class AttributeKeys {
   public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
       attributeKey("datadog.client.parent.span");
 
-  public static final AttributeKey<AgentScope.Continuation>
-      CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
-          attributeKey("datadog.connect.parent.continuation");
+  public static final AttributeKey<ContextContinuation> CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY =
+      attributeKey("datadog.connect.parent.continuation");
 
   public static final AttributeKey<Context> PARENT_CONTEXT_ATTRIBUTE_KEY =
       attributeKey("datadog.server.parent-context");

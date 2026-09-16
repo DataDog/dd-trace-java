@@ -8,7 +8,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.core.DDSpan;
 
-import static datadog.trace.bootstrap.debugger.DebuggerContext.*;
+import static datadog.trace.bootstrap.debugger.DebuggerContext.captureCodeOrigin;
 import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 
 public class CodeOrigin01 {

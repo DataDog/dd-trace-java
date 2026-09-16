@@ -17,7 +17,7 @@ public class ShadowExistingScopeAdvice {
     return activateSpan(noopSpan());
   }
 
-  @Advice.OnMethodExit(suppress = Throwable.class)
+  @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void exit(@Advice.Enter final AgentScope scope) {
     scope.close();
   }

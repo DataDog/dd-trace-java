@@ -31,7 +31,6 @@ import datadog.trace.civisibility.decorator.TestDecoratorImpl
 import datadog.trace.civisibility.diff.Diff
 import datadog.trace.civisibility.diff.LineDiff
 import datadog.trace.civisibility.domain.BuildSystemSession
-import datadog.trace.civisibility.domain.TestFrameworkModule
 import datadog.trace.civisibility.domain.TestFrameworkSession
 import datadog.trace.civisibility.domain.buildsystem.BuildSystemSessionImpl
 import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter
@@ -44,7 +43,7 @@ import datadog.trace.civisibility.source.SourcePathResolver
 import datadog.trace.civisibility.source.index.RepoIndexBuilder
 import datadog.trace.civisibility.telemetry.CiVisibilityMetricCollectorImpl
 import datadog.trace.civisibility.test.ExecutionStrategy
-import datadog.trace.civisibility.utils.ConcurrentHashMapContextStore
+import datadog.trace.civisibility.utils.StrongMapContextStore
 import datadog.trace.civisibility.writer.ddintake.CiTestCovMapperV2
 import datadog.trace.civisibility.writer.ddintake.CiTestCycleMapperV1
 import datadog.trace.common.writer.ListWriter
@@ -82,6 +81,14 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     Files.deleteIfExists(AGENT_KEY_FILE)
   }
 
+  protected boolean flakyRetryOnlyKnownFlakes() {
+    true
+  }
+
+  protected String testOrder() {
+    CIConstants.FAIL_FAST_TEST_ORDER
+  }
+
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -93,10 +100,14 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_ITR_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ENABLED, "true")
+    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_ONLY_KNOWN_FLAKES, flakyRetryOnlyKnownFlakes().toString())
     injectSysConfig(CiVisibilityConfig.CIVISIBILITY_EARLY_FLAKE_DETECTION_LOWER_LIMIT, "1")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ENABLED, "true")
     injectSysConfig(CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES, "5")
-    injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, CIConstants.FAIL_FAST_TEST_ORDER)
+    def testOrder = testOrder()
+    if (testOrder != null) {
+      injectSysConfig(CiVisibilityConfig.CIVISIBILITY_TEST_ORDER, testOrder)
+    }
   }
 
   @SuppressWarnings('UnusedPrivateField')
@@ -266,11 +277,12 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
 
     @Override
     <SuiteKey, TestKey> TestEventsHandler<SuiteKey, TestKey> create(String component, ContextStore<SuiteKey, DDTestSuite> suiteStore, ContextStore<TestKey, DDTest> testStore, Collection<LibraryCapability> capabilities) {
-      TestFrameworkSession testSession = testFrameworkSessionFactory.startSession(moduleName, component, null, capabilities)
-      TestFrameworkModule testModule = testSession.testModuleStart(moduleName, null)
-      new TestEventsHandlerImpl(metricCollector, testSession, testModule,
-      suiteStore != null ? suiteStore : new ConcurrentHashMapContextStore<>(),
-      testStore != null ? testStore : new ConcurrentHashMapContextStore<>())
+      new TestEventsHandlerImpl(metricCollector,
+      { testFrameworkSessionFactory.startSession(moduleName, component, null, capabilities) },
+      moduleName,
+      false,
+      suiteStore != null ? suiteStore : new StrongMapContextStore<>(),
+      testStore != null ? testStore : new StrongMapContextStore<>())
     }
   }
 

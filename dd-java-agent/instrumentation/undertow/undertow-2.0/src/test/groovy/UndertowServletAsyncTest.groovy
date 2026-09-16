@@ -1,34 +1,3 @@
-import datadog.trace.agent.test.asserts.TraceAssert
-import datadog.trace.agent.test.base.HttpServer
-import datadog.trace.agent.test.base.HttpServerTest
-import datadog.trace.bootstrap.instrumentation.api.Tags
-import io.undertow.Handlers
-import io.undertow.Undertow
-import io.undertow.UndertowOptions
-import io.undertow.channels.DetachableStreamSinkChannel
-import io.undertow.server.HttpServerExchange
-import io.undertow.servlet.api.DeploymentInfo
-import io.undertow.servlet.api.DeploymentManager
-import io.undertow.servlet.api.InstanceFactory
-import io.undertow.servlet.api.InstanceHandle
-import io.undertow.servlet.api.ServletContainer
-import io.undertow.servlet.api.ServletInfo
-import io.undertow.servlet.util.ImmediateInstanceHandle
-import org.slf4j.LoggerFactory
-
-import javax.servlet.AsyncContext
-import javax.servlet.AsyncEvent
-import javax.servlet.AsyncListener
-import javax.servlet.MultipartConfigElement
-import javax.servlet.Servlet
-import javax.servlet.ServletException
-import javax.servlet.WriteListener
-import javax.servlet.http.HttpServlet
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.atomic.AtomicReference
-
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
@@ -49,6 +18,36 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOU
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.TIMEOUT_ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.USER_BLOCK
 import static datadog.trace.agent.test.base.HttpServerTest.controller
+
+import datadog.trace.agent.test.asserts.TraceAssert
+import datadog.trace.agent.test.base.HttpServer
+import datadog.trace.agent.test.base.HttpServerTest
+import datadog.trace.bootstrap.instrumentation.api.Tags
+import io.undertow.Handlers
+import io.undertow.Undertow
+import io.undertow.UndertowOptions
+import io.undertow.channels.DetachableStreamSinkChannel
+import io.undertow.server.HttpServerExchange
+import io.undertow.servlet.api.DeploymentInfo
+import io.undertow.servlet.api.DeploymentManager
+import io.undertow.servlet.api.InstanceFactory
+import io.undertow.servlet.api.InstanceHandle
+import io.undertow.servlet.api.ServletContainer
+import io.undertow.servlet.api.ServletInfo
+import io.undertow.servlet.util.ImmediateInstanceHandle
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicReference
+import javax.servlet.AsyncContext
+import javax.servlet.AsyncEvent
+import javax.servlet.AsyncListener
+import javax.servlet.MultipartConfigElement
+import javax.servlet.Servlet
+import javax.servlet.ServletException
+import javax.servlet.WriteListener
+import javax.servlet.http.HttpServlet
+import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 
 class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
   private static final CONTEXT = "ctx"
@@ -119,9 +118,10 @@ class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
                               dispatch = false
                               req.setAttribute('ddog.dispatched', 1)
                               if (req.servletPath.contains(' ')) {
-                                // bug in undertow when dispatching from /foo%20bar
-                                // (matches mapping "/foo bar" 1st and "/foo%20bar" after dispatch)
-                                asyncContext.dispatch(req.servletPath)
+                                // Older versions match the decoded servlet path on redispatch,
+                                // while the newer RequestParser expects the raw encoded path;
+                                // using the other form either misses the servlet mapping or hangs.
+                                asyncContext.dispatch(hasNewRequestParser() ? ep.rawPath : req.servletPath)
                               } else {
                                 asyncContext.dispatch()
                               }
@@ -258,6 +258,16 @@ class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
   @Override
   String expectedOperationName() {
     operation()
+  }
+
+  private static boolean hasNewRequestParser() {
+    // returns true for versions that include the bugfix pushed in https://github.com/undertow-io/undertow/pull/1949
+    try {
+      Class.forName('io.undertow.server.protocol.http.RequestParser')
+      return true
+    } catch (ClassNotFoundException ignored) {
+      return false
+    }
   }
 
   @Override
@@ -408,7 +418,8 @@ class UndertowServletAsyncTest extends HttpServerTest<Undertow> {
     trace.span {
       serviceName expectedServiceName()
       operationName 'servlet.dispatch'
-      String resName = endpoint.path == endpoint.rawPath ? 'servlet.dispatch' : endpoint.path
+      String resName =
+        endpoint.path == endpoint.rawPath ? 'servlet.dispatch' : hasNewRequestParser() ? endpoint.rawPath : endpoint.path
       resourceName resName
       errored(endpoint.throwsException || endpoint == TIMEOUT_ERROR)
       childOfPrevious()

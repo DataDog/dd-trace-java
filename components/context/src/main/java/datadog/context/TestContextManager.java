@@ -27,6 +27,20 @@ final class TestContextManager implements ContextManager {
     return delegate().swap(context);
   }
 
+  @Override
+  public ContextContinuation capture(Context context) {
+    return delegate().capture(context);
+  }
+
+  @Override
+  public void addListener(ContextListener listener) {
+    delegate().addListener(listener);
+  }
+
+  static void clearListeners() {
+    ThreadLocalContextManager.INSTANCE.clearListeners();
+  }
+
   private static ContextManager delegate() {
     ContextManager delegate = ContextProviders.customManager;
     if (delegate == TEST_INSTANCE) {

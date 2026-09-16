@@ -5,9 +5,9 @@ import datadog.telemetry.TelemetryService
 import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.Metric
 import datadog.trace.api.telemetry.MetricCollector
-import edu.umd.cs.findbugs.annotations.NonNull
 import groovy.transform.NamedDelegate
 import groovy.transform.NamedVariant
+import javax.annotation.Nonnull
 import spock.lang.Specification
 
 class MetricPeriodicActionTest extends Specification {
@@ -159,12 +159,12 @@ class MetricPeriodicActionTest extends Specification {
 
     private final MetricCollector<MetricCollector.Metric> collector
 
-    DefaultMetricPeriodicAction(@NonNull final MetricCollector<MetricCollector.Metric> collector) {
+    DefaultMetricPeriodicAction(@Nonnull final MetricCollector<MetricCollector.Metric> collector) {
       this.collector = collector
     }
 
     @Override
-    @NonNull
+    @Nonnull
     MetricCollector<MetricCollector.Metric> collector() {
       return collector
     }

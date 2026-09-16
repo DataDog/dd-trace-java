@@ -570,6 +570,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "$Tags.HTTP_ROUTE" "/success"
             "servlet.context" "/boot-context"
             "servlet.path" "/success"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
             defaultTags()
           }
         }

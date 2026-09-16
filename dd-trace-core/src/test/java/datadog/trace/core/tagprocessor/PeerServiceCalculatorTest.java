@@ -8,7 +8,7 @@ import datadog.trace.api.TagMap;
 import datadog.trace.api.naming.v0.NamingSchemaV0;
 import datadog.trace.api.naming.v1.NamingSchemaV1;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
-import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.test.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collections;
 import java.util.LinkedHashMap;

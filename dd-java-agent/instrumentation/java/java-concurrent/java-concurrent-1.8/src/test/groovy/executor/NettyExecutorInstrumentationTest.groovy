@@ -1,5 +1,8 @@
 package executor
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue
+
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
@@ -8,21 +11,23 @@ import io.netty.channel.epoll.EpollEventLoopGroup
 import io.netty.channel.local.LocalEventLoopGroup
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutorGroup
-import runnable.JavaAsyncChild
-import spock.lang.Shared
-
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.Callable
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import runnable.JavaAsyncChild
+import spock.lang.IgnoreIf
+import spock.lang.Shared
 
-import static org.junit.jupiter.api.Assumptions.assumeTrue
-
+// TODO: netty-all 4.1.9 only ships linux-x86_64 epoll native libraries.
+@IgnoreIf({
+  OperatingSystem.isLinux() && OperatingSystem.architecture().isArm64()
+})
 class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
 
   @Shared
-  boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux")
+  boolean isLinux = OperatingSystem.isLinux()
 
   @Shared
   EpollEventLoopGroup epollEventLoopGroup = isLinux ? new EpollEventLoopGroup(4) : null

@@ -1,7 +1,6 @@
 package com.datadog.debugger.util;
 
-import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_IDENT_REASON;
-import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_TYPE_REASON;
+import static com.datadog.debugger.util.MoshiSnapshotHelper.REDACTED_STRING;
 import static com.datadog.debugger.util.MoshiSnapshotHelper.TIMEOUT_REASON;
 
 import com.datadog.debugger.el.Value;
@@ -173,10 +172,10 @@ public class StringTokenWriter implements SerializerWithLimits.TokenWriter {
         sb.append(", ...");
         break;
       case REDACTED_IDENT:
-        sb.append('{').append(REDACTED_IDENT_REASON).append('}');
+        sb.append('{').append(REDACTED_STRING).append('}');
         break;
       case REDACTED_TYPE:
-        sb.append('{').append(REDACTED_TYPE_REASON).append('}');
+        sb.append('{').append(REDACTED_STRING).append('}');
         break;
       default:
         throw new RuntimeException("Unsupported NotCapturedReason: " + reason);

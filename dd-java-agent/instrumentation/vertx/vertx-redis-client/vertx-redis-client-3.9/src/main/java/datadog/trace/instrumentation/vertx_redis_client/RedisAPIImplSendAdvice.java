@@ -4,8 +4,8 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.instrumentation.vertx_redis_client.VertxRedisClientDecorator.DECORATE;
 
+import datadog.context.ContextScope;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import io.vertx.core.Future;
 import io.vertx.core.net.SocketAddress;
 import io.vertx.redis.client.Redis;
@@ -27,7 +27,7 @@ public class RedisAPIImplSendAdvice {
      */
 
     // Note that we should not _leak_ the active scope to the handler if it gets executed directly
-    try (AgentScope scope = activateSpan(noopSpan())) {
+    try (ContextScope scope = activateSpan(noopSpan())) {
       // Get the handler from the context, set by RedisAPICallAdvice
       ResponseHandlerWrapper handler =
           InstrumentationContext.get(RedisAPI.class, ResponseHandlerWrapper.class).get(self);

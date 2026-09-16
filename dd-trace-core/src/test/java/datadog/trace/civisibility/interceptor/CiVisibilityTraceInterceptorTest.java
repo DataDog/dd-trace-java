@@ -9,7 +9,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
-import datadog.trace.junit.utils.tabletest.DDSpanTypesConverter;
+import datadog.trace.test.junit.utils.converter.DDSpanTypesConverter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -52,7 +52,7 @@ public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
 
     DDSpan span = (DDSpan) tracer.buildSpan("datadog", "sample-span").start();
-    span.context().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
+    span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
     span.finish();
 
     // expect:
@@ -72,7 +72,7 @@ public class CiVisibilityTraceInterceptorTest extends DDCoreJavaSpecification {
 
     DDSpan span =
         (DDSpan) tracer.buildSpan("datadog", "sample-span").withSpanType(spanType).start();
-    span.context().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
+    span.spanContext().setOrigin(CIConstants.CIAPP_TEST_ORIGIN);
     span.finish();
     writer.waitForTraces(1);
 

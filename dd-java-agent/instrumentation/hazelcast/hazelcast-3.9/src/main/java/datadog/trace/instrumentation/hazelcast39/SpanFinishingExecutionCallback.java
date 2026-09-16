@@ -17,7 +17,6 @@ public class SpanFinishingExecutionCallback<V> implements ExecutionCallback<V> {
   @Override
   public void onResponse(V response) {
     DECORATE.beforeFinish(span);
-    DECORATE.onResult(span, response);
     span.finish();
   }
 

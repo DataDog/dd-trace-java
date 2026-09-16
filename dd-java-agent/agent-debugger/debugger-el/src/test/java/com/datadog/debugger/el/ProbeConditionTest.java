@@ -10,7 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.el.ReflectiveFieldValueResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
+import datadog.trace.bootstrap.debugger.util.Redaction;
+import datadog.trace.bootstrap.debugger.util.TimeoutChecker;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,11 +32,21 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import okio.Okio;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 public class ProbeConditionTest {
+  private static final Duration TEST_TIMEOUT = Duration.ofMillis(500);
   // used in testExecuteCondition
   private int field = 10;
+
+  @BeforeAll
+  static void beforeAll() {
+    // Warming up here for first call, to avoid reaching timeout when evaluating
+    Redaction.isRedactedKeyword("strList");
+    ReflectiveFieldValueResolver.getFieldAsCapturedValue(
+        ProbeConditionTest.class, new ProbeConditionTest(), "field");
+  }
 
   @Test
   void testExecuteCondition() throws Exception {
@@ -42,17 +56,17 @@ public class ProbeConditionTest {
       private int field = 10;
       List<String> field2 = new ArrayList<>();
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj1());
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj1());
 
-    assertTrue(probeCondition.execute(ctx));
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
 
     class Obj2 {
       Collection<String> tags = Arrays.asList("hey", "world", "ko");
       private int field = 10;
       List<String> field2 = new ArrayList<>();
     }
-    ValueReferenceResolver ctx2 = RefResolverHelper.createResolver(new Obj2());
-    assertFalse(probeCondition.execute(ctx2));
+    ValueReferenceResolver ctx2 = EvalContextHelper.createResolver(new Obj2());
+    assertFalse(probeCondition.execute(ctx2, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -62,18 +76,20 @@ public class ProbeConditionTest {
       Container container = new Container("hello");
     }
     ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(
+        EvalContextHelper.createResolver(
             singletonMap("this", new Obj()), singletonMap("container", new Container("world")));
 
-    assertTrue(probeCondition.execute(ctx));
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
     class Obj2 {
       Container obj = new Container("hello");
     }
     ValueReferenceResolver ctx2 =
-        RefResolverHelper.createResolver(
+        EvalContextHelper.createResolver(
             singletonMap("this", new Obj2()), singletonMap("container", new Container("world")));
     RuntimeException runtimeException =
-        assertThrows(RuntimeException.class, () -> probeCondition.execute(ctx2));
+        assertThrows(
+            RuntimeException.class,
+            () -> probeCondition.execute(ctx2, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
     assertEquals("Cannot dereference field: container", runtimeException.getMessage());
   }
 
@@ -84,8 +100,8 @@ public class ProbeConditionTest {
       int intField1 = 42;
       String strField = "foo";
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
-    assertTrue(probeCondition.execute(ctx));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -95,9 +111,9 @@ public class ProbeConditionTest {
       Object objField = new Object();
     }
     ValueReferenceResolver ctx =
-        RefResolverHelper.createResolver(
+        EvalContextHelper.createResolver(
             singletonMap("this", new Obj()), singletonMap("nullField", null));
-    assertTrue(probeCondition.execute(ctx));
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -116,8 +132,8 @@ public class ProbeConditionTest {
 
       int idx = 1;
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
-    assertTrue(probeCondition.execute(ctx));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -126,8 +142,8 @@ public class ProbeConditionTest {
     class Obj {
       String strField = "foobar";
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
-    assertTrue(probeCondition.execute(ctx));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -148,10 +164,10 @@ public class ProbeConditionTest {
     class Obj {
       Collection<String> vets = Arrays.asList("vet1", "vet2", "vet3");
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
 
     // the condition checks if length of vets > 2
-    assertTrue(probeCondition.execute(ctx));
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -191,9 +207,11 @@ public class ProbeConditionTest {
     ProbeCondition probeCondition = loadFromResource("/test_conditional_09.json");
     Map<String, Object> args = new HashMap<>();
     args.put("password", "secret123");
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(args, null);
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(args, null);
     EvaluationException evaluationException =
-        assertThrows(EvaluationException.class, () -> probeCondition.execute(ctx));
+        assertThrows(
+            EvaluationException.class,
+            () -> probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
     assertEquals(
         "Could not evaluate the expression because 'password' was redacted",
         evaluationException.getMessage());
@@ -207,8 +225,8 @@ public class ProbeConditionTest {
     args.put("duration", Duration.ofSeconds(42));
     args.put("clazz", "foo".getClass());
     args.put("now", new Date(1700000000000L)); // 2023-11-14T00:00:00Z
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(args, null);
-    assertTrue(probeCondition.execute(ctx));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(args, null);
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -222,8 +240,8 @@ public class ProbeConditionTest {
       Set<String> emptySet = new HashSet<>();
       Object[] emptyArray = new Object[0];
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
-    assertTrue(probeCondition.execute(ctx));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -238,16 +256,24 @@ public class ProbeConditionTest {
       Object objVal = null;
       char charVal = 'a';
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
-    assertTrue(probeCondition.execute(ctx));
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
-  void testLenCount() throws Exception {
+  void testTimeoutAndLenCount() throws Exception {
     ProbeCondition probeCondition = loadFromResource("/test_conditional_14.json");
     class Obj {
       int[] intArray = new int[] {1, 1, 1};
       String[] strArray = new String[] {"foo", "bar"};
+      List<String> largeList = new ArrayList<>();
+
+      {
+        for (int i = 0; i < 1_000; i++) {
+          largeList.add("foobar" + i);
+        }
+      }
+
       Map<String, String> strMap = new HashMap<>();
 
       {
@@ -267,8 +293,18 @@ public class ProbeConditionTest {
         strList.add("foo");
       }
     }
-    ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
-    assertTrue(probeCondition.execute(ctx));
+    Obj obj = new Obj();
+    ValueReferenceResolver ctx = EvalContextHelper.createResolver(obj);
+    // first call is longer so ideal to test timeout
+    EvaluationException evaluationException =
+        assertThrows(
+            EvaluationException.class,
+            () ->
+                probeCondition.execute(
+                    ctx, TimeoutChecker.create(Config.get(), Duration.ofMillis(1))));
+    assertEquals("timeout (1ms)", evaluationException.getMessage());
+    // test good execution
+    assertTrue(probeCondition.execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
   }
 
   @Test
@@ -278,9 +314,11 @@ public class ProbeConditionTest {
     }
     List<String> lines = loadLinesFromResource("/null_expressions.txt");
     for (String line : lines) {
-      ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
+      ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
       EvaluationException ex =
-          assertThrows(EvaluationException.class, () -> load(line).execute(ctx));
+          assertThrows(
+              EvaluationException.class,
+              () -> load(line).execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
       assertEquals("Cannot evaluate the expression for null value", ex.getMessage(), line);
     }
   }
@@ -299,10 +337,13 @@ public class ProbeConditionTest {
     }
     List<String> lines = loadLinesFromResource("/contains_expressions.txt");
     for (String line : lines) {
-      ValueReferenceResolver ctx = RefResolverHelper.createResolver(new Obj());
-      assertTrue(load(line).execute(ctx));
+      ValueReferenceResolver ctx = EvalContextHelper.createResolver(new Obj());
+      assertTrue(load(line).execute(ctx, TimeoutChecker.create(Config.get(), TEST_TIMEOUT)));
     }
   }
+
+  @Test
+  public void timeoutExpressions() {}
 
   private static ProbeCondition loadFromResource(String resourcePath) throws IOException {
     InputStream input = ProbeConditionTest.class.getResourceAsStream(resourcePath);

@@ -22,8 +22,8 @@ class KotlinCoroutineInstrumentationTest extends AbstractKotlinCoroutineInstrume
     expect:
     trace.size() == expectedNumberOfSpans
     trace[0].resourceName.toString() == "KotlinCoroutineTests.tracedAcrossChannels"
-    findSpan(trace, "produce_2").context().getParentId() == trace[0].context().getSpanId()
-    findSpan(trace, "consume_2").context().getParentId() == trace[0].context().getSpanId()
+    findSpan(trace, "produce_2").spanContext().getParentId() == trace[0].spanContext().getSpanId()
+    findSpan(trace, "consume_2").spanContext().getParentId() == trace[0].spanContext().getSpanId()
 
     where:
     [dispatcherName, dispatcher] << dispatchersToTest

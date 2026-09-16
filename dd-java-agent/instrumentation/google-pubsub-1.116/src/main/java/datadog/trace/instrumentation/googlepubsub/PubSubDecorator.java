@@ -14,7 +14,12 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.bootstrap.instrumentation.api.*;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.MessagingClientDecorator;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -121,7 +126,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
     return spanKind;
   }
 
-  public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
+  public AgentSpan startConsumeSpan(final PubsubMessage message, final String subscription) {
     final AgentSpanContext spanContext =
         extractContextAndGetSpanContext(message, TextMapExtractAdapter.GETTER);
     final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_CONSUME, spanContext);

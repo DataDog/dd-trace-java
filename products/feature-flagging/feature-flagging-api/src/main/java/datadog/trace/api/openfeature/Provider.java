@@ -16,6 +16,7 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -28,13 +29,19 @@ public class Provider extends EventProvider implements Metadata {
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
+
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
   private final AtomicReference<InitializationState> initializationState =
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
-  private final FlagEvalHook flagEvalHook;
+  private final FlagEvalMetricsHook flagEvalMetricsHook;
+  // Span enrichment: null unless the gate is on, so the feature has no idle overhead when off.
+  private final SpanEnrichmentHook spanEnrichmentHook;
+  // Precomputed hook list returned by getProviderHooks() on every evaluation. Immutable and built
+  // once so gate-off evaluation allocates nothing on this hot path.
+  private final List<Hook> providerHooks;
 
   public Provider() {
     this(DEFAULT_OPTIONS, null);
@@ -45,20 +52,68 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   Provider(final Options options, final Evaluator evaluator) {
+    this(options, evaluator, null);
+  }
+
+  /**
+   * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
+   *     seam); when null, the gate is read via {@link SpanEnrichmentGate}.
+   */
+  Provider(
+      final Options options,
+      final Evaluator evaluator,
+      final Boolean spanEnrichmentEnabledOverride) {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
-    FlagEvalHook hook = null;
+    FlagEvalMetricsHook hook = null;
     try {
       metrics = new FlagEvalMetrics();
-      hook = new FlagEvalHook(metrics);
+      hook = new FlagEvalMetricsHook(metrics);
     } catch (LinkageError | Exception e) {
-      // FlagEvalMetrics logs the detailed error when it can load but OTel SDK init fails.
-      // This outer catch fires when the class itself can't load (OTel API absent entirely).
-      log.warn("Evaluation metrics unavailable — OTel classes not on classpath", e);
+      // This outer catch fires when the metrics helper itself can't load (OTel API absent).
+      log.warn("Evaluation metrics unavailable — OTel API classes not on classpath", e);
     }
     this.flagEvalMetrics = metrics;
-    this.flagEvalHook = hook;
+    this.flagEvalMetricsHook = hook;
+
+    // Span enrichment is wired ONLY when the gate is on — off means no capture hook and no idle
+    // per-evaluation overhead.
+    final boolean spanEnrichmentEnabled =
+        spanEnrichmentEnabledOverride != null
+            ? spanEnrichmentEnabledOverride
+            : SpanEnrichmentGate.isEnabled();
+    this.spanEnrichmentHook = spanEnrichmentEnabled ? new SpanEnrichmentHook() : null;
+
+    // Precompute the immutable hook list once so getProviderHooks() (called on every evaluation)
+    // allocates nothing, including when the gate is off.
+    final List<Hook> hooks = new ArrayList<>(3);
+    if (flagEvalMetricsHook != null) {
+      hooks.add(flagEvalMetricsHook);
+    }
+    // EVP flagevaluation hook: always registered; no-op when writer is absent (killswitch off).
+    // Writer is resolved lazily from FeatureFlaggingGateway.getFlagEvalWriter() on each call.
+    try {
+      final Hook flagEvalLoggingHook = buildFlagEvalLoggingHook();
+      if (flagEvalLoggingHook != null) {
+        hooks.add(flagEvalLoggingHook);
+      }
+    } catch (LinkageError | Exception e) {
+      // Keep older bootstrap/API combinations working: EVP recording is best-effort.
+    }
+    if (spanEnrichmentHook != null) {
+      hooks.add(spanEnrichmentHook);
+    }
+    this.providerHooks =
+        hooks.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(hooks);
+
+    // Announce the span-enrichment state at startup (matches the reference implementation).
+    // "enabled" only when the gate is on (the capture hook was constructed), otherwise "disabled".
+    if (spanEnrichmentHook != null) {
+      log.info("{} span enrichment enabled", METADATA);
+    } else {
+      log.info("{} span enrichment disabled", METADATA);
+    }
   }
 
   @Override
@@ -168,10 +223,11 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public List<Hook> getProviderHooks() {
-    if (flagEvalHook == null) {
-      return Collections.emptyList();
-    }
-    return Collections.singletonList(flagEvalHook);
+    return providerHooks;
+  }
+
+  Hook buildFlagEvalLoggingHook() {
+    return FlagEvalLoggingHook.INSTANCE;
   }
 
   @Override
@@ -179,9 +235,17 @@ public class Provider extends EventProvider implements Metadata {
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }
+    // Span enrichment needs no provider-close cleanup here: the capture hook holds no tracer state.
+    // The agent-side write tier owns the interceptor and per-trace state and is torn down with the
+    // feature-flagging subsystem, not per provider.
     if (evaluator != null) {
       evaluator.shutdown();
     }
+  }
+
+  // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impl.
+  SpanEnrichmentHook spanEnrichmentHook() {
+    return spanEnrichmentHook;
   }
 
   @Override
@@ -224,7 +288,7 @@ public class Provider extends EventProvider implements Metadata {
     return evaluator.evaluate(Value.class, key, defaultValue, ctx);
   }
 
-  @SuppressForbidden // Class#forName(String) used to lazy load internal-api dependencies
+  @SuppressForbidden // Class#forName(String) used to lazy-load the evaluator implementation
   protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
     return Class.forName(EVALUATOR_IMPL);
   }

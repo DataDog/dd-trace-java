@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.trace.api.cache.RadixTreeCache.UNSET_STATUS;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Mapper;
@@ -82,7 +83,8 @@ public final class TraceMapperV0_5 implements TraceMapper {
       span.processTagsAndBaggage(
           metaWriter
               .withWritable(writable)
-              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten));
+              .forSpan(i == 0, i == trace.size() - 1, !firstSpanWritten),
+          i == 0);
       /* 12 */
       writeDictionaryEncoded(writable, span.getType());
       firstSpanWritten = true;
@@ -224,7 +226,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
       int metaSize =
           metadata.getBaggage().size()
               + tags.size()
-              + (null == metadata.getHttpStatusCode() ? 0 : 1)
+              + (UNSET_STATUS == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
               + 1;
@@ -258,9 +260,9 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writeDictionaryEncoded(writable, THREAD_NAME);
       writeDictionaryEncoded(writable, metadata.getThreadName());
-      if (null != metadata.getHttpStatusCode()) {
+      if (UNSET_STATUS != metadata.getHttpStatusCode()) {
         writeDictionaryEncoded(writable, HTTP_STATUS);
-        writeDictionaryEncoded(writable, metadata.getHttpStatusCode());
+        writeDictionaryEncoded(writable, metadata.getHttpStatusCodeString());
       }
       if (null != metadata.getOrigin()) {
         writeDictionaryEncoded(writable, ORIGIN_KEY);

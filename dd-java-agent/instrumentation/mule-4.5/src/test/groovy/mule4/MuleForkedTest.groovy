@@ -22,12 +22,6 @@ import spock.lang.Shared
 
 class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
 
-  // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
-  @Override
-  boolean useStrictTraceWrites() {
-    return false
-  }
-
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
