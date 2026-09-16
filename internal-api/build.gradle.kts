@@ -58,6 +58,8 @@ extra["excludedClassesCoverage"] = listOf(
   // These are almost fully abstract classes so nothing to test
   "datadog.trace.api.profiling.RecordingData",
   "datadog.trace.api.appsec.AppSecEventTracker",
+  // Anonymous EventTrackerService adapter; covered by AppSecEventTrackerTest in dd-java-agent:appsec
+  "datadog.trace.api.appsec.AppSecEventTracker.1",
   // POJOs
   "datadog.trace.api.appsec.HttpClientPayload",
   "datadog.trace.api.appsec.HttpClientRequest",
@@ -96,6 +98,7 @@ extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTraceConfig",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.NoopTracerAPI",
   "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI",
+  "datadog.trace.bootstrap.instrumentation.api.AgentTracer.TraceScopeContinuationWrapper",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan",
   "datadog.trace.bootstrap.instrumentation.api.BlackHoleSpan.Context",
   "datadog.trace.bootstrap.instrumentation.api.ErrorPriorities",
@@ -281,6 +284,7 @@ dependencies {
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
+  testImplementation(libs.assertj.core)
   testImplementation("org.junit.vintage:junit-vintage-engine:${libs.versions.junit5.get()}")
   testImplementation(libs.commons.math)
   testImplementation(libs.bundles.mockito)
