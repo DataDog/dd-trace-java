@@ -13,9 +13,11 @@ import akka.http.scaladsl.model.StatusCode;
 import akka.http.scaladsl.model.StatusCodes;
 import akka.util.ByteString;
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.akkahttp.AkkaHttpServerHeaders;
@@ -42,7 +44,16 @@ public class BlockingResponseHelper {
     if (action instanceof Flow.Action.RequestBlockingAction) {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       if (brf instanceof AkkaBlockResponseFunction) {
-        brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+        if (!brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba)) {
+          // Safe to report here: both wiring points (DatadogAsyncHandlerWrapper.apply and
+          // DatadogServerRequestResponseFlowWrapper's onPush) call finishSpan/onRequestEnded
+          // synchronously, immediately after this method returns, in the same callback/thread,
+          // with no scheduling boundary in between.
+          Object rawAppSecCtx = requestContext.getData(RequestContextSlot.APPSEC);
+          if (rawAppSecCtx instanceof AppSecContext) {
+            ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+          }
+        }
         HttpResponse altResponse =
             ((AkkaBlockResponseFunction) brf).maybeCreateAlternativeResponse();
         if (altResponse != null) {

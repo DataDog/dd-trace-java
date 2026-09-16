@@ -11,6 +11,7 @@ import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -111,7 +112,12 @@ public class ParsedBodyParametersInstrumentation extends InstrumenterModule.AppS
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            if (!blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+              Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+              if (rawAppSecCtx instanceof AppSecContext) {
+                ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+              }
+            }
             if (t == null) {
               t = new BlockingException("Blocked request (for Parameters/processParameters)");
             }

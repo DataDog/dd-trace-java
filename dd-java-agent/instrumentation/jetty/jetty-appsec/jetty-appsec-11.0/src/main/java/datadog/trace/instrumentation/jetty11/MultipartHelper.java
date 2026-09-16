@@ -5,6 +5,7 @@ import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.appsec.AppSecContext;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -119,6 +120,10 @@ public class MultipartHelper {
           reqCtx.getTraceSegment().effectivelyBlocked();
           return new BlockingException("Blocked request (multipart file content)");
         }
+        Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+        if (rawAppSecCtx instanceof AppSecContext) {
+          ((AppSecContext) rawAppSecCtx).reportBlockFailure();
+        }
       }
     }
     return null;
@@ -149,6 +154,10 @@ public class MultipartHelper {
         if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
           reqCtx.getTraceSegment().effectivelyBlocked();
           return new BlockingException("Blocked request (multipart file upload)");
+        }
+        Object rawAppSecCtx = reqCtx.getData(RequestContextSlot.APPSEC);
+        if (rawAppSecCtx instanceof AppSecContext) {
+          ((AppSecContext) rawAppSecCtx).reportBlockFailure();
         }
       }
     }
