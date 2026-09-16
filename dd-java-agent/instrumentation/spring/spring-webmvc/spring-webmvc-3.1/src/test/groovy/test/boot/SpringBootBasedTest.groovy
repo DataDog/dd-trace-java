@@ -544,6 +544,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "runtime-id" String
             "thread.id" Number
             "thread.name" String
+            "_dd.sdk.otlp_export" "false"
             serviceNameSource "inferred_proxy"
           }
         }
