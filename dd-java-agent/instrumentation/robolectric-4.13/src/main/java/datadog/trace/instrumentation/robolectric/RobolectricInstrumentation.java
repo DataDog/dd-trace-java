@@ -37,9 +37,7 @@ public class RobolectricInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".AndroidVersionUtils", packageName + ".RobolectricTestAnnotator"
-    };
+    return new String[] {packageName + ".RobolectricTestAnnotator"};
   }
 
   @Override
