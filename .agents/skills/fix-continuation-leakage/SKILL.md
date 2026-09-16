@@ -41,8 +41,37 @@ resolution, scope, thread, timing, and callsite data needed to find the missing 
    - `[deferred-cleanup]`: a root iteration scope transferred cleanup to the bounded iteration
      cleaner. It may remain open at the test boundary and is not a leak. Do not generalize this to
      other `ITERATION` scopes; an unregistered iteration scope must still close normally.
-4. Fix ownership where it breaks. Prefer one owner and `try/finally` cleanup across every exit.
-5. Rerun the failing test, then its module.
+4. Classify the captured work before changing code:
+   - For a real asynchronous operation, repair success, failure, cancellation, and rejection
+     cleanup.
+   - If the test started the work, wait for its terminal event and dispose or close it before the
+     test ends.
+   - If a framework initializer creates a permanent sentinel with no context consumer, disable
+     propagation only around that creation boundary. Match the exact type and method, and update
+     `knownMatchingTypes()` when shortcut matching is used.
+   - If an executor replaces a task before delegating, avoid capturing the discarded task while
+     preserving capture for the task actually submitted.
+   - For intentionally delayed work, wait for its documented terminal event rather than
+     suppressing propagation.
+   - For a context swap, verify both restoration and resource cleanup. Restore or close the
+     returned ownership object in `finally`; do not ignore every swap.
+5. Prefer a test-lifecycle fix when production behavior is correct. Otherwise fix ownership where
+   it breaks, with one owner and `try/finally` cleanup across every exit.
+6. Rerun the failing test, then its module. Validate the leaked record and root-trace publication
+   separately from trace-count or arrival-order assertions; fixing a leak may expose an unrelated
+   flaky assertion.
+
+## Fixture setup failures
+
+Automatic recording may start after `setupSpec()` or equivalent fixture initialization. For an
+initialization error or a trace wait inside setup, temporarily record around that setup block and
+remove the diagnostic scaffolding after finding the owner.
+
+Apply process-wide configuration before starting servers, actor systems, executors, or other
+long-lived fixtures. Use a forked test or recreate the fixture when its static state cannot be
+reset safely.
+
+## Do not hide evidence
 
 Do not make the test green with `strictTraceWrites(false)` or
 `@TrackScopeContinuations(enabled=false, reason="...")`. Those hide evidence. The opt-out requires
