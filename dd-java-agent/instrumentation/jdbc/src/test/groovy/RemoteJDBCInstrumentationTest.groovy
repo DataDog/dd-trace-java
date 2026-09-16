@@ -158,10 +158,16 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       .withDatabaseName(dbName.get(POSTGRESQL))
       .withUsername(jdbcUserNames.get(POSTGRESQL))
       .withPassword(jdbcPasswords.get(POSTGRESQL))
-    server.start()
-    PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(POSTGRESQL_PORT), 5, SECONDS)
-    jdbcUrls.put(POSTGRESQL, "${server.getJdbcUrl()}")
-    postgres = server
+    try {
+      server.start()
+      PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(POSTGRESQL_PORT), 5, SECONDS)
+      jdbcUrls.put(POSTGRESQL, "${server.getJdbcUrl()}")
+      postgres = server
+    } finally {
+      if (postgres == null) {
+        server.close()
+      }
+    }
   }
 
   private void startMysql() {
@@ -175,10 +181,16 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       .withPassword(jdbcPasswords.get(MYSQL))
     // https://github.com/testcontainers/testcontainers-java/issues/914
     server.addParameter("TC_MY_CNF", null)
-    server.start()
-    PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(MYSQL_PORT), 5, SECONDS)
-    jdbcUrls.put(MYSQL, "${server.getJdbcUrl()}")
-    mysql = server
+    try {
+      server.start()
+      PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(MYSQL_PORT), 5, SECONDS)
+      jdbcUrls.put(MYSQL, "${server.getJdbcUrl()}")
+      mysql = server
+    } finally {
+      if (mysql == null) {
+        server.close()
+      }
+    }
   }
 
   private void startSqlserver() {
@@ -191,10 +203,16 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       .withPassword(jdbcPasswords.get(SQLSERVER))
       // SQL Server can occasionally abort while booting on virtualized CI hosts.
       .withStartupAttempts(3)
-    server.start()
-    PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(MS_SQL_SERVER_PORT), 5, SECONDS)
-    jdbcUrls.put(SQLSERVER, "${server.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
-    sqlserver = server
+    try {
+      server.start()
+      PortUtils.waitForPortToOpen(server.getHost(), server.getMappedPort(MS_SQL_SERVER_PORT), 5, SECONDS)
+      jdbcUrls.put(SQLSERVER, "${server.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
+      sqlserver = server
+    } finally {
+      if (sqlserver == null) {
+        server.close()
+      }
+    }
   }
 
   private void startOracle() {
@@ -208,9 +226,15 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
       .withStartupTimeout(Duration.ofMinutes(5))
       .withUsername(jdbcUserNames.get(ORACLE))
       .withPassword(jdbcPasswords.get(ORACLE))
-    server.start()
-    jdbcUrls.put(ORACLE, "${server.getJdbcUrl()}".replace("xepdb1", dbName.get(ORACLE)))
-    oracle = server
+    try {
+      server.start()
+      jdbcUrls.put(ORACLE, "${server.getJdbcUrl()}".replace("xepdb1", dbName.get(ORACLE)))
+      oracle = server
+    } finally {
+      if (oracle == null) {
+        server.close()
+      }
+    }
   }
 
   def createTomcatDS(DbType dbType, String jdbcUrl) {
