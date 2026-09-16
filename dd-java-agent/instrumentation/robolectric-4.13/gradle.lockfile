@@ -119,6 +119,7 @@ org.ow2.asm:asm-tree:9.8=compileClasspath
 org.ow2.asm:asm-util:9.10.1=spotbugs
 org.ow2.asm:asm-util:9.7.1=testRuntimeClasspath
 org.ow2.asm:asm:9.10.1=buildTimeInstrumentationPlugin,compileClasspath,muzzleTooling,runtimeClasspath,spotbugs,testCompileClasspath,testRuntimeClasspath
+org.robolectric:android-all:14-robolectric-10818077=compileClasspath
 org.robolectric:annotations:4.16.1=compileClasspath
 org.robolectric:junit:4.16.1=compileClasspath
 org.robolectric:nativeruntime:4.16.1=compileClasspath
