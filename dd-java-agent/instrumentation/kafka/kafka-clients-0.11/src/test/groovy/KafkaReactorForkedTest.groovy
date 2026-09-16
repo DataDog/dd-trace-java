@@ -29,11 +29,6 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
   // create 4 partitions for more parallelism
   KafkaEmbedded embeddedKafka
 
-  @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
   def setup() {
     embeddedKafka = new KafkaEmbedded(1, true, 4, KafkaClientTestBase.SHARED_TOPIC)
     embeddedKafka.before()
