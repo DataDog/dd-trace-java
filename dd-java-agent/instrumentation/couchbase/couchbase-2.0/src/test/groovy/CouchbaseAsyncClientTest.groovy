@@ -16,12 +16,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 abstract class CouchbaseAsyncClientTest extends AbstractCouchbaseTest {
   static final int TIMEOUT = 30
 
-  @Override
-  boolean useStrictTraceWrites() {
-    // Async spans often finish out of order, so allow buffering.
-    return false
-  }
-
   def "test hasBucket #type"() {
     setup:
 

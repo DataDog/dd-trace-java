@@ -62,11 +62,6 @@ abstract class VertxRedisTestBase extends VersionedNamingTestBase {
     return "redis.query"
   }
 
-  @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
   def setupSpec() {
     redisServer.start()
     redis = Redis.createClient(vertx, redisServer.getRedisURI())
