@@ -12,6 +12,8 @@ import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.civisibility.config.ExecutionSettings
 import datadog.trace.civisibility.config.TestManagementSettings
 import datadog.trace.civisibility.execution.AttemptToFix
+import datadog.trace.civisibility.execution.AutoTestRetry
+import datadog.trace.civisibility.execution.Regular
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import spock.lang.Specification
@@ -78,6 +80,36 @@ class ExecutionStrategyTest extends Specification {
     strategy.executionPolicy(testID, TestSourceData.UNKNOWN, []).class == AttemptToFix
   }
 
+  def "test ATR applicability when retry only known flakes is #retryOnlyKnownFlakes, flaky data available is #flakyDataAvailable, and test is known flaky is #knownFlaky"() {
+    setup:
+    def testFQN = new TestFQN("suite", "name")
+    def testID = new TestIdentifier(testFQN, null)
+
+    def config = Stub(Config)
+    config.isCiVisibilityFlakyRetryOnlyKnownFlakes() >> retryOnlyKnownFlakes
+    config.getCiVisibilityFlakyRetryCount() >> 5
+    config.getCiVisibilityTotalFlakyRetryCount() >> 100
+
+    def executionSettings = Stub(ExecutionSettings)
+    executionSettings.getTestManagementSettings() >> TestManagementSettings.DEFAULT
+    executionSettings.getEarlyFlakeDetectionSettings() >> EarlyFlakeDetectionSettings.DEFAULT
+    executionSettings.isFlakyTestRetriesEnabled() >> true
+    executionSettings.isFlakyTestsDataAvailable() >> flakyDataAvailable
+    executionSettings.isFlaky(testFQN) >> knownFlaky
+
+    def strategy = givenAnExecutionStrategy(executionSettings, config)
+
+    expect:
+    strategy.executionPolicy(testID, TestSourceData.UNKNOWN, []).class == expectedPolicy
+
+    where:
+    retryOnlyKnownFlakes | flakyDataAvailable | knownFlaky | expectedPolicy
+    false                | true               | false      | AutoTestRetry
+    true                 | true               | false      | Regular
+    true                 | true               | true       | AutoTestRetry
+    true                 | false              | false      | AutoTestRetry
+  }
+
   def "test attempt to fix + efd"() {
     setup:
     def testFQN = new TestFQN("suite", "name")
@@ -117,8 +149,9 @@ class ExecutionStrategyTest extends Specification {
     secondOutcome.retryReason() == RetryReason.attemptToFix
   }
 
-  private ExecutionStrategy givenAnExecutionStrategy(ExecutionSettings executionSettings = ExecutionSettings.EMPTY) {
-    def config = Config.get()
+  private ExecutionStrategy givenAnExecutionStrategy(
+    ExecutionSettings executionSettings = ExecutionSettings.EMPTY,
+    Config config = Config.get()) {
     def resolver = Stub(SourcePathResolver)
     def linesResolver = Stub(LinesResolver)
 
