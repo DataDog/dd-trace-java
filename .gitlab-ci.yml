@@ -454,6 +454,11 @@ populate_dep_cache:
       else
         echo "Plugin cache is unavailable; continuing with a cold dependency cache."
       fi
+  script:
+    # Replace the inherited script with one invocation; reuse restored build outputs without clean.
+    # Warm the full target, without build_tests's changed-project filtering.
+    # Prefetch uses the task graph, so configuration-cache reuse must stay disabled here.
+    - ./gradlew $GRADLE_TARGET -PskipTests -PprefetchTestDependencies --no-configuration-cache $GRADLE_ARGS
   parallel:
     matrix:
       - GRADLE_TARGET: ":dd-java-agent:shadowJar :dd-trace-api:jar :dd-trace-ot:shadowJar"

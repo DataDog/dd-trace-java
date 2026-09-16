@@ -14,6 +14,17 @@ if (project != rootProject) {
   logger.error("This plugin has been applied on a non-root project: ${project.path}")
 }
 
+if (providers.gradleProperty("prefetchTestDependencies").isPresent) {
+  // Skipped tests do not resolve their runtime classpaths. Warm only the selected task graph,
+  // including runtime-only dependencies and parent POMs, before the CI dependency cache is saved.
+  gradle.taskGraph.whenReady(Action<TaskExecutionGraph> {
+    allTasks.filterIsInstance<Test>().forEach { test ->
+      logger.lifecycle("Prefetching runtime dependencies for ${test.path}")
+      test.classpath.files
+    }
+  })
+}
+
 allprojects {
   // Enable tests only on the selected slot (if -Pslot=n/t is provided)
   tasks.withType<Test>().configureEach {
